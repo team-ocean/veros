@@ -29,9 +29,13 @@ def montecarlo(callback, samples, **kwargs):
         callback(**callVals)
 
 def normal(samples, minVal, maxVal):
-    mean = (maxVal + minVal) / 2.
-    deviation = (mean - minVal) / 3.
-    return numpy.random.normal(mean, deviation, samples)
+    # Normal distribution from 0 to 2
+    distribution = numpy.random.standard_normal(samples) + 1
+    # From 0 to (maxVal - minVal)
+    distribution *= (maxVal - minVal) / 2.
+    # From minVal to maxVal
+    distribution += minVal
+    return distribution
 
 def randomFloat(samples, minVal, maxVal):
     return numpy.random.uniform(minVal, maxVal, samples)
