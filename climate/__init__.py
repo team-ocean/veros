@@ -1,7 +1,8 @@
 import importlib
 
 __all__ = [
-    "data"
+    "data",
+    "io"
 ]
 
 for module in __all__:
