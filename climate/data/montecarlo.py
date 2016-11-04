@@ -1,4 +1,5 @@
 import numpy
+import climate.io.wrapper as wrapper
 
 class dist:
     normal, random = range(2)

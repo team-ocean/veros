@@ -1,4 +1,5 @@
 import threading
+import numpy
 
 class wrapper:
     _safe_functions = ["__repr__", "__len__", "__str__"]
@@ -8,7 +9,7 @@ class wrapper:
         self._writing = None
 
     def _wait_for_disk(self):
-        if not self._writing == None:
+        if self._writing != None:
             self._writing.join()
         self._writing = None
 
@@ -22,13 +23,24 @@ class wrapper:
                 return wrapper(origattr(*args, **kwargs))
             return funcwrap
 
-    def write(self):
-        """ write shit to disk """
-        print "I'm writing"
+    def write(self, filename):
+        def threadWrite(filename):
+            if isinstance(self._data, numpy.ndarray):
+                numpy.savetxt(filename, self._data, delimiter="\n")
+            else:
+                with open(filename, "w") as f:
+                    f.write(self._data)
+        self._writing = threading.Thread(target=threadWrite, args=(filename,))
+        self._writing.start()
 
     def __getitem__(self, key):
-        self._wait_for_disk()
         return self._data.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        self._wait_for_disk()
+        if isinstance(value, wrapper):
+            value = value._data
+        self._data.__setitem__(key, value)
 
     def __coerce__(self, other):
         return None

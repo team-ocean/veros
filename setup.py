@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name = "Climate",
+    name = "Climatedsl",
     version = "0.0.1beta",
     packages = find_packages(),
     install_requires=['numpy'],
