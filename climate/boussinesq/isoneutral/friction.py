@@ -1,3 +1,5 @@
+import numpy as np
+
 def isoneutral_friction(kbot, nz):
     """
     =======================================================================
@@ -9,11 +11,11 @@ def isoneutral_friction(kbot, nz):
     real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
     real*8 :: aloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
 
-    a_tri = numpy.zeros(nz)
-    b_tri = numpy.zeros(nz)
-    c_tri = numpy.zeros(nz)
-    d_tri = numpy.zeros(nz)
-    delta = numpy.zeros(nz)
+    a_tri = np.zeros(nz)
+    b_tri = np.zeros(nz)
+    c_tri = np.zeros(nz)
+    d_tri = np.zeros(nz)
+    delta = np.zeros(nz)
 
     if enable_implicit_vert_friction:
         aloc = u[:,:,:,taup1]

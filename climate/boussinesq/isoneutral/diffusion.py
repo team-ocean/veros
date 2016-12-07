@@ -1,3 +1,4 @@
+import numpy as np
 import climate.boussinesq.numerics as numerics
 
 def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
@@ -92,11 +93,11 @@ def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
     ---------------------------------------------------------------------------------
     """
     aloc = tr(:,:,:,taup1)
-    a_tri = numpy.zeroes(nz)
-    b_tri = numpy.zeroes(nz)
-    c_tri = numpy.zeroes(nz)
-    d_tri = numpy.zeroes(nz)
-    delta = numpy.zeroes(nz)
+    a_tri = np.zeroes(nz)
+    b_tri = np.zeroes(nz)
+    c_tri = np.zeroes(nz)
+    d_tri = np.zeroes(nz)
+    delta = np.zeroes(nz)
     for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
         for i xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
             ks=kbot[i,j]
@@ -333,7 +334,7 @@ def isoneutral_diffusion_all(is_,ie_,js_,je_,nz_,tr,istemp):
     if enable_skew_diffusion:
         aloc = K_gm
     else:
-        aloc = numpy.zeros(ie_pe+onx-(is_pe-onx),je_pe+onx-(js_pe-onx),nz)
+        aloc = np.zeros(ie_pe+onx-(is_pe-onx),je_pe+onx-(js_pe-onx),nz)
 
     """
     -----------------------------------------------------------------------
@@ -420,11 +421,11 @@ def isoneutral_diffusion_all(is_,ie_,js_,je_,nz_,tr,istemp):
     ---------------------------------------------------------------------------------
     """
     aloc = tr[:,:,:,taup1]
-    a_tri=numpy.zeros(nz)
-    b_tri=numpy.zeros(nz)
-    c_tri=numpy.zeros(nz)
-    d_tri=numpy.zeros(nz)
-    delta=numpy.zeros(nz)
+    a_tri=np.zeros(nz)
+    b_tri=np.zeros(nz)
+    c_tri=np.zeros(nz)
+    d_tri=np.zeros(nz)
+    delta=np.zeros(nz)
     for j in xrange(js_pe, je_pe+1): # j=js_pe,je_pe
         for i in xrange(is_pe, ie_pe+1): # i=is_pe,ie_pe
             ks = kbot[i,j]
