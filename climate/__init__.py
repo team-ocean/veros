@@ -1,8 +1,11 @@
 import importlib
 
+from .timer import Timer
+
 __all__ = [
     "data",
-    "io"
+    "io",
+    "boussinesq"
 ]
 
 for module in __all__:
