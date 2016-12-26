@@ -6,7 +6,7 @@ setup(
     name = "Climatedsl",
     version = "0.0.1beta",
     packages = find_packages(),
-    install_requires=['numpy'],
+    install_requires=['numpy', 'scipy'],
 
     author = "René Løwe Jacobsen",
     author_email = "rlj@rloewe.net",
