@@ -307,7 +307,7 @@ def gsw_dHdS1(sa,ct,p):
     ==========================================================================
     """
     delta = 1e-4
-    gsw_dHdS1 = (gsw_dyn_enthalpy(sa+delta,ct,p)-gsw_dyn_enthalpy(sa,ct,p))/delta
+    return (gsw_dyn_enthalpy(sa+delta,ct,p)-gsw_dyn_enthalpy(sa,ct,p))/delta
 
 def gsw_dHdT(sa_in, ct_in, p):
     """
