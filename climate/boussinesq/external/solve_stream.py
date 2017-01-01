@@ -11,6 +11,7 @@ import sys
 import numpy as np
 from scipy.linalg import lapack
 from climate.boussinesq.external import solve_pressure, island
+from climate.boussinesq import cyclic
 
 def streamfunction_init():
     """
@@ -237,7 +238,7 @@ def streamfunction_init():
                 psin[i,j,isle] = 1.0
         #MPI stuff
         #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle));
-        #call setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle))
+        cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle))
         if my_pe == 0:
             print ' solving for boundary contribution by island ',isle
 
@@ -246,7 +247,7 @@ def streamfunction_init():
             print ' itts =  ',congr_itts
         #MPI stuff
         #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle));
-        #call setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle))
+        cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle))
 
     """
     -----------------------------------------------------------------------
@@ -415,9 +416,9 @@ def solve_streamfunction():
 
     #MPI stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx);
-    #call setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx)
+    cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx)
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy);
-    #call setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy)
+    cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy)
 
     for j in (js_pe, je_pe+1): #j=js_pe,je_pe
         for i in xrange(is_pe, ie_pe): #i=is_pe,ie_pe
@@ -429,7 +430,7 @@ def solve_streamfunction():
 
     # MPI stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,dpsi(:,:,taup1))
-    #call setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,dpsi(:,:,taup1))
+    cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,dpsi(:,:,taup1))
 
     if nisle > 1:
         # calculate island integrals of forcing, keep psi constant on island 1
@@ -535,12 +536,11 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
     #real*8 , allocatable,save :: cf(:,:,:,:)
     #logical :: converged
 
-    #TODO: first should be some sort of global variable, it uses save keyword in
-    #the fortran code. cf variable is also saved.
-    if first:
+    # congrad_streamfunction.first is basically like a static variable
+    if congrad_streamfunction.first:
         cf = np.zeros((ie_pe+onx+1-(is_pe-onx), je_pe+onx+1-(js_pe-onx), 3, 3))
         make_coeff_streamfunction(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx, cf)
-        first = False
+        congrad_streamfunction.first = False
 
     Z[...] = 0.
     Zres[...] = 0.
@@ -560,7 +560,7 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
     """
     # MPI stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,sol)
-    #call setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,sol)
+    cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,sol)
     """
     -----------------------------------------------------------------------
          res(0)  = forc - A * eta(0)
@@ -629,7 +629,7 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
                 ss[i,j] = Zres[i,j] + betaquot*ss[i,j]
         #MPI stuff
         #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,ss)
-        #call setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,ss)
+        cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,ss)
         """
         -----------------------------------------------------------------------
                As(k)     = A * ss(k)
@@ -696,6 +696,7 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
     if my_pe == 0:
         print ' WARNING: max iterations exceeded at itt=',itt
     fail()
+congrad_streamfunction.first = True
 
 def info(n, my_pe, estimated_error, congr_epsilon):
     converged = True

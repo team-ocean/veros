@@ -1,4 +1,38 @@
-def momentum():
+from climate.boussinesq.external import solve_stream, solve_pressure
+
+def momentum(
+        fricTimer,
+        pressTimer,
+        du,
+        dv,
+        dw,
+        du_cor,
+        dv_cor,
+        dw_cor,
+        maskU,
+        maskV,
+        maskW,
+        coriolis_t,
+        coriolis_h,
+        u,
+        v,
+        w
+        dxt,
+        dyt,
+        dzt,
+        dxu,
+        dyu,
+        dzw,
+        cost,
+        cosu,
+        tantr,
+        area_t,
+        area_u,
+        area_v,
+        psi,
+        coord_degree,
+        enable_hydrostatic,
+        ):
     """
     =======================================================================
      solve for momentum for taup1
@@ -42,8 +76,8 @@ def momentum():
     if not enable_hydrostatic:
         for k in xrange(2, nz+1): #k=2,nz
             for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
-                du_cor[i,:,k] -= maskU[i,:,k]*0.25*(coriolis_h[i  ,:]*area_t[i  ,:]*(w[i  ,:,k,tau]+w[i  ,:,k-1,tau]) &
-                                                   +coriolis_h[i+1,:]*area_t[i+1,:]*(w[i+1,:,k,tau]+w[i+1,:,k-1,tau]) ) &
+                du_cor[i,:,k] -= maskU[i,:,k]*0.25*(coriolis_h[i  ,:]*area_t[i  ,:]*(w[i  ,:,k,tau]+w[i  ,:,k-1,tau]) \
+                                                   +coriolis_h[i+1,:]*area_t[i+1,:]*(w[i+1,:,k,tau]+w[i+1,:,k-1,tau]) ) \
                                                      /area_u[i,:]
         k = 1
         for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
@@ -75,7 +109,7 @@ def momentum():
     ---------------------------------------------------------------------------------
     """
     for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
-        for i in xrange(is_pe, ie_pe+1) #i=is_pe,ie_pe
+        for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
             du[i,j,nz,tau] += maskU[i,j,nz]*surface_taux[i,j]/dzt[nz]
             dv[i,j,nz,tau] += maskV[i,j,nz]*surface_tauy[i,j]/dzt[nz]
 
@@ -84,94 +118,100 @@ def momentum():
      advection
     ---------------------------------------------------------------------------------
     """
-    #TODO: fix
-    call momentum_advection
+    momentum_advection()
     du[:,:,:,tau] += du_adv
     dv[:,:,:,tau] += dv_adv
     if not enable_hydrostatic:
         dw[:,:,:,tau] += dw_adv
 
-    #TODO: introduce timer
-    call tic('fric')
-    """
-    ---------------------------------------------------------------------------------
-     vertical friction
-    ---------------------------------------------------------------------------------
-    """
-    K_diss_v = 0.0
-    if enable_implicit_vert_friction:
-        #TODO: fix
-        call implicit_vert_friction
-    if enable_explicit_vert_friction:
-        #TODO: fix
-        call explicit_vert_friction
+    with fricTimer:
+        """
+        ---------------------------------------------------------------------------------
+         vertical friction
+        ---------------------------------------------------------------------------------
+        """
+        K_diss_v[...] = 0.0
+        if enable_implicit_vert_friction:
+            #TODO: not implemented yet
+            #implicit_vert_friction()
+            raise NotImplementedError()
+        if enable_explicit_vert_friction:
+            #TODO: not implemented yet
+            #explicit_vert_friction()
+            raise NotImplementedError()
 
-    """
-    ---------------------------------------------------------------------------------
-     TEM formalism for eddy-driven velocity
-    ---------------------------------------------------------------------------------
-    """
-    if enable_TEM_friction:
-        #TODO: fix
-        call isoneutral_friction
+        """
+        ---------------------------------------------------------------------------------
+         TEM formalism for eddy-driven velocity
+        ---------------------------------------------------------------------------------
+        """
+        if enable_TEM_friction:
+            #TODO: not implemented yet
+            #call isoneutral_friction
+            raise NotImplementedError()
 
-    """
-    ---------------------------------------------------------------------------------
-    horizontal friction
-    ---------------------------------------------------------------------------------
-    """
-    if enable_hor_friction:
-        #TODO: fix
-        call harmonic_friction
-    if enable_biharmonic_friction:
-        #TODO: fix
-        call biharmonic_friction
+        """
+        ---------------------------------------------------------------------------------
+        horizontal friction
+        ---------------------------------------------------------------------------------
+        """
+        if enable_hor_friction:
+            #TODO: not implemented yet
+            #call harmonic_friction
+            raise NotImplementedError()
+        if enable_biharmonic_friction:
+            #TODO: not implemented yet
+            #call biharmonic_friction
+            raise NotImplementedError()
 
-    """
-    ---------------------------------------------------------------------------------
-     Rayleigh and bottom friction
-    ---------------------------------------------------------------------------------
-    """
-    K_diss_bot = 0.0
-    if enable_ray_friction:
-        #TODO: fix
-        call rayleigh_friction
-    if enable_bottom_friction:
-        #TODO: fix
-        call linear_bottom_friction
-    if enable_quadratic_bottom_friction:
-        #TODO: fix
-        call quadratic_bottom_friction
+        """
+        ---------------------------------------------------------------------------------
+         Rayleigh and bottom friction
+        ---------------------------------------------------------------------------------
+        """
+        K_diss_bot[...] = 0.0
+        if enable_ray_friction:
+            #TODO: not implemented yet
+            #call rayleigh_friction
+            raise NotImplementedError()
+        if enable_bottom_friction:
+            #TODO: not implemented yet
+            #call linear_bottom_friction
+            raise NotImplementedError()
+        if enable_quadratic_bottom_friction:
+            #TODO: not implemented yet
+            #call quadratic_bottom_friction
+            raise NotImplementedError()
 
-    """
-    ---------------------------------------------------------------------------------
-     add user defined forcing
-    ---------------------------------------------------------------------------------
-    """
-    if enable_momentum_sources:
-        #TODO: fix
-        call momentum_sources
-    call toc('fric')
+        """
+        ---------------------------------------------------------------------------------
+         add user defined forcing
+        ---------------------------------------------------------------------------------
+        """
+        if enable_momentum_sources:
+            #TODO: Not implemented yet
+            #call momentum_sources
+            raise NotImplementedError()
 
     """
     ---------------------------------------------------------------------------------
      external mode
     ---------------------------------------------------------------------------------
     """
-    #TODO: Oh god please fix
-    call tic('press')
-    if enable_streamfunction:
-        call solve_streamfunction
-    else:
-        call solve_pressure
-        if itt == 0:
-            psi(:,:,tau)=psi(:,:,taup1)
-            psi(:,:,taum1)=psi(:,:,taup1)
-    if not enable_hydrostatic:
-        call solve_non_hydrostatic
-    call toc('press')
+    with pressTimer:
+        if enable_streamfunction:
+            solve_stream.solve_streamfunction()
+        else:
+            solve_pressure.solve_pressure()
+            if itt == 0:
+                psi[:,:,tau] = psi[:,:,taup1]
+                psi[:,:,taum1] = psi[:,:,taup1]
+        if not enable_hydrostatic:
+            #TODO: not implemented yet
+            #call solve_non_hydrostatic
+            raise NotImplementedError()
 
-def vertical_velocity():
+def vertical_velocity(u, v, w, maskW, dyt, dxt, dzt, taup, cost, cosu):
     """
     =======================================================================
            vertical velocity from continuity :

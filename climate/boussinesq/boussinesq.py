@@ -1,6 +1,7 @@
 import numpy as np
 from climate.io import wrapper
 from climate import Timer
+from climate.boussinesq import momentum
 import math
 import sys
 
@@ -311,30 +312,12 @@ class boussinesq:
         self.w_wgrid = np.zeros((self.nx, self.ny, self.nz))
 
     def run(snapint, runlen):
-        """
-        Initialize model
-        """
-        itt = 0
-        setup()
-        """
-        read restart if present
-        """
-        print'(/,a)','Reading restarts:'
-        read_restart(itt)
-        if enable_diag_averages:
-            diag_averages_read_restart()
-        if enable_diag_energy:
-            diag_energy_read_restart()
-        if enable_diag_overturning:
-            diag_over_read_restart()
-        if enable_diag_particles:
-            particles_read_restart()
-
-        enditt = itt+int(runlen/self.dt_tracer)
-        print 'Starting integration for ',runlen,' s'
-        print ' from time step ',itt,' to ',enditt
         setupTimer = Timer("Setup")
         with setupTimer:
+            """
+            Initialize model
+            """
+            itt = 0
             self.setup()
             """
             read restart if present
@@ -342,12 +325,16 @@ class boussinesq:
             print 'Reading restarts:'
             read_restart(itt)
             if enable_diag_averages:
+                raise NotImplementedError()
                 diag_averages_read_restart()
             if enable_diag_energy:
+                raise NotImplementedError()
                 diag_energy_read_restart()
             if enable_diag_overturning:
+                raise NotImplementedError()
                 diag_over_read_restart()
             if enable_diag_particles:
+                raise NotImplementedError()
                 particles_read_restart()
 
             enditt = itt+int(runlen/dt_tracer)
@@ -361,69 +348,88 @@ class boussinesq:
         idemixTimer = Timer("idemix")
         tkeTimer = Timer("tke")
         diagTimer = Timer("diag")
+        pressTimer = Timer("press")
+        fricTimer = Timer("fric")
+        isoTimer = Timer("iso")
+        vmixTimer = Timer("vmix")
+        eqOfStateTimer = Timer("eq_of_state")
         while itt < endtt:
             with mainTimer:
                 set_forcing()
                 if enable_idemix:
+                    raise NotImplementedError()
                     set_idemix_parameter()
                 if enable_idemix_M2 or enable_idemix_niw:
+                    raise NotImplementedError()
                     set_spectral_parameter()
 
                 with momTimer:
-                    momentum()
+                    momentum.momentum(fricTimer, pressTimer)
 
                 with tempTimer:
+                    raise NotImplementedError()
                     thermodynamics()
 
                 if enable_eke or enable_tke or enable_idemix:
+                    raise NotImplementedError()
                     calculate_velocity_on_wgrid()
 
                 with ekeTimer:
                     if enable_eke:
+                        raise NotImplementedError()
                         integrate_eke()
 
                 with idemixTimer:
                     if enable_idemix_M2:
+                        raise NotImplementedError()
                         integrate_idemix_M2()
                     if enable_idemix_niw:
+                        raise NotImplementedError()
                         integrate_idemix_niw()
                     if enable_idemix:
+                        raise NotImplementedError()
                         integrate_idemix()
                     if enable_idemix_M2 or enable_idemix_niw:
+                        raise NotImplementedError()
                         wave_interaction()
 
                 with tkeTimer:
                     if enable_tke:
+                        raise NotImplementedError()
                         integrate_tke()
+
                 """
                  Main boundary exchange
                  for density, temp and salt this is done in integrate_tempsalt.f90
                 """
-                border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,u[:,:,:,taup1])
+                #border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,u[:,:,:,taup1])
                 setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,u[:,:,:,taup1])
-                border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,v[:,:,:,taup1])
+                #border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,v[:,:,:,taup1])
                 setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,v[:,:,:,taup1])
 
                 if enable_tke:
-                    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,tke[:,:,:,taup1])
+                #    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,tke[:,:,:,taup1])
                     setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,tke[:,:,:,taup1])
                 if enable_eke:
-                    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,eke[:,:,:,taup1])
+                #    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,eke[:,:,:,taup1])
                     setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,eke[:,:,:,taup1])
                 if enable_idemix:
-                    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,E_iw[:,:,:,taup1])
+                #    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,E_iw[:,:,:,taup1])
                     setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,E_iw[:,:,:,taup1])
                 if enable_idemix_M2:
-                    border_exchg_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_M2[:,:,:,taup1])
+                #    border_exchg_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_M2[:,:,:,taup1])
                     setcyclic_xyp   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_M2[:,:,:,taup1])
-                if (enable_idemix_niw) then
-                    border_exchg_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_niw[:,:,:,taup1])
+                if enable_idemix_niw:
+                #    border_exchg_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_niw[:,:,:,taup1])
                     setcyclic_xyp   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_niw[:,:,:,taup1])
+
                 # diagnose vertical velocity at taup1
                 if enable_hydrostatic:
+                    raise NotImplementedError()
                     vertical_velocity()
 
             with diagTimer:
+                raise NotImplementedError()
                 diagnose()
 
             # shift time
@@ -437,19 +443,20 @@ class boussinesq:
         print ' setup time summary       = ',setupTimer.getTime(),' s'
         print ' main loop time summary   = ',mainTimer.getTime() ,' s'
         print '     momentum             = ',momTimer.getTime() ,' s'
-        print '       pressure           = ',timing_secs('press') ,' s'
-        print '       friction           = ',timing_secs('fric') ,' s'
+        print '       pressure           = ',pressTimer.getTime() ,' s'
+        print '       friction           = ',fricTimer.getTime() ,' s'
         print '     thermodynamics       = ',tempTimer.getTime() ,' s'
-        print '       lateral mixing     = ',timing_secs('iso') ,' s'
-        print '       vertical mixing    = ',timing_secs('vmix') ,' s'
-        print '       equation of state  = ',timing_secs('eq_of_state') ,' s'
-        print '     EKE                  = ',timing_secs('eke') ,' s'
-        print '     IDEMIX               = ',timing_secs('idemix') ,' s'
-        print '     TKE                  = ',timing_secs('tke') ,' s'
-        print ' diagnostics              = ',timing_secs('diag') ,' s'
+        print '       lateral mixing     = ',isoTimer.getTime() ,' s'
+        print '       vertical mixing    = ',vmixTimer.getTime() ,' s'
+        print '       equation of state  = ',eqOfStateTimer.getTime() ,' s'
+        print '     EKE                  = ',ekeTimer.getTime() ,' s'
+        print '     IDEMIX               = ',idemixTimer.getTime() ,' s'
+        print '     TKE                  = ',tkeTimer.getTime() ,' s'
+        print ' diagnostics              = ',diagTimer.getTime() ,' s'
 
     def setup():
-        if (my_pe==0) print'(/a/)','setting up everything'
+        if my_pe == 0:
+            print 'setting up everything'
 
         """
          allocate everything

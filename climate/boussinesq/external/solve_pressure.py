@@ -10,6 +10,7 @@
 
 import numpy as np
 import sys
+from climate.boussinesq import cyclic
 
 def solve_pressure():
     #use main_module
@@ -46,9 +47,9 @@ def solve_pressure():
                 fpy[i,j] += v[i,j,k,taup1]*maskV[i,j,k]*dzt[k]/dt_mom
     #mpi stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx)
-    #call setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx)
+    cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx)
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy)
-    #call setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy)
+    cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy)
 
     # forc = 1/cos (u_x + (cos v)_y )
     for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
@@ -64,7 +65,7 @@ def solve_pressure():
     congrad_surf_press(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,forc,congr_itts)
     #MPI stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psi(:,:,taup1));
-    #call setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psi(:,:,taup1))
+    cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psi(:,:,taup1))
 
     # remove surface pressure gradient
     for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
@@ -135,11 +136,11 @@ def congrad_surf_press(is_, ie_, js_, je_, forc, iterations):
     #real*8  :: rsold,alpha,rsnew,dot_sfp,absmax_sfp
     #real*8  :: step,step1=0,convergence_rate,estimated_error,smax,rs_min=0
 
-    #TODO: fix first, it is locally saved
-    if first:
+    # congrad_surf_press.first is basically like a static variable
+    if congrad_surf_press.first:
         cf = np.zeros((ie_pe+onx+1-(is_pe-onx), je_pe+onx+1-(js_pe-onx), 3,3))
         make_coeff_surf_press(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,cf)
-        first = False
+        congrad_surf_press.first = False
 
     res[...] = 0
     apply_op(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx, cf, psi[:,:,taup1], res) #  res = A *psi
@@ -150,7 +151,7 @@ def congrad_surf_press(is_, ie_, js_, je_, forc, iterations):
     p = res
     #mpi stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
-    #call setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
+    cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
     rsold =  dot_sfp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,res,res)
 
     for n in xrange(1, congr_max_iterations+1): #n=1,congr_max_iterations
@@ -167,7 +168,7 @@ def congrad_surf_press(is_, ie_, js_, je_, forc, iterations):
         p = res+rsnew/rsold*p
         #MPI stuff
         #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
-        #call setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
+        cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
         rsold = rsnew
         """
         -----------------------------------------------------------------------
@@ -214,6 +215,8 @@ def congrad_surf_press(is_, ie_, js_, je_, forc, iterations):
     if my_pe == 0:
         print ' WARNING: max iterations exceeded at itt=',itt
     fail(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon)
+
+congrad_surf_press.first = True
 
 def info(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon):
     if my_pe == 0 and enable_congrad_verbose:
