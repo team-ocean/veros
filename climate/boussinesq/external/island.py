@@ -48,12 +48,8 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,bou
     -----------------------------------------------------------------------
     """
 
-    for i in xrange(imt): #i=1,imt
-        for j in xrange(jmt): #j=1,jmt
-            if kmt[i,j] > 0:
-                Map[i,j] = ocean
-            else:
-                Map[i,j] = land
+    Map[kmt > 0] = ocean
+    Map[kmt <= 0] = land
 
 
     """
@@ -88,27 +84,21 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,bou
                         sys.exit(' in isleperim')
                     iofs[label] = iofs[label-1] + nippts[label-1]
                     nippts[label] = 0
-    print Map
-    sys.exit("STOP")
     boussine.nisle = label - 1
     """
     -----------------------------------------------------------------------
          relabel land masses and their ocean perimeters
     ------------------------------------------------------------------------
     """
-    for i in xrange(iwest, ieast+1): #i=iwest,ieast
-        for j in xrange(1,jnorth+1): #j=1,jnorth
-            if Map[i,j] != 0:
-                Map[i,j] -= np.sign(Map[i,j])
-    for isle in xrange(2, boussine.nisle+1): #isle=2,nisle
-        iofs[isle-1] = iofs[isle]
-        nippts[isle-1] = nippts[isle]
+    Map[iwest:ieast+1, :jnorth+1] -= np.sign(Map[iwest:ieast+1, :jnorth+1])
+
+    iofs[:boussine.nisle-1] = iofs[1:boussine.nisle]
+    nippts[:boussine.nisle-1] = nippts[1:boussine.nisle]
     boussine.nisle -= 1
 
     if boussine.enable_cyclic_x:
-        for j in xrange(jmt): #j=1,jmt
-            Map[1,j] = Map[imt-1,j]
-            Map[imt,j] = Map[2,j]
+        Map[0,:] = Map[imt-2, :]
+        Map[imt-1,:] = Map[1,:]
 
     if verbose:
         print ' Island perimeter statistics:'

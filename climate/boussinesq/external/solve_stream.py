@@ -73,7 +73,7 @@ def streamfunction_init(boussine):
         for i in xrange(1, 3): #i=1,onx
             allmap[boussine.nx+i+1,:] = allmap[i+1  ,:]
             allmap[2-i,:] = allmap[boussine.nx-i+2,:]
-    showmap(allmap)
+    showmap(allmap, boussine)
 
     """
     -----------------------------------------------------------------------
@@ -102,7 +102,7 @@ def streamfunction_init(boussine):
         kmt[kmt == 0] = 1
         island.isleperim(kmt,Map, iperm, jperm, iofs, nippts, i, nx+2*onx, ny+2*onx, mnisle, maxipp,boussine,False)
         if verbose:
-            showmap(Map)
+            showmap(Map, boussine)
 
         """
         -----------------------------------------------------------------------
@@ -344,15 +344,16 @@ def mod10(m):
     else:
         return m
 
-def showmap(Map):
+def showmap(Map, boussine):
     #integer :: js_,je_,is_,ie_
     #!integer :: map(1-onx:nx+onx,1-onx:ny+onx)
     #integer :: map(is_:ie_,js_:je_)
     #integer,parameter :: linewidth=125
     #integer :: istart,iremain,isweep,iline,i,j,mod10
     #integer :: imt
+    linewidth = 125
 
-    imt = nx +2*onx
+    imt = boussine.nx + 4
     iremain = imt
     istart = 0
     print ' '*(5+min(linewidth,imt)/2-13),'Land mass and perimeter'
@@ -361,10 +362,10 @@ def showmap(Map):
         iremain = iremain - iline
         if iline > 0:
             print ' '
-            print [istart+i+1-onx for i in xrange(1, iline, 6)]
-            for j in xrange(ny+onx, -onx, -1): #j=ny+onx,1-onx,-1
-                print j, [mod10(Map(istart+i -onx,j)) for i in xrange(1, iline+1)]
-            print [istart+i+1-onx for i in xrange(1,iline+1,5)]
+            print [istart+i+1-2 for i in xrange(1, iline, 6)]
+            for j in xrange(boussine.ny+3, -1, -1): #j=ny+onx,1-onx,-1
+                print j, [mod10(Map[istart+i -2,j]) for i in xrange(2, iline+2)]
+            print [istart+i+1-2 for i in xrange(1,iline+1,5)]
             #print '(t6,32i5)', (istart+i+4-onx,i=1,iline,5)
             istart = istart + iline
     print ' '
