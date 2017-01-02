@@ -1,7 +1,7 @@
 import numpy as np
 from climate.io import wrapper
 from climate import Timer
-from climate.boussinesq import momentum
+from climate.boussinesq import momentum, numerics
 import math
 import sys
 
@@ -9,13 +9,12 @@ class boussinesq:
     """
     Constants
     """
-    pi      = math.pi
-    radius  = 6370.0e3        # Earth radius in m
-    degtom  = radius/180.0*pi # conversion degrees latitude to meters
-    mtodeg  = 1/degtom        # revers conversion
-    omega   = pi/43082.0      # earth rotation frequency in 1/s
-    rho_0   = 1024.0          # Boussinesq reference density in kg/m^3
-    grav    = 9.81            # gravitational constant in m/s^2
+    radius  = 6370.0e3           # Earth radius in m
+    degtom  = radius/180.0*np.pi # conversion degrees latitude to meters
+    mtodeg  = 1/degtom           # revers conversion
+    omega   = np.pi/43082.0      # earth rotation frequency in 1/s
+    rho_0   = 1024.0             # Boussinesq reference density in kg/m^3
+    grav    = 9.81               # gravitational constant in m/s^2
 
     def __init__(self):
         """
@@ -24,9 +23,9 @@ class boussinesq:
         #nx            # grid points in zonal (x,i) direction
         #ny            # grid points in meridional (y,j) direction
         #nz            # grid points in vertical (z,k) direction
-        self.taum1     = 1 # pointer to last time step
-        self.tau       = 2 # pointer to current time step
-        self.taup1     = 3 # pointer to next time step
+        self.taum1     = 0 # pointer to last time step
+        self.tau       = 1 # pointer to current time step
+        self.taup1     = 2 # pointer to next time step
         self.dt_mom    = 0 # time step in seconds for momentum
         self.dt_tracer = 0 # time step for tracer can be larger than for momentum
         #dt_tke        # should be time step for momentum (set in tke.f90)
@@ -190,128 +189,128 @@ class boussinesq:
         self.congr_epsilon_non_hydro=1e-12       # convergence criteria for poisson solver
         self.congr_max_itts_non_hydro = 1000     # max. number of iterations
 
-    def allocate():
+    def allocate(self):
         #ie_pe = nx
         #je_pe = ny
-        self.xt = np.zeros(self.nx)
-        self.xu = np.zeros(self.nx)
-        self.yt = np.zeros(self.ny)
-        self.yu = np.zeros(self.ny)
-        self.dxt = np.zeros(self.nx)
-        self.dxy = np.zeros(self.nx)
-        self.dyt = np.zeros(self.ny)
-        self.dyu = np.zeros(self.ny)
+        self.xt = np.zeros(self.nx+4)
+        self.xu = np.zeros(self.nx+4)
+        self.yt = np.zeros(self.ny+4)
+        self.yu = np.zeros(self.ny+4)
+        self.dxt = np.zeros(self.nx+4)
+        self.dxy = np.zeros(self.nx+4)
+        self.dyt = np.zeros(self.ny+4)
+        self.dyu = np.zeros(self.ny+4)
 
         self.zt = np.zeros(self.nz)
         self.dzt = np.zeros(self.nz)
         self.zw = np.zeros(self.nz)
         self.dzw = np.zeros(self.nz)
 
-        self.cost = np.ones(self.ny)
-        self.cosu = np.ones(self.ny)
-        self.tantr = np.zeros(self.ny)
-        self.coriolis_t = np.zeros((self.nx, self.ny))
-        self.coriolis_h = np.zeros((self.nx, self.ny))
+        self.cost = np.ones(self.ny+4)
+        self.cosu = np.ones(self.ny+4)
+        self.tantr = np.zeros(self.ny+4)
+        self.coriolis_t = np.zeros((self.nx+4, self.ny+4))
+        self.coriolis_h = np.zeros((self.nx+4, self.ny+4))
 
-        self.kbot = np.zeros((self.nx, self.ny))
-        self.ht = np.zeros((self.nx, self.ny))
-        self.hu = np.zeros((self.nx, self.ny))
-        self.hv = np.zeros((self.nx, self.ny))
-        self.hur = np.zeros((self.nx, self.ny))
-        self.hvr = np.zeros((self.nx, self.ny))
-        self.beta = np.zeros((self.nx, self.ny))
-        self.area_t = np.zeros((self.nx, self.ny))
-        self.area_u = np.zeros((self.nx, self.ny))
-        self.area_v = np.zeros((self.nx, self.ny))
+        self.kbot   = np.zeros((self.nx+4, self.ny+4))
+        self.ht     = np.zeros((self.nx+4, self.ny+4))
+        self.hu     = np.zeros((self.nx+4, self.ny+4))
+        self.hv     = np.zeros((self.nx+4, self.ny+4))
+        self.hur    = np.zeros((self.nx+4, self.ny+4))
+        self.hvr    = np.zeros((self.nx+4, self.ny+4))
+        self.beta   = np.zeros((self.nx+4, self.ny+4))
+        self.area_t = np.zeros((self.nx+4, self.ny+4))
+        self.area_u = np.zeros((self.nx+4, self.ny+4))
+        self.area_v = np.zeros((self.nx+4, self.ny+4))
 
-        self.maskT = np.zeros((self.nx, self.ny))
-        self.maskU = np.zeros((self.nx, self.ny))
-        self.maskV = np.zeros((self.nx, self.ny))
-        self.maskW = np.zeros((self.nx, self.ny))
-        self.maskZ = np.zeros((self.nx, self.ny))
+        self.maskT = np.zeros((self.nx+4, self.ny+4))
+        self.maskU = np.zeros((self.nx+4, self.ny+4))
+        self.maskV = np.zeros((self.nx+4, self.ny+4))
+        self.maskW = np.zeros((self.nx+4, self.ny+4))
+        self.maskZ = np.zeros((self.nx+4, self.ny+4))
 
-        self.rho = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.Nsqr = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.Hd = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.dHd = np.zeros((self.nx, self.ny, self.nz, 3))
+        self.rho  = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.Nsqr = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.Hd   = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.dHd  = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
 
-        self.drhodT = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.drhodS = np.zeros((self.nx, self.ny, self.nz, 3))
+        self.drhodT = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.drhodS = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
 
-        self.temp = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.dtemp = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.salt = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.dsalt = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.dtemp_vmix = np.zeros((self.nx, self.ny, self.nz))
-        self.dtemp_hmix = np.zeros((self.nx, self.ny, self.nz))
-        self.dsalt_vmix = np.zeros((self.nx, self.ny, self.nz))
-        self.dsalt_hmix = np.zeros((self.nx, self.ny, self.nz))
-        self.dtemp_iso = np.zeros((self.nx, self.ny, self.nz))
-        self.dsalt_iso = np.zeros((self.nx, self.ny, self.nz))
-        self.forc_temp_surface = np.zeros((self.nx, self.ny))
-        self.forc_salt_surface = np.zeros((self.nx, self.ny))
+        self.temp       = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.dtemp      = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.salt       = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.dsalt      = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.dtemp_vmix = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dtemp_hmix = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dsalt_vmix = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dsalt_hmix = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dtemp_iso  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dsalt_iso  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.forc_temp_surface = np.zeros((self.nx+4, self.ny+4))
+        self.forc_salt_surface = np.zeros((self.nx+4, self.ny+4))
 
-        if enable_tempsalt_sources:
-            self.temp_source = np.zeros((self.nx, self.ny, self.nz))
-            self.salt_source = np.zeros((self.nx, self.ny, self.nz))
-        if enable_momentum_sources:
-            self.u_source = np.zeros((self.nx, self.ny, self.nz))
-            self.v_source = np.zeros((self.nx, self.ny, self.nz))
+        if self.enable_tempsalt_sources:
+            self.temp_source = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.salt_source = np.zeros((self.nx+4, self.ny+4, self.nz))
+        if self.enable_momentum_sources:
+            self.u_source = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.v_source = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.flux_east = np.zeros((self.nx, self.ny, self.nz))
-        self.flux_north = np.zeros((self.nx, self.ny, self.nz))
-        self.flux_top = np.zeros((self.nx, self.ny, self.nz))
+        self.flux_east  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.flux_north = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.flux_top   = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.u = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.v = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.w = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.du = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.dv = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.du_cor = np.zeros((self.nx, self.ny, self.nz))
-        self.dv_cor = np.zeros((self.nx, self.ny, self.nz))
-        self.du_mix = np.zeros((self.nx, self.ny, self.nz))
-        self.dv_mix = np.zeros((self.nx, self.ny, self.nz))
-        self.du_adv = np.zeros((self.nx, self.ny, self.nz))
-        self.dv_adv = np.zeros((self.nx, self.ny, self.nz))
-        self.p_hydro = np.zeros((self.nx, self.ny, self.nz))
-        self.psi = np.zeros((self.nx, self.ny, 3))
-        self.dpsi = np.zeros((self.nx, self.ny, 3))
+        self.u       = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.v       = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.w       = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.du      = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.dv      = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.du_cor  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dv_cor  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.du_mix  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dv_mix  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.du_adv  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dv_adv  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.p_hydro = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.psi     = np.zeros((self.nx+4, self.ny+4, 3))
+        self.dpsi    = np.zeros((self.nx+4, self.ny+4, 3))
 
-        self.kappaM = np.zeros((self.nx, self.ny, self.nz))
-        self.kappaH = np.zeros((self.nx, self.ny, self.nz))
+        self.kappaM = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.kappaH = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.surface_taux = np.zeros((self.nx, self.ny, self.nz))
-        self.surface_tauy = np.zeros((self.nx, self.ny, self.nz))
-        self.forc_rho_surface = np.zeros((self.nx, self.ny, self.nz))
+        self.surface_taux = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.surface_tauy = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.forc_rho_surface = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.K_diss_v = np.zeros((self.nx, self.ny, self.nz))
-        self.K_diss_h = np.zeros((self.nx, self.ny, self.nz))
-        self.K_diss_gm = np.zeros((self.nx, self.ny, self.nz))
-        self.K_diss_bot = np.zeros((self.nx, self.ny, self.nz))
-        self.P_diss_v = np.zeros((self.nx, self.ny, self.nz))
-        self.P_diss_nonlin = np.zeros((self.nx, self.ny, self.nz))
-        self.P_diss_adv = np.zeros((self.nx, self.ny, self.nz))
-        self.P_diss_comp = np.zeros((self.nx, self.ny, self.nz))
-        self.P_diss_hmix = np.zeros((self.nx, self.ny, self.nz))
-        self.P_diss_iso = np.zeros((self.nx, self.ny, self.nz))
-        self.P_diss_skew = np.zeros((self.nx, self.ny, self.nz))
-        self.P_diss_sources = np.zeros((self.nx, self.ny, self.nz))
+        self.K_diss_v       = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.K_diss_h       = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.K_diss_gm      = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.K_diss_bot     = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_v       = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_nonlin  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_adv     = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_comp    = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_hmix    = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_iso     = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_skew    = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_sources = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.r_bot_var_u = np.zeros((self.nx, self.ny, self.nz))
-        self.r_bot_var_v = np.zeros((self.nx, self.ny, self.nz))
+        self.r_bot_var_u = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.r_bot_var_v = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        if not enable_hydrostatic:
-            self.p_non_hydro = np.zeros((self.nx, self.ny, self.nz, 3))
-            self.dw = np.zeros((self.nx, self.ny, self.nz, 3))
-            self.dw_cor = np.zeros((self.nx, self.ny, self.nz))
-            self.dw_adv = np.zeros((self.nx, self.ny, self.nz))
-            self.dw_mix = np.zeros((self.nx, self.ny, self.nz))
+        if not self.enable_hydrostatic:
+            self.p_non_hydro = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+            self.dw          = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+            self.dw_cor      = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.dw_adv      = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.dw_mix      = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.u_wgrid = np.zeros((self.nx, self.ny, self.nz))
-        self.v_wgrid = np.zeros((self.nx, self.ny, self.nz))
-        self.w_wgrid = np.zeros((self.nx, self.ny, self.nz))
+        self.u_wgrid = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.v_wgrid = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.w_wgrid = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-    def run(snapint, runlen):
+    def run(self, snapint, runlen):
         setupTimer = Timer("Setup")
         with setupTimer:
             """
@@ -364,7 +363,7 @@ class boussinesq:
                     set_spectral_parameter()
 
                 with momTimer:
-                    momentum.momentum(fricTimer, pressTimer)
+                    momentum.momentum(self, fricTimer, pressTimer)
 
                 with tempTimer:
                     raise NotImplementedError()
@@ -454,26 +453,20 @@ class boussinesq:
         print '     TKE                  = ',tkeTimer.getTime() ,' s'
         print ' diagnostics              = ',diagTimer.getTime() ,' s'
 
-    def setup():
-        if my_pe == 0:
-            print 'setting up everything'
+    def setup(self):
+        print 'setting up everything'
 
         """
          allocate everything
         """
-        set_parameter()
-        pe_decomposition()
-        allocate_main_module()
-        allocate_isoneutral_module()
-        allocate_tke_module()
-        allocate_eke_module()
-        allocate_idemix_module()
+        self.set_parameter()
+        self.allocate()
 
         """
           Grid
         """
-        set_grid()
-        calc_grid()
+        self.set_grid()
+        numerics.calc_grid(self)
 
         """
          Coriolis

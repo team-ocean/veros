@@ -12,7 +12,7 @@ import numpy as np
 import sys
 from climate.boussinesq import cyclic
 
-def solve_pressure():
+def solve_pressure(boussine):
     #use main_module
     #implicit none
     #integer :: i,j,k
@@ -20,6 +20,7 @@ def solve_pressure():
     #real*8 :: fpx(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
     #real*8 :: fpy(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
     #real*8 :: forc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
+    forc = np.empty((boussine.nx+4, boussine.ny+4))
 
     #hydrostatic pressure
     fxa = grav/rho_0
@@ -38,8 +39,8 @@ def solve_pressure():
     v[:,:,:,taup1] = v[:,:,:,tau]+dt_mom*( dv_mix+ (1.5+AB_eps)*dv[:,:,:,tau] - (0.5+AB_eps)*dv[:,:,:,taum1] )*maskV
 
     # forcing for surface pressure
-    fpx[...] = 0.
-    fpy[...] = 0.
+    fpx = np.zeros((boussine.nx+4, boussine.ny+4))
+    fpy = np.zeros((boussine.nx+4, boussine.ny+4))
     for k in xrange(1, nz+1): #k=1,nz
         for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
             for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
@@ -47,9 +48,9 @@ def solve_pressure():
                 fpy[i,j] += v[i,j,k,taup1]*maskV[i,j,k]*dzt[k]/dt_mom
     #mpi stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx)
-    cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx)
+    cyclic.setcyclic_xy(fpx,boussine.enable_cyclic_x, boussine.nx)
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy)
-    cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy)
+    cyclic.setcyclic_xy(fpy,boussine.enable_cyclic_x, boussine.nx)
 
     # forc = 1/cos (u_x + (cos v)_y )
     for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
@@ -65,7 +66,7 @@ def solve_pressure():
     congrad_surf_press(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,forc,congr_itts)
     #MPI stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psi(:,:,taup1));
-    cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psi(:,:,taup1))
+    cyclic.setcyclic_xy(psi[:,:,taup1], boussine.enable_cyclic_x, boussine.nx)
 
     # remove surface pressure gradient
     for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
@@ -151,7 +152,7 @@ def congrad_surf_press(is_, ie_, js_, je_, forc, iterations):
     p = res
     #mpi stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
-    cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
+    cyclic.setcyclic_xy(p, boussine.enable_cyclic_x, boussine.nx)
     rsold =  dot_sfp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,res,res)
 
     for n in xrange(1, congr_max_iterations+1): #n=1,congr_max_iterations
@@ -168,7 +169,7 @@ def congrad_surf_press(is_, ie_, js_, je_, forc, iterations):
         p = res+rsnew/rsold*p
         #MPI stuff
         #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
-        cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
+        cyclic.setcyclic_xy(p, boussine.enable_cyclic_x, boussine.nx)
         rsold = rsnew
         """
         -----------------------------------------------------------------------

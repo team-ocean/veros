@@ -1,37 +1,9 @@
 from climate.boussinesq.external import solve_stream, solve_pressure
 
 def momentum(
+        boussine,
         fricTimer,
         pressTimer,
-        du,
-        dv,
-        dw,
-        du_cor,
-        dv_cor,
-        dw_cor,
-        maskU,
-        maskV,
-        maskW,
-        coriolis_t,
-        coriolis_h,
-        u,
-        v,
-        w
-        dxt,
-        dyt,
-        dzt,
-        dxu,
-        dyu,
-        dzw,
-        cost,
-        cosu,
-        tantr,
-        area_t,
-        area_u,
-        area_v,
-        psi,
-        coord_degree,
-        enable_hydrostatic,
         ):
     """
     =======================================================================
@@ -200,9 +172,9 @@ def momentum(
     """
     with pressTimer:
         if enable_streamfunction:
-            solve_stream.solve_streamfunction()
+            solve_stream.solve_streamfunction(boussine)
         else:
-            solve_pressure.solve_pressure()
+            solve_pressure.solve_pressure(boussine)
             if itt == 0:
                 psi[:,:,tau] = psi[:,:,taup1]
                 psi[:,:,taum1] = psi[:,:,taup1]
@@ -304,7 +276,7 @@ def momentum_advection():
     k=1
     du_adv[:,:,k] -= maskU[:,:,k]*flux_top[:,:,k]/(area_u[:,:]*dzt[k])
     for k in xrange(2, nz+1): #k=2,nz
-        du_adv[:,:,k] -= maskU[:,:,k]*(flux_top[:,:,k]-flux_top[:,:,k-1])/(area_u[:,:)*dzt[k])
+        du_adv[:,:,k] -= maskU[:,:,k]*(flux_top[:,:,k]-flux_top[:,:,k-1])/(area_u[:,:]*dzt[k])
     """
     ---------------------------------------------------------------------------------
      for meridional momentum

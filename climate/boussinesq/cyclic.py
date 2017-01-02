@@ -1,4 +1,4 @@
-def setcyclic_xy(p1, enable_cyclic, onx, nx):
+def setcyclic_xy(p1, enable_cyclic_x, nx):
     """
     --------------------------------------------------------------
            set cyclic boundary conditions for 2D array
@@ -11,11 +11,11 @@ def setcyclic_xy(p1, enable_cyclic, onx, nx):
     #integer :: j,i
 
     if enable_cyclic_x:
-        for i in xrange(1, onx): #i=1,onx
+        for i in xrange(2): #i=1,onx
             p1[nx+i,:] = p1[i  ,:]
             p1[1-i,:]  = p1[nx-i+1,:]
 
-def setcyclic_xyz(a, enable_cyclic, onx, nx):
+def setcyclic_xyz(a, enable_cyclic, nx):
     """
     --------------------------------------------------------------
            set cyclic boundary conditions for 3D array
@@ -27,9 +27,9 @@ def setcyclic_xyz(a, enable_cyclic, onx, nx):
     #real*8 :: a(is_:ie_,js_:je_,nz_)
     #integer :: k
     for k in xrange(1, nz): #k=1,nz
-        setcyclic_xy(a[:,:,k], enable_cyclic, onx, nx)
+        setcyclic_xy(a[:,:,k], enable_cyclic, nx)
 
-def setcyclic_xyp(np, p1, enable_cyclic, onx, nx):
+def setcyclic_xyp(np, p1, enable_cyclic_x, nx):
     """
     --------------------------------------------------------------
            set cyclic boundary conditions for 3D array

@@ -13,7 +13,7 @@ from scipy.linalg import lapack
 from climate.boussinesq.external import solve_pressure, island
 from climate.boussinesq import cyclic
 
-def streamfunction_init():
+def streamfunction_init(boussine):
     """
     =======================================================================
       prepare for island integrals
@@ -22,51 +22,58 @@ def streamfunction_init():
     #integer :: allmap(1-onx:nx+onx,1-onx:ny+onx)
     #integer :: map(1-onx:nx+onx,1-onx:ny+onx)
     #integer :: kmt(1-onx:nx+onx,1-onx:ny+onx)
-    #integer, parameter :: maxipp = 10000, mnisle = 1000
     #integer :: iperm(maxipp),jperm(maxipp),nippts(mnisle), iofs(mnisle)
     #integer :: isle,n,i,j,ij(2),max_boundary,dir(2),ijp(2),ijp_right(2)
     #logical :: cont,verbose ,converged
     #real*8 :: forc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
     #real*8 :: fpx(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
     #real*8 :: fpy(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
+    maxipp = 10000
+    mnisle = 1000
+    allmap = np.zeros((boussine.nx+4, boussine.ny+4))
+    Map    = np.zeros((boussine.nx+4, boussine.ny+4))
+    forc   = np.zeros((boussine.nx+4, boussine.ny+4))
+    fpx    = np.empty((boussine.nx+4, boussine.ny+4))
+    fpy    = np.empty((boussine.nx+4, boussine.ny+4))
+    iperm  = np.zeros(maxipp)
+    jperm  = np.zeros(maxipp)
+    nippts = np.zeros(mnisle)
+    iofs   = np.zeros(mnisle)
 
-    if my_pe == 0:
-        print 'Initializing streamfunction method'
-    verbose = enable_congrad_verbose
+    print 'Initializing streamfunction method'
+    verbose = boussine.enable_congrad_verbose
     """
     -----------------------------------------------------------------------
      communicate kbot to get the entire land map
     -----------------------------------------------------------------------
     """
-    kmt[...] = 0 # note that routine will modify kmt
-    for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
-        for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
-            if kbot[i,j] > 0:
-                kmt[i,j] = 5
+    kmt = np.zeros((boussine.nx+4, boussine.ny+4)) # note that routine will modify kmt
+    for j in xrange(boussine.ny): #j=js_pe,je_pe
+        for i in xrange(boussine.nx): #i=is_pe,ie_pe
+            if boussine.kbot[i,j] > 0:
+                kmt[i+2,j+2] = 5
 
     #MPI stuff
     #call pe0_recv_2D_int(nx,ny,kmt(1:nx,1:ny))
     #call pe0_bcast_int(kmt,(nx+2*onx)*(ny+2*onx))
 
-    if enable_cyclic_x:
-        for i in xrange(1, onx+1): #i=1,onx
-            kmt[nx+i,:] = kmt[i  ,:]
-            kmt[1-i,:] = kmt[nx-i+1,:]
+    if boussine.enable_cyclic_x:
+        for i in xrange(1, 3): #i=1,onx
+            kmt[boussine.nx+i+1,:] = kmt[i+1  ,:]
+            kmt[2-i,:] = kmt[boussine.nx-i+2,:]
 
     """
     -----------------------------------------------------------------------
      preprocess land map using MOMs algorithm for B-grid to determine number of islands
     -----------------------------------------------------------------------
     """
-    if my_pe == 0:
-        print ' starting MOMs algorithm for B-grid to determine number of islands'
-    island.isleperim(kmt,allmap, iperm, jperm, iofs, nippts, nisle, nx+2*onx, ny+2*onx, mnisle, maxipp,my_pe,enable_cyclic_x,True)
-    if enable_cyclic_x:
-        for i in xrange(1, onx+1): #i=1,onx
-            allmap[nx+i,:] = allmap[i  ,:]
-            allmap[1-i,:] = allmap[nx-i+1,:]
-    if my_pe == 0:
-        showmap(1-onx,nx+onx,1-onx,ny+onx,  allmap)
+    print ' starting MOMs algorithm for B-grid to determine number of islands'
+    island.isleperim(kmt,allmap, iperm, jperm, iofs, nippts, boussine.nx+4, boussine.ny+4, mnisle, maxipp,boussine,True)
+    if boussine.enable_cyclic_x:
+        for i in xrange(1, 3): #i=1,onx
+            allmap[boussine.nx+i+1,:] = allmap[i+1  ,:]
+            allmap[2-i,:] = allmap[boussine.nx-i+2,:]
+    showmap(allmap)
 
     """
     -----------------------------------------------------------------------
@@ -77,16 +84,15 @@ def streamfunction_init():
     boundary = numpy.zeros((nisle, max_boundary, 2))
     line_dir = numpy.zeros((nisle, max_boundary, 2))
     nr_boundary = numpy.zeros(nisle)
-    psin = numpy.zeros((ie_pe+onx+1-(is_pe-onx), je_pe+onx+1-(je_pe+onx), nisle))
+    psin = numpy.zeros((boussine.nx+4, boussine.ny+4, nisle))
     dpsin = numpy.zeros((nisle, 3))
     line_psin = numpy.zeros((nisle, nisle))
 
-    for isle in xrange(1, nisle+1): #isle=1,nisle
+    for isle in xrange(nisle): #isle=1,nisle
 
-        if my_pe == 0:
-            print ' ------------------------'
-            print ' processing island #',isle
-            print ' ------------------------'
+        print ' ------------------------'
+        print ' processing island #',isle
+        print ' ------------------------'
 
         """
         -----------------------------------------------------------------------
@@ -94,9 +100,9 @@ def streamfunction_init():
         -----------------------------------------------------------------------
         """
         kmt[kmt == 0] = 1
-        island.isleperim(kmt,map, iperm, jperm, iofs, nippts, i, nx+2*onx, ny+2*onx, mnisle, maxipp,my_pe,enable_cyclic_x,False)
-        if my_pe == 0 and verbose:
-            showmap(1-onx,nx+onx,1-onx,ny+onx, map)
+        island.isleperim(kmt,Map, iperm, jperm, iofs, nippts, i, nx+2*onx, ny+2*onx, mnisle, maxipp,boussine,False)
+        if verbose:
+            showmap(Map)
 
         """
         -----------------------------------------------------------------------
@@ -111,13 +117,11 @@ def streamfunction_init():
             (cont, ij, Dir) = avoid_cyclic_boundaries2(Map, boundary)
 
             if not cont:
-                if my_pe == 0:
-                    print 'found no starting point for line integral'
+                print 'found no starting point for line integral'
                 sys.exit('in streamfunction_init')
 
-        if my_pe == 0:
-            print ' starting point of line integral is ',boundary[isle,n,:]
-            print ' starting direction is ', Dir
+        print ' starting point of line integral is ',boundary[isle,n,:]
+        print ' starting direction is ', Dir
 
         """
         -----------------------------------------------------------------------
@@ -153,25 +157,25 @@ def streamfunction_init():
             -----------------------------------------------------------------------
             """
 
-            if verbose and my_pe == 0:
+            if verbose:
                 print ' '
                 print ' position is  ',ij
                 print ' direction is ',Dir
                 print ' map ahead is ',Map[ijp[0],ijp[1]] , Map[ijp_right[0],ijp_right[1]]
 
             if Map[ijp[0],ijp[1]] == -1 and Map[ijp_right[0],ijp_right[1]] == 1:
-                if verbose and my_pe == 0:
+                if verbose:
                     print ' go forward'
             elif Map[ijp[0],ijp[1]] == -1 and Map[ijp_right[0],ijp_right[1]] == -1:
-                if verbose and my_pe == 0:
+                if verbose:
                     print ' turn right'
                 Dir = [Dir[1],-Dir[0]]
             elif Map[ijp[0],ijp[1]] == 1 and Map[ijp_right[0],ijp_right[1]] == 1:
-                if verbose and my_pe == 0:
+                if verbose:
                     print ' turn left'
                 Dir =  [-Dir[1],Dir[0]]
             elif Map[ijp[0],ijp[1]] == 1 and Map[ijp_right[0],ijp_right[1]] == -1:
-                if verbose and my_pe == 0:
+                if verbose:
                     print ' turn left'
                 Dir =  [-Dir[1],Dir[0]]
             else:
@@ -197,14 +201,14 @@ def streamfunction_init():
             -----------------------------------------------------------------------
             """
             if enable_cyclic_x and Dir[0] == 1 and Dir[1] == 0 and ij[0] > nx:
-                if verbose and my_pe == 0:
+                if verbose:
                     print ' shifting to western cyclic boundary'
                 ij[0] -= nx
             if enable_cyclic_x and Dir[0] == -1 and Dir[1] == 0 and ij[0] < 1:
-                if verbose and my_pe==0:
+                if verbose:
                     print ' shifting to eastern cyclic boundary'
                 ij[0] += nx
-            if boundary[isle,1,1] == ij[0] and boundary[isle,1,2] == ij[1]:
+            if boundary[isle,0,0] == ij[0] and boundary[isle,0,1] == ij[1]:
                 cont = False
 
             if cont:
@@ -215,12 +219,11 @@ def streamfunction_init():
                 boundary[isle,n,:] = ij
 
         nr_boundary[isle] = n
-        if my_pe == 0:
-            print ' number of points is ',n
-        if verbose and my_pe == 0:
+        print ' number of points is ',n
+        if verbose:
             print ' '
             print ' Positions:'
-            for n in xrange(1, nr_boundary[n]): #n=1,nr_boundary(isle)
+            for n in xrange(nr_boundary[isle]): #n=1,nr_boundary(isle)
                 print ' pos=',boundary[isle,n,:],' dir=',line_dir[isle,n,:]
 
     """
@@ -229,42 +232,40 @@ def streamfunction_init():
     -----------------------------------------------------------------------
     """
     forc[...] = 0.0
-    for isle in xrange(1, nisle+1): #isle=1,nisle
+    for isle in xrange(nisle): #isle=1,nisle
         psin[:,:,isle] = 0.0
-        for n in xrange(1, nr_boundary[isle]): #n=1,nr_boundary(isle)
-            i = boundary[isle,n,1]
-            j = boundary[isle,n,2]
-            if i >= is_pe-onx and i <= ie_pe+onx and j >= js_pe-onx and j <= je_pe+onx:
+        for n in xrange(nr_boundary[isle]): #n=1,nr_boundary(isle)
+            i = boundary[isle,n,0]
+            j = boundary[isle,n,1]
+            if i >= 0 and i <= boussine.nx+3 and j >= 0 and j <= boussine.ny+3:
                 psin[i,j,isle] = 1.0
         #MPI stuff
         #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle));
-        cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle))
-        if my_pe == 0:
-            print ' solving for boundary contribution by island ',isle
+        cyclic.setcyclic_xy(psin[:,:,isle], boussine.enable_cyclic, boussine.nx)
+        print ' solving for boundary contribution by island ',isle
 
         congrad_streamfunction(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,forc,congr_itts,psin[:,:,isle],converged)
-        if my_pe == 0:
-            print ' itts =  ',congr_itts
+        print ' itts =  ',congr_itts
         #MPI stuff
         #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle));
-        cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle))
+        cyclic.setcyclic_xy(psin[:,:,isle], boussine.enable_cyclic, boussine.nx)
 
     """
     -----------------------------------------------------------------------
      precalculate time independent island integrals
     -----------------------------------------------------------------------
     """
-    for n in xrange(1, nisle+1): #n=1,nisle
-        for isle in xrange(1, nisle+1): #isle=1,nisle
+    for n in xrange(nisle): #n=1,nisle
+        for isle in xrange(nisle): #isle=1,nisle
             fpx[...] = 0
             fpy[...] = 0
-            for j in xrange(js_pe-onx+1, je_pe+onx+1): #j=js_pe-onx+1,je_pe+onx
-                for i in xrange(is_pe-onx+1, ie_pe+onx+1): #i=is_pe-onx+1,ie_pe+onx
+            for j in xrange(1, boussine.ny+4): #j=js_pe-onx+1,je_pe+onx
+                for i in xrange(1, boussine.nx+4): #i=is_pe-onx+1,ie_pe+onx
                     fpx[i,j] =-maskU[i,j,nz]*( psin[i,j,isle]-psin[i,j-1,isle])/dyt[j]*hur[i,j]
                     fpy[i,j] = maskV[i,j,nz]*( psin[i,j,isle]-psin[i-1,j,isle])/(cosu[j]*dxt[i])*hvr[i,j]
             line_integral(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx, n,fpx,fpy,line_psin[n,isle])
 
-def avoid_cyclic_boundaries(Map, boundary):
+def avoid_cyclic_boundaries(Map, boundary, boussine):
     for i in xrange(nx/2+1, nx+1): #i=nx/2+1,nx
         for j in xrange(ny+1): #j=0,ny
             if Map[i,j] == 1 and Map[i,j+1] == -1:
@@ -283,9 +284,9 @@ def avoid_cyclic_boundaries(Map, boundary):
                 return (cont, ij, Dir)
     return (False, None, None)
 
-def avoid_cyclic_boundaries2():
-    for i in xrange(nx/2,0,-1): #i=nx/2,1,-1  ! avoid starting close to cyclic bondaries
-        for j in xrange(ny+1): #j=0,ny
+def avoid_cyclic_boundaries2(Map, boundary, boussine):
+    for i in xrange(boussine.nx/2,0,-1): #i=nx/2,1,-1  ! avoid starting close to cyclic bondaries
+        for j in xrange(1, boussine.ny+2): #j=0,ny
             if Map[i,j] == 1 and Map[i,j+1] == -1:
                 # initial direction is eastward, we come from the west
                 ij=[i,j]
@@ -317,22 +318,14 @@ def line_integral(is_,ie_,js_,je_,isle,uloc,vloc,line):
     #real*8 :: line
     #integer :: n,i,j,nm1,js,je,is,ie
     line = 0
-    Is = is_pe
-    js = js_pe
-    ie = ie_pe
-    je = je_pe
-    if Is == 1:
-        Is -= 1
-    if js == 1:
-        js -= 1
 
-    for n in xrange(1, nr_boundary[isle]): #n=1,nr_boundary(isle)
+    for n in xrange(nr_boundary[isle]): #n=1,nr_boundary(isle)
         nm1 = n-1
         if nm1 < 1:
             nm1 = nr_boundary[isle]
-        i = boundary[isle,n,1]
-        j = boundary[isle,n,2]
-        if i >= Is and i <= ie and j >= js and j <= je:
+        i = boundary[isle,n,0]
+        j = boundary[isle,n,1]
+        if i >= 1 and i <= boussine.nx+2 and j >= 1 and j <= boussine.ny+2:
             if line_dir[isle,n,1] == 1 and line_dir[isle,n,2] == 0:   # to east
                 line += vloc[i,j]*dyu[j] + uloc[i,j+1]*dxu[i]*cost[j+1]
             elif line_dir[isle,n,1] == -1 and line_dir[isle,n,2] == 0: # to west
@@ -351,7 +344,7 @@ def mod10(m):
     else:
         return m
 
-def showmap(is_,ie_,js_,je_,Map):
+def showmap(Map):
     #integer :: js_,je_,is_,ie_
     #!integer :: map(1-onx:nx+onx,1-onx:ny+onx)
     #integer :: map(is_:ie_,js_:je_)
@@ -376,7 +369,7 @@ def showmap(is_,ie_,js_,je_,Map):
             istart = istart + iline
     print ' '
 
-def solve_streamfunction():
+def solve_streamfunction(boussine):
     """
     =======================================================================
       solve for barotropic streamfunction
@@ -393,44 +386,44 @@ def solve_streamfunction():
     # logical :: converged
 
     #hydrostatic pressure
-    fxa = grav/rho_0
-    p_hydro[:,:,nz] = 0.5*rho[:,:,nz,tau]*fxa*dzw[nz]*maskT[:,:,nz]
-    for k in xrange(nz-1, 0, -1): #k=nz-1,1,-1
-        p_hydro[:,:,k] = maskT[:,:,k]*(p_hydro[:,:,k+1]+ 0.5*(rho[:,:,k+1,tau]+rho[:,:,k,tau])*fxa*dzw[k])
+    fxa = boussine.grav/boussine.rho_0
+    boussine.p_hydro[:,:,boussine.nz+1] = 0.5*boussine.rho[:,:,boussine.nz+1,boussine.tau]*fxa*boussine.dzw[boussine.nz+1]*boussine.maskT[:,:,boussine.nz+1]
+    for k in xrange(nz, 1, -1): #k=nz-1,1,-1
+        boussine.p_hydro[:,:,k] = boussine.maskT[:,:,k]*(boussine.p_hydro[:,:,k+1]+ 0.5*(boussine.rho[:,:,k+1,boussine.tau]+boussine.rho[:,:,k,boussine.tau])*fxa*boussine.dzw[k])
 
     # add hydrostatic pressure gradient
-    for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
-        for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
-            du[i,j,:,tau] = du[i,j,:,tau] - ( p_hydro[i+1,j,:]-p_hydro[i,j,:]  )/(dxu[i]*cost[j]) *maskU[i,j,:]
-            dv[i,j,:,tau] = dv[i,j,:,tau] - ( p_hydro[i,j+1,:]-p_hydro[i,j,:]  ) /dyu[j]*maskV[i,j,:]
+    for j in xrange(2, self.ny+2): #j=js_pe,je_pe
+        for i in xrange(2, self.nx+2): #i=is_pe,ie_pe
+            boussine.du[i,j,:,boussine.tau] -= ( boussine.p_hydro[i+1,j,:]-boussine.p_hydro[i,j,:]  )/(boussine.dxu[i]*boussine.cost[j]) *boussine.maskU[i,j,:]
+            boussine.dv[i,j,:,boussine.tau] -= ( boussine.p_hydro[i,j+1,:]-boussine.p_hydro[i,j,:]  ) /boussine.dyu[j]*boussine.maskV[i,j,:]
 
     # forcing for barotropic streamfunction
-    fpx = np.zeros(ie_pe-is_pe+2*onx, je_pe-js_pe+2*onx)
-    fpy = np.zeros(ie_pe-is_pe+2*onx, je_pe-js_pe+2*onx)
+    fpx = np.zeros((self.nx+4, self.ny+4))
+    fpy = np.zeros((self.nx+4, self.ny+4))
     for k in xrange(nz): #k=1,nz
-        fpx += (du[:,:,k,tau]+du_mix[:,:,k])*maskU[:,:,k]*dzt[k]
-        fpy += (dv[:,:,k,tau]+dv_mix[:,:,k])*maskV[:,:,k]*dzt[k]
+        fpx += (boussine.du[:,:,k,boussine.tau]+boussine.du_mix[:,:,k])*boussine.maskU[:,:,k]*boussine.dzt[k]
+        fpy += (boussine.dv[:,:,k,boussine.tau]+boussine.dv_mix[:,:,k])*boussine.maskV[:,:,k]*boussine.dzt[k]
 
-    fpx *= hur
-    fpy *= hvr
+    fpx *= boussine.hur
+    fpy *= boussine.hvr
 
     #MPI stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx);
-    cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx)
+    cyclic.setcyclic_xy(fpx, boussine.enable_cyclic_x, boussine.nx)
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy);
-    cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy)
+    cyclic.setcyclic_xy(fpy, boussine.enable_cyclic_x, boussine.nx)
 
-    for j in (js_pe, je_pe+1): #j=js_pe,je_pe
-        for i in xrange(is_pe, ie_pe): #i=is_pe,ie_pe
-            forc[i,j] = (fpy[i+1,j]-fpy[i,j])/(cosu[j]*dxu[i])-(cost[j+1]*fpx[i,j+1]-cost[j]*fpx[i,j])/(cosu[j]*dyu[j])
+    for j in (2, boussine.ny+2): #j=js_pe,je_pe
+        for i in xrange(2, boussine.nx+2): #i=is_pe,ie_pe
+            forc[i,j] = (fpy[i+1,j]-fpy[i,j])/(boussine.cosu[j]*boussine.dxu[i])-(boussine.cost[j+1]*fpx[i,j+1]-boussine.cost[j]*fpx[i,j])/(boussine.cosu[j]*boussine.dyu[j])
 
     # solve for interior streamfunction
-    dpsi[:,:,taup1] = 2*dpsi[:,:,tau]-dpsi[:,:,taum1] # first guess, we need three time levels here
-    congrad_streamfunction(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,forc,congr_itts,dpsi[:,:,taup1],converged)
+    boussine.dpsi[:,:,boussine.taup1] = 2*boussine.dpsi[:,:,boussine.tau]-boussine.dpsi[:,:,boussine.taum1] # first guess, we need three time levels here
+    congrad_streamfunction(forc,congr_itts,dpsi[:,:,taup1],converged, boussine)
 
     # MPI stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,dpsi(:,:,taup1))
-    cyclic.setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,dpsi(:,:,taup1))
+    cyclic.setcyclic_xy(dpsi[:,:,taup1], boussine.enable_cyclic_x, boussine.nx)
 
     if nisle > 1:
         # calculate island integrals of forcing, keep psi constant on island 1
@@ -509,7 +502,7 @@ def make_coeff_streamfunction(is_, ie_, js_, je_, cf):
 
 
 
-def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
+def congrad_streamfunction(forc,iterations,sol,converged,boussine):
     """
     =======================================================================
       conjugate gradient solver with preconditioner from MOM
@@ -538,7 +531,7 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
 
     # congrad_streamfunction.first is basically like a static variable
     if congrad_streamfunction.first:
-        cf = np.zeros((ie_pe+onx+1-(is_pe-onx), je_pe+onx+1-(js_pe-onx), 3, 3))
+        cf = np.zeros((boussine.nx+4, boussine.ny+4, 3, 3))
         make_coeff_streamfunction(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx, cf)
         congrad_streamfunction.first = False
 
@@ -551,7 +544,7 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
          make approximate inverse operator Z (always even symmetry)
     -----------------------------------------------------------------------
     """
-    make_inv_sfc(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,cf, Z)
+    make_inv_sfc(boussine.nx,boussine.ny,boundary,nisle,nr_boundary,cf, Z)
     """
     -----------------------------------------------------------------------
          impose boundary conditions on guess
@@ -560,7 +553,7 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
     """
     # MPI stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,sol)
-    cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,sol)
+    cyclic.setcyclic_xy(sol, boussine.enable_cyclic_x, boussine.nx)
     """
     -----------------------------------------------------------------------
          res(0)  = forc - A * eta(0)
@@ -577,12 +570,12 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
     -----------------------------------------------------------------------
     """
     n = 0
-    inv_op_sfc(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,Z, res, Zres)
-    Zresmax = absmax_sfc(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,Zres)
+    inv_op_sfc(boussine.nx, boussine.ny ,Z, res, Zres)
+    Zresmax = absmax_sfc(boussine.nx, boussine.ny, Zres)
     # Assume convergence rate of 0.99 to extrapolate error
     if (100.0 * Zresmax < congr_epsilon):
         estimated_error = 100.0 * Zresmax
-        info()
+        print_info(n, estimated_error, congr_epsilon, boussine.enable_congrad_verbose)
         return
     """
     -----------------------------------------------------------------------
@@ -603,33 +596,32 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
                Zres(k-1) = Z * res(k-1)
         -----------------------------------------------------------------------
         """
-        inv_op_sfc(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,Z, res, Zres)
+        inv_op_sfc(boussine.nx, boussine.ny ,Z, res, Zres)
         """
         -----------------------------------------------------------------------
                beta(k)   = res(k-1) * Zres(k-1)
         -----------------------------------------------------------------------
         """
-        betak = dot_sfc(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,Zres, res)
+        betak = dot_sfc(boussine.nx, boussine.ny,Zres, res)
         if n == 1:
             betak_min = abs(betak)
         elif n > 2:
             betak_min = min(betak_min, abs(betak))
             if abs(betak) > 100.0*betak_min:
-                if my_pe == 0:
-                    print 'WARNING: solver diverging at itt=',itt
-                fail()
+                print 'WARNING: solver diverging at itt=',itt
+                fail(n, estimated_error, congr_epsilon, boussine.enable_congrad_verbose)
         """
         -----------------------------------------------------------------------
                ss(k)      = Zres(k-1) + (beta(k)/beta(k-1)) * ss(k-1)
         -----------------------------------------------------------------------
         """
         betaquot = betak/betakm1
-        for j in xrange(js_pe,je_pe+1): #j=js_pe,je_pe
-            for i in xrange(is_pe, ie_pe): #i=is_pe,ie_pe
+        for j in xrange(ny+1): #j=js_pe,je_pe
+            for i in xrange(nx): #i=is_pe,ie_pe
                 ss[i,j] = Zres[i,j] + betaquot*ss[i,j]
         #MPI stuff
         #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,ss)
-        cyclic.setcyclic_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,ss)
+        cyclic.setcyclic_xy(ss, boussine.enable_cyclic_x, boussine.nx)
         """
         -----------------------------------------------------------------------
                As(k)     = A * ss(k)
@@ -643,11 +635,11 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
                Also assume alpha(k) ~ 1.
         -----------------------------------------------------------------------
         """
-        s_dot_As = dot_sfc(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,ss, As)
+        s_dot_As = dot_sfc(boussine.nx, boussine.ny,ss, As)
         if abs(s_dot_As) < abs(betak)*1.e-10:
-            smax = absmax_sfc(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,ss)
+            smax = absmax_sfc(boussine.nx, boussine.ny ,ss)
             estimated_error = 100.0 * smax
-            info()
+            print_info(n, estimated_error, congr_epsilon, boussine.enable_congrad_verbose)
             return
         """
         -----------------------------------------------------------------------
@@ -662,12 +654,12 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
                res(k)    = res(k-1) - alpha(k) * As(k)
         -----------------------------------------------------------------------
         """
-        for j in xrange(js_pe, je_pe):
-            for i in xrange(is_pe, ie_pe):
+        for j in xrange(ny):
+            for i in xrange(nx):
                 sol[i,j] += alpha * ss[i,j]
                 res[i,j] -= alpha * As[i,j]
 
-        smax = absmax_sfc(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,ss)
+        smax = absmax_sfc(boussine.nx, boussine.ny ,ss)
         """
         -----------------------------------------------------------------------
                test for convergence
@@ -679,13 +671,13 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
             step1 = step
             estimated_error = step
             if step < congr_epsilon:
-                info()
+                print_info(n, estimated_error, congr_epsilon, boussine.enable_congrad_verbose)
                 return
         elif step < congr_epsilon:
             convergence_rate = np.exp(np.log(step/step1)/(n-1))
             estimated_error = step*convergence_rate/(1.0-convergence_rate)
             if estimated_error < congr_epsilon:
-                info()
+                print_info(n, estimated_error, congr_epsilon, boussine.enable_congrad_verbose)
                 return
         betakm1 = betak
     """
@@ -693,31 +685,28 @@ def congrad_streamfunction(is_,ie_,js_je_,forc,iterations,sol,converged):
          end of iteration loop
     -----------------------------------------------------------------------
     """
-    if my_pe == 0:
-        print ' WARNING: max iterations exceeded at itt=',itt
-    fail()
+    print ' WARNING: max iterations exceeded at itt=',itt
+    fail(n, estimated_error, congr_epsilon, boussine.enable_congrad_verbose)
 congrad_streamfunction.first = True
 
-def info(n, my_pe, estimated_error, congr_epsilon):
+def print_info(n, estimated_error, congr_epsilon, enable_congrad_verbose):
     converged = True
-    if my_pe==0 and enable_congrad_verbose:
+    if enable_congrad_verbose:
         print ' estimated error=',estimated_error,'/',congr_epsilon
         print ' iterations=',n
 
-def fail(n, my_pe, estimated_error, congr_epsilon):
+def fail(n, estimated_error, congr_epsilon, enable_congrad_verbose):
     converged = False
-    if my_pe == 0:
-        print ' estimated error=',estimated_error,'/',congr_epsilon
-        print ' iterations=',n
+    print ' estimated error=',estimated_error,'/',congr_epsilon
+    print ' iterations=',n
     # check for NaN
     if np.isnan(estimated_error):
-        if my_pe == 0:
-            print ' error is NaN, stopping integration '
+        print ' error is NaN, stopping integration '
         #TODO: Snapshot data
         #call panic_snap
         sys.exit(' in solve_streamfunction')
 
-def absmax_sfc(is_, ie_, js_, je_, p1):
+def absmax_sfc(nx, ny, p1):
     #use main_module
     #implicit none
     #integer :: is_,ie_,js_,je_
@@ -725,22 +714,22 @@ def absmax_sfc(is_, ie_, js_, je_, p1):
     #real*8 :: s2,p1(is_:ie_,js_:je_)
     #integer :: i,j
     s2 = 0
-    for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
-        for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
+    for j in xrange(ny+1): #j=js_pe,je_pe
+        for i in xrange(nx+1): #i=is_pe,ie_pe
             s2 = max( abs(p1[i,j]), s2 )
     return s2
 
-def dot_sfc(is_, ie_, js_, je_, p1, p2):
+def dot_sfc(nx, ny, p1, p2):
     #!real*8 :: s2,p1(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx),p2(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
     #real*8 :: s2,p1(is_:ie_,js_:je_),p2(is_:ie_,js_:je_)
     #integer :: i,j
     s2 = 0
-    for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
-        for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
-            s2 = s2+p1(i,j)*p2(i,j)
+    for j in xrange(ny+1): #j=js_pe,je_pe
+        for i in xrange(nx+1): #i=is_pe,ie_pe
+            s2 += p1[i,j]*p2[i,j]
     return s2
 
-def inv_op_sfc(is_,ie_,js_,je_,Z,res,Zres):
+def inv_op_sfc(nx, ny,Z,res,Zres):
     """
     -----------------------------------------------------------------------
          apply approximate inverse Z of the operator A
@@ -752,11 +741,11 @@ def inv_op_sfc(is_,ie_,js_,je_,Z,res,Zres):
     #!real*8 :: Zres(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
     #real*8, dimension(is_:ie_,js_:je_) :: Z,res,Zres
     #integer :: i,j
-    for j in xrange(js_pe,je_pe):
-        for i in xrange(is_pe, ie_pe):
+    for j in xrange(ny):
+        for i in xrange(nx):
             Zres[i,j] = Z[i,j] * res[i,j]
 
-def make_inv_sfc(is_,ie_,js_,je_,cf,Z):
+def make_inv_sfc(nx,ny,boundary,nisle,nr_boundary, cf,Z):
     """
     -----------------------------------------------------------------------
          construct an approximate inverse Z to A
@@ -772,14 +761,14 @@ def make_inv_sfc(is_,ie_,js_,je_,cf,Z):
 #   copy diagonal coefficients of A to Z
 #
     Z[...] = 0
-    for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
-        for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
+    for j in xrange(ny+1): #j=js_pe,je_pe
+        for i in xrange(nx+1): #i=is_pe,ie_pe
             Z[i,j] = cf[i,j,0+2,0+2]
 #
 #   now invert Z
 #
-    for j in xrange(js_pe, je_pe): #j=js_pe,je_pe
-        for i in xrange(is_pe, ie_pe): #i=is_pe,ie_pe
+    for j in xrange(ny): #j=js_pe,je_pe
+        for i in xrange(nx): #i=is_pe,ie_pe
             if Z[i,j] != 0.0:
                 Z[i,j] = 1./Z[i,j]
             # Seems a bit redundant
@@ -789,8 +778,8 @@ def make_inv_sfc(is_,ie_,js_,je_,cf,Z):
 #   make inverse zero on island perimeters that are not integrated
 #
     for isle in xrange(1, nisle+1): #isle=1,nisle
-        for n in xrange(1, nr_boundary(isle)+1): #n=1,nr_boundary(isle)
-            i = boundary(isle,n,1)
-            j = boundary(isle,n,2)
-            if i >= is_pe-onx and i <= ie_pe+onx and j >= js_pe-onx and j <= je_pe+onx:
+        for n in xrange(1, nr_boundary[isle]+1): #n=1,nr_boundary(isle)
+            i = boundary[isle,n,1]
+            j = boundary[isle,n,2]
+            if i >= 0 and i <= nx+3 and j >= 0 and j <= ny+3:
                 Z[i,j] = 0.0
