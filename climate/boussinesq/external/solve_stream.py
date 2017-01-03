@@ -80,15 +80,15 @@ def streamfunction_init(boussine):
      allocate variables
     -----------------------------------------------------------------------
     """
-    max_boundary= 2*maxval(nippts[1:nisle])
-    boundary = numpy.zeros((nisle, max_boundary, 2))
-    line_dir = numpy.zeros((nisle, max_boundary, 2))
-    nr_boundary = numpy.zeros(nisle)
-    psin = numpy.zeros((boussine.nx+4, boussine.ny+4, nisle))
-    dpsin = numpy.zeros((nisle, 3))
-    line_psin = numpy.zeros((nisle, nisle))
+    max_boundary= 2*int(np.max(nippts[:boussine.nisle]))
+    boundary = np.zeros((boussine.nisle, max_boundary, 2))
+    line_dir = np.zeros((boussine.nisle, max_boundary, 2))
+    nr_boundary = np.zeros(boussine.nisle)
+    psin = np.zeros((boussine.nx+4, boussine.ny+4, boussine.nisle))
+    dpsin = np.zeros((boussine.nisle, 3))
+    line_psin = np.zeros((boussine.nisle, boussine.nisle))
 
-    for isle in xrange(nisle): #isle=1,nisle
+    for isle in xrange(boussine.nisle): #isle=1,nisle
 
         print ' ------------------------'
         print ' processing island #',isle
@@ -100,7 +100,7 @@ def streamfunction_init(boussine):
         -----------------------------------------------------------------------
         """
         kmt[kmt == 0] = 1
-        island.isleperim(kmt,Map, iperm, jperm, iofs, nippts, i, nx+2*onx, ny+2*onx, mnisle, maxipp,boussine,False)
+        island.isleperim(kmt,Map, iperm, jperm, iofs, nippts, boussine.nx+4, boussine.ny+4, mnisle, maxipp,boussine,False)
         if verbose:
             showmap(Map, boussine)
 
@@ -111,10 +111,10 @@ def streamfunction_init(boussine):
         """
         n=1
         # avoid starting close to cyclic bondaries
-        (cont, ij, Dir) = avoid_cyclic_boundaries(Map, boundary)
+        (cont, ij, Dir) = avoid_cyclic_boundaries(Map, boundary, boussine)
 
         if not cont:
-            (cont, ij, Dir) = avoid_cyclic_boundaries2(Map, boundary)
+            (cont, ij, Dir) = avoid_cyclic_boundaries2(Map, boundary, boussine)
 
             if not cont:
                 print 'found no starting point for line integral'
@@ -200,14 +200,14 @@ def streamfunction_init(boussine):
              account for cyclic boundary conditions
             -----------------------------------------------------------------------
             """
-            if enable_cyclic_x and Dir[0] == 1 and Dir[1] == 0 and ij[0] > nx:
+            if enable_cyclic_x and Dir[0] == 1 and Dir[1] == 0 and ij[0] > boussine.nx:
                 if verbose:
                     print ' shifting to western cyclic boundary'
-                ij[0] -= nx
+                ij[0] -= boussine.nx
             if enable_cyclic_x and Dir[0] == -1 and Dir[1] == 0 and ij[0] < 1:
                 if verbose:
                     print ' shifting to eastern cyclic boundary'
-                ij[0] += nx
+                ij[0] += boussine.nx
             if boundary[isle,0,0] == ij[0] and boundary[isle,0,1] == ij[1]:
                 cont = False
 
@@ -232,7 +232,7 @@ def streamfunction_init(boussine):
     -----------------------------------------------------------------------
     """
     forc[...] = 0.0
-    for isle in xrange(nisle): #isle=1,nisle
+    for isle in xrange(boussine.nisle): #isle=1,nisle
         psin[:,:,isle] = 0.0
         for n in xrange(nr_boundary[isle]): #n=1,nr_boundary(isle)
             i = boundary[isle,n,0]
@@ -241,7 +241,7 @@ def streamfunction_init(boussine):
                 psin[i,j,isle] = 1.0
         #MPI stuff
         #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle));
-        cyclic.setcyclic_xy(psin[:,:,isle], boussine.enable_cyclic, boussine.nx)
+        cyclic.setcyclic_xy(boussine.psin[:,:,isle], boussine.enable_cyclic, boussine.nx)
         print ' solving for boundary contribution by island ',isle
 
         congrad_streamfunction(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,forc,congr_itts,psin[:,:,isle],converged)
@@ -266,8 +266,8 @@ def streamfunction_init(boussine):
             line_integral(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx, n,fpx,fpy,line_psin[n,isle])
 
 def avoid_cyclic_boundaries(Map, boundary, boussine):
-    for i in xrange(nx/2+1, nx+1): #i=nx/2+1,nx
-        for j in xrange(ny+1): #j=0,ny
+    for i in xrange(boussine.nx/2+1, boussine.nx+1): #i=nx/2+1,nx
+        for j in xrange(boussine.ny+1): #j=0,ny
             if Map[i,j] == 1 and Map[i,j+1] == -1:
                 #initial direction is eastward, we come from the west
                 ij=[i,j]

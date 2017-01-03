@@ -1,15 +1,24 @@
 import numpy as np
+import sys
 
-def u_centered_grid(dyt, n):
-    yu = np.zeros(n)
-    yt = np.zeros(n)
-    dyu = np.zeros(n)
+def u_centered_grid(dyt,dyu,yt,yu,n):
+    yu[0] = 0
+    yu[1:n] = np.add.accumulate(dyt[1:n])
+
+    yt[0] = yu[0]-dyt[0]*0.5
     for i in xrange(1, n):
-        yu[i] = yu[i-1] + dyt[i]
-        yt[i] = 2*yu[i-1] + yt[i-1]
+        yt[i] = 2*yu[i-1] - yt[i-1]
+
     dyu[:n-1] = yt[1:] - yt[:n-1]
-    dyu[n-1] = 2*dyt[n] - dyu[n-1]
-    return (yu, yt, dyu)
+    dyu[n-1] = 2*dyt[n-1] - dyu[n-2]
+#  yt(1)=yu(1)-dyt(1)*0.5
+#  do i=2,n
+#   yt(i) = 2*yu(i-1) - yt(i-1)
+#  enddo
+#  do i=1,n-1 
+#   dyu(i)= yt(i+1)-yt(i)
+#  enddo
+#  dyu(n)=2*dyt(n)- dyu(n-1)
 
 def calc_grid(boussine):
     """
@@ -25,57 +34,64 @@ def calc_grid(boussine):
     #real*8, dimension(1-onx:ny+onx) :: dyt_gl,dyu_gl,yt_gl,yu_gl
 
     aloc = np.zeros((boussine.nx,boussine.ny))
+    dxt_gl = np.empty(boussine.nx+4)
+    dxu_gl = np.empty(boussine.nx+4)
+    xt_gl  = np.empty(boussine.nx+4)
+    xu_gl  = np.empty(boussine.nx+4)
+    dyt_gl = np.empty(boussine.ny+4)
+    dyu_gl = np.empty(boussine.ny+4)
+    yt_gl  = np.empty(boussine.ny+4)
+    yu_gl  = np.empty(boussine.ny+4)
     """
     --------------------------------------------------------------
      transfer from locally defined variables to global ones
     --------------------------------------------------------------
     """
-    aloc[:,1] = dxt[:]
+    aloc[:,0] = boussine.dxt[2:boussine.nx+2]
 
-    dxt_gl = np.empty(boussine.nx+4)
-    dxt_gl[1:nx] = aloc[:,1]
+    dxt_gl[2:boussine.nx+2] = aloc[:,0]
 
     if boussine.enable_cyclic_x:
         for i in xrange(1,3): #i=1,onx
-            dxt_gl[nx+i+1] = dxt_gl[i+1]
-            dxt_gl[2-i] = dxt_gl[nx-i+2]
+            dxt_gl[boussine.nx+i+1] = dxt_gl[i+1]
+            dxt_gl[2-i] = dxt_gl[boussine.nx-i+2]
     else:
         for i in xrange(1,3): #i=1,onx
-            dxt_gl[nx+i+1] = dxt_gl(nx+1)
-            dxt_gl[2-i] = dxt_gl(2)
+            dxt_gl[boussine.nx+i+1] = dxt_gl[boussine.nx+1]
+            dxt_gl[2-i] = dxt_gl[2]
 
-    aloc[0,:] = dyt[:]
-    dyt_gl[boussine.ny] = aloc[:]
+    aloc[0,:] = boussine.dyt[2:boussine.ny+2]
+    dyt_gl[2:boussine.ny+2] = aloc[0, :]
 
     for i in xrange(1, 3): #i=1,onx
-        dyt_gl[ny+i+1] = dyt_gl[ny+1]
+        dyt_gl[boussine.ny+i+1] = dyt_gl[boussine.ny+1]
         dyt_gl[2-i] = dyt_gl[2]
     """
     -------------------------------------------------------------
     grid in east/west direction
     -------------------------------------------------------------
     """
-    u_centered_grid(dxt_gl,dxu_gl,xt_gl,xu_gl,nx+2*onx)
-    xt_gl -= xu_gl[1]+x_origin
-    xu_gl -= xu_gl[1]+x_origin
+    u_centered_grid(dxt_gl,dxu_gl,xt_gl,xu_gl,boussine.nx+4)
+    xt_gl += -xu_gl[2]+boussine.x_origin
+    xu_gl += -xu_gl[2]+boussine.x_origin
 
     if boussine.enable_cyclic_x:
         for i in xrange(1,3): #i=1,onx
-            xt_gl[nx+i+1] = xt_gl[i+1]
-            xt_gl[2-i]=xt_gl[nx-i+2]
-            xu_gl[nx+i+1] = xt_gl[i+1]
-            xu_gl[2-i]=xu_gl[nx-i+2]
-            dxu_gl[nx+i+1] = dxu_gl(i+1)
-            dxu_gl[2-i] = dxu_gl(nx-i+2)
+            xt_gl[boussine.nx+i+1] = xt_gl[i+1]
+            xt_gl[2-i]=xt_gl[boussine.nx-i+2]
+            xu_gl[boussine.nx+i+1] = xt_gl[i+1]
+            xu_gl[2-i]=xu_gl[boussine.nx-i+2]
+            dxu_gl[boussine.nx+i+1] = dxu_gl[i+1]
+            dxu_gl[2-i] = dxu_gl[boussine.nx-i+2]
 
     """
     --------------------------------------------------------------
      grid in north/south direction
     --------------------------------------------------------------
     """
-    u_centered_grid(dyt_gl,dyu_gl,yt_gl,yu_gl,ny+2*onx)
-    yt_gl -= yu_gl[1]+y_origin
-    yu_gl -= yu_gl[1]+y_origin
+    u_centered_grid(dyt_gl,dyu_gl,yt_gl,yu_gl,boussine.ny+4)
+    yt_gl += -yu_gl[2]+boussine.y_origin
+    yu_gl += -yu_gl[2]+boussine.y_origin
 
     if boussine.coord_degree:
         """
@@ -83,35 +99,35 @@ def calc_grid(boussine):
          convert from degrees to pseudo cartesian grid
         --------------------------------------------------------------
         """
-        dxt_gl *= degtom
-        dxu_gl *= degtom
-        dyt_gl *= degtom
-        dyu_gl *= degtom
+        dxt_gl *= boussine.degtom
+        dxu_gl *= boussine.degtom
+        dyt_gl *= boussine.degtom
+        dyu_gl *= boussine.degtom
 
     """
     --------------------------------------------------------------
       transfer to locally defined variables
     --------------------------------------------------------------
     """
-    self.xt[:]  = xt_gl[:]
-    self.xu[:]  = xu_gl[:]
-    self.dxu[:] = dxu_gl[:]
-    self.dxt[:] = dxt_gl[:]
+    boussine.xt[:]  = xt_gl[:]
+    boussine.xu[:]  = xu_gl[:]
+    boussine.dxu[:] = dxu_gl[:]
+    boussine.dxt[:] = dxt_gl[:]
 
-    self.yt[:]  = yt_gl[:]
-    self.yu[:]  = yu_gl[:]
-    self.dyu[:] = dyu_gl[:]
-    self.dyt[:] = dyt_gl[:]
+    boussine.yt[:]  = yt_gl[:]
+    boussine.yu[:]  = yu_gl[:]
+    boussine.dyu[:] = dyu_gl[:]
+    boussine.dyt[:] = dyt_gl[:]
 
     """
     --------------------------------------------------------------
      grid in vertical direction
     --------------------------------------------------------------
     """
-    u_centered_grid(dzt,dzw,zt,zw,nz)
+    u_centered_grid(boussine.dzt,boussine.dzw,boussine.zt,boussine.zw,boussine.nz)
     #dzw(nz)=dzt(nz) #*0.5 # this is account for in the model directly
-    boussine.zt -= zw[boussine.nz]
-    boussine.zw -= zw[boussine.nz]  # zero at zw(nz)
+    boussine.zt -= boussine.zw[boussine.nz-1]
+    boussine.zw -= boussine.zw[boussine.nz-1]  # zero at zw(nz)
 
     """
     --------------------------------------------------------------
@@ -120,9 +136,9 @@ def calc_grid(boussine):
     """
     if boussine.coord_degree:
         for j in xrange(boussine.ny+4):
-            boussine.cost[j] = np.cos( yt[j]/180.*np.pi )
-            boussine.cosu[j] = np.cos( yu[j]/180.*np.pi )
-            boussine.tantr[j] = np.tan( yt[j]/180.*np.pi ) /boussine.radius
+            boussine.cost[j] = np.cos( boussine.yt[j]/180.*np.pi )
+            boussine.cosu[j] = np.cos( boussine.yu[j]/180.*np.pi )
+            boussine.tantr[j] = np.tan( boussine.yt[j]/180.*np.pi ) /boussine.radius
     else:
         boussine.cost[...] = 1.0
         boussine.cosu[...] = 1.0
@@ -139,16 +155,16 @@ def calc_grid(boussine):
             boussine.area_u[i,j] = boussine.dxu[i]*boussine.cost[j]*boussine.dyt[j]
             boussine.area_v[i,j] = boussine.dxt[i]*boussine.cosu[j]*boussine.dyu[j]
 
-def calc_beta():
+def calc_beta(boussine):
     """
     --------------------------------------------------------------
      calculate beta = df/dy
     --------------------------------------------------------------
     """
-    for j in xrange(js_pe,je_pe+1): # j=js_pe,je_pe
-        beta[:,j] = 0.5*(  (coriolis_t[:,j+1]-coriolis_t[:,j])/dyu[j] + (coriolis_t[:,j]-coriolis_t[:,j-1])/dyu[j-1] )
+    for j in xrange(2,boussine.ny+2): # j=js_pe,je_pe
+        boussine.beta[:,j] = 0.5*(  (boussine.coriolis_t[:,j+1]-boussine.coriolis_t[:,j])/boussine.dyu[j] + (boussine.coriolis_t[:,j]-boussine.coriolis_t[:,j-1])/boussine.dyu[j-1] )
 
-def calc_topo():
+def calc_topo(boussine):
     """
     --------------------------------------------------------------
      calulate masks, total depth etc

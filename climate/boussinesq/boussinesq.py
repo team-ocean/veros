@@ -197,7 +197,7 @@ class boussinesq:
         self.yt = np.zeros(self.ny+4)
         self.yu = np.zeros(self.ny+4)
         self.dxt = np.zeros(self.nx+4)
-        self.dxy = np.zeros(self.nx+4)
+        self.dxu = np.zeros(self.nx+4)
         self.dyt = np.zeros(self.ny+4)
         self.dyu = np.zeros(self.ny+4)
 
@@ -471,20 +471,20 @@ class boussinesq:
         """
          Coriolis
         """
-        set_coriolis()
-        calc_beta()
+        self.set_coriolis()
+        numerics.calc_beta(self)
 
         """
          topography
         """
-        set_topography()
-        calc_topo()
+        self.set_topography()
+        numerics.calc_topo(self)
         calc_spectral_topo()
 
         """
          initial condition and forcing
         """
-        set_initial_conditions()
+        self.set_initial_conditions()
         calc_initial_conditions()
         set_forcing()
         if enable_streamfunction:
@@ -494,7 +494,7 @@ class boussinesq:
          initialize diagnostics
         """
         init_diagnostics()
-        set_diagnostics()
+        self.set_diagnostics()
 
         """
          initialize EKE module
