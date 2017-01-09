@@ -1,7 +1,8 @@
 import numpy as np
 import climate.boussinesq.numerics as numerics
 
-def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
+def isoneutral_diffusion(is_pe, ie_pe, js_pe, je_pe, nz, tr, istemp,
+                         pyom, isoneutral):
     """
     =======================================================================
        Isopycnal diffusion for tracer,
@@ -10,6 +11,20 @@ def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
        T/S changes are added to dtemp_iso/dsalt_iso
     =======================================================================
     """
+
+    K_11 = isoneutral_state.K_11
+    K_13 = isoneutral_state.K_13
+    K_22 = isoneutral_state.K_22
+    K_23 = isoneutral_state.K_23
+    K_31 = isoneutral_state.K_31
+    K_32 = isoneutral_state.K_32
+    K_33 = isoneutral_state.K_33
+    K_iso = isoneutral_state.K_iso
+    Ai_ez = isoneutral_state.Ai_ez
+    Ai_nz = isoneutral_state.Ai_nz
+    Ai_bx = isoneutral_state.Ai_bx
+    Ai_by = isoneutral_state.Ai_by
+    K_gm = isoneutral_state.K_gm
 
     """
     -----------------------------------------------------------------------
@@ -23,10 +38,10 @@ def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
                 sumz = 0.
                 for kr in xrange(2): #kr=0,1
                     km1kr = max(k+kr,1)
-                    kpkr  = min(k+1+kr,nz)
+                    kpkr = min(k+1+kr,nz)
                     for ip in xrange(2):#ip=0,1
-                        sumz = sumz + diffloc*Ai_ez[i,j,k+1,ip,kr] *(tr[i+ip,j,kpkr,tau]-tr[i+ip,j,km1kr,tau])
-                flux_east[i,j,k+1] = sumz/(4*dzt[k+1]) + (tr(i+1,j,k+1,tau)-tr(i,j,k+1,tau))/(cost[j]*dxu[i]) *K_11[i,j,k+1]
+                        sumz = sumz + diffloc * Ai_ez[i,j,k+1,ip,kr] * (tr[i+ip,j,kpkr,tau]-tr[i+ip,j,km1kr,tau])
+                flux_east[i,j,k+1] = sumz/(4*dzt[k+1]) + (tr[i+1,j,k+1,tau]-tr[i,j,k+1,tau])/(cost[j]*dxu[i])*K_11[i,j,k+1]
     """
     -----------------------------------------------------------------------
          construct total isoneutral tracer flux at north face of "T" cells
@@ -35,14 +50,14 @@ def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
     for k in xrange(nz): #k=1, nz
         for j in xrange(js_pe-1, je_pe+1): #j=js_pe-1, je_pe
             for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
-                diffloc = 0.25*(K_iso[i,j,k+1]+K_iso[i,j,max(1,k)] + K_iso[i,j+1,k+1]+K_iso[i,j+1,max(1,k)] )
-                sumz    = 0.
+                diffloc = 0.25*(K_iso[i,j,k+1]+K_iso[i,j,max(1,k)] + K_iso[i,j+1,k+1]+K_iso[i,j+1,max(1,k)])
+                sumz = 0.
                 for kr in xrange(2): # kr=0,1
                     km1kr = max(k+kr,1)
-                    kpkr  = min(k+1+kr,nz)
+                    kpkr = min(k+1+kr,nz)
                     for jp in xrange(2): #do jp=0,1
-                        sumz = sumz + diffloc*Ai_nz[i,j,k+1,jp,kr] *(tr[i,j+jp,kpkr,tau]-tr[i,j+jp,km1kr,tau])
-                flux_north(i,j,k+1) = cosu[j]*( sumz/(4*dzt[k+1])+ (tr[i,j+1,k+1,tau]-tr[i,j,k+1,tau])/dyu[j]*K_22[i,j,k+1])
+                        sumz = sumz + diffloc * Ai_nz[i,j,k+1,jp,kr] * (tr[i,j+jp,kpkr,tau]-tr[i,j+jp,km1kr,tau])
+                flux_north(i,j,k+1) = cosu[j]*(sumz/(4*dzt[k+1]) + (tr[i,j+1,k+1,tau]-tr[i,j,k+1,tau])/dyu[j]*K_22[i,j,k+1])
     """
     -----------------------------------------------------------------------
          compute the vertical tracer flux "flux_top" containing the K31
@@ -59,7 +74,7 @@ def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
                 for ip in xrange(2): #ip=0,1
                     for kr in xrange(2): #kr=0,1
                         sumx = sumx + diffloc*Ai_bx[i,j,k+1,ip,kr]/cost[j]*(tr[i+ip,j,k+1+kr,tau] - tr[i-1+ip,j,k+1+kr,tau])
-                sumy    = 0.
+                sumy = 0.
                 for jp in xrange(2): #jp=0,1
                     for kr in xrange(2): #kr=0,1
                         sumy = sumy + diffloc*Ai_by[i,j,k+1,jp,kr]*cosu[j-1+jp]* (tr[i,j+jp,k+1+kr,tau]-tr[i,j-1+jp,k+1+kr,tau])
@@ -92,7 +107,7 @@ def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
          add implicit part
     ---------------------------------------------------------------------------------
     """
-    aloc = tr(:,:,:,taup1)
+    aloc = tr[:,:,:,taup1]
     a_tri = np.zeroes(nz)
     b_tri = np.zeroes(nz)
     c_tri = np.zeroes(nz)
@@ -117,8 +132,8 @@ def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
                 c_tri[nz] = 0.0
                 d_tri[ks:nz] = tr[i,j,ks:nz,taup1]
                 call solve_tridiag(a_tri[ks:nz],b_tri[ks:nz],c_tri[ks:nz],d_tri[ks:nz],sol[ks:nz],nz-ks+1)
-                tr(i,j,ks:nz,taup1) = sol[ks:nz]
-    if (istemp):
+                tr[i,j,ks:nz,taup1] = sol[ks:nz]
+    if istemp:
          dtemp_iso = dtemp_iso + (tr[:,:,:,taup1]-aloc)/dt_tracer
     else:
          dsalt_iso = dsalt_iso + (tr[:,:,:,taup1]-aloc)/dt_tracer
@@ -139,10 +154,10 @@ def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
             for j in xrange(js_pe-onx+1,je_pe+onx): #j=js_pe-onx+1,je_pe+onx-1
                 for i in xrange(is_pe-onx+1,ie_pe+onx): #i=is_pe-onx+1,ie_pe+onx-1
                     fxa = bloc[i,j,k]
-                    aloc[i,j,k] =+0.5*grav/rho_0*( (bloc[i+1,j,k]-fxa)*flux_east[i,j,k] \
-                                                  +(fxa-bloc[i-1,j,k])*flux_east[i-1,j,k] ) /(dxt[i]*cost[j]) \
-                                 +0.5*grav/rho_0*( (bloc[i,j+1,k]-fxa)*flux_north[i,j,k] \
-                                                  +(fxa-bloc[i,j-1,k])*flux_north[i,j-1,k] ) /(dyt[j]*cost[j])
+                    aloc[i,j,k] = 0.5*grav/rho_0*((bloc[i+1,j,k]-fxa)*flux_east[i,j,k] \
+                                                  +(fxa-bloc[i-1,j,k])*flux_east[i-1,j,k]) / (dxt[i]*cost[j]) \
+                                + 0.5*grav/rho_0*((bloc[i,j+1,k]-fxa)*flux_north[i,j,k] \
+                                                  +(fxa-bloc[i,j-1,k])*flux_north[i,j-1,k]) / (dyt[j]*cost[j])
         """
         ---------------------------------------------------------------------------------
          dissipation interpolated on W-grid
@@ -164,7 +179,7 @@ def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
          diagnose dissipation of dynamic enthalpy by explicit and implicit vertical mixing
         ---------------------------------------------------------------------------------
         """
-        if (istemp):
+        if istemp:
             for k in xrange(1, nz): #k=1,nz-1
                 for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
                     for i in xrange(is_pe, ie_pe): #i=is_pe,ie_pe
@@ -179,9 +194,7 @@ def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
                         P_diss_iso[i,j,k] = P_diss_iso[i,j,k] - grav/rho_0*fxa*flux_top[i,j,k]*maskW[i,j,k] \
                                        -grav/rho_0*fxa*K_33[i,j,k]*(salt[i,j,k+1,taup1]-salt[i,j,k,taup1])/dzw[k]*maskW[i,j,k]
 
-
-
-
+        return P_diss_iso, dtemp_iso, dsalt_iso
 
 
 
@@ -189,8 +202,8 @@ def isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
 def isoneutral_skew_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
     """
     =======================================================================
-       Isopycnal skew diffusion for tracer, 
-       following functional formulation by Griffies et al 
+       Isopycnal skew diffusion for tracer,
+       following functional formulation by Griffies et al
        Dissipation is calculated and stored in P_diss_skew
        T/S changes are added to dtemp_iso/dsalt_iso
     =======================================================================
@@ -318,8 +331,7 @@ def isoneutral_skew_diffusion(is_,ie_,js_,je_,nz_,tr,istemp):
                     fxa = (-bloc[i,j,k+1] +bloc[i,j,k])/dzw[k]
                     P_diss_skew[i,j,k] = P_diss_skew[i,j,k]  -grav/rho_0*fxa*flux_top[i,j,k]*maskW[i,j,k]
 
-
-
+        return P_diss_skew, dtemp_iso, dsalt_iso
 
 
 def isoneutral_diffusion_all(is_,ie_,js_,je_,nz_,tr,istemp):
@@ -443,7 +455,7 @@ def isoneutral_diffusion_all(is_,ie_,js_,je_,nz_,tr,istemp):
                 for k in xrange(ks, nz): #k=ks,nz-1
                     c_tri[k] = - delta[k]/dzt[k]
                 c_tri[nz] = 0.0
-                d_tri[ks:nz+1] = tr(i,j,ks:nz+1,taup1)
+                d_tri[ks:nz+1] = tr[i,j,ks:nz+1,taup1]
                 numerics.solve_tridiag(a_tri[ks:nz+1],b_tri[ks:nz+1],c_tri[ks:nz+1],d_tri[ks:nz+1],sol[ks:nz+1],nz-ks+1)
                 tr[i,j,ks:nz+1,taup1] = sol[ks:nz+1]
 
@@ -506,3 +518,5 @@ def isoneutral_diffusion_all(is_,ie_,js_,je_,nz_,tr,istemp):
                         fxa = (-bloc[i,j,k+1] +bloc[i,j,k])/dzw[k]
                         P_diss_iso[i,j,k] = P_diss_iso[i,j,k]  -grav/rho_0*fxa*flux_top[i,j,k]*maskW[i,j,k] \
                                        -grav/rho_0*fxa*K_33[i,j,k]*(salt[i,j,k+1,taup1]-salt[i,j,k,taup1])/dzw[k]*maskW[i,j,k]
+
+        return P_diss_iso

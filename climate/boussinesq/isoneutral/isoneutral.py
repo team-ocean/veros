@@ -1,56 +1,44 @@
 import numpy as np
-"""
----------------------------------------------------------------------------------
-     isopycnal mixing option
----------------------------------------------------------------------------------
-"""
-enable_neutral_diffusion  = False # enable isopycnal mixing
-enable_skew_diffusion     = False # enable skew diffusion approach for eddy-driven velocities
-enable_TEM_friction       = False # TEM approach for eddy-driven velocities
-#K_11(:,:,:)         # isopycnal mixing tensor component
-#K_13(:,:,:)         # isopycnal mixing tensor component
-#K_22(:,:,:)         # isopycnal mixing tensor component
-#K_23(:,:,:)         # isopycnal mixing tensor component
-#K_31(:,:,:)         # isopycnal mixing tensor component
-#K_32(:,:,:)         # isopycnal mixing tensor component
-#K_33(:,:,:)         # isopycnal mixing tensor component
-#Ai_ez(:,:,:,:,:)    #
-#Ai_nz(:,:,:,:,:)    #
-#Ai_bx(:,:,:,:,:)    #
-#Ai_by(:,:,:,:,:)    #
-#B1_gm(:,:,:)    # zonal streamfunction (for diagnostic purpose only)
-#B2_gm(:,:,:)    # meridional streamfunction (for diagnostic purpose only)
-#K_gm(:,:,:)     # GM diffusivity in m^2/s, either constant or from EKE model
-#kappa_gm(:,:,:) # vertical viscosity due to skew diffusivity K_gm in m^2/s
-#K_iso(:,:,:)    # along isopycnal diffusivity in m^2/s
-K_iso_0     = 0.0            # constant for isopycnal diffusivity in m^2/s
-K_iso_steep = 0.0            # lateral diffusivity for steep slopes in m^2/s
-K_gm_0      = 0.0            # fixed value for K_gm which is set for no EKE model
-iso_dslope=0.0008            # parameters controlling max allowed isopycnal slopes
-iso_slopec=0.001             # parameters controlling max allowed isopycnal slopes
+
+class Isoneutral:
+    def __init__(self):
+        """
+        ---------------------------------------------------------------------------------
+             isopycnal mixing option
+        ---------------------------------------------------------------------------------
+        """
+        self.enable_neutral_diffusion  = False # enable isopycnal mixing
+        self.enable_skew_diffusion     = False # enable skew diffusion approach for eddy-driven velocities
+        self.enable_TEM_friction       = False # TEM approach for eddy-driven velocities
+        self.K_iso_0     = 0.0            # constant for isopycnal diffusivity in m^2/s
+        self.K_iso_steep = 0.0            # lateral diffusivity for steep slopes in m^2/s
+        self.K_gm_0      = 0.0            # fixed value for K_gm which is set for no EKE model
+        self.iso_dslope = 0.0008          # parameters controlling max allowed isopycnal slopes
+        self.iso_slopec = 0.001           # parameters controlling max allowed isopycnal slopes
 
 
+    def allocate(self):
+        if self.enable_neutral_diffusion:
+            # isopycnal mixing tensor components
+            self.K_11 = np.zeros(nx,ny,nz)
+            self.K_13 = np.zeros(nx,ny,nz)
+            self.K_22 = np.zeros(nx,ny,nz)
+            self.K_23 = np.zeros(nx,ny,nz)
+            self.K_31 = np.zeros(nx,ny,nz)
+            self.K_32 = np.zeros(nx,ny,nz)
+            self.K_33 = np.zeros(nx,ny,nz)
+            #
+            self.Ai_ez = np.zeros(nx,ny,nz,2,2)
+            self.Ai_nz = np.zeros(nx,ny,nz,2,2)
+            self.Ai_bx = np.zeros(nx,ny,nz,2,2)
+            self.Ai_by = np.zeros(nx,ny,nz,2,2)
 
-def allocate():
-    if enable_neutral_diffusion:
-        K_11 = np.zeros(nx,ny,nz)
-        K_13 = np.zeros(nx,ny,nz)
-        K_22 = np.zeros(nx,ny,nz)
-        K_23 = np.zeros(nx,ny,nz)
-        K_31 = np.zeros(nx,ny,nz)
-        K_32 = np.zeros(nx,ny,nz)
-        K_33 = np.zeros(nx,ny,nz)
-        Ai_ez = np.zeros(nx,ny,nz,2,2)
-        Ai_nz = np.zeros(nx,ny,nz,2,2)
-        Ai_bx = np.zeros(nx,ny,nz,2,2)
-        Ai_by = np.zeros(nx,ny,nz,2,2)
+        self.B1_gm = np.zeros(nx,ny,nz) # zonal streamfunction (for diagnostic purpose only)
+        self.B2_gm = np.zeros(nx,ny,nz) # meridional streamfunction (for diagnostic purpose only)
 
-    B1_gm = np.zeros(nx,ny,nz)
-    B2_gm = np.zeros(nx,ny,nz)
-
-    kappa_gm = np.zeros(nx,ny,nz)
-    K_gm = np.zeros(nx,ny,nz)
-    K_iso = np.zeros(nx,ny,nz)
+        self.kappa_gm = np.zeros(nx,ny,nz) # vertical viscosity due to skew diffusivity K_gm in m^2/s
+        self.K_gm = np.zeros(nx,ny,nz) # GM diffusivity in m^2/s, either constant or from EKE model
+        self.K_iso = np.zeros(nx,ny,nz) # along isopycnal diffusivity in m^2/s
 
 #def isoneutral_diffusion_pre():
 #    """
@@ -66,13 +54,13 @@ def allocate():
 #     statement functions for density triads
 #    -----------------------------------------------------------------------
 #    """
-#    drodxe(i,j,k,ip)    = drdTS(i+ip,j,k,1)*ddxt(i,j,k,1)         + drdTS(i+ip,j,k,2)*ddxt(i,j,k,2) 
+#    drodxe(i,j,k,ip)    = drdTS(i+ip,j,k,1)*ddxt(i,j,k,1)         + drdTS(i+ip,j,k,2)*ddxt(i,j,k,2)
 #    drodze(i,j,k,ip,kr) = drdTS(i+ip,j,k,1)*ddzt(i+ip,j,k+kr-1,1) + drdTS(i+ip,j,k,2)*ddzt(i+ip,j,k+kr-1,2)
-#    drodyn(i,j,k,jp)    = drdTS(i,j+jp,k,1)*ddyt(i,j,k,1)         + drdTS(i,j+jp,k,2)*ddyt(i,j,k,2) 
+#    drodyn(i,j,k,jp)    = drdTS(i,j+jp,k,1)*ddyt(i,j,k,1)         + drdTS(i,j+jp,k,2)*ddyt(i,j,k,2)
 #    drodzn(i,j,k,jp,kr) = drdTS(i,j+jp,k,1)*ddzt(i,j+jp,k+kr-1,1) + drdTS(i,j+jp,k,2)*ddzt(i,j+jp,k+kr-1,2)
 #
-#    drodxb(i,j,k,ip,kr) = drdTS(i,j,k+kr,1)*ddxt(i-1+ip,j,k+kr,1) + drdTS(i,j,k+kr,2)*ddxt(i-1+ip,j,k+kr,2) 
-#    drodyb(i,j,k,jp,kr) = drdTS(i,j,k+kr,1)*ddyt(i,j-1+jp,k+kr,1) + drdTS(i,j,k+kr,2)*ddyt(i,j-1+jp,k+kr,2) 
+#    drodxb(i,j,k,ip,kr) = drdTS(i,j,k+kr,1)*ddxt(i-1+ip,j,k+kr,1) + drdTS(i,j,k+kr,2)*ddxt(i-1+ip,j,k+kr,2)
+#    drodyb(i,j,k,jp,kr) = drdTS(i,j,k+kr,1)*ddyt(i,j-1+jp,k+kr,1) + drdTS(i,j,k+kr,2)*ddyt(i,j-1+jp,k+kr,2)
 #    drodzb(i,j,k,kr)    = drdTS(i,j,k+kr,1)*ddzt(i,j,k,1)         + drdTS(i,j,k+kr,2)*ddzt(i,j,k,2)
 #    """
 #    -----------------------------------------------------------------------
@@ -93,8 +81,8 @@ def allocate():
 # do k=1,nz-1
 #  do j=js_pe-onx,je_pe+onx
 #   do i=is_pe-onx,ie_pe+onx
-#    ddzt(i,j,k,1) = maskW(i,j,k)* (temp(i,j,k+1,tau) - temp(i,j,k,tau))/dzw(k)  
-#    ddzt(i,j,k,2) = maskW(i,j,k)* (salt(i,j,k+1,tau) - salt(i,j,k,tau))/dzw(k) 
+#    ddzt(i,j,k,1) = maskW(i,j,k)* (temp(i,j,k+1,tau) - temp(i,j,k,tau))/dzw(k)
+#    ddzt(i,j,k,2) = maskW(i,j,k)* (salt(i,j,k+1,tau) - salt(i,j,k,tau))/dzw(k)
 #   enddo
 #  enddo
 # enddo
@@ -128,7 +116,7 @@ def allocate():
 #    do kr=0,1
 #     do ip=0,1
 #       sxe  = -drodxe(i,j,k,ip)/(min(0d0,drodze(i,j,k,ip,kr))-epsln)  ! i+1, k-1
-#       taper = dm_taper(sxe)    
+#       taper = dm_taper(sxe)
 #       sumz = sumz + dzw(k+kr-1)*maskU(i,j,k)*max(K_iso_steep,diffloc*taper)
 #       Ai_ez(i,j,k,ip,kr) =  taper*sxe*maskU(i,j,k)
 #     enddo
@@ -145,7 +133,7 @@ def allocate():
 #    kr=1
 #    do ip=0,1
 #       sxe  = -drodxe(i,j,k,ip)/(min(0d0,drodze(i,j,k,ip,kr))-epsln)
-#       taper = dm_taper(sxe)    
+#       taper = dm_taper(sxe)
 #       sumz = sumz + dzw(k+kr-1)*maskU(i,j,k)*max(K_iso_steep,diffloc*taper)
 #       Ai_ez(i,j,k,ip,kr) =  taper*sxe*maskU(i,j,k)
 #    enddo
@@ -163,7 +151,7 @@ def allocate():
 #     do kr=0,1
 #      do jp=0,1
 #         syn = -drodyn(i,j,k,jp)/(min(0d0,drodzn(i,j,k,jp,kr))-epsln)
-#         taper = dm_taper(syn)    
+#         taper = dm_taper(syn)
 #         sumz = sumz + dzw(k+kr-1) *maskV(i,j,k)*max(K_iso_steep,diffloc*taper)
 #         Ai_nz(i,j,k,jp,kr) = taper*syn*maskV(i,j,k)
 #      enddo
@@ -180,7 +168,7 @@ def allocate():
 #     kr=1
 #     do jp=0,1
 #         syn = -drodyn(i,j,k,jp)/(min(0d0,drodzn(i,j,k,jp,kr))-epsln)
-#         taper = dm_taper(syn)    
+#         taper = dm_taper(syn)
 #         sumz = sumz + dzw(k+kr-1) *maskV(i,j,k)*max(K_iso_steep,diffloc*taper)
 #         Ai_nz(i,j,k,jp,kr) = taper*syn*maskV(i,j,k)
 #     enddo
@@ -198,7 +186,7 @@ def allocate():
 #     do ip=0,1
 #      do kr=0,1
 #        sxb = -drodxb(i,j,k,ip,kr)/(min(0d0,drodzb(i,j,k,kr))-epsln)  ! i-1,k+1
-#        taper = dm_taper(sxb)    
+#        taper = dm_taper(sxb)
 #        sumx = sumx + dxu(i-1+ip)*K_iso(i,j,k)*taper*sxb**2  *maskW(i,j,k)
 #        Ai_bx(i,j,k,ip,kr) =  taper*sxb*maskW(i,j,k)
 #      enddo
@@ -209,7 +197,7 @@ def allocate():
 #      facty = cosu(j-1+jp)*dyu(j-1+jp)
 #      do kr=0,1
 #        syb = -drodyb(i,j,k,jp,kr)/(min(0d0,drodzb(i,j,k,kr))-epsln)
-#        taper = dm_taper(syb)    
+#        taper = dm_taper(syb)
 #        sumy = sumy + facty*K_iso(i,j,k)*taper*syb**2 *maskW(i,j,k)
 #        Ai_by(i,j,k,jp,kr) = taper*syb  *maskW(i,j,k)
 #      enddo
@@ -230,13 +218,13 @@ def allocate():
 #!  calculate hor. components of streamfunction for eddy driven velocity
 #!  for diagnostics purpose only
 #!=======================================================================
-# use main_module   
+# use main_module
 # use isoneutral_module
 # implicit none
 # integer :: i,j,k,kr,ip,jp,km1kr,kpkr
 # real*8 :: sumz, diffloc
 #!-----------------------------------------------------------------------
-#!     meridional component at east face of "T" cells 
+#!     meridional component at east face of "T" cells
 #!-----------------------------------------------------------------------
 # do k=1,nz
 #  do j=js_pe,je_pe
@@ -247,15 +235,15 @@ def allocate():
 #       km1kr = max(k-1+kr,1)
 #       kpkr  = min(k+kr,nz)
 #       do ip=0,1
-#         sumz = sumz + diffloc*Ai_ez(i,j,k,ip,kr) 
+#         sumz = sumz + diffloc*Ai_ez(i,j,k,ip,kr)
 #       enddo
 #     enddo
-#     B2_gm(i,j,k) = 0.25*sumz 
+#     B2_gm(i,j,k) = 0.25*sumz
 #   enddo
 #  enddo
 # enddo
 #!-----------------------------------------------------------------------
-#!     zonal component at north face of "T" cells 
+#!     zonal component at north face of "T" cells
 #!-----------------------------------------------------------------------
 # do k=1,nz
 #  do j=js_pe-1,je_pe
@@ -266,10 +254,10 @@ def allocate():
 #       km1kr = max(k-1+kr,1)
 #       kpkr  = min(k+kr,nz)
 #       do jp=0,1
-#         sumz = sumz + diffloc*Ai_nz(i,j,k,jp,kr) 
+#         sumz = sumz + diffloc*Ai_nz(i,j,k,jp,kr)
 #       enddo
 #     enddo
-#     B1_gm(i,j,k) = -0.25*sumz 
+#     B1_gm(i,j,k) = -0.25*sumz
 #   enddo
 #  enddo
 # enddo
@@ -283,14 +271,14 @@ def allocate():
 # use isoneutral_module
 # implicit none
 # real*8 :: sx
-# dm_taper=0.5*(1.+tanh((-abs(sx)+iso_slopec)/iso_dslope))   
+# dm_taper=0.5*(1.+tanh((-abs(sx)+iso_slopec)/iso_dslope))
 #end function dm_taper
 #
 #
 #
 #subroutine check_isoneutral_slope_crit
 #!=======================================================================
-#! check linear stability criterion from Griffies et al 
+#! check linear stability criterion from Griffies et al
 #!=======================================================================
 # use main_module
 # use isoneutral_module
@@ -311,7 +299,7 @@ def allocate():
 #      delta1b = dyt(j)*dzt(k)*ft1
 #      if ( delta_iso1 .ge. delta1a .or. delta_iso1 .ge. delta1b) then
 #           delta_iso1  = min(delta1a,delta1b)
-#      endif 
+#      endif
 #     enddo
 #    enddo
 #   enddo
