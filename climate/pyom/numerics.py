@@ -1,3 +1,4 @@
+from climate.pyom import cyclic
 import numpy as np
 import sys
 
@@ -176,54 +177,56 @@ def calc_topo(boussine):
      close domain
     --------------------------------------------------------------
     """
-    if my_blk_j == 1:
-        kbot[:,1-onx:0] = 0
-    if my_blk_j == n_pes_j:
-        kbot[:,ny+1:ny+onx] = 0
-    if not enable_cyclic_x:
-        if my_blk_i == 1:
-            kbot[1-onx:1,:] = 0
-        if my_blk_i == n_pes_i:
-            kbot[nx+1:nx+onx+1,:] = 0
+    boussine.kbot[:,:2] = 0
+    boussine.kbot[:,-2:] = 0
+    if not boussine.enable_cyclic_x:
+        boussine.kbot[:2,:] = 0
+        boussine.kbot[-2:,:] = 0
+
+    cyclic.setcyclic_xy(boussine.kbot,boussine.enable_cyclic_x,boussine.nx)
 
     """
     --------------------------------------------------------------
      Land masks
     --------------------------------------------------------------
     """
-    maskT = 0.0
-    for k in xrange(1, nz+1): # k=1,nz
-        for j in xrange(js_pe-onx, je_pe+onx): # j=js_pe-onx,je_pe+onx
-            for i in xrange(is_pe-onx, ie_pe+onx): # i=is_pe-onx,ie_pe+onx
-                if kbot[i,j] != 0 and kbot[i,j] <= k:
-                    maskT[i,j,k] = 1.0
-    maskU = maskT
-    for i in xrange(is_pe-onx, ie_pe+onx): # i=is_pe-onx,ie_pe+onx-1
-        maskU[i,:,:] = min(maskT[i,:,:], maskT[i+1,:,:])
-    maskV = maskT
-    for j in xrange(js_pe-onx, je_pe+onx): # j=js_pe-onx,je_pe+onx-1
-        maskV[:,j,:] = min(maskT[:,j,:], maskT[:,j+1,:])
-    maskZ = maskT
-    for j in xrange(js_pe-onx, je_pe+onx): # j=js_pe-onx,je_pe+onx-1
-        for i in xrange(is_pe-onx, ie_pe+onx): # i=is_pe-onx,ie_pe+onx-1
-            maskZ[i,j,:] = min(maskT[i,j,:],maskT[i,j+1,:],maskT[i+1,j,:])
-    maskW = maskT
-    for k in xrange(1, nz): # k=1,nz-1
-        maskW[:,:,k] = min(maskT[:,:,k],maskT[:,:,k+1])
+    boussine.maskT[...] = 0.0
+    for k in xrange(boussine.nz): # k=1,nz
+        for j in xrange(boussine.ny+4): # j=js_pe-onx,je_pe+onx
+            for i in xrange(boussine.nx+4): # i=is_pe-onx,ie_pe+onx
+                if boussine.kbot[i,j] != 0 and boussine.kbot[i,j] <= k:
+                    boussine.maskT[i,j,k] = 1.0
+    cyclic.setcyclic_xyz(boussine.maskT, boussine.enable_cyclic_x, boussine.nx, boussine.nz)
+    boussine.maskU[...] = boussine.maskT
+    for i in xrange(boussine.nx+3): # i=is_pe-onx,ie_pe+onx-1
+        boussine.maskU[i,:,:] = np.minimum(boussine.maskT[i,:,:], boussine.maskT[i+1,:,:])
+    cyclic.setcyclic_xyz(boussine.maskU, boussine.enable_cyclic_x, boussine.nx, boussine.nz)
+    boussine.maskV[...] = boussine.maskT
+    for j in xrange(boussine.ny+3): # j=js_pe-onx,je_pe+onx-1
+        boussine.maskV[:,j,:] = np.minimum(boussine.maskT[:,j,:], boussine.maskT[:,j+1,:])
+    cyclic.setcyclic_xyz(boussine.maskV, boussine.enable_cyclic_x, boussine.nx, boussine.nz)
+    boussine.maskZ[...] = boussine.maskT
+    for j in xrange(boussine.ny+3): # j=js_pe-onx,je_pe+onx-1
+        for i in xrange(boussine.nx+3): # i=is_pe-onx,ie_pe+onx-1
+            boussine.maskZ[i,j,:] = np.minimum(boussine.maskT[i,j,:],boussine.maskT[i,j+1,:],boussine.maskT[i+1,j,:])
+    cyclic.setcyclic_xyz(boussine.maskZ, boussine.enable_cyclic_x, boussine.nx, boussine.nz)
+    boussine.maskW[...] = boussine.maskT
+    for k in xrange(boussine.nz-1): # k=1,nz-1
+        boussine.maskW[:,:,k] = np.minimum(boussine.maskT[:,:,k],boussine.maskT[:,:,k+1])
     """
     --------------------------------------------------------------
      total depth
     --------------------------------------------------------------
     """
-    ht=0.0
-    hu=0.0
-    hv=0.0
-    for k in xrange(1, nz+1):
-        ht = ht+maskT[:,:,k]*dzt[k]
-        hu = hu+maskU[:,:,k]*dzt[k]
-        hv = hv+maskV[:,:,k]*dzt[k]
-    hur[hu != 0.0] = 1./hu[hu != 0.0]
-    hvr[hv != 0.0] = 1./hv[hv != 0.0]
+    boussine.ht[...] = 0.0
+    boussine.hu[...] = 0.0
+    boussine.hv[...] = 0.0
+    for k in xrange(boussine.nz): #k=1,nz
+        boussine.ht += boussine.maskT[:,:,k]*boussine.dzt[k]
+        boussine.hu += boussine.maskU[:,:,k]*boussine.dzt[k]
+        boussine.hv += boussine.maskV[:,:,k]*boussine.dzt[k]
+    boussine.hur[boussine.hu != 0.0] = 1./boussine.hu[boussine.hu != 0.0]
+    boussine.hvr[boussine.hv != 0.0] = 1./boussine.hv[boussine.hv != 0.0]
 
 #TODO: you are here
 

@@ -2,7 +2,7 @@ import sys
 import numpy as np
 import Queue
 
-def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,boussine, verbose):
+def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,boussine, change_nisle=False, verbose=False):
     """
     =======================================================================
              Island and Island Perimeter Mapping Routines
@@ -48,8 +48,14 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,bou
     -----------------------------------------------------------------------
     """
 
-    Map[kmt > 0] = ocean
-    Map[kmt <= 0] = land
+    for i in xrange(imt):
+        for j in xrange(jmt):
+            if kmt[i,j] > 0:
+                Map[i,j] = ocean
+            else:
+                Map[i,j] = land
+    #Map[kmt > 0] = ocean
+    #Map[kmt <= 0] = land
 
 
     """
@@ -77,14 +83,14 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,bou
                 expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp, boussine)
                 if verbose:
                     print ' number of island perimeter points: nippts(',label-1,')=',nippts[label]
-                    label += 1
-                    if label >= mnisle:
-                        print 'ERROR==> mnisle=',mnisle,' is too small'
-                        print '==> expand'
-                        sys.exit(' in isleperim')
-                    iofs[label] = iofs[label-1] + nippts[label-1]
-                    nippts[label] = 0
-    boussine.nisle = label - 1
+                label += 1
+                if label >= mnisle:
+                    print 'ERROR==> mnisle=',mnisle,' is too small'
+                    print '==> expand'
+                    sys.exit(' in isleperim')
+                iofs[label] = iofs[label-1] + nippts[label-1]
+                nippts[label] = 0
+    nisle = label - 1
     """
     -----------------------------------------------------------------------
          relabel land masses and their ocean perimeters
@@ -92,13 +98,16 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,bou
     """
     Map[iwest:ieast+1, :jnorth+1] -= np.sign(Map[iwest:ieast+1, :jnorth+1])
 
-    iofs[:boussine.nisle-1] = iofs[1:boussine.nisle]
-    nippts[:boussine.nisle-1] = nippts[1:boussine.nisle]
-    boussine.nisle -= 1
+    iofs[:nisle-1] = iofs[1:nisle]
+    nippts[:nisle-1] = nippts[1:nisle]
+    nisle -= 1
 
     if boussine.enable_cyclic_x:
         Map[0,:] = Map[imt-2, :]
         Map[imt-1,:] = Map[1,:]
+
+    if change_nisle:
+        boussine.nisle = nisle
 
     if verbose:
         print ' Island perimeter statistics:'

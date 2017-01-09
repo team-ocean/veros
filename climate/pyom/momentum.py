@@ -1,4 +1,4 @@
-from climate.boussinesq.external import solve_stream, solve_pressure
+from climate.pyom.external import solve_stream, solve_pressure
 
 def momentum(
         boussine,

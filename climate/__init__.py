@@ -5,7 +5,7 @@ from .timer import Timer
 __all__ = [
     "data",
     "io",
-    "boussinesq"
+    "pyom"
 ]
 
 for module in __all__:
