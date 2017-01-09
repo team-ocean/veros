@@ -16,12 +16,12 @@ def u_centered_grid(dyt,dyu,yt,yu,n):
 #  do i=2,n
 #   yt(i) = 2*yu(i-1) - yt(i-1)
 #  enddo
-#  do i=1,n-1 
+#  do i=1,n-1
 #   dyu(i)= yt(i+1)-yt(i)
 #  enddo
 #  dyu(n)=2*dyt(n)- dyu(n-1)
 
-def calc_grid(boussine):
+def calc_grid(pyom):
     """
     ---------------------------------------------------------------------------------
         setup grid based on dxt,dyt,dzt and x_origin, y_origin
@@ -34,138 +34,138 @@ def calc_grid(boussine):
     #real*8, dimension(1-onx:nx+onx) :: dxt_gl,dxu_gl,xt_gl,xu_gl
     #real*8, dimension(1-onx:ny+onx) :: dyt_gl,dyu_gl,yt_gl,yu_gl
 
-    aloc = np.zeros((boussine.nx,boussine.ny))
-    dxt_gl = np.empty(boussine.nx+4)
-    dxu_gl = np.empty(boussine.nx+4)
-    xt_gl  = np.empty(boussine.nx+4)
-    xu_gl  = np.empty(boussine.nx+4)
-    dyt_gl = np.empty(boussine.ny+4)
-    dyu_gl = np.empty(boussine.ny+4)
-    yt_gl  = np.empty(boussine.ny+4)
-    yu_gl  = np.empty(boussine.ny+4)
+    aloc = np.zeros((pyom.nx,pyom.ny))
+    dxt_gl = np.empty(pyom.nx+4)
+    dxu_gl = np.empty(pyom.nx+4)
+    xt_gl  = np.empty(pyom.nx+4)
+    xu_gl  = np.empty(pyom.nx+4)
+    dyt_gl = np.empty(pyom.ny+4)
+    dyu_gl = np.empty(pyom.ny+4)
+    yt_gl  = np.empty(pyom.ny+4)
+    yu_gl  = np.empty(pyom.ny+4)
     """
     --------------------------------------------------------------
      transfer from locally defined variables to global ones
     --------------------------------------------------------------
     """
-    aloc[:,0] = boussine.dxt[2:boussine.nx+2]
+    aloc[:,0] = pyom.dxt[2:pyom.nx+2]
 
-    dxt_gl[2:boussine.nx+2] = aloc[:,0]
+    dxt_gl[2:pyom.nx+2] = aloc[:,0]
 
-    if boussine.enable_cyclic_x:
+    if pyom.enable_cyclic_x:
         for i in xrange(1,3): #i=1,onx
-            dxt_gl[boussine.nx+i+1] = dxt_gl[i+1]
-            dxt_gl[2-i] = dxt_gl[boussine.nx-i+2]
+            dxt_gl[pyom.nx+i+1] = dxt_gl[i+1]
+            dxt_gl[2-i] = dxt_gl[pyom.nx-i+2]
     else:
         for i in xrange(1,3): #i=1,onx
-            dxt_gl[boussine.nx+i+1] = dxt_gl[boussine.nx+1]
+            dxt_gl[pyom.nx+i+1] = dxt_gl[pyom.nx+1]
             dxt_gl[2-i] = dxt_gl[2]
 
-    aloc[0,:] = boussine.dyt[2:boussine.ny+2]
-    dyt_gl[2:boussine.ny+2] = aloc[0, :]
+    aloc[0,:] = pyom.dyt[2:pyom.ny+2]
+    dyt_gl[2:pyom.ny+2] = aloc[0, :]
 
     for i in xrange(1, 3): #i=1,onx
-        dyt_gl[boussine.ny+i+1] = dyt_gl[boussine.ny+1]
+        dyt_gl[pyom.ny+i+1] = dyt_gl[pyom.ny+1]
         dyt_gl[2-i] = dyt_gl[2]
     """
     -------------------------------------------------------------
     grid in east/west direction
     -------------------------------------------------------------
     """
-    u_centered_grid(dxt_gl,dxu_gl,xt_gl,xu_gl,boussine.nx+4)
-    xt_gl += -xu_gl[2]+boussine.x_origin
-    xu_gl += -xu_gl[2]+boussine.x_origin
+    u_centered_grid(dxt_gl,dxu_gl,xt_gl,xu_gl,pyom.nx+4)
+    xt_gl += -xu_gl[2]+pyom.x_origin
+    xu_gl += -xu_gl[2]+pyom.x_origin
 
-    if boussine.enable_cyclic_x:
+    if pyom.enable_cyclic_x:
         for i in xrange(1,3): #i=1,onx
-            xt_gl[boussine.nx+i+1] = xt_gl[i+1]
-            xt_gl[2-i]=xt_gl[boussine.nx-i+2]
-            xu_gl[boussine.nx+i+1] = xt_gl[i+1]
-            xu_gl[2-i]=xu_gl[boussine.nx-i+2]
-            dxu_gl[boussine.nx+i+1] = dxu_gl[i+1]
-            dxu_gl[2-i] = dxu_gl[boussine.nx-i+2]
+            xt_gl[pyom.nx+i+1] = xt_gl[i+1]
+            xt_gl[2-i]=xt_gl[pyom.nx-i+2]
+            xu_gl[pyom.nx+i+1] = xt_gl[i+1]
+            xu_gl[2-i]=xu_gl[pyom.nx-i+2]
+            dxu_gl[pyom.nx+i+1] = dxu_gl[i+1]
+            dxu_gl[2-i] = dxu_gl[pyom.nx-i+2]
 
     """
     --------------------------------------------------------------
      grid in north/south direction
     --------------------------------------------------------------
     """
-    u_centered_grid(dyt_gl,dyu_gl,yt_gl,yu_gl,boussine.ny+4)
-    yt_gl += -yu_gl[2]+boussine.y_origin
-    yu_gl += -yu_gl[2]+boussine.y_origin
+    u_centered_grid(dyt_gl,dyu_gl,yt_gl,yu_gl,pyom.ny+4)
+    yt_gl += -yu_gl[2]+pyom.y_origin
+    yu_gl += -yu_gl[2]+pyom.y_origin
 
-    if boussine.coord_degree:
+    if pyom.coord_degree:
         """
         --------------------------------------------------------------
          convert from degrees to pseudo cartesian grid
         --------------------------------------------------------------
         """
-        dxt_gl *= boussine.degtom
-        dxu_gl *= boussine.degtom
-        dyt_gl *= boussine.degtom
-        dyu_gl *= boussine.degtom
+        dxt_gl *= pyom.degtom
+        dxu_gl *= pyom.degtom
+        dyt_gl *= pyom.degtom
+        dyu_gl *= pyom.degtom
 
     """
     --------------------------------------------------------------
       transfer to locally defined variables
     --------------------------------------------------------------
     """
-    boussine.xt[:]  = xt_gl[:]
-    boussine.xu[:]  = xu_gl[:]
-    boussine.dxu[:] = dxu_gl[:]
-    boussine.dxt[:] = dxt_gl[:]
+    pyom.xt[:]  = xt_gl[:]
+    pyom.xu[:]  = xu_gl[:]
+    pyom.dxu[:] = dxu_gl[:]
+    pyom.dxt[:] = dxt_gl[:]
 
-    boussine.yt[:]  = yt_gl[:]
-    boussine.yu[:]  = yu_gl[:]
-    boussine.dyu[:] = dyu_gl[:]
-    boussine.dyt[:] = dyt_gl[:]
+    pyom.yt[:]  = yt_gl[:]
+    pyom.yu[:]  = yu_gl[:]
+    pyom.dyu[:] = dyu_gl[:]
+    pyom.dyt[:] = dyt_gl[:]
 
     """
     --------------------------------------------------------------
      grid in vertical direction
     --------------------------------------------------------------
     """
-    u_centered_grid(boussine.dzt,boussine.dzw,boussine.zt,boussine.zw,boussine.nz)
+    u_centered_grid(pyom.dzt,pyom.dzw,pyom.zt,pyom.zw,pyom.nz)
     #dzw(nz)=dzt(nz) #*0.5 # this is account for in the model directly
-    boussine.zt -= boussine.zw[boussine.nz-1]
-    boussine.zw -= boussine.zw[boussine.nz-1]  # zero at zw(nz)
+    pyom.zt -= pyom.zw[pyom.nz-1]
+    pyom.zw -= pyom.zw[pyom.nz-1]  # zero at zw(nz)
 
     """
     --------------------------------------------------------------
      metric factors
     --------------------------------------------------------------
     """
-    if boussine.coord_degree:
-        for j in xrange(boussine.ny+4):
-            boussine.cost[j] = np.cos( boussine.yt[j]/180.*np.pi )
-            boussine.cosu[j] = np.cos( boussine.yu[j]/180.*np.pi )
-            boussine.tantr[j] = np.tan( boussine.yt[j]/180.*np.pi ) /boussine.radius
+    if pyom.coord_degree:
+        for j in xrange(pyom.ny+4):
+            pyom.cost[j] = np.cos( pyom.yt[j]/180.*np.pi )
+            pyom.cosu[j] = np.cos( pyom.yu[j]/180.*np.pi )
+            pyom.tantr[j] = np.tan( pyom.yt[j]/180.*np.pi ) /pyom.radius
     else:
-        boussine.cost[...] = 1.0
-        boussine.cosu[...] = 1.0
-        boussine.tantr[...] = 0.0
+        pyom.cost[...] = 1.0
+        pyom.cosu[...] = 1.0
+        pyom.tantr[...] = 0.0
 
     """
     --------------------------------------------------------------
      precalculate area of boxes
     --------------------------------------------------------------
     """
-    for j in xrange(boussine.ny+4): #j=js_pe-onx,je_pe+onx
-        for i in xrange(boussine.nx+4): #i=is_pe-onx,ie_pe+onx
-            boussine.area_t[i,j] = boussine.dxt[i]*boussine.cost[j]*boussine.dyt[j]
-            boussine.area_u[i,j] = boussine.dxu[i]*boussine.cost[j]*boussine.dyt[j]
-            boussine.area_v[i,j] = boussine.dxt[i]*boussine.cosu[j]*boussine.dyu[j]
+    for j in xrange(pyom.ny+4): #j=js_pe-onx,je_pe+onx
+        for i in xrange(pyom.nx+4): #i=is_pe-onx,ie_pe+onx
+            pyom.area_t[i,j] = pyom.dxt[i]*pyom.cost[j]*pyom.dyt[j]
+            pyom.area_u[i,j] = pyom.dxu[i]*pyom.cost[j]*pyom.dyt[j]
+            pyom.area_v[i,j] = pyom.dxt[i]*pyom.cosu[j]*pyom.dyu[j]
 
-def calc_beta(boussine):
+def calc_beta(pyom):
     """
     --------------------------------------------------------------
      calculate beta = df/dy
     --------------------------------------------------------------
     """
-    for j in xrange(2,boussine.ny+2): # j=js_pe,je_pe
-        boussine.beta[:,j] = 0.5*(  (boussine.coriolis_t[:,j+1]-boussine.coriolis_t[:,j])/boussine.dyu[j] + (boussine.coriolis_t[:,j]-boussine.coriolis_t[:,j-1])/boussine.dyu[j-1] )
+    for j in xrange(2,pyom.ny+2): # j=js_pe,je_pe
+        pyom.beta[:,j] = 0.5*(  (pyom.coriolis_t[:,j+1]-pyom.coriolis_t[:,j])/pyom.dyu[j] + (pyom.coriolis_t[:,j]-pyom.coriolis_t[:,j-1])/pyom.dyu[j-1] )
 
-def calc_topo(boussine):
+def calc_topo(pyom):
     """
     --------------------------------------------------------------
      calulate masks, total depth etc
@@ -177,56 +177,56 @@ def calc_topo(boussine):
      close domain
     --------------------------------------------------------------
     """
-    boussine.kbot[:,:2] = 0
-    boussine.kbot[:,-2:] = 0
-    if not boussine.enable_cyclic_x:
-        boussine.kbot[:2,:] = 0
-        boussine.kbot[-2:,:] = 0
+    pyom.kbot[:,:2] = 0
+    pyom.kbot[:,-2:] = 0
+    if not pyom.enable_cyclic_x:
+        pyom.kbot[:2,:] = 0
+        pyom.kbot[-2:,:] = 0
 
-    cyclic.setcyclic_xy(boussine.kbot,boussine.enable_cyclic_x,boussine.nx)
+    cyclic.setcyclic_xy(pyom.kbot,pyom.enable_cyclic_x,pyom.nx)
 
     """
     --------------------------------------------------------------
      Land masks
     --------------------------------------------------------------
     """
-    boussine.maskT[...] = 0.0
-    for k in xrange(boussine.nz): # k=1,nz
-        for j in xrange(boussine.ny+4): # j=js_pe-onx,je_pe+onx
-            for i in xrange(boussine.nx+4): # i=is_pe-onx,ie_pe+onx
-                if boussine.kbot[i,j] != 0 and boussine.kbot[i,j] <= k:
-                    boussine.maskT[i,j,k] = 1.0
-    cyclic.setcyclic_xyz(boussine.maskT, boussine.enable_cyclic_x, boussine.nx, boussine.nz)
-    boussine.maskU[...] = boussine.maskT
-    for i in xrange(boussine.nx+3): # i=is_pe-onx,ie_pe+onx-1
-        boussine.maskU[i,:,:] = np.minimum(boussine.maskT[i,:,:], boussine.maskT[i+1,:,:])
-    cyclic.setcyclic_xyz(boussine.maskU, boussine.enable_cyclic_x, boussine.nx, boussine.nz)
-    boussine.maskV[...] = boussine.maskT
-    for j in xrange(boussine.ny+3): # j=js_pe-onx,je_pe+onx-1
-        boussine.maskV[:,j,:] = np.minimum(boussine.maskT[:,j,:], boussine.maskT[:,j+1,:])
-    cyclic.setcyclic_xyz(boussine.maskV, boussine.enable_cyclic_x, boussine.nx, boussine.nz)
-    boussine.maskZ[...] = boussine.maskT
-    for j in xrange(boussine.ny+3): # j=js_pe-onx,je_pe+onx-1
-        for i in xrange(boussine.nx+3): # i=is_pe-onx,ie_pe+onx-1
-            boussine.maskZ[i,j,:] = np.minimum(boussine.maskT[i,j,:],boussine.maskT[i,j+1,:],boussine.maskT[i+1,j,:])
-    cyclic.setcyclic_xyz(boussine.maskZ, boussine.enable_cyclic_x, boussine.nx, boussine.nz)
-    boussine.maskW[...] = boussine.maskT
-    for k in xrange(boussine.nz-1): # k=1,nz-1
-        boussine.maskW[:,:,k] = np.minimum(boussine.maskT[:,:,k],boussine.maskT[:,:,k+1])
+    pyom.maskT[...] = 0.0
+    for k in xrange(pyom.nz): # k=1,nz
+        for j in xrange(pyom.ny+4): # j=js_pe-onx,je_pe+onx
+            for i in xrange(pyom.nx+4): # i=is_pe-onx,ie_pe+onx
+                if pyom.kbot[i,j] != 0 and pyom.kbot[i,j] <= k:
+                    pyom.maskT[i,j,k] = 1.0
+    cyclic.setcyclic_xyz(pyom.maskT, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
+    pyom.maskU[...] = pyom.maskT
+    for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
+        pyom.maskU[i,:,:] = np.minimum(pyom.maskT[i,:,:], pyom.maskT[i+1,:,:])
+    cyclic.setcyclic_xyz(pyom.maskU, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
+    pyom.maskV[...] = pyom.maskT
+    for j in xrange(pyom.ny+3): # j=js_pe-onx,je_pe+onx-1
+        pyom.maskV[:,j,:] = np.minimum(pyom.maskT[:,j,:], pyom.maskT[:,j+1,:])
+    cyclic.setcyclic_xyz(pyom.maskV, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
+    pyom.maskZ[...] = pyom.maskT
+    for j in xrange(pyom.ny+3): # j=js_pe-onx,je_pe+onx-1
+        for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
+            pyom.maskZ[i,j,:] = np.minimum(pyom.maskT[i,j,:],pyom.maskT[i,j+1,:],pyom.maskT[i+1,j,:])
+    cyclic.setcyclic_xyz(pyom.maskZ, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
+    pyom.maskW[...] = pyom.maskT
+    for k in xrange(pyom.nz-1): # k=1,nz-1
+        pyom.maskW[:,:,k] = np.minimum(pyom.maskT[:,:,k],pyom.maskT[:,:,k+1])
     """
     --------------------------------------------------------------
      total depth
     --------------------------------------------------------------
     """
-    boussine.ht[...] = 0.0
-    boussine.hu[...] = 0.0
-    boussine.hv[...] = 0.0
-    for k in xrange(boussine.nz): #k=1,nz
-        boussine.ht += boussine.maskT[:,:,k]*boussine.dzt[k]
-        boussine.hu += boussine.maskU[:,:,k]*boussine.dzt[k]
-        boussine.hv += boussine.maskV[:,:,k]*boussine.dzt[k]
-    boussine.hur[boussine.hu != 0.0] = 1./boussine.hu[boussine.hu != 0.0]
-    boussine.hvr[boussine.hv != 0.0] = 1./boussine.hv[boussine.hv != 0.0]
+    pyom.ht[...] = 0.0
+    pyom.hu[...] = 0.0
+    pyom.hv[...] = 0.0
+    for k in xrange(pyom.nz): #k=1,nz
+        pyom.ht += pyom.maskT[:,:,k]*pyom.dzt[k]
+        pyom.hu += pyom.maskU[:,:,k]*pyom.dzt[k]
+        pyom.hv += pyom.maskV[:,:,k]*pyom.dzt[k]
+    pyom.hur[pyom.hu != 0.0] = 1./pyom.hu[pyom.hu != 0.0]
+    pyom.hvr[pyom.hv != 0.0] = 1./pyom.hv[pyom.hv != 0.0]
 
 #TODO: you are here
 

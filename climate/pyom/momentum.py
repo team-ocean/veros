@@ -1,7 +1,7 @@
 from climate.pyom.external import solve_stream, solve_pressure
 
 def momentum(
-        boussine,
+        pyom,
         fricTimer,
         pressTimer,
         ):
@@ -172,9 +172,9 @@ def momentum(
     """
     with pressTimer:
         if enable_streamfunction:
-            solve_stream.solve_streamfunction(boussine)
+            solve_stream.solve_streamfunction(pyom)
         else:
-            solve_pressure.solve_pressure(boussine)
+            solve_pressure.solve_pressure(pyom)
             if itt == 0:
                 psi[:,:,tau] = psi[:,:,taup1]
                 psi[:,:,taum1] = psi[:,:,taup1]

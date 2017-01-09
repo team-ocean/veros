@@ -2,7 +2,7 @@ import sys
 import numpy as np
 import Queue
 
-def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,boussine, change_nisle=False, verbose=False):
+def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyom, change_nisle=False, verbose=False):
     """
     =======================================================================
              Island and Island Perimeter Mapping Routines
@@ -31,7 +31,7 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,bou
 
     if verbose:
         print ' Finding perimeters of all land masses'
-    if boussine.enable_cyclic_x and verbose:
+    if pyom.enable_cyclic_x and verbose:
         print ' using cyclic boundary conditions'
 
     # initialize number of changes to kmt
@@ -70,7 +70,7 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,bou
     nippts[label] = 0
     nerror = 0
     jnorth = jmt-1
-    if boussine.enable_cyclic_x:
+    if pyom.enable_cyclic_x:
         iwest = 1
         ieast = imt-2
     else:
@@ -80,7 +80,7 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,bou
         for i in xrange(iwest, ieast): #i=iwest,ieast
             if Map[i,j] == land:
                 queue.put((i,j))
-                expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp, boussine)
+                expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp, pyom)
                 if verbose:
                     print ' number of island perimeter points: nippts(',label-1,')=',nippts[label]
                 label += 1
@@ -102,20 +102,20 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,bou
     nippts[:nisle-1] = nippts[1:nisle]
     nisle -= 1
 
-    if boussine.enable_cyclic_x:
+    if pyom.enable_cyclic_x:
         Map[0,:] = Map[imt-2, :]
         Map[imt-1,:] = Map[1,:]
 
     if change_nisle:
-        boussine.nisle = nisle
+        pyom.nisle = nisle
 
     if verbose:
         print ' Island perimeter statistics:'
         print ' maximum queue size was ',maxqsize
-        print ' number of land masses is ', boussine.nisle
-        print ' number of island perimeter points is ',  nippts[boussine.nisle] + iofs[boussine.nisle]
+        print ' number of land masses is ', pyom.nisle
+        print ' number of island perimeter points is ',  nippts[pyom.nisle] + iofs[pyom.nisle]
 
-def expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp, boussine):
+def expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp, pyom):
     """
     -----------------------------------------------------------------------
               The subroutine expand uses a "flood fill" algorithm
@@ -188,13 +188,13 @@ def expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisl
             Map[i,j] = label
 #           print *, 'labeling ',i,j,' as ',label
             queue.put((i, jn_isl(j,jmt)))
-            queue.put((ie_isl(i,imt, boussine), jn_isl(j,jmt)))
-            queue.put((ie_isl(i,imt, boussine), j))
-            queue.put((ie_isl(i,imt, boussine), js_isl(j)))
+            queue.put((ie_isl(i,imt, pyom), jn_isl(j,jmt)))
+            queue.put((ie_isl(i,imt, pyom), j))
+            queue.put((ie_isl(i,imt, pyom), js_isl(j)))
             queue.put((i, js_isl(j)))
-            queue.put((iw_isl(i,imt, boussine), js_isl(j)))
-            queue.put((iw_isl(i,imt, boussine), j))
-            queue.put((iw_isl(i,imt, boussine), jn_isl(j,jmt)))
+            queue.put((iw_isl(i,imt, pyom), js_isl(j)))
+            queue.put((iw_isl(i,imt, pyom), j))
+            queue.put((iw_isl(i,imt, pyom), jn_isl(j,jmt)))
             continue
 #       case: map(i,j) is an ocean point adjacent to this land mass
         elif Map[i,j] == ocean or Map[i,j] < 0:
@@ -269,14 +269,14 @@ def js_isl(j):
         return offmap
 
 
-def ie_isl(i, imt, boussine):
+def ie_isl(i, imt, pyom):
 #     use island_module
 #     implicit real (kind=8) (a-h,o-z)
 #     i coordinate to the east of i
 #     integer offmap
 #     parameter (offmap = -1)
     offmap = -1
-    if boussine.enable_cyclic_x:
+    if pyom.enable_cyclic_x:
         if i < imt-2:
             return i+1
         else:
@@ -288,9 +288,9 @@ def ie_isl(i, imt, boussine):
             return offmap
 
 
-def iw_isl(i, imt, boussine):
+def iw_isl(i, imt, pyom):
     offmap = -1
-    if boussine.enable_cyclic_x:
+    if pyom.enable_cyclic_x:
         if i > 1:
             return i-1
         else:

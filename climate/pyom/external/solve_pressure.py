@@ -12,7 +12,7 @@ import numpy as np
 import sys
 from climate.pyom import cyclic
 
-def solve_pressure(boussine):
+def solve_pressure(pyom):
     #use main_module
     #implicit none
     #integer :: i,j,k
@@ -20,7 +20,7 @@ def solve_pressure(boussine):
     #real*8 :: fpx(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
     #real*8 :: fpy(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
     #real*8 :: forc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    forc = np.empty((boussine.nx+4, boussine.ny+4))
+    forc = np.empty((pyom.nx+4, pyom.ny+4))
 
     #hydrostatic pressure
     fxa = grav/rho_0
@@ -39,8 +39,8 @@ def solve_pressure(boussine):
     v[:,:,:,taup1] = v[:,:,:,tau]+dt_mom*( dv_mix+ (1.5+AB_eps)*dv[:,:,:,tau] - (0.5+AB_eps)*dv[:,:,:,taum1] )*maskV
 
     # forcing for surface pressure
-    fpx = np.zeros((boussine.nx+4, boussine.ny+4))
-    fpy = np.zeros((boussine.nx+4, boussine.ny+4))
+    fpx = np.zeros((pyom.nx+4, pyom.ny+4))
+    fpy = np.zeros((pyom.nx+4, pyom.ny+4))
     for k in xrange(1, nz+1): #k=1,nz
         for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
             for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
@@ -48,9 +48,9 @@ def solve_pressure(boussine):
                 fpy[i,j] += v[i,j,k,taup1]*maskV[i,j,k]*dzt[k]/dt_mom
     #mpi stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx)
-    cyclic.setcyclic_xy(fpx,boussine.enable_cyclic_x, boussine.nx)
+    cyclic.setcyclic_xy(fpx,pyom.enable_cyclic_x, pyom.nx)
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy)
-    cyclic.setcyclic_xy(fpy,boussine.enable_cyclic_x, boussine.nx)
+    cyclic.setcyclic_xy(fpy,pyom.enable_cyclic_x, pyom.nx)
 
     # forc = 1/cos (u_x + (cos v)_y )
     for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
@@ -66,7 +66,7 @@ def solve_pressure(boussine):
     congrad_surf_press(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,forc,congr_itts)
     #MPI stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psi(:,:,taup1));
-    cyclic.setcyclic_xy(psi[:,:,taup1], boussine.enable_cyclic_x, boussine.nx)
+    cyclic.setcyclic_xy(psi[:,:,taup1], pyom.enable_cyclic_x, pyom.nx)
 
     # remove surface pressure gradient
     for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
@@ -152,7 +152,7 @@ def congrad_surf_press(is_, ie_, js_, je_, forc, iterations):
     p = res
     #mpi stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
-    cyclic.setcyclic_xy(p, boussine.enable_cyclic_x, boussine.nx)
+    cyclic.setcyclic_xy(p, pyom.enable_cyclic_x, pyom.nx)
     rsold =  dot_sfp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,res,res)
 
     for n in xrange(1, congr_max_iterations+1): #n=1,congr_max_iterations
@@ -169,7 +169,7 @@ def congrad_surf_press(is_, ie_, js_, je_, forc, iterations):
         p = res+rsnew/rsold*p
         #MPI stuff
         #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,p)
-        cyclic.setcyclic_xy(p, boussine.enable_cyclic_x, boussine.nx)
+        cyclic.setcyclic_xy(p, pyom.enable_cyclic_x, pyom.nx)
         rsold = rsnew
         """
         -----------------------------------------------------------------------
@@ -237,7 +237,7 @@ def fail(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon):
         sys.exit(' in solve_pressure')
 
 
-def apply_op(cf, p1, res, boussine):
+def apply_op(cf, p1, res, pyom):
     """
     -----------------------------------------------------------------------
          apply operator A,  res = A *p1
@@ -252,8 +252,8 @@ def apply_op(cf, p1, res, boussine):
     res[...] = 0
     for jj in xrange(-1, 2): #jj=-1,1
         for ii in xrange(-1, 2): #ii=-1,1
-            for j in xrange(2, boussine.ny+2): #j=js_pe,je_pe
-                for i in xrange(2, boussine.nx+2): #i=is_pe,ie_pe
+            for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
+                for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
                     res[i,j] += cf[i,j,ii+1,jj+1]*p1[i+ii,j+jj]
 
 def absmax_sfp(is_,ie_,js_,je_,p1):
