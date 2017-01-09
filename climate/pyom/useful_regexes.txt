@@ -34,6 +34,10 @@ Replace: (
 Search: \s+\)
 Replace: )
 
-# add whitespace to assignments
-Search: (\w|[\)\]])=(\w)
+# fix whitespace around assignments
+Search: (\w|[\)\]])\s*=\s*(\w|[+-])
 Replace: $1 = $2
+
+# function calls
+Search: call
+Replace:
