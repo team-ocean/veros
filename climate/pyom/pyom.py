@@ -1,11 +1,11 @@
 import numpy as np
 from climate.io import wrapper
 from climate import Timer
-from climate.boussinesq import momentum, numerics
+from climate.pyom import momentum, numerics
 import math
 import sys
 
-class boussinesq:
+class pyom:
     """
     Constants
     """
@@ -154,7 +154,7 @@ class boussinesq:
         self.enable_free_surface  = False   # implicit free surface
         self.enable_streamfunction= False   # solve for streamfct instead of surface pressure
         self.enable_congrad_verbose = False # print some info
-        #congr_itts                     # number of iterations of poisson solver
+        self.congr_itts = 0                 # number of iterations of poisson solver NOTE: only has value 0 to init variable
         self.congr_epsilon=1e-12            # convergence criteria for poisson solver
         self.congr_max_iterations = 1000    # max. number of iterations
 
@@ -223,11 +223,11 @@ class boussinesq:
         self.area_u = np.zeros((self.nx+4, self.ny+4))
         self.area_v = np.zeros((self.nx+4, self.ny+4))
 
-        self.maskT = np.zeros((self.nx+4, self.ny+4))
-        self.maskU = np.zeros((self.nx+4, self.ny+4))
-        self.maskV = np.zeros((self.nx+4, self.ny+4))
-        self.maskW = np.zeros((self.nx+4, self.ny+4))
-        self.maskZ = np.zeros((self.nx+4, self.ny+4))
+        self.maskT = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.maskU = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.maskV = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.maskW = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.maskZ = np.zeros((self.nx+4, self.ny+4, self.nz))
 
         self.rho  = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.Nsqr = np.zeros((self.nx+4, self.ny+4, self.nz, 3))

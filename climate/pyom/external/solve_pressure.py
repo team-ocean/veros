@@ -10,7 +10,7 @@
 
 import numpy as np
 import sys
-from climate.boussinesq import cyclic
+from climate.pyom import cyclic
 
 def solve_pressure(boussine):
     #use main_module
@@ -237,7 +237,7 @@ def fail(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon):
         sys.exit(' in solve_pressure')
 
 
-def apply_op(is_,ie_,js_,je_,cf, p1, res):
+def apply_op(cf, p1, res, boussine):
     """
     -----------------------------------------------------------------------
          apply operator A,  res = A *p1
@@ -249,12 +249,12 @@ def apply_op(is_,ie_,js_,je_,cf, p1, res):
     #real*8 :: cf(is_:ie_,js_:je_,3,3), p1(is_:ie_,js_:je_), res(is_:ie_,js_:je_)
     #integer :: i,j,ii,jj
 
-    res=0.
+    res[...] = 0
     for jj in xrange(-1, 2): #jj=-1,1
         for ii in xrange(-1, 2): #ii=-1,1
-            for j in xrange(js_pe, je_pe+1): #j=js_pe,je_pe
-                for i in xrange(is_pe, ie_pe+1): #i=is_pe,ie_pe
-                    res[i,j] += cf[i,j,ii+2,jj+2]*p1[i+ii,j+jj]
+            for j in xrange(2, boussine.ny+2): #j=js_pe,je_pe
+                for i in xrange(2, boussine.nx+2): #i=is_pe,ie_pe
+                    res[i,j] += cf[i,j,ii+1,jj+1]*p1[i+ii,j+jj]
 
 def absmax_sfp(is_,ie_,js_,je_,p1):
     #integer :: is_,ie_,js_,je_

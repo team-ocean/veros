@@ -1,3 +1,3 @@
-from .boussinesq import boussinesq
+from .pyom import pyom
 from . import cyclic
 from . import numerics

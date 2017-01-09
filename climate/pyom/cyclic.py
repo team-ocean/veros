@@ -12,10 +12,10 @@ def setcyclic_xy(p1, enable_cyclic_x, nx):
 
     if enable_cyclic_x:
         for i in xrange(2): #i=1,onx
-            p1[nx+i,:] = p1[i  ,:]
+            p1[nx+2+i,:] = p1[i+2  ,:]
             p1[1-i,:]  = p1[nx-i+1,:]
 
-def setcyclic_xyz(a, enable_cyclic, nx):
+def setcyclic_xyz(a, enable_cyclic, nx, nz):
     """
     --------------------------------------------------------------
            set cyclic boundary conditions for 3D array
