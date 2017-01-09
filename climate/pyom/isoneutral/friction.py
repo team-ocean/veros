@@ -2,14 +2,12 @@ import numpy as np
 
 def isoneutral_friction(kbot, nz):
     """
-    =======================================================================
-      vertical friction using TEM formalism for eddy driven velocity
-    =======================================================================
+    vertical friction using TEM formalism for eddy driven velocity
     """
-    integer :: i,j,k,ks
-    real*8 :: a_tri(nz),b_tri(nz),c_tri(nz),d_tri(nz),delta(nz),fxa
-    real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
-    real*8 :: aloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    #integer :: i,j,k,ks
+    #real*8 :: a_tri(nz),b_tri(nz),c_tri(nz),d_tri(nz),delta(nz),fxa
+    #real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    #real*8 :: aloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
 
     a_tri = np.zeros(nz)
     b_tri = np.zeros(nz)

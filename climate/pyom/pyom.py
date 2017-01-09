@@ -1,7 +1,7 @@
 import numpy as np
 from climate.io import wrapper
 from climate import Timer
-from climate.pyom import momentum, numerics
+from climate.pyom import momentum, numerics, isoneutral
 import math
 import sys
 
@@ -31,7 +31,7 @@ class pyom:
         #dt_tke        # should be time step for momentum (set in tke.f90)
         #itt           # time step number
         #enditt        # last time step of simulation
-        self.runlen=0.     # length of simulation in seconds
+        self.runlen = 0.   # length of simulation in seconds
         self.AB_eps = 0.1  # deviation from Adam-Bashforth weighting
 
         """
@@ -59,6 +59,8 @@ class pyom:
                                                        # else transfer to internal waves
         self.enable_store_cabbeling_heat       = False # transfer non-linear mixing terms to potential enthalpy
                                                        # else transfer to TKE and EKE
+
+
 #!---------------------------------------------------------------------------------
 #!     variables related to numerical grid
 #!---------------------------------------------------------------------------------
@@ -82,7 +84,7 @@ class pyom:
 #      real*8, allocatable, dimension(:,:)     :: coriolis_h ! horizontal coriolis frequency at T grid point in 1/s
 #      real*8, allocatable, dimension(:)       :: cost       ! metric factor for spherical coordinates on T grid
 #      real*8, allocatable, dimension(:)       :: cosu       ! metric factor for spherical coordinates on U grid
-#      real*8, allocatable, dimension(:)       :: tantr      ! metric factor for spherical coordinates 
+#      real*8, allocatable, dimension(:)       :: tantr      ! metric factor for spherical coordinates
 #      real*8, allocatable, dimension(:,:)     :: ht         ! total depth in m
 #      real*8, allocatable, dimension(:,:)     :: hu,hur     ! total depth in m at u-grid
 #      real*8, allocatable, dimension(:,:)     :: hv,hvr     ! total depth in m at v-grid
@@ -93,7 +95,7 @@ class pyom:
 #      real*8, allocatable, dimension(:,:,:,:) :: temp,dtemp            ! conservative temperature in deg C and its tendency
 #      real*8, allocatable, dimension(:,:,:,:) :: salt,dsalt            ! salinity in g/Kg and its tendency
 #      real*8, allocatable, dimension(:,:,:,:) :: rho                   ! density in kg/m^3
-#      real*8, allocatable, dimension(:,:,:,:) :: Hd                    ! dynamic enthalpy 
+#      real*8, allocatable, dimension(:,:,:,:) :: Hd                    ! dynamic enthalpy
 #      real*8, allocatable, dimension(:,:,:,:) :: int_drhodT,int_drhodS ! partial derivatives of dyn. enthalpy
 #      real*8, allocatable, dimension(:,:,:,:) :: Nsqr                  ! Square of stability frequency in 1/s^2
 #      real*8, allocatable, dimension(:,:,:,:) :: dHd                   ! change of dynamic enthalpy due to advection
@@ -133,7 +135,7 @@ class pyom:
 #      real*8, allocatable, dimension(:,:,:)   :: u_wgrid,v_wgrid,w_wgrid       ! velocity on W grid
 #      real*8, allocatable, dimension(:,:,:)   :: flux_east,flux_north,flux_top ! multi purpose fluxes
 #!---------------------------------------------------------------------------------
-#!     variables related to dissipation 
+#!     variables related to dissipation
 #!---------------------------------------------------------------------------------
 #      real*8, allocatable, dimension(:,:,:)    :: K_diss_v          ! kinetic energy dissipation by vertical, rayleigh and bottom friction
 #      real*8, allocatable, dimension(:,:,:)    :: K_diss_h          ! kinetic energy dissipation by horizontal friction
@@ -175,6 +177,18 @@ class pyom:
         self.kappaM_0 = 0.0   # fixed values for vertical viscosity/diffusivity which are set for no TKE model
         #real*8, allocatable :: kappaM(:,:,:)       # vertical viscosity in m^2/s
         #real*8, allocatable :: kappaH(:,:,:)       # vertical diffusivity in m^2/s
+
+        """
+        Options for isopycnal mixing
+        """
+        self.enable_neutral_diffusion  = False # enable isopycnal mixing
+        self.enable_skew_diffusion     = False # enable skew diffusion approach for eddy-driven velocities
+        self.enable_TEM_friction       = False # TEM approach for eddy-driven velocities
+        self.K_iso_0     = 0.0            # constant for isopycnal diffusivity in m^2/s
+        self.K_iso_steep = 0.0            # lateral diffusivity for steep slopes in m^2/s
+        self.K_gm_0      = 0.0            # fixed value for K_gm which is set for no EKE model
+        self.iso_dslope = 0.0008          # parameters controlling max allowed isopycnal slopes
+        self.iso_slopec = 0.001           # parameters controlling max allowed isopycnal slopes
 
         """
         non hydrostatic stuff
@@ -299,6 +313,26 @@ class pyom:
         self.r_bot_var_u = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.r_bot_var_v = np.zeros((self.nx+4, self.ny+4, self.nz))
 
+        if self.enable_neutral_diffusion:
+            # isopycnal mixing tensor components
+            self.K_11 = np.zeros(nx,ny,nz)
+            self.K_13 = np.zeros(nx,ny,nz)
+            self.K_22 = np.zeros(nx,ny,nz)
+            self.K_23 = np.zeros(nx,ny,nz)
+            self.K_31 = np.zeros(nx,ny,nz)
+            self.K_32 = np.zeros(nx,ny,nz)
+            self.K_33 = np.zeros(nx,ny,nz)
+            #
+            self.Ai_ez = np.zeros(nx,ny,nz,2,2)
+            self.Ai_nz = np.zeros(nx,ny,nz,2,2)
+            self.Ai_bx = np.zeros(nx,ny,nz,2,2)
+            self.Ai_by = np.zeros(nx,ny,nz,2,2)
+        self.B1_gm = np.zeros(nx,ny,nz) # zonal streamfunction (for diagnostic purpose only)
+        self.B2_gm = np.zeros(nx,ny,nz) # meridional streamfunction (for diagnostic purpose only)
+        self.kappa_gm = np.zeros(nx,ny,nz) # vertical viscosity due to skew diffusivity K_gm in m^2/s
+        self.K_gm = np.zeros(nx,ny,nz) # GM diffusivity in m^2/s, either constant or from EKE model
+        self.K_iso = np.zeros(nx,ny,nz) # along isopycnal diffusivity in m^2/s
+
         if not self.enable_hydrostatic:
             self.p_non_hydro = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
             self.dw          = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
@@ -366,7 +400,6 @@ class pyom:
                     momentum.momentum(self, fricTimer, pressTimer)
 
                 with tempTimer:
-                    raise NotImplementedError()
                     thermodynamics()
 
                 if enable_eke or enable_tke or enable_idemix:
