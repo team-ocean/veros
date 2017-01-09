@@ -1,7 +1,7 @@
 import numpy as np
 from climate.io import wrapper
 from climate import Timer
-from climate.pyom import momentum, numerics, isoneutral
+from climate.pyom import momentum, numerics, isoneutral, thermodynamics
 import math
 import sys
 
@@ -370,7 +370,7 @@ class pyom:
                 raise NotImplementedError()
                 particles_read_restart()
 
-            enditt = itt+int(runlen/dt_tracer)
+            enditt = itt + int(runlen/dt_tracer)
             print 'Starting integration for ',runlen,' s'
             print ' from time step ',itt,' to ',enditt
 
@@ -400,7 +400,7 @@ class pyom:
                     momentum.momentum(self, fricTimer, pressTimer)
 
                 with tempTimer:
-                    thermodynamics()
+                    thermodynamics.thermodynamics(self)
 
                 if enable_eke or enable_tke or enable_idemix:
                     raise NotImplementedError()
@@ -537,7 +537,7 @@ class pyom:
         """
          initialize isoneutral module
         """
-        check_isoneutral_slope_crit()
+        isoneutral.check_isoneutral_slope_crit()
 
         """
          check setup

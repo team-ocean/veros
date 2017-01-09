@@ -66,7 +66,7 @@ def isoneutral_diffusion_pre(i,j,k,ip,jp,kr):
             sumz = 0.
             for kr in xrange(2): # kr=0,1
                 for ip in xrange(2): # ip=0,1
-                    sxe = -drodxe[i,j,k,ip]/(min(zerod0,drodze[i,j,k,ip,kr])-epsln)  # i+1, k-1
+                    sxe = -drodxe[i,j,k,ip]/(min(0.,drodze[i,j,k,ip,kr])-epsln)  # i+1, k-1
                     taper = dm_taper(sxe)
                     sumz = sumz + dzw[k+kr-1]*maskU[i,j,k]*max(K_iso_steep,diffloc*taper)
                     Ai_ez[i,j,k,ip,kr] =  taper*sxe*maskU[i,j,k]
@@ -78,7 +78,7 @@ def isoneutral_diffusion_pre(i,j,k,ip,jp,kr):
             sumz = 0.
             kr = 1
             for ip in xrange(2): # ip=0,1
-                sxe  = -drodxe[i,j,k,ip]/(min(zerod0,drodze[i,j,k,ip,kr])-epsln)
+                sxe  = -drodxe[i,j,k,ip]/(min(0.,drodze[i,j,k,ip,kr])-epsln)
                 taper = dm_taper(sxe)
                 sumz = sumz + dzw[k+kr-1]*maskU[i,j,k]*max(K_iso_steep,diffloc*taper)
                 Ai_ez[i,j,k,ip,kr] = taper*sxe*maskU[i,j,k]
@@ -94,7 +94,7 @@ def isoneutral_diffusion_pre(i,j,k,ip,jp,kr):
                 sumz = 0.
                 for kr in xrange(2): # kr=0,1
                     for jp in xrange(2): # jp=0,1
-                        syn = -drodyn[i,j,k,jp]/(min(zerod0,drodzn[i,j,k,jp,kr])-epsln)
+                        syn = -drodyn[i,j,k,jp]/(min(0.,drodzn[i,j,k,jp,kr])-epsln)
                         taper = dm_taper(syn)
                         sumz = sumz + dzw[k+kr-1] *maskV[i,j,k]*max(K_iso_steep,diffloc*taper)
                         Ai_nz[i,j,k,jp,kr] = taper*syn*maskV[i,j,k]
@@ -106,7 +106,7 @@ def isoneutral_diffusion_pre(i,j,k,ip,jp,kr):
             sumz = 0.
             kr=1
             for jp in xrange(2): # jp=0,1
-                syn = -drodyn[i,j,k,jp]/(min(zerod0,drodzn[i,j,k,jp,kr])-epsln)
+                syn = -drodyn[i,j,k,jp]/(min(0.,drodzn[i,j,k,jp,kr])-epsln)
                 taper = dm_taper(syn)
                 sumz = sumz + dzw[k+kr-1] *maskV[i,j,k]*max(K_iso_steep,diffloc*taper)
                 Ai_nz[i,j,k,jp,kr] = taper*syn*maskV[i,j,k]
@@ -122,7 +122,7 @@ def isoneutral_diffusion_pre(i,j,k,ip,jp,kr):
                 sumx = 0.
                 for ip in xrange(2): # ip=0,1
                     for kr in xrange(2): # kr=0,1
-                        sxb = -drodxb[i,j,k,ip,kr]/(min(zerod0,drodzb[i,j,k,kr])-epsln) # i-1,k+1
+                        sxb = -drodxb[i,j,k,ip,kr]/(min(0.,drodzb[i,j,k,kr])-epsln) # i-1,k+1
                         taper = dm_taper(sxb)
                         sumx = sumx + dxu[i-1+ip]*K_iso[i,j,k]*taper*sxb**2  *maskW[i,j,k]
                         Ai_bx[i,j,k,ip,kr] =  taper*sxb*maskW[i,j,k]
@@ -131,7 +131,7 @@ def isoneutral_diffusion_pre(i,j,k,ip,jp,kr):
                 for jp in xrange(2): # jp=0,1
                     facty = cosu[j-1+jp]*dyu[j-1+jp]
                     for kr in xrange(2): # kr=0,1
-                        syb = -drodyb[i,j,k,jp,kr]/(min(zerod0,drodzb[i,j,k,kr])-epsln)
+                        syb = -drodyb[i,j,k,jp,kr]/(min(0.,drodzb[i,j,k,kr])-epsln)
                         taper = dm_taper(syb)
                         sumy = sumy + facty*K_iso[i,j,k]*taper*syb**2 *maskW[i,j,k]
                         Ai_by[i,j,k,jp,kr] = taper*syb  *maskW[i,j,k]

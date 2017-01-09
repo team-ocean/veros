@@ -1,3 +1,5 @@
+from climate.pyom import advection
+
 def thermodynamics(pyom):
     """
     integrate temperature and salinity and diagnose sources of dynamic enthalpy
@@ -16,9 +18,9 @@ def thermodynamics(pyom):
         advection of dynamic enthalpy
         """
         if pyom.enable_superbee_advection:
-            adv_flux_superbee(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,Hd[:,:,:,tau])
+            advection.adv_flux_superbee(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,Hd[:,:,:,tau])
         else:
-            adv_flux_2nd(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,Hd[:,:,:,tau])
+            advection.adv_flux_2nd(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,Hd[:,:,:,tau])
 
         for j in xrange(js_pe,je_pe):
             for i in xrange(is_pe,ie_pe):
@@ -197,7 +199,7 @@ def thermodynamics(pyom):
                     P_diss_v[i,j,k] = P_diss_v[i,j,k] \
                                       - grav/rho_0 * fxa * kappaH[i,j,k] * (temp[i,j,k+1,taup1] - temp[i,j,k,taup1]) / dzw[k] * maskW[i,j,k]
                     fxa = (-int_drhodS[i,j,k+1,taup1] + int_drhodS[i,j,k,taup1]) / dzw[k]
-                    P_diss_v[i,j,k] = P_diss_v[i,j,k] &
+                    P_diss_v[i,j,k] = P_diss_v[i,j,k] \
                                       - grav/rho_0 * fxa * kappaH[i,j,k] * (salt[i,j,k+1,taup1] - salt[i,j,k,taup1]) / dzw[k] * maskW[i,j,k]
         k = nz
         for j in xrange(js_pe,je_pe):
@@ -233,9 +235,9 @@ def advect_tracer(is_,ie_,js_,je_,nz_,tr,dtr,pyom):
     # integer :: i,j,k
 
     if pyom.enable_superbee_advection:
-        adv_flux_superbee(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,tr)
+        advection.adv_flux_superbee(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,tr)
     else:
-        adv_flux_2nd(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,tr)
+        advection.adv_flux_2nd(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,tr)
     for j in xrange(js_pe,je_pe):
         for i in xrange(is_pe,ie_pe):
             dtr[i,j,:] = maskT[i,j,:] * (-(flux_east[i,j,:] -  flux_east[i-1,j,:]) / (cost[j]*dxt[i]) \
@@ -251,9 +253,9 @@ def advect_temperature(pyom):
     integrate temperature
     """
     if pyom.enable_superbee_advection:
-        adv_flux_superbee(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,temp[:,:,:,tau])
+        advection.adv_flux_superbee(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,temp[:,:,:,tau])
     else:
-        adv_flux_2nd(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,temp[:,:,:,tau])
+        advection.adv_flux_2nd(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,temp[:,:,:,tau])
     for j in xrange(js_pe,je_pe):
         for i in xrange(is_pe,ie_pe):
             dtemp[i,j,:,tau] = maskT[i,j,:] * (-(flux_east[i,j,:] - flux_east[i-1,j,:]) / (cost[j]*dxt[i]) \
@@ -269,9 +271,9 @@ def advect_salinity(pyom):
     integrate salinity
     """
     if pyom.enable_superbee_advection:
-        adv_flux_superbee(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,salt[:,:,:,tau])
+        advection.adv_flux_superbee(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,salt[:,:,:,tau])
     else:
-        adv_flux_2nd(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,salt[:,:,:,tau])
+        advection.adv_flux_2nd(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,salt[:,:,:,tau])
     for j in xrange(js_pe,je_pe):
         for i in xrange(is_pe,ie_pe):
             dsalt[i,j,:,tau] = maskT[i,j,:] * (-(flux_east[i,j,:] - flux_east[i-1,j,:]) / (cost[j]*dxt[i]) \
