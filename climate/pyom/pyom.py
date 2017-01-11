@@ -1,32 +1,34 @@
 import numpy as np
 from climate.io import wrapper
 from climate import Timer
-from climate.pyom import momentum, numerics, isoneutral, thermodynamics
+from climate.pyom import momentum, numerics, thermodynamics
+from climate.pyom import isoneutral, idemix, external, diagnostics
 import math
 import sys
 
-class pyom:
+class PyOM:
     """
     Constants
     """
-    radius  = 6370.0e3           # Earth radius in m
-    degtom  = radius/180.0*np.pi # conversion degrees latitude to meters
-    mtodeg  = 1/degtom           # revers conversion
-    omega   = np.pi/43082.0      # earth rotation frequency in 1/s
-    rho_0   = 1024.0             # Boussinesq reference density in kg/m^3
-    grav    = 9.81               # gravitational constant in m/s^2
+    pi = np.pi
+    radius = 6370.0e3 # Earth radius in m
+    degtom = radius / 180.0 * pi # conversion degrees latitude to meters
+    mtodeg = 1 / degtom # reverse conversion
+    omega = pi / 43082.0 # earth rotation frequency in 1/s
+    rho_0 = 1024.0 # Boussinesq reference density in kg/m^3
+    grav = 9.81 # gravitational constant in m/s^2
 
     def __init__(self):
         """
-        Model parameter
+        Model parameters
         """
         #nx            # grid points in zonal (x,i) direction
         #ny            # grid points in meridional (y,j) direction
         #nz            # grid points in vertical (z,k) direction
-        self.taum1     = 0 # pointer to last time step
-        self.tau       = 1 # pointer to current time step
-        self.taup1     = 2 # pointer to next time step
-        self.dt_mom    = 0 # time step in seconds for momentum
+        self.taum1 = 0 # pointer to last time step
+        self.tau = 1 # pointer to current time step
+        self.taup1 = 2 # pointer to next time step
+        self.dt_mom = 0 # time step in seconds for momentum
         self.dt_tracer = 0 # time step for tracer can be larger than for momentum
         #dt_tke        # should be time step for momentum (set in tke.f90)
         #itt           # time step number
@@ -37,27 +39,27 @@ class pyom:
         """
         Logical switches for general model setup
         """
-        self.coord_degree                      = False # either spherical (true) or cartesian False coordinates
-        self.enable_cyclic_x                   = False # enable cyclic boundary conditions
+        self.coord_degree = False # either spherical (true) or cartesian False coordinates
+        self.enable_cyclic_x = False # enable cyclic boundary conditions
         self.eq_of_state_type = 1                      # equation of state: 1: linear, 3: nonlinear with comp., 5: TEOS
-        self.enable_implicit_vert_friction     = False # enable implicit vertical friction
-        self.enable_explicit_vert_friction     = False # enable explicit vertical friction
-        self.enable_hor_friction               = False # enable horizontal friction
-        self.enable_hor_diffusion              = False # enable horizontal diffusion
-        self.enable_biharmonic_friction        = False # enable biharmonic horizontal friction
-        self.enable_biharmonic_mixing          = False # enable biharmonic horizontal mixing
-        self.enable_hor_friction_cos_scaling   = False # scaling of hor. viscosity with cos(latitude)**cosPower
-        self.enable_ray_friction               = False # enable Rayleigh damping
-        self.enable_bottom_friction            = False # enable bottom friction
-        self.enable_bottom_friction_var        = False # enable bottom friction with lateral variations
-        self.enable_quadratic_bottom_friction  = False # enable quadratic bottom friction
-        self.enable_tempsalt_sources           = False # enable restoring zones, etc
-        self.enable_momentum_sources           = False # enable restoring zones, etc
-        self.enable_superbee_advection         = False # enable advection scheme with implicit mixing
-        self.enable_conserve_energy            = True  # exchange energy consistently
-        self.enable_store_bottom_friction_tke  = False # transfer dissipated energy by bottom/rayleig fric. to TKE
+        self.enable_implicit_vert_friction = False # enable implicit vertical friction
+        self.enable_explicit_vert_friction = False # enable explicit vertical friction
+        self.enable_hor_friction = False # enable horizontal friction
+        self.enable_hor_diffusion = False # enable horizontal diffusion
+        self.enable_biharmonic_friction = False # enable biharmonic horizontal friction
+        self.enable_biharmonic_mixing = False # enable biharmonic horizontal mixing
+        self.enable_hor_friction_cos_scaling = False # scaling of hor. viscosity with cos(latitude)**cosPower
+        self.enable_ray_friction = False # enable Rayleigh damping
+        self.enable_bottom_friction = False # enable bottom friction
+        self.enable_bottom_friction_var = False # enable bottom friction with lateral variations
+        self.enable_quadratic_bottom_friction = False # enable quadratic bottom friction
+        self.enable_tempsalt_sources = False # enable restoring zones, etc
+        self.enable_momentum_sources = False # enable restoring zones, etc
+        self.enable_superbee_advection = False # enable advection scheme with implicit mixing
+        self.enable_conserve_energy = True  # exchange energy consistently
+        self.enable_store_bottom_friction_tke = False # transfer dissipated energy by bottom/rayleig fric. to TKE
                                                        # else transfer to internal waves
-        self.enable_store_cabbeling_heat       = False # transfer non-linear mixing terms to potential enthalpy
+        self.enable_store_cabbeling_heat = False # transfer non-linear mixing terms to potential enthalpy
                                                        # else transfer to TKE and EKE
 
 
@@ -153,26 +155,26 @@ class pyom:
         """
         External mode stuff
         """
-        self.enable_free_surface  = False   # implicit free surface
-        self.enable_streamfunction= False   # solve for streamfct instead of surface pressure
+        self.enable_free_surface = False   # implicit free surface
+        self.enable_streamfunction = False   # solve for streamfct instead of surface pressure
         self.enable_congrad_verbose = False # print some info
         self.congr_itts = 0                 # number of iterations of poisson solver NOTE: only has value 0 to init variable
-        self.congr_epsilon=1e-12            # convergence criteria for poisson solver
+        self.congr_epsilon = 1e-12            # convergence criteria for poisson solver
         self.congr_max_iterations = 1000    # max. number of iterations
 
         """
-        mixing parameter
+        Mixing parameter
         """
-        A_h=0.0    # lateral viscosity in m^2/s
-        K_h=0.0    # lateral diffusivity in m^2/s
-        r_ray=0.0  # Rayleigh damping coefficient in 1/s
-        r_bot=0.0  # bottom friction coefficient in 1/s
-        r_quad_bot=0.0  # qudratic bottom friction coefficient
+        A_h = 0.0    # lateral viscosity in m^2/s
+        K_h = 0.0    # lateral diffusivity in m^2/s
+        r_ray = 0.0  # Rayleigh damping coefficient in 1/s
+        r_bot = 0.0  # bottom friction coefficient in 1/s
+        r_quad_bot = 0.0  # qudratic bottom friction coefficient
         #real*8, allocatable :: r_bot_var_u(:,:)     # bottom friction coefficient in 1/s, on u points
         #real*8, allocatable :: r_bot_var_v(:,:)     # bottom friction coefficient in 1/s, on v points
         self.hor_friction_cosPower = 3
-        self.A_hbi=0.0  # lateral bihamronic viscosity in m^4/s
-        self.K_hbi=0.0  # lateral bihamronic diffusivity in m^4/s
+        self.A_hbi = 0.0  # lateral bihamronic viscosity in m^4/s
+        self.K_hbi = 0.0  # lateral bihamronic diffusivity in m^4/s
         self.kappaH_0 = 0.0
         self.kappaM_0 = 0.0   # fixed values for vertical viscosity/diffusivity which are set for no TKE model
         #real*8, allocatable :: kappaM(:,:,:)       # vertical viscosity in m^2/s
@@ -181,17 +183,58 @@ class pyom:
         """
         Options for isopycnal mixing
         """
-        self.enable_neutral_diffusion  = False # enable isopycnal mixing
-        self.enable_skew_diffusion     = False # enable skew diffusion approach for eddy-driven velocities
-        self.enable_TEM_friction       = False # TEM approach for eddy-driven velocities
-        self.K_iso_0     = 0.0            # constant for isopycnal diffusivity in m^2/s
-        self.K_iso_steep = 0.0            # lateral diffusivity for steep slopes in m^2/s
-        self.K_gm_0      = 0.0            # fixed value for K_gm which is set for no EKE model
-        self.iso_dslope = 0.0008          # parameters controlling max allowed isopycnal slopes
-        self.iso_slopec = 0.001           # parameters controlling max allowed isopycnal slopes
+        self.enable_neutral_diffusion = False # enable isopycnal mixing
+        self.enable_skew_diffusion = False # enable skew diffusion approach for eddy-driven velocities
+        self.enable_TEM_friction = False # TEM approach for eddy-driven velocities
+        self.K_iso_0 = 0.0 # constant for isopycnal diffusivity in m^2/s
+        self.K_iso_steep = 0.0 # lateral diffusivity for steep slopes in m^2/s
+        self.K_gm_0 = 0.0 # fixed value for K_gm which is set for no EKE model
+        self.iso_dslope = 0.0008 # parameters controlling max allowed isopycnal slopes
+        self.iso_slopec = 0.001 # parameters controlling max allowed isopycnal slopes
 
         """
-        non hydrostatic stuff
+        Idemix 1.0
+        """
+        self.enable_idemix = False
+        # real*8, allocatable :: dE_iw(:,:,:,:) ! tendency due to advection using Adam Bashforth
+        # real*8, allocatable :: E_iw(:,:,:,:),c0(:,:,:),v0(:,:,:),alpha_c(:,:,:)
+        # real*8, allocatable :: forc_iw_bottom(:,:),forc_iw_surface(:,:),iw_diss(:,:,:)
+        self.tau_v = 1.0*86400.0 # time scale for vertical symmetrisation
+        self.tau_h = 15.0*86400.0 # time scale for horizontal symmetrisation
+        self.gamma = 1.57 #
+        self.jstar = 10.0 # spectral bandwidth in modes
+        self.mu0 = 4.0/3.0 # dissipation parameter
+        self.enable_idemix_hor_diffusion = False
+        self.enable_eke_diss_bottom = False
+        self.enable_eke_diss_surfbot = False
+        self.eke_diss_surfbot_frac = 1.0 # fraction which goes into bottom
+        self.enable_idemix_superbee_advection = False
+        self.enable_idemix_upwind_advection = False
+
+        """
+        Idemix 2.0
+        """
+        self.enable_idemix_M2 = False
+        self.enable_idemix_niw = False
+        self.np = 0
+
+        """
+        TKE
+        """
+        self.c_k = 0.1
+        self.c_eps = 0.7
+        self.alpha_tke = 1.0
+        self.mxl_min = 1e-12
+        self.kappaM_min = 0.
+        self.kappaM_max = 100.
+        self.tke_mxl_choice = 1
+        self.enable_tke_superbee_advection = False
+        self.enable_tke_upwind_advection = False
+        self.enable_tke_hor_diffusion = False
+        self.K_h_tke = 2000. # lateral diffusivity for tke
+
+        """
+        Non-hydrostatic stuff
         """
         self.enable_hydrostatic = True         # enable hydrostatic approximation
         #real*8,allocatable ::  p_non_hydro(:,:,:,:)    # non-hydrostatic pressure
@@ -200,8 +243,43 @@ class pyom:
         #real*8,allocatable ::  dw_adv(:,:,:)
         #real*8,allocatable ::  dw_mix(:,:,:)
         #congr_itts_non_hydro                # number of iterations of poisson solver
-        self.congr_epsilon_non_hydro=1e-12       # convergence criteria for poisson solver
+        self.congr_epsilon_non_hydro = 1e-12       # convergence criteria for poisson solver
         self.congr_max_itts_non_hydro = 1000     # max. number of iterations
+
+        """
+        diagnostic options
+        """
+        self.enable_diag_ts_monitor = False
+        self.enable_diag_ts_monitor = False # enable time step monitor
+        self.enable_diag_energy = False # enable diagnostics for energy
+        self.enable_diag_averages = False # enable time averages
+        self.enable_diag_snapshots = False # enable snapshots
+        self.enable_diag_overturning = False # enable isopycnal overturning diagnostic
+        self.enable_diag_tracer_content = False # enable tracer content and variance monitor
+        self.enable_diag_particles = False # enable integration of particles
+        self.snap_file = 'pyOM.cdf'
+        self.diag_energy_file = 'energy.cdf'
+        self.snapint = 0. # intervall between snapshots to be written in seconds
+        self.aveint = 0. # intervall between time averages to be written in seconds
+        self.energint = 0. # intervall between energy diag to be written in seconds
+        self.energfreq = 0. # diagnosing every energfreq seconds
+        self.ts_monint = 0. # intervall between time step monitor in seconds
+        self.avefreq = 0. # averaging every ave_freq seconds
+        self.overint = 0. # intervall between overturning averages to be written in seconds
+        self.overfreq = 0. # averaging overturning every ave_freq seconds
+        self.trac_cont_int = 0. # intervall between tracer content monitor in seconds
+        self.particles_int = 0. # intervall
+
+        """
+        Compatibility with legacy interface
+        """
+        self.fortran = self
+        self.main_module = self
+        self.isoneutral_module = self
+        self.idemix_module = self
+        self.tke_module = self
+        self.eke_module = self
+
 
     def allocate(self):
         #ie_pe = nx
@@ -226,13 +304,13 @@ class pyom:
         self.coriolis_t = np.zeros((self.nx+4, self.ny+4))
         self.coriolis_h = np.zeros((self.nx+4, self.ny+4))
 
-        self.kbot   = np.zeros((self.nx+4, self.ny+4))
-        self.ht     = np.zeros((self.nx+4, self.ny+4))
-        self.hu     = np.zeros((self.nx+4, self.ny+4))
-        self.hv     = np.zeros((self.nx+4, self.ny+4))
-        self.hur    = np.zeros((self.nx+4, self.ny+4))
-        self.hvr    = np.zeros((self.nx+4, self.ny+4))
-        self.beta   = np.zeros((self.nx+4, self.ny+4))
+        self.kbot = np.zeros((self.nx+4, self.ny+4))
+        self.ht = np.zeros((self.nx+4, self.ny+4))
+        self.hu = np.zeros((self.nx+4, self.ny+4))
+        self.hv = np.zeros((self.nx+4, self.ny+4))
+        self.hur = np.zeros((self.nx+4, self.ny+4))
+        self.hvr = np.zeros((self.nx+4, self.ny+4))
+        self.beta = np.zeros((self.nx+4, self.ny+4))
         self.area_t = np.zeros((self.nx+4, self.ny+4))
         self.area_u = np.zeros((self.nx+4, self.ny+4))
         self.area_v = np.zeros((self.nx+4, self.ny+4))
@@ -243,24 +321,24 @@ class pyom:
         self.maskW = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.maskZ = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.rho  = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.rho = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.Nsqr = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.Hd   = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.dHd  = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.Hd = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.dHd = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
 
         self.drhodT = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.drhodS = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
 
-        self.temp       = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.dtemp      = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.salt       = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.dsalt      = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.temp = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.dtemp = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.salt = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.dsalt = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.dtemp_vmix = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.dtemp_hmix = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.dsalt_vmix = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.dsalt_hmix = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dtemp_iso  = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dsalt_iso  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dtemp_iso = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dsalt_iso = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.forc_temp_surface = np.zeros((self.nx+4, self.ny+4))
         self.forc_salt_surface = np.zeros((self.nx+4, self.ny+4))
 
@@ -271,43 +349,43 @@ class pyom:
             self.u_source = np.zeros((self.nx+4, self.ny+4, self.nz))
             self.v_source = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.flux_east  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.flux_east = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.flux_north = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.flux_top   = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.flux_top = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.u       = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.v       = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.w       = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.du      = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.dv      = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.du_cor  = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dv_cor  = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.du_mix  = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dv_mix  = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.du_adv  = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dv_adv  = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.u = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.v = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.w = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.du = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.dv = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.du_cor = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dv_cor = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.du_mix = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dv_mix = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.du_adv = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.dv_adv = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.p_hydro = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.psi     = np.zeros((self.nx+4, self.ny+4, 3))
-        self.dpsi    = np.zeros((self.nx+4, self.ny+4, 3))
+        self.psi = np.zeros((self.nx+4, self.ny+4, 3))
+        self.dpsi = np.zeros((self.nx+4, self.ny+4, 3))
 
         self.kappaM = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.kappaH = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.surface_taux = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.surface_tauy = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.forc_rho_surface = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.surface_taux = np.zeros((self.nx+4, self.ny+4))
+        self.surface_tauy = np.zeros((self.nx+4, self.ny+4))
+        self.forc_rho_surface = np.zeros((self.nx+4, self.ny+4))
 
-        self.K_diss_v       = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.K_diss_h       = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.K_diss_gm      = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.K_diss_bot     = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_v       = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_nonlin  = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_adv     = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_comp    = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_hmix    = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_iso     = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_skew    = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.K_diss_v = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.K_diss_h = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.K_diss_gm = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.K_diss_bot = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_v = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_nonlin = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_adv = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_comp = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_hmix = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_iso = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.P_diss_skew = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.P_diss_sources = np.zeros((self.nx+4, self.ny+4, self.nz))
 
         self.r_bot_var_u = np.zeros((self.nx+4, self.ny+4, self.nz))
@@ -315,34 +393,125 @@ class pyom:
 
         if self.enable_neutral_diffusion:
             # isopycnal mixing tensor components
-            self.K_11 = np.zeros(nx,ny,nz)
-            self.K_13 = np.zeros(nx,ny,nz)
-            self.K_22 = np.zeros(nx,ny,nz)
-            self.K_23 = np.zeros(nx,ny,nz)
-            self.K_31 = np.zeros(nx,ny,nz)
-            self.K_32 = np.zeros(nx,ny,nz)
-            self.K_33 = np.zeros(nx,ny,nz)
+            self.K_11 = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.K_13 = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.K_22 = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.K_23 = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.K_31 = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.K_32 = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.K_33 = np.zeros((self.nx+4, self.ny+4, self.nz))
             #
-            self.Ai_ez = np.zeros(nx,ny,nz,2,2)
-            self.Ai_nz = np.zeros(nx,ny,nz,2,2)
-            self.Ai_bx = np.zeros(nx,ny,nz,2,2)
-            self.Ai_by = np.zeros(nx,ny,nz,2,2)
-        self.B1_gm = np.zeros(nx,ny,nz) # zonal streamfunction (for diagnostic purpose only)
-        self.B2_gm = np.zeros(nx,ny,nz) # meridional streamfunction (for diagnostic purpose only)
-        self.kappa_gm = np.zeros(nx,ny,nz) # vertical viscosity due to skew diffusivity K_gm in m^2/s
-        self.K_gm = np.zeros(nx,ny,nz) # GM diffusivity in m^2/s, either constant or from EKE model
-        self.K_iso = np.zeros(nx,ny,nz) # along isopycnal diffusivity in m^2/s
+            self.Ai_ez = np.zeros((self.nx+4, self.ny+4, self.nz, 2, 2))
+            self.Ai_nz = np.zeros((self.nx+4, self.ny+4, self.nz, 2, 2))
+            self.Ai_bx = np.zeros((self.nx+4, self.ny+4, self.nz, 2, 2))
+            self.Ai_by = np.zeros((self.nx+4, self.ny+4, self.nz, 2, 2))
+
+        self.B1_gm = np.zeros((self.nx+4,self.ny+4,self.nz)) # zonal streamfunction (for diagnostic purpose only)
+        self.B2_gm = np.zeros((self.nx+4,self.ny+4,self.nz)) # meridional streamfunction (for diagnostic purpose only)
+        self.kappa_gm = np.zeros((self.nx+4,self.ny+4,self.nz)) # vertical viscosity due to skew diffusivity K_gm in m^2/s
+        self.K_gm = np.zeros((self.nx+4,self.ny+4,self.nz)) # GM diffusivity in m^2/s, either constant or from EKE model
+        self.K_iso = np.zeros((self.nx+4,self.ny+4,self.nz)) # along isopycnal diffusivity in m^2/s
+
+        if self.enable_idemix:
+            self.dE_iw = np.zeros((self.nx+4,self.ny+4,self.nz,3))
+            self.E_iw = np.zeros((self.nx+4,self.ny+4,self.nz,3))
+            self.c0 = np.zeros((self.nx+4,self.ny+4,self.nz))
+            self.v0 = np.zeros((self.nx+4,self.ny+4,self.nz))
+            self.alpha_c = np.zeros((self.nx+4,self.ny+4,self.nz))
+            self.iw_diss = np.zeros((self.nx+4,self.ny+4,self.nz))
+            self.forc_iw_surface = np.zeros((self.nx+4,self.ny+4))
+            self.forc_iw_bottom = np.zeros((self.nx+4,self.ny+4))
+
+        if self.enable_idemix_M2 or self.enable_idemix_niw:
+            self.topo_shelf = np.zeros((self.nx+4,self.ny+4))
+            self.topo_hrms = np.zeros((self.nx+4,self.ny+4))
+            self.topo_lam = np.zeros((self.nx+4,self.ny+4))
+            self.phit = np.zeros(self.np)
+            self.dphit = np.zeros(self.np)
+            self.phiu = np.zeros(self.np)
+            self.dphiu = np.zeros(self.np)
+            self.maskTp = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.maskUp = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.maskVp = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.maskWp = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.cn = np.zeros((self.nx+4,self.ny+4))
+            self.phin = np.zeros((self.nx+4,self.ny+4,self.nz))
+            self.phinz = np.zeros((self.nx+4,self.ny+4,self.nz))
+            self.tau_M2 = np.zeros((self.nx+4,self.ny+4))
+            self.tau_niw = np.zeros((self.nx+4,self.ny+4))
+            self.alpha_M2_cont = np.zeros((self.nx+4,self.ny+4))
+            self.bc_south = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.bc_north = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.bc_west = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.bc_east = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.M2_psi_diss = np.zeros((self.nx+4,self.ny+4,self.np))
+
+        if self.enable_idemix_M2:
+            self.E_M2 = np.zeros((self.nx+4,self.ny+4,self.np,3))
+            self.dE_M2p = np.zeros((self.nx+4,self.ny+4,self.np,3))
+            self.cg_M2 = np.zeros((self.nx+4,self.ny+4))
+            self.kdot_x_M2 = np.zeros((self.nx+4,self.ny+4))
+            self.kdot_y_M2 = np.zeros((self.nx+4,self.ny+4))
+            self.forc_M2 = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.u_M2 = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.v_M2 = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.w_M2 = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.E_struct_M2 = np.zeros((self.nx+4,self.ny+4,self.nz))
+            self.E_M2_int = np.zeros((self.nx+4,self.ny+4))
+
+        if self.enable_idemix_niw:
+            self.omega_niw = np.zeros((self.nx+4,self.ny+4))
+            self.E_niw = np.zeros((self.nx+4,self.ny+4,self.np,3))
+            self.dE_niwp = np.zeros((self.nx+4,self.ny+4,self.np,3))
+            self.cg_niw = np.zeros((self.nx+4,self.ny+4))
+            self.kdot_x_niw = np.zeros((self.nx+4,self.ny+4))
+            self.kdot_y_niw = np.zeros((self.nx+4,self.ny+4))
+            self.forc_niw = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.u_niw = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.v_niw = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.w_niw = np.zeros((self.nx+4,self.ny+4,self.np))
+            self.E_struct_niw = np.zeros((self.nx+4,self.ny+4,self.nz))
+            self.E_niw_int = np.zeros((self.nx+4,self.ny+4))
+
+        if self.enable_tke:
+            self.dtke = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+            self.tke = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+            self.mxl = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.sqrttke = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.Prandtlnumber = np.zeros((self.nx+4, self.ny+4))
+            self.forc_tke_surface = np.zeros((self.nx+4, self.ny+4))
+            self.tke_diss = np.zeros((self.nx+4, self.ny+4))
+            self.tke_surf_corr = np.zeros((self.nx+4, self.ny+4))
 
         if not self.enable_hydrostatic:
             self.p_non_hydro = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-            self.dw          = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-            self.dw_cor      = np.zeros((self.nx+4, self.ny+4, self.nz))
-            self.dw_adv      = np.zeros((self.nx+4, self.ny+4, self.nz))
-            self.dw_mix      = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.dw = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+            self.dw_cor = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.dw_adv = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.dw_mix = np.zeros((self.nx+4, self.ny+4, self.nz))
 
         self.u_wgrid = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.v_wgrid = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.w_wgrid = np.zeros((self.nx+4, self.ny+4, self.nz))
+
+        """
+        Compatibility with legacy interface
+        """
+        self.onx = 2
+        self.is_pe = 1
+        self.ie_pe = self.nx
+        self.js_pe = 1
+        self.je_pe = self.ny
+        self.if2py = lambda i: i+self.onx-self.is_pe
+        self.jf2py = lambda j: j+self.onx-self.js_pe
+        self.ip2fy = lambda i: i+self.is_pe-self.onx
+        self.jp2fy = lambda j: j+self.js_pe-self.onx
+
+        self.maskt = self.maskT.view()
+        self.masku = self.maskU.view()
+        self.maskv = self.maskV.view()
+        self.maskw = self.maskW.view()
+
 
     def run(self, snapint, runlen):
         setupTimer = Timer("Setup")
@@ -435,25 +604,25 @@ class pyom:
                  for density, temp and salt this is done in integrate_tempsalt.f90
                 """
                 #border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,u[:,:,:,taup1])
-                setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,u[:,:,:,taup1])
+                setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,u[:,:,:,taup1])
                 #border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,v[:,:,:,taup1])
-                setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,v[:,:,:,taup1])
+                setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,v[:,:,:,taup1])
 
                 if enable_tke:
                 #    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,tke[:,:,:,taup1])
-                    setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,tke[:,:,:,taup1])
+                    setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,tke[:,:,:,taup1])
                 if enable_eke:
                 #    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,eke[:,:,:,taup1])
-                    setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,eke[:,:,:,taup1])
+                    setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,eke[:,:,:,taup1])
                 if enable_idemix:
                 #    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,E_iw[:,:,:,taup1])
-                    setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,E_iw[:,:,:,taup1])
+                    setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,E_iw[:,:,:,taup1])
                 if enable_idemix_M2:
                 #    border_exchg_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_M2[:,:,:,taup1])
-                    setcyclic_xyp   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_M2[:,:,:,taup1])
+                    setcyclic_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_M2[:,:,:,taup1])
                 if enable_idemix_niw:
                 #    border_exchg_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_niw[:,:,:,taup1])
-                    setcyclic_xyp   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_niw[:,:,:,taup1])
+                    setcyclic_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_niw[:,:,:,taup1])
 
                 # diagnose vertical velocity at taup1
                 if enable_hydrostatic:
@@ -466,9 +635,9 @@ class pyom:
 
             # shift time
             self.otaum1 = taum1
-            self.taum1  = tau
-            self.tau    = taup1
-            self.taup1  = otaum1
+            self.taum1 = tau
+            self.tau = taup1
+            self.taup1 = otaum1
             itt = itt+1
 
         print 'Timing summary:'
@@ -490,60 +659,57 @@ class pyom:
         print 'setting up everything'
 
         """
-         allocate everything
+        allocate everything
         """
         self.set_parameter()
         self.allocate()
 
         """
-          Grid
+        Grid
         """
         self.set_grid()
         numerics.calc_grid(self)
 
         """
-         Coriolis
+        Coriolis
         """
         self.set_coriolis()
         numerics.calc_beta(self)
 
         """
-         topography
+        topography
         """
         self.set_topography()
         numerics.calc_topo(self)
-        calc_spectral_topo()
+        idemix.calc_spectral_topo(self)
 
         """
-         initial condition and forcing
+        initial condition and forcing
         """
         self.set_initial_conditions()
-        calc_initial_conditions()
-        set_forcing()
-        if enable_streamfunction:
-            streamfunction_init()
+        self.set_forcing()
+        if self.enable_streamfunction:
+            external.streamfunction_init(self)
 
         """
-         initialize diagnostics
+        initialize diagnostics
         """
-        init_diagnostics()
-        self.set_diagnostics()
+        diagnostics.init_diagnostics(self)
+        #self.set_diagnostics()
 
         """
-         initialize EKE module
+        initialize EKE module
         """
-        init_eke()
+        # eke.init_eke()
 
         """
-         initialize isoneutral module
+        initialize isoneutral module
         """
-        isoneutral.check_isoneutral_slope_crit()
+        isoneutral.check_isoneutral_slope_crit(self)
 
         """
-         check setup
+        check setup
         """
-        if enable_tke and not enable_implicit_vert_friction:
-            print 'ERROR: use TKE model only with implicit vertical friction '
-            print '        -> switch on enable_implicit_vert_fricton        '
-            print ' in setup'
-            sys.exit(0)
+        if self.enable_tke and not self.enable_implicit_vert_friction:
+            raise RuntimeError("ERROR: use TKE model only with implicit vertical friction\n"
+                               "\t-> switch on enable_implicit_vert_fricton in setup")
