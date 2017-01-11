@@ -1,3 +1,3 @@
-from . import solve_stream
-from . import island
-from . import solve_pressure
+from solve_stream import *
+from island import *
+from solve_pressure import *
