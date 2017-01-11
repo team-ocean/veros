@@ -315,23 +315,23 @@ class pyom:
 
         if self.enable_neutral_diffusion:
             # isopycnal mixing tensor components
-            self.K_11 = np.zeros(nx,ny,nz)
-            self.K_13 = np.zeros(nx,ny,nz)
-            self.K_22 = np.zeros(nx,ny,nz)
-            self.K_23 = np.zeros(nx,ny,nz)
-            self.K_31 = np.zeros(nx,ny,nz)
-            self.K_32 = np.zeros(nx,ny,nz)
-            self.K_33 = np.zeros(nx,ny,nz)
+            self.K_11 = np.zeros((self.nx,self.ny,self.nz))
+            self.K_13 = np.zeros((self.nx,self.ny,self.nz))
+            self.K_22 = np.zeros((self.nx,self.ny,self.nz))
+            self.K_23 = np.zeros((self.nx,self.ny,self.nz))
+            self.K_31 = np.zeros((self.nx,self.ny,self.nz))
+            self.K_32 = np.zeros((self.nx,self.ny,self.nz))
+            self.K_33 = np.zeros((self.nx,self.ny,self.nz))
             #
-            self.Ai_ez = np.zeros(nx,ny,nz,2,2)
-            self.Ai_nz = np.zeros(nx,ny,nz,2,2)
-            self.Ai_bx = np.zeros(nx,ny,nz,2,2)
-            self.Ai_by = np.zeros(nx,ny,nz,2,2)
-        self.B1_gm = np.zeros(nx,ny,nz) # zonal streamfunction (for diagnostic purpose only)
-        self.B2_gm = np.zeros(nx,ny,nz) # meridional streamfunction (for diagnostic purpose only)
-        self.kappa_gm = np.zeros(nx,ny,nz) # vertical viscosity due to skew diffusivity K_gm in m^2/s
-        self.K_gm = np.zeros(nx,ny,nz) # GM diffusivity in m^2/s, either constant or from EKE model
-        self.K_iso = np.zeros(nx,ny,nz) # along isopycnal diffusivity in m^2/s
+            self.Ai_ez = np.zeros((self.nx,self.ny,self.nz,2,2))
+            self.Ai_nz = np.zeros((self.nx,self.ny,self.nz,2,2))
+            self.Ai_bx = np.zeros((self.nx,self.ny,self.nz,2,2))
+            self.Ai_by = np.zeros((self.nx,self.ny,self.nz,2,2))
+        self.B1_gm = np.zeros((self.nx,self.ny,self.nz)) # zonal streamfunction (for diagnostic purpose only)
+        self.B2_gm = np.zeros((self.nx,self.ny,self.nz)) # meridional streamfunction (for diagnostic purpose only)
+        self.kappa_gm = np.zeros((self.nx,self.ny,self.nz)) # vertical viscosity due to skew diffusivity K_gm in m^2/s
+        self.K_gm = np.zeros((self.nx,self.ny,self.nz)) # GM diffusivity in m^2/s, either constant or from EKE model
+        self.K_iso = np.zeros((self.nx,self.ny,self.nz)) # along isopycnal diffusivity in m^2/s
 
         if not self.enable_hydrostatic:
             self.p_non_hydro = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
