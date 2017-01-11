@@ -12,7 +12,7 @@ Search: subroutine (\w+)
 Replace: def $1(pyom):
 
 # comments
-Search: ![-=]+
+Search: \![-=]+
 Replace: """
 
 # if
@@ -35,9 +35,17 @@ Search: \s+\)
 Replace: )
 
 # fix whitespace around assignments
-Search: (\w|[\)\]])\s*=\s*(\w|[+-])
+Search: (\w|[\)\]])\s*=\s*(\w|[\+\-\(])
 Replace: $1 = $2
+
+# pet peeve: whitespace before commata
+Search: \s+,
+Replace: ,
 
 # function calls
 Search: call
 Replace:
+
+# captures some common indices
+Search: \(([i:]\s*([+-]\d+)?\s*,[j:]\s*([+-]\d+)?\s*,[k:]\s*([+-]\d+)?\s*)(,\s*(tau)|[:]\s*([+-]\d+)?)?\)
+Replace: [$1]
