@@ -398,17 +398,27 @@ def solve_streamfunction(pyom):
         pyom.p_hydro[:,:,k] = pyom.maskT[:,:,k]*(pyom.p_hydro[:,:,k+1]+ 0.5*(pyom.rho[:,:,k+1,pyom.tau]+pyom.rho[:,:,k,pyom.tau])*fxa*pyom.dzw[k])
 
     # add hydrostatic pressure gradient
-    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-        for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-            pyom.du[i,j,:,pyom.tau] += -( pyom.p_hydro[i+1,j,:]-pyom.p_hydro[i,j,:]  )/(pyom.dxu[i]*pyom.cost[j]) *pyom.maskU[i,j,:]
-            pyom.dv[i,j,:,pyom.tau] += -( pyom.p_hydro[i,j+1,:]-pyom.p_hydro[i,j,:]  ) /pyom.dyu[j]*pyom.maskV[i,j,:]
+    pyom.du[2:pyom.nx+2,2:pyom.ny+2,:,pyom.tau] += \
+            (pyom.p_hydro[3:pyom.nx+3,2:pyom.ny+2,:]-pyom.p_hydro[2:pyom.nx+2,2:pyom.ny+2,:]) \
+            /(np.ones(pyom.nz)*pyom.cost[2:pyom.ny+2,np.newaxis]*pyom.dxu[2:pyom.nx+2,np.newaxis,np.newaxis]) \
+            *pyom.maskU[2:pyom.nx+2,2:pyom.ny+2,:]
+    pyom.dv[2:pyom.nx+2,2:pyom.ny+2,:,pyom.tau] += \
+            (pyom.p_hydro[2:pyom.nx+2,3:pyom.ny+3,:]-pyom.p_hydro[2:pyom.nx+2,2:pyom.ny+2,:]) \
+            /(np.ones(pyom.nz) * pyom.dyu[2:pyom.ny+2, np.newaxis] * np.ones(pyom.nx)[:, np.newaxis, np.newaxis]) \
+            *pyom.maskV[2:pyom.nx+2,2:pyom.ny+2,:]
+    #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
+    #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
+    #        pyom.du[i,j,:,pyom.tau] += -( pyom.p_hydro[i+1,j,:]-pyom.p_hydro[i,j,:]  )/(pyom.dxu[i]*pyom.cost[j]) *pyom.maskU[i,j,:]
+    #        pyom.dv[i,j,:,pyom.tau] += -( pyom.p_hydro[i,j+1,:]-pyom.p_hydro[i,j,:]  ) /pyom.dyu[j]*pyom.maskV[i,j,:]
 
     # forcing for barotropic streamfunction
     fpx = np.zeros((pyom.nx+4, pyom.ny+4))
     fpy = np.zeros((pyom.nx+4, pyom.ny+4))
-    for k in xrange(pyom.nz): #k=1,nz
-        fpx += (pyom.du[:,:,k,pyom.tau]+pyom.du_mix[:,:,k])*pyom.maskU[:,:,k]*pyom.dzt[k]
-        fpy += (pyom.dv[:,:,k,pyom.tau]+pyom.dv_mix[:,:,k])*pyom.maskV[:,:,k]*pyom.dzt[k]
+    fpx += np.add.reduce((pyom.du[:,:,:,pyom.tau]+pyom.du_mix)*pyom.maskU*pyom.dzt, axis=(2,))
+    fpy += np.add.reduce((pyom.dv[:,:,:,pyom.tau]+pyom.dv_mix)*pyom.maskV*pyom.dzt, axis=(2,))
+    #for k in xrange(pyom.nz): #k=1,nz
+    #    fpx += (pyom.du[:,:,k,pyom.tau]+pyom.du_mix[:,:,k])*pyom.maskU[:,:,k]*pyom.dzt[k]
+    #    fpy += (pyom.dv[:,:,k,pyom.tau]+pyom.dv_mix[:,:,k])*pyom.maskV[:,:,k]*pyom.dzt[k]
 
     fpx *= pyom.hur
     fpy *= pyom.hvr
@@ -441,10 +451,19 @@ def solve_streamfunction(pyom):
         for k in xrange(1, pyom.nisle): #k=2,nisle
             fpx[...] = 0.0
             fpy[...] = 0.0
-            for j in xrange(1, pyom.ny+4): #j=js_pe-onx+1,je_pe+onx
-                for i in xrange(1, pyom.nx+4): #i=is_pe-onx+1,ie_pe+onx
-                    fpx[i,j] =-pyom.maskU[i,j,pyom.nz-1]*( pyom.dpsi[i,j,pyom.taup1]-pyom.dpsi[i,j-1,pyom.taup1])/pyom.dyt[j]*pyom.hur[i,j]
-                    fpy[i,j] = pyom.maskV[i,j,pyom.nz-1]*( pyom.dpsi[i,j,pyom.taup1]-pyom.dpsi[i-1,j,pyom.taup1])/(pyom.cosu[j]*pyom.dxt[i])*pyom.hvr[i,j]
+            FPX = np.zeros(fpx.shape)
+            fpx[1:pyom.nx+4, 1:pyom.ny+4] = \
+                    -pyom.maskU[1:pyom.nx+4, 1:pyom.ny+4, pyom.nz-1] \
+                    * (pyom.dpsi[1:pyom.nx+4, 1:pyom.ny+4,pyom.taup1]-pyom.dpsi[1:pyom.nx+4, :pyom.ny+3,pyom.taup1]) \
+                    /pyom.dyt[1:pyom.ny+4] *pyom.hur[1:pyom.nx+4, 1:pyom.ny+4]
+            fpy[1:pyom.nx+4, 1:pyom.ny+4] = \
+                    pyom.maskV[1:pyom.nx+4, 1:pyom.ny+4, pyom.nz-1] \
+                    * (pyom.dpsi[1:pyom.nx+4, 1:pyom.ny+4,pyom.taup1]-pyom.dpsi[:pyom.nx+3, 1:pyom.ny+4,pyom.taup1]) \
+                    /(pyom.cosu[1:pyom.ny+4]*pyom.dxt[1:pyom.nx+4, np.newaxis])*pyom.hvr[1:pyom.nx+4,1:pyom.ny+4]
+            #for i in xrange(1, pyom.nx+4): #i=is_pe-onx+1,ie_pe+onx
+            #    for j in xrange(1, pyom.ny+4): #j=js_pe-onx+1,je_pe+onx
+            #        fpx[i,j] =-pyom.maskU[i,j,pyom.nz-1]*( pyom.dpsi[i,j,pyom.taup1]-pyom.dpsi[i,j-1,pyom.taup1])/pyom.dyt[j]*pyom.hur[i,j]
+            #        fpy[i,j] = pyom.maskV[i,j,pyom.nz-1]*( pyom.dpsi[i,j,pyom.taup1]-pyom.dpsi[i-1,j,pyom.taup1])/(pyom.cosu[j]*pyom.dxt[i])*pyom.hvr[i,j]
             line_psi0[k] = line_integral(k,fpx,fpy,pyom)
 
         line_forc -= line_psi0
@@ -470,20 +489,34 @@ def solve_streamfunction(pyom):
     # subtract incorrect vertical mean from baroclinic velocity
     fpx[...] = 0.0
     fpy[...] = 0.0
-    for k in xrange(pyom.nz): #k=1,nz
-        fpx += pyom.u[:,:,k,pyom.taup1]*pyom.maskU[:,:,k]*pyom.dzt[k]
-        fpy += pyom.v[:,:,k,pyom.taup1]*pyom.maskV[:,:,k]*pyom.dzt[k]
-    #pyom.u[:,:,:,pyom.taup1] += -fpx*pyom.maskU[:,:,:]*pyom.hur
-    #pyom.v[:,:,:,pyom.taup1] += -fpy*pyom.maskV[:,:,:]*pyom.hvr
-    for k in xrange(pyom.nz): #k=1,nz
-        pyom.u[:,:,k,pyom.taup1] = pyom.u[:,:,k,pyom.taup1]-fpx*pyom.maskU[:,:,k]*pyom.hur
-        pyom.v[:,:,k,pyom.taup1] = pyom.v[:,:,k,pyom.taup1]-fpy*pyom.maskV[:,:,k]*pyom.hvr
+    fpx += np.add.reduce(pyom.u[:,:,:,pyom.taup1]*pyom.maskU*pyom.dzt, axis=(2,))
+    fpy += np.add.reduce(pyom.v[:,:,:,pyom.taup1]*pyom.maskV*pyom.dzt, axis=(2,))
+    #for k in xrange(pyom.nz): #k=1,nz
+    #    fpx += pyom.u[:,:,k,pyom.taup1]*pyom.maskU[:,:,k]*pyom.dzt[k]
+    #    fpy += pyom.v[:,:,k,pyom.taup1]*pyom.maskV[:,:,k]*pyom.dzt[k]
+    pyom.u[:,:,:,pyom.taup1] += (np.ones(pyom.nz)*-fpx[:, :, np.newaxis])*pyom.maskU*(np.ones(pyom.nz)*pyom.hur[:, :, np.newaxis])
+    pyom.v[:,:,:,pyom.taup1] += (np.ones(pyom.nz)*-fpy[:, :, np.newaxis])*pyom.maskV*(np.ones(pyom.nz)*pyom.hvr[:, :, np.newaxis])
+    #for k in xrange(pyom.nz): #k=1,nz
+    #    pyom.u[:,:,k,pyom.taup1] = pyom.u[:,:,k,pyom.taup1]-fpx*pyom.maskU[:,:,k]*pyom.hur
+    #    pyom.v[:,:,k,pyom.taup1] = pyom.v[:,:,k,pyom.taup1]-fpy*pyom.maskV[:,:,k]*pyom.hvr
 
     # add barotropic mode to baroclinic velocity
-    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-        for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-            pyom.u[i,j,:,pyom.taup1] -= pyom.maskU[i,j,:]*( pyom.psi[i,j,pyom.taup1]-pyom.psi[i,j-1,pyom.taup1])/pyom.dyt[j]*pyom.hur[i,j]
-            pyom.v[i,j,:,pyom.taup1] += pyom.maskV[i,j,:]*( pyom.psi[i,j,pyom.taup1]-pyom.psi[i-1,j,pyom.taup1])/(pyom.cosu[j]*pyom.dxt[i])*pyom.hvr[i,j]
+    U = np.empty((pyom.nx+4, pyom.ny+4, pyom.nz, 3))
+    U[...] = pyom.v
+    pyom.u[2:pyom.nx+2, 2:pyom.ny+2, :, pyom.taup1] += \
+            -pyom.maskU[2:pyom.nx+2,2:pyom.ny+2,:]\
+            *(np.ones(pyom.nz)*( pyom.psi[2:pyom.nx+2,2:pyom.ny+2,pyom.taup1]-pyom.psi[2:pyom.nx+2,1:pyom.ny+1,pyom.taup1])[:, :,np.newaxis])\
+            /(np.ones(pyom.nz)*pyom.dyt[2:pyom.ny+2,np.newaxis]*np.ones(pyom.nx)[:, np.newaxis, np.newaxis])\
+            *(np.ones(pyom.nz)*pyom.hur[2:pyom.nx+2,2:pyom.ny+2][:, :, np.newaxis])
+    pyom.v[2:pyom.nx+2, 2:pyom.ny+2, :, pyom.taup1] += \
+            -pyom.maskV[2:pyom.nx+2,2:pyom.ny+2,:]\
+            *(np.ones(pyom.nz)*( pyom.psi[2:pyom.nx+2,2:pyom.ny+2,pyom.taup1]-pyom.psi[1:pyom.nx+1,2:pyom.ny+2,pyom.taup1])[:, :,np.newaxis])\
+            /(np.ones(pyom.nz)*pyom.cosu[2:pyom.ny+2,np.newaxis]*pyom.dxt[2:pyom.nx+2, np.newaxis, np.newaxis])\
+            *(np.ones(pyom.nz)*pyom.hvr[2:pyom.nx+2,2:pyom.ny+2][:, :, np.newaxis])
+    #for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
+    #    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
+    #        pyom.u[i,j,:,pyom.taup1] += -pyom.maskU[i,j,:]*( pyom.psi[i,j,pyom.taup1]-pyom.psi[i,j-1,pyom.taup1])/pyom.dyt[j]*pyom.hur[i,j]
+    #        pyom.v[i,j,:,pyom.taup1] += pyom.maskV[i,j,:]*( pyom.psi[i,j,pyom.taup1]-pyom.psi[i-1,j,pyom.taup1])/(pyom.cosu[j]*pyom.dxt[i])*pyom.hvr[i,j]
 
 
 def make_coeff_streamfunction(cf, pyom):
@@ -496,19 +529,26 @@ def make_coeff_streamfunction(cf, pyom):
     """
     #real*8 :: cf(is_:ie_,js_:je_,3,3)
     #cf = np.zeros(ie_-is_+1, je_-js_+1, 3, 3)
-    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-        for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-            cf[i,j, 1, 1] -= pyom.hvr[i+1,j]/pyom.dxu[i]/pyom.dxt[i+1] /pyom.cosu[j]**2
-            cf[i,j, 2, 1] += pyom.hvr[i+1,j]/pyom.dxu[i]/pyom.dxt[i+1] /pyom.cosu[j]**2
-            cf[i,j, 1, 1] -= pyom.hvr[i  ,j]/pyom.dxu[i]/pyom.dxt[i  ] /pyom.cosu[j]**2
-            cf[i,j, 0, 1] += pyom.hvr[i  ,j]/pyom.dxu[i]/pyom.dxt[i  ] /pyom.cosu[j]**2
+    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 1] -= pyom.hvr[3:pyom.nx+3, 2:pyom.ny+2]/(np.ones(pyom.ny)*pyom.dxu[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[3:pyom.nx+3, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:pyom.ny+2].T).T**2
+    cf[2:pyom.nx+2, 2:pyom.ny+2, 2, 1] += pyom.hvr[3:pyom.nx+3, 2:pyom.ny+2]/(np.ones(pyom.ny)*pyom.dxu[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[3:pyom.nx+3, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:pyom.ny+2].T).T**2
+    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 1] -= pyom.hvr[2:pyom.nx+2, 2:pyom.ny+2]/(np.ones(pyom.ny)*pyom.dxu[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:pyom.ny+2].T).T**2
+    cf[2:pyom.nx+2, 2:pyom.ny+2, 0, 1] += pyom.hvr[2:pyom.nx+2, 2:pyom.ny+2]/(np.ones(pyom.ny)*pyom.dxu[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:pyom.ny+2].T).T**2
 
-            cf[i,j, 1, 1] -= pyom.hur[i,j+1]/pyom.dyu[j]/pyom.dyt[j+1]*pyom.cost[j+1]/pyom.cosu[j]
-            cf[i,j, 1, 2] += pyom.hur[i,j+1]/pyom.dyu[j]/pyom.dyt[j+1]*pyom.cost[j+1]/pyom.cosu[j]
-            cf[i,j, 1, 1] -= pyom.hur[i,j  ]/pyom.dyu[j]/pyom.dyt[j  ]*pyom.cost[j  ]/pyom.cosu[j]
-            cf[i,j, 1, 0] += pyom.hur[i,j  ]/pyom.dyu[j]/pyom.dyt[j  ]*pyom.cost[j  ]/pyom.cosu[j]
+    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 1] -= pyom.hur[2:pyom.nx+2, 3:pyom.ny+3]/(pyom.dyu[2:pyom.ny+2])/(pyom.dyt[3:pyom.ny+3])*pyom.cost[3:pyom.ny+3]/(pyom.cosu[2:pyom.ny+2])
+    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 2] += pyom.hur[2:pyom.nx+2, 3:pyom.ny+3]/(pyom.dyu[2:pyom.ny+2])/(pyom.dyt[3:pyom.ny+3])*pyom.cost[3:pyom.ny+3]/(pyom.cosu[2:pyom.ny+2])
+    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 1] -= pyom.hur[2:pyom.nx+2, 2:pyom.ny+2]/(pyom.dyu[2:pyom.ny+2])/(pyom.dyt[2:pyom.ny+2])*pyom.cost[2:pyom.ny+2]/(pyom.cosu[2:pyom.ny+2])
+    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 0] += pyom.hur[2:pyom.nx+2, 2:pyom.ny+2]/(pyom.dyu[2:pyom.ny+2])/(pyom.dyt[2:pyom.ny+2])*pyom.cost[2:pyom.ny+2]/(pyom.cosu[2:pyom.ny+2])
+    #for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
+    #    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
+    #        cf[i,j, 1, 1] -= pyom.hvr[i+1,j]/pyom.dxu[i]/pyom.dxt[i+1] /pyom.cosu[j]**2
+    #        cf[i,j, 2, 1] += pyom.hvr[i+1,j]/pyom.dxu[i]/pyom.dxt[i+1] /pyom.cosu[j]**2
+    #        cf[i,j, 1, 1] -= pyom.hvr[i  ,j]/pyom.dxu[i]/pyom.dxt[i  ] /pyom.cosu[j]**2
+    #        cf[i,j, 0, 1] += pyom.hvr[i  ,j]/pyom.dxu[i]/pyom.dxt[i  ] /pyom.cosu[j]**2
 
-
+    #        cf[i,j, 1, 1] -= pyom.hur[i,j+1]/pyom.dyu[j]/pyom.dyt[j+1]*pyom.cost[j+1]/pyom.cosu[j]
+    #        cf[i,j, 1, 2] += pyom.hur[i,j+1]/pyom.dyu[j]/pyom.dyt[j+1]*pyom.cost[j+1]/pyom.cosu[j]
+    #        cf[i,j, 1, 1] -= pyom.hur[i,j  ]/pyom.dyu[j]/pyom.dyt[j  ]*pyom.cost[j  ]/pyom.cosu[j]
+    #        cf[i,j, 1, 0] += pyom.hur[i,j  ]/pyom.dyu[j]/pyom.dyt[j  ]*pyom.cost[j  ]/pyom.cosu[j]
 
 
 def congrad_streamfunction(forc,sol,pyom):
@@ -738,22 +778,22 @@ def absmax_sfc(p1, pyom):
     #real*8 :: s2,p1(is_:ie_,js_:je_)
     #integer :: i,j
     return np.max(np.abs(p1))
-    s2 = 0
-    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-        for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-            s2 = max( abs(p1[i,j]), s2 )
-    return s2
+    #s2 = 0
+    #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
+    #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
+    #        s2 = max( abs(p1[i,j]), s2 )
+    #return s2
 
 def dot_sfc(p1, p2, pyom):
     #!real*8 :: s2,p1(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx),p2(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
     #real*8 :: s2,p1(is_:ie_,js_:je_),p2(is_:ie_,js_:je_)
     #integer :: i,j
     return np.sum(p1[2:pyom.nx+2, 2:pyom.ny+2]*p2[2:pyom.nx+2, 2:pyom.ny+2])
-    s2 = 0.0
-    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-        for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-            s2 += p1[i,j]*p2[i,j]
-    return s2
+    #s2 = 0.0
+    #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
+    #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
+    #        s2 += p1[i,j]*p2[i,j]
+    #return s2
 
 def inv_op_sfc(Z,res,Zres,pyom):
     """
@@ -768,10 +808,9 @@ def inv_op_sfc(Z,res,Zres,pyom):
     #real*8, dimension(is_:ie_,js_:je_) :: Z,res,Zres
     #integer :: i,j
     Zres[2:pyom.nx+2, 2:pyom.ny+2] = Z[2:pyom.nx+2, 2:pyom.ny+2] * res[2:pyom.nx+2, 2:pyom.ny+2]
-    return
-    for i in xrange(2, pyom.nx+2): #is_pe, ie_pe
-        for j in xrange(2, pyom.ny+2): #js_pe, je_pe
-            Zres[i,j] = Z[i,j] * res[i,j]
+    #for i in xrange(2, pyom.nx+2): #is_pe, ie_pe
+    #    for j in xrange(2, pyom.ny+2): #js_pe, je_pe
+    #        Zres[i,j] = Z[i,j] * res[i,j]
 
 def make_inv_sfc(cf,Z,pyom):
     """
