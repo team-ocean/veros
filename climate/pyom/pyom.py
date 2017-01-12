@@ -6,7 +6,7 @@ from climate.pyom import isoneutral, idemix, external, diagnostics
 import math
 import sys
 
-class PyOM:
+class PyOM(object):
     """
     Constants
     """
@@ -282,8 +282,6 @@ class PyOM:
 
 
     def allocate(self):
-        #ie_pe = nx
-        #je_pe = ny
         self.xt = np.zeros(self.nx+4)
         self.xu = np.zeros(self.nx+4)
         self.yt = np.zeros(self.ny+4)
@@ -304,7 +302,7 @@ class PyOM:
         self.coriolis_t = np.zeros((self.nx+4, self.ny+4))
         self.coriolis_h = np.zeros((self.nx+4, self.ny+4))
 
-        self.kbot = np.zeros((self.nx+4, self.ny+4))
+        self.kbot = np.zeros((self.nx+4, self.ny+4), dtype=np.int)
         self.ht = np.zeros((self.nx+4, self.ny+4))
         self.hu = np.zeros((self.nx+4, self.ny+4))
         self.hv = np.zeros((self.nx+4, self.ny+4))
@@ -322,6 +320,8 @@ class PyOM:
         self.maskZ = np.zeros((self.nx+4, self.ny+4, self.nz))
 
         self.rho = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.int_drhodT = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.int_drhodS = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.Nsqr = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.Hd = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.dHd = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
@@ -498,10 +498,10 @@ class PyOM:
         Compatibility with legacy interface
         """
         self.onx = 2
-        self.is_pe = 1
-        self.ie_pe = self.nx
-        self.js_pe = 1
-        self.je_pe = self.ny
+        self.is_pe = 2
+        self.ie_pe = self.nx+2
+        self.js_pe = 2
+        self.je_pe = self.ny+2
         self.if2py = lambda i: i+self.onx-self.is_pe
         self.jf2py = lambda j: j+self.onx-self.js_pe
         self.ip2fy = lambda i: i+self.is_pe-self.onx
@@ -603,25 +603,18 @@ class PyOM:
                  Main boundary exchange
                  for density, temp and salt this is done in integrate_tempsalt.f90
                 """
-                #border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,u[:,:,:,taup1])
                 setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,u[:,:,:,taup1])
-                #border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,v[:,:,:,taup1])
                 setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,v[:,:,:,taup1])
 
                 if enable_tke:
-                #    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,tke[:,:,:,taup1])
                     setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,tke[:,:,:,taup1])
                 if enable_eke:
-                #    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,eke[:,:,:,taup1])
                     setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,eke[:,:,:,taup1])
                 if enable_idemix:
-                #    border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,E_iw[:,:,:,taup1])
                     setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,E_iw[:,:,:,taup1])
                 if enable_idemix_M2:
-                #    border_exchg_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_M2[:,:,:,taup1])
                     setcyclic_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_M2[:,:,:,taup1])
                 if enable_idemix_niw:
-                #    border_exchg_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_niw[:,:,:,taup1])
                     setcyclic_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_niw[:,:,:,taup1])
 
                 # diagnose vertical velocity at taup1
@@ -681,12 +674,14 @@ class PyOM:
         """
         self.set_topography()
         numerics.calc_topo(self)
-        idemix.calc_spectral_topo(self)
+        #idemix.calc_spectral_topo(self)
 
         """
         initial condition and forcing
         """
         self.set_initial_conditions()
+        numerics.calc_initial_conditions(self)
+
         self.set_forcing()
         if self.enable_streamfunction:
             external.streamfunction_init(self)
@@ -695,7 +690,7 @@ class PyOM:
         initialize diagnostics
         """
         diagnostics.init_diagnostics(self)
-        #self.set_diagnostics()
+        # self.set_diagnostics()
 
         """
         initialize EKE module
@@ -713,3 +708,15 @@ class PyOM:
         if self.enable_tke and not self.enable_implicit_vert_friction:
             raise RuntimeError("ERROR: use TKE model only with implicit vertical friction\n"
                                "\t-> switch on enable_implicit_vert_fricton in setup")
+
+    """
+    Make class attributes case-insensitive.
+    I know this is bad, but we need it to support the legacy interface, which is handy for debugging.
+    """
+    def __getattr__(self,attr):
+        if not hasattr(self, attr.lower()):
+            raise AttributeError("Attribute {} not found".format(attr))
+        return getattr(self, attr.lower())
+
+    def __setattr__(self, attr, value):
+        super(PyOM, self).__setattr__(attr.lower(), value)
