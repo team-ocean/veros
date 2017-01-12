@@ -40,7 +40,7 @@ def isoneutral_diffusion_pre(pyom):
     drho_dt and drho_ds at centers of T cells
     """
     drdTS = np.zeros((pyom.nx+4,pyom.ny+4,pyom.nz,2))
-    for k in xrange(1,pyom.nz): # k=1,nz
+    for k in xrange(pyom.nz): # k=1,nz
         for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx):
             for i in xrange(pyom.is_pe-pyom.onx,pyom.is_pe+pyom.onx):
                 drdTS[i,j,k,0] = density.get_drhodT(pyom.salt[i,j,k,pyom.tau],pyom.temp[i,j,k,pyom.tau],abs(pyom.zt[k]),pyom)*pyom.maskT[i,j,k]
@@ -49,7 +49,7 @@ def isoneutral_diffusion_pre(pyom):
     """
     gradients at top face of T cells
     """
-    for k in xrange(0,pyom.nz-1): # k=1,nz-1
+    for k in xrange(pyom.nz-1): # k=1,nz-1
         for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx):
             for i in xrange(pyom.is_pe-pyom.onx,pyom.is_pe+pyom.onx):
                 ddzt[i,j,k,0] = pyom.maskW[i,j,k]* (pyom.temp[i,j,k+1,pyom.tau] - pyom.temp[i,j,k,pyom.tau])/pyom.dzw[k]
@@ -115,7 +115,7 @@ def isoneutral_diffusion_pre(pyom):
                         sumz = sumz + pyom.dzw[k+kr-1] *pyom.maskV[i,j,k]*max(pyom.K_iso_steep,diffloc*taper)
                         pyom.Ai_nz[i,j,k,jp,kr] = taper*syn*pyom.maskV[i,j,k]
                 pyom.K_22[i,j,k] = sumz/(4*pyom.dzt[k])
-    k = 1
+    k = 0 # k=1
     for j in xrange(pyom.js_pe-1,pyom.je_pe):
         for i in xrange(pyom.is_pe,pyom.is_pe):
             diffloc = 0.5*(pyom.K_iso[i,j,k] + pyom.K_iso[i,j+1,k])
@@ -131,7 +131,7 @@ def isoneutral_diffusion_pre(pyom):
     """
     compute Ai_bx, Ai_by and K33 on top face of T cell.
     """
-    for k in xrange(0,pyom.nz-2): # k=1,nz-1
+    for k in xrange(pyom.nz-1): # k=1,nz-1
         for j in xrange(pyom.js_pe,pyom.je_pe):
             for i in xrange(pyom.is_pe,pyom.is_pe):
                 # eastward slopes at the top of T cells
@@ -167,7 +167,7 @@ def isoneutral_diag_streamfunction(pyom):
     """
     meridional component at east face of "T" cells
     """
-    for k in xrange(0,pyom.nz): # k=1,nz
+    for k in xrange(pyom.nz): # k=1,nz
         for j in xrange(pyom.js_pe,pyom.je_pe):
             for i in xrange(pyom.is_pe-1,pyom.is_pe):
                 diffloc = 0.25*(K_gm[i,j,k]+K_gm[i,j,max(1,k-1)] + K_gm[i+1,j,k]+K_gm[i+1,j,max(1,k-1)])
@@ -182,7 +182,7 @@ def isoneutral_diag_streamfunction(pyom):
     """
     zonal component at north face of "T" cells
     """
-    for k in xrange(0,pyom.nz): # k=1,nz
+    for k in xrange(pyom.nz): # k=1,nz
         for j in xrange(pyom.js_pe-1,pyom.je_pe):
             for i in xrange(pyom.is_pe,pyom.ie_pe):
                 diffloc = 0.25*(K_gm[i,j,k]+K_gm[i,j,max(1,k-1)] + K_gm[i,j+1,k]+K_gm[i,j+1,max(1,k-1)])
@@ -206,31 +206,28 @@ def check_isoneutral_slope_crit(pyom):
     """
     check linear stability criterion from Griffies et al
     """
-
     epsln = 1e-20
-
     if pyom.enable_neutral_diffusion:
         ft1 = 1.0/(4.0*pyom.K_iso_0*pyom.dt_tracer + epsln)
         i = pyom.is_pe+pyom.onx
         j = pyom.js_pe+pyom.onx
-        k = 1
+        k = 0 # k=1
         delta_iso1 = pyom.dzt[k]*ft1*pyom.dxt[i]*np.abs(pyom.cost[j])
-        for k in xrange(0,pyom.nz): # k=1,nz
+        for k in xrange(pyom.nz): # k=1,nz
             for j in xrange(pyom.js_pe,pyom.je_pe):
                 for i in xrange(pyom.is_pe,pyom.ie_pe):
                     delta1a = pyom.dxt[i]*np.abs(pyom.cost[j])*pyom.dzt[k]*ft1
                     delta1b = pyom.dyt[j]*pyom.dzt[k]*ft1
                     if delta_iso1 > delta1a or delta_iso1 > delta1b:
                         delta_iso1 = min(delta1a,delta1b)
-    delta_iso1 = np.min(delta_iso1)
 
-    print ("diffusion grid factor delta_iso1 = {}".format(delta_iso1))
-    if delta_iso1 < pyom.iso_slopec:
-        print ("""
-               ERROR:
-               Without latitudinal filtering, delta_iso1 is the steepest
-               isoneutral slope available for linear stab of Redi and GM.
-               Maximum allowable isoneutral slope is specified as {}
-               integration will be unstable
-               """.format(pyom.iso_slopec))
-        halt_stop(" in check_slop_crit")
+        print ("diffusion grid factor delta_iso1 = {:.5e}".format(delta_iso1))
+        if delta_iso1 < pyom.iso_slopec:
+            print ("""
+                   ERROR:
+                   Without latitudinal filtering, delta_iso1 is the steepest
+                   isoneutral slope available for linear stab of Redi and GM.
+                   Maximum allowable isoneutral slope is specified as {}
+                   integration will be unstable
+                   """.format(pyom.iso_slopec))
+            halt_stop(" in check_slop_crit")

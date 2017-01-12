@@ -1,4 +1,4 @@
-from climate.pyom import cyclic
+from climate.pyom import cyclic, density
 import numpy as np
 import sys
 
@@ -194,8 +194,8 @@ def calc_topo(pyom):
     for k in xrange(pyom.nz): # k=1,nz
         for j in xrange(pyom.ny+4): # j=js_pe-onx,je_pe+onx
             for i in xrange(pyom.nx+4): # i=is_pe-onx,ie_pe+onx
-                if pyom.kbot[i,j] != 0 and pyom.kbot[i,j] <= k:
-                    pyom.maskT[i,j,k] = 1.0
+                if pyom.kbot[i,j] > 0 and pyom.kbot[i,j]-1 <= k:
+                    pyom.maskT[i,j,k] = pyom.kbot[i,j]
     cyclic.setcyclic_xyz(pyom.maskT, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
     pyom.maskU[...] = pyom.maskT
     for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
@@ -208,7 +208,7 @@ def calc_topo(pyom):
     pyom.maskZ[...] = pyom.maskT
     for j in xrange(pyom.ny+3): # j=js_pe-onx,je_pe+onx-1
         for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
-            pyom.maskZ[i,j,:] = np.minimum(pyom.maskT[i,j,:],pyom.maskT[i,j+1,:],pyom.maskT[i+1,j,:])
+            pyom.maskZ[i,j,:] = np.minimum(np.minimum(pyom.maskT[i,j,:],pyom.maskT[i,j+1,:]),pyom.maskT[i+1,j,:])
     cyclic.setcyclic_xyz(pyom.maskZ, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
     pyom.maskW[...] = pyom.maskT
     for k in xrange(pyom.nz-1): # k=1,nz-1
@@ -230,8 +230,31 @@ def calc_topo(pyom):
 
 #TODO: you are here
 
-def calc_initial_conditions():
-    pass
+def calc_initial_conditions(pyom):
+    """
+    calculate dyn. enthalp, etc
+    """
+    for n in xrange(3): # n=1,3
+        # boundary exchange
+        cyclic.setcyclic_xyz(pyom.temp[:,:,:,n],pyom.enable_cyclic_x,pyom.nx,pyom.nz)
+        cyclic.setcyclic_xyz(pyom.salt[:,:,:,n],pyom.enable_cyclic_x,pyom.nx,pyom.nz)
+        # calculate density, etc
+        for k in xrange(pyom.nz): # k=1,nz
+            for j in xrange(pyom.ny+4): # j=js_pe-onx,je_pe+onx
+                for i in xrange(pyom.nx+4): # i=is_pe-onx,ie_pe+onx
+                    if pyom.salt[i,j,k,n] < 0.0:
+                        raise RuntimeError("salinity <0 at i={} j={} k={}".format(i,j,k))
+                    pyom.rho[i,j,k,n] = density.get_rho(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom) * pyom.maskT[i,j,k]
+                    pyom.Hd[i,j,k,n] = density.get_dyn_enthalpy(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom) * pyom.maskT[i,j,k]
+                    pyom.int_drhodT[i,j,k,n] = density.get_int_drhodT(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom)
+                    pyom.int_drhodS[i,j,k,n] = density.get_int_drhodS(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom)
+        # stability frequency
+        for k in xrange(pyom.nz-1):
+            for j in xrange(pyom.ny+4):
+                for i in xrange(pyom.nx+4):
+                    fxa = -pyom.grav/pyom.rho_0/pyom.dzw[k]*pyom.maskW[i,j,k]
+                    pyom.Nsqr[i,j,k,n] = fxa * density.get_rho(pyom.salt[i,j,k+1,n],pyom.temp[i,j,k+1,n],abs(pyom.zt[k]),pyom) - pyom.rho[i,j,k,n]
+        pyom.Nsqr[:,:,pyom.nz-1,n] = pyom.Nsqr[:,:,pyom.nz-2,n]
 
 def ugrid_to_tgrid():
     pass
@@ -240,6 +263,7 @@ def vgrid_to_tgrid():
     pass
 
 def solve_tridiag(a, b, c, d, n):
+    x = np.zeros(n)
     cp = np.zeros(n)
     dp = np.zeros(n)
 
@@ -251,12 +275,11 @@ def solve_tridiag(a, b, c, d, n):
     for i in xrange(1, n):
         m = b[i] - cp[i-1] * a[i]
         fxa = 1.0 / m
-        cp[i] = c[i] * fxz
-        dp[i] = d[i]-dp[i-1]*a[i]
+        cp[i] = c[i] * fxa
+        dp[i] = (d[i]-dp[i-1]*a[i]) * fxa
     x[n-1] = dp[n-1]
     for i in xrange(n-2, -1, -1):
         x[i] = dp[i] - cp[i]*x[i+1]
-
     return x
 
 def calc_diss():

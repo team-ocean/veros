@@ -114,15 +114,15 @@ def get_int_drhodT(salt_loc,temp_loc,press_loc,pyom):
     """
     calculate int_z^0 drho/dT dz' as a function of temperature, salinity and pressure
     """
-    if eq_of_state_type == 1:
+    if pyom.eq_of_state_type == 1:
         return press_loc*lq.linear_eq_of_state_drhodT() # int_z^0rho_T dz = - rho_T z
-    elif eq_of_state_type == 2:
+    elif pyom.eq_of_state_type == 2:
         return press_loc*nq1.nonlin1_eq_of_state_drhodT(temp_loc)
-    elif eq_of_state_type == 3:
+    elif pyom.eq_of_state_type == 3:
         return nq2.nonlin2_eq_of_state_int_drhodT(temp_loc,press_loc)
-    elif eq_of_state_type == 4:
+    elif pyom.eq_of_state_type == 4:
         return press_loc*nq3.nonlin3_eq_of_state_drhodT(temp_loc)
-    elif eq_of_state_type == 5:
+    elif pyom.eq_of_state_type == 5:
         return -(1024.0/9.81)*gsw.gsw_dHdT(salt_loc,temp_loc,press_loc)
     else:
         halt_stop(' unknown equation of state in get_int_drhodT')
@@ -132,15 +132,15 @@ def get_int_drhodS(salt_loc,temp_loc,press_loc,pyom):
     """
     calculate int_z^0 drho/dS dz' as a function of temperature, salinity and pressure
     """
-    if eq_of_state_type == 1:
+    if pyom.eq_of_state_type == 1:
         return press_loc*lq.linear_eq_of_state_drhodS() # int_z^0rho_T dz = - rho_T z
-    elif eq_of_state_type == 2:
+    elif pyom.eq_of_state_type == 2:
         return press_loc*nq1.nonlin1_eq_of_state_drhodS()
-    elif eq_of_state_type == 3:
+    elif pyom.eq_of_state_type == 3:
         return nq2.nonlin2_eq_of_state_int_drhodS(press_loc)
-    elif eq_of_state_type == 4:
+    elif pyom.eq_of_state_type == 4:
         return press_loc*nq3.nonlin3_eq_of_state_drhodS()
-    elif eq_of_state_type == 5:
+    elif pyom.eq_of_state_type == 5:
         return -(1024.0/9.81)*gsw.gsw_dHdS(salt_loc,temp_loc,press_loc)
     else:
         halt_stop(' unknown equation of state in get_int_drhodS')
