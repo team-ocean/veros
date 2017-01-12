@@ -49,3 +49,7 @@ Replace:
 # captures some common indices
 Search: \(([i:]\s*([+-]\d+)?\s*,[j:]\s*([+-]\d+)?\s*,[k:]\s*([+-]\d+)?\s*)(,\s*(tau)|[:]\s*([+-]\d+)?)?\)
 Replace: [$1]
+
+# prefix variable "var" that is not commented with pyom.
+Search: (?<!(\#.*)|(pyom\.))(var)
+Replace: pyom.$3
