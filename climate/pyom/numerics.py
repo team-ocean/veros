@@ -191,9 +191,9 @@ def calc_topo(pyom):
     --------------------------------------------------------------
     """
     pyom.maskT[...] = 0.0
-    for k in xrange(pyom.nz): # k=1,nz
+    for i in xrange(pyom.nx+4): # i=is_pe-onx,ie_pe+onx
         for j in xrange(pyom.ny+4): # j=js_pe-onx,je_pe+onx
-            for i in xrange(pyom.nx+4): # i=is_pe-onx,ie_pe+onx
+            for k in xrange(pyom.nz): # k=1,nz
                 if pyom.kbot[i,j] > 0 and pyom.kbot[i,j]-1 <= k:
                     pyom.maskT[i,j,k] = pyom.kbot[i,j]
     cyclic.setcyclic_xyz(pyom.maskT, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
@@ -227,8 +227,6 @@ def calc_topo(pyom):
         pyom.hv += pyom.maskV[:,:,k]*pyom.dzt[k]
     pyom.hur[pyom.hu != 0.0] = 1./pyom.hu[pyom.hu != 0.0]
     pyom.hvr[pyom.hv != 0.0] = 1./pyom.hv[pyom.hv != 0.0]
-
-#TODO: you are here
 
 def calc_initial_conditions(pyom):
     """

@@ -102,7 +102,7 @@ def streamfunction_init(pyom):
         kmt[...] = 1
         kmt[allmap == isle+1] = 0
         island.isleperim(kmt,Map, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp,pyom)
-        if verbose or True:
+        if verbose:
             showmap(Map, pyom)
 
         """
