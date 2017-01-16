@@ -118,8 +118,7 @@ def streamfunction_init(pyom):
             (cont, ij, Dir) = avoid_cyclic_boundaries2(Map, isle, n, pyom)
 
             if not cont:
-                print 'found no starting point for line integral'
-                sys.exit('in streamfunction_init')
+                raise RuntimeError('found no starting point for line integral')
 
         print ' starting point of line integral is ',pyom.boundary[isle,n,:]
         print ' starting direction is ', Dir
@@ -215,8 +214,7 @@ def streamfunction_init(pyom):
             if cont:
                 n = n+1
                 if n > max_boundary:
-                    print 'increase value of max_boundary'
-                    sys.exit(' in streamfunction_init ')
+                    raise RuntimeError('increase value of max_boundary')
                 pyom.boundary[isle,n,:] = ij
 
         pyom.nr_boundary[isle] = n+1
@@ -358,19 +356,20 @@ def showmap(Map, pyom):
     imt = pyom.nx + 4
     iremain = imt
     istart = 0
-    print ' '*(5+min(linewidth,imt)/2-13),'Land mass and perimeter'
+    print("")
+    print(" "*(5+min(linewidth,imt)/2-13) + "Land mass and perimeter")
     for isweep in xrange(1, imt/linewidth + 2): #isweep=1,imt/linewidth + 1
         iline = min(iremain, linewidth)
         iremain = iremain - iline
         if iline > 0:
             print ' '
-            print [istart+i+1-2 for i in xrange(1, iline, 6)]
+            print("".join(["{:5d}".format(istart+i+1-2) for i in xrange(1,iline+1,5)]))
             for j in xrange(pyom.ny+3, -1, -1): #j=ny+onx,1-onx,-1
-                print j, [mod10(Map[istart+i -2,j]) for i in xrange(2, iline+2)]
-            print [istart+i+1-2 for i in xrange(1,iline+1,5)]
+                print("{:3d} ".format(j) + "".join([str(int(mod10(Map[istart+i -2,j]))) if mod10(Map[istart+i -2,j]) >= 0 else "*" for i in xrange(2, iline+2)]))
+            print("".join(["{:5d}".format(istart+i+1-2) for i in xrange(1,iline+1,5)]))
             #print '(t6,32i5)', (istart+i+4-onx,i=1,iline,5)
             istart = istart + iline
-    print ' '
+    print("")
 
 def solve_streamfunction(pyom):
     """
