@@ -37,8 +37,8 @@ def streamfunction_init(pyom):
     fpy    = np.empty((pyom.nx+4, pyom.ny+4))
     iperm  = np.zeros(maxipp)
     jperm  = np.zeros(maxipp)
-    nippts = np.zeros(mnisle)
-    iofs   = np.zeros(mnisle)
+    nippts = np.zeros(mnisle, dtype=np.int)
+    iofs   = np.zeros(mnisle, dtype=np.int)
 
     print 'Initializing streamfunction method'
     verbose = pyom.enable_congrad_verbose
