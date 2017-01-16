@@ -1,7 +1,7 @@
 import numpy as np
 
-from climate.timer import Timer
-from climate.pyom import advection, diffusion, isoneutral, cyclic, numerics, density
+from climate.pyom import advection, diffusion, isoneutral, cyclic
+from climate.pyom import numerics, density
 
 def thermodynamics(pyom):
     """
@@ -32,7 +32,6 @@ def thermodynamics(pyom):
             advection.adv_flux_superbee(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.Hd[:,:,:,pyom.tau],pyom)
         else:
             advection.adv_flux_2nd(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.Hd[:,:,:,pyom.tau],pyom)
-        print(pyom.Hd.max(),pyom.u.max(),max(pyom.flux_east.max(),pyom.flux_north.max(),pyom.flux_top.max()))
 
         for j in xrange(pyom.js_pe,pyom.je_pe):
             for i in xrange(pyom.is_pe,pyom.ie_pe):
@@ -110,7 +109,7 @@ def thermodynamics(pyom):
     """
     horizontal diffusion
     """
-    with Timer("iso"):
+    with pyom.timers["isoneutral"]:
         if pyom.enable_hor_diffusion:
             diffusion.tempsalt_diffusion(pyom)
         else:
@@ -133,11 +132,11 @@ def thermodynamics(pyom):
             isoneutral.isoneutral_diffusion(pyom.temp,True,pyom)
             isoneutral.isoneutral_diffusion(pyom.salt,False,pyom)
             if pyom.enable_skew_diffusion:
-                P_diss_skew = 0.0
+                pyom.P_diss_skew[...] = 0.0
                 isoneutral.isoneutral_skew_diffusion(pyom.temp,True,pyom)
                 isoneutral.isoneutral_skew_diffusion(pyom.salt,False,pyom)
 
-    with Timer("vmix"):
+    with pyom.timers["vmix"]:
         """
         vertical mixing of temperature and salinity
         """
@@ -172,12 +171,10 @@ def thermodynamics(pyom):
     """
     boundary exchange
     """
-    # border_exchg_xyz(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx,pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx,pyom.nz,pyom.temp[:,:,:,pyom.taup1])
     cyclic.setcyclic_xyz(pyom.temp[:,:,:,pyom.taup1],pyom.enable_cyclic_x,pyom.nx,pyom.nz)
-    # border_exchg_xyz(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx,pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx,pyom.nz,pyom.salt[:,:,:,pyom.taup1])
     cyclic.setcyclic_xyz(pyom.salt[:,:,:,pyom.taup1],pyom.enable_cyclic_x,pyom.nx,pyom.nz)
 
-    with Timer("eq_of_state"):
+    with pyom.timers["eq_of_state"]:
         calc_eq_of_state(pyom,pyom.taup1)
 
     """
@@ -190,7 +187,7 @@ def thermodynamics(pyom):
                                       + density.get_drhodS(pyom.salt[i,j,pyom.nz-1,pyom.taup1],pyom.temp[i,j,pyom.nz-1,pyom.taup1],abs(pyom.zt[pyom.nz-1]),pyom) * pyom.forc_salt_surface[i,j] \
                                     ) * pyom.maskT[i,j,pyom.nz-1]
 
-    with Timer("vmix"):
+    with pyom.timers["vmix"]:
         pyom.P_diss_v[...] = 0.0
         if pyom.enable_conserve_energy:
             """
@@ -212,7 +209,6 @@ def thermodynamics(pyom):
                     pyom.P_diss_v[i,j,k] = pyom.P_diss_v[i,j,k] - pyom.grav/pyom.rho_0 * fxa * pyom.forc_temp_surface[i,j] * pyom.maskW[i,j,k]
                     fxa = 2 * pyom.int_drhodS[i,j,k,pyom.taup1] / pyom.dzw[k]
                     pyom.P_diss_v[i,j,k]= pyom.P_diss_v[i,j,k] - pyom.grav/pyom.rho_0 * fxa * pyom.forc_salt_surface[i,j] * pyom.maskW[i,j,k]
-
 
         if pyom.enable_conserve_energy:
             """

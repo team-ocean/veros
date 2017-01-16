@@ -31,7 +31,7 @@ class PyOM(object):
         self.dt_mom = 0 # time step in seconds for momentum
         self.dt_tracer = 0 # time step for tracer can be larger than for momentum
         #dt_tke        # should be time step for momentum (set in tke.f90)
-        #itt           # time step number
+        self.itt = 1 # time step number
         #enditt        # last time step of simulation
         self.runlen = 0.   # length of simulation in seconds
         self.AB_eps = 0.1  # deviation from Adam-Bashforth weighting
@@ -279,6 +279,7 @@ class PyOM(object):
         self.idemix_module = self
         self.tke_module = self
         self.eke_module = self
+        self.register_average = lambda *args, **kwargs: diagnostics.register_average(*args,pyom=self,**kwargs)
 
 
     def allocate(self):
@@ -326,8 +327,8 @@ class PyOM(object):
         self.Hd = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.dHd = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
 
-        self.drhodT = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.drhodS = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        #self.drhodT = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        #self.drhodS = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
 
         self.temp = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.dtemp = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
@@ -388,8 +389,8 @@ class PyOM(object):
         self.P_diss_skew    = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.P_diss_sources = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.r_bot_var_u = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.r_bot_var_v = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.r_bot_var_u = np.zeros((self.nx+4, self.ny+4))
+        self.r_bot_var_v = np.zeros((self.nx+4, self.ny+4))
 
         if self.enable_neutral_diffusion:
             # isopycnal mixing tensor components
@@ -478,9 +479,9 @@ class PyOM(object):
             self.tke = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
             self.mxl = np.zeros((self.nx+4, self.ny+4, self.nz))
             self.sqrttke = np.zeros((self.nx+4, self.ny+4, self.nz))
-            self.Prandtlnumber = np.zeros((self.nx+4, self.ny+4))
+            self.Prandtlnumber = np.zeros((self.nx+4, self.ny+4, self.nz))
             self.forc_tke_surface = np.zeros((self.nx+4, self.ny+4))
-            self.tke_diss = np.zeros((self.nx+4, self.ny+4))
+            self.tke_diss = np.zeros((self.nx+4, self.ny+4, self.nz))
             self.tke_surf_corr = np.zeros((self.nx+4, self.ny+4))
 
         if not self.enable_hydrostatic:
@@ -507,15 +508,9 @@ class PyOM(object):
         self.ip2fy = lambda i: i+self.is_pe-self.onx
         self.jp2fy = lambda j: j+self.js_pe-self.onx
 
-        self.maskt = self.maskT.view()
-        self.masku = self.maskU.view()
-        self.maskv = self.maskV.view()
-        self.maskw = self.maskW.view()
-
 
     def run(self, snapint, runlen):
-        setupTimer = Timer("Setup")
-        with setupTimer:
+        with self.timers["setup"]:
             """
             Initialize model
             """
@@ -527,111 +522,94 @@ class PyOM(object):
             print 'Reading restarts:'
             read_restart(itt)
             if enable_diag_averages:
-                raise NotImplementedError()
-                diag_averages_read_restart()
+                diagnostics.diag_averages_read_restart()
             if enable_diag_energy:
                 raise NotImplementedError()
-                diag_energy_read_restart()
+                diagnostics.diag_energy_read_restart()
             if enable_diag_overturning:
                 raise NotImplementedError()
-                diag_over_read_restart()
+                diagnostics.diag_over_read_restart()
             if enable_diag_particles:
                 raise NotImplementedError()
-                particles_read_restart()
+                diagnostics.particles_read_restart()
 
             enditt = itt + int(runlen/dt_tracer)
             print 'Starting integration for ',runlen,' s'
             print ' from time step ',itt,' to ',enditt
 
-        mainTimer = Timer("Main")
-        momTimer = Timer("mom")
-        tempTimer = Timer("temp")
-        ekeTimer = Timer("eke")
-        idemixTimer = Timer("idemix")
-        tkeTimer = Timer("tke")
-        diagTimer = Timer("diag")
-        pressTimer = Timer("press")
-        fricTimer = Timer("fric")
-        isoTimer = Timer("iso")
-        vmixTimer = Timer("vmix")
-        eqOfStateTimer = Timer("eq_of_state")
         while itt < endtt:
-            with mainTimer:
-                set_forcing()
-                if enable_idemix:
-                    raise NotImplementedError()
-                    set_idemix_parameter()
-                if enable_idemix_M2 or enable_idemix_niw:
-                    raise NotImplementedError()
-                    set_spectral_parameter()
+            with self.timers["main"]:
+                self.set_forcing()
+                if self.enable_idemix:
+                    self.set_idemix_parameter()
+                if self.enable_idemix_M2 or self.enable_idemix_niw:
+                    self.set_spectral_parameter()
 
-                with momTimer:
-                    momentum.momentum(self, fricTimer, pressTimer)
+                with self.timers["momentum"]:
+                    momentum.momentum(self)
 
-                with tempTimer:
+                with self.timers["temperature"]:
                     thermodynamics.thermodynamics(self)
 
-                if enable_eke or enable_tke or enable_idemix:
-                    raise NotImplementedError()
-                    calculate_velocity_on_wgrid()
+                if self.enable_eke or self.enable_tke or self.enable_idemix:
+                    numerics.calculate_velocity_on_wgrid()
 
-                with ekeTimer:
-                    if enable_eke:
+                with self.timers["eke"]:
+                    if self.enable_eke:
                         raise NotImplementedError()
                         integrate_eke()
 
-                with idemixTimer:
-                    if enable_idemix_M2:
+                with self.timers["idemix"]:
+                    if self.enable_idemix_M2:
                         raise NotImplementedError()
                         integrate_idemix_M2()
-                    if enable_idemix_niw:
+                    if self.enable_idemix_niw:
                         raise NotImplementedError()
                         integrate_idemix_niw()
-                    if enable_idemix:
+                    if self.enable_idemix:
                         raise NotImplementedError()
                         integrate_idemix()
-                    if enable_idemix_M2 or enable_idemix_niw:
+                    if self.enable_idemix_M2 or self.enable_idemix_niw:
                         raise NotImplementedError()
                         wave_interaction()
 
-                with tkeTimer:
-                    if enable_tke:
+                with self.timers["tke"]:
+                    if self.enable_tke:
                         raise NotImplementedError()
                         integrate_tke()
 
                 """
-                 Main boundary exchange
-                 for density, temp and salt this is done in integrate_tempsalt.f90
+                Main boundary exchange
+                for density, temp and salt this is done in integrate_tempsalt.f90
                 """
-                setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,u[:,:,:,taup1])
-                setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,v[:,:,:,taup1])
+                cyclic.setcyclic_xyz(self.u[:,:,:,taup1],self.nx,self.nz)
+                cyclic.setcyclic_xyz(self.v[:,:,:,taup1],self.nx,self.nz)
 
-                if enable_tke:
-                    setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,tke[:,:,:,taup1])
-                if enable_eke:
-                    setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,eke[:,:,:,taup1])
-                if enable_idemix:
-                    setcyclic_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,E_iw[:,:,:,taup1])
-                if enable_idemix_M2:
-                    setcyclic_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_M2[:,:,:,taup1])
-                if enable_idemix_niw:
-                    setcyclic_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,E_niw[:,:,:,taup1])
+                if self.enable_tke:
+                    cyclic.setcyclic_xyz(self.tke[:,:,:,taup1],self.nx,self.nz)
+                if self.enable_eke:
+                    cyclic.setcyclic_xyz(self.eke[:,:,:,taup1],self.nx,self.nz)
+                if self.enable_idemix:
+                    cyclic.setcyclic_xyz(self.E_iw[:,:,:,taup1],self.nx,self.nz)
+                if self.enable_idemix_M2:
+                    cyclic.setcyclic_xyp(self.E_M2[:,:,:,taup1],self.nx,self.np)
+                if self.enable_idemix_niw:
+                    cyclic.setcyclic_xyp(self.E_niw[:,:,:,taup1],self.nx,self.np)
 
                 # diagnose vertical velocity at taup1
-                if enable_hydrostatic:
+                if self.enable_hydrostatic:
                     raise NotImplementedError()
                     vertical_velocity()
 
-            with diagTimer:
-                raise NotImplementedError()
-                diagnose()
+            with self.timers["diagnostics"]:
+                diagnostics.diagnose()
 
             # shift time
             self.otaum1 = taum1
             self.taum1 = tau
             self.tau = taup1
             self.taup1 = otaum1
-            itt = itt+1
+            self.itt += 1
 
         print 'Timing summary:'
         print ' setup time summary       = ',setupTimer.getTime(),' s'
@@ -656,6 +634,10 @@ class PyOM(object):
         """
         self.set_parameter()
         self.allocate()
+        self.timers = {k: Timer(k) for k in ("main","momentum","temperature",
+                                             "eke","idemix","tke","diagnostics",
+                                             "pressure","friction","isoneutral",
+                                             "vmix","eq_of_state")}
 
         """
         Grid
@@ -674,7 +656,7 @@ class PyOM(object):
         """
         self.set_topography()
         numerics.calc_topo(self)
-        #idemix.calc_spectral_topo(self)
+        idemix.calc_spectral_topo(self)
 
         """
         initial condition and forcing
@@ -683,14 +665,14 @@ class PyOM(object):
         numerics.calc_initial_conditions(self)
 
         self.set_forcing()
-        if self.enable_streamfunction:
-            external.streamfunction_init(self)
+        #if self.enable_streamfunction:
+        #    external.streamfunction_init(self)
 
         """
         initialize diagnostics
         """
         diagnostics.init_diagnostics(self)
-        # self.set_diagnostics()
+        self.set_diagnostics()
 
         """
         initialize EKE module

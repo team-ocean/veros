@@ -258,7 +258,7 @@ def calc_initial_conditions(pyom):
             for j in xrange(pyom.ny+4):
                 for i in xrange(pyom.nx+4):
                     fxa = -pyom.grav/pyom.rho_0/pyom.dzw[k]*pyom.maskW[i,j,k]
-                    pyom.Nsqr[i,j,k,n] = fxa * density.get_rho(pyom.salt[i,j,k+1,n],pyom.temp[i,j,k+1,n],abs(pyom.zt[k]),pyom) - pyom.rho[i,j,k,n]
+                    pyom.Nsqr[i,j,k,n] = fxa * (density.get_rho(pyom.salt[i,j,k+1,n],pyom.temp[i,j,k+1,n],abs(pyom.zt[k]),pyom) - pyom.rho[i,j,k,n])
         pyom.Nsqr[:,:,pyom.nz-1,n] = pyom.Nsqr[:,:,pyom.nz-2,n]
 
 def ugrid_to_tgrid():

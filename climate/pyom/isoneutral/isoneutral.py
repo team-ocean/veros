@@ -52,9 +52,9 @@ def isoneutral_diffusion_pre(pyom):
     for k in xrange(pyom.nz-1): # k=1,nz-1
         for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx):
             for i in xrange(pyom.is_pe-pyom.onx,pyom.is_pe+pyom.onx):
-                ddzt[i,j,k,0] = pyom.maskW[i,j,k]* (pyom.temp[i,j,k+1,pyom.tau] - pyom.temp[i,j,k,pyom.tau])/pyom.dzw[k]
-                ddzt[i,j,k,1] = pyom.maskW[i,j,k]* (pyom.salt[i,j,k+1,pyom.tau] - pyom.salt[i,j,k,pyom.tau])/pyom.dzw[k]
-    ddzt[:,:,pyom.nz-1,:] = 0
+                ddzt[i,j,k,0] = pyom.maskW[i,j,k] * (pyom.temp[i,j,k+1,pyom.tau] - pyom.temp[i,j,k,pyom.tau])/pyom.dzw[k]
+                ddzt[i,j,k,1] = pyom.maskW[i,j,k] * (pyom.salt[i,j,k+1,pyom.tau] - pyom.salt[i,j,k,pyom.tau])/pyom.dzw[k]
+    ddzt[:,:,pyom.nz-1,:] = 0.
 
     """
     gradients at eastern face of T cells
@@ -77,7 +77,7 @@ def isoneutral_diffusion_pre(pyom):
     """
     for k in xrange(1,pyom.nz): # k=2,nz
         for j in xrange(pyom.js_pe,pyom.je_pe): # j=js_pe,je_pe
-            for i in xrange(pyom.is_pe-1,pyom.is_pe): # i=is_pe-1,ie_pe
+            for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i=is_pe-1,ie_pe
                 diffloc = 0.25*(pyom.K_iso[i,j,k]+pyom.K_iso[i,j,k-1] + pyom.K_iso[i+1,j,k]+pyom.K_iso[i+1,j,k-1])
                 sumz = 0.
                 for kr in xrange(2): # kr=0,1
@@ -86,10 +86,10 @@ def isoneutral_diffusion_pre(pyom):
                         taper = dm_taper(sxe,pyom)
                         sumz = sumz + pyom.dzw[k+kr-1]*pyom.maskU[i,j,k]*max(pyom.K_iso_steep,diffloc*taper)
                         pyom.Ai_ez[i,j,k,ip,kr] = taper*sxe*pyom.maskU[i,j,k]
-                pyom.K_11[i,j,k] = sumz/(4*pyom.dzt[k])
+                pyom.K_11[i,j,k] = sumz/(4.*pyom.dzt[k])
     k = 0 # k=1
     for j in xrange(pyom.js_pe,pyom.je_pe):
-        for i in xrange(pyom.is_pe-1,pyom.is_pe):
+        for i in xrange(pyom.is_pe-1,pyom.ie_pe):
             diffloc = 0.5*(pyom.K_iso[i,j,k]+ pyom.K_iso[i+1,j,k])
             sumz = 0.
             kr = 1
@@ -105,24 +105,24 @@ def isoneutral_diffusion_pre(pyom):
     """
     for k in xrange(1,pyom.nz): # k=2,nz
         for j in xrange(pyom.js_pe-1,pyom.je_pe):
-            for i in xrange(pyom.is_pe,pyom.is_pe):
+            for i in xrange(pyom.is_pe,pyom.ie_pe):
                 diffloc = 0.25*(pyom.K_iso[i,j,k]+pyom.K_iso[i,j,k-1] + pyom.K_iso[i,j+1,k]+pyom.K_iso[i,j+1,k-1])
                 sumz = 0.
                 for kr in xrange(2): # kr=0,1
                     for jp in xrange(2): # jp=0,1
-                        syn = -drodyn[i,j,k,jp]/(min(0.,drodzn[i,j,k,jp,kr])-epsln)
+                        syn = -drodyn(i,j,k,jp)/(min(0.,drodzn(i,j,k,jp,kr))-epsln)
                         taper = dm_taper(syn,pyom)
                         sumz = sumz + pyom.dzw[k+kr-1] *pyom.maskV[i,j,k]*max(pyom.K_iso_steep,diffloc*taper)
                         pyom.Ai_nz[i,j,k,jp,kr] = taper*syn*pyom.maskV[i,j,k]
                 pyom.K_22[i,j,k] = sumz/(4*pyom.dzt[k])
     k = 0 # k=1
     for j in xrange(pyom.js_pe-1,pyom.je_pe):
-        for i in xrange(pyom.is_pe,pyom.is_pe):
+        for i in xrange(pyom.is_pe,pyom.ie_pe):
             diffloc = 0.5*(pyom.K_iso[i,j,k] + pyom.K_iso[i,j+1,k])
             sumz = 0.
             kr=1
             for jp in xrange(2): # jp=0,1
-                syn = -drodyn[i,j,k,jp]/(min(0.,drodzn[i,j,k,jp,kr])-epsln)
+                syn = -drodyn(i,j,k,jp)/(min(0.,drodzn(i,j,k,jp,kr))-epsln)
                 taper = dm_taper(syn,pyom)
                 sumz = sumz + pyom.dzw[k+kr-1] *pyom.maskV[i,j,k]*max(pyom.K_iso_steep,diffloc*taper)
                 pyom.Ai_nz[i,j,k,jp,kr] = taper*syn*pyom.maskV[i,j,k]

@@ -26,7 +26,7 @@ def setcyclic_xyz(a, enable_cyclic, nx, nz):
     #integer:: is_,ie_,js_,je_,nz_
     #real*8 :: a(is_:ie_,js_:je_,nz_)
     #integer :: k
-    for k in xrange(1, nz): #k=1,nz
+    for k in xrange(nz): #k=1,nz
         setcyclic_xy(a[:,:,k], enable_cyclic, nx)
 
 def setcyclic_xyp(np, p1, enable_cyclic_x, nx):
@@ -44,6 +44,6 @@ def setcyclic_xyp(np, p1, enable_cyclic_x, nx):
     p1[:,:,1 ] = p1[:,:,np-1]
     p1[:,:,np] = p1[:,:,2]
     if enable_cyclic_x:
-        for i in xrange(1, onx): #i=1,onx
+        for i in xrange(onx): #i=1,onx
             p1[nx+i,:,:] = p1[i  ,:,:]
             p1[1-i,:,:]  = p1[nx-i+1,:,:]

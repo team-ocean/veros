@@ -19,7 +19,7 @@ def get_rho(salt_loc,temp_loc,press,pyom):
     elif pyom.eq_of_state_type == 5:
         return gsw.gsw_rho(salt_loc,temp_loc,press)
     else:
-        halt_stop(' unknown equation of state in get_rho')
+        raise ValueError(' unknown equation of state in get_rho')
 
 
 def get_dyn_enthalpy(salt_loc,temp_loc,press,pyom):
@@ -37,7 +37,7 @@ def get_dyn_enthalpy(salt_loc,temp_loc,press,pyom):
     elif pyom.eq_of_state_type == 5:
         return gsw.gsw_dyn_enthalpy(salt_loc,temp_loc,press)
     else:
-        halt_stop(' unknown equation of state in get_dyn_enthalpy')
+        raise ValueError(' unknown equation of state in get_dyn_enthalpy')
 
 
 def get_salt(rho_loc,temp_loc,press_loc,pyom):
@@ -53,7 +53,7 @@ def get_salt(rho_loc,temp_loc,press_loc,pyom):
     elif pyom.eq_of_state_type == 4:
         return nq3.nonlin3_eq_of_state_salt(rho_loc,temp_loc)
     else:
-        halt_stop(' unknown equation of state in get_salt')
+        raise ValueError(' unknown equation of state in get_salt')
 
 
 def get_drhodT(salt_loc,temp_loc,press_loc,pyom):
@@ -71,7 +71,7 @@ def get_drhodT(salt_loc,temp_loc,press_loc,pyom):
     elif pyom.eq_of_state_type == 5:
         return gsw.gsw_drhodT(salt_loc,temp_loc,press_loc)
     else:
-        halt_stop(' unknown equation of state in get_drhodT')
+        raise ValueError(' unknown equation of state in get_drhodT')
 
 
 def get_drhodS(salt_loc,temp_loc,press_loc,pyom):
@@ -89,7 +89,7 @@ def get_drhodS(salt_loc,temp_loc,press_loc,pyom):
     elif pyom.eq_of_state_type == 5:
         return gsw.gsw_drhodS(salt_loc,temp_loc,press_loc)
     else:
-        halt_stop(' unknown equation of state in get_drhodS')
+        raise ValueError(' unknown equation of state in get_drhodS')
 
 
 def get_drhodp(salt_loc,temp_loc,press_loc,pyom):
@@ -107,7 +107,7 @@ def get_drhodp(salt_loc,temp_loc,press_loc,pyom):
     elif pyom.eq_of_state_type == 5:
         return gsw.gsw_drhodp(salt_loc,temp_loc,press_loc)
     else:
-        halt_stop(' unknown equation of state in get_drhodp')
+        raise ValueError(' unknown equation of state in get_drhodp')
 
 
 def get_int_drhodT(salt_loc,temp_loc,press_loc,pyom):
@@ -125,7 +125,7 @@ def get_int_drhodT(salt_loc,temp_loc,press_loc,pyom):
     elif pyom.eq_of_state_type == 5:
         return -(1024.0/9.81)*gsw.gsw_dHdT(salt_loc,temp_loc,press_loc)
     else:
-        halt_stop(' unknown equation of state in get_int_drhodT')
+        raise ValueError(' unknown equation of state in get_int_drhodT')
 
 
 def get_int_drhodS(salt_loc,temp_loc,press_loc,pyom):
@@ -143,4 +143,4 @@ def get_int_drhodS(salt_loc,temp_loc,press_loc,pyom):
     elif pyom.eq_of_state_type == 5:
         return -(1024.0/9.81)*gsw.gsw_dHdS(salt_loc,temp_loc,press_loc)
     else:
-        halt_stop(' unknown equation of state in get_int_drhodS')
+        raise ValueError(' unknown equation of state in get_int_drhodS')
