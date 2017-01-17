@@ -320,8 +320,8 @@ def calc_diss(diss,K_diss,tag,pyom):
                     k = pyom.nz-1
                     diss_u[i,j,k] = diss[i,j,k]
         # dissipation interpolated from U-grid to T-grid
-        ugrid_to_tgrid(diss_u,diss_u)
-        K_diss += diss_u
+        diss_u = ugrid_to_tgrid(diss_u,pyom)
+        return K_diss + diss_u
     elif tag == 'V':
         # dissipation interpolated on W-grid
         for j in xrange(pyom.js_pe-1,pyom.je_pe): # j=js_pe-1,je_pe
@@ -335,7 +335,7 @@ def calc_diss(diss,K_diss,tag,pyom):
                     k = pyom.nz-1
                     diss_u[i,j,k] = diss[i,j,k]
         # dissipation interpolated from V-grid to T-grid
-        vgrid_to_tgrid(diss_u,diss_u)
-        K_diss += diss_u
+        diss_u = vgrid_to_tgrid(diss_u,pyom)
+        return K_diss + diss_u
     else:
         raise ValueError("unknown tag {}".format(tag))

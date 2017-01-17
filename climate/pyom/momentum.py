@@ -1,6 +1,6 @@
 import numpy as np
 
-from climate.pyom.external import solve_stream, solve_pressure
+from climate.pyom import friction, isoneutral, external
 
 def momentum(pyom):
     """
@@ -86,58 +86,40 @@ def momentum(pyom):
         """
         pyom.K_diss_v[...] = 0.0
         if pyom.enable_implicit_vert_friction:
-            #TODO: not implemented yet
-            #implicit_vert_friction()
-            raise NotImplementedError()
+            friction.implicit_vert_friction(pyom)
         if pyom.enable_explicit_vert_friction:
-            #TODO: not implemented yet
-            #explicit_vert_friction()
-            raise NotImplementedError()
+            friction.explicit_vert_friction(pyom)
 
         """
         TEM formalism for eddy-driven velocity
         """
         if pyom.enable_TEM_friction:
-            #TODO: not implemented yet
-            #call isoneutral_friction
-            raise NotImplementedError()
+            isoneutral.isoneutral_friction(pyom)
 
         """
         horizontal friction
         """
         if pyom.enable_hor_friction:
-            #TODO: not implemented yet
-            #call harmonic_friction
-            raise NotImplementedError()
+            friction.harmonic_friction(pyom)
         if pyom.enable_biharmonic_friction:
-            #TODO: not implemented yet
-            #call biharmonic_friction
-            raise NotImplementedError()
+            friction.biharmonic_friction(pyom)
 
         """
         Rayleigh and bottom friction
         """
         pyom.K_diss_bot[...] = 0.0
         if pyom.enable_ray_friction:
-            #TODO: not implemented yet
-            #call rayleigh_friction
-            raise NotImplementedError()
+            friction.rayleigh_friction(pyom)
         if pyom.enable_bottom_friction:
-            #TODO: not implemented yet
-            #call linear_bottom_friction
-            raise NotImplementedError()
+            friction.linear_bottom_friction(pyom)
         if pyom.enable_quadratic_bottom_friction:
-            #TODO: not implemented yet
-            #call quadratic_bottom_friction
-            raise NotImplementedError()
+            friction.quadratic_bottom_friction(pyom)
 
         """
         add user defined forcing
         """
         if pyom.enable_momentum_sources:
-            #TODO: Not implemented yet
-            #call momentum_sources
-            raise NotImplementedError()
+            friction.momentum_sources(pyom)
 
     """
     ---------------------------------------------------------------------------------
@@ -146,9 +128,9 @@ def momentum(pyom):
     """
     with pyom.timers["pressure"]:
         if pyom.enable_streamfunction:
-            solve_stream.solve_streamfunction(pyom)
+            external.solve_streamfunction(pyom)
         else:
-            solve_pressure.solve_pressure(pyom)
+            external.solve_pressure(pyom)
             if pyom.itt == 0:
                 pyom.psi[:,:,pyom.tau] = pyom.psi[:,:,pyom.taup1]
                 pyom.psi[:,:,pyom.taum1] = pyom.psi[:,:,pyom.taup1]
@@ -240,12 +222,12 @@ def momentum_advection(pyom):
     pyom.flux_top[:,:,pyom.nz-1] = 0.0
     for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
         for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-            pyom.du_adv[i,j,:] = - pyom.maskU[i,j,:]*(pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:] \
+            pyom.du_adv[i,j,:] = -pyom.maskU[i,j,:] * (pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:] \
                                            + pyom.flux_north[i,j,:]-pyom.flux_north[i,j-1,:])/(pyom.area_u[i,j]*pyom.dzt[:])
     k = 0
-    pyom.du_adv[:,:,k] -= pyom.maskU[:,:,k]*pyom.flux_top[:,:,k]/(pyom.area_u[:,:]*pyom.dzt[k])
+    pyom.du_adv[:,:,k] -= pyom.maskU[:,:,k] * pyom.flux_top[:,:,k] / (pyom.area_u[:,:] * pyom.dzt[k])
     for k in xrange(1, pyom.nz): #k = 2,nz
-        pyom.du_adv[:,:,k] -= pyom.maskU[:,:,k]*(pyom.flux_top[:,:,k]-pyom.flux_top[:,:,k-1])/(pyom.area_u[:,:]*pyom.dzt[k])
+        pyom.du_adv[:,:,k] -= pyom.maskU[:,:,k] * (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1]) / (pyom.area_u[:,:] * pyom.dzt[k])
     """
     for meridional momentum
     """

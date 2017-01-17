@@ -1,3 +1,4 @@
+import math
 import numpy as np
 
 from climate.pyom import numerics
@@ -9,57 +10,60 @@ def explicit_vert_friction(pyom):
     dissipation is calculated and added to K_diss_v
     """
 
-    # real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa
+    # real*8 :: diss(pyom.is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa
     diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
 
-     """
-     vertical friction of zonal momentum
-     """
-     for k in xrange(pyom.nz-1): # k = 1,nz-1
+    """
+    vertical friction of zonal momentum
+    """
+    for k in xrange(pyom.nz-1): # k = 1,nz-1
         for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
             for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
                 fxa = 0.5 * (pyom.kappaM[i,j,k] + pyom.kappaM[i+1,j,k])
-                pyom.flux_top[i,j,k] = fxa * (pyom.u[i,j,k+1] - pyom.u[i,j,k])/pyom.dzw(k)*pyom.maskU[i,j,k+1]*pyom.maskU[i,j,k]
-    flux_top[]:,:,pyom.nz-1] = 0.0
+                pyom.flux_top[i,j,k] = fxa * (pyom.u[i,j,k+1,pyom.tau] - pyom.u[i,j,k,pyom.tau]) \
+                                        / pyom.dzw[k]*pyom.maskU[i,j,k+1]*pyom.maskU[i,j,k]
+    pyom.flux_top[:,:,pyom.nz-1] = 0.0
     k = 0
-    pyom.du_mix[:,:,k] = pyom.flux_top[:,:,k]/pyom.dzt[k]*pyom.maskU[:,:,k]
+    pyom.du_mix[:,:,k] = pyom.flux_top[:,:,k] / pyom.dzt[k] * pyom.maskU[:,:,k]
     for k in xrange(1,pyom.nz): # k = 2,nz
-        pyom.du_mix[:,:,k] = (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1])/pyom.dzt[k]*pyom.maskU[:,:,k]
+        pyom.du_mix[:,:,k] = (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1]) / pyom.dzt[k] * pyom.maskU[:,:,k]
 
-     """
-     diagnose dissipation by vertical friction of zonal momentum
-     """
-     for k in xrange(pyom.nz-1): # k = 1,nz-1
+    """
+    diagnose dissipation by vertical friction of zonal momentum
+    """
+    for k in xrange(pyom.nz-1): # k = 1,nz-1
         for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
             for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-                diss[i,j,k] = (pyom.u[i,j,k+1] - pyom.u[i,j,k]) * pyom.flux_top[i,j,k]/pyom.dzw[k]
+                diss[i,j,k] = (pyom.u[i,j,k+1,pyom.tau] - pyom.u[i,j,k,pyom.tau]) * pyom.flux_top[i,j,k] / pyom.dzw[k]
     diss[:,:,pyom.nz-1] = 0.0
-    ugrid_to_tgrid(diss,diss)
+    diss[...] = numerics.ugrid_to_tgrid(diss,pyom)
     pyom.K_diss_v += diss
 
-     """
-     vertical friction of meridional momentum
-     """
-     for k in xrange(pyom.nz-1): # k = 1,nz-1
+    """
+    vertical friction of meridional momentum
+    """
+    for k in xrange(pyom.nz-1): # k = 1,nz-1
         for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
             for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
                 fxa = 0.5 * (pyom.kappaM[i,j,k]+pyom.kappaM[i,j+1,k])
-                pyom.flux_top[i,j,k] = fxa * (pyom.v[i,j,k+1] - pyom.v[i,j,k])/pyom.dzw[k]*pyom.maskV[i,j,k+1]*pyom.maskV[i,j,k]
-                flux_top[:,:,pyom.nz-1] = 0.0
+                pyom.flux_top[i,j,k] = fxa * (pyom.v[i,j,k+1,pyom.tau] - pyom.v[i,j,k,pyom.tau]) \
+                                        / pyom.dzw[k] * pyom.maskV[i,j,k+1] * pyom.maskV[i,j,k]
+    pyom.flux_top[:,:,pyom.nz-1] = 0.0
     k = 0
     pyom.dv_mix[:,:,k] = pyom.flux_top[:,:,k] / pyom.dzt[k] * pyom.maskV[:,:,k]
     for k in xrange(1,pyom.nz): # k = 2,nz
         pyom.dv_mix[:,:,k] = (pyom.flux_top[:,:,k]  -pyom.flux_top[:,:,k-1]) / pyom.dzt[k] * pyom.maskV[:,:,k]
 
-     """
-     diagnose dissipation by vertical friction of meridional momentum
-     """
-     for k in xrange(pyom.nz-1): # k = 1,nz-1
+    """
+    diagnose dissipation by vertical friction of meridional momentum
+    """
+    for k in xrange(pyom.nz-1): # k = 1,nz-1
         for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
             for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-                diss[i,j,k] = (pyom.v[i,j,k+1] - pyom.v[i,j,k]) * pyom.flux_top[i,j,k] / pyom.dzw(k)
+                diss[i,j,k] = (pyom.v[i,j,k+1,pyom.tau] - pyom.v[i,j,k,pyom.tau]) \
+                                * pyom.flux_top[i,j,k] / pyom.dzw[k]
     diss[:,:,pyom.nz-1] = 0.0
-    vgrid_to_tgrid(diss)
+    diss[...] = numerics.vgrid_to_tgrid(diss,pyom)
     pyom.K_diss_v += diss
 
     if not pyom.enable_hydrostatic:
@@ -70,7 +74,8 @@ def explicit_vert_friction(pyom):
             for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
                 for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
                     fxa = 0.5 * (pyom.kappaM[i,j,k] + pyom.kappaM[i,j,k+1])
-                    pyom.flux_top[i,j,k] = fxa * (pyom.w[i,j,k+1] - pyom.w[i,j,k]) / pyom.dzt[k+1] * pyom.maskW[i,j,k+1] * pyom.maskW[i,j,k]
+                    pyom.flux_top[i,j,k] = fxa * (pyom.w[i,j,k+1,pyom.tau] - pyom.w[i,j,k,pyom.tau]) \
+                                            / pyom.dzt[k+1] * pyom.maskW[i,j,k+1] * pyom.maskW[i,j,k]
         pyom.flux_top[:,:,pyom.nz] = 0.0
         k = 0
         pyom.dw_mix[:,:,k] = pyom.flux_top[:,:,k] / pyom.dzw[k] * pyom.maskW[:,:,k]
@@ -90,7 +95,7 @@ def implicit_vert_friction(pyom):
     """
 
     # real*8 :: a_tri(nz),b_tri(nz),c_tri(nz),d_tri(nz),delta(nz),fxa
-    # real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    # real*8 :: diss(pyom.is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
     a_tri = np.zeros(pyom.nz)
     b_tri = np.zeros(pyom.nz)
     c_tri = np.zeros(pyom.nz)
@@ -120,8 +125,8 @@ def implicit_vert_friction(pyom):
                     c_tri[k] = -delta[k] / pyom.dzt[k]
                 c_tri[pyom.nz-1] = 0.0
                 d_tri[ks:] = pyom.u[i,j,ks:,pyom.tau]
-                numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:],pyom.u[i,j,ks:,pyom.taup1],pyom.nz-ks)
-            pyom.du_mix[i,j,:] = (pyom.u[i,j,:,pyom.taup1] - pyom.u[i,j,:]) / pyom.dt_mom
+                pyom.u[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:],pyom.nz-ks)
+            pyom.du_mix[i,j,:] = (pyom.u[i,j,:,pyom.taup1] - pyom.u[i,j,:,pyom.tau]) / pyom.dt_mom
 
     """
     diagnose dissipation by vertical friction of zonal momentum
@@ -135,10 +140,10 @@ def implicit_vert_friction(pyom):
     for k in xrange(pyom.nz-1): # k = 1,nz-1
         for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
             for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-                diss[i,j,k] = (pyom.u[i,j,k+1] - pyom.u[i,j,k]) * pyom.flux_top[i,j,k] / pyom.dzw[k]
+                diss[i,j,k] = (pyom.u[i,j,k+1,pyom.tau] - pyom.u[i,j,k,pyom.tau]) * pyom.flux_top[i,j,k] / pyom.dzw[k]
     diss[:,:,pyom.nz-1] = 0.0
-    ugrid_to_tgrid(diss)
-    K_diss_v += diss
+    diss[...] = numerics.ugrid_to_tgrid(diss,pyom)
+    pyom.K_diss_v += diss
 
     """
     implicit vertical friction of meridional momentum
@@ -162,8 +167,8 @@ def implicit_vert_friction(pyom):
                     c_tri[k] = -delta[k] / pyom.dzt[k]
                 c_tri[pyom.nz-1] = 0.0
                 d_tri[ks:] = pyom.v[i,j,ks:,pyom.tau]
-                numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:],pyom.v[i,j,ks:,pyom.taup1],pyom.nz-ks)
-            pyom.dv_mix[i,j,:] = (pyom.v[i,j,:,pyom.taup1] - pyom.v[i,j,:]) / pyom.dt_mom
+                pyom.v[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:],pyom.nz-ks)
+            pyom.dv_mix[i,j,:] = (pyom.v[i,j,:,pyom.taup1] - pyom.v[i,j,:,pyom.tau]) / pyom.dt_mom
 
     """
     diagnose dissipation by vertical friction of meridional momentum
@@ -177,9 +182,9 @@ def implicit_vert_friction(pyom):
     for k in xrange(pyom.nz-1): # k = 1,nz-1
         for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
             for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-                diss[i,j,k] = (pyom.v[i,j,k+1] - pyom.v[i,j,k]) * pyom.flux_top[i,j,k] / pyom.dzw(k)
+                diss[i,j,k] = (pyom.v[i,j,k+1,pyom.tau] - pyom.v[i,j,k,pyom.tau]) * pyom.flux_top[i,j,k] / pyom.dzw[k]
     diss[:,:,pyom.nz-1] = 0.0
-    vgrid_to_tgrid(diss)
+    diss = numerics.vgrid_to_tgrid(diss,pyom)
     pyom.K_diss_v += diss
 
     if not pyom.enable_hydrostatic:
@@ -204,8 +209,8 @@ def implicit_vert_friction(pyom):
                         c_tri[k] = - delta[k] / pyom.dzw[k]
                     c_tri[pyom.nz-1] = 0.0
                     d_tri[ks:] = pyom.w[i,j,ks:,pyom.tau]
-                    numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:],pyom.w[i,j,ks:,pyom.taup1],pyom.nz-ks)
-                pyom.dw_mix[i,j,:] = (pyom.w(i,j,:,pyom.taup1) - pyom.w[i,j,:]) / pyom.dt_mom
+                    pyom.w[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:],pyom.nz-ks)
+                pyom.dw_mix[i,j,:] = (pyom.w[i,j,:,pyom.taup1] - pyom.w[i,j,:]) / pyom.dt_mom
 
         """
         diagnose dissipation by vertical friction of vertical momentum
@@ -219,7 +224,7 @@ def implicit_vert_friction(pyom):
         for k in xrange(pyom.nz-1): # k = 1,nz-1
             for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
                 for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-                    diss[i,j,k] = (pyom.w[i,j,k+1] - pyom.w[i,j,k]) * pyom.flux_top[i,j,k] / pyom.dzt[k+1]
+                    diss[i,j,k] = (pyom.w[i,j,k+1,pyom.tau] - pyom.w[i,j,k,pyom.tau]) * pyom.flux_top[i,j,k] / pyom.dzt[k+1]
         diss[:,:,pyom.nz-1] = 0.0
         K_diss_v += diss
 
@@ -229,524 +234,434 @@ def rayleigh_friction(pyom):
     interior Rayleigh friction
     dissipation is calculated and added to K_diss_bot
     """
-    # real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    # real*8 :: diss(pyom.is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
     diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
 
     for k in xrange(pyom.nz): # k = 1,nz
-        pyom.du_mix[:,:,k] = pyom.du_mix[:,:,k] - pyom.maskU[:,:,k] * pyom.r_ray * pyom.u[:,:,k]
+        pyom.du_mix[:,:,k] = pyom.du_mix[:,:,k] - pyom.maskU[:,:,k] * pyom.r_ray * pyom.u[:,:,k,pyom.tau]
     if pyom.enable_conserve_energy:
         for k in xrange(pyom.nz): # k = 1,nz
             diss[:,:,k] = pyom.maskU[:,:,k] * pyom.r_ray * pyom.u[:,:,k]**2
-        calc_diss(diss,K_diss_bot,'U')
+        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
     for k in xrange(pyom.nz): # k = 1,nz
-        pyom.dv_mix[:,:,k] = pyom.dv_mix[:,:,k] - pyom.maskV[:,:,k] * pyom.r_ray * pyom.v[:,:,k]
+        pyom.dv_mix[:,:,k] = pyom.dv_mix[:,:,k] - pyom.maskV[:,:,k] * pyom.r_ray * pyom.v[:,:,k,pyom.tau]
     if pyom.enable_conserve_energy:
         for k in xrange(pyom.nz): # k = 1,nz
             diss[:,:,k] = pyom.maskV[:,:,k] * pyom.r_ray * pyom.v[:,:,k]**2
-        calc_diss(diss,K_diss_bot,'V')
+        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
     if not pyom.enable_hydrostatic:
         raise NotImplementedError("Rayleigh friction for vertical velocity not implemented")
 
 
 def linear_bottom_friction(pyom):
-"""
-!   linear bottom friction
-!   dissipation is calculated and added to K_diss_bot
-"""
- use main_module
- implicit none
- integer :: i,j,k
- real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    """
+    linear bottom friction
+    dissipation is calculated and added to K_diss_bot
+    """
+    # real*8 :: diss(pyom.is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
 
- if enable_bottom_friction_var:
+    if pyom.enable_bottom_friction_var:
+        """
+        with spatially varying coefficient
+        """
+        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+            for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+                k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
+                if k >= 0:
+                    pyom.du_mix[i,j,k] -= pyom.maskU[i,j,k] * pyom.r_bot_var_u[i,j] * pyom.u[i,j,k,pyom.tau]
+        if pyom.enable_conserve_energy:
+            diss[...] = 0.0
+            for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+                for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+                    k = max(pyom.kbot(i,j),pyom.kbot(i+1,j)) - 1
+                    if k >= 0:
+                        diss[i,j,k] = pyom.maskU[i,j,k] * pyom.r_bot_var_u[i,j] * pyom.u[i,j,k,pyom.tau]**2
+            pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
 
- """
- ! with spatially varying coefficient
- """
-  for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-   for i in xrange(is_pe-1,ie_pe): # i = is_pe-1,ie_pe
-    k = max(kbot(i,j),kbot(i+1,j))
-    if (k>0) du_mix[i,j,k] = du_mix[i,j,k] - maskU[i,j,k]*r_bot_var_u(i,j)*u[i,j,k]
-   enddo
-  enddo
-  if enable_conserve_energy:
-   diss = 0.0
-   for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-    for i in xrange(is_pe-1,ie_pe): # i = is_pe-1,ie_pe
-     k = max(kbot(i,j),kbot(i+1,j))
-     if (k>0) diss[i,j,k] = maskU[i,j,k]*r_bot_var_u(i,j)*u[i,j,k]**2
-    enddo
-   enddo
-   calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_bot,'U')
-  endif
+        for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+                k = max(pyom.kbot(i,j+1),pyom.kbot(i,j)) - 1
+                if k >= 0:
+                    pyom.dv_mix[i,j,k] -= pyom.maskV[i,j,k] * pyom.r_bot_var_v(i,j) * pyom.v[i,j,k,pyom.tau]
+        if pyom.enable_conserve_energy:
+            diss[...] = 0.0
+            for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+                for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+                    k = max(pyom.kbot(i,j+1),pyom.kbot(i,j)) - 1
+                    if k >= 0:
+                        diss[i,j,k] = pyom.maskV[i,j,k] * pyom.r_bot_var_v(i,j) * pyom.v[i,j,k,pyom.tau]**2
+            pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
+    else:
+        """
+        with constant coefficient
+        """
+        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+            for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+                k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
+                if k >= 0:
+                    pyom.du_mix[i,j,k] -= pyom.maskU[i,j,k] * pyom.r_bot * pyom.u[i,j,k,pyom.tau]
+        if pyom.enable_conserve_energy:
+            diss[...] = 0.0
+            for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+                for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+                    k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
+                    if k>= 0:
+                        diss[i,j,k] = pyom.maskU[i,j,k] * pyom.r_bot * pyom.u[i,j,k,pyom.tau]**2
+            pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
 
-  for j in xrange(js_pe-1,je_pe): # j = js_pe-1,je_pe
-   for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-    k = max(kbot(i,j+1),kbot(i,j))
-    if (k>0) dv_mix[i,j,k] = dv_mix[i,j,k] - maskV[i,j,k]*r_bot_var_v(i,j)*v[i,j,k]
-   enddo
-  enddo
-  if enable_conserve_energy:
-   diss = 0.0
-   for j in xrange(js_pe-1,je_pe): # j = js_pe-1,je_pe
-    for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-     k = max(kbot(i,j+1),kbot(i,j))
-     if (k>0) diss[i,j,k] = maskV[i,j,k]*r_bot_var_v(i,j)*v[i,j,k]**2
-    enddo
-   enddo
-   calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_bot,'V')
-  endif
+        for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+                k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
+                if k >= 0:
+                    pyom.dv_mix[i,j,k] -= pyom.maskV[i,j,k] * pyom.r_bot * pyom.v[i,j,k,pyom.tau]
+        if pyom.enable_conserve_energy:
+            diss[...] = 0.0
+            for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+                for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+                    k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
+                    if k >= 0:
+                        diss[i,j,k] = pyom.maskV[i,j,k] * pyom.r_bot * pyom.v[i,j,k,pyom.tau]**2
+            pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
 
- else
- """
- ! with constant coefficient
- """
-  for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-   for i in xrange(is_pe-1,ie_pe): # i = is_pe-1,ie_pe
-    k = max(kbot(i,j),kbot(i+1,j))
-    if (k>0) du_mix[i,j,k] = du_mix[i,j,k] - maskU[i,j,k]*r_bot*u[i,j,k]
-   enddo
-  enddo
-  if enable_conserve_energy:
-   diss = 0.0
-   for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-    for i in xrange(is_pe-1,ie_pe): # i = is_pe-1,ie_pe
-     k = max(kbot(i,j),kbot(i+1,j))
-     if (k>0) diss[i,j,k] = maskU[i,j,k]*r_bot*u[i,j,k]**2
-    enddo
-   enddo
-   calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_bot,'U')
-  endif
-
-  for j in xrange(js_pe-1,je_pe): # j = js_pe-1,je_pe
-   for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-    k = max(kbot(i,j+1),kbot(i,j))
-    if (k>0) dv_mix[i,j,k] = dv_mix[i,j,k] - maskV[i,j,k]*r_bot*v[i,j,k]
-   enddo
-  enddo
-  if enable_conserve_energy:
-   diss = 0.0
-   for j in xrange(js_pe-1,je_pe): # j = js_pe-1,je_pe
-    for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-     k = max(kbot(i,j+1),kbot(i,j))
-     if (k>0) diss[i,j,k] = maskV[i,j,k]*r_bot*v[i,j,k]**2
-    enddo
-   enddo
-   calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_bot,'V')
-  endif
- endif
-
- if .not.enable_hydrostatic:
-  if (my_pe==0) print'(/a/)','ERROR: bottom friction for vertical velocity not implemented'
-  halt_stop(' in bottom_friction')
- endif
-end def linear_bottom_friction(pyom):
+    if not pyom.enable_hydrostatic:
+        raise NotImplementedError("bottom friction for vertical velocity not implemented")
 
 
 def quadratic_bottom_friction(pyom):
-"""
-! quadratic bottom friction
-! dissipation is calculated and added to K_diss_bot
-"""
- use main_module
- implicit none
- integer :: i,j,k
- real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa
- real*8 :: aloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
+    """
+    quadratic bottom friction
+    dissipation is calculated and added to K_diss_bot
+    """
+    # real*8 :: diss(pyom.is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa
+    # real*8 :: aloc(pyom.is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
+    diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
+    aloc = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
 
+    # we might want to account for EKE in the drag, also a tidal residual
+    aloc[...] = 0.0
+    for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+            k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
+            if k >= 0:
+                fxa = pyom.maskV[i,j,k] * pyom.v[i,j,k,pyom.tau]**2 + pyom.maskV[i,j-1,k] * pyom.v[i,j-1,k,pyom.tau]**2 \
+                      + pyom.maskV[i+1,j,k] * pyom.v[i+1,j,k,pyom.tau]**2 + pyom.maskV[i+1,j-1,k] * pyom.v[i+1,j-1,k,pyom.tau]**2
+                fxa = np.sqrt(pyom.u[i,j,k,pyom.tau]**2 + 0.25*fxa)
+                aloc[i,j] = pyom.maskU[i,j,k] * pyom.r_quad_bot * pyom.u[i,j,k,pyom.tau] * fxa / pyom.dzt[k]
+                pyom.du_mix[i,j,k] -= aloc[i,j]
 
- ! we might want to account for EKE in the drag, also a tidal residual
- aloc = 0.0
- for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-   for i in xrange(is_pe-1,ie_pe): # i = is_pe-1,ie_pe
-    k = max(kbot(i,j),kbot(i+1,j))
-    if k>0:
-      fxa = maskV[i,j,k]*v[i,j,k]**2 + maskV[i,j-1,k]*v[i,j-1,k]**2
-      fxa = fxa + maskV[i+1,j,k]*v[i+1,j,k]**2 + maskV[i+1,j-1,k]*v[i+1,j-1,k]**2
-      fxa = sqrt(u[i,j,k]**2+ 0.25*fxa)
-      aloc(i,j) = maskU[i,j,k]*r_quad_bot*u[i,j,k]*fxa/dzt(k)
-      du_mix[i,j,k] = du_mix[i,j,k] - aloc(i,j)
-    endif
-   enddo
- enddo
+    if pyom.enable_conserve_energy:
+        diss[...] = 0.0
+        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+            for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+                k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
+                if k >= 0:
+                    diss[i,j,k] = aloc(i,j) * pyom.u[i,j,k,pyom.tau]
+        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
 
- if enable_conserve_energy:
-   diss = 0.0
-   for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-    for i in xrange(is_pe-1,ie_pe): # i = is_pe-1,ie_pe
-     k = max(kbot(i,j),kbot(i+1,j))
-     if (k>0) diss[i,j,k] = aloc(i,j)*u[i,j,k]
-    enddo
-   enddo
-   calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_bot,'U')
- endif
+    aloc = 0.0
+    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+        for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+            k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
+            if k >= 0:
+                fxa = pyom.maskU[i,j,k] * pyom.u[i,j,k,pyom.tau]**2 + pyom.maskU[i-1,j,k] * pyom.u[i-1,j,k,pyom.tau]**2 \
+                      + pyom.maskU[i,j+1,k] * pyom.u[i,j+1,k,pyom.tau]**2 + pyom.maskU[i-1,j+1,k] * pyom.u[i-1,j+1,k,pyom.tau]**2
+                fxa = np.sqrt(pyom.v[i,j,k,pyom.tau]**2 + 0.25*fxa)
+                aloc[i,j] = pyom.maskV[i,j,k] * pyom.r_quad_bot * pyom.v[i,j,k,pyom.tau] * fxa / pyom.dzt[k]
+                pyom.dv_mix[i,j,k] -= aloc[i,j]
 
- aloc = 0.0
- for j in xrange(js_pe-1,je_pe): # j = js_pe-1,je_pe
-   for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-    k = max(kbot(i,j+1),kbot(i,j))
-    if k>0:
-      fxa = maskU[i,j,k]*u[i,j,k]**2 + maskU[i-1,j,k]*u[i-1,j,k]**2
-      fxa = fxa + maskU[i,j+1,k]*u[i,j+1,k]**2 + maskU[i-1,j+1,k]*u[i-1,j+1,k]**2
-      fxa = sqrt(v[i,j,k]**2+ 0.25*fxa)
-      aloc(i,j) = maskV[i,j,k]*r_quad_bot*v[i,j,k]*fxa/dzt(k)
-      dv_mix[i,j,k] = dv_mix[i,j,k] - aloc(i,j)
-    endif
-   enddo
- enddo
+    if pyom.enable_conserve_energy:
+        diss[...] = 0.0
+        for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+                k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
+                if k >= 0:
+                    diss[i,j,k] = aloc[i,j] * pyom.v[i,j,k,pyom.tau]
+        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
 
- if enable_conserve_energy:
-   diss = 0.0
-   for j in xrange(js_pe-1,je_pe): # j = js_pe-1,je_pe
-    for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-     k = max(kbot(i,j+1),kbot(i,j))
-     if (k>0) diss[i,j,k] = aloc(i,j)*v[i,j,k]
-    enddo
-   enddo
-   calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_bot,'V')
- endif
-
- if .not.enable_hydrostatic:
-  if (my_pe==0) print'(/a/)','ERROR: bottom friction for vertical velocity not implemented'
-  halt_stop(' in quadratic_bottom_friction')
- endif
-end def quadratic_bottom_friction(pyom):
-
-
-
+    if not pyom.enable_hydrostatic:
+        raise NotImplementedError("bottom friction for vertical velocity not implemented")
 
 
 def harmonic_friction(pyom):
-"""
-! horizontal harmonic friction
-! dissipation is calculated and added to K_diss_h
-"""
- use main_module
- implicit none
- integer :: i,j,k
- integer :: is,ie,js,je
- real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa
+    """
+    horizontal harmonic friction
+    dissipation is calculated and added to K_diss_h
+    """
+    # real*8 :: diss(pyom.is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa
+    diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
+    is_ = pyom.is_pe - pyom.onx
+    ie_ = pyom.ie_pe + pyom.onx
+    js_ = pyom.js_pe - pyom.onx
+    je_ = pyom.je_pe + pyom.onx
 
- is = is_pe-onx; ie = ie_pe+onx; js = js_pe-onx; je = je_pe+onx
+    """
+    Zonal velocity
+    """
+    if pyom.enable_hor_friction_cos_scaling:
+        for j in xrange(js_,je_): # j = js,je
+            fxa = pyom.cost[j]**pyom.hor_friction_cosPower
+            for i in xrange(is_,ie_-1): # i = is,ie-1
+                pyom.flux_east[i,j,:] = fxa * pyom.A_h * (pyom.u[i+1,j,:,pyom.tau] - pyom.u[i,j,:,pyom.tau]) \
+                                         / (pyom.cost[j] * pyom.dxt[i+1]) * pyom.maskU[i+1,j,:] * pyom.maskU[i,j,:]
+        for j in xrange(js_,je_-1): # j = js,je-1
+            fxa = pyom.cosu[j]**pyom.hor_friction_cosPower
+            pyom.flux_north[:,j,:] = fxa * pyom.A_h * (pyom.u[:,j+1,:,pyom.tau] - pyom.u[:,j,:,pyom.tau]) \
+                                     / pyom.dyu[j] * pyom.maskU[:,j+1,:] * pyom.maskU[:,j,:] * pyom.cosu[j]
+    else:
+        for j in xrange(js_,je_): # j = js,je
+            for i in xrange(is_,ie_-1): # i = is,ie-1
+                pyom.flux_east[i,j,:] = pyom.A_h * (pyom.u[i+1,j,:,pyom.tau] - pyom.u[i,j,:,pyom.tau]) \
+                                         / (pyom.cost[j] * pyom.dxt[i+1]) * pyom.maskU[i+1,j,:] * pyom.maskU[i,j,:]
+        for j in xrange(js_,je_-1): # j = js,je-1
+            pyom.flux_north[:,j,:] = pyom.A_h * (pyom.u[:,j+1,:,pyom.tau] - pyom.u[:,j,:,pyom.tau]) \
+                                      / pyom.dyu(j) * pyom.maskU[:,j+1,:] * pyom.maskU[:,j,:] * pyom.cosu[j]
+    pyom.flux_east[ie_-1,:,:] = 0.
+    pyom.flux_north[:,je_-1,:] = 0.
 
- """
- ! Zonal velocity
- """
- if enable_hor_friction_cos_scaling:
-  for j in xrange(js,je): # j = js,je
-   fxa = cost(j)**hor_friction_cosPower
-   for i in xrange(is,ie-1): # i = is,ie-1
-    flux_east[i,j,:] = fxa*A_h*(u[i+1,j,:]-u[i,j,:])/(cost(j)*dxt(i+1))*maskU[i+1,j,:]*maskU[i,j,:]
-   enddo
-  enddo
-  for j in xrange(js,je-1): # j = js,je-1
-   fxa = cosu(j)**hor_friction_cosPower
-   flux_north[:,j,:] = fxa*A_h*(u[:,j+1,:]-u[:,j,:])/dyu(j)*maskU[:,j+1,:]*maskU[:,j,:]*cosu(j)
-  enddo
- else
-  for j in xrange(js,je): # j = js,je
-   for i in xrange(is,ie-1): # i = is,ie-1
-    flux_east[i,j,:] = A_h*(u[i+1,j,:]-u[i,j,:])/(cost(j)*dxt(i+1))*maskU[i+1,j,:]*maskU[i,j,:]
-   enddo
-  enddo
-  for j in xrange(js,je-1): # j = js,je-1
-    flux_north[:,j,:] = A_h*(u[:,j+1,:]-u[:,j,:])/dyu(j)*maskU[:,j+1,:]*maskU[:,j,:]*cosu(j)
-  enddo
- endif
- flux_east(ie,:,:) = 0.
- flux_north(:,je,:) = 0.
+    """
+    update tendency
+    """
+    for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+        for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+            pyom.du_mix[i,j,:] += pyom.maskU[i,j,:] * ((pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) / (pyom.cost[j] * pyom.dxu[i]) \
+                                                        + (pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) / (pyom.cost[j] * pyom.dyt[j]))
 
- """
- ! update tendency
- """
- for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-   for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-    du_mix[i,j,:] = du_mix[i,j,:] + maskU[i,j,:]*((flux_east[i,j,:] - flux_east[i-1,j,:])/(cost(j)*dxu(i)) \
-                                                +(flux_north[i,j,:] - flux_north[i,j-1,:])/(cost(j)*dyt(j)))
-  enddo
- enddo
+    if pyom.enable_conserve_energy:
+        """
+        diagnose dissipation by lateral friction
+        """
+        for k in xrange(pyom.nz): # k = 1,nz
+            for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+                for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+                    diss[i,j,k] = 0.5*((pyom.u[i+1,j,k,pyom.tau] - pyom.u[i,j,k,pyom.tau]) * pyom.flux_east[i,j,k] \
+                                    +(pyom.u[i,j,k,pyom.tau] - pyom.u[i-1,j,k,pyom.tau]) * pyom.flux_east[i-1,j,k]) / (pyom.cost[j]*pyom.dxu[i])  \
+                                  +0.5*((pyom.u[i,j+1,k,pyom.tau] - pyom.u[i,j,k,pyom.tau]) * pyom.flux_north[i,j,k] \
+                                    +(pyom.u[i,j,k,pyom.tau] - pyom.u[i,j-1,k,pyom.tau]) * pyom.flux_north[i,j-1,k]) / (pyom.cost[j] * pyom.dyt[j])
+        pyom.K_diss_h[...] = numerics.calc_diss(diss,pyom.K_diss_h,'U',pyom)
 
- if enable_conserve_energy:
- """
- ! diagnose dissipation by lateral friction
- """
-  for k in xrange(1,nz): # k = 1,nz
-   for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-    for i in xrange(is_pe-1,ie_pe): # i = is_pe-1,ie_pe
-     diss[i,j,k] = 0.5*((u[i+1,j,k]-u[i,j,k])*flux_east[i,j,k] \
-                      +(u[i,j,k]-u[i-1,j,k])*flux_east[i-1,j,k])/(cost(j)*dxu(i))  \
-                 +0.5*((u[i,j+1,k]-u[i,j,k])*flux_north[i,j,k]+ \
-                       (u[i,j,k]-u[i,j-1,k])*flux_north[i,j-1,k])/(cost(j)*dyt(j))
-    enddo
-   enddo
-  enddo
-  K_diss_h = 0
-  calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_h,'U')
- endif
+    """
+    Meridional velocity
+    """
+    if pyom.enable_hor_friction_cos_scaling:
+        for j in xrange(js_,je_): # j = js,je
+            fxa = pyom.cosu[j]**pyom.hor_friction_cosPower
+            for i in xrange(is_,ie_-1): # i = is,ie-1
+                pyom.flux_east[i,j,:] = fxa * pyom.A_h * (pyom.v[i+1,j,:,pyom.tau] - pyom.v[i,j,:,pyom.tau]) \
+                                         / (pyom.cosu[j]*pyom.dxu[i]) * pyom.maskV[i+1,j,:] * pyom.maskV[i,j,:]
+        for j in xrange(js_,je_-1): # j = js,je-1
+            fxa = pyom.cost[j+1]**pyom.hor_friction_cosPower
+            pyom.flux_north[:,j,:] = fxa * pyom.A_h * (pyom.v[:,j+1,:,pyom.tau] - pyom.v[:,j,:,pyom.tau]) \
+                                      / pyom.dyt[j+1] * pyom.cost[j+1] * pyom.maskV[:,j,:] * pyom.maskV[:,j+1,:]
+    else:
+        for j in xrange(js_,je_): # j = js,je
+            for i in xrange(is_,ie_-1): # i = is,ie-1
+                pyom.flux_east[i,j,:] = pyom.A_h * (pyom.v[i+1,j,:,pyom.tau] - pyom.v[i,j,:,pyom.tau]) \
+                                         / (pyom.cosu[j] * pyom.dxu[i]) * pyom.maskV[i+1,j,:] * pyom.maskV[i,j,:]
+        for j in xrange(js_,je_-1): # j = js,je-1
+            pyom.flux_north[:,j,:] = pyom.A_h * (pyom.v[:,j+1,:,pyom.tau] - pyom.v[:,j,:,pyom.tau]) \
+                                      / pyom.dyt[j+1] * pyom.cost[j+1] * pyom.maskV[:,j,:] * pyom.maskV[:,j+1,:]
+    pyom.flux_east[ie_-1,:,:] = 0.
+    pyom.flux_north[:,je_-1,:] = 0.
 
- """
- ! Meridional velocity
- """
- if enable_hor_friction_cos_scaling:
-  for j in xrange(js,je): # j = js,je
-   fxa = cosu(j)**hor_friction_cosPower
-   for i in xrange(is,ie-1): # i = is,ie-1
-    flux_east[i,j,:] = fxa*A_h*(v[i+1,j,:]-v[i,j,:])/(cosu(j)*dxu(i)) *maskV[i+1,j,:]*maskV[i,j,:]
-   enddo
-  enddo
-  for j in xrange(js,je-1): # j = js,je-1
-   fxa = cost(j+1)**hor_friction_cosPower
-   flux_north[:,j,:] = fxa*A_h*(v[:,j+1,:]-v[:,j,:])/dyt(j+1)*cost(j+1)*maskV[:,j,:]*maskV[:,j+1,:]
-  enddo
- else
-  for j in xrange(js,je): # j = js,je
-   for i in xrange(is,ie-1): # i = is,ie-1
-    flux_east[i,j,:] = A_h*(v[i+1,j,:]-v[i,j,:])/(cosu(j)*dxu(i)) *maskV[i+1,j,:]*maskV[i,j,:]
-   enddo
-  enddo
-  for j in xrange(js,je-1): # j = js,je-1
-   flux_north[:,j,:] = A_h*(v[:,j+1,:]-v[:,j,:])/dyt(j+1)*cost(j+1)*maskV[:,j,:]*maskV[:,j+1,:]
-  enddo
- endif
- flux_east(ie,:,:) = 0.
- flux_north(:,je,:) = 0.
+    """
+    update tendency
+    """
+    for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+        for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+            pyom.dv_mix[i,j,:] += pyom.maskV[i,j,:] * ((pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) / (pyom.cosu[j] * pyom.dxt[i]) \
+                                                      +(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) / (pyom.dyu[j] * pyom.cosu[j]))
 
- """
- ! update tendency
- """
- for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-   for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-    dv_mix[i,j,:] = dv_mix[i,j,:] + maskV[i,j,:]*((flux_east[i,j,:] - flux_east[i-1,j,:])/(cosu(j)*dxt(i))  \
-                                                 +(flux_north[i,j,:] - flux_north[i,j-1,:])/(dyu(j)*cosu(j)))
-  enddo
- enddo
+    if pyom.enable_conserve_energy:
+        """
+        diagnose dissipation by lateral friction
+        """
+        for k in xrange(pyom.nz): # k = 1,nz
+            for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+                for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+                    diss[i,j,k] = 0.5*((pyom.v[i+1,j,k,pyom.tau] - pyom.v[i,j,k,pyom.tau]) * pyom.flux_east[i,j,k]+ \
+                                        (pyom.v[i,j,k,pyom.tau] - pyom.v[i-1,j,k,pyom.tau]) * pyom.flux_east[i-1,j,k]) \
+                                      / (pyom.cosu[j] * pyom.dxt[i]) \
+                                + 0.5*((pyom.v[i,j+1,k,pyom.tau] - pyom.v[i,j,k,pyom.tau]) * pyom.flux_north[i,j,k]+ \
+                                        (pyom.v[i,j,k,pyom.tau] - pyom.v[i,j-1,k,pyom.tau]) * pyom.flux_north[i,j-1,k]) \
+                                      / (pyom.cosu[j] * pyom.dyu[j])
+        pyom.K_diss_h[...] = numerics.calc_diss(diss,pyom.K_diss_h,'V',pyom)
 
- if enable_conserve_energy:
- """
- ! diagnose dissipation by lateral friction
- """
-  for k in xrange(1,nz): # k = 1,nz
-   for j in xrange(js_pe-1,je_pe): # j = js_pe-1,je_pe
-    for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-     diss[i,j,k] = 0.5*((v[i+1,j,k]-v[i,j,k])*flux_east[i,j,k]+ \
-                       (v[i,j,k]-v[i-1,j,k])*flux_east[i-1,j,k])/(cosu(j)*dxt(i)) \
-                + 0.5*((v[i,j+1,k]-v[i,j,k])*flux_north[i,j,k]+ \
-                       (v[i,j,k]-v[i,j-1,k])*flux_north[i,j-1,k])/(cosu(j)*dyu(j))
-    enddo
-   enddo
-  enddo
-  calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_h,'V')
- endif
+    if not pyom.enable_hydrostatic:
+        if pyom.enable_hor_friction_cos_scaling:
+            raise NotImplementedError("scaling of lateral friction for vertical velocity not implemented")
 
- if .not.enable_hydrostatic:
+        for j in xrange(js_,je_): # j = js,je
+            for i in xrange(is_,ie_-1): # i = is,ie-1
+                pyom.flux_east[i,j,:] = pyom.A_h * (pyom.w[i+1,j,:,pyom.tau] - pyom.w[i,j,:,pyom.tau]) \
+                                         / (pyom.cost[j] * pyom.dxu[i]) * pyom.maskW[i+1,j,:] * pyom.maskW[i,j,:]
+        for j in xrange(js_,je_-1): # j = js,je-1
+            pyom.flux_north[:,j,:] = pyom.A_h * (pyom.w[:,j+1,:,pyom.tau] - pyom.w[:,j,:,pyom.tau]) \
+                                      / pyom.dyu[j] * pyom.maskW[:,j+1,:] * pyom.maskW[:,j,:] * pyom.cosu[j]
+        pyom.flux_east[ie_-1,:,:] = 0.
+        pyom.flux_north[:,je_-1,:] = 0.
 
-  if enable_hor_friction_cos_scaling:
-   if (my_pe==0) print'(/a/)','ERROR: scaling of lateral friction for vertical velocity not implemented'
-   halt_stop(' in hamronic_friction')
-  endif
+        """
+        update tendency
+        """
+        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+                pyom.dw_mix[i,j,:] += pyom.maskW[i,j,:]*((pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) \
+                                                            / (pyom.cost[j] * pyom.dxt[i]) \
+                                                        +(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) \
+                                                            / (pyom.dyt[j] * pyom.cost[j]))
 
-  for j in xrange(js,je): # j = js,je
-   for i in xrange(is,ie-1): # i = is,ie-1
-    flux_east[i,j,:] = A_h*(w[i+1,j,:]-w[i,j,:])/(cost(j)*dxu(i)) *maskW[i+1,j,:]*maskW[i,j,:]
-   enddo
-  enddo
-  for j in xrange(js,je-1): # j = js,je-1
-   flux_north[:,j,:] = A_h*(w[:,j+1,:]-w[:,j,:])/dyu(j)*maskW[:,j+1,:]*maskW[:,j,:]*cosu(j)
-  enddo
-  flux_east(ie,:,:) = 0.
-  flux_north(:,je,:) = 0.
-
- """
- ! update tendency
- """
-  for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-   for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-    dw_mix[i,j,:] = dw_mix[i,j,:] + maskW[i,j,:]*((flux_east[i,j,:] - flux_east[i-1,j,:])/(cost(j)*dxt(i))  \
-                                                 +(flux_north[i,j,:] - flux_north[i,j-1,:])/(dyt(j)*cost(j)))
-  enddo
-  enddo
-
- """
- ! diagnose dissipation by lateral friction
- """
-  ! to be implemented
- endif
-end def harmonic_friction(pyom):
-
-
-
-
+        """
+        diagnose dissipation by lateral friction
+        """
+        # to be implemented
 
 
 def biharmonic_friction(pyom):
-"""
-! horizontal biharmonic friction
-! dissipation is calculated and added to K_diss_h
-"""
- use main_module
- implicit none
- integer :: i,j,is,ie,js,je
- real*8 :: del2(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa
- real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    """
+    horizontal biharmonic friction
+    dissipation is calculated and added to K_diss_h
+    """
+    # real*8 :: del2(pyom.is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa
+    # real*8 :: diss(pyom.is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    del2 = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
+    diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
 
- if (.not.enable_hydrostatic) halt_stop('biharmonic mixing for non-hydrostatic not yet implemented')
+    if not pyom.enable_hydrostatic:
+        raise NotImplementedError("biharmonic mixing for non-hydrostatic not yet implemented")
 
- is = is_pe-onx; ie = ie_pe+onx; js = js_pe-onx; je = je_pe+onx
- fxa = sqrt(abs(A_hbi))
+    is_ = pyom.is_pe - pyom.onx
+    ie_ = pyom.ie_pe + pyom.onx
+    js_ = pyom.js_pe - pyom.onx
+    je_ = pyom.je_pe + pyom.onx
+    fxa = math.sqrt(abs(pyom.A_hbi))
 
- """
- ! Zonal velocity
- """
- for j in xrange(js,je): # j = js,je
-   for i in xrange(is,ie-1): # i = is,ie-1
-    flux_east[i,j,:] = fxa*(u[i+1,j,:]-u[i,j,:])/(cost(j)*dxt(i+1))*maskU[i+1,j,:]*maskU[i,j,:]
-   enddo
- enddo
- for j in xrange(js,je-1): # j = js,je-1
-    flux_north[:,j,:] = fxa*(u[:,j+1,:]-u[:,j,:])/dyu(j)*maskU[:,j+1,:]*maskU[:,j,:]*cosu(j)
- enddo
- flux_east(ie,:,:) = 0.
- flux_north(:,je,:) = 0.
+    """
+    Zonal velocity
+    """
+    for j in xrange(js_,je_): # j = js,je
+        for i in xrange(is_,ie_-1): # i = is,ie-1
+            pyom.flux_east[i,j,:] = fxa * (pyom.u[i+1,j,:,pyom.tau] - pyom.u[i,j,:,pyom.tau]) \
+                                    / (pyom.cost[j] * pyom.dxt[i+1]) * pyom.maskU[i+1,j,:] * pyom.maskU[i,j,:]
+    for j in xrange(js_,je_-1): # j = js,je-1
+        pyom.flux_north[:,j,:] = fxa * (pyom.u[:,j+1,:,pyom.tau] - pyom.u[:,j,:,pyom.tau]) \
+                                 / pyom.dyu[j] * pyom.maskU[:,j+1,:] * pyom.maskU[:,j,:] * pyom.cosu[j]
+    pyom.flux_east[ie_-1,:,:] = 0.
+    pyom.flux_north[:,je_-1,:] = 0.
 
- for j in xrange(js+1,je): # j = js+1,je
-   for i in xrange(is+1,ie): # i = is+1,ie
-    del2[i,j,:] = (flux_east[i,j,:] - flux_east[i-1,j,:])/(cost(j)*dxu(i)) \
-                +(flux_north[i,j,:] - flux_north[i,j-1,:])/(cost(j)*dyt(j))
-  enddo
- enddo
+    for j in xrange(js_+1,je_): # j = js+1,je
+        for i in xrange(is_+1,ie_): # i = is+1,ie
+            del2[i,j,:] = (pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) / (pyom.cost[j] * pyom.dxu[i]) \
+                        + (pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) / (pyom.cost[j] * pyom.dyt[j])
 
- for j in xrange(js,je): # j = js,je
-   for i in xrange(is,ie-1): # i = is,ie-1
-    flux_east[i,j,:] = fxa*(del2[i+1,j,:]-del2[i,j,:])/(cost(j)*dxt(i+1))*maskU[i+1,j,:]*maskU[i,j,:]
-   enddo
- enddo
- for j in xrange(js,je-1): # j = js,je-1
-    flux_north[:,j,:] = fxa*(del2[:,j+1,:]-del2[:,j,:])/dyu(j)*maskU[:,j+1,:]*maskU[:,j,:]*cosu(j)
- enddo
- flux_east(ie,:,:) = 0.
- flux_north(:,je,:) = 0.
+    for j in xrange(js_,je_): # j = js,je
+        for i in xrange(is_,ie_-1): # i = is,ie-1
+            pyom.flux_east[i,j,:] = fxa * (del2[i+1,j,:] - del2[i,j,:]) \
+                                    / (pyom.cost[j] * pyom.dxt[i+1]) * pyom.maskU[i+1,j,:] * pyom.maskU[i,j,:]
+    for j in xrange(js_,je_-1): # j = js,je-1
+        pyom.flux_north[:,j,:] = fxa * (del2[:,j+1,:] - del2[:,j,:]) \
+                                 / pyom.dyu[j] * pyom.maskU[:,j+1,:] * pyom.maskU[:,j,:] * pyom.cosu[j]
+    pyom.flux_east[ie_-1,:,:] = 0.
+    pyom.flux_north[:,je_-1,:] = 0.
 
- """
- ! update tendency
- """
- for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-   for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-    du_mix[i,j,:] = du_mix[i,j,:] - maskU[i,j,:]*((flux_east[i,j,:] - flux_east[i-1,j,:])/(cost(j)*dxu(i)) \
-                                                +(flux_north[i,j,:] - flux_north[i,j-1,:])/(cost(j)*dyt(j)))
-  enddo
- enddo
+    """
+    update tendency
+    """
+    for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+        for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+            du_mix[i,j,:] -= pyom.maskU[i,j,:] * ((pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) \
+                                                    / (pyom.cost[j] * pyom.dxu[i]) \
+                                                 +(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) \
+                                                    / (pyom.cost[j] * pyom.dyt[j]))
+    if pyom.enable_conserve_energy:
+        """
+        diagnose dissipation by lateral friction
+        """
+        cyclic.setcyclic_xyz(pyom.flux_east,pyom.nx,pyom.nz)
+        cyclic.setcyclic_xyz(pyom.flux_north,pyom.nx,pyom.nz)
+        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+            for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+                diss[i,j,:] = -0.5*((pyom.u[i+1,j,:,pyom.tau] - pyom.u[i,j,:,pyom.tau]) * pyom.flux_east[i,j,:] \
+                                   +(pyom.u[i,j,:,pyom.tau] - pyom.u[i-1,j,:,pyom.tau]) * pyom.flux_east[i-1,j,:]) \
+                                  / (pyom.cost[j] * pyom.dxu[i])  \
+                              -0.5*((pyom.u[i,j+1,:,pyom.tau] - pyom.u[i,j,:,pyom.tau]) * pyom.flux_north[i,j,:] \
+                                   +(pyom.u[i,j,:,pyom.tau] - pyom.u[i,j-1,:,pyom.tau]) * pyom.flux_north[i,j-1,:]) \
+                                  / (pyom.cost[j] * pyom.dyt[j])
+        pyom.K_diss_h[...] = numerics.calc_diss(diss,pyom.K_diss_h,'U',pyom)
 
- if enable_conserve_energy:
- """
- ! diagnose dissipation by lateral friction
- """
-  border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east)
-  setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east)
-  border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_north)
-  setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_north)
-  for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-    for i in xrange(is_pe-1,ie_pe): # i = is_pe-1,ie_pe
-     diss[i,j,:] = -0.5*((u[i+1,j,:]-u[i,j,:])*flux_east[i,j,:] \
-                       +(u[i,j,:]-u[i-1,j,:])*flux_east[i-1,j,:])/(cost(j)*dxu(i))  \
-                 -0.5*((u[i,j+1,:]-u[i,j,:])*flux_north[i,j,:]+ \
-                       (u[i,j,:]-u[i,j-1,:])*flux_north[i,j-1,:])/(cost(j)*dyt(j))
-    enddo
-  enddo
-  K_diss_h = 0
-  calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_h,'U')
- endif
+    """
+    Meridional velocity
+    """
+    for j in xrange(js_,je_): # j = js,je
+        for i in xrange(is_,ie_-1): # i = is,ie-1
+            pyom.flux_east[i,j,:] = fxa * (pyom.v[i+1,j,:,pyom.tau] - pyom.v[i,j,:,pyom.tau]) \
+                                     / (pyom.cosu[j] * pyom.dxu[i]) \
+                                     * pyom.maskV[i+1,j,:] * pyom.maskV[i,j,:]
+    for j in xrange(js_,je_-1): # j = js,je-1
+        pyom.flux_north[:,j,:] = fxa * (pyom.v[:,j+1,:,pyom.tau] - pyom.v[:,j,:,pyom.tau]) \
+                                 / pyom.dyt[j+1] * pyom.cost[j+1] * pyom.maskV[:,j,:] * pyom.maskV[:,j+1,:]
+    pyom.flux_east[ie-1,:,:] = 0.
+    pyom.flux_north[:,je-1,:] = 0.
 
- """
- ! Meridional velocity
- """
- for j in xrange(js,je): # j = js,je
-   for i in xrange(is,ie-1): # i = is,ie-1
-    flux_east[i,j,:] = fxa*(v[i+1,j,:]-v[i,j,:])/(cosu(j)*dxu(i)) *maskV[i+1,j,:]*maskV[i,j,:]
-   enddo
- enddo
- for j in xrange(js,je-1): # j = js,je-1
-   flux_north[:,j,:] = fxa*(v[:,j+1,:]-v[:,j,:])/dyt(j+1)*cost(j+1)*maskV[:,j,:]*maskV[:,j+1,:]
- enddo
- flux_east(ie,:,:) = 0.
- flux_north(:,je,:) = 0.
+    for j in xrange(js_+1,je_): # j = js+1,je
+        for i in xrange(is_+1,ie_): # i = is+1,ie
+            del2[i,j,:] = (pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) / (pyom.cosu[j] * pyom.dxt[i])  \
+                         +(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) / (pyom.dyu[j] * pyom.cosu[j])
+    for j in xrange(js_,je_): # j = js,je
+        for i in xrange(is_,ie_-1): # i = is,ie-1
+            pyom.flux_east[i,j,:] = fxa * (del2[i+1,j,:] - del2[i,j,:]) \
+                                    / (pyom.cosu[j] * pyom.dxu[i]) \
+                                    * pyom.maskV[i+1,j,:] * pyom.maskV[i,j,:]
+    for j in xrange(js_,je_-1): # j = js,je-1
+        pyom.flux_north[:,j,:] = fxa * (del2[:,j+1,:] - del2[:,j,:]) \
+                                 / pyom.dyt[j+1] * pyom.cost[j+1] * pyom.maskV[:,j,:] * pyom.maskV[:,j+1,:]
+    pyom.flux_east[ie_-1,:,:] = 0.
+    pyom.flux_north[:,je_-1,:] = 0.
 
- for j in xrange(js+1,je): # j = js+1,je
-  for i in xrange(is+1,ie): # i = is+1,ie
-    del2[i,j,:] = (flux_east[i,j,:] - flux_east[i-1,j,:])/(cosu(j)*dxt(i))  \
-                 +(flux_north[i,j,:] - flux_north[i,j-1,:])/(dyu(j)*cosu(j))
-  enddo
- enddo
+    """
+    update tendency
+    """
+    for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+        for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+            pyom.dv_mix[i,j,:] -= pyom.maskV[i,j,:] * ((pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) \
+                                                        / (pyom.cosu[j] * pyom.dxt[i]) \
+                                                     + (pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) \
+                                                        / (pyom.dyu[j] * pyom.cosu[j]))
 
- for j in xrange(js,je): # j = js,je
-   for i in xrange(is,ie-1): # i = is,ie-1
-    flux_east[i,j,:] = fxa*(del2[i+1,j,:]-del2[i,j,:])/(cosu(j)*dxu(i)) *maskV[i+1,j,:]*maskV[i,j,:]
-   enddo
- enddo
- for j in xrange(js,je-1): # j = js,je-1
-   flux_north[:,j,:] = fxa*(del2[:,j+1,:]-del2[:,j,:])/dyt(j+1)*cost(j+1)*maskV[:,j,:]*maskV[:,j+1,:]
- enddo
- flux_east(ie,:,:) = 0.
- flux_north(:,je,:) = 0.
-
- """
- ! update tendency
- """
- for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-   for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-    dv_mix[i,j,:] = dv_mix[i,j,:] - maskV[i,j,:]*((flux_east[i,j,:] - flux_east[i-1,j,:])/(cosu(j)*dxt(i))  \
-                                                 +(flux_north[i,j,:] - flux_north[i,j-1,:])/(dyu(j)*cosu(j)))
-  enddo
- enddo
-
- if enable_conserve_energy:
- """
- ! diagnose dissipation by lateral friction
- """
-  border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east)
-  setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east)
-  border_exchg_xyz(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_north)
-  setcyclic_xyz   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_north)
-  for j in xrange(js_pe-1,je_pe): # j = js_pe-1,je_pe
-    for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-     diss[i,j,:] = -0.5*((v[i+1,j,:]-v[i,j,:])*flux_east[i,j,:]+ \
-                       (v[i,j,:]-v[i-1,j,:])*flux_east[i-1,j,:])/(cosu(j)*dxt(i)) \
-                - 0.5*((v[i,j+1,:]-v[i,j,:])*flux_north[i,j,:]+ \
-                       (v[i,j,:]-v[i,j-1,:])*flux_north[i,j-1,:])/(cosu(j)*dyu(j))
-    enddo
-  enddo
-  calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_h,'V')
- endif
-
-end def biharmonic_friction(pyom):
+    if pyom.enable_conserve_energy:
+        """
+        diagnose dissipation by lateral friction
+        """
+        setcyclic_xyz(pyom.flux_east,pyom.nx,pyom.nz)
+        setcyclic_xyz(pyom.flux_north,pyom.nx,pyom.nz)
+        for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+                diss[i,j,:] = -0.5*((pyom.v[i+1,j,:,pyom.tau] - pyom.v[i,j,:,pyom.tau]) * pyom.flux_east[i,j,:] \
+                                  + (pyom.v[i,j,:,pyom.tau] - pyom.v[i-1,j,:,pyom.tau]) * pyom.flux_east[i-1,j,:]) \
+                                 / (pyom.cosu[j]*pyom.dxt[i]) \
+                             - 0.5*((pyom.v[i,j+1,:,pyom.tau] - pyom.v[i,j,:,pyom.tau]) * pyom.flux_north[i,j,:] \
+                                  + (pyom.v[i,j,:,pyom.tau] - pyom.v[i,j-1,:,pyom.tau]) * pyom.flux_north[i,j-1,:]) \
+                                 / (pyom.cosu[j] * pyom.dyu[j])
+        pyom.K_diss_h[...] = numerics.calc_diss(diss,pyom.K_diss_h,'V',pyom)
 
 
 def momentum_sources(pyom):
-"""
-! other momentum sources
-! dissipation is calculated and added to K_diss_bot
-"""
- use main_module
- implicit none
- integer :: k
- real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    """
+    other momentum sources
+    dissipation is calculated and added to K_diss_bot
+    """
+    # real*8 :: diss(pyom.is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
 
- for k in xrange(1,nz): # k = 1,nz
-  du_mix[:,:,k] = du_mix[:,:,k] + maskU[:,:,k]*u_source[:,:,k]
- enddo
- if enable_conserve_energy:
-  for k in xrange(1,nz): # k = 1,nz
-   diss[:,:,k] = -maskU[:,:,k]*u[:,:,k]*u_source[:,:,k]
-  enddo
-  calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_bot,'U')
- endif
-
- for k in xrange(1,nz): # k = 1,nz
-   dv_mix[:,:,k] = dv_mix[:,:,k] + maskV[:,:,k]*v_source[:,:,k]
- enddo
- if enable_conserve_energy:
-  for k in xrange(1,nz): # k = 1,nz
-   diss[:,:,k] = -maskV[:,:,k]*v[:,:,k]*v_source[:,:,k]
-  enddo
-  calc_diss(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,diss,K_diss_bot,'V')
- endif
-end def momentum_sources(pyom):
+    for k in xrange(pyom.nz): # k = 1,nz
+        pyom.du_mix[:,:,k] += pyom.maskU[:,:,k] * pyom.u_source[:,:,k]
+    if pyom.enable_conserve_energy:
+        for k in xrange(pyom.nz): # k = 1,nz
+            diss[:,:,k] = -pyom.maskU[:,:,k] * pyom.u[:,:,k] * pyom.u_source[:,:,k]
+        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
+    for k in xrange(pyom.nz): # k = 1,nz
+        pyom.dv_mix[:,:,k] += pyom.maskV[:,:,k] * pyom.v_source[:,:,k]
+    if pyom.enable_conserve_energy:
+        for k in xrange(pyom.nz): # k = 1,nz
+            diss[:,:,k] = -pyom.maskV[:,:,k] * pyom.v[:,:,k] * pyom.v_source[:,:,k]
+        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)

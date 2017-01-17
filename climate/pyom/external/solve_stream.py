@@ -613,7 +613,7 @@ def congrad_streamfunction(forc,sol,pyom):
          res(0)  = forc - A * eta(0)
     -----------------------------------------------------------------------
     """
-    solve_pressure.apply_op(congrad_streamfunction.cf, sol, res, pyom)
+    res = solve_pressure.apply_op(congrad_streamfunction.cf, sol, pyom)
     for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
         for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
             res[i,j] = forc[i,j] - res[i,j]
@@ -685,7 +685,7 @@ def congrad_streamfunction(forc,sol,pyom):
                As(k)     = A * ss(k)
         -----------------------------------------------------------------------
         """
-        solve_pressure.apply_op(congrad_streamfunction.cf, ss, As, pyom)
+        As = solve_pressure.apply_op(congrad_streamfunction.cf, ss, pyom)
         #print "AS", As
         #sys.exit()
         """

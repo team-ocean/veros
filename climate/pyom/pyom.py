@@ -165,11 +165,11 @@ class PyOM(object):
         """
         Mixing parameter
         """
-        A_h = 0.0    # lateral viscosity in m^2/s
-        K_h = 0.0    # lateral diffusivity in m^2/s
-        r_ray = 0.0  # Rayleigh damping coefficient in 1/s
-        r_bot = 0.0  # bottom friction coefficient in 1/s
-        r_quad_bot = 0.0  # qudratic bottom friction coefficient
+        self.A_h = 0.0    # lateral viscosity in m^2/s
+        self.K_h = 0.0    # lateral diffusivity in m^2/s
+        self.r_ray = 0.0  # Rayleigh damping coefficient in 1/s
+        self.r_bot = 0.0  # bottom friction coefficient in 1/s
+        self.r_quad_bot = 0.0  # qudratic bottom friction coefficient
         #real*8, allocatable :: r_bot_var_u(:,:)     # bottom friction coefficient in 1/s, on u points
         #real*8, allocatable :: r_bot_var_v(:,:)     # bottom friction coefficient in 1/s, on v points
         self.hor_friction_cosPower = 3
