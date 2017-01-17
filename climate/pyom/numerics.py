@@ -1,7 +1,8 @@
 from climate.pyom import cyclic, density
 import climate
+
 import numpy as np
-import sys
+from scipy import linalg
 
 def u_centered_grid(dyt,dyu,yt,yu,n):
     yu[0] = 0
@@ -329,25 +330,11 @@ def vgrid_to_tgrid(A,pyom):
 
 def solve_tridiag(a, b, c, d):
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-    n = a.shape[0]
-    x = np.zeros(n)
-    cp = np.zeros(n)
-    dp = np.zeros(n)
-
-    # initialize c-prime and d-prime
-    cp[0] = c[0]/b[0]
-    dp[0] = d[0]/b[0]
-
-    # solve for vectors c-prime and d-prime
-    for i in xrange(1, n):
-        m = b[i] - cp[i-1] * a[i]
-        fxa = 1.0 / m
-        cp[i] = c[i] * fxa
-        dp[i] = (d[i]-dp[i-1]*a[i]) * fxa
-    x[n-1] = dp[n-1]
-    for i in xrange(n-2, -1, -1):
-        x[i] = dp[i] - cp[i]*x[i+1]
-    return x
+    ab = np.zeros((3,a.shape[0]))
+    ab[0,1:] = c[:-1]
+    ab[1,:] = b
+    ab[2,:-1] = a[1:]
+    return linalg.solve_banded((1,1),ab,d)
 
 def calc_diss(diss,K_diss,tag,pyom):
     # !real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
