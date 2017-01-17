@@ -14,10 +14,10 @@ def u_centered_grid(dyt,dyu,yt,yu,n):
     dyu[:n-1] = yt[1:] - yt[:n-1]
     dyu[n-1] = 2*dyt[n-1] - dyu[n-2]
 #  yt(1)=yu(1)-dyt(1)*0.5
-#  do i=2,n
+#  for i in xrange(2,n): # i=2,n
 #   yt(i) = 2*yu(i-1) - yt(i-1)
 #  enddo
-#  do i=1,n-1
+#  for i in xrange(1,n-1): # i=1,n-1
 #   dyu(i)= yt(i+1)-yt(i)
 #  enddo
 #  dyu(n)=2*dyt(n)- dyu(n-1)
@@ -261,11 +261,22 @@ def calc_initial_conditions(pyom):
                     pyom.Nsqr[i,j,k,n] = fxa * (density.get_rho(pyom.salt[i,j,k+1,n],pyom.temp[i,j,k+1,n],abs(pyom.zt[k]),pyom) - pyom.rho[i,j,k,n])
         pyom.Nsqr[:,:,pyom.nz-1,n] = pyom.Nsqr[:,:,pyom.nz-2,n]
 
-def ugrid_to_tgrid():
-    pass
 
-def vgrid_to_tgrid():
-    pass
+def ugrid_to_tgrid(A,pyom):
+    # real*8, dimension(is_:ie_,js_:je_,nz_) :: A,B
+    B = np.zeros_like(A)
+    for i in xrange(pyom.is_pe,pyom.ie_pe):
+        B[i,:,:] = (pyom.dxu[i] * A[i,:,:] + pyom.dxu[i-1] * A[i-1,:,:]) / (2*pyom.dxt[i])
+    return B
+
+
+def vgrid_to_tgrid(A,pyom):
+    # real*8, dimension(is_:ie_,js_:je_,nz_) :: A,B
+    B = np.zeros_like(A)
+    for k in xrange(pyom.nz):
+        for j in xrange(pyom.js_pe,pyom.je_pe):
+            B[:,j,k] = (pyom.area_v[:,j] * A[:,j,k] + pyom.area_v[:,j-1] * A[:,j-1,k]) / (2*pyom.area_t[:,j])
+    return B
 
 def solve_tridiag(a, b, c, d, n):
     x = np.zeros(n)
@@ -287,5 +298,44 @@ def solve_tridiag(a, b, c, d, n):
         x[i] = dp[i] - cp[i]*x[i+1]
     return x
 
-def calc_diss():
-    pass
+def calc_diss(diss,K_diss,tag,pyom):
+    # !real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    # !real*8 :: K_diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    # !real*8 :: diss_u(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    # real*8, dimension(is_:ie_,js_:je_,nz_) :: diss,K_diss,diss_u
+    # character*1 :: tag
+
+    diss_u = np.zeros_like(diss)
+
+    if tag == 'U':
+        # dissipation interpolated on W-grid
+        for j in xrange(pyom.js_pe,pyom.je_pe): # j=js_pe,je_pe
+            for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i=is_pe-1,ie_pe
+                ks = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
+                if ks >= 0:
+                    k = ks
+                    diss_u[i,j,k] = 0.5 * (diss[i,j,k] + diss[i,j,k+1]) + 0.5 * diss[i,j,k] * pyom.dzw[max(0,k-1)] / pyom.dzw[k]
+                    for k in xrange(ks+1,pyom.nz-1): # k=ks+1,nz-1
+                        diss_u[i,j,k] = 0.5 * (diss[i,j,k] + diss[i,j,k+1])
+                    k = pyom.nz-1
+                    diss_u[i,j,k] = diss[i,j,k]
+        # dissipation interpolated from U-grid to T-grid
+        ugrid_to_tgrid(diss_u,diss_u)
+        K_diss += diss_u
+    elif tag == 'V':
+        # dissipation interpolated on W-grid
+        for j in xrange(pyom.js_pe-1,pyom.je_pe): # j=js_pe-1,je_pe
+            for i in xrange(pyom.is_pe,pyom.ie_pe): # i=is_pe,ie_pe
+                ks = max(pyom.kbot[i,j],pyom.kbot[i,j+1]) - 1
+                if ks >= 0:
+                    k=ks
+                    diss_u[i,j,k] = 0.5*(diss[i,j,k] + diss[i,j,k+1]) + 0.5 * diss[i,j,k] * pyom.dzw[max(0,k-1)] / pyom.dzw[k]
+                    for k in xrange(ks+1,pyom.nz-1): # k=ks+1,nz-1
+                        diss_u[i,j,k] = 0.5*(diss[i,j,k] + diss[i,j,k+1])
+                    k = pyom.nz-1
+                    diss_u[i,j,k] = diss[i,j,k]
+        # dissipation interpolated from V-grid to T-grid
+        vgrid_to_tgrid(diss_u,diss_u)
+        K_diss += diss_u
+    else:
+        raise ValueError("unknown tag {}".format(tag))
