@@ -7,9 +7,13 @@ def u_centered_grid(dyt,dyu,yt,yu,n):
     yu[0] = 0
     yu[1:n] = np.add.accumulate(dyt[1:n])
 
+    if climate.is_bohrium:
+        yt = yt.copy2numpy()
     yt[0] = yu[0]-dyt[0]*0.5
     for i in xrange(1, n):
         yt[i] = 2*yu[i-1] - yt[i-1]
+    if climate.is_bohrium:
+        yt = np.array(yt)
 
     dyu[:n-1] = yt[1:] - yt[:n-1]
     dyu[n-1] = 2*dyt[n-1] - dyu[n-2]
@@ -54,20 +58,26 @@ def calc_grid(pyom):
     dxt_gl[2:pyom.nx+2] = aloc[:,0]
 
     if pyom.enable_cyclic_x:
-        for i in xrange(1,3): #i=1,onx
-            dxt_gl[pyom.nx+i+1] = dxt_gl[i+1]
-            dxt_gl[2-i] = dxt_gl[pyom.nx-i+2]
+        dxt_gl[pyom.nx+2:pyom.nx+4] = dxt_gl[2:4]
+        dxt_gl[:2] = dxt_gl[pyom.nx:pyom.nx+2]
+        #for i in xrange(1,3): #i=1,onx
+        #    dxt_gl[pyom.nx+i+1] = dxt_gl[i+1]
+        #    dxt_gl[2-i] = dxt_gl[pyom.nx-i+2]
     else:
-        for i in xrange(1,3): #i=1,onx
-            dxt_gl[pyom.nx+i+1] = dxt_gl[pyom.nx+1]
-            dxt_gl[2-i] = dxt_gl[2]
+        dxt_gl[pyom.nx+2:pyom.nx+4] = dxt_gl[pyom.nx+1]
+        dxt_gl[:2] = dxt_gl[2]
+        #for i in xrange(1,3): #i=1,onx
+        #    dxt_gl[pyom.nx+i+1] = dxt_gl[pyom.nx+1]
+        #    dxt_gl[2-i] = dxt_gl[2]
 
     aloc[0,:] = pyom.dyt[2:pyom.ny+2]
     dyt_gl[2:pyom.ny+2] = aloc[0, :]
 
-    for i in xrange(1, 3): #i=1,onx
-        dyt_gl[pyom.ny+i+1] = dyt_gl[pyom.ny+1]
-        dyt_gl[2-i] = dyt_gl[2]
+    dyt_gl[pyom.ny+2:pyom.ny+4] = dyt_gl[pyom.ny+1]
+    dyt_gl[:2] = dxt_gl[2]
+    #for i in xrange(1, 3): #i=1,onx
+    #    dyt_gl[pyom.ny+i+1] = dyt_gl[pyom.ny+1]
+    #    dyt_gl[2-i] = dyt_gl[2]
     """
     -------------------------------------------------------------
     grid in east/west direction
@@ -78,13 +88,19 @@ def calc_grid(pyom):
     xu_gl += -xu_gl[2]+pyom.x_origin
 
     if pyom.enable_cyclic_x:
-        for i in xrange(1,3): #i=1,onx
-            xt_gl[pyom.nx+i+1] = xt_gl[i+1]
-            xt_gl[2-i]=xt_gl[pyom.nx-i+2]
-            xu_gl[pyom.nx+i+1] = xt_gl[i+1]
-            xu_gl[2-i]=xu_gl[pyom.nx-i+2]
-            dxu_gl[pyom.nx+i+1] = dxu_gl[i+1]
-            dxu_gl[2-i] = dxu_gl[pyom.nx-i+2]
+        xt_gl[pyom.nx+2:pyom.nx+4] = xt_gl[2:4]
+        xt_gl[:2] = xt_gl[pyom.nx:pyom.nx+2]
+        xu_gl[pyom.nx+2:pyom.nx+4] = xt_gl[2:4]
+        xu_gl[:2] = xu_gl[pyom.nx:pyom.nx+2]
+        dxu_gl[pyom.nx+2:pyom.nx+4] = dxu_gl[2:4]
+        dxu_gl[:2] = dxu_gl[pyom.nx:pyom.nx+2]
+        #for i in xrange(1,3): #i=1,onx
+        #    xt_gl[pyom.nx+i+1] = xt_gl[i+1]
+        #    xt_gl[2-i]=xt_gl[pyom.nx-i+2]
+        #    xu_gl[pyom.nx+i+1] = xt_gl[i+1]
+        #    xu_gl[2-i]=xu_gl[pyom.nx-i+2]
+        #    dxu_gl[pyom.nx+i+1] = dxu_gl[i+1]
+        #    dxu_gl[2-i] = dxu_gl[pyom.nx-i+2]
 
     """
     --------------------------------------------------------------
@@ -137,10 +153,9 @@ def calc_grid(pyom):
     --------------------------------------------------------------
     """
     if pyom.coord_degree:
-        for j in xrange(pyom.ny+4):
-            pyom.cost[j] = np.cos( pyom.yt[j]/180.*np.pi )
-            pyom.cosu[j] = np.cos( pyom.yu[j]/180.*np.pi )
-            pyom.tantr[j] = np.tan( pyom.yt[j]/180.*np.pi ) /pyom.radius
+        pyom.cost = np.cos(pyom.yt/180.*np.pi)
+        pyom.cosu = np.cos( pyom.yu/180.*np.pi )
+        pyom.tantr = np.tan( pyom.yt/180.*np.pi ) /pyom.radius
     else:
         pyom.cost[...] = 1.0
         pyom.cosu[...] = 1.0
@@ -151,11 +166,9 @@ def calc_grid(pyom):
      precalculate area of boxes
     --------------------------------------------------------------
     """
-    for j in xrange(pyom.ny+4): #j=js_pe-onx,je_pe+onx
-        for i in xrange(pyom.nx+4): #i=is_pe-onx,ie_pe+onx
-            pyom.area_t[i,j] = pyom.dxt[i]*pyom.cost[j]*pyom.dyt[j]
-            pyom.area_u[i,j] = pyom.dxu[i]*pyom.cost[j]*pyom.dyt[j]
-            pyom.area_v[i,j] = pyom.dxt[i]*pyom.cosu[j]*pyom.dyu[j]
+    pyom.area_t = pyom.cost * pyom.dyt * pyom.dxt[:, np.newaxis]
+    pyom.area_u = pyom.cost*pyom.dyt * pyom.dxu[:, np.newaxis]
+    pyom.area_v = pyom.cosu*pyom.dyu*pyom.dxt[:, np.newaxis]
 
 def calc_beta(pyom):
     """
@@ -163,8 +176,9 @@ def calc_beta(pyom):
      calculate beta = df/dy
     --------------------------------------------------------------
     """
-    for j in xrange(2,pyom.ny+2): # j=js_pe,je_pe
-        pyom.beta[:,j] = 0.5*(  (pyom.coriolis_t[:,j+1]-pyom.coriolis_t[:,j])/pyom.dyu[j] + (pyom.coriolis_t[:,j]-pyom.coriolis_t[:,j-1])/pyom.dyu[j-1] )
+    pyom.beta[:, 2:pyom.ny+2] = 0.5*(  (pyom.coriolis_t[:,3:pyom.ny+3]-pyom.coriolis_t[:,2:pyom.ny+2])/pyom.dyu[2:pyom.ny+2] + (pyom.coriolis_t[:,2:pyom.ny+2]-pyom.coriolis_t[:,1:pyom.ny+1])/pyom.dyu[1:pyom.ny+1] )
+    #for j in xrange(2,pyom.ny+2): # j=js_pe,je_pe
+    #    pyom.beta[:,j] = 0.5*(  (pyom.coriolis_t[:,j+1]-pyom.coriolis_t[:,j])/pyom.dyu[j] + (pyom.coriolis_t[:,j]-pyom.coriolis_t[:,j-1])/pyom.dyu[j-1] )
 
 def calc_topo(pyom):
     """
@@ -198,28 +212,47 @@ def calc_topo(pyom):
     else:
         kbot = pyom.kbot
 
-    for i in xrange(pyom.nx+4): # i=is_pe-onx,ie_pe+onx
-        for j in xrange(pyom.ny+4): # j=js_pe-onx,je_pe+onx
-            for k in xrange(pyom.nz): # k=1,nz
-                if kbot[i,j] > 0 and kbot[i,j]-1 <= k:
-                    pyom.maskT[i,j,k] = kbot[i,j]
+    k_kbot = np.ones(pyom.nz, dtype=np.int) * kbot[:, :, np.newaxis]
+    ks = np.arange(pyom.nz, dtype=np.int) * np.ones(pyom.ny+4, dtype=np.int)[:, np.newaxis] * np.ones(pyom.nx+4, dtype=np.int)[:,np.newaxis,np.newaxis]
+    if climate.is_bohrium:
+        k_kbot = k_kbot.copy2numpy()
+        ks = ks.copy2numpy()
+        maskT = pyom.maskT.copy2numpy()
+    else:
+        maskT = pyom.maskT
+    maskT[(k_kbot > 0) & (k_kbot-1 <= ks)] = k_kbot[(k_kbot > 0) & (k_kbot-1 <= ks)]
+    if climate.is_bohrium:
+        pyom.maskT = np.array(maskT)
+    #for i in xrange(pyom.nx+4): # i=is_pe-onx,ie_pe+onx
+    #    for j in xrange(pyom.ny+4): # j=js_pe-onx,je_pe+onx
+    #        for k in xrange(pyom.nz): # k=1,nz
+    #            if kbot[i,j] > 0 and kbot[i,j]-1 <= k:
+    #                pyom.maskT[i,j,k] = kbot[i,j]
+
     cyclic.setcyclic_xyz(pyom.maskT, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
     pyom.maskU[...] = pyom.maskT
-    for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
-        pyom.maskU[i,:,:] = np.minimum(pyom.maskT[i,:,:], pyom.maskT[i+1,:,:])
+    pyom.maskU[:pyom.nx+3, :, :] = np.minimum(pyom.maskT[:pyom.nx+3, :, :], pyom.maskT[1:pyom.nx+4, :, :])
+    #for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
+    #    pyom.maskU[i,:,:] = np.minimum(pyom.maskT[i,:,:], pyom.maskT[i+1,:,:])
     cyclic.setcyclic_xyz(pyom.maskU, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
     pyom.maskV[...] = pyom.maskT
-    for j in xrange(pyom.ny+3): # j=js_pe-onx,je_pe+onx-1
-        pyom.maskV[:,j,:] = np.minimum(pyom.maskT[:,j,:], pyom.maskT[:,j+1,:])
+    pyom.maskV[:, :pyom.ny+3] = np.minimum(pyom.maskT[:,:pyom.ny+3], pyom.maskT[:,1:pyom.ny+4])
+    #for j in xrange(pyom.ny+3): # j=js_pe-onx,je_pe+onx-1
+    #    pyom.maskV[:,j,:] = np.minimum(pyom.maskT[:,j,:], pyom.maskT[:,j+1,:])
     cyclic.setcyclic_xyz(pyom.maskV, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
+
     pyom.maskZ[...] = pyom.maskT
-    for j in xrange(pyom.ny+3): # j=js_pe-onx,je_pe+onx-1
-        for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
-            pyom.maskZ[i,j,:] = np.minimum(np.minimum(pyom.maskT[i,j,:],pyom.maskT[i,j+1,:]),pyom.maskT[i+1,j,:])
+    maskZ = np.empty(pyom.maskZ.shape)
+    maskZ[...] = pyom.maskZ
+    maskZ[:pyom.nx+3, :pyom.ny+3] = np.minimum(np.minimum(pyom.maskT[:pyom.nx+3, :pyom.ny+3],pyom.maskT[:pyom.nx+3, 1:pyom.ny+4]),pyom.maskT[1:pyom.nx+4, :pyom.ny+3])
+    #for j in xrange(pyom.ny+3): # j=js_pe-onx,je_pe+onx-1
+    #    for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
+    #        pyom.maskZ[i,j,:] = np.minimum(np.minimum(pyom.maskT[i,j,:],pyom.maskT[i,j+1,:]),pyom.maskT[i+1,j,:])
     cyclic.setcyclic_xyz(pyom.maskZ, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
     pyom.maskW[...] = pyom.maskT
-    for k in xrange(pyom.nz-1): # k=1,nz-1
-        pyom.maskW[:,:,k] = np.minimum(pyom.maskT[:,:,k],pyom.maskT[:,:,k+1])
+    pyom.maskW[:,:,:pyom.nz-1] = np.minimum(pyom.maskT[:,:,:pyom.nz-1],pyom.maskT[:,:,1:pyom.nz])
+    #for k in xrange(pyom.nz-1): # k=1,nz-1
+    #    pyom.maskW[:,:,k] = np.minimum(pyom.maskT[:,:,k],pyom.maskT[:,:,k+1])
     """
     --------------------------------------------------------------
      total depth
@@ -228,12 +261,28 @@ def calc_topo(pyom):
     pyom.ht[...] = 0.0
     pyom.hu[...] = 0.0
     pyom.hv[...] = 0.0
-    for k in xrange(pyom.nz): #k=1,nz
-        pyom.ht += pyom.maskT[:,:,k]*pyom.dzt[k]
-        pyom.hu += pyom.maskU[:,:,k]*pyom.dzt[k]
-        pyom.hv += pyom.maskV[:,:,k]*pyom.dzt[k]
-    pyom.hur[pyom.hu != 0.0] = 1./pyom.hu[pyom.hu != 0.0]
-    pyom.hvr[pyom.hv != 0.0] = 1./pyom.hv[pyom.hv != 0.0]
+    pyom.ht += np.add.reduce(pyom.maskT*pyom.dzt, axis=2)
+    pyom.hu += np.add.reduce(pyom.maskU*pyom.dzt, axis=2)
+    pyom.hv += np.add.reduce(pyom.maskV*pyom.dzt, axis=2)
+    #for k in xrange(pyom.nz): #k=1,nz
+    #    pyom.ht += pyom.maskT[:,:,k]*pyom.dzt[k]
+    #    pyom.hu += pyom.maskU[:,:,k]*pyom.dzt[k]
+    #    pyom.hv += pyom.maskV[:,:,k]*pyom.dzt[k]
+    if climate.is_bohrium:
+        hur = pyom.hur.copy2numpy()
+        hvr = pyom.hvr.copy2numpy()
+        hu = pyom.hu.copy2numpy()
+        hv = pyom.hv.copy2numpy()
+    else:
+        hur = pyom.hur
+        hvr = pyom.hvr
+        hu = pyom.hu
+        hv = pyom.hv
+    hur[hu != 0.0] = 1./hu[hu != 0.0]
+    hvr[hv != 0.0] = 1./hv[hv != 0.0]
+    if climate.is_bohrium:
+        pyom.hur = np.array(hur)
+        pyom.hvr = np.array(hvr)
 
 def calc_initial_conditions(pyom):
     """
