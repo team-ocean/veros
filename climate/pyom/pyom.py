@@ -1,7 +1,7 @@
 import numpy as np
 from climate.io import wrapper
 from climate import Timer
-from climate.pyom import momentum, numerics, thermodynamics
+from climate.pyom import momentum, numerics, thermodynamics, eke
 from climate.pyom import isoneutral, idemix, external, diagnostics
 import math
 import sys
@@ -271,6 +271,29 @@ class PyOM(object):
         self.particles_int = 0. # intervall
 
         """
+        EKE default values
+        """
+        self.eke_lmin = 100.0 # minimal length scale in m
+        self.eke_c_k = 1.0
+        self.eke_cross = 1.0 # Parameter for EKE model
+        self.eke_crhin = 1.0 # Parameter for EKE model
+        self.eke_c_eps = 1.0 # Parameter for EKE model
+        self.eke_k_max = 1e4 # maximum of K_gm
+        self.alpha_eke = 1.0 # factor vertical friction
+        self.enable_eke_superbee_advection = False
+        self.enable_eke_upwind_advection = False
+        self.enable_eke_isopycnal_diffusion = False # use K_gm also for isopycnal diffusivity
+
+        self.enable_eke_leewave_dissipation = False
+        self.c_lee0 = 1.
+        self.eke_Ri0 = 200.
+        self.eke_Ri1 = 50.
+        self.eke_int_diss0 = 1./(20*86400.)
+        self.kappa_EKE0 = 0.1
+        self.eke_r_bot = 0.0 # bottom friction coefficient
+        self.eke_hrms_k0_min = 0.0 # min value for bottom roughness parameter
+
+        """
         Compatibility with legacy interface
         """
         self.fortran = self
@@ -495,6 +518,24 @@ class PyOM(object):
         self.v_wgrid = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.w_wgrid = np.zeros((self.nx+4, self.ny+4, self.nz))
 
+        if self.enable_eke:
+            self.deke = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+            self.eke  = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+            self.sqrteke = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.L_rossby = np.zeros((self.nx+4, self.ny+4))
+            self.eke_len = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.eke_diss_iw = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.eke_diss_tke = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.L_rhines = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.eke_bot_flux = np.zeros((self.nx+4, self.ny+4))
+            if self.enable_eke_leewave_dissipation:
+                self.eke_topo_hrms = np.zeros((self.nx+4, self.ny+4))
+                self.eke_topo_lam = np.zeros((self.nx+4, self.ny+4))
+                self.hrms_k0 = np.zeros((self.nx+4, self.ny+4))
+                self.c_lee = np.zeros((self.nx+4, self.ny+4))
+                self.eke_lee_flux = np.zeros((self.nx+4, self.ny+4))
+                self.c_Ri_diss = np.zeros((self.nx+4, self.ny+4))
+
         """
         Compatibility with legacy interface
         """
@@ -665,8 +706,8 @@ class PyOM(object):
         numerics.calc_initial_conditions(self)
 
         self.set_forcing()
-        #if self.enable_streamfunction:
-        #    external.streamfunction_init(self)
+        if self.enable_streamfunction:
+            external.streamfunction_init(self)
 
         """
         initialize diagnostics
@@ -677,7 +718,7 @@ class PyOM(object):
         """
         initialize EKE module
         """
-        # eke.init_eke()
+        eke.init_eke(self)
 
         """
         initialize isoneutral module
