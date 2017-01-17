@@ -48,14 +48,15 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyo
     -----------------------------------------------------------------------
     """
 
-    for i in xrange(imt):
-        for j in xrange(jmt):
-            if kmt[i,j] > 0:
-                Map[i,j] = ocean
-            else:
-                Map[i,j] = land
-    #Map[kmt > 0] = ocean
-    #Map[kmt <= 0] = land
+
+    Map[kmt > 0] = ocean
+    Map[kmt <= 0] = land
+    #for i in xrange(imt):
+    #    for j in xrange(jmt):
+    #        if kmt[i,j] > 0:
+    #            Map[i,j] = ocean
+    #        else:
+    #            Map[i,j] = land
 
 
     """

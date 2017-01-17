@@ -10,6 +10,7 @@
 import sys
 import numpy as np
 from scipy.linalg import lapack
+import climate
 from climate.pyom.external import solve_pressure, island
 from climate.pyom import cyclic
 
@@ -40,6 +41,9 @@ def streamfunction_init(pyom):
     nippts = np.zeros(mnisle, dtype=np.int)
     iofs   = np.zeros(mnisle, dtype=np.int)
 
+    if climate.is_bohrium:
+        allmap = allmap.copy2numpy()
+
     print 'Initializing streamfunction method'
     verbose = pyom.enable_congrad_verbose
     """
@@ -48,10 +52,12 @@ def streamfunction_init(pyom):
     -----------------------------------------------------------------------
     """
     kmt = np.zeros((pyom.nx+4, pyom.ny+4)) # note that routine will modify kmt
-    for j in xrange(2,pyom.ny+2): #j=js_pe,je_pe
-        for i in xrange(2,pyom.nx+2): #i=is_pe,ie_pe
-            if pyom.kbot[i,j] > 0:
-                kmt[i,j] = 5
+    if climate.is_bohrium:
+        kbot = pyom.kbot.copy2numpy()
+        kmt = kmt.copy2numpy()
+    else:
+        kbot = pyom.kbot
+    kmt[2:pyom.nx+2, 2:pyom.ny+2][kbot[2:pyom.nx+2, 2:pyom.ny+2] > 0] = 5
 
     #MPI stuff
     #call pe0_recv_2D_int(nx,ny,kmt(1:nx,1:ny))
@@ -80,7 +86,7 @@ def streamfunction_init(pyom):
      allocate variables
     -----------------------------------------------------------------------
     """
-    max_boundary= 2*int(np.max(nippts[:pyom.nisle]))
+    max_boundary= 2*np.max(nippts[:pyom.nisle])
     pyom.boundary = np.zeros((pyom.nisle, max_boundary, 2), dtype=np.int)
     pyom.line_dir = np.zeros((pyom.nisle, max_boundary, 2))
     pyom.nr_boundary = np.zeros(pyom.nisle, dtype=np.int)
@@ -258,10 +264,14 @@ def streamfunction_init(pyom):
         for isle in xrange(pyom.nisle): #isle=1,nisle
             fpx[...] = 0
             fpy[...] = 0
+            #FPX = np.zeros(fpx.shape)
+            #FPX[1:pyom.nx+4, 1:pyom.ny+4] = -pyom.maskU[1:pyom.nx+4, 1:pyom.ny+4, pyom.nz-1]*
             for j in xrange(1, pyom.ny+4): #j=js_pe-onx+1,je_pe+onx
                 for i in xrange(1, pyom.nx+4): #i=is_pe-onx+1,ie_pe+onx
                     fpx[i,j] =-pyom.maskU[i,j,pyom.nz-1]*( pyom.psin[i,j,isle]-pyom.psin[i,j-1,isle])/pyom.dyt[j]*pyom.hur[i,j]
                     fpy[i,j] = pyom.maskV[i,j,pyom.nz-1]*( pyom.psin[i,j,isle]-pyom.psin[i-1,j,isle])/(pyom.cosu[j]*pyom.dxt[i])*pyom.hvr[i,j]
+            #print "FPX", (FPX == fpx).all()
+            #sys.exit()
             pyom.line_psin[n,isle] = line_integral(n,fpx,fpy, pyom)
 
 def avoid_cyclic_boundaries(Map, isle, n, pyom):
@@ -450,7 +460,6 @@ def solve_streamfunction(pyom):
         for k in xrange(1, pyom.nisle): #k=2,nisle
             fpx[...] = 0.0
             fpy[...] = 0.0
-            FPX = np.zeros(fpx.shape)
             fpx[1:pyom.nx+4, 1:pyom.ny+4] = \
                     -pyom.maskU[1:pyom.nx+4, 1:pyom.ny+4, pyom.nz-1] \
                     * (pyom.dpsi[1:pyom.nx+4, 1:pyom.ny+4,pyom.taup1]-pyom.dpsi[1:pyom.nx+4, :pyom.ny+3,pyom.taup1]) \
@@ -500,8 +509,6 @@ def solve_streamfunction(pyom):
     #    pyom.v[:,:,k,pyom.taup1] = pyom.v[:,:,k,pyom.taup1]-fpy*pyom.maskV[:,:,k]*pyom.hvr
 
     # add barotropic mode to baroclinic velocity
-    U = np.empty((pyom.nx+4, pyom.ny+4, pyom.nz, 3))
-    U[...] = pyom.v
     pyom.u[2:pyom.nx+2, 2:pyom.ny+2, :, pyom.taup1] += \
             -pyom.maskU[2:pyom.nx+2,2:pyom.ny+2,:]\
             *(np.ones(pyom.nz)*( pyom.psi[2:pyom.nx+2,2:pyom.ny+2,pyom.taup1]-pyom.psi[2:pyom.nx+2,1:pyom.ny+1,pyom.taup1])[:, :,np.newaxis])\
