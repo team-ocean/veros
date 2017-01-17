@@ -278,7 +278,9 @@ def vgrid_to_tgrid(A,pyom):
             B[:,j,k] = (pyom.area_v[:,j] * A[:,j,k] + pyom.area_v[:,j-1] * A[:,j-1,k]) / (2*pyom.area_t[:,j])
     return B
 
-def solve_tridiag(a, b, c, d, n):
+def solve_tridiag(a, b, c, d):
+    assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
+    n = a.shape[0]
     x = np.zeros(n)
     cp = np.zeros(n)
     dp = np.zeros(n)

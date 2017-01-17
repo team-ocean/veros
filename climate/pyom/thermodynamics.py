@@ -93,11 +93,11 @@ def thermodynamics(pyom):
                 fxb = fxb + 0.5*pyom.area_t[i,j] * pyom.dzw[k] * pyom.maskW[i,j,k]
         #global_sum(fxa)
         #global_sum(fxb)
-        pyom.P_diss_adv = 0.0
+        pyom.P_diss_adv[...] = 0.0
         for k in xrange(pyom.nz): # k=1,nz
             for j in xrange(pyom.js_pe,pyom.je_pe):
                 for i in xrange(pyom.is_pe,pyom.ie_pe):
-                    if pyom.tke[i,j,k,pyom.tau] > .0 or k == pyom.nz:
+                    if pyom.tke[i,j,k,pyom.tau] > .0 or k == pyom.nz-1:
                         pyom.P_diss_adv[i,j,k] = fxa / fxb
 
     """
@@ -140,8 +140,8 @@ def thermodynamics(pyom):
         """
         vertical mixing of temperature and salinity
         """
-        dtemp_vmix = pyom.temp[:,:,:,pyom.taup1]
-        dsalt_vmix = pyom.salt[:,:,:,pyom.taup1]
+        pyom.dtemp_vmix[...] = pyom.temp[:,:,:,pyom.taup1]
+        pyom.dsalt_vmix[...] = pyom.salt[:,:,:,pyom.taup1]
         for j in xrange(pyom.js_pe,pyom.je_pe):
             for i in xrange(pyom.is_pe,pyom.ie_pe):
                 ks = pyom.kbot[i,j] - 1
@@ -161,12 +161,12 @@ def thermodynamics(pyom):
                     c_tri[pyom.nz-1] = 0.0
                     d_tri[ks:] = pyom.temp[i,j,ks:,pyom.taup1]
                     d_tri[pyom.nz-1] = d_tri[pyom.nz-1] + pyom.dt_tracer * pyom.forc_temp_surface[i,j] / pyom.dzt[pyom.nz-1]
-                    pyom.temp[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:pyom.nz],pyom.nz-ks)
+                    pyom.temp[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:])
                     d_tri[ks:] = pyom.salt[i,j,ks:,pyom.taup1]
                     d_tri[pyom.nz-1] = d_tri[pyom.nz-1] + pyom.dt_tracer * pyom.forc_salt_surface[i,j] / pyom.dzt[pyom.nz-1]
-                    pyom.salt[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:pyom.nz],pyom.nz-ks)
-        dtemp_vmix = (pyom.temp[:,:,:,pyom.taup1] - dtemp_vmix) / pyom.dt_tracer
-        dsalt_vmix = (pyom.salt[:,:,:,pyom.taup1] - dsalt_vmix) / pyom.dt_tracer
+                    pyom.salt[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:])
+        pyom.dtemp_vmix[...] = (pyom.temp[:,:,:,pyom.taup1] - pyom.dtemp_vmix) / pyom.dt_tracer
+        pyom.dsalt_vmix[...] = (pyom.salt[:,:,:,pyom.taup1] - pyom.dsalt_vmix) / pyom.dt_tracer
 
     """
     boundary exchange

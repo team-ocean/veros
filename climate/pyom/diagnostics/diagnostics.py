@@ -143,11 +143,6 @@ def diag_cfl(pyom):
         print("maximal ver. CFL number on w grid = {}".format(wcfl))
 
 
-_tempm1 = 0.
-_saltm1 = 0.
-_vtemp1 = 0.
-_vsalt1 = 0.
-
 def diag_tracer_content(pyom):
     """
     Diagnose tracer content
@@ -171,13 +166,18 @@ def diag_tracer_content(pyom):
                 vsalt = vsalt + salt[i,j,k,tau]**2*fxa
 
     print("")
-    print("mean temperature {} change to last {}".format(tempm/volm,(tempm-_tempm1)/volm))
-    print("mean salinity    {} change to last {}".format(saltm/volm,(saltm-_saltm1)/volm))
-    print("temperature var. {} change to last {}".format(vtemp/volm,(vtemp-_vtemp1)/volm))
-    print("salinity var.    {} change to last {}".format(vsalt/volm,(vsalt-_vsalt1)/volm))
+    print("mean temperature {} change to last {}".format(tempm/volm,(tempm-diag_tracer_content.tempm1)/volm))
+    print("mean salinity    {} change to last {}".format(saltm/volm,(saltm-diag_tracer_content.saltm1)/volm))
+    print("temperature var. {} change to last {}".format(vtemp/volm,(vtemp-diag_tracer_content.vtemp1)/volm))
+    print("salinity var.    {} change to last {}".format(vsalt/volm,(vsalt-diag_tracer_content.vsalt1)/volm))
 
     global _tempm1, _vtemp1, _saltm1, _vsalt1
-    _tempm1 = tempm
-    _vtemp1 = vtemp
-    _saltm1 = saltm
-    _vsalt1 = vsalt
+    diag_tracer_content.tempm1 = tempm
+    diag_tracer_content.vtemp1 = vtemp
+    diag_tracer_content.saltm1 = saltm
+    diag_tracer_content.vsalt1 = vsalt
+
+diag_tracer_content.tempm1 = 0.
+diag_tracer_content.saltm1 = 0.
+diag_tracer_content.vtemp1 = 0.
+diag_tracer_content.vsalt1 = 0.
