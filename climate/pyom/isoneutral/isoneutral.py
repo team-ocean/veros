@@ -8,15 +8,13 @@ def isoneutral_diffusion_pre(pyom):
     following functional formulation by Griffies et al
     Code adopted from MOM2.1
     """
- # integer :: i,j,k,ip,jp,kr
- # real*8 :: get_drhodT,get_drhodS
- # real*8 :: drdTS(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz,2)
- # real*8 :: ddzt(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz,2)
- # real*8 :: ddxt(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz,2)
- # real*8 :: ddyt(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz,2)
- # real*8 :: drodxe,drodze,drodyn,drodzn,drodxb,drodyb,drodzb
- # real*8 :: taper,sxe,syn,facty,sumz,sumx,sumy,sxb,syb,dm_taper,diffloc
- # real*8,parameter :: epsln=1.D-20  ! for double precision
+    # real*8 :: drdTS(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz,2)
+    # real*8 :: ddzt(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz,2)
+    # real*8 :: ddxt(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz,2)
+    # real*8 :: ddyt(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz,2)
+    # real*8 :: drodxe,drodze,drodyn,drodzn,drodxb,drodyb,drodzb
+    # real*8 :: taper,sxe,syn,facty,sumz,sumx,sumy,sxb,syb,dm_taper,diffloc
+    # real*8,parameter :: epsln=1.D-20  ! for double precision
 
     drdTS = np.zeros((pyom.nx+4,pyom.ny+4,pyom.nz,2))
     ddzt = np.zeros((pyom.nx+4,pyom.ny+4,pyom.nz,2))
@@ -124,7 +122,7 @@ def isoneutral_diffusion_pre(pyom):
             for jp in xrange(2): # jp=0,1
                 syn = -drodyn(i,j,k,jp)/(min(0.,drodzn(i,j,k,jp,kr))-epsln)
                 taper = dm_taper(syn,pyom)
-                sumz = sumz + pyom.dzw[k+kr-1] *pyom.maskV[i,j,k]*max(pyom.K_iso_steep,diffloc*taper)
+                sumz = sumz + pyom.dzw[k+kr-1] * pyom.maskV[i,j,k] * max(pyom.K_iso_steep,diffloc*taper)
                 pyom.Ai_nz[i,j,k,jp,kr] = taper*syn*pyom.maskV[i,j,k]
             pyom.K_22[i,j,k] = sumz/(4*pyom.dzt[k])
 
@@ -223,11 +221,9 @@ def check_isoneutral_slope_crit(pyom):
 
         print ("diffusion grid factor delta_iso1 = {:.5e}".format(delta_iso1))
         if delta_iso1 < pyom.iso_slopec:
-            print ("""
-                   ERROR:
+            raise RuntimeError("""
                    Without latitudinal filtering, delta_iso1 is the steepest
                    isoneutral slope available for linear stab of Redi and GM.
                    Maximum allowable isoneutral slope is specified as {}
                    integration will be unstable
                    """.format(pyom.iso_slopec))
-            halt_stop(" in check_slop_crit")

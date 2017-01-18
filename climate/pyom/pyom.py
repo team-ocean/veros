@@ -1,10 +1,10 @@
 import numpy as np
+import math
+
 from climate.io import wrapper
 from climate import Timer
 from climate.pyom import momentum, numerics, thermodynamics, eke
 from climate.pyom import isoneutral, idemix, external, diagnostics
-import math
-import sys
 
 class PyOM(object):
     """
@@ -28,8 +28,8 @@ class PyOM(object):
         self.taum1 = 0 # pointer to last time step
         self.tau = 1 # pointer to current time step
         self.taup1 = 2 # pointer to next time step
-        self.dt_mom = 0 # time step in seconds for momentum
-        self.dt_tracer = 0 # time step for tracer can be larger than for momentum
+        self.dt_mom = 0. # time step in seconds for momentum
+        self.dt_tracer = 0. # time step for tracer can be larger than for momentum
         #dt_tke        # should be time step for momentum (set in tke.f90)
         self.itt = 1 # time step number
         #enditt        # last time step of simulation
