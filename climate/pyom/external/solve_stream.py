@@ -43,6 +43,7 @@ def streamfunction_init(pyom):
 
     if climate.is_bohrium:
         allmap = allmap.copy2numpy()
+        Map = Map.copy2numpy()
 
     print 'Initializing streamfunction method'
     verbose = pyom.enable_congrad_verbose
@@ -136,7 +137,7 @@ def streamfunction_init(pyom):
         """
         pyom.line_dir[isle,n,:] = Dir
         n = 1
-        pyom.boundary[isle,n,:] = [ij[0], ij[1]]
+        pyom.boundary[isle,n,:] = np.array([ij[0], ij[1]])
         cont = True
         while cont:
             """
@@ -175,15 +176,15 @@ def streamfunction_init(pyom):
             elif Map[ijp[0],ijp[1]] == -1 and Map[ijp_right[0],ijp_right[1]] == -1:
                 if verbose:
                     print ' turn right'
-                Dir = [Dir[1],-Dir[0]]
+                Dir = np.array([Dir[1],-Dir[0]])
             elif Map[ijp[0],ijp[1]] == 1 and Map[ijp_right[0],ijp_right[1]] == 1:
                 if verbose:
                     print ' turn left'
-                Dir =  [-Dir[1],Dir[0]]
+                Dir =  np.array([-Dir[1],Dir[0]])
             elif Map[ijp[0],ijp[1]] == 1 and Map[ijp_right[0],ijp_right[1]] == -1:
                 if verbose:
                     print ' turn left'
-                Dir =  [-Dir[1],Dir[0]]
+                Dir =  np.array([-Dir[1],Dir[0]])
             else:
                 print 'unknown situation or lost track'
                 for n in xrange(1, n+1): #n=1,n
@@ -264,14 +265,16 @@ def streamfunction_init(pyom):
         for isle in xrange(pyom.nisle): #isle=1,nisle
             fpx[...] = 0
             fpy[...] = 0
-            #FPX = np.zeros(fpx.shape)
-            #FPX[1:pyom.nx+4, 1:pyom.ny+4] = -pyom.maskU[1:pyom.nx+4, 1:pyom.ny+4, pyom.nz-1]*
-            for j in xrange(1, pyom.ny+4): #j=js_pe-onx+1,je_pe+onx
-                for i in xrange(1, pyom.nx+4): #i=is_pe-onx+1,ie_pe+onx
-                    fpx[i,j] =-pyom.maskU[i,j,pyom.nz-1]*( pyom.psin[i,j,isle]-pyom.psin[i,j-1,isle])/pyom.dyt[j]*pyom.hur[i,j]
-                    fpy[i,j] = pyom.maskV[i,j,pyom.nz-1]*( pyom.psin[i,j,isle]-pyom.psin[i-1,j,isle])/(pyom.cosu[j]*pyom.dxt[i])*pyom.hvr[i,j]
-            #print "FPX", (FPX == fpx).all()
-            #sys.exit()
+            fpx[1:pyom.nx+4, 1:pyom.ny+4] = -pyom.maskU[1:pyom.nx+4, 1:pyom.ny+4, pyom.nz-1]\
+                    *(pyom.psin[1:pyom.nx+4, 1:pyom.ny+4,isle]-pyom.psin[1:pyom.nx+4, :pyom.ny+3,isle])\
+                    /pyom.dyt[1:pyom.ny+4]*pyom.hur[1:pyom.nx+4, 1:pyom.ny+4]
+            fpy[1:pyom.nx+4, 1:pyom.ny+4] = pyom.maskV[1:pyom.nx+4, 1:pyom.ny+4, pyom.nz-1]\
+                    *(pyom.psin[1:pyom.nx+4, 1:pyom.ny+4,isle]-pyom.psin[:pyom.nx+3, 1:pyom.ny+4,isle])\
+                    /(pyom.cosu[1:pyom.ny+4]*pyom.dxt[1:pyom.ny+4, np.newaxis])*pyom.hvr[1:pyom.nx+4, 1:pyom.ny+4]
+            #for j in xrange(1, pyom.ny+4): #j=js_pe-onx+1,je_pe+onx
+            #    for i in xrange(1, pyom.nx+4): #i=is_pe-onx+1,ie_pe+onx
+            #        fpx[i,j] =-pyom.maskU[i,j,pyom.nz-1]*( pyom.psin[i,j,isle]-pyom.psin[i,j-1,isle])/pyom.dyt[j]*pyom.hur[i,j]
+            #        fpy[i,j] = pyom.maskV[i,j,pyom.nz-1]*( pyom.psin[i,j,isle]-pyom.psin[i-1,j,isle])/(pyom.cosu[j]*pyom.dxt[i])*pyom.hvr[i,j]
             pyom.line_psin[n,isle] = line_integral(n,fpx,fpy, pyom)
 
 def avoid_cyclic_boundaries(Map, isle, n, pyom):
@@ -282,16 +285,16 @@ def avoid_cyclic_boundaries(Map, isle, n, pyom):
                 ij=np.array([i,j])
                 cont = True
                 Dir = np.array([1,0])
-                pyom.boundary[isle,n,:] = [ij[0]-1,ij[1]]
+                pyom.boundary[isle,n,:] = np.array([ij[0]-1,ij[1]])
                 return (cont, ij, Dir)
             if Map[i,j] == -1 and Map[i,j+1] == 1:
                 # initial direction is westward, we come from the east
                 ij = np.array([i-1,j])
                 cont = True
                 Dir = np.array([-1,0])
-                pyom.boundary[isle,n,:] = [ij[0]+1,ij[1]]
+                pyom.boundary[isle,n,:] = np.array([ij[0]+1,ij[1]])
                 return (cont, ij, Dir)
-    return (False, None, None)
+    return (False, None, np.array([0,0]))
 
 def avoid_cyclic_boundaries2(Map, isle, n, pyom):
     for i in xrange(pyom.nx/2,0,-1): #i=nx/2,1,-1  ! avoid starting close to cyclic bondaries
@@ -301,16 +304,16 @@ def avoid_cyclic_boundaries2(Map, isle, n, pyom):
                 ij=np.array([i,j])
                 cont = True
                 Dir = np.array([1,0])
-                pyom.boundary[isle,n,:]= [ij[0]-1,ij[1]]
+                pyom.boundary[isle,n,:]= np.array([ij[0]-1,ij[1]])
                 return (cont, ij, Dir)
             if Map[i,j] == -1 and Map[i,j+1] == 1:
                 # initial direction is westward, we come from the east
                 ij=np.array([i-1,j])
                 cont = True
                 Dir = np.array([-1,0])
-                pyom.boundary[isle,n,:] = [ij[0]+1,ij[1]]
+                pyom.boundary[isle,n,:] = np.array([ij[0]+1,ij[1]])
                 return (cont, ij, Dir)
-    return (False, None, None)
+    return (False, None, np.array([0,0]))
 
 def line_integral(isle,uloc,vloc,pyom):
     """
@@ -439,9 +442,13 @@ def solve_streamfunction(pyom):
     cyclic.setcyclic_xy(fpy, pyom.enable_cyclic_x, pyom.nx)
 
     forc = np.empty((pyom.nx+4, pyom.ny+4))
-    for j in (2, pyom.ny+2): #j=js_pe,je_pe
-        for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-            forc[i,j] = (fpy[i+1,j]-fpy[i,j])/(pyom.cosu[j]*pyom.dxu[i])-(pyom.cost[j+1]*fpx[i,j+1]-pyom.cost[j]*fpx[i,j])/(pyom.cosu[j]*pyom.dyu[j])
+    forc[2:pyom.nx+2, 2:pyom.ny+2] = (fpy[3:pyom.nx+3, 2:pyom.ny+2]-fpy[2:pyom.nx+2, 2:pyom.ny+2]) \
+            /(pyom.cosu[2:pyom.ny+2]*pyom.dxu[2:pyom.nx+2, np.newaxis]) \
+            -(pyom.cost[3:pyom.ny+3]*fpx[2:pyom.nx+2, 3:pyom.ny+3]-pyom.cost[2:pyom.ny+2]*fpx[2:pyom.nx+2, 2:pyom.ny+2]) \
+            /(pyom.cosu[2:pyom.ny+2]*pyom.dyu[2:pyom.ny+2])
+    #for j in (2, pyom.ny+2): #j=js_pe,je_pe
+    #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
+    #        forc[i,j] = (fpy[i+1,j]-fpy[i,j])/(pyom.cosu[j]*pyom.dxu[i])-(pyom.cost[j+1]*fpx[i,j+1]-pyom.cost[j]*fpx[i,j])/(pyom.cosu[j]*pyom.dyu[j])
 
     # solve for interior streamfunction
     pyom.dpsi[:,:,pyom.taup1] = 2*pyom.dpsi[:,:,pyom.tau]-pyom.dpsi[:,:,pyom.taum1] # first guess, we need three time levels here
@@ -489,8 +496,9 @@ def solve_streamfunction(pyom):
 
     # integrate barotropic and baroclinic velocity forward in time
     pyom.psi[:,:,pyom.taup1] = pyom.psi[:,:,pyom.tau]+ pyom.dt_mom*( (1.5+pyom.AB_eps)*pyom.dpsi[:,:,pyom.taup1] - (0.5+pyom.AB_eps)*pyom.dpsi[:,:,pyom.tau] )
-    for isle in xrange(1, pyom.nisle): #isle=2,nisle
-        pyom.psi[:,:,pyom.taup1] += pyom.dt_mom*( (1.5+pyom.AB_eps)*pyom.dpsin[isle,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dpsin[isle,pyom.taum1])*pyom.psin[:,:,isle]
+    pyom.psi[:, :, pyom.taup1] += pyom.dt_mom*np.add.reduce(( (1.5+pyom.AB_eps)*pyom.dpsin[1:pyom.nisle,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dpsin[1:pyom.nisle,pyom.taum1])*pyom.psin[:,:,1:pyom.nisle], axis=2)
+    #for isle in xrange(1, pyom.nisle): #isle=2,nisle
+    #    pyom.psi[:,:,pyom.taup1] += pyom.dt_mom*( (1.5+pyom.AB_eps)*pyom.dpsin[isle,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dpsin[isle,pyom.taum1])*pyom.psin[:,:,isle]
     pyom.u[:,:,:,pyom.taup1]   += pyom.dt_mom*( pyom.du_mix+ (1.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.taum1] )*pyom.maskU
     pyom.v[:,:,:,pyom.taup1]   += pyom.dt_mom*( pyom.dv_mix+ (1.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.taum1] )*pyom.maskV
 
@@ -544,6 +552,7 @@ def make_coeff_streamfunction(cf, pyom):
     cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 2] += pyom.hur[2:pyom.nx+2, 3:pyom.ny+3]/(pyom.dyu[2:pyom.ny+2])/(pyom.dyt[3:pyom.ny+3])*pyom.cost[3:pyom.ny+3]/(pyom.cosu[2:pyom.ny+2])
     cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 1] -= pyom.hur[2:pyom.nx+2, 2:pyom.ny+2]/(pyom.dyu[2:pyom.ny+2])/(pyom.dyt[2:pyom.ny+2])*pyom.cost[2:pyom.ny+2]/(pyom.cosu[2:pyom.ny+2])
     cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 0] += pyom.hur[2:pyom.nx+2, 2:pyom.ny+2]/(pyom.dyu[2:pyom.ny+2])/(pyom.dyt[2:pyom.ny+2])*pyom.cost[2:pyom.ny+2]/(pyom.cosu[2:pyom.ny+2])
+
     #for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
     #    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
     #        cf[i,j, 1, 1] -= pyom.hvr[i+1,j]/pyom.dxu[i]/pyom.dxt[i+1] /pyom.cosu[j]**2
@@ -621,9 +630,10 @@ def congrad_streamfunction(forc,sol,pyom):
     -----------------------------------------------------------------------
     """
     res = solve_pressure.apply_op(congrad_streamfunction.cf, sol, pyom)
-    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-        for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-            res[i,j] = forc[i,j] - res[i,j]
+    if climate.is_bohrium:
+        forc = forc.copy2numpy()
+    res[2:pyom.nx+2, 2:pyom.ny+2] = forc[2:pyom.nx+2, 2:pyom.ny+2] - res[2:pyom.nx+2, 2:pyom.ny+2]
+
     """
     -----------------------------------------------------------------------
          Zres(k-1) = Z * res(k-1)
@@ -722,7 +732,11 @@ def congrad_streamfunction(forc,sol,pyom):
         -----------------------------------------------------------------------
         """
         sol[2:pyom.nx+2, 2:pyom.ny+2] += alpha * ss[2:pyom.nx+2, 2:pyom.ny+2]
-        res[2:pyom.nx+2, 2:pyom.ny+2] += -alpha * As[2:pyom.nx+2, 2:pyom.ny+2]
+        if climate.is_bohrium:
+            Alpha = alpha.copy2numpy()
+        else:
+            Alpha = alpha
+        res[2:pyom.nx+2, 2:pyom.ny+2] += -Alpha * As[2:pyom.nx+2, 2:pyom.ny+2]
         #for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
         #    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
         #        sol[i,j] += alpha * ss[i,j]
@@ -844,7 +858,11 @@ def make_inv_sfc(cf,Z,pyom):
 #   now invert Z
 #
     Y = Z[2:pyom.nx+2, 2:pyom.ny+2]
+    if climate.is_bohrium:
+        Y = Y.copy2numpy()
     Y[Y != 0] = 1./Y[Y != 0]
+    if climate.is_bohrium:
+        Z[2:pyom.nx+2, 2:pyom.ny+2] = Y
     #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
     #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
     #        if Z[i,j] != 0.0:

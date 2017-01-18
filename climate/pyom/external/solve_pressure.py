@@ -8,6 +8,7 @@
 
 import numpy as np
 import warnings
+import climate
 
 from climate.pyom import cyclic
 
@@ -219,12 +220,31 @@ def apply_op(cf, p1, pyom):
     #real*8 :: cf(is_:ie_,js_:je_,3,3), p1(is_:ie_,js_:je_), res(is_:ie_,js_:je_)
     #integer :: i,j,ii,jj
 
-    res = np.zeros((pyom.nx+4, pyom.ny+4))
-    for jj in xrange(-1, 2): #jj=-1,1
-        for ii in xrange(-1, 2): #ii=-1,1
-            for j in xrange(2, pyom.ny+2): #j=pyom.js_pe,pyom.je_pe
-                for i in xrange(2, pyom.nx+2): #i=pyom.is_pe,pyom.ie_pe
-                    res[i,j] += cf[i,j,ii+1,jj+1]*p1[i+ii,j+jj]
+    if climate.is_bohrium:
+        res = np.zeros((pyom.nx+4, pyom.ny+4)).copy2numpy()
+        P1 = np.empty((pyom.nx, pyom.ny, 3,3)).copy2numpy()
+        CF = cf.copy2numpy()
+        p1 = p1.copy2numpy()
+    else:
+        res = np.zeros((pyom.nx+4, pyom.ny+4))
+        P1 = np.empty((pyom.nx, pyom.ny, 3,3))
+        CF = cf
+    P1[:,:,0,0] = p1[1:pyom.nx+1, 1:pyom.ny+1]
+    P1[:,:,0,1] = p1[1:pyom.nx+1, 2:pyom.ny+2]
+    P1[:,:,0,2] = p1[1:pyom.nx+1, 3:pyom.ny+3]
+    P1[:,:,1,0] = p1[2:pyom.nx+2, 1:pyom.ny+1]
+    P1[:,:,1,1] = p1[2:pyom.nx+2, 2:pyom.ny+2]
+    P1[:,:,1,2] = p1[2:pyom.nx+2, 3:pyom.ny+3]
+    P1[:,:,2,0] = p1[3:pyom.nx+3, 1:pyom.ny+1]
+    P1[:,:,2,1] = p1[3:pyom.nx+3, 2:pyom.ny+2]
+    P1[:,:,2,2] = p1[3:pyom.nx+3, 3:pyom.ny+3]
+    res[2:pyom.nx+2, 2:pyom.ny+2] = np.add.reduce(CF[2:pyom.nx+2, 2:pyom.ny+2] * P1,axis=(2,3))
+
+    #for jj in xrange(-1, 2): #jj=-1,1
+    #    for ii in xrange(-1, 2): #ii=-1,1
+    #        for j in xrange(2, pyom.ny+2): #j=pyom.js_pe,pyom.je_pe
+    #            for i in xrange(2, pyom.nx+2): #i=pyom.is_pe,pyom.ie_pe
+    #                res[i,j] += cf[i,j,ii+1,jj+1]*p1[i+ii,j+jj]
     return res
 
 def absmax_sfp(p1,pyom):

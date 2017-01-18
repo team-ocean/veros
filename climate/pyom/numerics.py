@@ -7,13 +7,15 @@ def u_centered_grid(dyt,dyu,yt,yu,n):
     yu[0] = 0
     yu[1:n] = np.add.accumulate(dyt[1:n])
 
-    if climate.is_bohrium:
-        yt = yt.copy2numpy()
+    #if climate.is_bohrium:
+    #    YT = yt.copy2numpy()
+    #else:
+    #    YT = yt
     yt[0] = yu[0]-dyt[0]*0.5
     for i in xrange(1, n):
         yt[i] = 2*yu[i-1] - yt[i-1]
-    if climate.is_bohrium:
-        yt = np.array(yt)
+    #if climate.is_bohrium:
+    #    yt[...] = np.array(YT)
 
     dyu[:n-1] = yt[1:] - yt[:n-1]
     dyu[n-1] = 2*dyt[n-1] - dyu[n-2]
@@ -153,9 +155,9 @@ def calc_grid(pyom):
     --------------------------------------------------------------
     """
     if pyom.coord_degree:
-        pyom.cost = np.cos(pyom.yt/180.*np.pi)
-        pyom.cosu = np.cos( pyom.yu/180.*np.pi )
-        pyom.tantr = np.tan( pyom.yt/180.*np.pi ) /pyom.radius
+        pyom.cost = np.cos(pyom.yt*np.pi/180.)
+        pyom.cosu = np.cos( pyom.yu*np.pi/180. )
+        pyom.tantr = np.tan( pyom.yt*np.pi/180. ) /pyom.radius
     else:
         pyom.cost[...] = 1.0
         pyom.cosu[...] = 1.0
