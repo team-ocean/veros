@@ -245,9 +245,7 @@ def calc_topo(pyom):
     cyclic.setcyclic_xyz(pyom.maskV, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
 
     pyom.maskZ[...] = pyom.maskT
-    maskZ = np.empty(pyom.maskZ.shape)
-    maskZ[...] = pyom.maskZ
-    maskZ[:pyom.nx+3, :pyom.ny+3] = np.minimum(np.minimum(pyom.maskT[:pyom.nx+3, :pyom.ny+3],pyom.maskT[:pyom.nx+3, 1:pyom.ny+4]),pyom.maskT[1:pyom.nx+4, :pyom.ny+3])
+    pyom.maskZ[:pyom.nx+3, :pyom.ny+3] = np.minimum(np.minimum(pyom.maskT[:pyom.nx+3, :pyom.ny+3],pyom.maskT[:pyom.nx+3, 1:pyom.ny+4]),pyom.maskT[1:pyom.nx+4, :pyom.ny+3])
     #for j in xrange(pyom.ny+3): # j=js_pe-onx,je_pe+onx-1
     #    for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
     #        pyom.maskZ[i,j,:] = np.minimum(np.minimum(pyom.maskT[i,j,:],pyom.maskT[i,j+1,:]),pyom.maskT[i+1,j,:])
