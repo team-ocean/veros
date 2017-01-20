@@ -69,8 +69,8 @@ def thermodynamics(pyom):
                 ks = pyom.kbot[i,j] - 1
                 if ks >= 0:
                     k = ks
-                    pyom.P_diss_adv[i,j,k] = 0.5*(aloc[i,j,k]+aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(0,k-1)]/pyom.dzw[k] # max(1,k-1)
-                    for k in xrange(ks,pyom.nz-1): # k=ks+1,nz-1
+                    pyom.P_diss_adv[i,j,k] = 0.5*(aloc[i,j,k]+aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(0,k-1)]/pyom.dzw[k]
+                    for k in xrange(ks+1,pyom.nz-1): # k=ks+1,nz-1
                         pyom.P_diss_adv[i,j,k] = 0.5 * (aloc[i,j,k] + aloc[i,j,k+1])
                     k = pyom.nz-1
                     pyom.P_diss_adv[i,j,k] = aloc[i,j,k]
@@ -78,21 +78,19 @@ def thermodynamics(pyom):
         """
         distribute pyom.P_diss_adv over domain, prevent draining of TKE
         """
-        fxa = 0
-        fxb = 0
+        fxa = 0.
+        fxb = 0.
         for k in xrange(pyom.nz-1): # k=1,nz-1
             for j in xrange(pyom.js_pe,pyom.je_pe):
                 for i in xrange(pyom.is_pe,pyom.ie_pe):
-                    fxa = fxa + pyom.area_t[i,j]*pyom.P_diss_adv[i,j,k]*pyom.dzw[k]*pyom.maskW[i,j,k]
+                    fxa += pyom.area_t[i,j] * pyom.P_diss_adv[i,j,k] * pyom.dzw[k] * pyom.maskW[i,j,k]
                     if pyom.tke[i,j,k,pyom.tau] > .0:
-                        fxb = fxb + pyom.area_t[i,j]*pyom.dzw[k]*pyom.maskW[i,j,k]
+                        fxb += pyom.area_t[i,j]*pyom.dzw[k]*pyom.maskW[i,j,k]
         k = pyom.nz-1
         for j in xrange(pyom.js_pe,pyom.je_pe):
             for i in xrange(pyom.is_pe,pyom.ie_pe):
-                fxa = fxa + 0.5*pyom.area_t[i,j] * pyom.P_diss_adv[i,j,k] * pyom.dzw[k] * pyom.maskW[i,j,k]
-                fxb = fxb + 0.5*pyom.area_t[i,j] * pyom.dzw[k] * pyom.maskW[i,j,k]
-        #global_sum(fxa)
-        #global_sum(fxb)
+                fxa += 0.5 * pyom.area_t[i,j] * pyom.P_diss_adv[i,j,k] * pyom.dzw[k] * pyom.maskW[i,j,k]
+                fxb += 0.5 * pyom.area_t[i,j] * pyom.dzw[k] * pyom.maskW[i,j,k]
         pyom.P_diss_adv[...] = 0.0
         for k in xrange(pyom.nz): # k=1,nz
             for j in xrange(pyom.js_pe,pyom.je_pe):
@@ -234,12 +232,12 @@ def advect_tracer(tr,dtr,pyom):
     # integer :: i,j,k
 
     if pyom.enable_superbee_advection:
-        advection.adv_flux_superbee(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx,pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx,pyom.nz,pyom.flux_east,pyom.flux_north,pyom.flux_top,tr)
+        advection.adv_flux_superbee(pyom.flux_east,pyom.flux_north,pyom.flux_top,tr,pyom)
     else:
-        advection.adv_flux_2nd(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx,pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx,pyom.nz,pyom.flux_east,pyom.flux_north,pyom.flux_top,tr)
+        advection.adv_flux_2nd(pyom.flux_east,pyom.flux_north,pyom.flux_top,tr,pyom)
     for j in xrange(pyom.js_pe,pyom.je_pe):
         for i in xrange(pyom.is_pe,pyom.ie_pe):
-            dtr[i,j,:] = pyom.maskT[i,j,:] * (-(pyom.flux_east[i,j,:] -  pyom.flux_east[i-1,j,:]) / (pyom.cost[j]*pyom.dxt[i]) \
+            dtr[i,j,:] = pyom.maskT[i,j,:] * (-(pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) / (pyom.cost[j]*pyom.dxt[i]) \
                                          -(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) / (pyom.cost[j]*pyom.dyt[j]))
     k = 0 # k=1
     dtr[:,:,k] = dtr[:,:,k] - pyom.maskT[:,:,k] * pyom.flux_top[:,:,k] / pyom.dzt[k]

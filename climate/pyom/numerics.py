@@ -156,9 +156,9 @@ def calc_grid(pyom):
     --------------------------------------------------------------
     """
     if pyom.coord_degree:
-        pyom.cost = np.cos(pyom.yt*np.pi/180.)
-        pyom.cosu = np.cos( pyom.yu*np.pi/180. )
-        pyom.tantr = np.tan( pyom.yt*np.pi/180. ) /pyom.radius
+        pyom.cost = np.cos(pyom.yt*pyom.pi/180.)
+        pyom.cosu = np.cos( pyom.yu*pyom.pi/180. )
+        pyom.tantr = np.tan( pyom.yt*pyom.pi/180. ) /pyom.radius
     else:
         pyom.cost[...] = 1.0
         pyom.cosu[...] = 1.0
@@ -245,9 +245,7 @@ def calc_topo(pyom):
     cyclic.setcyclic_xyz(pyom.maskV, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
 
     pyom.maskZ[...] = pyom.maskT
-    maskZ = np.empty(pyom.maskZ.shape)
-    maskZ[...] = pyom.maskZ
-    maskZ[:pyom.nx+3, :pyom.ny+3] = np.minimum(np.minimum(pyom.maskT[:pyom.nx+3, :pyom.ny+3],pyom.maskT[:pyom.nx+3, 1:pyom.ny+4]),pyom.maskT[1:pyom.nx+4, :pyom.ny+3])
+    pyom.maskZ[:pyom.nx+3, :pyom.ny+3] = np.minimum(np.minimum(pyom.maskT[:pyom.nx+3, :pyom.ny+3],pyom.maskT[:pyom.nx+3, 1:pyom.ny+4]),pyom.maskT[1:pyom.nx+4, :pyom.ny+3])
     #for j in xrange(pyom.ny+3): # j=js_pe-onx,je_pe+onx-1
     #    for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
     #        pyom.maskZ[i,j,:] = np.minimum(np.minimum(pyom.maskT[i,j,:],pyom.maskT[i,j+1,:]),pyom.maskT[i+1,j,:])
@@ -295,29 +293,17 @@ def calc_initial_conditions(pyom):
         # boundary exchange
         cyclic.setcyclic_xyz(pyom.temp[:,:,:,n],pyom.enable_cyclic_x,pyom.nx,pyom.nz)
         cyclic.setcyclic_xyz(pyom.salt[:,:,:,n],pyom.enable_cyclic_x,pyom.nx,pyom.nz)
-        # calculate density, etc
-        pyom.rho[:,:,:,n] = density.get_rho(pyom.salt[:,:,:,n],pyom.temp[:,:,:,n],np.abs(pyom.zt),pyom) * pyom.maskT
-        pyom.hd[:,:,:,n] = density.get_dyn_enthalpy(pyom.salt[:,:,:,n],pyom.temp[:,:,:,n],np.abs(pyom.zt),pyom) * pyom.maskT
-        pyom.int_drhodT[:,:,:,n] = density.get_int_drhodT(pyom.salt[:,:,:,n],pyom.temp[:,:,:,n],np.abs(pyom.zt),pyom)
-        pyom.int_drhodS[:,:,:,n] = density.get_int_drhodS(pyom.salt[:,:,:,n],pyom.temp[:,:,:,n],np.abs(pyom.zt),pyom)
-        #for k in xrange(pyom.nz): # k=1,nz
-        #    for j in xrange(pyom.ny+4): # j=js_pe-onx,je_pe+onx
-        #        for i in xrange(pyom.nx+4): # i=is_pe-onx,ie_pe+onx
-        #            if pyom.salt[i,j,k,n] < 0.0:
-        #                raise RuntimeError("salinity <0 at i={} j={} k={}".format(i,j,k))
-        #            pyom.rho[i,j,k,n] = density.get_rho(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom) * pyom.maskT[i,j,k]
-        #            pyom.Hd[i,j,k,n] = density.get_dyn_enthalpy(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom) * pyom.maskT[i,j,k]
-        #            pyom.int_drhodT[i,j,k,n] = density.get_int_drhodT(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom)
-        #            pyom.int_drhodS[i,j,k,n] = density.get_int_drhodS(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom)
-        # stability frequency
-        fxa = -pyom.grav/pyom.rho_0/pyom.dzw[:pyom.nz-1]*pyom.maskW[:,:,:pyom.nz-1]
-        pyom.Nsqr[:,:,:pyom.nz-1,n] = fxa * (density.get_rho(pyom.salt[:,:,1:,n],pyom.temp[:,:,1:,n],np.abs(pyom.zt[:pyom.nz-1]),pyom) - pyom.rho[:,:,:pyom.nz-1,n])
-        #for i in xrange(pyom.nx+4):
-        #    for j in xrange(pyom.ny+4):
-        #        for k in xrange(pyom.nz-1):
-        #            fxa = -pyom.grav/pyom.rho_0/pyom.dzw[k]*pyom.maskW[i,j,k]
-        #            pyom.Nsqr[i,j,k,n] = fxa * (density.get_rho(pyom.salt[i,j,k+1,n],pyom.temp[i,j,k+1,n],abs(pyom.zt[k]),pyom) - pyom.rho[i,j,k,n])
-        pyom.Nsqr[:,:,pyom.nz-1,n] = pyom.Nsqr[:,:,pyom.nz-2,n]
+    # calculate density, etc
+    if np.any(pyom.salt < 0.0):
+        raise RuntimeError("encountered negative salinity")
+    pyom.rho[...] = density.get_rho(pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None],pyom) * pyom.maskT[...,None]
+    pyom.Hd[...] = density.get_dyn_enthalpy(pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None],pyom) * pyom.maskT[...,None]
+    pyom.int_drhodT[...] = density.get_int_drhodT(pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None],pyom)
+    pyom.int_drhodS[...] = density.get_int_drhodS(pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None],pyom)
+    # stability frequency
+    fxa = -pyom.grav / pyom.rho_0 / pyom.dzw[None,None,:] * pyom.maskW
+    pyom.Nsqr[:,:,:-1,:] = fxa[:,:,:-1,None] * (density.get_rho(pyom.salt[:,:,1:,:],pyom.temp[:,:,1:,:],np.abs(pyom.zt)[:-1,None],pyom) - pyom.rho[:,:,:-1,:])
+    pyom.Nsqr[:,:,-1,:] = pyom.Nsqr[:,:,-2,:]
 
 
 def ugrid_to_tgrid(A,pyom):

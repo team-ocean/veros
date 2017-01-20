@@ -161,14 +161,14 @@ def isoneutral_diffusion(tr, istemp, pyom):
                     for i in xrange(pyom.is_pe, pyom.ie_pe): #i=is_pe,ie_pe
                         fxa = (-bloc[i,j,k+1] + bloc[i,j,k]) / pyom.dzw[k]
                         pyom.P_diss_iso[i,j,k] = pyom.P_diss_iso[i,j,k] - pyom.grav/pyom.rho_0*fxa*pyom.flux_top[i,j,k]*pyom.maskW[i,j,k] \
-                                       -pyom.grav/pyom.rho_0*fxa*pyom.K_33[i,j,k]*(pyom.temp[i,j,k+1,pyom.taup1]-pyom.temp[i,j,k,pyom.taup1])/pyom.dzw[k]*pyom.maskW[i,j,k]
+                                       - pyom.grav/pyom.rho_0*fxa*pyom.K_33[i,j,k]*(pyom.temp[i,j,k+1,pyom.taup1]-pyom.temp[i,j,k,pyom.taup1])/pyom.dzw[k]*pyom.maskW[i,j,k]
         else:
             for k in xrange(pyom.nz-1): #k=1,nz-1
                 for j in xrange(pyom.js_pe, pyom.je_pe): #j=js_pe,je_pe
                     for i in xrange(pyom.is_pe, pyom.ie_pe): #i=is_pe,ie_pe
                         fxa = (-bloc[i,j,k+1] + bloc[i,j,k]) / pyom.dzw[k]
                         pyom.P_diss_iso[i,j,k] = pyom.P_diss_iso[i,j,k] - pyom.grav/pyom.rho_0*fxa*pyom.flux_top[i,j,k]*pyom.maskW[i,j,k] \
-                                       -pyom.grav/pyom.rho_0*fxa*pyom.K_33[i,j,k]*(pyom.salt[i,j,k+1,pyom.taup1]-pyom.salt[i,j,k,pyom.taup1])/pyom.dzw[k]*pyom.maskW[i,j,k]
+                                       - pyom.grav/pyom.rho_0*fxa*pyom.K_33[i,j,k]*(pyom.salt[i,j,k+1,pyom.taup1]-pyom.salt[i,j,k,pyom.taup1])/pyom.dzw[k]*pyom.maskW[i,j,k]
 
 
 def isoneutral_skew_diffusion(tr,istemp,pyom):
