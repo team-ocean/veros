@@ -2,7 +2,7 @@ from climate.pyom import cyclic, density
 import climate
 
 import numpy as np
-from scipy import linalg
+from scipy.linalg import lapack
 
 def u_centered_grid(dyt,dyu,yt,yu,n):
     yu[0] = 0
@@ -324,11 +324,7 @@ def vgrid_to_tgrid(A,pyom):
 
 def solve_tridiag(a, b, c, d):
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-    ab = np.zeros((3,a.shape[0]))
-    ab[0,1:] = c[:-1]
-    ab[1,:] = b
-    ab[2,:-1] = a[1:]
-    return linalg.solve_banded((1,1),ab,d)
+    return lapack.dgtsv(a[1:],b,c[:-1],d)[3]
 
 def calc_diss(diss,K_diss,tag,pyom):
     # !real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
