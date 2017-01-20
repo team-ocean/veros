@@ -9,6 +9,7 @@
 import numpy as np
 import warnings
 import climate
+import sys
 
 from climate.pyom import cyclic
 
@@ -134,7 +135,7 @@ def congrad_surf_press(forc, iterations):
         cf = make_coeff_surf_press()
         congrad_surf_press.first = False
 
-    res = apply_op(cf, pyom.psi[:,:,pyom.taup1], pyom) #  res = A *pyom.psi
+    apply_op(cf, pyom.psi[:,:,pyom.taup1], pyom, res) #  res = A *pyom.psi
     for j in xrange(pyom.js_pe, pyom.je_pe): #j=pyom.js_pe,pyom.je_pe
         for i in xrange(pyom.is_pe, pyom.ie_pe): #i=pyom.is_pe,pyom.ie_pe
             res[i,j] = forc[i,j]-res[i,j]
@@ -210,7 +211,7 @@ def fail(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon):
         raise RuntimeError("error is NaN, stopping integration")
 
 
-def apply_op(cf, p1, pyom):
+def apply_op(cf, p1, pyom, res):
     """
     apply operator A,  res = A *p1
     """
@@ -220,15 +221,7 @@ def apply_op(cf, p1, pyom):
     #real*8 :: cf(is_:ie_,js_:je_,3,3), p1(is_:ie_,js_:je_), res(is_:ie_,js_:je_)
     #integer :: i,j,ii,jj
 
-    if climate.is_bohrium:
-        res = np.zeros((pyom.nx+4, pyom.ny+4)).copy2numpy()
-        P1 = np.empty((pyom.nx, pyom.ny, 3,3)).copy2numpy()
-        CF = cf.copy2numpy()
-        p1 = p1.copy2numpy()
-    else:
-        res = np.zeros((pyom.nx+4, pyom.ny+4))
-        P1 = np.empty((pyom.nx, pyom.ny, 3,3))
-        CF = cf
+    P1 = np.empty((pyom.nx, pyom.ny, 3,3))
     P1[:,:,0,0] = p1[1:pyom.nx+1, 1:pyom.ny+1]
     P1[:,:,0,1] = p1[1:pyom.nx+1, 2:pyom.ny+2]
     P1[:,:,0,2] = p1[1:pyom.nx+1, 3:pyom.ny+3]
@@ -238,14 +231,16 @@ def apply_op(cf, p1, pyom):
     P1[:,:,2,0] = p1[3:pyom.nx+3, 1:pyom.ny+1]
     P1[:,:,2,1] = p1[3:pyom.nx+3, 2:pyom.ny+2]
     P1[:,:,2,2] = p1[3:pyom.nx+3, 3:pyom.ny+3]
-    res[2:pyom.nx+2, 2:pyom.ny+2] = np.add.reduce(CF[2:pyom.nx+2, 2:pyom.ny+2] * P1,axis=(2,3))
+    res[2:pyom.nx+2, 2:pyom.ny+2] = np.add.reduce(cf[2:pyom.nx+2, 2:pyom.ny+2] * P1,axis=(2,3))
+    if climate.is_bohrium:
+        np.flush()
 
     #for jj in xrange(-1, 2): #jj=-1,1
     #    for ii in xrange(-1, 2): #ii=-1,1
     #        for j in xrange(2, pyom.ny+2): #j=pyom.js_pe,pyom.je_pe
     #            for i in xrange(2, pyom.nx+2): #i=pyom.is_pe,pyom.ie_pe
     #                res[i,j] += cf[i,j,ii+1,jj+1]*p1[i+ii,j+jj]
-    return res
+    # return res
 
 def absmax_sfp(p1,pyom):
     #integer :: is_,ie_,js_,je_

@@ -629,9 +629,7 @@ def congrad_streamfunction(forc,sol,pyom):
          res(0)  = forc - A * eta(0)
     -----------------------------------------------------------------------
     """
-    res = solve_pressure.apply_op(congrad_streamfunction.cf, sol, pyom)
-    if climate.is_bohrium:
-        forc = forc.copy2numpy()
+    solve_pressure.apply_op(congrad_streamfunction.cf, sol, pyom, res)
     res[2:pyom.nx+2, 2:pyom.ny+2] = forc[2:pyom.nx+2, 2:pyom.ny+2] - res[2:pyom.nx+2, 2:pyom.ny+2]
 
     """
@@ -656,7 +654,6 @@ def congrad_streamfunction(forc,sol,pyom):
     """
     betakm1 = 1.0
     ss[...] = 0.
-    sss = np.zeros(ss.shape)
     """
     -----------------------------------------------------------------------
          begin iteration loop
@@ -702,7 +699,7 @@ def congrad_streamfunction(forc,sol,pyom):
                As(k)     = A * ss(k)
         -----------------------------------------------------------------------
         """
-        As = solve_pressure.apply_op(congrad_streamfunction.cf, ss, pyom)
+        solve_pressure.apply_op(congrad_streamfunction.cf, ss, pyom, As)
         #print "AS", As
         #sys.exit()
         """
@@ -732,11 +729,7 @@ def congrad_streamfunction(forc,sol,pyom):
         -----------------------------------------------------------------------
         """
         sol[2:pyom.nx+2, 2:pyom.ny+2] += alpha * ss[2:pyom.nx+2, 2:pyom.ny+2]
-        if climate.is_bohrium:
-            Alpha = alpha.copy2numpy()
-        else:
-            Alpha = alpha
-        res[2:pyom.nx+2, 2:pyom.ny+2] += -Alpha * As[2:pyom.nx+2, 2:pyom.ny+2]
+        res[2:pyom.nx+2, 2:pyom.ny+2] += -alpha * As[2:pyom.nx+2, 2:pyom.ny+2]
         #for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
         #    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
         #        sol[i,j] += alpha * ss[i,j]
