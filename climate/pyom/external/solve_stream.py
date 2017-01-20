@@ -840,7 +840,6 @@ def make_inv_sfc(cf,Z,pyom):
 #
 #   copy diagonal coefficients of A to Z
 #
-    X = np.empty(Z.shape)
     Z[...] = 0
     Z[2:pyom.nx+2, 2:pyom.ny+2] = cf[2:pyom.nx+2, 2:pyom.ny+2,1,1]
     #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
