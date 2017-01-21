@@ -10,22 +10,27 @@ def adv_flux_2nd(adv_fe,adv_fn,adv_ft,var,pyom):
     # real*8, intent(inout) :: adv_ft(is_:ie_,js_:je_,nz_),    var(is_:ie_,js_:je_,nz_)
     # integer :: i,j,k
 
-    for k in xrange(pyom.nz): # k = 1,nz
-        for j in xrange(pyom.js_pe,pyom.je_pe):
-            for i in xrange(pyom.is_pe-1,pyom.ie_pe):
-                adv_fe[i,j,k] = 0.5*(var[i,j,k] + var[i+1,j,k])*pyom.u[i,j,k,pyom.tau]*pyom.maskU[i,j,k]
+    adv_fe[1:-2,2:-2,:] = 0.5*(var[1:-2,2:-2,:] + var[2:-1,2:-2,:]) * pyom.u[1:-2,2:-2,:,pyom.tau] * pyom.maskU[1:-2,2:-2,:]
+    adv_fn[2:-2,1:-2,:] = pyom.cosu[None,1:-2,None] * 0.5 * (var[2:-2,1:-2,:] + var[2:-2,2:-1,:]) * pyom.v[2:-2,1:-2,:,pyom.tau] * pyom.maskV[2:-2,1:-2,:]
+    adv_ft[2:-2,2:-2,:-1] = 0.5 * (var[2:-2,2:-2,:-1] + var[2:-2,2:-2,1:]) * pyom.w[2:-2,2:-2,:-1,pyom.tau] * pyom.maskW[2:-2,2:-2,:-1]
+    adv_ft[:,:,-1] = 0.
 
-    for k in xrange(pyom.nz): # k = 1,nz
-        for j in xrange(pyom.js_pe-1,pyom.je_pe):
-            for i in xrange(pyom.is_pe,pyom.ie_pe):
-                adv_fn[i,j,k] = pyom.cosu[j]*0.5*(var[i,j,k] + var[i,j+1,k])*pyom.v[i,j,k,pyom.tau]*pyom.maskV[i,j,k]
+    #for k in xrange(pyom.nz): # k = 1,nz
+    #    for j in xrange(pyom.js_pe,pyom.je_pe):
+    #        for i in xrange(pyom.is_pe-1,pyom.ie_pe):
+    #            adv_fe[i,j,k] = 0.5*(var[i,j,k] + var[i+1,j,k])*pyom.u[i,j,k,pyom.tau]*pyom.maskU[i,j,k]
 
-    for k in xrange(pyom.nz-1): # k = 1,nz-1
-        for j in xrange(pyom.js_pe,pyom.je_pe):
-            for i in xrange(pyom.is_pe,pyom.ie_pe):
-                adv_ft[i,j,k] = 0.5*(var[i,j,k] + var[i,j,k+1])*pyom.w[i,j,k,pyom.tau]*pyom.maskW[i,j,k]
+    #for k in xrange(pyom.nz): # k = 1,nz
+    #    for j in xrange(pyom.js_pe-1,pyom.je_pe):
+    #        for i in xrange(pyom.is_pe,pyom.ie_pe):
+    #            adv_fn[i,j,k] = pyom.cosu[j]*0.5*(var[i,j,k] + var[i,j+1,k])*pyom.v[i,j,k,pyom.tau]*pyom.maskV[i,j,k]
 
-    adv_ft[:,:,pyom.nz-1] = 0.0
+    #for k in xrange(pyom.nz-1): # k = 1,nz-1
+    #    for j in xrange(pyom.js_pe,pyom.je_pe):
+    #        for i in xrange(pyom.is_pe,pyom.ie_pe):
+    #            adv_ft[i,j,k] = 0.5*(var[i,j,k] + var[i,j,k+1])*pyom.w[i,j,k,pyom.tau]*pyom.maskW[i,j,k]
+
+    #adv_ft[:,:,pyom.nz-1] = 0.0
 
 def adv_flux_superbee(adv_fe,adv_fn,adv_ft,var,pyom):
     """
@@ -54,8 +59,16 @@ def adv_flux_superbee(adv_fe,adv_fn,adv_ft,var,pyom):
     # Suberbee      Limiter = lambda Cr: max(0.,max(min(1.,2*Cr),min(2.,Cr)))
     # Sweby         Limiter = lambda Cr: max(0.,max(min(1.,1.5*Cr),min(1.5.,Cr)))
     # real*8 :: Limiter
-    Limiter = lambda Cr: max(0.,max(min(1.,2.*Cr), min(2.,Cr)))
+    Limiter = lambda Cr: np.maximum(0.,np.maximum(np.minimum(1.,2*Cr), np.minimum(2.,Cr)))
     # ! Limiter = lambda Cr: max(0.,max(min(1.,1.5*Cr), min(1.5,Cr)))
+
+    # work in progress
+    #uCFL = np.abs(pyom.u[1:-2,2:-2,:] * dt_tracer / (pyom.cost[None,2:-2,None] * pyom.dxt[1:-2,None,None]))
+    #Rjp = (var[3:,2:-2,:] - var[2:-1,2:-2,:]) * pyom.maskU[2:-1,2:-2,:]
+    #Rj = (var[2:-1,2:-2,:] - var[1:-2,2:-2,:]) * pyom.maskU[1:-2,2:-2,:]
+    #Rjm = (var[1:-2,2:-2,:] - var[:-3,2:-2,:]) * pyom.maskU[:-3,2:-2,:]
+    #Cr = np.zeros_like(Rj)
+    #mask_rj =
 
     for k in xrange(pyom.nz): # k = 1,nz
         for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
