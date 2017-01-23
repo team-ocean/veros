@@ -523,7 +523,7 @@ def solve_streamfunction(pyom):
             /(np.ones(pyom.nz)*pyom.dyt[2:pyom.ny+2,np.newaxis]*np.ones(pyom.nx)[:, np.newaxis, np.newaxis])\
             *(np.ones(pyom.nz)*pyom.hur[2:pyom.nx+2,2:pyom.ny+2][:, :, np.newaxis])
     pyom.v[2:pyom.nx+2, 2:pyom.ny+2, :, pyom.taup1] += \
-            -pyom.maskV[2:pyom.nx+2,2:pyom.ny+2,:]\
+            pyom.maskV[2:pyom.nx+2,2:pyom.ny+2,:]\
             *(np.ones(pyom.nz)*( pyom.psi[2:pyom.nx+2,2:pyom.ny+2,pyom.taup1]-pyom.psi[1:pyom.nx+1,2:pyom.ny+2,pyom.taup1])[:, :,np.newaxis])\
             /(np.ones(pyom.nz)*pyom.cosu[2:pyom.ny+2,np.newaxis]*pyom.dxt[2:pyom.nx+2, np.newaxis, np.newaxis])\
             *(np.ones(pyom.nz)*pyom.hvr[2:pyom.nx+2,2:pyom.ny+2][:, :, np.newaxis])
