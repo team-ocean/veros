@@ -2,6 +2,7 @@ import importlib
 import numpy as np
 
 from .timer import Timer
+from .slice import make_slice
 
 __all__ = [
     "data",
