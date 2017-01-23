@@ -1,4 +1,7 @@
 class ShiftableSlice(object):
+    """
+    A class that returns a shifted slice when it is added to an integer.
+    """
     def __init__(self,start=None,stop=None,step=None):
         self.start = start
         self.stop = stop
@@ -32,5 +35,11 @@ class ShiftableSlice(object):
         other = int(other)
         return slice(self._shift_start(other), self._shift_stop(other), self.step)
 
+    def __sub__(self,other):
+        return self.__add__(-other)
+
 def make_slice(start=None, stop=None, step=None):
+    """
+    Returns a matching pair of slice and ShiftableSlice for convenience.
+    """
     return slice(start,stop,step), ShiftableSlice(start, stop, step)
