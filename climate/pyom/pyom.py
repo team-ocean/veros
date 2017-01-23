@@ -581,10 +581,11 @@ class PyOM(object):
         while itt < endtt:
             with self.timers["main"]:
                 self.set_forcing()
+
                 if self.enable_idemix:
-                    self.set_idemix_parameter()
+                    idemix.set_idemix_parameter(self)
                 if self.enable_idemix_M2 or self.enable_idemix_niw:
-                    self.set_spectral_parameter()
+                    idemix.set_spectral_parameter(self)
 
                 with self.timers["momentum"]:
                     momentum.momentum(self)
@@ -598,26 +599,22 @@ class PyOM(object):
                 with self.timers["eke"]:
                     if self.enable_eke:
                         raise NotImplementedError()
-                        integrate_eke()
+                        eke.integrate_eke(self)
 
                 with self.timers["idemix"]:
                     if self.enable_idemix_M2:
-                        raise NotImplementedError()
-                        integrate_idemix_M2()
+                        idemix.integrate_idemix_M2(self)
                     if self.enable_idemix_niw:
-                        raise NotImplementedError()
-                        integrate_idemix_niw()
+                        idemix.integrate_idemix_niw(self)
                     if self.enable_idemix:
-                        raise NotImplementedError()
-                        integrate_idemix()
+                        idemix.integrate_idemix(self)
                     if self.enable_idemix_M2 or self.enable_idemix_niw:
-                        raise NotImplementedError()
-                        wave_interaction()
+                        idemix.wave_interaction(self)
 
                 with self.timers["tke"]:
                     if self.enable_tke:
                         raise NotImplementedError()
-                        integrate_tke()
+                        tke.integrate_tke(self)
 
                 """
                 Main boundary exchange

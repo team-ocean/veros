@@ -131,7 +131,7 @@ def integrate_idemix(pyom):
         pyom.flux_north[:,pyom.je_pe+pyom.onx-1,:] = 0.
         for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
             for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                pyom.E_iw(i,j,:,taup1) += pyom.dt_tracer*pyom.maskW[i,j,:] \
+                pyom.E_iw[i,j,:,taup1] += pyom.dt_tracer*pyom.maskW[i,j,:] \
                                         * ((pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:])/(pyom.cost[j]*pyom.dxt[i]) \
                                         + (pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:])/(pyom.cost[j]*pyom.dyt[j]))
 
