@@ -171,7 +171,6 @@ def diag_tracer_content(pyom):
     print("temperature var. {} change to last {}".format(vtemp/volm,(vtemp-diag_tracer_content.vtemp1)/volm))
     print("salinity var.    {} change to last {}".format(vsalt/volm,(vsalt-diag_tracer_content.vsalt1)/volm))
 
-    global _tempm1, _vtemp1, _saltm1, _vsalt1
     diag_tracer_content.tempm1 = tempm
     diag_tracer_content.vtemp1 = vtemp
     diag_tracer_content.saltm1 = saltm

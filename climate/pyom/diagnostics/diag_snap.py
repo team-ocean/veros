@@ -1177,7 +1177,7 @@ def def_grid_cdf(ncfile):
 #
 # end subroutine diag_snap
 #
-#
+# 
 #
 # subroutine panic_snap
 # !=======================================================================

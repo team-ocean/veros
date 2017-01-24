@@ -199,7 +199,7 @@ def streamfunction_init(pyom):
             """
             pyom.line_dir[isle,n,:] = Dir
             ij += Dir
-            if pyom.boundary[isle,1,1] == ij[0] and pyom.boundary[isle,1,2] == ij[1]:
+            if pyom.boundary[isle,0,0] == ij[0] and pyom.boundary[isle,0,1] == ij[1]:
                 cont = False
 
             """
@@ -265,12 +265,12 @@ def streamfunction_init(pyom):
         for isle in xrange(pyom.nisle): #isle=1,nisle
             fpx[...] = 0
             fpy[...] = 0
-            fpx[1:pyom.nx+4, 1:pyom.ny+4] = -pyom.maskU[1:pyom.nx+4, 1:pyom.ny+4, pyom.nz-1]\
-                    *(pyom.psin[1:pyom.nx+4, 1:pyom.ny+4,isle]-pyom.psin[1:pyom.nx+4, :pyom.ny+3,isle])\
-                    /pyom.dyt[1:pyom.ny+4]*pyom.hur[1:pyom.nx+4, 1:pyom.ny+4]
-            fpy[1:pyom.nx+4, 1:pyom.ny+4] = pyom.maskV[1:pyom.nx+4, 1:pyom.ny+4, pyom.nz-1]\
-                    *(pyom.psin[1:pyom.nx+4, 1:pyom.ny+4,isle]-pyom.psin[:pyom.nx+3, 1:pyom.ny+4,isle])\
-                    /(pyom.cosu[1:pyom.ny+4]*pyom.dxt[1:pyom.ny+4, np.newaxis])*pyom.hvr[1:pyom.nx+4, 1:pyom.ny+4]
+            fpx[1:, 1:] = -pyom.maskU[1:, 1:, pyom.nz-1]\
+                    *(pyom.psin[1:, 1:,isle]-pyom.psin[1:, :pyom.ny+3,isle])\
+                    /pyom.dyt[1:]*pyom.hur[1:, 1:]
+            fpy[1:, 1:] = pyom.maskV[1:, 1:, pyom.nz-1]\
+                    *(pyom.psin[1:, 1:,isle]-pyom.psin[:pyom.nx+3, 1:,isle])\
+                    /(pyom.cosu[1:]*pyom.dxt[1:, np.newaxis])*pyom.hvr[1:, 1:]
             #for j in xrange(1, pyom.ny+4): #j=js_pe-onx+1,je_pe+onx
             #    for i in xrange(1, pyom.nx+4): #i=is_pe-onx+1,ie_pe+onx
             #        fpx[i,j] =-pyom.maskU[i,j,pyom.nz-1]*( pyom.psin[i,j,isle]-pyom.psin[i,j-1,isle])/pyom.dyt[j]*pyom.hur[i,j]
@@ -467,14 +467,14 @@ def solve_streamfunction(pyom):
         for k in xrange(1, pyom.nisle): #k=2,nisle
             fpx[...] = 0.0
             fpy[...] = 0.0
-            fpx[1:pyom.nx+4, 1:pyom.ny+4] = \
-                    -pyom.maskU[1:pyom.nx+4, 1:pyom.ny+4, pyom.nz-1] \
-                    * (pyom.dpsi[1:pyom.nx+4, 1:pyom.ny+4,pyom.taup1]-pyom.dpsi[1:pyom.nx+4, :pyom.ny+3,pyom.taup1]) \
-                    /pyom.dyt[1:pyom.ny+4] *pyom.hur[1:pyom.nx+4, 1:pyom.ny+4]
-            fpy[1:pyom.nx+4, 1:pyom.ny+4] = \
-                    pyom.maskV[1:pyom.nx+4, 1:pyom.ny+4, pyom.nz-1] \
-                    * (pyom.dpsi[1:pyom.nx+4, 1:pyom.ny+4,pyom.taup1]-pyom.dpsi[:pyom.nx+3, 1:pyom.ny+4,pyom.taup1]) \
-                    /(pyom.cosu[1:pyom.ny+4]*pyom.dxt[1:pyom.nx+4, np.newaxis])*pyom.hvr[1:pyom.nx+4,1:pyom.ny+4]
+            fpx[1:, 1:] = \
+                    -pyom.maskU[1:, 1:, pyom.nz-1] \
+                    * (pyom.dpsi[1:, 1:,pyom.taup1]-pyom.dpsi[1:, :pyom.ny+3,pyom.taup1]) \
+                    /pyom.dyt[1:] *pyom.hur[1:, 1:]
+            fpy[1:, 1:] = \
+                    pyom.maskV[1:, 1:, pyom.nz-1] \
+                    * (pyom.dpsi[1:, 1:,pyom.taup1]-pyom.dpsi[:pyom.nx+3, 1:,pyom.taup1]) \
+                    /(pyom.cosu[1:]*pyom.dxt[1:, np.newaxis])*pyom.hvr[1:,1:]
             #for i in xrange(1, pyom.nx+4): #i=is_pe-onx+1,ie_pe+onx
             #    for j in xrange(1, pyom.ny+4): #j=js_pe-onx+1,je_pe+onx
             #        fpx[i,j] =-pyom.maskU[i,j,pyom.nz-1]*( pyom.dpsi[i,j,pyom.taup1]-pyom.dpsi[i,j-1,pyom.taup1])/pyom.dyt[j]*pyom.hur[i,j]

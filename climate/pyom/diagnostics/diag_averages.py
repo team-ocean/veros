@@ -5,29 +5,8 @@ import json
 
 from climate.pyom.diagnostics.diag_snap import def_grid_cdf
 
-# module diag_averages_module
-# """
-# ! Module for time averages
-# """
-#   implicit none
-#   integer :: nitts = 0,number_diags = 0
-#   integer, parameter :: max_number_diags = 500
-#   type type_var2D
-#     real*8,pointer  :: a(:,:)
-#   end type type_var2D
-#   type type_var3D
-#     real*8,pointer  :: a(:,:,:)
-#   end type type_var3D
-#   character (len = 80) :: diag_name(max_number_diags), diag_longname(max_number_diags)
-#   character (len = 80) :: diag_units(max_number_diags), diag_grid(max_number_diags)
-#   type(type_var2d)   :: diag_var2D(max_number_diags), diag_sum_var2D(max_number_diags)
-#   type(type_var3d)   :: diag_var3D(max_number_diags), diag_sum_var3D(max_number_diags)
-#   logical            :: diag_is3D(max_number_diags)
-# end module diag_averages_module
-
 
 Diagnostic = namedtuple("Diagnostic", ["name", "long_name", "units", "grid", "var", "sum"])
-
 
 def register_average(name,long_name,units,grid,var,pyom):
     """
@@ -38,8 +17,10 @@ def register_average(name,long_name,units,grid,var,pyom):
     units : units
     grid : three digits, either 'T' for T grid or 'U' for shifted grid
            applies for the 3 dimensions, U is shifted by 1/2 grid point
-    var : variable to be averaged
+    var : callable returning the variable to be averaged
     """
+    if not callable(var):
+        raise TypeError("var must be a callable that returns the variable to be averaged")
     if len(grid) != var.ndim:
         if len(grid)+1 == var.ndim:
             var_slice = tuple([None]*len(grid) + [-1])
