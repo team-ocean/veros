@@ -384,7 +384,7 @@ def showmap(Map, pyom):
             istart = istart + iline
     print("")
 
-def solve_streamfunction(pyom):
+def solve_streamfunction(pyom,benchtest=False):
     """
     =======================================================================
       solve for barotropic streamfunction
@@ -452,7 +452,7 @@ def solve_streamfunction(pyom):
 
     # solve for interior streamfunction
     pyom.dpsi[:,:,pyom.taup1] = 2*pyom.dpsi[:,:,pyom.tau]-pyom.dpsi[:,:,pyom.taum1] # first guess, we need three time levels here
-    congrad_streamfunction(forc,pyom.dpsi[:,:,pyom.taup1], pyom)
+    congrad_streamfunction(forc,pyom.dpsi[:,:,pyom.taup1], pyom,benchtest)
 
     # MPI stuff
     #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,dpsi(:,:,taup1))
@@ -566,7 +566,7 @@ def make_coeff_streamfunction(cf, pyom):
     #        cf[i,j, 1, 0] += pyom.hur[i,j  ]/pyom.dyu[j]/pyom.dyt[j  ]*pyom.cost[j  ]/pyom.cosu[j]
 
 
-def congrad_streamfunction(forc,sol,pyom):
+def congrad_streamfunction(forc,sol,pyom,benchtest=False):
     """
     =======================================================================
       conjugate gradient solver with preconditioner from MOM
@@ -642,7 +642,7 @@ def congrad_streamfunction(forc,sol,pyom):
     inv_op_sfc(Z, res, Zres, pyom)
     Zresmax = absmax_sfc(Zres, pyom)
     # Assume convergence rate of 0.99 to extrapolate error
-    if (100.0 * Zresmax < pyom.congr_epsilon):
+    if (100.0 * Zresmax < pyom.congr_epsilon or benchtest):
         estimated_error = 100.0 * Zresmax
         print_info(n, estimated_error, pyom)
         return True #Converged
@@ -761,7 +761,7 @@ def congrad_streamfunction(forc,sol,pyom):
          end of iteration loop
     -----------------------------------------------------------------------
     """
-    print ' WARNING: max iterations exceeded at itt=',itt
+    print ' WARNING: max iterations exceeded at itt=',n
     fail(n, estimated_error, pyom)
     return False #Converged
 congrad_streamfunction.first = True
@@ -866,9 +866,13 @@ def make_inv_sfc(cf,Z,pyom):
 #
 #   make inverse zero on island perimeters that are not integrated
 #
+    if climate.is_bohrium:
+        boundary = pyom.boundary.copy2numpy()
+    else:
+        boundary = pyom.boundary
     for isle in xrange(pyom.nisle): #isle=1,nisle
         for n in xrange(pyom.nr_boundary[isle]): #n=1,nr_boundary(isle)
-            i = pyom.boundary[isle,n,0]
-            j = pyom.boundary[isle,n,1]
+            i = boundary[isle,n,0]
+            j = boundary[isle,n,1]
             if i >= 0 and i <= pyom.nx+3 and j >= 0 and j <= pyom.ny+3:
                 Z[i,j] = 0.0
