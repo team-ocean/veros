@@ -293,17 +293,6 @@ class PyOM(object):
         self.eke_r_bot = 0.0 # bottom friction coefficient
         self.eke_hrms_k0_min = 0.0 # min value for bottom roughness parameter
 
-        """
-        Compatibility with legacy interface
-        """
-        self.fortran = self
-        self.main_module = self
-        self.isoneutral_module = self
-        self.idemix_module = self
-        self.tke_module = self
-        self.eke_module = self
-        self.register_average = lambda *args, **kwargs: diagnostics.register_average(*args,pyom=self,**kwargs)
-
 
     def allocate(self):
         self.xt = np.zeros(self.nx+4)
@@ -536,19 +525,6 @@ class PyOM(object):
                 self.eke_lee_flux = np.zeros((self.nx+4, self.ny+4))
                 self.c_Ri_diss = np.zeros((self.nx+4, self.ny+4))
 
-        """
-        Compatibility with legacy interface
-        """
-        self.onx = 2
-        self.is_pe = 2
-        self.ie_pe = self.nx+2
-        self.js_pe = 2
-        self.je_pe = self.ny+2
-        self.if2py = lambda i: i+self.onx-self.is_pe
-        self.jf2py = lambda j: j+self.onx-self.js_pe
-        self.ip2fy = lambda i: i+self.is_pe-self.onx
-        self.jp2fy = lambda j: j+self.js_pe-self.onx
-
 
     def run(self, snapint, runlen):
         with self.timers["setup"]:
@@ -728,15 +704,3 @@ class PyOM(object):
         if self.enable_tke and not self.enable_implicit_vert_friction:
             raise RuntimeError("ERROR: use TKE model only with implicit vertical friction\n"
                                "\t-> switch on enable_implicit_vert_fricton in setup")
-
-    """
-    Make class attributes case-insensitive.
-    I know this is bad, but we need it to support the legacy interface, which is handy for debugging.
-    """
-    def __getattr__(self,attr):
-        if not hasattr(self, attr.lower()):
-            raise AttributeError("Attribute {} not found".format(attr))
-        return getattr(self, attr.lower())
-
-    def __setattr__(self, attr, value):
-        super(PyOM, self).__setattr__(attr.lower(), value)
