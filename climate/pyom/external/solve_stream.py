@@ -405,9 +405,11 @@ def solve_streamfunction(pyom,benchtest=False):
 
     #hydrostatic pressure
     fxa = pyom.grav/pyom.rho_0
+    #NOTE: This fucks with wall time
     pyom.p_hydro[:,:,pyom.nz-1] = 0.5*pyom.rho[:,:,pyom.nz-1,pyom.tau]*fxa*pyom.dzw[pyom.nz-1]*pyom.maskT[:,:,pyom.nz-1]
     for k in xrange(pyom.nz-2, -1, -1): #k=nz-1,1,-1
-        pyom.p_hydro[:,:,k] = pyom.maskT[:,:,k]*(pyom.p_hydro[:,:,k+1]+ 0.5*(pyom.rho[:,:,k+1,pyom.tau]+pyom.rho[:,:,k,pyom.tau])*fxa*pyom.dzw[k])
+        T = pyom.maskT[:,:,k]*(pyom.p_hydro[:,:,k+1]+ 0.5*(pyom.rho[:,:,k+1,pyom.tau]+pyom.rho[:,:,k,pyom.tau])*fxa*pyom.dzw[k])
+        pyom.p_hydro[:,:,k] = T
 
     # add hydrostatic pressure gradient
     pyom.du[2:pyom.nx+2,2:pyom.ny+2,:,pyom.tau] += \
@@ -450,7 +452,7 @@ def solve_streamfunction(pyom,benchtest=False):
 
     # solve for interior streamfunction
     pyom.dpsi[:,:,pyom.taup1] = 2*pyom.dpsi[:,:,pyom.tau]-pyom.dpsi[:,:,pyom.taum1] # first guess, we need three time levels here
-    congrad_streamfunction(forc,pyom.dpsi[:,:,pyom.taup1], pyom,benchtest)
+    congrad_streamfunction(forc,pyom.dpsi[:,:,pyom.taup1], pyom,benchtest) #NOTE: This fucks with wall time
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.dpsi[:,:,pyom.taup1])
@@ -483,7 +485,10 @@ def solve_streamfunction(pyom,benchtest=False):
         # solve for time dependent boundary values
         aloc[...] = pyom.line_psin # will be changed in lapack routine
         #CALL DGESV(nisle-1 , 1, aloc(2:nisle,2:nisle), nisle-1, IPIV, line_forc(2:nisle), nisle-1, INFO )
-        line_forc[1:pyom.nisle] = np.linalg.solve(aloc[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
+        if climate.is_bohrium:
+            line_forc[1:pyom.nisle] = np.linalg.jacobi(aloc[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
+        else:
+            line_forc[1:pyom.nisle] = np.linalg.solve(aloc[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
         #(lu, ipiv, line_forc[1:pyom.nisle], info) = lapack.dgesv(aloc[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
 
         #if info != 0:
@@ -501,10 +506,10 @@ def solve_streamfunction(pyom,benchtest=False):
     pyom.v[:,:,:,pyom.taup1]   += pyom.dt_mom*( pyom.dv_mix+ (1.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.taum1] )*pyom.maskV
 
     # subtract incorrect vertical mean from baroclinic velocity
-    fpx[...] = 0.0
-    fpy[...] = 0.0
-    fpx += np.add.reduce(pyom.u[:,:,:,pyom.taup1]*pyom.maskU*pyom.dzt, axis=(2,))
-    fpy += np.add.reduce(pyom.v[:,:,:,pyom.taup1]*pyom.maskV*pyom.dzt, axis=(2,))
+    #fpx[...] = 0.0
+    #fpy[...] = 0.0
+    fpx = np.add.reduce(pyom.u[:,:,:,pyom.taup1]*pyom.maskU*pyom.dzt, axis=(2,))
+    fpy = np.add.reduce(pyom.v[:,:,:,pyom.taup1]*pyom.maskV*pyom.dzt, axis=(2,))
     #for k in xrange(pyom.nz): #k=1,nz
     #    fpx += pyom.u[:,:,k,pyom.taup1]*pyom.maskU[:,:,k]*pyom.dzt[k]
     #    fpy += pyom.v[:,:,k,pyom.taup1]*pyom.maskV[:,:,k]*pyom.dzt[k]
@@ -608,7 +613,7 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
          make approximate inverse operator Z (always even symmetry)
     -----------------------------------------------------------------------
     """
-    make_inv_sfc(congrad_streamfunction.cf, Z, pyom)
+    make_inv_sfc(congrad_streamfunction.cf, Z, pyom) #NOTE: this is not good for time
     """
     -----------------------------------------------------------------------
          impose boundary conditions on guess
@@ -861,13 +866,20 @@ def make_inv_sfc(cf,Z,pyom):
 #
 #   make inverse zero on island perimeters that are not integrated
 #
-    if climate.is_bohrium:
-        boundary = pyom.boundary.copy2numpy()
-    else:
-        boundary = pyom.boundary
+    #NOTE: This is time consuming
     for isle in xrange(pyom.nisle): #isle=1,nisle
+        #Vectorize solution, does not work with bohrium
+        #n = pyom.nr_boundary[isle]
+        #i = pyom.boundary[isle,:n,0]
+        #I = np.logical_and(i >= 0, i <= pyom.nx+3)
+        #i *= I*1
+        #j = pyom.boundary[isle,:n,1]
+        #J = np.logical_and(i >= 0, i <= pyom.ny+3)
+        #IJ = np.logical_and(I,J)
+        #j *= J*1
+        #Z[i, j] *= IJ*1
         for n in xrange(pyom.nr_boundary[isle]): #n=1,nr_boundary(isle)
-            i = boundary[isle,n,0]
-            j = boundary[isle,n,1]
+            i = pyom.boundary[isle,n,0]
+            j = pyom.boundary[isle,n,1]
             if i >= 0 and i <= pyom.nx+3 and j >= 0 and j <= pyom.ny+3:
                 Z[i,j] = 0.0
