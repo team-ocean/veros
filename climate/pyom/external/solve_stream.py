@@ -483,12 +483,13 @@ def solve_streamfunction(pyom,benchtest=False):
         # solve for time dependent boundary values
         aloc[...] = pyom.line_psin # will be changed in lapack routine
         #CALL DGESV(nisle-1 , 1, aloc(2:nisle,2:nisle), nisle-1, IPIV, line_forc(2:nisle), nisle-1, INFO )
-        (lu, ipiv, line_forc[1:pyom.nisle], info) = lapack.dgesv(aloc[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
+        line_forc[1:pyom.nisle] = np.linalg.solve(aloc[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
+        #(lu, ipiv, line_forc[1:pyom.nisle], info) = lapack.dgesv(aloc[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
 
-        if info != 0:
-            print 'info = ',info
-            print ' line_forc=',line_forc[1:pyom.nisle]
-            sys.exit(' in solve_streamfunction, lapack info not zero ')
+        #if info != 0:
+        #    print 'info = ',info
+        #    print ' line_forc=',line_forc[1:pyom.nisle]
+        #    sys.exit(' in solve_streamfunction, lapack info not zero ')
         pyom.dpsin[1:pyom.nisle,pyom.tau] = line_forc[1:pyom.nisle]
 
     # integrate barotropic and baroclinic velocity forward in time
@@ -846,10 +847,9 @@ def make_inv_sfc(cf,Z,pyom):
 #
     Y = Z[2:pyom.nx+2, 2:pyom.ny+2]
     if climate.is_bohrium:
-        Y = Y.copy2numpy()
-    Y[Y != 0] = 1./Y[Y != 0]
-    if climate.is_bohrium:
-        Z[2:pyom.nx+2, 2:pyom.ny+2] = Y
+        Y = (1. / (Y+(Y==0)))*(Y!=0)
+    else:
+        Y[Y != 0] = 1./Y[Y != 0]
     #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
     #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
     #        if Z[i,j] != 0.0:
