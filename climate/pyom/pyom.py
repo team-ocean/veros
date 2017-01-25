@@ -18,6 +18,19 @@ class PyOM(object):
     rho_0 = 1024.0 # Boussinesq reference density in kg/m^3
     grav = 9.81 # gravitational constant in m/s^2
 
+    """
+    Interface
+    """
+    def _not_implemented(self):
+        raise NotImplementedError("Needs to be implemented by subclass")
+    set_parameter = _not_implemented
+    set_initial_conditions = _not_implemented
+    set_grid = _not_implemented
+    set_coriolis = _not_implemented
+    set_forcing = _not_implemented
+    set_topography = _not_implemented
+    set_diagnostics = _not_implemented
+
     def __init__(self):
         """
         Model parameters
