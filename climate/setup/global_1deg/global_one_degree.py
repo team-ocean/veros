@@ -2,7 +2,7 @@ import imp
 import os
 import numpy as np
 
-from climate.pyom import PyOMLegacy, cyclic
+from climate.pyom import PyOMLegacy, cyclic, diagnostics
 
 MAIN_OPTIONS = dict(
     nx = 360,
@@ -34,7 +34,7 @@ MAIN_OPTIONS = dict(
     congr_epsilon = 1e-6,
     congr_max_iterations = 10000,
     enable_streamfunction = True,
-    #enable_congrad_verbose = True
+    #enable_congrad_verbose = True,
 
     enable_hor_friction = True,
     A_h = 5e4,
@@ -42,7 +42,7 @@ MAIN_OPTIONS = dict(
     hor_friction_cosPower = 1,
     enable_tempsalt_sources = True,
 
-    eq_of_state_type = 5
+    eq_of_state_type = 5,
 )
 
 ISONEUTRAL_OPTIONS = dict(
@@ -51,7 +51,7 @@ ISONEUTRAL_OPTIONS = dict(
     K_iso_steep = 50.0,
     iso_dslope = 0.005,
     iso_slopec = 0.005,
-    enable_skew_diffusion = True
+    enable_skew_diffusion = True,
 )
 
 TKE_OPTIONS = dict(
@@ -62,7 +62,7 @@ TKE_OPTIONS = dict(
     alpha_tke = 30.0,
     mxl_min = 1e-8,
     tke_mxl_choice = 2,
-    enable_tke_superbee_advection = True
+    enable_tke_superbee_advection = True,
 )
 
 EKE_OPTIONS = dict(
@@ -82,13 +82,14 @@ IDEMIX_OPTIONS = dict(
     enable_eke_diss_surfbot = True,
     eke_diss_surfbot_frac = 0.2, # fraction which goes into bottom
     enable_idemix_superbee_advection = True,
-
-    enable_idemix_hor_diffusion = True
-    #np = 17+2
-    #enable_idemix_M2 = True
-    #enable_idemix_niw = True
-    #omega_M2 = 2*pi/( 12*60*60 +  25.2 *60 )   ! M2 frequency in 1/s
+    enable_idemix_hor_diffusion = True,
+    #np = 17+2,
+    #enable_idemix_M2 = True,
+    #enable_idemix_niw = True,
+    #omega_M2 = 2*np.pi / (12*60*60 + 25.2 * 60), # M2 frequency in 1/s
 )
+
+BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 
 DATA_FILES = dict(
     dz = "dz.bin",
@@ -105,7 +106,7 @@ DATA_FILES = dict(
     tidal_energy = "tidal_energy.bin",
     wind_energy = "wind_energy_ncep.bin"
 )
-
+DATA_FILES = {key: os.path.join(BASE_PATH, val) for key, val in DATA_FILES.items()}
 
 class GlobalOneDegree(PyOMLegacy):
     """
@@ -113,30 +114,15 @@ class GlobalOneDegree(PyOMLegacy):
 
     https://wiki.zmaw.de/ifm/TO/pyOM2/1x1%20global%20model
     """
-    def __init__(self):
-        for name, filepath in DATA_FILES.items():
-            if not os.path.isfile(filepath):
-                raise RuntimeError("{} data file {} not found".format(name,filepath))
-        super(GlobalOneDegree,self).__init__()
-
-    def allocate(self):
-        super(GlobalOneDegree,self).allocate()
-
-        m = self.fortran.main_module
-        self.t_star = np.zeros((m.nx+4, m.ny+4, 12))
-        self.s_star = np.zeros((m.nx+4, m.ny+4, 12))
-        self.qnec = np.zeros((m.nx+4, m.ny+4, 12))
-        self.qnet = np.zeros((m.nx+4, m.ny+4, 12))
-        self.qsol = np.zeros((m.nx+4, m.ny+4, 12))
-        self.divpen_shortwave = np.zeros(m.nz)
-        self.taux = np.zeros((m.nx+4, m.ny+4, 12))
-        self.tauy = np.zeros((m.nx+4, m.ny+4, 12))
-
 
     def set_parameter(self):
         """
         set main parameters
         """
+        for name, filepath in DATA_FILES.items():
+            if not os.path.isfile(filepath):
+                raise RuntimeError("{} data file {} not found".format(name,filepath))
+
         self._set_parameters(self.fortran.main_module, MAIN_OPTIONS)
         self._set_parameters(self.fortran.isoneutral_module, ISONEUTRAL_OPTIONS)
         self._set_parameters(self.fortran.tke_module, TKE_OPTIONS)
@@ -148,12 +134,14 @@ class GlobalOneDegree(PyOMLegacy):
         for key, attribute in parameters.items():
             setattr(module,key,attribute)
 
+
     def _read_binary(self, var, shape=(-1,), dtype=">f"):
         return np.array(np.fromfile(DATA_FILES[var], dtype=dtype).reshape(shape, order="F"), dtype=np.float)
 
+
     def set_grid(self):
         dz_data = self._read_binary("dz")
-        m = self.fortran.main_module
+        m = self.main_module
         m.dzt[...] = dz_data[::-1]
         m.dxt[...] = 1.0
         m.dyt[...] = 1.0
@@ -162,12 +150,20 @@ class GlobalOneDegree(PyOMLegacy):
 
 
     def set_coriolis(self):
-        m = self.fortran.main_module
+        m = self.main_module
         m.coriolis_t = 2 * m.omega * np.sin(m.yt[None,:] / 180. * m.pi)
 
 
     def set_initial_conditions(self):
-        m = self.fortran.main_module
+        m = self.main_module
+        self.t_star = np.zeros((m.nx+4, m.ny+4, 12))
+        self.s_star = np.zeros((m.nx+4, m.ny+4, 12))
+        self.qnec = np.zeros((m.nx+4, m.ny+4, 12))
+        self.qnet = np.zeros((m.nx+4, m.ny+4, 12))
+        self.qsol = np.zeros((m.nx+4, m.ny+4, 12))
+        self.divpen_shortwave = np.zeros(m.nz)
+        self.taux = np.zeros((m.nx+4, m.ny+4, 12))
+        self.tauy = np.zeros((m.nx+4, m.ny+4, 12))
 
         rpart_shortwave = 0.58
         efold1_shortwave = 0.35
@@ -192,8 +188,9 @@ class GlobalOneDegree(PyOMLegacy):
         self.tauy[self.tauy < -99.9] = 0.
 
         if self.legacy_mode:
-            self.fortran.setcyclic_xyz(is_=-1, ie_=m.nx+2, js_=-1, je_=m.ny+2, p1=self.taux)
-            self.fortran.setcyclic_xyz(is_=-1, ie_=m.nx+2, js_=-1, je_=m.ny+2, p1=self.tauy)
+            for k in xrange(12):
+                self.fortran.setcyclic_xy(is_=-1, ie_=m.nx+2, js_=-1, je_=m.ny+2, p1=np.asfortranarray(self.tauy[...,k]))
+                self.fortran.setcyclic_xy(is_=-1, ie_=m.nx+2, js_=-1, je_=m.ny+2, p1=np.asfortranarray(self.tauy[...,k]))
         else:
             cyclic.setcyclic_xyz(self.taux, self.enable_cyclic_x, self.nx, 12)
             cyclic.setcyclic_xyz(self.tauy, self.enable_cyclic_x, self.nx, 12)
@@ -215,34 +212,33 @@ class GlobalOneDegree(PyOMLegacy):
         sss_data = self._read_binary("sss", (m.nx, m.ny, 12))
         self.s_star[2:-2, 2:-2, :] = sss_data * m.maskT[2:-2, 2:-2, :12]
 
-        if m.enable_idemix:
-            idm = self.fortran.idemix_module
-
+        idm = self.idemix_module
+        if idm.enable_idemix:
             tidal_energy_data = self._read_binary("tidal_energy", (m.nx, m.ny))
             mask_x, mask_y = (i+2 for i in np.indices((m.nx, m.ny)))
             mask_z = np.maximum(0, m.kbot[2:-2, 2:-2]-1)
             tidal_energy_data[:, :] *= m.maskW[mask_x, mask_y, mask_z] / m.rho_0
 
-            if m.enable_idemix_M2:
+            if idm.enable_idemix_M2:
                 idm.forc_M2[2:-2, 2:-2, 1:m.np-1] = 0.5 * tidal_energy_data[..., None] / (2*m.pi)
             else:
-                m.forc_iw_bottom[2:-2, 2:-2] = 0.5 * tidal_energy_data
+                idm.forc_iw_bottom[2:-2, 2:-2] = 0.5 * tidal_energy_data
         else:
-             m.forc_iw_bottom[2:-2, 2:-2] = tidal_energy_data
+             idm.forc_iw_bottom[2:-2, 2:-2] = tidal_energy_data
 
         wind_energy_data = self._read_binary("wind_energy", (m.nx, m.ny))
         wind_energy_data[...] *= m.maskW[2:-2, 2:-2, -1] / m.rho_0 * 0.2
 
-        if m.enable_idemix_niw:
+        if idm.enable_idemix_niw:
             idm.forc_niw[2:-2, 2:-2, :m.np-1] = 1.0 * wind_energy_data[..., None] / (2*m.pi)
-            m.forc_iw_surface[2:-2, 2:-2] = 0.
+            idm.forc_iw_surface[2:-2, 2:-2] = 0.
         else:
-            m.forc_iw_surface[2:-2, 2:-2] = wind_energy_data
+            idm.forc_iw_surface[2:-2, 2:-2] = wind_energy_data
 
-        if m.enable_idemix_niw:
+        if idm.enable_idemix_niw:
             idm.omega_niw[2:-2] = np.maximum(1e-8, np.abs(1.05 * m.coriolis_t))
 
-        if m.enable_idemix_niw or m.enable_idemix_M2:
+        if idm.enable_idemix_niw or idm.enable_idemix_M2:
             """
              if enable_idemix_niw .or. enable_idemix_M2:
               iret = nf_open("hrms_1deg.nc",NF_nowrite,ncid)
@@ -290,22 +286,22 @@ class GlobalOneDegree(PyOMLegacy):
         cp_0 = 3991.86795711963 # J/kg /K
         fxa = 365 * 86400.
 
-        m = self.fortran.main_module
+        m = self.main_module
         (n1, f1), (n2, f2) = self._get_periodic_interval((m.itt-1) * m.dt_tracer, fxa, fxa / 12., 12)
 
         # linearly interpolate wind stress and shift from MITgcm U/V grid to this grid
         m.surface_taux[:-1, :-1] = f1 * self.taux[1:, :-1, n1] + f2 * self.taux[1:, :-1, n2]
         m.surface_tauy[:-1, :-1] = f1 * self.tauy[:-1, 1:, n1] + f2 * self.tauy[:-1, 1:, n2]
 
-        if m.enable_tke:
-            tkm = self.fortran.tke_module
+        tkm = self.tke_module
+        if tkm.enable_tke:
             tkm.forc_tke_surface[1:, 1:] = np.sqrt((0.5 * (m.surface_taux[1:, 1:] + m.surface_taux[:-1, 1:]) ** 2 \
                                                   + 0.5 * (m.surface_tauy[1:, 1:] + m.surface_tauy[1:, :-1]) ** 2) ** (3./2.))
 
         # W/m^2 K kg/J m^3/kg = K m/s
         fxa = f1 * self.t_star[2:-2, 2:-2, n1] + f2 * self.t_star[2:-2, 2:-2, n2]
-        self.qqnec = f1 * m.qnec[2:-2, 2:-2, n1] + f2 * self.qnec[2:-2, 2:-2, n2]
-        self.qqnet = f1 * m.qnet[2:-2, 2:-2, n1] + f2 * self.qnet[2:-2, 2:-2, n2]
+        self.qqnec = f1 * self.qnec[2:-2, 2:-2, n1] + f2 * self.qnec[2:-2, 2:-2, n2]
+        self.qqnet = f1 * self.qnet[2:-2, 2:-2, n1] + f2 * self.qnet[2:-2, 2:-2, n2]
         m.forc_temp_surface[2:-2, 2:-2] = (self.qqnet + self.qqnec * (fxa - m.temp[2:-2, 2:-2, -1, 1])) \
                                             * m.maskT[2:-2, 2:-2, -1] / cp_0 / m.rho_0
         fxa = f1 * self.s_star[2:-2, 2:-2, n1] + f2 * self.s_star[2:-2, 2:-2, n2]
@@ -326,7 +322,7 @@ class GlobalOneDegree(PyOMLegacy):
                                         * m.maskT[2:-2, 2:-2, :] / cp_0 / m.rho_0
 
     def set_topography(self):
-        m = self.fortran.main_module
+        m = self.main_module
 
         bathymetry_data = self._read_binary("bathymetry", (m.nx, m.ny))
         salt_data = self._read_binary("salt", (m.nx, m.ny, m.nz))
@@ -356,64 +352,65 @@ class GlobalOneDegree(PyOMLegacy):
 
 
     def set_diagnostics(self):
-        m = self.fortran.main_module
+        m = self.main_module
+        idm = self.idemix_module
 
-        self.register_average("taux","Zonal wind stress","m^2/s","UT",m.surface_taux,0.0,False)
-        self.register_average("tauy","Meridional wind stress","m^2/s","TU",m.surface_tauy,0.0,False)
-        self.register_average("forc_temp_surface","Surface temperature flux","m K/s","TT",m.forc_temp_surface,0.0,False)
-        self.register_average("forc_salt_surface","Surface salinity flux","m g/s kg","TT",m.forc_salt_surface,0.0,False)
+        diagnostics.register_average("taux","Zonal wind stress","m^2/s","UT",lambda: m.surface_taux,0.0,False,m)
+        self.register_average("tauy","Meridional wind stress","m^2/s","TU",lambda: m.surface_tauy,0.0,False)
+        self.register_average("forc_temp_surface","Surface temperature flux","m K/s","TT",lambda: m.forc_temp_surface,0.0,False)
+        self.register_average("forc_salt_surface","Surface salinity flux","m g/s kg","TT",lambda: m.forc_salt_surface,0.0,False)
         if m.enable_streamfunction:
-            self.register_average("psi","Barotropic streamfunction","m^2/s","UU",m.psi[:,:,1],0.0,False)
+            self.register_average("psi","Barotropic streamfunction","m^2/s","UU",lambda: m.psi[:,:,1],0.0,False)
         else:
-            self.register_average("psi","Surface pressure","m^2/s","TT",m.psi[:,:,1],0.0,False)
-        self.register_average("temp","Temperature","deg C","TTT",0.0,m.temp[:,:,:,1],True)
-        self.register_average("salt","Salinity","g/kg","TTT",0.0,m.salt[:,:,:,1],True)
-        self.register_average("u","Zonal velocity","m/s","UTT",0.0,m.u[:,:,:,1],True)
-        self.register_average("v","Meridional velocity","m/s","TUT",0.0,m.v[:,:,:,1],True)
-        self.register_average("w","Vertical velocity","m/s","TTU",0.0,m.w[:,:,:,1],True)
-        self.register_average("Nsqr","Square of stability frequency","1/s^2","TTU",0.0,m.Nsqr[:,:,:,1],True)
-        self.register_average("Hd","Dynamic enthalpy","m^2/s^2","TTT",0.0,m.Hd[:,:,:,1],True)
-        self.register_average("rho","Density","kg/m^3","TTT",0.0,m.rho[:,:,:,1],True)
-        self.register_average("K_diss_v","Dissipation by vertical friction","m^2/s^3","TTU",0.0,m.K_diss_v,True)
-        self.register_average("P_diss_v","Dissipation by vertical mixing","m^2/s^3","TTU",0.0,m.P_diss_v,True)
-        self.register_average("P_diss_nonlin","Dissipation by nonlinear vert. mix.","m^2/s^3","TTU",0.0,m.P_diss_nonlin,True)
-        self.register_average("P_diss_iso","Dissipation by Redi mixing tensor","m^2/s^3","TTU",0.0,m.P_diss_iso,True)
-        self.register_average("kappaH","Vertical diffusivity","m^2/s","TTU",0.0,m.kappaH,True)
+            self.register_average("psi","Surface pressure","m^2/s","TT",lambda: m.psi[:,:,1],0.0,False)
+        self.register_average("temp","Temperature","deg C","TTT",0.0,lambda: m.temp[:,:,:,1],True)
+        self.register_average("salt","Salinity","g/kg","TTT",0.0,lambda: m.salt[:,:,:,1],True)
+        self.register_average("u","Zonal velocity","m/s","UTT",0.0,lambda: m.u[:,:,:,1],True)
+        self.register_average("v","Meridional velocity","m/s","TUT",0.0,lambda: m.v[:,:,:,1],True)
+        self.register_average("w","Vertical velocity","m/s","TTU",0.0,lambda: m.w[:,:,:,1],True)
+        self.register_average("Nsqr","Square of stability frequency","1/s^2","TTU",0.0,lambda: m.Nsqr[:,:,:,1],True)
+        self.register_average("Hd","Dynamic enthalpy","m^2/s^2","TTT",0.0,lambda: m.Hd[:,:,:,1],True)
+        self.register_average("rho","Density","kg/m^3","TTT",0.0,lambda: m.rho[:,:,:,1],True)
+        self.register_average("K_diss_v","Dissipation by vertical friction","m^2/s^3","TTU",0.0,lambda: m.K_diss_v,True)
+        self.register_average("P_diss_v","Dissipation by vertical mixing","m^2/s^3","TTU",0.0,lambda: m.P_diss_v,True)
+        self.register_average("P_diss_nonlin","Dissipation by nonlinear vert. mix.","m^2/s^3","TTU",0.0,lambda: m.P_diss_nonlin,True)
+        self.register_average("P_diss_iso","Dissipation by Redi mixing tensor","m^2/s^3","TTU",0.0,lambda: m.P_diss_iso,True)
+        self.register_average("kappaH","Vertical diffusivity","m^2/s","TTU",0.0,lambda: m.kappaH,True)
         if m.enable_skew_diffusion:
-            self.register_average("B1_gm","Zonal component of GM streamfct.","m^2/s","TUT",0.0,m.B1_gm,True)
-            self.register_average("B2_gm","Meridional component of GM streamfct.","m^2/s","UTT",0.0,m.B2_gm,True)
+            self.register_average("B1_gm","Zonal component of GM streamfct.","m^2/s","TUT",0.0,lambda: m.B1_gm,True)
+            self.register_average("B2_gm","Meridional component of GM streamfct.","m^2/s","UTT",0.0,lambda: m.B2_gm,True)
         if m.enable_TEM_friction:
-            self.register_average("kappa_gm","Vertical GM viscosity","m^2/s","TTU",0.0,m.kappa_gm,True)
-            self.register_average("K_diss_gm","Dissipation by GM friction","m^2/s^3","TTU",0.0,m.K_diss_gm,True)
+            self.register_average("kappa_gm","Vertical GM viscosity","m^2/s","TTU",0.0,lambda: m.kappa_gm,True)
+            self.register_average("K_diss_gm","Dissipation by GM friction","m^2/s^3","TTU",0.0,lambda: m.K_diss_gm,True)
         if m.enable_tke:
-            self.register_average("TKE","Turbulent kinetic energy","m^2/s^2","TTU",0.0,m.tke[:,:,:,1],True)
-            self.register_average("Prandtl","Prandtl number"," ","TTU",0.0,m.Prandtlnumber,True)
-            self.register_average("mxl","Mixing length"," ","TTU",0.0,m.mxl,True)
-            self.register_average("tke_diss","Dissipation of TKE","m^2/s^3","TTU",0.0,m.tke_diss,True)
-            self.register_average("forc_tke_surface","TKE surface forcing","m^3/s^2","TT",m.forc_tke_surface,0.0,False)
-            self.register_average("tke_surface_corr","TKE surface flux correction","m^3/s^2","TT",m.tke_surf_corr,0.0,False)
-        if m.enable_idemix:
-            self.register_average("E_iw","Internal wave energy","m^2/s^2","TTU",0.0,m.e_iw[:,:,:,1],True)
-            self.register_average("forc_iw_surface","IW surface forcing","m^3/s^2","TT",m.forc_iw_surface,0.0,False)
-            self.register_average("forc_iw_bottom","IW bottom forcing","m^3/s^2","TT",m.forc_iw_bottom,0.0,False)
-            self.register_average("iw_diss","Dissipation of E_iw","m^2/s^3","TTU",0.0,m.iw_diss,True)
-            self.register_average("c0","Vertical IW group velocity","m/s","TTU",0.0,m.c0,True)
-            self.register_average("v0","Horizontal IW group velocity","m/s","TTU",0.0,m.v0,True)
+            self.register_average("TKE","Turbulent kinetic energy","m^2/s^2","TTU",0.0,lambda: m.tke[:,:,:,1],True)
+            self.register_average("Prandtl","Prandtl number"," ","TTU",0.0,lambda: m.Prandtlnumber,True)
+            self.register_average("mxl","Mixing length"," ","TTU",0.0,lambda: m.mxl,True)
+            self.register_average("tke_diss","Dissipation of TKE","m^2/s^3","TTU",0.0,lambda: m.tke_diss,True)
+            self.register_average("forc_tke_surface","TKE surface forcing","m^3/s^2","TT",lambda: m.forc_tke_surface,0.0,False)
+            self.register_average("tke_surface_corr","TKE surface flux correction","m^3/s^2","TT",lambda: m.tke_surf_corr,0.0,False)
+        if idm.enable_idemix:
+            self.register_average("E_iw","Internal wave energy","m^2/s^2","TTU",0.0,lambda: m.e_iw[:,:,:,1],True)
+            self.register_average("forc_iw_surface","IW surface forcing","m^3/s^2","TT",lambda: idm.forc_iw_surface,0.0,False)
+            self.register_average("forc_iw_bottom","IW bottom forcing","m^3/s^2","TT",lambda: idm.forc_iw_bottom,0.0,False)
+            self.register_average("iw_diss","Dissipation of E_iw","m^2/s^3","TTU",0.0,lambda: m.iw_diss,True)
+            self.register_average("c0","Vertical IW group velocity","m/s","TTU",0.0,lambda: m.c0,True)
+            self.register_average("v0","Horizontal IW group velocity","m/s","TTU",0.0,lambda: m.v0,True)
         if m.enable_eke:
-            self.register_average("EKE","Eddy energy","m^2/s^2","TTU",0.0,m.eke[:,:,:,1],True)
-            self.register_average("K_gm","Lateral diffusivity","m^2/s","TTU",0.0,m.K_gm,True)
-            self.register_average("eke_diss","Eddy energy dissipation","m^2/s^3","TTU",0.0,m.eke_diss,True)
-            self.register_average("L_Rossby","Rossby radius","m","TT",m.L_rossby,0.0,False)
-            self.register_average("L_Rhines","Rhines scale","m","TTU",0.0,m.L_Rhines,True)
-        if m.enable_idemix_M2:
-            self.register_average("E_M2","M2 tidal energy","m^2/s^2","TT",m.E_M2_int,0.0,False)
-            self.register_average("cg_M2","M2 group velocity","m/s","TT",m.cg_M2,0.0,False)
-            self.register_average("tau_M2","Decay scale","1/s","TT",m.tau_M2,0.0,False)
-            self.register_average("alpha_M2_cont","Interaction coeff.","s/m^3","TT",m.alpha_M2_cont,0.0,False)
-        if m.enable_idemix_niw:
-            self.register_average("E_niw","NIW energy","m^2/s^2","TT",m.E_niw_int,0.0,False)
-            self.register_average("cg_niw","NIW group velocity","m/s","TT",m.cg_niw,0.0,False)
-            self.register_average("tau_niw","Decay scale","1/s","TT",m.tau_niw,0.0,False)
+            self.register_average("EKE","Eddy energy","m^2/s^2","TTU",0.0,lambda: m.eke[:,:,:,1],True)
+            self.register_average("K_gm","Lateral diffusivity","m^2/s","TTU",0.0,lambda: m.K_gm,True)
+            self.register_average("eke_diss","Eddy energy dissipation","m^2/s^3","TTU",0.0,lambda: m.eke_diss,True)
+            self.register_average("L_Rossby","Rossby radius","m","TT",lambda: m.L_rossby,0.0,False)
+            self.register_average("L_Rhines","Rhines scale","m","TTU",0.0,lambda: m.L_Rhines,True)
+        if idm.enable_idemix_M2:
+            self.register_average("E_M2","M2 tidal energy","m^2/s^2","TT",lambda: m.E_M2_int,0.0,False)
+            self.register_average("cg_M2","M2 group velocity","m/s","TT",lambda: m.cg_M2,0.0,False)
+            self.register_average("tau_M2","Decay scale","1/s","TT",lambda: m.tau_M2,0.0,False)
+            self.register_average("alpha_M2_cont","Interaction coeff.","s/m^3","TT",lambda: m.alpha_M2_cont,0.0,False)
+        if idm.enable_idemix_niw:
+            self.register_average("E_niw","NIW energy","m^2/s^2","TT",lambda: m.E_niw_int,0.0,False)
+            self.register_average("cg_niw","NIW group velocity","m/s","TT",lambda: m.cg_niw,0.0,False)
+            self.register_average("tau_niw","Decay scale","1/s","TT",lambda: m.tau_niw,0.0,False)
 
 
 if __name__ == "__main__":
