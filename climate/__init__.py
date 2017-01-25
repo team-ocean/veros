@@ -7,7 +7,8 @@ from .slice import make_slice
 __all__ = [
     "data",
     "io",
-    "pyom"
+    "pyom",
+    "setup"
 ]
 
 for module in __all__:
