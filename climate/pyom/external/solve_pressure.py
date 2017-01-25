@@ -232,8 +232,8 @@ def apply_op(cf, p1, pyom, res):
     P1[:,:,2,1] = p1[3:pyom.nx+3, 2:pyom.ny+2]
     P1[:,:,2,2] = p1[3:pyom.nx+3, 3:pyom.ny+3]
     res[2:pyom.nx+2, 2:pyom.ny+2] = np.add.reduce(cf[2:pyom.nx+2, 2:pyom.ny+2] * P1,axis=(2,3))
-    if climate.is_bohrium:
-        np.flush()
+    #if climate.is_bohrium:
+    #    np.flush()
 
     #for jj in xrange(-1, 2): #jj=-1,1
     #    for ii in xrange(-1, 2): #ii=-1,1
