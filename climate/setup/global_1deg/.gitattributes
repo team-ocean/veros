@@ -1,0 +1,13 @@
+bathymetry.bin filter=lfs diff=lfs merge=lfs -text
+dz.bin filter=lfs diff=lfs merge=lfs -text
+ECMWFBB_dqdt.bin filter=lfs diff=lfs merge=lfs -text
+ECMWFBB_qnet.bin filter=lfs diff=lfs merge=lfs -text
+ECMWFBB_swf.bin filter=lfs diff=lfs merge=lfs -text
+ECMWFBB_target_sst.bin filter=lfs diff=lfs merge=lfs -text
+ECMWFBB_taux.bin filter=lfs diff=lfs merge=lfs -text
+ECMWFBB_tauy.bin filter=lfs diff=lfs merge=lfs -text
+lev_clim_salt.bin filter=lfs diff=lfs merge=lfs -text
+lev_clim_temp.bin filter=lfs diff=lfs merge=lfs -text
+lev_sss.bin filter=lfs diff=lfs merge=lfs -text
+tidal_energy.bin filter=lfs diff=lfs merge=lfs -text
+wind_energy_ncep.bin filter=lfs diff=lfs merge=lfs -text
