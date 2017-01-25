@@ -98,9 +98,9 @@ class ACC2(PyOMLegacy):
      XU, YU = np.meshgrid(m.xu,m.yu); XU=XU.transpose(); YU=YU.transpose()
 
      # initial conditions
-     m.temp[:,:,:,:] = ((1-m.zt[None,None,:]/m.zw[0])*15*m.maskT)[...,None]
+     m.temp[:,:,:,0:2] = ((1-m.zt[None,None,:]/m.zw[0])*15*m.maskT)[...,None]
      #m.temp[:,:,:,m.taum1] =  (1-m.zt[None,None,:]/m.zw[0])*15*m.maskT
-     m.salt[:,:,:,:] = 35.0*m.maskT[...,None]
+     m.salt[:,:,:,0:2] = 35.0*m.maskT[...,None]
      #m.salt[:,:,:,m.taum1] = 35.0*m.maskT[:]
 
      # wind stress forcing
