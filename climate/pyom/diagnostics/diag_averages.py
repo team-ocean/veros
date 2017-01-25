@@ -2,6 +2,7 @@ import warnings
 from collections import namedtuple
 from netCDF4 import Dataset
 import json
+import numpy as np
 
 from climate.pyom.diagnostics.diag_snap import def_grid_cdf
 
@@ -15,19 +16,16 @@ def register_average(name,long_name,units,grid,var,pyom):
     name : NetCDF variables name (must be unique)
     long_name:  long name
     units : units
-    grid : three digits, either 'T' for T grid or 'U' for shifted grid
-           applies for the 3 dimensions, U is shifted by 1/2 grid point
+    grid : two or three digits, either 'T' for T grid or 'U' for shifted grid
+           U is shifted by 1/2 grid point
     var : callable returning the variable to be averaged
     """
     if not callable(var):
         raise TypeError("var must be a callable that returns the variable to be averaged")
-    if len(grid) != var.ndim:
-        if len(grid)+1 == var.ndim:
-            var_slice = tuple([None]*len(grid) + [-1])
-        else:
-            raise ValueError("number of dimensions must match grid")
-    else:
-        var_slice = tuple([None]*len(grid))
+
+    if len(grid) != var().ndim:
+        raise ValueError("number of dimensions must match grid")
+
     if not all([g == "U" or g == "T" for g in grid]):
         raise ValueError("grid variable may only contain 'U' or 'T'")
 
@@ -37,17 +35,16 @@ def register_average(name,long_name,units,grid,var,pyom):
 
     print(" time averaging variable {}".format(name))
     print(" long name {} units {} grid {}".format(long_name,units,grid))
-    # check if name is in use
-    for diag in pyom.diags: # n = 1,number_diags
-        if name.strip() == diag["name"].strip():
-            raise RuntimeError(" name already in use")
+    
+    if name.strip() in (d.name.strip() for d in pyom.diagnostics):
+        raise RuntimeError("name {} already in use".format(name))
 
-    diag = Diagnostic(name, long_name, units, grid, var[var_slice].view, np.zeros_like(var[var_slice]))
+    diag = Diagnostic(name, long_name, units, grid, var, np.zeros_like(var()))
     pyom.diagnostics.append(diag)
 
 def diag_averages(pyom):
     for diag in pyom.diagnostics:
-        diag.sum[...] += diag.var[...]
+        diag.sum[...] += diag.var()[...]
 
 def write_averages(pyom):
     """
@@ -71,8 +68,7 @@ def write_averages(pyom):
             else:
                 dims = (dim_x, dim_y, "Time")
             var = f.createVariable(diag.name,"f8",dims,fill_value=fill_value)
-            var_data = np.copy(diag.sum)
-            diag.sum[...] = 0.
+            var_data = diag.sum
             if diag.grid[:2] == "TU":
                 mask = pyom.maskV
             elif diag.grid[:2] == "UT":
@@ -87,6 +83,7 @@ def write_averages(pyom):
             var.long_name = diag.long_name
             var.units = diag.units
             var.missing_value = fill_value
+            diag.sum[...] = 0.
 
 def diag_averages_write_restart(pyom):
     """
@@ -99,7 +96,7 @@ def diag_averages_write_restart(pyom):
             warnings.warn("could not write restart file")
             return
         json_data = dict(nx=pyom.nx, ny=pyom.ny, nz=pyom.nz,
-                         nitts=pyom.nitts, number_diags=pyom.number_diags)
+                         nitts=pyom.nitts)
         json_data["averages"] = dict()
         for diag in pyom.diagnostics:
             json_data["averages"][diag.name] = diag.sum.tolist()
@@ -111,7 +108,7 @@ def diag_averages_read_restart(pyom):
     """
     filename = "unfinished_averages.json"
     if not os.file_exists(filename):
-        warnings.warn(" file {} not present\n"
+        warnings.warn("file {} not present\n"
                       "reading no unfinished time averages".format(filename))
         return
     print(" reading unfinished averages from {}".format(filename))
@@ -126,5 +123,5 @@ def diag_averages_read_restart(pyom):
                              pyom.nx, pyom.ny, pyom.nz))
         return
 
-    for diag in diagnostics:
+    for diag in pyom.diagnostics:
         diag.sum[...] = np.array(json_data["averages"][diag.name])

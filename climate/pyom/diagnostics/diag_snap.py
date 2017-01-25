@@ -5,7 +5,7 @@ def def_grid_cdf(ncfile):
     Define standard grid in netcdf file
     """
     if not isinstance(ncfile,Dataset):
-        raise TypeError("arguments needs to be a netCDF4 Dataset")
+        raise TypeError("Argument needs to be a netCDF4 Dataset")
 
     # dimensions
     lon_tdim = ncfile.createDimension("xt", pyom.nx)
@@ -65,7 +65,9 @@ def def_grid_cdf(ncfile):
         lat_Tid[...] = pyom.yt / 1e3
         lat_uid[...] = pyom.yu / 1e3
 
-
+def init_snap_cdf():
+    import warnings
+    warnings.warn("routine is not implemented yet")
 # subroutine init_snap_cdf
 # !=======================================================================
 # !     initialize NetCDF snapshot file
@@ -1177,7 +1179,7 @@ def def_grid_cdf(ncfile):
 #
 # end subroutine diag_snap
 #
-# 
+#
 #
 # subroutine panic_snap
 # !=======================================================================

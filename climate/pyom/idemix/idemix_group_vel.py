@@ -2,7 +2,7 @@ import numpy as np
 import warnings
 import math
 
-from climate.pyom import numerics
+from climate.pyom import numerics, cyclic
 
 def set_spectral_parameter(pyom):
     """
@@ -45,7 +45,8 @@ def get_shelf(pyom):
             for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
                 if map2[i,j] == 1:
                     pyom.topo_shelf[i-1:i+2,j-1:j+2] = 1 # (i-1:i+1,j-1:j+1)
-        numerics.setcyclic_xy(pyom.topo_shelf,pyom.enable_cyclic_x,pyom.nx,pyom.nz)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(pyom.topo_shelf)
 
 
 def set_time_scales(pyom):

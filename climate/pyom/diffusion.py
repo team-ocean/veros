@@ -36,8 +36,8 @@ def tempsalt_biharmonic(pyom):
             del2[i,j,:] = pyom.maskT[i,j,:] * (pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:])/(pyom.cost[j]*pyom.dxt[i]) \
                                         +(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:])/(pyom.cost[j]*pyom.dyt[j])
 
-    # border_exchg_xyz(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx,pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx,nz,del2)
-    cyclic.setcyclic_xyz(del2,pyom.enable_cyclic_x,pyom.nx,pyom.nz)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(del2)
 
     for j in xrange(js,je): # j = js,je
         for i in xrange(is_,ie-1): # i = is_,ie-1
@@ -95,8 +95,8 @@ def tempsalt_biharmonic(pyom):
             del2[i,j,:] = pyom.maskT[i,j,:]* (pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:])/(pyom.cost[j]*pyom.dxt[i]) \
                                         +(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:])/(pyom.cost[j]*pyom.dyt[j])
 
-    # border_exchg_xyz(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx,pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx,nz,del2)
-    cyclic.setcyclic_xyz(del2,pyom.enable_cyclic_x,pyom.nx,pyom.nz)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(del2)
 
     for j in xrange(js,je): # j = js,je
         for i in xrange(is_,ie-1): # i = is_,ie-1

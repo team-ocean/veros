@@ -213,18 +213,24 @@ def calc_spectral_topo(pyom):
             for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
                 if (kbot[i,j] != 0):
                     maskTp[i,j,:] = 1.0
-        border_exchg_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,maskTp)
-        setcyclic_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,maskTp)
+        if pyom.enable_cyclic_x:
+            cyclic.setcyclic_xp(maskTp)
+        else:
+            cyclic.setcyclic_p(maskTp)
         maskUp = maskTp
         for i in xrange(is_pe-onx,ie_pe+onx-1): # i = is_pe-onx,ie_pe+onx-1
             maskUp[i,:,:] = min(maskTp[i,:,:],maskTp[i+1,:,:])
-        border_exchg_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,maskUp)
-        setcyclic_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,maskUp)
+        if pyom.enable_cyclic_x:
+            cyclic.setcyclic_xp(maskUp)
+        else:
+            cyclic.setcyclic_p(maskUp)
         maskVp = maskTp
         for j in xrange(js_pe-onx,je_pe+onx-1): # j = js_pe-onx,je_pe+onx-1
             maskVp[:,j,:] = min(maskTp[:,j,:],maskTp[:,j+1,:])
-        border_exchg_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,maskVp)
-        setcyclic_xyp(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,np,maskVp)
+        if pyom.enable_cyclic_x:
+            cyclic.setcyclic_xp(maskVp)
+        else:
+            cyclic.setcyclic_p(maskVp)
         maskWp = maskTp
         for k in xrange(1,np-1): # k = 1,np-1
             maskWp[:,:,k] = min(maskTp[:,:,k],maskTp[:,:,k+1])

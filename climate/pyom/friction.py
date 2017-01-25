@@ -125,7 +125,7 @@ def implicit_vert_friction(pyom):
                     c_tri[k] = -delta[k] / pyom.dzt[k]
                 c_tri[pyom.nz-1] = 0.0
                 d_tri[ks:] = pyom.u[i,j,ks:,pyom.tau]
-                pyom.u[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:],pyom.nz-ks)
+                pyom.u[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:])
             pyom.du_mix[i,j,:] = (pyom.u[i,j,:,pyom.taup1] - pyom.u[i,j,:,pyom.tau]) / pyom.dt_mom
 
     """
@@ -167,7 +167,7 @@ def implicit_vert_friction(pyom):
                     c_tri[k] = -delta[k] / pyom.dzt[k]
                 c_tri[pyom.nz-1] = 0.0
                 d_tri[ks:] = pyom.v[i,j,ks:,pyom.tau]
-                pyom.v[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:],pyom.nz-ks)
+                pyom.v[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:])
             pyom.dv_mix[i,j,:] = (pyom.v[i,j,:,pyom.taup1] - pyom.v[i,j,:,pyom.tau]) / pyom.dt_mom
 
     """
@@ -209,7 +209,7 @@ def implicit_vert_friction(pyom):
                         c_tri[k] = - delta[k] / pyom.dzw[k]
                     c_tri[pyom.nz-1] = 0.0
                     d_tri[ks:] = pyom.w[i,j,ks:,pyom.tau]
-                    pyom.w[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:],pyom.nz-ks)
+                    pyom.w[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:])
                 pyom.dw_mix[i,j,:] = (pyom.w[i,j,:,pyom.taup1] - pyom.w[i,j,:]) / pyom.dt_mom
 
         """
@@ -577,8 +577,9 @@ def biharmonic_friction(pyom):
         """
         diagnose dissipation by lateral friction
         """
-        cyclic.setcyclic_xyz(pyom.flux_east,pyom.nx,pyom.nz)
-        cyclic.setcyclic_xyz(pyom.flux_north,pyom.nx,pyom.nz)
+        if pyom.enable_cyclic_x:
+            cyclic.setcyclic_x(pyom.flux_east)
+            cyclic.setcyclic_x(pyom.flux_north)
         for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
             for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
                 diss[i,j,:] = -0.5*((pyom.u[i+1,j,:,pyom.tau] - pyom.u[i,j,:,pyom.tau]) * pyom.flux_east[i,j,:] \
@@ -632,8 +633,9 @@ def biharmonic_friction(pyom):
         """
         diagnose dissipation by lateral friction
         """
-        setcyclic_xyz(pyom.flux_east,pyom.nx,pyom.nz)
-        setcyclic_xyz(pyom.flux_north,pyom.nx,pyom.nz)
+        if pyom.enable_cyclic_x:
+            cyclic.setcyclic_x(pyom.flux_east)
+            cyclic.setcyclic_x(pyom.flux_north)
         for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
             for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
                 diss[i,j,:] = -0.5*((pyom.v[i+1,j,:,pyom.tau] - pyom.v[i,j,:,pyom.tau]) * pyom.flux_east[i,j,:] \

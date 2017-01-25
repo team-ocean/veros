@@ -49,8 +49,9 @@ def solve_pressure(pyom):
             for i in xrange(pyom.is_pe, pyom.ie_pe): #i=pyom.is_pe,pyom.ie_pe
                 fpx[i,j] += pyom.u[i,j,k,pyom.taup1] * pyom.maskU[i,j,k] * dzt[k] / pyom.dt_mom
                 fpy[i,j] += pyom.v[i,j,k,pyom.taup1] * pyom.maskV[i,j,k] * dzt[k] / pyom.dt_mom
-    cyclic.setcyclic_xy(fpx,pyom.enable_cyclic_x, pyom.nx)
-    cyclic.setcyclic_xy(fpy,pyom.enable_cyclic_x, pyom.nx)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(fpx)
+        cyclic.setcyclic_x(fpy)
 
     # forc = 1/cos (u_x + (cos pyom.v)_y )
     for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
@@ -64,7 +65,8 @@ def solve_pressure(pyom):
     pyom.psi[:,:,pyom.taup1] = 2*pyom.psi[:,:,pyom.tau]-pyom.psi[:,:,pyom.taum1] # first guess
     #solve for surface pressure
     congrad_surf_press(forc,congr_itts)
-    cyclic.setcyclic_xy(pyom.psi[:,:,pyom.taup1], pyom.enable_cyclic_x, pyom.nx)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(pyom.psi[:,:,pyom.taup1])
 
     # remove surface pressure gradient
     for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
@@ -142,7 +144,8 @@ def congrad_surf_press(forc, iterations):
 
     p[...] = res
 
-    cyclic.setcyclic_xy(p, pyom.enable_cyclic_x, pyom.nx)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(p)
     rsold = dot_sfp(res,res)
 
     for n in xrange(1, congr_max_iterations+1): #n=1,congr_max_iterations
@@ -155,7 +158,8 @@ def congrad_surf_press(forc, iterations):
         res -= alpha*Ap
         rsnew = dot_sfp(pyom.is_pe-onx,pyom.ie_pe+onx,pyom.js_pe-onx,pyom.je_pe+onx,res,res)
         p = res+rsnew/rsold*p
-        cyclic.setcyclic_xy(p, pyom.enable_cyclic_x, pyom.nx)
+        if pyom.enable_cyclic_x:
+            cyclic.setcyclic_x(p)
         rsold[...] = rsnew
         """
         test for divergence

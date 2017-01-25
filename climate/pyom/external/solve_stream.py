@@ -245,16 +245,16 @@ def streamfunction_init(pyom):
             j = pyom.boundary[isle,n,1]
             if i >= 0 and i <= pyom.nx+3 and j >= 0 and j <= pyom.ny+3:
                 pyom.psin[i,j,isle] = 1.0
-        #MPI stuff
-        #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle));
-        cyclic.setcyclic_xy(pyom.psin[:,:,isle], pyom.enable_cyclic_x, pyom.nx)
+
+        if pyom.enable_cyclic_x:
+            cyclic.setcyclic_x(pyom.psin[:,:,isle])
         print ' solving for boundary contribution by island ',isle
 
         converged = congrad_streamfunction(forc,pyom.psin[:,:,isle],pyom)
         print ' itts =  ',pyom.congr_itts
-        #MPI stuff
-        #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,psin(:,:,isle));
-        cyclic.setcyclic_xy(pyom.psin[:,:,isle], pyom.enable_cyclic_x, pyom.nx)
+
+        if pyom.enable_cyclic_x:
+            cyclic.setcyclic_x(pyom.psin[:,:,isle])
 
     """
     -----------------------------------------------------------------------
@@ -435,11 +435,9 @@ def solve_streamfunction(pyom,benchtest=False):
     fpx *= pyom.hur
     fpy *= pyom.hvr
 
-    #MPI stuff
-    #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpx);
-    cyclic.setcyclic_xy(fpx, pyom.enable_cyclic_x, pyom.nx)
-    #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,fpy);
-    cyclic.setcyclic_xy(fpy, pyom.enable_cyclic_x, pyom.nx)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(fpx)
+        cyclic.setcyclic_x(fpy)
 
     forc = np.empty((pyom.nx+4, pyom.ny+4))
     forc[2:pyom.nx+2, 2:pyom.ny+2] = (fpy[3:pyom.nx+3, 2:pyom.ny+2]-fpy[2:pyom.nx+2, 2:pyom.ny+2]) \
@@ -454,9 +452,8 @@ def solve_streamfunction(pyom,benchtest=False):
     pyom.dpsi[:,:,pyom.taup1] = 2*pyom.dpsi[:,:,pyom.tau]-pyom.dpsi[:,:,pyom.taum1] # first guess, we need three time levels here
     congrad_streamfunction(forc,pyom.dpsi[:,:,pyom.taup1], pyom,benchtest)
 
-    # MPI stuff
-    #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,dpsi(:,:,taup1))
-    cyclic.setcyclic_xy(pyom.dpsi[:,:,pyom.taup1], pyom.enable_cyclic_x, pyom.nx)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(pyom.dpsi[:,:,pyom.taup1])
 
     if pyom.nisle > 1:
         # calculate island integrals of forcing, keep psi constant on island 1
@@ -621,9 +618,8 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
     #    for j in xrange(pyom.ny+4):
     #        print "sol", i, j, sol[i,j]
     #sys.exit()
-    # MPI stuff
-    #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,sol)
-    cyclic.setcyclic_xy(sol, pyom.enable_cyclic_x, pyom.nx)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(sol)
     """
     -----------------------------------------------------------------------
          res(0)  = forc - A * eta(0)
@@ -691,9 +687,8 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
         #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
         #        ss[i,j] = Zres[i,j] + betaquot*ss[i,j]
 
-        #MPI stuff
-        #call border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,ss)
-        cyclic.setcyclic_xy(ss, pyom.enable_cyclic_x, pyom.nx)
+        if pyom.enable_cyclic_x:
+            cyclic.setcyclic_x(ss)
         """
         -----------------------------------------------------------------------
                As(k)     = A * ss(k)

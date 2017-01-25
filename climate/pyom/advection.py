@@ -44,6 +44,32 @@ def adv_flux_2nd(adv_fe,adv_fn,adv_ft,var,pyom):
 
     #adv_ft[:,:,pyom.nz-1] = 0.0
 
+def _calc_cr(rjp,rj,rjm,vel):
+    cr = np.zeros_like(rj)
+    mask_rj = rj == 0.
+    mask_vel = vel > 0
+    mask1 = [~mask_rj & mask_vel]
+    cr[mask1] = rjm[mask1] / rj[mask1]
+    mask2 = [~mask_rj & ~mask_vel]
+    cr[mask2] = rjp[mask2] / rj[mask2]
+    mask3 = [mask_rj & mask_vel]
+    cr[mask3] = rjm[mask3] * 1e20
+    mask4 = [mask_rj & ~mask_vel]
+    cr[mask4] = rjp[mask4] * 1e20
+    return cr
+
+def _pad_z_edges(array):
+    """
+    Pads the third axis of an array by repeating its edge values
+    """
+    a = list(array.shape)
+    a[2] += 2
+    newarray = np.empty(a)
+    newarray[:,:,1:-1,...] = array
+    newarray[:,:,0,...] = array[:,:,0,...]
+    newarray[:,:,-1,...] = array[:,:,-1,...]
+    return newarray
+
 def adv_flux_superbee(adv_fe,adv_fn,adv_ft,var,pyom):
     """
     from MITgcm
@@ -74,26 +100,12 @@ def adv_flux_superbee(adv_fe,adv_fn,adv_ft,var,pyom):
     limiter = lambda cr: np.maximum(0.,np.maximum(np.minimum(1.,2*cr), np.minimum(2.,cr)))
     # ! limiter = lambda cr: max(0.,max(min(1.,1.5*cr), min(1.5,cr)))
 
-    def calc_cr(rjp,rj,rjm,vel):
-        cr = np.zeros_like(rj)
-        mask_rj = rj == 0.
-        mask_vel = vel > 0
-        mask1 = [~mask_rj & mask_vel]
-        cr[mask1] = rjm[mask1] / rj[mask1]
-        mask2 = [~mask_rj & ~mask_vel]
-        cr[mask2] = rjp[mask2] / rj[mask2]
-        mask3 = [mask_rj & mask_vel]
-        cr[mask3] = rjm[mask3] * 1e20
-        mask4 = [mask_rj & ~mask_vel]
-        cr[mask4] = rjp[mask4] * 1e20
-        return limiter(cr)
-
     uCFL = np.abs(pyom.u[1:-2,2:-2,:,pyom.tau] * pyom.dt_tracer / (pyom.cost[None,2:-2,None] * pyom.dxt[1:-2,None,None]))
     rjp = (var[3:,2:-2,:] - var[2:-1,2:-2,:]) * pyom.maskU[2:-1,2:-2,:]
     rj = (var[2:-1,2:-2,:] - var[1:-2,2:-2,:]) * pyom.maskU[1:-2,2:-2,:]
     rjm = (var[1:-2,2:-2,:] - var[:-3,2:-2,:]) * pyom.maskU[:-3,2:-2,:]
 
-    cr = calc_cr(rjp,rj,rjm,pyom.u[1:-2,2:-2,:,pyom.tau])
+    cr = limiter(_calc_cr(rjp,rj,rjm,pyom.u[1:-2,2:-2,:,pyom.tau]))
     adv_fe[1:-2,2:-2,:] = pyom.u[1:-2,2:-2,:,pyom.tau] * (var[2:-1,2:-2,:] + var[1:-2,2:-2,:]) * 0.5 \
                           - np.abs(pyom.u[1:-2,2:-2,:,pyom.tau]) * ((1.-cr) + uCFL*cr) * rj * 0.5
 
@@ -123,7 +135,7 @@ def adv_flux_superbee(adv_fe,adv_fn,adv_ft,var,pyom):
     rj = (var[2:-2,2:-1,:] - var[2:-2,1:-2,:]) * pyom.maskV[2:-2,1:-2,:]
     rjm = (var[2:-2,1:-2,:] - var[2:-2,:-3,:]) * pyom.maskV[2:-2,:-3,:]
 
-    cr = calc_cr(rjp,rj,rjm,pyom.v[2:-2,1:-2,:,pyom.tau])
+    cr = limiter(_calc_cr(rjp,rj,rjm,pyom.v[2:-2,1:-2,:,pyom.tau]))
     adv_fn[2:-2,1:-2,:] = pyom.cosu[None,1:-2,None] * pyom.v[2:-2,1:-2,:,pyom.tau] * (var[2:-2,2:-1,:]+var[2:-2,1:-2,:])*0.5   \
                     - np.abs(pyom.cosu[None,1:-2,None] * pyom.v[2:-2,1:-2,:,pyom.tau]) * ((1.-cr)+uCFL*cr)*rj*0.5
 
@@ -148,23 +160,14 @@ def adv_flux_superbee(adv_fe,adv_fn,adv_ft,var,pyom):
     #            adv_fn[i,j,k] = pyom.cosu[j]*pyom.v[i,j,k,pyom.tau]*(var[i,j+1,k]+var[i,j,k])*0.5   \
     #                            -abs(pyom.cosu[j]*pyom.v[i,j,k,pyom.tau])*((1.-cr)+uCFL*cr)*rj*0.5
 
-    def pad_z_edges(array):
-        a = list(array.shape)
-        a[2] += 2
-        newarray = np.empty(a)
-        newarray[:,:,1:-1,...] = array
-        newarray[:,:,0,...] = array[:,:,0,...]
-        newarray[:,:,-1,...] = array[:,:,-1,...]
-        return newarray
-
-    var_pad = pad_z_edges(var)
-    maskW_pad = pad_z_edges(pyom.maskW)
+    var_pad = _pad_z_edges(var)
+    maskW_pad = _pad_z_edges(pyom.maskW)
     uCFL = np.abs(pyom.w[2:-2,2:-2,:-1,pyom.tau] * pyom.dt_tracer / pyom.dzt[None,None,:-1])
     rjp = (var_pad[2:-2,2:-2,3:] - var_pad[2:-2,2:-2,2:-1]) * maskW_pad[2:-2,2:-2,2:-1]
     rj = (var_pad[2:-2,2:-2,2:-1] - var_pad[2:-2,2:-2,1:-2]) * maskW_pad[2:-2,2:-2,1:-2]
     rjm = (var_pad[2:-2,2:-2,1:-2] - var_pad[2:-2,2:-2,:-3] * maskW_pad[2:-2,2:-2,:-3])
 
-    cr = calc_cr(rjp,rj,rjm,pyom.w[2:-2,2:-2,:-1,pyom.tau])
+    cr = limiter(_calc_cr(rjp,rj,rjm,pyom.w[2:-2,2:-2,:-1,pyom.tau]))
     adv_ft[2:-2,2:-2,:-1] = pyom.w[2:-2,2:-2,:-1,pyom.tau] * (var[2:-2,2:-2,1:] + var[2:-2,2:-2,:-1]) *0.5 \
                     - np.abs(pyom.w[2:-2,2:-2,:-1,pyom.tau]) * ((1.-cr) + uCFL * cr) * rj * 0.5
     adv_ft[:,:,pyom.nz-1] = 0.0
@@ -201,39 +204,64 @@ def calculate_velocity_on_wgrid(pyom):
     #real*8 :: fxa,fxb
 
     # lateral advection velocities on W grid
-    for k in xrange(pyom.nz-1): # k = 1,nz-1
-        pyom.u_wgrid[:,:,k] = pyom.u[:,:,k+1,pyom.tau]*pyom.maskU[:,:,k+1]*0.5*pyom.dzt[k+1]/pyom.dzw[k] + pyom.u[:,:,k,pyom.tau]*pyom.maskU[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
-        pyom.v_wgrid[:,:,k] = pyom.v[:,:,k+1,pyom.tau]*pyom.maskV[:,:,k+1]*0.5*pyom.dzt[k+1]/pyom.dzw[k] + pyom.v[:,:,k,pyom.tau]*pyom.maskV[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
-    k = pyom.nz-1
-    pyom.u_wgrid[:,:,k] = pyom.u[:,:,k,pyom.tau]*pyom.maskU[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
-    pyom.v_wgrid[:,:,k] = pyom.v[:,:,k,pyom.tau]*pyom.maskV[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
+    pyom.u_wgrid[:,:,:-1] = pyom.u[:,:,1:,pyom.tau] * pyom.maskU[:,:,1:] * 0.5 * pyom.dzt[None,None,1:] / pyom.dzw[None,None,:-1] \
+                          + pyom.u[:,:,:-1,pyom.tau] * pyom.maskU[:,:,:-1] * 0.5 * pyom.dzt[None,None,:-1] / pyom.dzw[None,None,:-1]
+    pyom.v_wgrid[:,:,:-1] = pyom.v[:,:,1:,pyom.tau] * pyom.maskV[:,:,1:] * 0.5 * pyom.dzt[None,None,1:] / pyom.dzw[None,None,:-1] \
+                          + pyom.v[:,:,:-1,pyom.tau] * pyom.maskV[:,:,:-1] * 0.5 * pyom.dzt[None,None,:-1] / pyom.dzw[None,None,:-1]
+    pyom.u_wgrid[:,:,-1] = pyom.u[:,:,-1,pyom.tau] * pyom.maskU[:,:,-1] * 0.5 * pyom.dzt[-1] / pyom.dzw[-1]
+    pyom.v_wgrid[:,:,-1] = pyom.v[:,:,-1,pyom.tau] * pyom.maskV[:,:,-1] * 0.5 * pyom.dzt[-1] / pyom.dzw[-1]
+
+    #for k in xrange(pyom.nz-1): # k = 1,nz-1
+    #    pyom.u_wgrid[:,:,k] = pyom.u[:,:,k+1,pyom.tau]*pyom.maskU[:,:,k+1]*0.5*pyom.dzt[k+1]/pyom.dzw[k] + pyom.u[:,:,k,pyom.tau]*pyom.maskU[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
+    #    pyom.v_wgrid[:,:,k] = pyom.v[:,:,k+1,pyom.tau]*pyom.maskV[:,:,k+1]*0.5*pyom.dzt[k+1]/pyom.dzw[k] + pyom.v[:,:,k,pyom.tau]*pyom.maskV[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
+    #k = pyom.nz-1
+    #pyom.u_wgrid[:,:,k] = pyom.u[:,:,k,pyom.tau]*pyom.maskU[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
+    #pyom.v_wgrid[:,:,k] = pyom.v[:,:,k,pyom.tau]*pyom.maskV[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
 
     # redirect velocity at bottom and at topography
-    k = 0 # k = 1
-    pyom.u_wgrid[:,:,k] = pyom.u_wgrid[:,:,k] + pyom.u[:,:,k,pyom.tau]*pyom.maskU[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
-    pyom.v_wgrid[:,:,k] = pyom.v_wgrid[:,:,k] + pyom.v[:,:,k,pyom.tau]*pyom.maskV[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
-    for k in xrange(pyom.nz-1): # k = 1,nz-1
-        for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx): # j = js_pe-onx,je_pe+onx
-            for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx-1): # i = is_pe-onx,ie_pe+onx-1
-                if pyom.maskW[i,j,k]*pyom.maskW[i+1,j,k] == 0:
-                    pyom.u_wgrid[i,j,k+1] = pyom.u_wgrid[i,j,k+1]+pyom.u_wgrid[i,j,k]*pyom.dzw[k]/pyom.dzw[k+1]
-                    pyom.u_wgrid[i,j,k] = 0.
+    pyom.u_wgrid[:,:,0] = pyom.u_wgrid[:,:,0] + pyom.u[:,:,0,pyom.tau] * pyom.maskU[:,:,0] * 0.5 * pyom.dzt[0] / pyom.dzw[0]
+    pyom.v_wgrid[:,:,0] = pyom.v_wgrid[:,:,0] + pyom.v[:,:,0,pyom.tau] * pyom.maskV[:,:,0] * 0.5 * pyom.dzt[0] / pyom.dzw[0]
+    for k in xrange(pyom.nz-1): #TODO: vectorize
+        mask = pyom.maskW[:-1, :, k] * pyom.maskW[1:, :, k] == 0
+        pyom.u_wgrid[:-1, :, k+1][mask] = (pyom.u_wgrid[:-1, :, k+1] + pyom.u_wgrid[:-1, :, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1])[mask]
+        pyom.u_wgrid[:-1, :, k][mask] = 0.
 
-    for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx-1): # j = js_pe-onx,je_pe+onx-1
-        for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx): # i = is_pe-onx,ie_pe+onx
-            if pyom.maskW[i,j,k]*pyom.maskW[i,j+1,k] == 0 :
-                pyom.v_wgrid[i,j,k+1] = pyom.v_wgrid[i,j,k+1]+pyom.v_wgrid[i,j,k]*pyom.dzw[k]/pyom.dzw[k+1]
-                pyom.v_wgrid[i,j,k] = 0.
+        mask = pyom.maskW[:, :-1, k] * pyom.maskW[:, 1:, k] == 0
+        pyom.v_wgrid[:, :-1, k+1][mask] = (pyom.v_wgrid[:, :-1, k+1] + pyom.v_wgrid[:, :-1, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1])[mask]
+        pyom.v_wgrid[:, :-1, k][mask] = 0.
+
+    #k = 0 # k = 1
+    #pyom.u_wgrid[:,:,k] = pyom.u_wgrid[:,:,k] + pyom.u[:,:,k,pyom.tau]*pyom.maskU[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
+    #pyom.v_wgrid[:,:,k] = pyom.v_wgrid[:,:,k] + pyom.v[:,:,k,pyom.tau]*pyom.maskV[:,:,k]*0.5*pyom.dzt[k]/pyom.dzw[k]
+    #for k in xrange(pyom.nz-1): # k = 1,nz-1
+    #    for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx): # j = js_pe-onx,je_pe+onx
+    #        for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx-1): # i = is_pe-onx,ie_pe+onx-1
+    #            if pyom.maskW[i,j,k]*pyom.maskW[i+1,j,k] == 0:
+    #                pyom.u_wgrid[i,j,k+1] = pyom.u_wgrid[i,j,k+1]+pyom.u_wgrid[i,j,k]*pyom.dzw[k]/pyom.dzw[k+1]
+    #                pyom.u_wgrid[i,j,k] = 0.
+    #
+    #for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx-1): # j = js_pe-onx,je_pe+onx-1
+    #    for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx): # i = is_pe-onx,ie_pe+onx
+    #        if pyom.maskW[i,j,k]*pyom.maskW[i,j+1,k] == 0 :
+    #            pyom.v_wgrid[i,j,k+1] = pyom.v_wgrid[i,j,k+1]+pyom.v_wgrid[i,j,k]*pyom.dzw[k]/pyom.dzw[k+1]
+    #            pyom.v_wgrid[i,j,k] = 0.
 
     # vertical advection velocity on W grid from continuity
-    k = 0 # k = 1
-    pyom.w_wgrid[:,:,k] = 0.
-    for k in xrange(pyom.nz): # k = 1,nz
-        for j in xrange(pyom.js_pe-pyom.onx+1,pyom.je_pe+pyom.onx): # j = js_pe-onx+1,je_pe+onx
-            for i in xrange(pyom.is_pe-pyom.onx+1,pyom.ie_pe+pyom.onx): # i = is_pe-onx+1,ie_pe+onx
-                pyom.w_wgrid[i,j,k] = pyom.w_wgrid[i,j,max(1,k-1)]-pyom.dzw[k]* \
-                    ((pyom.u_wgrid[i,j,k]-pyom.u_wgrid[i-1,j,k])/(pyom.cost[j]*pyom.dxt[i]) \
-                    +(pyom.cosu[j]*pyom.v_wgrid[i,j,k]-pyom.cosu[j-1]*pyom.v_wgrid(i,j-1,k))/(pyom.cost[j]*pyom.dyt[j]))
+    pyom.w_wgrid[:,:,0] = 0.
+    w_wgrid_pad = _pad_z_edges(pyom.w_wgrid)
+    pyom.w_wgrid[1:, 1:, :] = w_wgrid_pad[1:, 1:, :-2] - pyom.dzw[None, None, :] * \
+                              ((pyom.u_wgrid[1:, 1:, :] - pyom.u_wgrid[:-1, 1:, :]) / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
+                               + (pyom.cosu[None, 1:, None] * pyom.v_wgrid[1:, 1:, :] - pyom.cosu[None, :-1, None] * pyom.v_wgrid[1:, :-1, :]) \
+                                     / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None]))
+
+    #k = 0 # k = 1
+    #pyom.w_wgrid[:,:,k] = 0.
+    #for k in xrange(pyom.nz): # k = 1,nz
+    #    for j in xrange(pyom.js_pe-pyom.onx+1,pyom.je_pe+pyom.onx): # j = js_pe-onx+1,je_pe+onx
+    #        for i in xrange(pyom.is_pe-pyom.onx+1,pyom.ie_pe+pyom.onx): # i = is_pe-onx+1,ie_pe+onx
+    #            pyom.w_wgrid[i,j,k] = pyom.w_wgrid[i,j,max(1,k-1)]-pyom.dzw[k]* \
+    #                ((pyom.u_wgrid[i,j,k]-pyom.u_wgrid[i-1,j,k])/(pyom.cost[j]*pyom.dxt[i]) \
+    #                +(pyom.cosu[j]*pyom.v_wgrid[i,j,k]-pyom.cosu[j-1]*pyom.v_wgrid(i,j-1,k))/(pyom.cost[j]*pyom.dyt[j]))
 
  # test continuity
  #if  modulo(itt*dt_tracer,ts_monint) < dt_tracer .and. .false.:
@@ -279,7 +307,7 @@ def adv_flux_superbee_wgrid(adv_fe,adv_fn,adv_ft,var,pyom):
     # Suberbee      limiter = lambda cr: max(0.,max(min(1.,2*cr),min(2.,cr)))
     # Sweby         limiter = lambda cr: max(0.,max(min(1.,1.5*cr),min(1.5.,cr)))
     # real*8 :: limiter
-    limiter = lambda cr: max(0.,max(min(1.,2.*cr), min(2.,cr)))
+    limiter = lambda cr: np.maximum(0.,np.maximum(np.minimum(1.,2.*cr), np.minimum(2.,cr)))
     # real*8 :: maskUtr,maskVtr,maskWtr
     maskUtr = lambda i,j,k: pyom.maskW[i+1,j,k] * pyom.maskW[i,j,k]
     maskVtr = lambda i,j,k: pyom.maskW[i,j+1,k] * pyom.maskW[i,j,k]

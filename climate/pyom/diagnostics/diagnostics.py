@@ -1,11 +1,12 @@
 import numpy as np
 
+import climate.pyom.diagnostics
 
 def init_diagnostics(pyom):
     """
     initialize diagnostic routines
     """
-
+    diagnostics = climate.pyom.diagnostics
     print("Diagnostic setup:")
 
     if pyom.enable_diag_ts_monitor:
@@ -16,34 +17,34 @@ def init_diagnostics(pyom):
 
     if pyom.enable_diag_snapshots:
         print("writing snapshots every {} seconds/{} time steps".format(pyom.snapint,pyom.snapint/pyom.dt_tracer))
-        init_snap_cdf()
+        diagnostics.init_snap_cdf()
 
     if pyom.enable_diag_averages:
         print("writing time averages every {} seconds/{} time steps".format(pyom.aveint,pyom.aveint/pyom.dt_tracer))
         print(" averaging every {} time step".format(pyom.avefreq/pyom.dt_tracer))
 
     if pyom.enable_diag_energy:
-        print("writing energetics every {} seconds/{} time steps".format(pyom.energint,pyom.energint/dt_tracer))
+        print("writing energetics every {} seconds/{} time steps".format(pyom.energint,pyom.energint/pyom.dt_tracer))
         print(" diagnosing every {} time step".format(pyom.energfreq/pyom.dt_tracer))
-        init_diag_energy()
+        diagnostics.init_diag_energy()
 
     if pyom.enable_diag_overturning:
         print("writing isopyc. overturning every {} seconds/{} time steps".format(pyom.overint,pyom.overint/pyom.dt_tracer))
         print(" diagnosing every {} time step".format(pyom.overfreq/pyom.dt_tracer))
-        init_diag_overturning()
+        diagnostics.init_diag_overturning()
 
     if pyom.enable_diag_particles:
         print("writing particles every {} seconds/{} time steps".format(pyom.particles_int,pyom.particles_int/pyom.dt_tracer))
-        set_particles()
-        init_diag_particles()
-        init_write_particles()
+        diagnostics.set_particles()
+        diagnostics.init_diag_particles()
+        diagnostics.init_write_particles()
 
 
 def diagnose(pyom):
     """
     call diagnostic routines
     """
-
+    diagnostics = climate.pyom.diagnostics
     GM_strfct_diagnosed = False
     time = pyom.itt*pyom.dt_tracer
 

@@ -40,7 +40,7 @@ def isoneutral_friction(kbot, nz):
                     c_tri[k] = - delta[k]/dzt[k]
                 c_tri[nz] = 0.0
                 d_tri[ks:nz+1] = aloc[i,j,ks:nz+1] #  A u = d
-                numerics.solve_tridiag(a_tri[ks:nz+1],b_tri[ks:nz+1],c_tri[ks:nz+1],d_tri[ks:nz+1],u[i,j,ks:nz,taup1],nz-ks+1)
+                u[i,j,ks:,taup1] = numerics.solve_tridiag(a_tri[ks:nz+1],b_tri[ks:nz+1],c_tri[ks:nz+1],d_tri[ks:nz+1])
                 du_mix[i,j,ks:nz+1] = du_mix[i,j,ks:nz+1] + (u[i,j,ks:nz+1,taup1]-aloc[i,j,ks:nz+1])/dt_mom
 
     if enable_conserve_energy:
@@ -83,7 +83,7 @@ def isoneutral_friction(kbot, nz):
                     c_tri[k] = - delta[k]/dzt[k]
                 c_tri[nz] = 0.0
                 d_tri[ks:nz+1] = aloc[i,j,ks:nz+1]
-                numerics.solve_tridiag(a_tri[ks:nz+1],b_tri[ks:nz+1],c_tri[ks:nz+1],d_tri[ks:nz+1],v[i,j,ks:nz+1,taup1],nz-ks+1)
+                v[i,j,ks:,taup1] = numerics.solve_tridiag(a_tri[ks:nz+1],b_tri[ks:nz+1],c_tri[ks:nz+1],d_tri[ks:nz+1])
                 dv_mix[i,j,ks:nz+1] = dv_mix[i,j,ks:nz+1] + (v[i,j,ks:nz,taup1]-aloc[i,j,ks:nz+1])/dt_mom
 
     if enable_conserve_energy:

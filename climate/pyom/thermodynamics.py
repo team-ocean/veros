@@ -169,8 +169,9 @@ def thermodynamics(pyom):
     """
     boundary exchange
     """
-    cyclic.setcyclic_xyz(pyom.temp[:,:,:,pyom.taup1],pyom.enable_cyclic_x,pyom.nx,pyom.nz)
-    cyclic.setcyclic_xyz(pyom.salt[:,:,:,pyom.taup1],pyom.enable_cyclic_x,pyom.nx,pyom.nz)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(pyom.temp[:,:,:,pyom.taup1])
+        cyclic.setcyclic_x(pyom.salt[:,:,:,pyom.taup1])
 
     with pyom.timers["eq_of_state"]:
         calc_eq_of_state(pyom,pyom.taup1)

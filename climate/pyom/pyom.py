@@ -609,19 +609,19 @@ class PyOM(object):
                 Main boundary exchange
                 for density, temp and salt this is done in integrate_tempsalt.f90
                 """
-                cyclic.setcyclic_xyz(self.u[:,:,:,taup1],self.nx,self.nz)
-                cyclic.setcyclic_xyz(self.v[:,:,:,taup1],self.nx,self.nz)
-
-                if self.enable_tke:
-                    cyclic.setcyclic_xyz(self.tke[:,:,:,taup1],self.nx,self.nz)
-                if self.enable_eke:
-                    cyclic.setcyclic_xyz(self.eke[:,:,:,taup1],self.nx,self.nz)
-                if self.enable_idemix:
-                    cyclic.setcyclic_xyz(self.E_iw[:,:,:,taup1],self.nx,self.nz)
-                if self.enable_idemix_M2:
-                    cyclic.setcyclic_xyp(self.E_M2[:,:,:,taup1],self.nx,self.np)
-                if self.enable_idemix_niw:
-                    cyclic.setcyclic_xyp(self.E_niw[:,:,:,taup1],self.nx,self.np)
+                if self.enable_cyclic_x:
+                    cyclic.setcyclic_x(self.u[:,:,:,taup1])
+                    cyclic.setcyclic_x(self.v[:,:,:,taup1])
+                    if self.enable_tke:
+                        cyclic.setcyclic_x(self.tke[:,:,:,taup1])
+                    if self.enable_eke:
+                        cyclic.setcyclic_x(self.eke[:,:,:,taup1])
+                    if self.enable_idemix:
+                        cyclic.setcyclic_x(self.E_iw[:,:,:,taup1])
+                    if self.enable_idemix_M2:
+                        cyclic.setcyclic_x(self.E_M2[:,:,:,taup1])
+                    if self.enable_idemix_niw:
+                        cyclic.setcyclic_x(self.E_niw[:,:,:,taup1])
 
                 # diagnose vertical velocity at taup1
                 if self.enable_hydrostatic:
@@ -661,6 +661,7 @@ class PyOM(object):
         """
         self.set_parameter()
         self.allocate()
+        self.diagnostics = []
         self.timers = {k: Timer(k) for k in ("main","momentum","temperature",
                                              "eke","idemix","tke","diagnostics",
                                              "pressure","friction","isoneutral",

@@ -197,11 +197,11 @@ def calc_topo(pyom):
     """
     pyom.kbot[:,:2] = 0
     pyom.kbot[:,-2:] = 0
-    if not pyom.enable_cyclic_x:
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(pyom.kbot)
+    else:
         pyom.kbot[:2,:] = 0
         pyom.kbot[-2:,:] = 0
-
-    cyclic.setcyclic_xy(pyom.kbot,pyom.enable_cyclic_x,pyom.nx)
 
     """
     --------------------------------------------------------------
@@ -232,24 +232,27 @@ def calc_topo(pyom):
     #            if kbot[i,j] > 0 and kbot[i,j]-1 <= k:
     #                pyom.maskT[i,j,k] = kbot[i,j]
 
-    cyclic.setcyclic_xyz(pyom.maskT, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(pyom.maskT)
     pyom.maskU[...] = pyom.maskT
     pyom.maskU[:pyom.nx+3, :, :] = np.minimum(pyom.maskT[:pyom.nx+3, :, :], pyom.maskT[1:pyom.nx+4, :, :])
     #for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
     #    pyom.maskU[i,:,:] = np.minimum(pyom.maskT[i,:,:], pyom.maskT[i+1,:,:])
-    cyclic.setcyclic_xyz(pyom.maskU, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(pyom.maskU)
     pyom.maskV[...] = pyom.maskT
     pyom.maskV[:, :pyom.ny+3] = np.minimum(pyom.maskT[:,:pyom.ny+3], pyom.maskT[:,1:pyom.ny+4])
     #for j in xrange(pyom.ny+3): # j=js_pe-onx,je_pe+onx-1
     #    pyom.maskV[:,j,:] = np.minimum(pyom.maskT[:,j,:], pyom.maskT[:,j+1,:])
-    cyclic.setcyclic_xyz(pyom.maskV, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
-
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(pyom.maskV)
     pyom.maskZ[...] = pyom.maskT
     pyom.maskZ[:pyom.nx+3, :pyom.ny+3] = np.minimum(np.minimum(pyom.maskT[:pyom.nx+3, :pyom.ny+3],pyom.maskT[:pyom.nx+3, 1:pyom.ny+4]),pyom.maskT[1:pyom.nx+4, :pyom.ny+3])
     #for j in xrange(pyom.ny+3): # j=js_pe-onx,je_pe+onx-1
     #    for i in xrange(pyom.nx+3): # i=is_pe-onx,ie_pe+onx-1
     #        pyom.maskZ[i,j,:] = np.minimum(np.minimum(pyom.maskT[i,j,:],pyom.maskT[i,j+1,:]),pyom.maskT[i+1,j,:])
-    cyclic.setcyclic_xyz(pyom.maskZ, pyom.enable_cyclic_x, pyom.nx, pyom.nz)
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(pyom.maskZ)
     pyom.maskW[...] = pyom.maskT
     pyom.maskW[:,:,:pyom.nz-1] = np.minimum(pyom.maskT[:,:,:pyom.nz-1],pyom.maskT[:,:,1:pyom.nz])
     #for k in xrange(pyom.nz-1): # k=1,nz-1
@@ -289,10 +292,10 @@ def calc_initial_conditions(pyom):
     """
     calculate dyn. enthalp, etc
     """
-    for n in xrange(3): # n=1,3
+    if pyom.enable_cyclic_x:
         # boundary exchange
-        cyclic.setcyclic_xyz(pyom.temp[:,:,:,n],pyom.enable_cyclic_x,pyom.nx,pyom.nz)
-        cyclic.setcyclic_xyz(pyom.salt[:,:,:,n],pyom.enable_cyclic_x,pyom.nx,pyom.nz)
+        cyclic.setcyclic_x(pyom.temp)
+        cyclic.setcyclic_x(pyom.salt)
     # calculate density, etc
     if np.any(pyom.salt < 0.0):
         raise RuntimeError("encountered negative salinity")

@@ -8,8 +8,12 @@ class LowercaseAttributeWrapper(object):
     """
     def __init__(self,wrapped_object):
         object.__setattr__(self,"w",wrapped_object)
-    __getattr__ = lambda self, key: getattr(object.__getattribute__(self,"w"),key.lower())
-    __setattr__ = lambda self, key, value: setattr(self.w,key.lower(),value)
+
+    def __getattr__(self, key):
+        return getattr(object.__getattribute__(self,"w"),key.lower())
+
+    def __setattr__(self, key, value):
+        setattr(self.w,key.lower(),value)
 
 class PyOMLegacy(PyOM):
     """
@@ -41,8 +45,6 @@ class PyOMLegacy(PyOM):
             self.eke_module = self
 
         super(PyOMLegacy,self).__init__(*args, **kwargs)
-
-    register_average = lambda self, *args, **kwargs: diagnostics.register_average(*args,pyom=self,**kwargs)
 
     def set_legacy_parameter(self, *args, **kwargs):
         m = self.fortran.main_module
