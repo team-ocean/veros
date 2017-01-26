@@ -1,9 +1,7 @@
 import warnings
 from collections import namedtuple
-from netCDF4 import Dataset
 import json
 import numpy as np
-
 from climate.pyom.diagnostics.diag_snap import def_grid_cdf
 
 
@@ -35,7 +33,7 @@ def register_average(name,long_name,units,grid,var,pyom):
 
     print(" time averaging variable {}".format(name))
     print(" long name {} units {} grid {}".format(long_name,units,grid))
-    
+
     if name.strip() in (d.name.strip() for d in pyom.diagnostics):
         raise RuntimeError("name {} already in use".format(name))
 
@@ -50,6 +48,7 @@ def write_averages(pyom):
     """
     write averages to netcdf file and zero array
     """
+    from netCDF4 import Dataset
     # real*8, parameter :: spval = -1.0d33
     # real*8 :: bloc(nx,ny),fxa
 

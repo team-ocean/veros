@@ -1,9 +1,9 @@
-from netCDF4 import Dataset
 
 def def_grid_cdf(ncfile):
     """
     Define standard grid in netcdf file
     """
+    from netCDF4 import Dataset
     if not isinstance(ncfile,Dataset):
         raise TypeError("Argument needs to be a netCDF4 Dataset")
 
