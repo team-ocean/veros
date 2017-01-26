@@ -14,14 +14,14 @@ def adv_flux_2nd(adv_fe,adv_fn,adv_ft,var,pyom):
     i, ii = make_slice(1,-2)
     j, jj = make_slice(2,-2)
     k, kk = make_slice()
-    adv_fe[i,j,k] = 0.5*(var[i,j,k] + var[i,j,k]) * pyom.u[i,j,k,pyom.tau] * pyom.maskU[i,j,k]
+    adv_fe[i, j, k] = 0.5*(var[i,j,k] + var[ii+1,j,k]) * pyom.u[i,j,k,pyom.tau] * pyom.maskU[i,j,k]
 
     i, ii = make_slice(2,-2)
     j, jj = make_slice(1,-2)
     k, kk = make_slice()
     adv_fn[i,j,k] = pyom.cosu[None,j,None] * 0.5 * (var[i,j,k] + var[i,jj+1,k]) * pyom.v[i,j,k,pyom.tau] * pyom.maskV[i,j,k]
 
-    i, ii = make_slice(1,-2)
+    i, ii = make_slice(2,-2)
     j, jj = make_slice(2,-2)
     k, kk = make_slice(None,-1)
     adv_ft[i,j,k] = 0.5 * (var[i,j,k] + var[i,j,kk+1]) * pyom.w[i,j,k,pyom.tau] * pyom.maskW[i,j,k]

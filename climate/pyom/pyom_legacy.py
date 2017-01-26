@@ -7,13 +7,13 @@ class LowercaseAttributeWrapper(object):
     A simple wrapper class that converts attributes to lower case (needed for Fortran interface)
     """
     def __init__(self,wrapped_object):
-        object.__setattr__(self,"w",wrapped_object)
+        object.__setattr__(self,"_w",wrapped_object)
 
     def __getattr__(self, key):
-        return getattr(object.__getattribute__(self,"w"),key.lower())
+        return getattr(object.__getattribute__(self,"_w"),key.lower())
 
     def __setattr__(self, key, value):
-        setattr(self.w,key.lower(),value)
+        setattr(self._w,key.lower(),value)
 
 class PyOMLegacy(PyOM):
     """

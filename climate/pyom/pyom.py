@@ -43,9 +43,9 @@ class PyOM(object):
         self.taup1 = 2 # pointer to next time step
         self.dt_mom = 0. # time step in seconds for momentum
         self.dt_tracer = 0. # time step for tracer can be larger than for momentum
-        #dt_tke        # should be time step for momentum (set in tke.f90)
+        self.dt_tke = 0.        # should be time step for momentum (set in tke.f90)
         self.itt = 1 # time step number
-        #enditt        # last time step of simulation
+        self.enditt = 1        # last time step of simulation
         self.runlen = 0.   # length of simulation in seconds
         self.AB_eps = 0.1  # deviation from Adam-Bashforth weighting
 
@@ -234,6 +234,7 @@ class PyOM(object):
         """
         TKE
         """
+        self.enable_tke = False
         self.c_k = 0.1
         self.c_eps = 0.7
         self.alpha_tke = 1.0
@@ -255,7 +256,7 @@ class PyOM(object):
         #real*8,allocatable ::  dw_cor(:,:,:)
         #real*8,allocatable ::  dw_adv(:,:,:)
         #real*8,allocatable ::  dw_mix(:,:,:)
-        #congr_itts_non_hydro                # number of iterations of poisson solver
+        self.congr_itts_non_hydro = 0              # number of iterations of poisson solver
         self.congr_epsilon_non_hydro = 1e-12       # convergence criteria for poisson solver
         self.congr_max_itts_non_hydro = 1000     # max. number of iterations
 
@@ -286,6 +287,7 @@ class PyOM(object):
         """
         EKE default values
         """
+        self.enable_eke = False
         self.eke_lmin = 100.0 # minimal length scale in m
         self.eke_c_k = 1.0
         self.eke_cross = 1.0 # Parameter for EKE model
