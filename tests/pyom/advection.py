@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
@@ -34,28 +35,39 @@ class AdvectionTest(PyOMTest):
         self.test_module = advection
         pyom_args = (self.pyom_new.flux_east, self.pyom_new.flux_north, self.pyom_new.flux_top, self.pyom_new.Hd[...,1], self.pyom_new)
         pyom_legacy_args = dict(is_=-1, ie_=m.nx+2, js_=-1, je_=m.ny+2, nz_=m.nz, adv_fe=m.flux_east, adv_fn=m.flux_north, adv_ft=m.flux_top, var=m.Hd[...,1])
-        self.test_routines = (("adv_flux_2nd", pyom_args, pyom_legacy_args),
-                              ("adv_flux_superbee", pyom_args, pyom_legacy_args),
-                              ("adv_flux_upwind_wgrid", pyom_args, pyom_legacy_args),
-                              ("calculate_velocity_on_wgrid", pyom_args, pyom_legacy_args),
-                              ("adv_flux_superbee_wgrid", pyom_args, pyom_legacy_args)
-                              )
+        self.test_routines = OrderedDict()
+        self.test_routines["calculate_velocity_on_wgrid"] = ((self.pyom_new,), dict())
+        self.test_routines.update(
+                              adv_flux_2nd = (pyom_args, pyom_legacy_args),
+                              adv_flux_superbee = (pyom_args, pyom_legacy_args),
+                              adv_flux_upwind_wgrid = (pyom_args, pyom_legacy_args),
+                              adv_flux_superbee_wgrid = (pyom_args, pyom_legacy_args)
+                             )
 
-    def test_passed(self):
+    def test_passed(self,routine):
         all_passed = True
-        for f in ("flux_east","flux_north","flux_top","Hd"):
-            v1, v2 = self.get_attribute(f)
-            passed = np.allclose(v1, v2)
+        if routine == "calculate_velocity_on_wgrid":
+            for v in ("u_wgrid", "v_wgrid", "w_grid"):
+                passed = self._check_var(v)
+                if not passed:
+                    all_passed = False
+        for f in ("flux_east","flux_north","flux_top"):
+            passed = self._check_var(f)
             if not passed:
-                fig, axes = plt.subplots(1,3)
-                axes[0].imshow(v1[...,0])
-                axes[1].imshow(v2[...,0])
-                axes[2].imshow(v1[...,0] - v2[...,0])
-                print(f, v1.max(), v2.max())
                 all_passed = False
         plt.show()
         return all_passed
 
+    def _check_var(self,var):
+        v1, v2 = self.get_attribute(var)
+        passed = np.allclose(v1, v2)
+        if not passed:
+            fig, axes = plt.subplots(1,3)
+            axes[0].imshow(v1[...,0])
+            axes[1].imshow(v2[...,0])
+            axes[2].imshow(v1[...,0] - v2[...,0])
+            print(var, v1.max(), v2.max())
+        return passed
 
 if __name__ == "__main__":
     test = AdvectionTest(150, 70, 50, fortran=sys.argv[1])

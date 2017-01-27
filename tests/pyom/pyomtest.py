@@ -113,19 +113,19 @@ class PyOMTest(object):
             #for a, (v1, v2) in differing_arrays.items():
             #    print("{}, {}, {}".format(a,repr(np.asarray(v1).max()),repr(np.asarray(v2).max())))
 
-        pyom_timers = {k: Timer("pyom " + k) for k, _, _ in self.test_routines}
-        pyom_legacy_timers = {k: Timer("pyom legacy " + k) for k, _, _ in self.test_routines}
+        pyom_timers = {k: Timer("pyom " + k) for k in self.test_routines}
+        pyom_legacy_timers = {k: Timer("pyom legacy " + k) for k in self.test_routines}
         all_passed = True
-        for routine, pyom_args, pyom_legacy_args in self.test_routines:
+        for routine in self.test_routines.keys():
             pyom_routine, pyom_legacy_routine = self.get_routine(routine,self.test_module)
-            print("Running routine {}".format(routine))
+            pyom_args, pyom_legacy_args = self.test_routines[routine]
             with pyom_timers[routine]:
                 pyom_routine(*pyom_args)
             pyom_timers[routine].printTime()
             with pyom_legacy_timers[routine]:
                 pyom_legacy_routine(**pyom_legacy_args)
             pyom_legacy_timers[routine].printTime()
-            passed = self.test_passed()
+            passed = self.test_passed(routine)
             if not passed:
                 all_passed = False
                 print("Test failed")
