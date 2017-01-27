@@ -149,107 +149,12 @@ def adv_flux_superbee_wgrid(adv_fe,adv_fn,adv_ft,var,pyom):
     maskWtr[:, :, :-1] = pyom.maskW[:, :, 1:] * pyom.maskW[:, :, :-1]
     adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(pyom.w_wgrid, var, maskWtr, pyom.dzt, 2, pyom)
     adv_ft[..., -1] = 0.0
-    """
-    limiter = lambda cr: np.maximum(0.,np.maximum(np.minimum(1.,2.*cr), np.minimum(2.,cr)))
-    # real*8 :: maskUtr,maskVtr,maskWtr
-    maskUtr = pyom.maskW[1:, 2:-2, :] * pyom.maskW[:-1, 2:-2, :]
-    uCFL = np.abs(pyom.u_wgrid[1:-2, 2:-2, :] * pyom.dt_tracer / (pyom.cost[None, 2:-2, None] * pyom.dxt[1:-2, None, None]))
-    rjp = (var[3:, 2:-2, :] - var[2:-1, 2:-2, :]) * maskUtr[2:, :, :]
-    rj = (var[2:-1, 2:-2, :] - var[1:-2, 2:-2, :]) * maskUtr[1:-1, :, :]
-    rjm = (var[1:-2, 2:-2, :] - var[:-3, 2:-2, :]) * maskUtr[:-2, :, :]
-    cr = limiter(_calc_cr(rjp,rj,rjm,pyom.u_wgrid))
-    adv_fe[1:-2, 2:-2, :] = pyom.u_wgrid[1:-2, 2:-2, :] * (var[2:-1, 2:-2, :] + var[1:-2, 2:-2, :]) * 0.5 \
-                            - np.abs(pyom.u_wgrid[1:-2, 2:-2, :]) * ((1.-cr) + uCFL * cr) * rj * 0.5
 
-    #for k in xrange(pyom.nz): # k = 1,nz
-    #    for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-    #        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-    #            uCFL = abs(pyom.u_wgrid[i,j,k]*pyom.dt_tracer/(pyom.cost[j]*pyom.dxt[i]))
-    #            rjp = (var[i+2,j,k] - var[i+1,j,k]) * maskUtr[i+1,j,k]
-    #            rj = (var[i+1,j,k] - var[i,j,k]) * maskUtr[i,j,k]
-    #            rjm = (var[i,j,k] - var[i-1,j,k]) * maskUtr[i-1,j,k]
-    #            if rj != 0.:
-    #                if pyom.u_wgrid[i,j,k] > 0:
-    #                    cr = rjm/rj
-    #                else:
-    #                    cr = rjp/rj
-    #            else:
-    #                if pyom.u_wgrid[i,j,k] > 0:
-    #                    cr = rjm*1e20
-    #                else:
-    #                    cr = rjp*1e20
-    #            cr = limiter(cr)
-    #            adv_fe[i,j,k] = pyom.u_wgrid[i,j,k]*(var[i+1,j,k]+var[i,j,k])*0.5   \
-    #                            -abs(pyom.u_wgrid[i,j,k])*((1.-cr)+uCFL*cr)*rj*0.5
-
-    maskVtr = pyom.maskW[2:-2, 2:-1,:] * pyom.maskW[2:-2, 1:-2, :]
-    uCFL = np.abs(pyom.cosu[None, 1:-2, None] * pyom.v_wgrid[2:-2, 1:-2, :] * pyom.dt_tracer / (pyom.cost[None, 1:-2, None] * pyom.dyt[None, 1:-2, None]))
-    rjp = (var[2:-2, 3:, :] - var[2:-1, 2:-1, :]) * maskVtr[:, 2:, :]
-    rj = (var[2:-2, 2:-1, :] - var[2:-2, 1:-2, :]) * maskVtr[:, 1:-1, :]
-    rjm = (var[2:-2, 1:-2, :] - var[2:-2, :-3, :]) * maskVtr[:, :-2, :]
-    cr = limiter(_calc_cr(rjp,rj,rjm,pyom.v_wgrid))
-    adv_fn[2:-2, 1:-2, :] = pyom.cosu[None, 1:-2, None] * pyom.v_wgrid[2:-2, 1:-2, :] * (var[2:-2, 2:-1, :] + var[2:-2, 1:-2, :]) * 0.5 \
-                            - np.abs(pyom.cosu[None, 1:-2, None] * pyom.v_wgrid[2:-2, 1:-2, :]) * ((1.-cr) + uCFL * cr) * rj * 0.5
-
-    #for k in xrange(pyom.nz): # k = 1,nz
-    #    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-    #        for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-    #            rjp = (var[i,j+2,k] - var[i,j+1,k]) * maskVtr[i,j+1,k]
-    #            rj = (var[i,j+1,k] - var[i,j,k]) * maskVtr[i,j,k]
-    #            rjm = (var[i,j,k] - var(i,j-1,k)) * maskVtr(i,j-1,k)
-    #            uCFL = abs(pyom.cosu[j]*pyom.v_wgrid[i,j,k]*pyom.dt_tracer/(pyom.cost[j]*pyom.dyt[j]))
-    #            if rj != 0.:
-    #                if pyom.v_wgrid[i,j,k] > 0:
-    #                    cr = rjm/rj
-    #                else:
-    #                    cr = rjp/rj
-    #            else:
-    #                if pyom.v_wgrid[i,j,k] > 0:
-    #                    cr = rjm*1e20
-    #                else:
-    #                    cr = rjp*1e20
-    #            cr = limiter(cr)
-    #            adv_fn[i,j,k] = pyom.cosu[j]*pyom.v_wgrid[i,j,k]*(var[i,j+1,k]+var[i,j,k])*0.5   \
-    #                            -abs(pyom.cosu[j]*pyom.v_wgrid[i,j,k])*((1.-cr)+uCFL*cr)*rj*0.5
-
-    maskWtr = pyom.maskW[2:-2, 2:-2, 1:] * pyom.maskW[2:-2, 2:-2, :-1]
-    for k in xrange(pyom.nz-1): # k = 1,nz-1
-        kp1 = min(pyom.nz-2,k+1)
-        kp2 = min(pyom.nz-1,k+2);
-        km1 = max(1,k-1)
-        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                rjp = (var[i,j,kp2]-var[i,j,k+1])*maskWtr(i,j,kp1)
-                rj = (var[i,j,k+1]-var[i,j,k])*maskWtr[i,j,k]
-                rjm = (var[i,j,k]-var[i,j,km1])*maskWtr[i,j,km1]
-                uCFL = abs(pyom.w_wgrid[i,j,k]*pyom.dt_tracer/pyom.dzw[k])
-                if rj != 0.:
-                    if pyom.w_wgrid[i,j,k] > 0:
-                        cr = rjm/rj
-                    else:
-                        cr = rjp/rj
-                else:
-                    if pyom.w_wgrid[i,j,k] > 0:
-                        cr = rjm*1e20
-                    else:
-                        cr = rjp*1e20
-                cr = limiter(cr)
-                adv_ft[i,j,k] = pyom.w_wgrid[i,j,k]*(var[i,j,k+1]+var[i,j,k])*0.5   \
-                                -abs(pyom.w_wgrid[i,j,k])*((1.-cr)+uCFL*cr)*rj*0.5
-    adv_ft[:,:,pyom.nz] = 0.0
-    """
 
 def adv_flux_upwind_wgrid(adv_fe,adv_fn,adv_ft,var,pyom):
     """
     Calculates advection of a tracer defined on Wgrid
     """
-    #  integer, intent(in) :: is_,ie_,js_,je_,nz_
-    #  real*8, intent(inout) :: adv_fe(is_:ie_,js_:je_,nz_), adv_fn(is_:ie_,js_:je_,nz_)
-    #  real*8, intent(inout) :: adv_ft(is_:ie_,js_:je_,nz_),    var(is_:ie_,js_:je_,nz_)
-    #  integer :: i,j,k
-    #  real*8 :: rj
-    #  real*8 :: maskUtr,maskVtr,maskWtr
-
     maskUtr = pyom.maskW[2:-1, 2:-2, :] * pyom.maskW[1:-2, 2:-2, :]
     rj = (var[2:-1, 2:-2, :] - var[1:-2, 2:-2, :]) * maskUtr
     adv_fe[1:-2, 2:-2, :] = pyom.u_wgrid[1:-2, 2:-2, :] * (var[2:-1, 2:-2, :] + var[1:-2, 2:-2, :]) * 0.5 \
