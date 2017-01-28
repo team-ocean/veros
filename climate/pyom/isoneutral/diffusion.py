@@ -148,17 +148,18 @@ def isoneutral_diffusion(tr, istemp, pyom):
     ks = pyom.kbot[2:-2,2:-2] - 1
     ks_mask = np.logical_and(np.indices(delta.shape)[2] == ks[:,:,None], (ks >= 0)[:,:,None])
     land_mask = np.logical_and(np.indices(delta.shape)[2] >= ks[:,:,None], (ks >= 0)[:,:,None])
-    delta[land_mask] = (pyom.dt_tracer / pyom.dzw[None,None,:] * pyom.K_33[2:-2,2:-2,:])[land_mask]
-    delta[:,:,-1] = 0.
-    a_tri[:,:,1:] = -delta[:,:,:-1] / pyom.dzt[None,None,1:]
-    a_tri[ks_mask] = 0.
-    b_tri[:,:,1:-1] = 1 + (delta[:,:,1:-1] + delta[:,:,:-2]) / pyom.dzt[None,None,1:-1]
-    b_tri[:,:,-1] = 1 + delta[:,:,-2] / pyom.dzt[None,None,-1]
-    b_tri[ks_mask] = 1 + (delta[:,:,:] / pyom.dzt[None,None,0])[ks_mask]
-    c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzt[None,None,:-1]
-    c_tri[:,:,-1] = 0.
-    d_tri[land_mask] = tr[2:-2,2:-2,:,pyom.taup1][land_mask]
-    tr[2:-2,2:-2,:,pyom.taup1][land_mask] = numerics.solve_tridiag(a_tri[land_mask],b_tri[land_mask],c_tri[land_mask],d_tri[land_mask])
+    if np.count_nonzero(land_mask):
+        delta[land_mask] = (pyom.dt_tracer / pyom.dzw[None,None,:] * pyom.K_33[2:-2,2:-2,:])[land_mask]
+        delta[:,:,-1] = 0.
+        a_tri[:,:,1:] = -delta[:,:,:-1] / pyom.dzt[None,None,1:]
+        a_tri[ks_mask] = 0.
+        b_tri[:,:,1:-1] = 1 + (delta[:,:,1:-1] + delta[:,:,:-2]) / pyom.dzt[None,None,1:-1]
+        b_tri[:,:,-1] = 1 + delta[:,:,-2] / pyom.dzt[None,None,-1]
+        b_tri[ks_mask] = 1 + (delta[:,:,:] / pyom.dzt[None,None,0])[ks_mask]
+        c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzt[None,None,:-1]
+        c_tri[:,:,-1] = 0.
+        d_tri[land_mask] = tr[2:-2,2:-2,:,pyom.taup1][land_mask]
+        tr[2:-2,2:-2,:,pyom.taup1][land_mask] = numerics.solve_tridiag(a_tri[land_mask],b_tri[land_mask],c_tri[land_mask],d_tri[land_mask])
 
 
     #delta = np.zeros(pyom.nz)

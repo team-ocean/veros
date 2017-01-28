@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+from collections import OrderedDict
 
 from climate.pyom import PyOMLegacy
 from climate import Timer
@@ -9,17 +10,22 @@ class PyOMTest(object):
                       "eke_module", "idemix_module")
     array_attribute_file = "array_attributes"
     scalar_attribute_file = "scalar_attributes"
+    extra_settings = None
+    test_module = None
+    test_routines = None
 
 
     def __init__(self, nx, ny, nz, fortran=None):
         self.pyom_new = PyOMLegacy()
         self.pyom_legacy = PyOMLegacy(fortran=fortran)
-        self.test_module = None
 
         self.nx, self.ny, self.nz = nx, ny, nz
         self.set_attribute("nx", nx)
         self.set_attribute("ny", ny)
         self.set_attribute("nz", nz)
+        if self.extra_settings:
+            for attribute, value in self.extra_settings.items():
+                self.set_attribute(attribute, value)
         self.pyom_new.set_legacy_parameter()
         self.pyom_new.allocate()
         self.pyom_legacy.fortran.my_mpi_init(0)
@@ -39,7 +45,7 @@ class PyOMTest(object):
             module_handle = getattr(self.pyom_legacy,module)
             if hasattr(module_handle, attribute):
                 setattr(module_handle, attribute, np.asfortranarray(value))
-                assert np.array_equal(value, getattr(module_handle, attribute)), attribute
+                assert np.all(value == getattr(module_handle, attribute)), attribute
                 return
         raise AttributeError("Legacy PyOM has no attribute {}".format(attribute))
 
@@ -110,8 +116,8 @@ class PyOMTest(object):
             print("Warning: the following attributes do not match between old and new pyom after initialization:")
             for s, (v1, v2) in differing_scalars.items():
                 print("{}, {}, {}".format(s,v1,v2))
-            #for a, (v1, v2) in differing_arrays.items():
-            #    print("{}, {}, {}".format(a,repr(np.asarray(v1).max()),repr(np.asarray(v2).max())))
+            for a, (v1, v2) in differing_arrays.items():
+                print("{}, {}, {}".format(a,repr(np.asarray(v1).max()),repr(np.asarray(v2).max())))
 
         pyom_timers = {k: Timer("pyom " + k) for k in self.test_routines}
         pyom_legacy_timers = {k: Timer("pyom legacy " + k) for k in self.test_routines}
