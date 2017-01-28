@@ -406,10 +406,11 @@ def solve_streamfunction(pyom,benchtest=False):
     #hydrostatic pressure
     fxa = pyom.grav/pyom.rho_0
     #NOTE: This fucks with wall time
-    pyom.p_hydro[:,:,pyom.nz-1] = 0.5*pyom.rho[:,:,pyom.nz-1,pyom.tau]*fxa*pyom.dzw[pyom.nz-1]*pyom.maskT[:,:,pyom.nz-1]
+    tmp = 0.5*(pyom.rho[:,:,:,pyom.tau])*fxa*pyom.dzw*pyom.maskT
+    pyom.p_hydro[:,:,pyom.nz-1] = tmp[:,:,-1] #0.5*pyom.rho[:,:,pyom.nz-1,pyom.tau]*fxa*pyom.dzw[pyom.nz-1]*pyom.maskT[:,:,pyom.nz-1]
+    tmp[:,:,:-1] += 0.5*pyom.rho[:,:,1:,pyom.tau]*fxa*pyom.dzw[:-1]*pyom.maskT[:,:,:-1]
     for k in xrange(pyom.nz-2, -1, -1): #k=nz-1,1,-1
-        T = pyom.maskT[:,:,k]*(pyom.p_hydro[:,:,k+1]+ 0.5*(pyom.rho[:,:,k+1,pyom.tau]+pyom.rho[:,:,k,pyom.tau])*fxa*pyom.dzw[k])
-        pyom.p_hydro[:,:,k] = T
+        pyom.p_hydro[:,:,k] = pyom.maskT[:,:,k]*pyom.p_hydro[:,:,k+1]+ tmp[:,:,k] #0.5*(pyom.rho[:,:,k+1,pyom.tau]+pyom.rho[:,:,k,pyom.tau])*fxa*pyom.dzw[k])
 
     # add hydrostatic pressure gradient
     pyom.du[2:pyom.nx+2,2:pyom.ny+2,:,pyom.tau] += \
