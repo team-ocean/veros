@@ -3,8 +3,8 @@ import math
 
 from climate.io import wrapper
 from climate import Timer
-from climate.pyom import momentum, numerics, thermodynamics, eke
-from climate.pyom import isoneutral, idemix, external, diagnostics
+from climate.pyom import momentum, numerics, thermodynamics, eke, tke, idemix
+from climate.pyom import isoneutral, external, diagnostics, non_hydrostatic
 
 class PyOM(object):
     """
