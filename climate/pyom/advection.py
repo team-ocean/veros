@@ -1,6 +1,7 @@
 import numpy as np
 
 from climate import make_slice
+from climate.pyom.utilities import pad_z_edges
 
 def _calc_cr(rjp,rj,rjm,vel):
     """
@@ -19,17 +20,6 @@ def _calc_cr(rjp,rj,rjm,vel):
     cr[mask4] = rjp[mask4] * 1e20
     return cr
 
-def _pad_z_edges(array):
-    """
-    Pads the third axis of an array by repeating its edge values
-    """
-    a = list(array.shape)
-    a[2] += 2
-    newarray = np.empty(a)
-    newarray[:,:,1:-1,...] = array
-    newarray[:,:,0,...] = array[:,:,0,...]
-    newarray[:,:,-1,...] = array[:,:,-1,...]
-    return newarray
 
 def _adv_superbee(vel, var, mask, dx, axis, pyom):
     limiter = lambda cr: np.maximum(0.,np.maximum(np.minimum(1.,2*cr), np.minimum(2.,cr)))
@@ -51,7 +41,7 @@ def _adv_superbee(vel, var, mask, dx, axis, pyom):
         i, ii = make_slice(2,-2)
         j, jj = make_slice(2,-2)
         k, kk = make_slice(1,-2)
-        vel, var, mask = (_pad_z_edges(a) for a in (vel,var,mask))
+        vel, var, mask = (pad_z_edges(a) for a in (vel,var,mask))
         sm1, s, sp1, sp2 = ((i,j,kk+n) for n in range(-1,3))
         dx = dx[None,None,:-1]
     else:

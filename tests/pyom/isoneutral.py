@@ -8,7 +8,7 @@ from climate import Timer
 from climate.pyom import isoneutral
 
 class IsoneutralTest(PyOMTest):
-    extra_settings = {"enable_neutral_diffusion": True}
+    extra_settings = {"enable_neutral_diffusion": True, "enable_skew_diffusion": True}
     test_module = isoneutral
 
     def initialize(self):
@@ -29,10 +29,10 @@ class IsoneutralTest(PyOMTest):
         for a in ("zt","dzt","dzw"):
             self.set_attribute(a,100*np.random.rand(self.nz))
 
-        for a in ("flux_east","flux_north","flux_top","u_wgrid","v_wgrid","w_wgrid","K_iso"):
+        for a in ("flux_east","flux_north","flux_top","u_wgrid","v_wgrid","w_wgrid","K_iso","K_gm"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
-        for a in ("salt","temp"):
+        for a in ("salt","temp","int_drhodT","int_drhodS"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz,3))
 
         for a in ("maskU", "maskV", "maskW", "maskT"):
@@ -42,12 +42,16 @@ class IsoneutralTest(PyOMTest):
 
         istemp = bool(np.random.randint(0,2))
 
-        pyom_args = (self.pyom_new.flux_east, self.pyom_new.flux_north, self.pyom_new.flux_top, self.pyom_new.Hd[...,1], self.pyom_new)
+        pyom_args = (self.pyom_new.temp,istemp,self.pyom_new)
         pyom_legacy_args = dict(is_=-1, ie_=m.nx+2, js_=-1, je_=m.ny+2, nz_=m.nz, tr=m.temp, istemp=istemp)
 
         self.test_routines = OrderedDict()
         self.test_routines["isoneutral_diffusion_pre"] = ((self.pyom_new,), dict())
-        self.test_routines["isoneutral_diffusion"] = ((self.pyom_new.temp,istemp,self.pyom_new), pyom_legacy_args)
+        self.test_routines["isoneutral_diag_streamfunction"] = ((self.pyom_new,), dict())
+        self.test_routines["isoneutral_diffusion"] = (pyom_args, pyom_legacy_args)
+        self.test_routines["isoneutral_skew_diffusion"] = (pyom_args, pyom_legacy_args)
+        # unused in PyOM
+        #self.test_routines["isoneutral_diffusion_all"] = (pyom_args, pyom_legacy_args)
 
     def test_passed(self,routine):
         all_passed = True
@@ -56,21 +60,28 @@ class IsoneutralTest(PyOMTest):
                 passed = self._check_var(v)
                 if not passed:
                     all_passed = False
-        for f in ("flux_east","flux_north","flux_top","dtemp_iso","dsalt_iso","temp","salt","P_diss_iso"):
-            passed = self._check_var(f)
-            if not passed:
-                all_passed = False
+        elif routine == "isoneutral_diag_streamfunction":
+            for v in ("B1_gm", "B2_gm"):
+                passed = self._check_var(v)
+                if not passed:
+                    all_passed = False
+        else:
+            for f in ("flux_east","flux_north","flux_top","dtemp_iso","dsalt_iso","temp","salt","P_diss_iso"):
+                passed = self._check_var(f)
+                if not passed:
+                    all_passed = False
         plt.show()
         return all_passed
 
     def _check_var(self,var):
         v1, v2 = self.get_attribute(var)
-        passed = np.allclose(v1, v2)
+        passed = np.allclose(v1[2:-2, 2:-2, ...], v2[2:-2, 2:-2, ...])
         if not passed:
+            print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:
-                v1 = v1[...,0]
+                v1 = v1[...,-1]
             while v2.ndim > 2:
-                v2 = v2[...,0]
+                v2 = v2[...,-1]
             fig, axes = plt.subplots(1,3)
             axes[0].imshow(v1)
             axes[0].set_title("New")
@@ -79,7 +90,6 @@ class IsoneutralTest(PyOMTest):
             axes[2].imshow(v1 - v2)
             axes[2].set_title("diff")
             fig.suptitle(var)
-            print(var, v1.max(), v2.max())
         return passed
 
 if __name__ == "__main__":
