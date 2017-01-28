@@ -15,19 +15,22 @@ class AdvectionTest(PyOMTest):
         self.set_attribute("dt_tracer", 3600.)
 
         for a in ("dxt",):
-            self.set_attribute(a,np.random.randn(self.nx+4))
+            self.set_attribute(a,np.random.randint(1,100,size=self.nx+4).astype(np.float))
 
-        for a in ("cosu","cost","dyt"):
-            self.set_attribute(a,np.random.randn(self.ny+4))
+        for a in ("dyt",):
+            self.set_attribute(a,np.random.randint(1,100,size=self.ny+4).astype(np.float))
 
-        for a in ("dzt",):
-            self.set_attribute(a,np.random.randn(self.nz))
+        for a in ("cosu","cost"):
+            self.set_attribute(a,2*np.random.rand(self.ny+4)-1.)
 
-        for a in ("flux_east","flux_north","flux_top"):
+        for a in ("dzt","dzw"):
+            self.set_attribute(a,100*np.random.rand(self.nz))
+
+        for a in ("flux_east","flux_north","flux_top","u_wgrid","v_wgrid","w_wgrid"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
         for a in ("u","v","w","Hd"):
-            self.set_attribute(a,np.ones((self.nx+4,self.ny+4,self.nz,3)))#np.random.randn(self.nx+4,self.ny+4,self.nz,3))
+            self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz,3))
 
         for a in ("maskU", "maskV", "maskW", "maskT"):
             self.set_attribute(a,np.random.randint(0,2,size=(self.nx+4,self.ny+4,self.nz)).astype(np.float))
@@ -47,7 +50,7 @@ class AdvectionTest(PyOMTest):
     def test_passed(self,routine):
         all_passed = True
         if routine == "calculate_velocity_on_wgrid":
-            for v in ("u_wgrid", "v_wgrid", "w_grid"):
+            for v in ("u_wgrid", "v_wgrid", "w_wgrid"):
                 passed = self._check_var(v)
                 if not passed:
                     all_passed = False
@@ -70,5 +73,5 @@ class AdvectionTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = AdvectionTest(150, 70, 50, fortran=sys.argv[1])
+    test = AdvectionTest(100, 250, 50, fortran=sys.argv[1])
     passed = test.run()

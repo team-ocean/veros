@@ -3,6 +3,9 @@ import numpy as np
 from climate import make_slice
 
 def _calc_cr(rjp,rj,rjm,vel):
+    """
+    Calculates cr value used in superbee advection scheme
+    """
     cr = np.zeros_like(rj)
     mask_rj = rj == 0.
     mask_vel = vel > 0
@@ -30,18 +33,20 @@ def _pad_z_edges(array):
 
 def _adv_superbee(vel, var, mask, dx, axis, pyom):
     limiter = lambda cr: np.maximum(0.,np.maximum(np.minimum(1.,2*cr), np.minimum(2.,cr)))
+    velfac = 1
     if axis == 0:
         i, ii = make_slice(1,-2)
         j, jj = make_slice(2,-2)
         k, kk = make_slice()
         sm1, s, sp1, sp2 = ((ii+n,j,k) for n in range(-1,3))
-        dx = dx[i, j, None]
+        dx = pyom.cost[None, j, None] * dx[i, None, None]
     elif axis == 1:
         i, ii = make_slice(2,-2)
         j, jj = make_slice(1,-2)
         k, kk = make_slice()
         sm1, s, sp1, sp2 = ((i,jj+n,k) for n in range(-1,3))
-        dx = dx[None,j,None]
+        dx = (pyom.cost * dx)[None,j,None]
+        velfac = pyom.cosu[None, j, None]
     elif axis == 2:
         i, ii = make_slice(2,-2)
         j, jj = make_slice(2,-2)
@@ -51,12 +56,12 @@ def _adv_superbee(vel, var, mask, dx, axis, pyom):
         dx = dx[None,None,:-1]
     else:
         raise ValueError("axis must be 0, 1, or 2")
-    uCFL = np.abs(vel[s] * pyom.dt_tracer / dx)
+    uCFL = np.abs(velfac * vel[s] * pyom.dt_tracer / dx)
     rjp = (var[sp2] - var[sp1]) * mask[sp1]
     rj = (var[sp1] - var[s]) * mask[s]
     rjm = (var[s] - var[sm1]) * mask[sm1]
     cr = limiter(_calc_cr(rjp,rj,rjm,vel[s]))
-    return vel[s] * (var[sp1] + var[s]) * 0.5 - np.abs(vel[s]) * ((1.-cr) + uCFL*cr) * rj * 0.5
+    return velfac * vel[s] * (var[sp1] + var[s]) * 0.5 - np.abs(velfac * vel[s]) * ((1.-cr) + uCFL*cr) * rj * 0.5
 
 
 def adv_flux_2nd(adv_fe,adv_fn,adv_ft,var,pyom):
@@ -94,8 +99,8 @@ def adv_flux_superbee(adv_fe,adv_fn,adv_ft,var,pyom):
     where the $\psi(C_r)$ is the limiter function and $C_r$ is
     the slope ratio.
     """
-    adv_fe[1:-2, 2:-2, :] = _adv_superbee(pyom.u[..., pyom.tau], var, pyom.maskU, pyom.cost[None,:] * pyom.dxt[:, None], 0, pyom)
-    adv_fn[2:-2, 1:-2, :] = _adv_superbee(pyom.cosu[None, :, None] * pyom.v[..., pyom.tau], var, pyom.maskV, pyom.cost * pyom.dyt, 1, pyom)
+    adv_fe[1:-2, 2:-2, :] = _adv_superbee(pyom.u[..., pyom.tau], var, pyom.maskU, pyom.dxt, 0, pyom)
+    adv_fn[2:-2, 1:-2, :] = _adv_superbee(pyom.v[..., pyom.tau], var, pyom.maskV, pyom.dyt, 1, pyom)
     adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(pyom.w[..., pyom.tau], var, pyom.maskW, pyom.dzt, 2, pyom)
     adv_ft[..., -1] = 0.
 
@@ -117,20 +122,20 @@ def calculate_velocity_on_wgrid(pyom):
     pyom.v_wgrid[:,:,0] = pyom.v_wgrid[:,:,0] + pyom.v[:,:,0,pyom.tau] * pyom.maskV[:,:,0] * 0.5 * pyom.dzt[0] / pyom.dzw[0]
     for k in xrange(pyom.nz-1): #TODO: vectorize
         mask = pyom.maskW[:-1, :, k] * pyom.maskW[1:, :, k] == 0
-        pyom.u_wgrid[:-1, :, k+1][mask] = (pyom.u_wgrid[:-1, :, k+1] + pyom.u_wgrid[:-1, :, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1])[mask]
+        pyom.u_wgrid[:-1, :, k+1][mask] += (pyom.u_wgrid[:-1, :, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1])[mask]
         pyom.u_wgrid[:-1, :, k][mask] = 0.
 
         mask = pyom.maskW[:, :-1, k] * pyom.maskW[:, 1:, k] == 0
-        pyom.v_wgrid[:, :-1, k+1][mask] = (pyom.v_wgrid[:, :-1, k+1] + pyom.v_wgrid[:, :-1, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1])[mask]
+        pyom.v_wgrid[:, :-1, k+1][mask] += (pyom.v_wgrid[:, :-1, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1])[mask]
         pyom.v_wgrid[:, :-1, k][mask] = 0.
 
     # vertical advection velocity on W grid from continuity
-    pyom.w_wgrid[:,:,0] = 0.
-    w_wgrid_pad = _pad_z_edges(pyom.w_wgrid)
-    pyom.w_wgrid[1:, 1:, :] = w_wgrid_pad[1:, 1:, :-2] - pyom.dzw[None, None, :] * \
+    pyom.w_wgrid[:, :, 0] = 0.
+    pyom.w_wgrid[1:, 1:, :] = np.cumsum(-pyom.dzw[None, None, :] * \
                               ((pyom.u_wgrid[1:, 1:, :] - pyom.u_wgrid[:-1, 1:, :]) / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
                                + (pyom.cosu[None, 1:, None] * pyom.v_wgrid[1:, 1:, :] - pyom.cosu[None, :-1, None] * pyom.v_wgrid[1:, :-1, :]) \
-                                     / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None]))
+                                     / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None])), axis=2)
+
 
 
 def adv_flux_superbee_wgrid(adv_fe,adv_fn,adv_ft,var,pyom):
@@ -139,15 +144,15 @@ def adv_flux_superbee_wgrid(adv_fe,adv_fn,adv_ft,var,pyom):
     """
     maskUtr = np.zeros_like(adv_fe)
     maskUtr[:-1, :, :] = pyom.maskW[1:, :, :] * pyom.maskW[:-1, :, :]
-    adv_fe[1:-2, 2:-2, :] = _adv_superbee(pyom.u_wgrid, var, maskUtr, pyom.cost[None,:] * pyom.dxt[:,None], 0, pyom)
+    adv_fe[1:-2, 2:-2, :] = _adv_superbee(pyom.u_wgrid, var, maskUtr, pyom.dxt, 0, pyom)
 
     maskVtr = np.zeros_like(adv_fn)
     maskVtr[:, :-1, :] = pyom.maskW[:, 1:, :] * pyom.maskW[:, :-1, :]
-    adv_fn[2:-2, 1:-2, :] = _adv_superbee(pyom.cosu[None, :, None] * pyom.v_wgrid, var, maskVtr, pyom.cost * pyom.dyt, 1, pyom)
+    adv_fn[2:-2, 1:-2, :] = _adv_superbee(pyom.v_wgrid, var, maskVtr, pyom.dyt, 1, pyom)
 
     maskWtr = np.zeros_like(adv_ft)
     maskWtr[:, :, :-1] = pyom.maskW[:, :, 1:] * pyom.maskW[:, :, :-1]
-    adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(pyom.w_wgrid, var, maskWtr, pyom.dzt, 2, pyom)
+    adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(pyom.w_wgrid, var, maskWtr, pyom.dzw, 2, pyom)
     adv_ft[..., -1] = 0.0
 
 
@@ -171,22 +176,3 @@ def adv_flux_upwind_wgrid(adv_fe,adv_fn,adv_ft,var,pyom):
     adv_ft[2:-2, 2:-2, :-1] = pyom.w_wgrid[2:-2, 2:-2, :-1] * (var[2:-2, 2:-2, 1:] + var[2:-2, 2:-2, :-1]) * 0.5 \
                               - np.abs(pyom.w_wgrid[2:-2, 2:-2, :-1]) * rj * 0.5
     adv_ft[:,:,-1] = 0.
-    #for k in xrange(pyom.nz): # k = 1,nz
-    #    for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-    #        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-    #            rj = (var[i+1,j,k]-var[i,j,k])*maskUtr[i,j,k]
-    #            adv_fe[i,j,k] = pyom.u_wgrid[i,j,k]*(var[i+1,j,k]+var[i,j,k])*0.5 - abs(pyom.u_wgrid[i,j,k])*rj*0.5
-
-    #for k in xrange(pyom.nz): # k = 1,nz
-    #    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-    #        for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-    #            rj = (var[i,j+1,k]-var[i,j,k])*maskVtr[i,j,k]
-    #            adv_fn[i,j,k] = pyom.cosu[j]*pyom.v_wgrid[i,j,k]*(var[i,j+1,k]+var[i,j,k])*0.5 - abs(pyom.cosu[j]*pyom.v_wgrid[i,j,k])*rj*0.5
-
-    #for k in xrange(pyom.nz-1): # k = 1,nz-1
-    #    for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-    #        for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-    #            rj = (var[i,j,k+1]-var[i,j,k])*maskWtr[i,j,k]
-    #            adv_ft[i,j,k] = pyom.w_wgrid[i,j,k]*(var[i,j,k+1]+var[i,j,k])*0.5 - abs(pyom.w_wgrid[i,j,k])*rj*0.5
-
-    #adv_ft[:,:,pyom.nz] = 0.0
