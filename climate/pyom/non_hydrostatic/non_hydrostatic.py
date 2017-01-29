@@ -109,8 +109,8 @@ def make_coeff_non_hydro(pyom):
     for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
         for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
             mm = pyom.maskW[i,j,k-1]
-            cf[i,j,k, 1, 1, 1) += -mm / pyom.dzw[k-1] / pyom.dzt[k]
-            cf[i,j,k, 1, 1, 0) += mm / pyom.dzw[k-1] / pyom.dzt[k]
+            cf[i,j,k, 1, 1, 1] += -mm / pyom.dzw[k-1] / pyom.dzt[k]
+            cf[i,j,k, 1, 1, 0] += mm / pyom.dzw[k-1] / pyom.dzt[k]
     return cf
 
 

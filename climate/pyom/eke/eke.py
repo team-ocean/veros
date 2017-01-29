@@ -131,7 +131,7 @@ def integrate_eke(pyom):
             for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
                 k = pyom.kbot[i,j] - 1
                 if k >= 0 and k < pyom.nz-1:
-                    a_loc(i,j) += pyom.c_lee[i,j] * pyom.eke[i,j,k,pyom.tau] * pyom.maskW[i,j,k] * pyom.dzw[k] \
+                    a_loc[i,j] += pyom.c_lee[i,j] * pyom.eke[i,j,k,pyom.tau] * pyom.maskW[i,j,k] * pyom.dzw[k] \
                                   + 2 * pyom.eke_r_bot * pyom.eke[i,j,k,pyom.tau] * math.sqrt(2.0) * pyom.sqrteke[i,j,k] \
                                     * pyom.maskW[i,j,k] # could be surface: factor 0.5
 
