@@ -8,7 +8,10 @@ from climate import Timer
 from climate.pyom import isoneutral
 
 class IsoneutralTest(PyOMTest):
-    extra_settings = {"enable_neutral_diffusion": True, "enable_skew_diffusion": True}
+    extra_settings = {
+                      "enable_neutral_diffusion": True, 
+                      "enable_skew_diffusion": True
+                      }
     test_module = isoneutral
 
     def initialize(self):

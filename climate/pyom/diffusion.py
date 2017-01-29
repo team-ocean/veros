@@ -28,8 +28,8 @@ def tempsalt_biharmonic(pyom):
 
     for j in xrange(js,je-1): # j = js,je-1
         pyom.flux_north[:,j,:] = -fxa*(pyom.temp[:,j+1,:,pyom.tau]-pyom.temp[:,j,:,pyom.tau])/pyom.dyu[j]*pyom.maskV[:,j,:]*pyom.cosu[j]
-    pyom.flux_east[ie-1,:,:] = 0.
-    pyom.flux_north[:,je-1,:] = 0.
+    pyom.flux_east[-1,:,:] = 0.
+    pyom.flux_north[:,-1,:] = 0.
 
     for j in xrange(js+1,je): # j = js+1,je
         for i in xrange(is_+1,ie): # i = is_+1,ie
@@ -46,8 +46,8 @@ def tempsalt_biharmonic(pyom):
     for j in xrange(js,je-1): # j = js,je-1
         pyom.flux_north[:,j,:] = fxa*(del2[:,j+1,:]-del2[:,j,:])/pyom.dyu[j]*pyom.maskV[:,j,:]*pyom.cosu[j]
 
-    pyom.flux_east[ie-1,:,:] = 0.
-    pyom.flux_north[:,je-1,:] = 0.
+    pyom.flux_east[-1,:,:] = 0.
+    pyom.flux_north[:,-1,:] = 0.
 
     # update tendency
     for j in xrange(pyom.js_pe-pyom.onx+1,pyom.je_pe+pyom.onx): # j = js_pe-onx+1,je_pe+onx
@@ -59,7 +59,7 @@ def tempsalt_biharmonic(pyom):
 
     if pyom.enable_conserve_energy:
         # diagnose dissipation of dynamic enthalpy by hor. mixing of temperature
-        for k in xrange(1,pyom.nz): # k = 1,nz
+        for k in xrange(pyom.nz): # k = 1,nz
             for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
                 for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
                     fxa = pyom.int_drhodT[i,j,k,pyom.tau]
@@ -74,8 +74,8 @@ def tempsalt_biharmonic(pyom):
                 ks = pyom.kbot[i,j] - 1
                 if ks >= 0:
                     k = ks
-                    pyom.P_diss_hmix[i,j,k] = 0.5*(aloc[i,j,k]+aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(1,k-1)]/pyom.dzw[k]
-                    for k in xrange(ks+1,pyom.nz-2): # k = ks+1,nz-1
+                    pyom.P_diss_hmix[i,j,k] = 0.5*(aloc[i,j,k]+aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(0,k-1)]/pyom.dzw[k]
+                    for k in xrange(ks+1,pyom.nz-1): # k = ks+1,nz-1
                         pyom.P_diss_hmix[i,j,k] = 0.5*(aloc[i,j,k] + aloc[i,j,k+1])
                     k = pyom.nz - 1
                     pyom.P_diss_hmix[i,j,k] = aloc[i,j,k]
@@ -87,8 +87,8 @@ def tempsalt_biharmonic(pyom):
     for j in xrange(js,je-1): # j = js,je-1
         pyom.flux_north[:,j,:] = -fxa*(pyom.salt[:,j+1,:,pyom.tau]-pyom.salt[:,j,:,pyom.tau])/pyom.dyu[j]*pyom.maskV[:,j,:]*pyom.cosu[j]
 
-    pyom.flux_east[ie-1,:,:] = 0.
-    pyom.flux_north[:,je-1,:] = 0.
+    pyom.flux_east[-1,:,:] = 0.
+    pyom.flux_north[:,-1,:] = 0.
 
     for j in xrange(js+1,je): # j = js+1,je
         for i in xrange(is_+1,ie): # i = is_+1,ie
@@ -105,8 +105,8 @@ def tempsalt_biharmonic(pyom):
     for j in xrange(js,je-1): # j = js,je-1
         pyom.flux_north[:,j,:] = fxa*(del2[:,j+1,:]-del2[:,j,:])/pyom.dyu[j]*pyom.maskV[:,j,:]*pyom.cosu[j]
 
-    pyom.flux_east[ie-1,:,:] = 0.
-    pyom.flux_north[:,je-1,:] = 0.
+    pyom.flux_east[-1,:,:] = 0.
+    pyom.flux_north[:,-1,:] = 0.
 
     # update tendency
     for j in xrange(pyom.js_pe-pyom.onx+1,pyom.je_pe+pyom.onx): # j = js_pe-onx+1,je_pe+onx
@@ -118,7 +118,7 @@ def tempsalt_biharmonic(pyom):
 
     if pyom.enable_conserve_energy:
         # diagnose dissipation of dynamic enthalpy by hor. mixing of salinity
-        for k in xrange(1,pyom.nz): # k = 1,nz
+        for k in xrange(pyom.nz): # k = 1,nz
             for j in xrange(pyom.js_pe-pyom.onx+1,pyom.je_pe+pyom.onx-1): # j = js_pe-onx+1,je_pe+onx-1
                 for i in xrange(pyom.is_pe-pyom.onx+1,pyom.ie_pe+pyom.onx-1): # i = is_pe-onx+1,ie_pe+onx-1
                     fxa = pyom.int_drhodS[i,j,k,pyom.tau]
@@ -134,8 +134,8 @@ def tempsalt_biharmonic(pyom):
                 if ks >= 0:
                     k = ks
                     pyom.P_diss_hmix[i,j,k] = pyom.P_diss_hmix[i,j,k]+ \
-                                         0.5*(aloc[i,j,k] + aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(1,k-1)]/pyom.dzw[k]
-                    for k in xrange(ks+1,pyom.nz-2): # k = ks+1,nz-1
+                                         0.5*(aloc[i,j,k] + aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(0,k-1)]/pyom.dzw[k]
+                    for k in xrange(ks+1,pyom.nz-1): # k = ks+1,nz-1
                         pyom.P_diss_hmix[i,j,k] = pyom.P_diss_hmix[i,j,k] + 0.5*(aloc[i,j,k] + aloc[i,j,k+1])
                     k = pyom.nz - 1
                     pyom.P_diss_hmix[i,j,k] = pyom.P_diss_hmix[i,j,k] + aloc[i,j,k]
@@ -149,16 +149,17 @@ def tempsalt_diffusion(pyom):
     # integer :: i,j,k,ks
     # real*8 :: fxa
     # real*8 :: aloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    aloc = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
 
     # horizontal diffusion of temperature
     for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx): # j = js_pe-onx,je_pe+onx
         for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx-1): # i = is_pe-onx,ie_pe+onx-1
-            pyom.flux_east[i,j,:] = K_h * (pyom.temp[i+1,j,:,pyom.tau] - pyom.temp[i,j,:,pyom.tau]) / (pyom.cost[j]*pyom.dxu[i])*pyom.maskU[i,j,:]
+            pyom.flux_east[i,j,:] = pyom.K_h * (pyom.temp[i+1,j,:,pyom.tau] - pyom.temp[i,j,:,pyom.tau]) / (pyom.cost[j]*pyom.dxu[i])*pyom.maskU[i,j,:]
 
-    pyom.flux_east[pyom.ie_pe+pyom.onx,:,:] = 0.
+    pyom.flux_east[-1,:,:] = 0.
     for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx-1): # j = js_pe-onx,je_pe+onx-1
-        pyom.flux_north[:,j,:] = K_h * (pyom.temp[:,j+1,:,pyom.tau] - pyom.temp[:,j,:,pyom.tau]) / pyom.dyu[j]*pyom.maskV[:,j,:]*pyom.cosu[j]
-    pyom.flux_north[:,pyom.je_pe+pyom.onx,:] = 0.
+        pyom.flux_north[:,j,:] = pyom.K_h * (pyom.temp[:,j+1,:,pyom.tau] - pyom.temp[:,j,:,pyom.tau]) / pyom.dyu[j]*pyom.maskV[:,j,:]*pyom.cosu[j]
+    pyom.flux_north[:,-1,:] = 0.
 
     if pyom.enable_hor_friction_cos_scaling:
         for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx): # j = js_pe-onx,je_pe+onx
@@ -174,36 +175,36 @@ def tempsalt_diffusion(pyom):
 
     if pyom.enable_conserve_energy:
         # diagnose dissipation of dynamic enthalpy by hor. mixing of temperature
-        for k in xrange(1,pyom.nz): # k = 1,nz
+        for k in xrange(pyom.nz): # k = 1,nz
             for j in xrange(pyom.js_pe-pyom.onx+1,pyom.je_pe+pyom.onx-1): # j = js_pe-onx+1,je_pe+onx-1
                 for i in xrange(pyom.is_pe-pyom.onx+1,pyom.ie_pe+pyom.onx-1): # i = is_pe-onx+1,ie_pe+onx-1
                     fxa = pyom.int_drhodT[i,j,k,pyom.tau]
                     aloc[i,j,k] = 0.5*pyom.grav/pyom.rho_0*((pyom.int_drhodT[i+1,j,k,pyom.tau]-fxa)*pyom.flux_east[i,j,k] \
                                                  +(fxa-pyom.int_drhodT[i-1,j,k,pyom.tau])*pyom.flux_east[i-1,j,k]) / (pyom.dxt[i]*pyom.cost[j])  \
-                                + 0.5*pyom.grav/pyom.rho_0*((pyom.int_drhodT(i,j+1,k,pyom.tau)-fxa)*pyom.flux_north[i,j,k] \
+                                + 0.5*pyom.grav/pyom.rho_0*((pyom.int_drhodT[i,j+1,k,pyom.tau]-fxa)*pyom.flux_north[i,j,k] \
                                                  +(fxa-pyom.int_drhodT[i,j-1,k,pyom.tau])*pyom.flux_north[i,j-1,k]) /(pyom.dyt[j]*pyom.cost[j])
 
         # dissipation interpolated on W-grid
         for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx): # j = js_pe-onx,je_pe+onx
             for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx): # i = is_pe-onx,ie_pe+onx
-                ks = pyom.kbot[i,j]
-                if ks>0:
+                ks = pyom.kbot[i,j] - 1
+                if ks >= 0:
                     k = ks
-                    pyom.P_diss_hmix[i,j,k] = 0.5*(aloc[i,j,k]+aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(1,k-1)]/pyom.dzw[k]
+                    pyom.P_diss_hmix[i,j,k] = 0.5*(aloc[i,j,k]+aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(0,k-1)]/pyom.dzw[k]
                     for k in xrange(ks+1,pyom.nz-1): # k = ks+1,nz-1
                         pyom.P_diss_hmix[i,j,k] = 0.5*(aloc[i,j,k] + aloc[i,j,k+1])
-                    k = pyom.nz
+                    k = pyom.nz - 1
                     pyom.P_diss_hmix[i,j,k] = aloc[i,j,k]
 
     # horizontal diffusion of salinity
     for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx): # j = js_pe-onx,je_pe+onx
         for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx-1): # i = is_pe-onx,ie_pe+onx-1
-            pyom.flux_east[i,j,:] = K_h * (pyom.salt[i+1,j,:,pyom.tau] - pyom.salt[i,j,:,pyom.tau]) / (pyom.cost[j]*pyom.dxu[i])*pyom.maskU[i,j,:]
+            pyom.flux_east[i,j,:] = pyom.K_h * (pyom.salt[i+1,j,:,pyom.tau] - pyom.salt[i,j,:,pyom.tau]) / (pyom.cost[j]*pyom.dxu[i])*pyom.maskU[i,j,:]
 
-    pyom.flux_east[pyom.ie_pe+pyom.onx,:,:] = 0.
+    pyom.flux_east[-1,:,:] = 0.
     for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx-1): # j = js_pe-onx,je_pe+onx-1
-        pyom.flux_north[:,j,:] = K_h * (pyom.salt[:,j+1,:,pyom.tau] - pyom.salt[:,j,:,pyom.tau]) / pyom.dyu[j]*pyom.maskV[:,j,:]*pyom.cosu[j]
-    pyom.flux_north[:,pyom.je_pe+pyom.onx,:] = 0.
+        pyom.flux_north[:,j,:] = pyom.K_h * (pyom.salt[:,j+1,:,pyom.tau] - pyom.salt[:,j,:,pyom.tau]) / pyom.dyu[j]*pyom.maskV[:,j,:]*pyom.cosu[j]
+    pyom.flux_north[:,-1,:] = 0.
 
     if pyom.enable_hor_friction_cos_scaling:
         for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx): # j = js_pe-onx,je_pe+onx
@@ -219,13 +220,13 @@ def tempsalt_diffusion(pyom):
 
     if pyom.enable_conserve_energy:
         # diagnose dissipation of dynamic enthalpy by hor. mixing of salinity
-        for k in xrange(1,pyom.nz): # k = 1,nz
+        for k in xrange(pyom.nz): # k = 1,nz
             for j in xrange(pyom.js_pe-pyom.onx+1,pyom.je_pe+pyom.onx-1): # j = js_pe-onx+1,je_pe+onx-1
                 for i in xrange(pyom.is_pe-pyom.onx+1,pyom.ie_pe+pyom.onx-1): # i = is_pe-onx+1,ie_pe+onx-1
                     fxa = pyom.int_drhodS[i,j,k,pyom.tau]
                     aloc[i,j,k] = 0.5*pyom.grav/pyom.rho_0*((pyom.int_drhodS[i+1,j,k,pyom.tau]-fxa)*pyom.flux_east[i,j,k] \
                                                    +(fxa-pyom.int_drhodS[i-1,j,k,pyom.tau])*pyom.flux_east[i-1,j,k]) / (pyom.dxt[i]*pyom.cost[j])  \
-                                  + 0.5*pyom.grav/pyom.rho_0*((pyom.int_drhodS(i,j+1,k,pyom.tau)-fxa)*pyom.flux_north(i,j  ,k) \
+                                  + 0.5*pyom.grav/pyom.rho_0*((pyom.int_drhodS[i,j+1,k,pyom.tau]-fxa)*pyom.flux_north[i,j,k] \
                                                    +(fxa-pyom.int_drhodS[i,j-1,k,pyom.tau])*pyom.flux_north[i,j-1,k]) / (pyom.dyt[j]*pyom.cost[j])
 
         # dissipation interpolated on W-grid
@@ -235,10 +236,10 @@ def tempsalt_diffusion(pyom):
                 if ks >= 0:
                     k = ks
                     pyom.P_diss_hmix[i,j,k] = pyom.P_diss_hmix[i,j,k]+ \
-                                        0.5*(aloc[i,j,k]+aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(1,k-1)]/pyom.dzw[k]
-                    for k in xrange(ks+1,pyom.nz-2): # k = ks+1,nz-1
+                                        0.5*(aloc[i,j,k]+aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(0,k-1)]/pyom.dzw[k]
+                    for k in xrange(ks+1,pyom.nz-1): # k = ks+1,nz-1
                         pyom.P_diss_hmix[i,j,k] = pyom.P_diss_hmix[i,j,k]+ 0.5*(aloc[i,j,k] + aloc[i,j,k+1])
-                    k = pyom.nz - 1
+                    k = pyom.nz-1
                     pyom.P_diss_hmix[i,j,k] = pyom.P_diss_hmix[i,j,k] + aloc[i,j,k]
 
 
@@ -249,26 +250,27 @@ def tempsalt_sources(pyom):
     """
     # integer :: i,j,k,ks
     # real*8 :: aloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+    aloc = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
 
-    pyom.temp[:,:,:,pyom.taup1] = pyom.temp[:,:,:,pyom.taup1] + pyom.dt_tracer * temp_source * pyom.maskT
-    pyom.salt[:,:,:,pyom.taup1] = pyom.salt[:,:,:,pyom.taup1] + pyom.dt_tracer * salt_source * pyom.maskT
+    pyom.temp[:,:,:,pyom.taup1] += pyom.dt_tracer * pyom.temp_source * pyom.maskT
+    pyom.salt[:,:,:,pyom.taup1] += pyom.dt_tracer * pyom.salt_source * pyom.maskT
 
     if pyom.enable_conserve_energy:
         # diagnose effect on dynamic enthalpy
-        for k in xrange(1,pyom.nz): # k = 1,nz
+        for k in xrange(pyom.nz): # k = 1,nz
             for j in xrange(pyom.js_pe-pyom.onx+1,pyom.je_pe+pyom.onx-1): # j = js_pe-onx+1,je_pe+onx-1
                 for i in xrange(pyom.is_pe-pyom.onx+1,pyom.ie_pe+pyom.onx-1): # i = is_pe-onx+1,ie_pe+onx-1
                     aloc[i,j,k] = -pyom.grav/pyom.rho_0*pyom.maskT[i,j,k] \
-                                    * (pyom.int_drhodT[i,j,k,pyom.tau]*temp_source[i,j,k]+pyom.int_drhodS[i,j,k,pyom.tau]*salt_source[i,j,k])
+                                    * (pyom.int_drhodT[i,j,k,pyom.tau]*pyom.temp_source[i,j,k]+pyom.int_drhodS[i,j,k,pyom.tau]*pyom.salt_source[i,j,k])
 
         # dissipation interpolated on W-grid
         for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx): # j = js_pe-onx,je_pe+onx
             for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx): # i = is_pe-onx,ie_pe+onx
-                ks = pyom.kbot[i,j]
-                if ks>0:
+                ks = pyom.kbot[i,j] - 1
+                if ks >= 0:
                     k = ks
-                    P_diss_sources[i,j,k] = 0.5*(aloc[i,j,k]+aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(1,k-1)]/pyom.dzw[k]
+                    pyom.P_diss_sources[i,j,k] = 0.5*(aloc[i,j,k]+aloc[i,j,k+1]) + 0.5*aloc[i,j,k]*pyom.dzw[max(0,k-1)]/pyom.dzw[k]
                     for k in xrange(ks+1,pyom.nz-1): # k = ks+1,nz-1
-                        P_diss_sources[i,j,k] = 0.5*(aloc[i,j,k] + aloc[i,j,k+1])
-                    k = pyom.nz
-                    P_diss_sources[i,j,k] = aloc[i,j,k]
+                        pyom.P_diss_sources[i,j,k] = 0.5*(aloc[i,j,k] + aloc[i,j,k+1])
+                    k = pyom.nz-1
+                    pyom.P_diss_sources[i,j,k] = aloc[i,j,k]
