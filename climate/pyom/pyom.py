@@ -271,8 +271,8 @@ class PyOM(object):
         self.enable_diag_overturning = False # enable isopycnal overturning diagnostic
         self.enable_diag_tracer_content = False # enable tracer content and variance monitor
         self.enable_diag_particles = False # enable integration of particles
-        self.snap_file = 'pyOM.cdf'
-        self.diag_energy_file = 'energy.cdf'
+        self.snap_file = "pyOM.cdf"
+        self.diag_energy_file = "energy.cdf"
         self.snapint = 0. # intervall between snapshots to be written in seconds
         self.aveint = 0. # intervall between time averages to be written in seconds
         self.energint = 0. # intervall between energy diag to be written in seconds
@@ -353,9 +353,6 @@ class PyOM(object):
         self.Nsqr = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.Hd = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.dHd = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-
-        #self.drhodT = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        #self.drhodS = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
 
         self.temp = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
         self.dtemp = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
@@ -546,30 +543,29 @@ class PyOM(object):
             """
             Initialize model
             """
-            itt = 0
             self.setup()
             """
             read restart if present
             """
-            print 'Reading restarts:'
-            read_restart(itt)
+            print("Reading restarts:")
+            read_restart(self.itt)
             if enable_diag_averages:
-                diagnostics.diag_averages_read_restart()
+                diagnostics.diag_averages_read_restart(self)
             if enable_diag_energy:
                 raise NotImplementedError()
-                diagnostics.diag_energy_read_restart()
+                diagnostics.diag_energy_read_restart(self)
             if enable_diag_overturning:
                 raise NotImplementedError()
-                diagnostics.diag_over_read_restart()
+                diagnostics.diag_over_read_restart(self)
             if enable_diag_particles:
                 raise NotImplementedError()
-                diagnostics.particles_read_restart()
+                diagnostics.particles_read_restart(self)
 
-            enditt = itt + int(runlen/dt_tracer)
-            print 'Starting integration for ',runlen,' s'
-            print ' from time step ',itt,' to ',enditt
+            self.enditt = self.itt + int(self.runlen / self.dt_tracer)
+            print("Starting integration for ",self.runlen," s")
+            print(" from time step ",self.itt," to ",self.enditt)
 
-        while itt < endtt:
+        while self.itt < endtt:
             with self.timers["main"]:
                 self.set_forcing()
 
@@ -585,7 +581,7 @@ class PyOM(object):
                     thermodynamics.thermodynamics(self)
 
                 if self.enable_eke or self.enable_tke or self.enable_idemix:
-                    numerics.calculate_velocity_on_wgrid()
+                    numerics.calculate_velocity_on_wgrid(self)
 
                 with self.timers["eke"]:
                     if self.enable_eke:
@@ -604,7 +600,6 @@ class PyOM(object):
 
                 with self.timers["tke"]:
                     if self.enable_tke:
-                        raise NotImplementedError()
                         tke.integrate_tke(self)
 
                 """
@@ -612,26 +607,25 @@ class PyOM(object):
                 for density, temp and salt this is done in integrate_tempsalt.f90
                 """
                 if self.enable_cyclic_x:
-                    cyclic.setcyclic_x(self.u[:,:,:,taup1])
-                    cyclic.setcyclic_x(self.v[:,:,:,taup1])
+                    cyclic.setcyclic_x(self.u[:,:,:,self.taup1])
+                    cyclic.setcyclic_x(self.v[:,:,:,self.taup1])
                     if self.enable_tke:
-                        cyclic.setcyclic_x(self.tke[:,:,:,taup1])
+                        cyclic.setcyclic_x(self.tke[:,:,:,self.taup1])
                     if self.enable_eke:
-                        cyclic.setcyclic_x(self.eke[:,:,:,taup1])
+                        cyclic.setcyclic_x(self.eke[:,:,:,self.taup1])
                     if self.enable_idemix:
-                        cyclic.setcyclic_x(self.E_iw[:,:,:,taup1])
+                        cyclic.setcyclic_x(self.E_iw[:,:,:,self.taup1])
                     if self.enable_idemix_M2:
-                        cyclic.setcyclic_x(self.E_M2[:,:,:,taup1])
+                        cyclic.setcyclic_x(self.E_M2[:,:,:,self.taup1])
                     if self.enable_idemix_niw:
-                        cyclic.setcyclic_x(self.E_niw[:,:,:,taup1])
+                        cyclic.setcyclic_x(self.E_niw[:,:,:,self.taup1])
 
                 # diagnose vertical velocity at taup1
                 if self.enable_hydrostatic:
-                    raise NotImplementedError()
-                    vertical_velocity()
+                    momentum.vertical_velocity(self)
 
             with self.timers["diagnostics"]:
-                diagnostics.diagnose()
+                diagnostics.diagnose(self)
 
             # shift time
             self.otaum1 = taum1
@@ -640,23 +634,23 @@ class PyOM(object):
             self.taup1 = otaum1
             self.itt += 1
 
-        print 'Timing summary:'
-        print ' setup time summary       = ',setupTimer.getTime(),' s'
-        print ' main loop time summary   = ',mainTimer.getTime() ,' s'
-        print '     momentum             = ',momTimer.getTime() ,' s'
-        print '       pressure           = ',pressTimer.getTime() ,' s'
-        print '       friction           = ',fricTimer.getTime() ,' s'
-        print '     thermodynamics       = ',tempTimer.getTime() ,' s'
-        print '       lateral mixing     = ',isoTimer.getTime() ,' s'
-        print '       vertical mixing    = ',vmixTimer.getTime() ,' s'
-        print '       equation of state  = ',eqOfStateTimer.getTime() ,' s'
-        print '     EKE                  = ',ekeTimer.getTime() ,' s'
-        print '     IDEMIX               = ',idemixTimer.getTime() ,' s'
-        print '     TKE                  = ',tkeTimer.getTime() ,' s'
-        print ' diagnostics              = ',diagTimer.getTime() ,' s'
+        print("Timing summary:")
+        print(" setup time summary       = ",setupTimer.getTime()," s")
+        print(" main loop time summary   = ",mainTimer.getTime() ," s")
+        print("     momentum             = ",momTimer.getTime() ," s")
+        print("       pressure           = ",pressTimer.getTime() ," s")
+        print("       friction           = ",fricTimer.getTime() ," s")
+        print("     thermodynamics       = ",tempTimer.getTime() ," s")
+        print("       lateral mixing     = ",isoTimer.getTime() ," s")
+        print("       vertical mixing    = ",vmixTimer.getTime() ," s")
+        print("       equation of state  = ",eqOfStateTimer.getTime() ," s")
+        print("     EKE                  = ",ekeTimer.getTime() ," s")
+        print("     IDEMIX               = ",idemixTimer.getTime() ," s")
+        print("     TKE                  = ",tkeTimer.getTime() ," s")
+        print(" diagnostics              = ",diagTimer.getTime() ," s")
 
     def setup(self):
-        print 'setting up everything'
+        print "setting up everything"
 
         """
         allocate everything
