@@ -68,30 +68,21 @@ def _calc_explicit_part(pyom):
 
 def _calc_implicit_part(tr, pyom):
     ks = pyom.kbot[2:-2,2:-2] - 1
-    land_mask = (ks >= 0)[:,:,None]
-    edge_mask = land_mask & (np.indices((pyom.nx, pyom.ny, pyom.nz))[2] == ks[:,:,None])
-    water_mask = land_mask & (np.indices((pyom.nx, pyom.ny, pyom.nz))[2] >= ks[:,:,None])
-
-    if not np.count_nonzero(land_mask):
-        return
 
     a_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
     b_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
     c_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
-    d_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
     delta = np.zeros((pyom.nx,pyom.ny,pyom.nz))
 
-    delta[water_mask] = (pyom.dt_tracer / pyom.dzw[None,None,:] * pyom.K_33[2:-2,2:-2,:])[water_mask]
+    delta[:,:,:-1] = pyom.dt_tracer / pyom.dzw[None,None,:-1] * pyom.K_33[2:-2,2:-2,:-1]
     delta[:,:,-1] = 0.
     a_tri[:,:,1:] = -delta[:,:,:-1] / pyom.dzt[None,None,1:]
-    a_tri[edge_mask] = 0.
     b_tri[:,:,1:-1] = 1 + (delta[:,:,1:-1] + delta[:,:,:-2]) / pyom.dzt[None,None,1:-1]
-    b_tri[edge_mask] = 1 + (delta[:,:,:] / pyom.dzt[None,None,:])[edge_mask]
     b_tri[:,:,-1] = 1 + delta[:,:,-2] / pyom.dzt[None,None,-1]
+    b_tri_edge = 1 + (delta[:,:,:] / pyom.dzt[None,None,:])
     c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzt[None,None,:-1]
-    c_tri[:,:,-1] = 0.
-    d_tri[water_mask] = tr[2:-2,2:-2,:,pyom.taup1][water_mask]
-    tr[2:-2,2:-2,:,pyom.taup1][water_mask] = numerics.solve_tridiag(a_tri[water_mask],b_tri[water_mask],c_tri[water_mask],d_tri[water_mask])
+    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, tr[2:-2, 2:-2, :, pyom.taup1], pyom, b_edge=b_tri_edge)
+    tr[2:-2,2:-2,:,pyom.taup1][water_mask] = sol
 
 
 def _dissipation_on_wgrid(P, int_drhodX, pyom):

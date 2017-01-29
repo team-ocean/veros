@@ -14,7 +14,7 @@ class IsoneutralTest(PyOMTest):
     def initialize(self):
         m = self.pyom_legacy.main_module
 
-        for a in ("iso_slopec","iso_dslope","K_iso_steep","dt_tracer"):
+        for a in ("iso_slopec","iso_dslope","K_iso_steep","dt_tracer","dt_mom"):
             self.set_attribute(a, np.random.rand())
 
         for a in ("dxt","dxu"):
@@ -29,7 +29,10 @@ class IsoneutralTest(PyOMTest):
         for a in ("zt","dzt","dzw"):
             self.set_attribute(a,100*np.random.rand(self.nz))
 
-        for a in ("flux_east","flux_north","flux_top","u_wgrid","v_wgrid","w_wgrid","K_iso","K_gm"):
+        for a in ("area_u", "area_v", "area_t"):
+            self.set_attribute(a, 1e5 * np.random.rand(self.nx+4, self.ny+4))
+
+        for a in ("flux_east","flux_north","flux_top","u_wgrid","v_wgrid","w_wgrid","K_iso","K_gm","kappa_gm","du_mix"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
         for a in ("salt","temp","int_drhodT","int_drhodS"):
@@ -50,6 +53,7 @@ class IsoneutralTest(PyOMTest):
         self.test_routines["isoneutral_diag_streamfunction"] = ((self.pyom_new,), dict())
         self.test_routines["isoneutral_diffusion"] = (pyom_args, pyom_legacy_args)
         self.test_routines["isoneutral_skew_diffusion"] = (pyom_args, pyom_legacy_args)
+        self.test_routines["isoneutral_friction"] = ((self.pyom_new,), dict())
         # unused in PyOM
         #self.test_routines["isoneutral_diffusion_all"] = (pyom_args, pyom_legacy_args)
 
@@ -62,6 +66,11 @@ class IsoneutralTest(PyOMTest):
                     all_passed = False
         elif routine == "isoneutral_diag_streamfunction":
             for v in ("B1_gm", "B2_gm"):
+                passed = self._check_var(v)
+                if not passed:
+                    all_passed = False
+        elif routine == "isoneutral_friction":
+            for v in ("K_diss_gm", "u", "du_mix", "v", "dv_mix", "flux_top"):
                 passed = self._check_var(v)
                 if not passed:
                     all_passed = False
