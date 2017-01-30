@@ -405,7 +405,6 @@ def solve_streamfunction(pyom,benchtest=False):
 
     #hydrostatic pressure
     fxa = pyom.grav/pyom.rho_0
-    #NOTE: This fucks with wall time
     tmp = 0.5*(pyom.rho[:,:,:,pyom.tau])*fxa*pyom.dzw*pyom.maskT
     pyom.p_hydro[:,:,pyom.nz-1] = tmp[:,:,-1] #0.5*pyom.rho[:,:,pyom.nz-1,pyom.tau]*fxa*pyom.dzw[pyom.nz-1]*pyom.maskT[:,:,pyom.nz-1]
     tmp[:,:,:-1] += 0.5*pyom.rho[:,:,1:,pyom.tau]*fxa*pyom.dzw[:-1]*pyom.maskT[:,:,:-1]
@@ -484,12 +483,12 @@ def solve_streamfunction(pyom,benchtest=False):
         line_forc -= line_psi0
 
         # solve for time dependent boundary values
-        aloc[...] = pyom.line_psin # will be changed in lapack routine
+        #aloc[...] = pyom.line_psin # will be changed in lapack routine
         #CALL DGESV(nisle-1 , 1, aloc(2:nisle,2:nisle), nisle-1, IPIV, line_forc(2:nisle), nisle-1, INFO )
         if climate.is_bohrium:
-            line_forc[1:pyom.nisle] = np.linalg.jacobi(aloc[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
+            line_forc[1:pyom.nisle] = np.linalg.jacobi(pyom.line_psin[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
         else:
-            line_forc[1:pyom.nisle] = np.linalg.solve(aloc[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
+            line_forc[1:pyom.nisle] = np.linalg.solve(pyom.line_psin[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
         #(lu, ipiv, line_forc[1:pyom.nisle], info) = lapack.dgesv(aloc[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
 
         #if info != 0:
