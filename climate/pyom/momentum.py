@@ -12,64 +12,82 @@ def momentum(pyom):
     """
     time tendency due to Coriolis force
     """
-    for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-            pyom.du_cor[i,j,:] = pyom.maskU[i,j,:]*(pyom.coriolis_t[i,j]*(pyom.v[i,j,:,pyom.tau]+pyom.v[i,j-1,:,pyom.tau])*pyom.dxt[i]/pyom.dxu[i] \
-                                          +pyom.coriolis_t[i+1,j]*(pyom.v[i+1,j,:,pyom.tau]+pyom.v[i+1,j-1,:,pyom.tau])*pyom.dxt[i+1]/pyom.dxu[i])*0.25
-            pyom.dv_cor[i,j,:] = -pyom.maskV[i,j,:]*(pyom.coriolis_t[i,j]*(pyom.u[i-1,j,:,pyom.tau]+pyom.u[i,j,:,pyom.tau])*pyom.dyt[j]*pyom.cost[j]/(pyom.dyu[j]*pyom.cosu[j]) \
-                                        + pyom.coriolis_t[i,j+1]*(pyom.u[i-1,j+1,:,pyom.tau]+pyom.u[i,j+1,:,pyom.tau])*pyom.dyt[j+1]*pyom.cost[j+1]/(pyom.dyu[j]*pyom.cosu[j]))*0.25
+    pyom.du_cor[2:pyom.nx+2, 2:pyom.ny+2] = pyom.maskU[2:pyom.nx+2, 2:pyom.ny+2]\
+            *(pyom.coriolis_t[2:pyom.nx+2, 2:pyom.ny+2,np.newaxis]*(pyom.v[2:pyom.nx+2, 2:pyom.ny+2,:,pyom.tau]+pyom.v[2:pyom.nx+2, 1:pyom.ny+1,:,pyom.tau])*pyom.dxt[2:pyom.nx+2,np.newaxis,np.newaxis]/pyom.dxu[2:pyom.nx+2,np.newaxis,np.newaxis] \
+            +pyom.coriolis_t[3:pyom.nx+3,2:pyom.ny+2,np.newaxis]*(pyom.v[3:pyom.nx+3,2:pyom.ny+2,:,pyom.tau]+pyom.v[3:pyom.nx+3,1:pyom.ny+1,:,pyom.tau])*pyom.dxt[3:pyom.nx+3,np.newaxis,np.newaxis]/pyom.dxu[2:pyom.nx+2,np.newaxis,np.newaxis])*0.25
+    pyom.dv_cor[2:pyom.nx+2, 2:pyom.ny+2] = -pyom.maskV[2:pyom.nx+2, 2:pyom.ny+2]\
+            *(pyom.coriolis_t[2:pyom.nx+2, 2:pyom.ny+2,np.newaxis]*(pyom.u[1:pyom.nx+1, 2:pyom.ny+2,:,pyom.tau]+pyom.u[2:pyom.nx+2, 2:pyom.ny+2,:,pyom.tau])*pyom.dyt[np.newaxis,2:pyom.ny+2,np.newaxis]*pyom.cost[np.newaxis,2:pyom.ny+2,np.newaxis]/(pyom.dyu[np.newaxis,2:pyom.ny+2,np.newaxis]*pyom.cosu[np.newaxis,2:pyom.ny+2,np.newaxis])\
+            +pyom.coriolis_t[2:pyom.nx+2,3:pyom.ny+3,np.newaxis]*(pyom.u[1:pyom.nx+1, 3:pyom.ny+3,:,pyom.tau]+pyom.u[2:pyom.nx+2,3:pyom.ny+3,:,pyom.tau])*pyom.dyt[np.newaxis,3:pyom.ny+3,np.newaxis]*pyom.cost[np.newaxis,3:pyom.ny+3,np.newaxis]/(pyom.dyu[np.newaxis,2:pyom.ny+2,np.newaxis]*pyom.cosu[np.newaxis,2:pyom.ny+2,np.newaxis]))*0.25
 
     """
     time tendency due to metric terms
     """
     if pyom.coord_degree:
-        for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-            for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-                pyom.du_cor[i,j,:] += pyom.maskU[i,j,:]*0.125*pyom.tantr[j]*(\
-                                  (pyom.u[i,j,:,pyom.tau]+pyom.u[i-1,j,:,pyom.tau])*(pyom.v[i,j,:,pyom.tau]+pyom.v[i,j-1,:,pyom.tau])*pyom.dxt[i]/pyom.dxu[i] \
-                                + (pyom.u[i+1,j,:,pyom.tau]+pyom.u[i,j,:,pyom.tau])*(pyom.v[i+1,j,:,pyom.tau]+pyom.v[i+1,j-1,:,pyom.tau])*pyom.dxt[i+1]/pyom.dxu[i])
-                pyom.dv_cor[i,j,:] -= pyom.maskV[i,j,:]*0.125*(\
-                                       pyom.tantr[j]*(pyom.u[i,j,:,pyom.tau]+pyom.u[i-1,j,:,pyom.tau])**2*pyom.dyt[j]*pyom.cost[j]/(pyom.dyu[j]*pyom.cosu[j]) \
-                                     + pyom.tantr[j+1]*(pyom.u[i,j+1,:,pyom.tau]+pyom.u[i-1,j+1,:,pyom.tau])**2*pyom.dyt[j+1]*pyom.cost[j+1]/(pyom.dyu[j]*pyom.cosu[j]))
+        pyom.du_cor[2:pyom.nx+2, 2:pyom.ny+2] = pyom.maskU[2:pyom.nx+2, 2:pyom.ny+2]*0.125*pyom.tantr[np.newaxis,2:pyom.ny+2,np.newaxis]*(\
+                (pyom.u[2:pyom.nx+2, 2:pyom.ny+2,:,pyom.tau]+pyom.u[1:pyom.nx+1, 2:pyom.ny+2,:,pyom.tau])*(pyom.v[2:pyom.nx+2, 2:pyom.ny+2,:,pyom.tau]+pyom.v[2:pyom.nx+2, 1:pyom.ny+1,:,pyom.tau])*pyom.dxt[2:pyom.nx+2,np.newaxis,np.newaxis]/pyom.dxu[2:pyom.nx+2,np.newaxis,np.newaxis]\
+                + (pyom.u[3:pyom.nx+3, 2:pyom.ny+2,:,pyom.tau]+pyom.u[2:pyom.nx+2, 2:pyom.ny+2,:,pyom.tau])*(pyom.v[3:pyom.nx+3, 2:pyom.ny+2,:,pyom.tau]+pyom.v[3:pyom.nx+3, 1:pyom.ny+1,:,pyom.tau])*pyom.dxt[3:pyom.nx+3,np.newaxis,np.newaxis]/pyom.dxu[2:pyom.nx+2,np.newaxis,np.newaxis])
+        pyom.dv_cor[2:pyom.nx+2, 2:pyom.ny+2] = -pyom.maskV[2:pyom.nx+2, 2:pyom.ny+2]*0.125*(\
+                pyom.tantr[np.newaxis,2:pyom.ny+2,np.newaxis]*(pyom.u[2:pyom.nx+2,2:pyom.ny+2,:,pyom.tau]+pyom.u[1:pyom.nx+1,2:pyom.ny+2,:,pyom.tau])**2*pyom.dyt[np.newaxis,2:pyom.ny+2,np.newaxis]*pyom.cost[np.newaxis,2:pyom.ny+2,np.newaxis]/(pyom.dyu[np.newaxis,2:pyom.ny+2,np.newaxis]*pyom.cosu[np.newaxis,2:pyom.ny+2,np.newaxis]) \
+                + pyom.tantr[np.newaxis,3:pyom.ny+3,np.newaxis]*(pyom.u[2:pyom.nx+2,3:pyom.ny+3,:,pyom.tau]+pyom.u[1:pyom.nx+1,3:pyom.ny+3,:,pyom.tau])**2*pyom.dyt[np.newaxis,3:pyom.ny+3,np.newaxis]*pyom.cost[np.newaxis,3:pyom.ny+3,np.newaxis]/(pyom.dyu[np.newaxis,2:pyom.ny+2,np.newaxis]*pyom.cosu[np.newaxis,2:pyom.ny+2,np.newaxis]))
+        #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+        #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+        #        pyom.du_cor[i,j,:] += pyom.maskU[i,j,:]*0.125*pyom.tantr[j]*(\
+        #                          (pyom.u[i,j,:,pyom.tau]+pyom.u[i-1,j,:,pyom.tau])*(pyom.v[i,j,:,pyom.tau]+pyom.v[i,j-1,:,pyom.tau])*pyom.dxt[i]/pyom.dxu[i] \
+        #                        + (pyom.u[i+1,j,:,pyom.tau]+pyom.u[i,j,:,pyom.tau])*(pyom.v[i+1,j,:,pyom.tau]+pyom.v[i+1,j-1,:,pyom.tau])*pyom.dxt[i+1]/pyom.dxu[i])
+        #        pyom.dv_cor[i,j,:] -= pyom.maskV[i,j,:]*0.125*(\
+        #                               pyom.tantr[j]*(pyom.u[i,j,:,pyom.tau]+pyom.u[i-1,j,:,pyom.tau])**2*pyom.dyt[j]*pyom.cost[j]/(pyom.dyu[j]*pyom.cosu[j]) \
+        #                             + pyom.tantr[j+1]*(pyom.u[i,j+1,:,pyom.tau]+pyom.u[i-1,j+1,:,pyom.tau])**2*pyom.dyt[j+1]*pyom.cost[j+1]/(pyom.dyu[j]*pyom.cosu[j]))
 
     """
     non hydrostatic Coriolis terms, metric terms are neglected
     """
     if not pyom.enable_hydrostatic:
-        for k in xrange(1, pyom.nz): #k = 2,nz
-            for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-                pyom.du_cor[i,:,k] -= pyom.maskU[i,:,k]*0.25*(pyom.coriolis_h[i,:]*pyom.area_t[i,:]*(pyom.w[i,:,k,pyom.tau]+pyom.w[i,:,k-1,pyom.tau]) \
-                                                   + pyom.coriolis_h[i+1,:]*pyom.area_t[i+1,:]*(pyom.w[i+1,:,k,pyom.tau]+pyom.w[i+1,:,k-1,pyom.tau])) \
-                                                     / pyom.area_u[i,:]
-        k = 0
-        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-            pyom.du_cor[i,:,k] -= pyom.maskU[i,:,k]*0.25*(pyom.coriolis_h[i,:]*pyom.area_t[i,:]*(pyom.w[i,:,k,pyom.tau]) \
-                                               + pyom.coriolis_h[i+1,:]*pyom.area_t[i+1,:]*(pyom.w[i+1,:,k,pyom.tau]))/pyom.area_u[i,:]
-        for k in xrange(nz-1): #k = 1,nz-1
-            for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-                pyom.dw_cor[i,:,k] = pyom.maskW[i,:,k]*0.25*(pyom.coriolis_h[i,:]*pyom.dzt[k]*(pyom.u[i,:,k,pyom.tau]+pyom.u[i-1,:,k,pyom.tau]) \
-                                                  + pyom.coriolis_h[i,:]*pyom.dzt[k+1]*(pyom.u[i,:,k+1,pyom.tau]+pyom.u[i-1,:,k+1,pyom.tau]))/pyom.dzw[k]
+        pyom.du_cor[2:-2, :, 1:pyom.nz] = -pyom.maskU[2:-2, :, 1:pyom.nz]*0.25*(pyom.coriolis_h[2:-2]*pyom.area_t[2:-2]*(pyom[2:-2,:,1:pyom.nz,pyom.tau]+pyom.w[2:-2,:,:pyom.nz-1,pyom.tau])\
+                + pyom.coriolis_h[3:-1]*pyom.area_t[3:-1]*(pyom.w[3:-1,:,1:pyom.nz,pyom.tau]+pyom.w[3:-1,:,:pyom.nz-1,pyom.tau])) \
+                / pyom.area_u[2:-2]
+        #for k in xrange(1, pyom.nz): #k = 2,nz
+        #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+        #        pyom.du_cor[i,:,k] -= pyom.maskU[i,:,k]*0.25*(pyom.coriolis_h[i,:]*pyom.area_t[i,:]*(pyom.w[i,:,k,pyom.tau]+pyom.w[i,:,k-1,pyom.tau]) \
+        #                                           + pyom.coriolis_h[i+1,:]*pyom.area_t[i+1,:]*(pyom.w[i+1,:,k,pyom.tau]+pyom.w[i+1,:,k-1,pyom.tau])) \
+        #                                             / pyom.area_u[i,:]
+        pyom.du_cor[2:-2,:,0] -= pyom.maskU[2:-2,:,0]*0.25*(pyom.coriolis_h[2:-2]*pyom.area_t[2:-2]*(pyom.w[2:-2,:,0,pyom.tau]) \
+                + pyom.coriolis_h[3:-1]*pyom.area_t[3:-1]*(pyom.w[3:-1,:,0,pyom.tau]))/pyom.area_u[2:-2]
+        #k = 0
+        #for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+        #    pyom.du_cor[i,:,k] -= pyom.maskU[i,:,k]*0.25*(pyom.coriolis_h[i,:]*pyom.area_t[i,:]*(pyom.w[i,:,k,pyom.tau]) \
+        #                                       + pyom.coriolis_h[i+1,:]*pyom.area_t[i+1,:]*(pyom.w[i+1,:,k,pyom.tau]))/pyom.area_u[i,:]
+        pyom.dw_cor[2:-2,:,:pyom.nz-1] = pyom.maskW[2:-2,:,:pyom.nz-1]*0.25(pyom.coriolis_h[2:-2,:]*pyom.dzt[:pyom.nz-1]*(pyom.u[2:-2,:,:pyom.nz-1,pyom.tau]+pyom.u[1:-3,:,:pyom.nz-1,pyom.tau]) \
+                + pyom.coriolis_h[2:-2]*pyom.dzt[1:pyom.nz]*(pyom.u[2:-2,:,1:pyom.nz,pyom.tau]+pyom.u[1:-3,:,1:pyom.nz,pyom.tau]))/pyom.dzw[:pyom.nz-1]
+        #for k in xrange(nz-1): #k = 1,nz-1
+        #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+        #        pyom.dw_cor[i,:,k] = pyom.maskW[i,:,k]*0.25*(pyom.coriolis_h[i,:]*pyom.dzt[k]*(pyom.u[i,:,k,pyom.tau]+pyom.u[i-1,:,k,pyom.tau]) \
+        #                                          + pyom.coriolis_h[i,:]*pyom.dzt[k+1]*(pyom.u[i,:,k+1,pyom.tau]+pyom.u[i-1,:,k+1,pyom.tau]))/pyom.dzw[k]
 
     """
     transfer to time tendencies
     """
-    for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-            pyom.du[i,j,:,pyom.tau] = pyom.du_cor[i,j,:]
-            pyom.dv[i,j,:,pyom.tau] = pyom.dv_cor[i,j,:]
+    pyom.du[2:-2,2:-2,:,pyom.tau] = pyom.du_cor[2:-2,2:-2]
+    pyom.dv[2:-2,2:-2,:,pyom.tau] = pyom.dv_cor[2:-2,2:-2]
+    #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+    #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+    #        pyom.du[i,j,:,pyom.tau] = pyom.du_cor[i,j,:]
+    #        pyom.dv[i,j,:,pyom.tau] = pyom.dv_cor[i,j,:]
 
     if not pyom.enable_hydrostatic:
-        for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-            for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-                pyom.dw[i,j,:,pyom.tau] = pyom.dw_cor[i,j,:]
+        pyom.dw[2:-2,2:-2,:,pyom.tau] = pyom.dw_cor[2:-2,2:-2]
+        #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+        #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+        #        pyom.dw[i,j,:,pyom.tau] = pyom.dw_cor[i,j,:]
 
     """
     wind stress forcing
     """
-    for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-            pyom.du[i,j,pyom.nz-1,pyom.tau] += pyom.maskU[i,j,pyom.nz-1]*pyom.surface_taux[i,j]/pyom.dzt[pyom.nz-1]
-            pyom.dv[i,j,pyom.nz-1,pyom.tau] += pyom.maskV[i,j,pyom.nz-1]*pyom.surface_tauy[i,j]/pyom.dzt[pyom.nz-1]
+    pyom.du[2:-2,2:-2,pyom.nz-1,pyom.tau] += pyom.maskU[2:-2,2:-2,pyom.nz-1]*pyom.surface_taux[2:-2,2:-2]/pyom.dzt[pyom.nz-1]
+    pyom.dv[2:-2,2:-2,pyom.nz-1,pyom.tau] += pyom.maskV[2:-2,2:-2,pyom.nz-1]*pyom.surface_tauy[2:-2,2:-2]/pyom.dzt[pyom.nz-1]
+    #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+    #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+    #        pyom.du[i,j,pyom.nz-1,pyom.tau] += pyom.maskU[i,j,pyom.nz-1]*pyom.surface_taux[i,j]/pyom.dzt[pyom.nz-1]
+    #        pyom.dv[i,j,pyom.nz-1,pyom.tau] += pyom.maskV[i,j,pyom.nz-1]*pyom.surface_tauy[i,j]/pyom.dzt[pyom.nz-1]
 
     """
     advection
@@ -200,83 +218,121 @@ def momentum_advection(pyom):
     #     &)
 
 
-    for j in xrange(pyom.js_pe-pyom.onx, pyom.je_pe+pyom.onx): #j = js_pe-onx,je_pe+onx
-        for i in xrange(pyom.is_pe-pyom.onx, pyom.ie_pe+pyom.onx): #i = is_pe-onx,ie_pe+onx
-            utr[i,j,:] = pyom.dzt[:]*pyom.dyt[j]*pyom.u[i,j,:,pyom.tau]*pyom.maskU[i,j,:]
-            vtr[i,j,:] = pyom.dzt[:]*pyom.cosu[j]*pyom.dxt[i]*pyom.v[i,j,:,pyom.tau]*pyom.maskV[i,j,:]
-            wtr[i,j,:] = pyom.area_t[i,j]*pyom.w[i,j,:,pyom.tau]*pyom.maskW[i,j,:]
+    utr[2:-2,2:-2] = pyom.dzt * pyom.dyt[2:-2, np.newaxis] * pyom.u[2:-2,2:-2,:,pyom.tau]*pyom.maskU[2:-2,2:-2]
+    vtr[2:-2,2:-2] = pyom.dzt * pyom.cosu[2:-2, np.newaxis] * pyom.dxt[2:-2, np.newaxis, np.newaxis] * pyom.v[2:-2,2:-2,:,pyom.tau]*pyom.maskV[2:-2,2:-2]
+    wtr[2:-2,2:-2] = pyom.w[2:-2,2:-2,:,pyom.tau]*pyom.maskW[2:-2,2:-2]*pyom.area_t[2:-2,2:-2,np.newaxis]
+    #for j in xrange(pyom.js_pe-pyom.onx, pyom.je_pe+pyom.onx): #j = js_pe-onx,je_pe+onx
+    #    for i in xrange(pyom.is_pe-pyom.onx, pyom.ie_pe+pyom.onx): #i = is_pe-onx,ie_pe+onx
+    #        utr[i,j,:] = pyom.dzt[:]*pyom.dyt[j]*pyom.u[i,j,:,pyom.tau]*pyom.maskU[i,j,:]
+    #        vtr[i,j,:] = pyom.dzt[:]*pyom.cosu[j]*pyom.dxt[i]*pyom.v[i,j,:,pyom.tau]*pyom.maskV[i,j,:]
+    #        wtr[i,j,:] = pyom.area_t[i,j]*pyom.w[i,j,:,pyom.tau]*pyom.maskW[i,j,:]
 
     """
     for zonal momentum
     """
-    for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-        for i in xrange(pyom.is_pe-1, pyom.ie_pe): #i = is_pe-1,ie_pe
-            pyom.flux_east[i,j,:] = 0.25*(pyom.u[i,j,:,pyom.tau]+pyom.u[i+1,j,:,pyom.tau])*(utr[i+1,j,:]+utr[i,j,:])
-    for j in xrange(pyom.js_pe-1, pyom.je_pe): #j = js_pe-1,je_pe
-        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-            pyom.flux_north[i,j,:] = 0.25*(pyom.u[i,j,:,pyom.tau]+pyom.u[i,j+1,:,pyom.tau])*(vtr[i+1,j,:]+vtr[i,j,:])
-    for k in xrange(pyom.nz-1): #k = 1,nz-1
-        for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-            for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-                pyom.flux_top[i,j,k] = 0.25*(pyom.u[i,j,k+1,pyom.tau]+pyom.u[i,j,k,pyom.tau])*(wtr[i,j,k]+wtr[i+1,j,k])
+    pyom.flux_east[1:-2, 2:-2] = 0.25*(pyom.u[1:-2,2:-2,:,pyom.tau]+pyom.u[2:-1,2:-2,:,pyom.tau])*(utr[2:-1,2:-2]+utr[1:-2,2:-2])
+    #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+    #    for i in xrange(pyom.is_pe-1, pyom.ie_pe): #i = is_pe-1,ie_pe
+    #        pyom.flux_east[i,j,:] = 0.25*(pyom.u[i,j,:,pyom.tau]+pyom.u[i+1,j,:,pyom.tau])*(utr[i+1,j,:]+utr[i,j,:])
+    pyom.flux_north[2:-2,1:-2] = 0.25*(pyom.u[2:-2,1:-2,:,pyom.tau]+pyom.u[2:-2,2:-1,:,pyom.tau])*(vtr[3:-1,1:-2]+vtr[2:-2,1:-2])
+    #for j in xrange(pyom.js_pe-1, pyom.je_pe): #j = js_pe-1,je_pe
+    #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+    #        pyom.flux_north[i,j,:] = 0.25*(pyom.u[i,j,:,pyom.tau]+pyom.u[i,j+1,:,pyom.tau])*(vtr[i+1,j,:]+vtr[i,j,:])
+    pyom.flux_top[2:-2,2:-2,:-1] = 0.25*(pyom.u[2:-2,2:-2,1:,pyom.tau]+pyom.u[2:-2,2:-2,:-1,pyom.tau])*(wtr[2:-2,2:-2,:-1]+wtr[3:-1,2:-2,:-1])
+    #for k in xrange(pyom.nz-1): #k = 1,nz-1
+    #    for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+    #        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+    #            pyom.flux_top[i,j,k] = 0.25*(pyom.u[i,j,k+1,pyom.tau]+pyom.u[i,j,k,pyom.tau])*(wtr[i,j,k]+wtr[i+1,j,k])
     pyom.flux_top[:,:,pyom.nz-1] = 0.0
-    for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-            pyom.du_adv[i,j,:] = -pyom.maskU[i,j,:] * (pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:] \
-                                           + pyom.flux_north[i,j,:]-pyom.flux_north[i,j-1,:])/(pyom.area_u[i,j]*pyom.dzt[:])
-    k = 0
-    pyom.du_adv[:,:,k] -= pyom.maskU[:,:,k] * pyom.flux_top[:,:,k] / (pyom.area_u[:,:] * pyom.dzt[k])
-    for k in xrange(1, pyom.nz): #k = 2,nz
-        pyom.du_adv[:,:,k] -= pyom.maskU[:,:,k] * (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1]) / (pyom.area_u[:,:] * pyom.dzt[k])
+    pyom.du_adv[2:-2,2:-2] = -pyom.maskU[2:-2,2:-2] * (pyom.flux_east[2:-2,2:-2] - pyom.flux_east[1:-3,2:-2] \
+            + pyom.flux_north[2:-2,2:-2]-pyom.flux_north[2:-2,1:-3])/(pyom.dzt*pyom.area_u[2:-2,2:-2,np.newaxis])
+    #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+    #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+    #        pyom.du_adv[i,j,:] = -pyom.maskU[i,j,:] * (pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:] \
+    #                                       + pyom.flux_north[i,j,:]-pyom.flux_north[i,j-1,:])/(pyom.area_u[i,j]*pyom.dzt[:])
+
+    pyom.du_adv[:,:,0] -= pyom.maskU[:,:,0] * pyom.flux_top[:,:,0] / (pyom.area_u[:,:] * pyom.dzt[0])
+    pyom.du_adv[:,:,1:] -= pyom.maskU[:,:,:-1] * (pyom.flux_top[:,:,:-1] - pyom.flux_top[:,:,:-1]) /(pyom.dzt[1:] * pyom.area_u[:,:,np.newaxis])
+    #k = 0
+    #pyom.du_adv[:,:,k] -= pyom.maskU[:,:,k] * pyom.flux_top[:,:,k] / (pyom.area_u[:,:] * pyom.dzt[k])
+    #for k in xrange(1, pyom.nz): #k = 2,nz
+    #    pyom.du_adv[:,:,k] -= pyom.maskU[:,:,k] * (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1]) / (pyom.area_u[:,:] * pyom.dzt[k])
     """
     for meridional momentum
     """
-    for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-        for i in xrange(pyom.is_pe-1, pyom.ie_pe): #i = is_pe-1,ie_pe
-            pyom.flux_east[i,j,:] = 0.25*(pyom.v[i,j,:,pyom.tau]+pyom.v[i+1,j,:,pyom.tau])*(utr[i,j+1,:]+utr[i,j,:])
-    for j in xrange(pyom.js_pe-1, pyom.je_pe): #j = js_pe-1,je_pe
-        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-            pyom.flux_north[i,j,:] = 0.25*(pyom.v[i,j,:,pyom.tau]+pyom.v[i,j+1,:,pyom.tau])*(vtr[i,j+1,:]+vtr[i,j,:])
-    for k in xrange(pyom.nz-1): #k = 1,nz-1
-        for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-            for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-                pyom.flux_top[i,j,k] = 0.25*(pyom.v[i,j,k+1,pyom.tau]+pyom.v[i,j,k,pyom.tau])*(wtr[i,j,k]+wtr[i,j+1,k])
+    pyom.flux_east[1:-2, 2:-2] = 0.25 *(pyom.v[1:-2,2:-2,:,pyom.tau]+pyom.v[2:-1,2:-2,:,pyom.tau])*(utr[1:-2,3:-1]+utr[1:-2,2:-2])
+    #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+    #    for i in xrange(pyom.is_pe-1, pyom.ie_pe): #i = is_pe-1,ie_pe
+    #        pyom.flux_east[i,j,:] = 0.25*(pyom.v[i,j,:,pyom.tau]+pyom.v[i+1,j,:,pyom.tau])*(utr[i,j+1,:]+utr[i,j,:])
+    pyom.flux_north[2:-2, 1:-2] = 0.25 * (pyom.v[2:-2,1:-2,:,pyom.tau]+pyom.v[2:-2,2:-1,:,pyom.tau])*(vtr[2:-2,2:-1]+vtr[2:-2,1:-2])
+    #for j in xrange(pyom.js_pe-1, pyom.je_pe): #j = js_pe-1,je_pe
+    #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+    #        pyom.flux_north[i,j,:] = 0.25*(pyom.v[i,j,:,pyom.tau]+pyom.v[i,j+1,:,pyom.tau])*(vtr[i,j+1,:]+vtr[i,j,:])
+    pyom.flux_top[2:-2,2:-2,:-1] = 0.25*(pyom.v[2:-2,2:-2,1:,pyom.tau]+pyom.v[2:-2,2:-2,:-1,pyom.tau])*(wtr[2:-2,2:-2,:-1]+wtr[2:-2,3:-1,:-1])
+    #for k in xrange(pyom.nz-1): #k = 1,nz-1
+    #    for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+    #        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+    #            pyom.flux_top[i,j,k] = 0.25*(pyom.v[i,j,k+1,pyom.tau]+pyom.v[i,j,k,pyom.tau])*(wtr[i,j,k]+wtr[i,j+1,k])
     pyom.flux_top[:,:,pyom.nz-1] = 0.0
-    for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-            pyom.dv_adv[i,j,:] = -pyom.maskV[i,j,:]*(pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:] \
-                                          + pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:])/(pyom.area_v[i,j]*pyom.dzt[:])
-    k = 0
-    pyom.dv_adv[:,:,k] -= pyom.maskV[:,:,k]*pyom.flux_top[:,:,k]/(pyom.area_v[:,:]*pyom.dzt[k])
-    for k in xrange(1, pyom.nz): #k = 2,nz
-        pyom.dv_adv[:,:,k] -= pyom.maskV[:,:,k]*(pyom.flux_top[:,:,k]-pyom.flux_top[:,:,k-1])/(pyom.area_v[:,:]*pyom.dzt[k])
+    pyom.dv_adv[2:-2,2:-2] = -pyom.maskV[2:-2,2:-2]*(pyom.flux_east[2:-2,2:-2] - pyom.flux_east[1:-3,2:-2] \
+            + pyom.flux_north[2:-2,2:-2] - pyom.flux_north[2:-2,1:-3])/(pyom.dzt*pyom.area_v[2:-2,2:-2,np.newaxis])
+    #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+    #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+    #        pyom.dv_adv[i,j,:] = -pyom.maskV[i,j,:]*(pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:] \
+    #                                      + pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:])/(pyom.area_v[i,j]*pyom.dzt[:])
+    tmp = pyom.dzt * pyom.area_v[:,:,np.newaxis]
+    pyom.dv_adv[:,:,0] -= pyom.maskV[:,:,0]*pyom.flux_top[:,:,0]/tmp[:,:,0]
+    pyom.dv_adv[:,:,1:] -= pyom.maskV[:,:,1:]*(pyom.flux_top[:,:,1:]-pyom.flux_top[:,:,:-1])/tmp[:,:,1:]
+    #k = 0
+    #pyom.dv_adv[:,:,k] -= pyom.maskV[:,:,k]*pyom.flux_top[:,:,k]/(pyom.area_v[:,:]*pyom.dzt[k])
+    #for k in xrange(1, pyom.nz): #k = 2,nz
+    #    pyom.dv_adv[:,:,k] -= pyom.maskV[:,:,k]*(pyom.flux_top[:,:,k]-pyom.flux_top[:,:,k-1])/(pyom.area_v[:,:]*pyom.dzt[k])
 
     if not pyom.enable_hydrostatic:
         """
         for vertical momentum
         """
-        for k in xrange(pyom.nz): #k = 1,nz
-            for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-                for i in xrange(pyom.is_pe-1, pyom.ie_pe): #i = is_pe-1,ie_pe
-                    pyom.flux_east[i,j,k] = 0.5*(pyom.w[i,j,k,pyom.tau]+pyom.w[i+1,j,k,pyom.tau])*(pyom.u[i,j,k,pyom.tau] \
-                                            + pyom.u[i,j,min(pyom.nz-1,k+1),pyom.tau])*0.5*pyom.maskW[i+1,j,k]*pyom.maskW[i,j,k]
-        for k in xrange(pyom.nz): #k = 1,nz
-            for j in xrange(pyom.js_pe-1, pyom.je_pe): #j = js_pe-1,je_pe
-                for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-                    pyom.flux_north[i,j,k] = 0.5*(pyom.w[i,j,k,pyom.tau] + pyom.w[i,j+1,k,pyom.tau]) * \
-                                            (pyom.v[i,j,k,pyom.tau]+pyom.v[i,j,min(nz-1,k+1),pyom.tau]) * \
-                                            0.5*pyom.maskW[i,j+1,k]*pyom.maskW[i,j,k]*pyom.cosu[j]
-        for k in xrange(pyom.nz-1): #k = 1,nz-1
-            for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-                for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-                    pyom.flux_top[i,j,k] = 0.5*(pyom.w[i,j,k+1,pyom.tau]+pyom.w[i,j,k,pyom.tau])*(pyom.w[i,j,k,pyom.tau] + \
-                                           pyom.w[i,j,k+1,pyom.tau])*0.5*pyom.maskW[i,j,k+1]*pyom.maskW[i,j,k]
-        pyom.flux_top[:,:,pyom.nz-1] = 0.0
-        for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-            for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-                pyom.dw_adv[i,j,:] = pyom.maskW[i,j,:] * (-(pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:])/(pyom.cost[j]*pyom.dxt[i]) \
-                                               -(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:])/(pyom.cost[j]*pyom.dyt[j]))
-        k = 0
-        pyom.dw_adv[:,:,k] -= pyom.maskW[:,:,k]*pyom.flux_top[:,:,k]/pyom.dzw[k]
-        for k in xrange(1, pyom.nz): #k = 2,nz
-            pyom.dw_adv[:,:,k] -= pyom.maskW[:,:,k]*(pyom.flux_top[:,:,k]-pyom.flux_top[:,:,k-1])/pyom.dzw[k]
+        pyom.flux_east[2:-2,2:-2,:-1] = 0.5*(pyom.w[2:-2,2:-2,:-1,pyom.tau]+pyom.w[3:-1,2:-2,:-1,pyom.tau])\
+                *(pyom.u[2:-2,2:-2,:-1,pyom.tau] + pyom.u[2:-2,2:-2,1:,pyom.tau])*0.5*pyom.maskW[3:-1,2:-2,:-1]*pyom.maskW[2:-2,2:-2,:-1]
+        pyom.flux_east[2:-2,2:-2,-1] = 0.5*(pyom.w[2:-2,2:-2,-1,pyom.tau]+pyom.w[3:-1,2:-2,-1,pyom.tau])\
+                *(pyom.u[2:-2,2:-2,-1,pyom.tau] + pyom.u[2:-2,2:-2,-1,pyom.tau])*0.5*pyom.maskW[3:-1,2:-2,-1]*pyom.maskW[2:-2,2:-2,-1]
+        #for k in xrange(pyom.nz): #k = 1,nz
+        #    for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+        #        for i in xrange(pyom.is_pe-1, pyom.ie_pe): #i = is_pe-1,ie_pe
+        #            pyom.flux_east[i,j,k] = 0.5*(pyom.w[i,j,k,pyom.tau]+pyom.w[i+1,j,k,pyom.tau])*(pyom.u[i,j,k,pyom.tau] \
+        #                                    + pyom.u[i,j,min(pyom.nz-1,k+1),pyom.tau])*0.5*pyom.maskW[i+1,j,k]*pyom.maskW[i,j,k]
+        pyom.flux_north[2:-2,2:-2,:-1] = 0.5*(pyom.w[2:-2,2:-2,:-1,pyom.tau] + pyom.w[2:-2,3:-1,:-1,pyom.tau]) * \
+                (pyom.v[2:-2,2:-2,:-1,pyom.tau]+pyom.v[2:-2,2:-2,1:,pyom.tau]) * \
+                0.5*pyom.maskW[2:-2,3:-1,:-1]*pyom.maskW[2:-2,2:-2,:-1]*pyom.cosu[2:-2]
+        pyom.flux_north[2:-2,2:-2,-1] = 0.5*(pyom.w[2:-2,2:-2,-1,pyom.tau] + pyom.w[2:-2,3:-1,-1,pyom.tau]) * \
+                (pyom.v[2:-2,2:-2,-1,pyom.tau]+pyom.v[2:-2,2:-2,-1,pyom.tau]) * \
+                0.5*pyom.maskW[2:-2,3:-1,-1]*pyom.maskW[2:-2,2:-2,-1]*pyom.cosu[2:-2]
+        #for k in xrange(pyom.nz): #k = 1,nz
+        #    for j in xrange(pyom.js_pe-1, pyom.je_pe): #j = js_pe-1,je_pe
+        #        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+        #            pyom.flux_north[i,j,k] = 0.5*(pyom.w[i,j,k,pyom.tau] + pyom.w[i,j+1,k,pyom.tau]) * \
+        #                                    (pyom.v[i,j,k,pyom.tau]+pyom.v[i,j,min(nz-1,k+1),pyom.tau]) * \
+        #                                    0.5*pyom.maskW[i,j+1,k]*pyom.maskW[i,j,k]*pyom.cosu[j]
+        pyom.flux_top[2:-2,2:-2,:-1] = 0.5*(pyom.w[2:-2,2:-2,1:,pyom.tau]+pyom.w[2:-2,2:-2,:-1,pyom.tau])\
+                *(pyom.w[2:-2,2:-2,1:,pyom.tau]+pyom.w[2:-2,2:-2,:-1,pyom.tau])\
+                *0.5*pyom.maskW[2:-2,2:-2,1:]*pyom.maskW[2:-2,2:-2,:-1]
+        pyom.flux_top[:,:,-1] = 0.
+        #for k in xrange(pyom.nz-1): #k = 1,nz-1
+        #    for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+        #        for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+        #            pyom.flux_top[i,j,k] = 0.5*(pyom.w[i,j,k+1,pyom.tau]+pyom.w[i,j,k,pyom.tau])*(pyom.w[i,j,k,pyom.tau] + \
+        #                                   pyom.w[i,j,k+1,pyom.tau])*0.5*pyom.maskW[i,j,k+1]*pyom.maskW[i,j,k]
+        #pyom.flux_top[:,:,pyom.nz-1] = 0.0
+        pyom.dw_adv[2:-2,2:-2] = pyom.maskW[2:-2,2:-2] * (-(pyom.flux_east[2:-2,2:-2] - pyom.flux_east[1:-3,2:-2])/(pyom.cost[2:-2]*pyom.dxt[2:-2,np.newaxis])\
+                -(pyom.flux_north[2:-2,2:-2] - pyom.flux_north[2:-2,1:-3])/(pyom.cost[2:-2]*pyom.dyt[2:-2]))
+        #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
+        #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
+        #        pyom.dw_adv[i,j,:] = pyom.maskW[i,j,:] * (-(pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:])/(pyom.cost[j]*pyom.dxt[i]) \
+        #                                       -(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:])/(pyom.cost[j]*pyom.dyt[j]))
+        tmp = pyom.maskW / pyom.dzw
+        pyom.dw_adv[:,:,0] -= tmp[:,:,0] * pyom.flux_top[:,:,0]
+        pyom.dw_adv[:,:,1:] -= tmp[:,:,1:] * (pyom.flux_top[:,:,1:] - pyom.flux_top[:,:,:-1])
+        #k = 0
+        #pyom.dw_adv[:,:,k] -= pyom.maskW[:,:,k]*pyom.flux_top[:,:,k]/pyom.dzw[k]
+        #for k in xrange(1, pyom.nz): #k = 2,nz
+        #    pyom.dw_adv[:,:,k] -= pyom.maskW[:,:,k]*(pyom.flux_top[:,:,k]-pyom.flux_top[:,:,k-1])/pyom.dzw[k]
