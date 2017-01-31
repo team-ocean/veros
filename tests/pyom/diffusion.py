@@ -35,7 +35,7 @@ class DiffusionTest(PyOMTest):
         for a in ("dzt","dzw"):
             self.set_attribute(a,100*np.random.rand(self.nz))
 
-        for a in ("flux_east","flux_north","flux_top","dtemp_hmix","dsalt_hmix","P_diss_hmix","temp_source","salt_source"):
+        for a in ("flux_east","flux_north","flux_top","dtemp_hmix","dsalt_hmix","temp_source","salt_source"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
         for a in ("temp","salt","int_drhodS","int_drhodT"):
@@ -67,7 +67,7 @@ class DiffusionTest(PyOMTest):
 
     def _check_var(self,var):
         v1, v2 = self.get_attribute(var)
-        passed = np.allclose(v1, v2)
+        passed = np.allclose(v1[2:-2, 2:-2, ...], v2[2:-2, 2:-2, ...])
         if not passed:
             print(var, np.abs(v1[2:-2, 2:-2, ...]-v2[2:-2, 2:-2, ...]).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:

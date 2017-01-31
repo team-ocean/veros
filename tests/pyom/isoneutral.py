@@ -9,7 +9,7 @@ from climate.pyom import isoneutral
 
 class IsoneutralTest(PyOMTest):
     extra_settings = {
-                      "enable_neutral_diffusion": True, 
+                      "enable_neutral_diffusion": True,
                       "enable_skew_diffusion": True
                       }
     test_module = isoneutral
@@ -35,7 +35,7 @@ class IsoneutralTest(PyOMTest):
         for a in ("area_u", "area_v", "area_t"):
             self.set_attribute(a, 1e5 * np.random.rand(self.nx+4, self.ny+4))
 
-        for a in ("flux_east","flux_north","flux_top","u_wgrid","v_wgrid","w_wgrid","K_iso","K_gm","kappa_gm","du_mix"):
+        for a in ("flux_east","flux_north","flux_top","u_wgrid","v_wgrid","w_wgrid","K_iso","K_gm","kappa_gm","du_mix","P_diss_iso","P_diss_skew"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
         for a in ("salt","temp","int_drhodT","int_drhodS"):
@@ -89,7 +89,7 @@ class IsoneutralTest(PyOMTest):
         v1, v2 = self.get_attribute(var)
         passed = np.allclose(v1[2:-2, 2:-2, ...], v2[2:-2, 2:-2, ...])
         if not passed:
-            print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
+            print(var, np.abs(v1[2:-2, 2:-2, ...]-v2[2:-2, 2:-2, ...]).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:
                 v1 = v1[...,-1]
             while v2.ndim > 2:

@@ -1,7 +1,7 @@
 import numpy as np
 
 from climate.pyom import numerics, utilities
-
+from climate.pyom.diffusion import dissipation_on_wgrid
 
 def _calc_tracer_fluxes(tr, K_iso, K_skew, pyom):
     tr_pad = np.empty((pyom.nx+4,pyom.ny+4,pyom.nz+2))
@@ -85,26 +85,6 @@ def _calc_implicit_part(tr, pyom):
     tr[2:-2,2:-2,:,pyom.taup1][water_mask] = sol
 
 
-def _dissipation_on_wgrid(P, int_drhodX, pyom):
-    aloc = np.zeros_like(P)
-    aloc[1:-1,1:-1,:] = 0.5 * pyom.grav / pyom.rho_0 * ((int_drhodX[2:,1:-1,:]-int_drhodX[1:-1,1:-1,:]) * pyom.flux_east[1:-1,1:-1,:] \
-                                                       +(int_drhodX[1:-1,1:-1,:]-int_drhodX[:-2,1:-1,:]) * pyom.flux_east[:-2,1:-1,:]) \
-                                                     / (pyom.dxt[1:-1,None,None] * pyom.cost[None,1:-1,None]) \
-                      + 0.5 * pyom.grav / pyom.rho_0 * ((int_drhodX[1:-1,2:,:]-int_drhodX[1:-1,1:-1,:]) * pyom.flux_north[1:-1,1:-1,:] \
-                                                       +(int_drhodX[1:-1,1:-1,:]-int_drhodX[1:-1,:-2,:]) * pyom.flux_north[1:-1,:-2,:]) \
-                                                     / (pyom.dyt[None,1:-1,None] * pyom.cost[None,1:-1,None])
-
-    ks = pyom.kbot[:,:] - 1
-    land_mask = (ks >= 0)
-    edge_mask = land_mask[:, :, None] & (np.indices((pyom.nx+4, pyom.ny+4, pyom.nz-1))[2] == ks[:,:,None])
-    water_mask = land_mask[:, :, None] & (np.indices((pyom.nx+4, pyom.ny+4, pyom.nz-1))[2] > ks[:,:,None])
-    if np.count_nonzero(land_mask):
-        dzw_pad = utilities.pad_z_edges(pyom.dzw)
-        P[:, :, :-1][edge_mask] += (0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) + 0.5 * (aloc[:, :, :-1] * dzw_pad[None, None, :-3] / pyom.dzw[None, None, :-1]))[edge_mask]
-        P[:, :, :-1][water_mask] += 0.5 * (aloc[:,:,:-1] + aloc[:,:,1:])[water_mask]
-        P[:, :, -1][land_mask] += aloc[:,:,-1][land_mask]
-
-
 def isoneutral_diffusion(tr, istemp, pyom, iso=True, skew=False):
     """
     Isopycnal diffusion for tracer,
@@ -157,9 +137,9 @@ def isoneutral_diffusion(tr, istemp, pyom, iso=True, skew=False):
         dissipation interpolated on W-grid
         """
         if not iso:
-            _dissipation_on_wgrid(pyom.P_diss_skew, int_drhodX, pyom)
+            dissipation_on_wgrid(pyom.P_diss_skew, pyom, int_drhodX=int_drhodX)
         else:
-            _dissipation_on_wgrid(pyom.P_diss_iso, int_drhodX, pyom)
+            dissipation_on_wgrid(pyom.P_diss_iso, pyom, int_drhodX=int_drhodX)
 
         """
         diagnose dissipation of dynamic enthalpy by explicit and implicit vertical mixing
