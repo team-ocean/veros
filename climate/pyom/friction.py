@@ -1,7 +1,7 @@
 import math
 import numpy as np
 
-from climate.pyom import numerics
+from climate.pyom import numerics, utilities
 
 
 def explicit_vert_friction(pyom):
@@ -96,48 +96,27 @@ def implicit_vert_friction(pyom):
 
     # real*8 :: a_tri(nz),b_tri(nz),c_tri(nz),d_tri(nz),delta(nz),fxa
     # real*8 :: diss(pyom.is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
-    a_tri = np.zeros(pyom.nz)
-    b_tri = np.zeros(pyom.nz)
-    c_tri = np.zeros(pyom.nz)
-    d_tri = np.zeros(pyom.nz)
-    delta = np.zeros(pyom.nz)
+    a_tri = np.zeros((pyom.nx+1, pyom.ny+1, pyom.nz))
+    b_tri = np.zeros((pyom.nx+1, pyom.ny+1, pyom.nz))
+    c_tri = np.zeros((pyom.nx+1, pyom.ny+1, pyom.nz))
+    d_tri = np.zeros((pyom.nx+1, pyom.ny+1, pyom.nz))
+    delta = np.zeros((pyom.nx+1, pyom.ny+1, pyom.nz))
     diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
 
     """
     implicit vertical friction of zonal momentum
     """
     kss = np.maximum(pyom.kbot[1:-2, 1:-2], pyom.kbot[2:-1, 1:-2]) - 1
-    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-            #ks = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
-            ks = kss[i-1, j-1]
-            if ks >= 0:
-                fxa = 0.5 * (pyom.kappaM[i,j,ks:pyom.nz-1] + pyom.kappaM[i+1,j,ks:pyom.nz-1])
-                delta[ks:pyom.nz-1] = pyom.dt_mom / pyom.dzw[ks:pyom.nz-1] * fxa * pyom.maskU[i,j,ks+1:pyom.nz] * pyom.maskU[i,j,ks:pyom.nz-1]
-                #for k in xrange(ks,pyom.nz-1): # k = ks,nz-1
-                #    fxa = 0.5 * (pyom.kappaM[i,j,k] + pyom.kappaM[i+1,j,k])
-                #    delta[k] = pyom.dt_mom / pyom.dzw[k] * fxa * pyom.maskU[i,j,k+1] * pyom.maskU[i,j,k]
-                delta[pyom.nz-1] = 0.0
-                a_tri[ks] = 0.0
-                a_tri[ks+1:] = -delta[ks:-1] / pyom.dzt[ks+1:]
-                #for k in xrange(ks+1,pyom.nz): # k = ks+1,nz
-                #    a_tri[k] = -delta[k-1] / pyom.dzt[k]
-                tmp1 = delta[ks:-1] / pyom.dzt[ks:-1]
-                tmp2 = delta[ks:-1] / pyom.dzt[ks+1:]
-                b_tri[ks:] = 1
-                b_tri[ks:-1] += tmp1
-                b_tri[ks+1:] += tmp2
-                #b_tri[ks] = 1 + delta[ks] / pyom.dzt[ks]
-                #for k in xrange(ks+1,pyom.nz-1): # k = ks+1,nz-1
-                #    b_tri[k] = 1 + delta[k] / pyom.dzt[k] + delta[k-1] / pyom.dzt[k]
-                #b_tri[pyom.nz-1] = 1 + delta[pyom.nz-2] / pyom.dzt[pyom.nz-1]
-                c_tri[ks:-1] = -delta[ks:-1] / pyom.dzt[ks:-1]
-                #for k in xrange(ks,pyom.nz-1): # k = ks,nz-1
-                #    c_tri[k] = -delta[k] / pyom.dzt[k]
-                c_tri[pyom.nz-1] = 0.0
-                d_tri[ks:] = pyom.u[i,j,ks:,pyom.tau]
-                pyom.u[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:])
-            #pyom.du_mix[i,j,:] = (pyom.u[i,j,:,pyom.taup1] - pyom.u[i,j,:,pyom.tau]) / pyom.dt_mom
+    fxa = 0.5 * (pyom.kappaM[1:-2,1:-2,:-1] + pyom.kappaM[2:-1,1:-2,:-1])
+    delta[:,:,:-1] = pyom.dt_mom / pyom.dzw[:-1] * fxa * pyom.maskU[1:-2,1:-2,1:] * pyom.maskU[1:-2,1:-2,:-1]
+    a_tri[:,:, 1:] = -delta[:,:,:-1] / pyom.dzt[np.newaxis,np.newaxis,1:]
+    b_tri[:,:, 1:] = 1 + delta[:,:,:-1] / pyom.dzt[np.newaxis,np.newaxis,:-1]
+    b_tri[:,:, 1:-1] += delta[:,:,1:-1] / pyom.dzt[np.newaxis,np.newaxis,1:-1]
+    b_tri_edge = 1 + delta / pyom.dzt[np.newaxis,np.newaxis,:]
+    c_tri = -delta / pyom.dzt[np.newaxis,np.newaxis,:]
+    d_tri = pyom.u[1:-2,1:-2,:,pyom.tau]
+    res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge)
+    pyom.u[1:-2,1:-2,:,pyom.taup1][mask] = res
 
     pyom.du_mix[1:-2, 1:-2] = (pyom.u[1:-2,1:-2,:,pyom.taup1] - pyom.u[1:-2,2:-1,:,pyom.tau]) / pyom.dt_mom
 
@@ -147,17 +126,7 @@ def implicit_vert_friction(pyom):
     fxa = 0.5 * (pyom.kappaM[1:-2, 1:-2, :-1] + pyom.kappaM[2:-1, 1:-2, :-1])
     pyom.flux_top[1:-2, 1:-2, :-1] = fxa * (pyom.u[1:-2, 1:-2, 1:, pyom.taup1] - pyom.u[1:-2, 1:-2, :-1, pyom.taup1]) \
             / pyom.dzw[:-1] * pyom.maskU[1:-2, 1:-2, 1:] * pyom.maskU[1:-2, 1:-2, :-1]
-    #for k in xrange(pyom.nz-1): # k = 1,nz-1
-    #    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-    #        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-    #            fxa = 0.5 * (pyom.kappaM[i,j,k]+pyom.kappaM[i+1,j,k])
-    #            pyom.flux_top[i,j,k] = fxa * (pyom.u[i,j,k+1,pyom.taup1] - pyom.u[i,j,k,pyom.taup1]) \
-    #                                   / pyom.dzw[k] * pyom.maskU[i,j,k+1] * pyom.maskU[i,j,k]
     diss[1:-2, 1:-2, :-1] = (pyom.u[1:-2, 1:-2, 1:, pyom.tau] - pyom.u[1:-2, 1:-2, :-1, pyom.tau]) * pyom.flux_top[1:-2, 1:-2, :-1] / pyom.dzw[1:]
-    #for k in xrange(pyom.nz-1): # k = 1,nz-1
-    #    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-    #        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-    #            diss[i,j,k] = (pyom.u[i,j,k+1,pyom.tau] - pyom.u[i,j,k,pyom.tau]) * pyom.flux_top[i,j,k] / pyom.dzw[k]
     diss[:,:,pyom.nz-1] = 0.0
     diss[...] = numerics.ugrid_to_tgrid(diss,pyom)
     pyom.K_diss_v += diss
@@ -166,37 +135,17 @@ def implicit_vert_friction(pyom):
     implicit vertical friction of meridional momentum
     """
     kss = np.maximum(pyom.kbot[1:-2, 1:-2], pyom.kbot[1:-2, 2:-1]) - 1
-    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-            #ks = max(pyom.kbot[i,j],pyom.kbot[i,j+1]) - 1
-            ks = kss[i-1, j-1]
-            if ks >= 0:
-                fxa = 0.5 * (pyom.kappaM[i, j, ks:-1] + pyom.kappaM[i, j+2, ks:-1])
-                delta[ks:-1] = pyom.dt_mom / pyom.dzw[ks:-1] * fxa * pyom.maskV[i,j,ks+1:] * pyom.maskV[i,j,ks:-1]
-                #for k in xrange(ks,pyom.nz-1): # k = ks,nz-1
-                #    fxa = 0.5 * (pyom.kappaM[i,j,k] + pyom.kappaM[i,j+1,k])
-                #    delta[k] = pyom.dt_mom / pyom.dzw[k] * fxa * pyom.maskV[i,j,k+1] * pyom.maskV[i,j,k]
-                delta[pyom.nz-1] = 0.0
-                a_tri[ks] = 0.0
-                a_tri[ks+1:] = -delta[ks:-1] / pyom.dzt[ks+1:]
-                #for k in xrange(ks+1,pyom.nz): # k = ks+1,nz
-                #    a_tri[k] = -delta[k-1] / pyom.dzt[k]
-                tmp1 = delta[ks:-1] / pyom.dzt[ks:-1]
-                tmp2 = delta[ks:-1] / pyom.dzt[ks+1:]
-                b_tri[ks:] = 1
-                b_tri[ks:-1] += tmp1
-                b_tri[ks+1:] += tmp2
-                #b_tri[ks] = 1 + delta[ks] / pyom.dzt[ks]
-                #for k in xrange(ks+1,pyom.nz-1): # k = ks+1,nz-1
-                #    b_tri[k] = 1 + delta[k] / pyom.dzt[k] + delta[k-1] / pyom.dzt[k]
-                #b_tri[pyom.nz-1] = 1 + delta[pyom.nz-2] / pyom.dzt[pyom.nz-1]
-                c_tri[ks:-1] = -delta[ks:-1] / pyom.dzt[ks:-1]
-                #for k in xrange(ks,pyom.nz-1): # k = ks,nz-1
-                #    c_tri[k] = -delta[k] / pyom.dzt[k]
-                c_tri[pyom.nz-1] = 0.0
-                d_tri[ks:] = pyom.v[i,j,ks:,pyom.tau]
-                pyom.v[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:])
-            #pyom.dv_mix[i,j,:] = (pyom.v[i,j,:,pyom.taup1] - pyom.v[i,j,:,pyom.tau]) / pyom.dt_mom
+    fxa = 0.5 * (pyom.kappaM[1:-2, 1:-2, :-1] + pyom.kappaM[1:-2, 2:-1, :-1])
+    delta[:,:,:-1] = pyom.dt_mom / pyom.dzw[np.newaxis,np.newaxis,:-1] * fxa * pyom.maskV[1:-2,1:-2,1:] * pyom.maskV[1:-2,1:-2,:-1]
+    a_tri[:,:,1:] = -delta[:,:,:-1] / pyom.dzt[np.newaxis,np.newaxis,1:]
+    b_tri[:,:,1:] = 1 + delta[:,:,:-1] / pyom.dzw[np.newaxis,np.newaxis,1:]
+    b_tri[:,:,1:-1] += delta[:,:,1:-1] / pyom.dzw[np.newaxis,np.newaxis,1:-1]
+    b_tri_edge = 1 + delta / pyom.dzt[np.newaxis,np.newaxis,:]
+    c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzw[np.newaxis,np.newaxis,:-1]
+    c_tri[:,:,-1] = 0.
+    d_tri[...] = pyom.v[1:-2,1:-2,:,pyom.tau]
+    res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge)
+    pyom.v[1:-2,1:-2,:,pyom.taup1][mask] = res
     pyom.dv_mix[1:-2, 1:-2] = (pyom.v[1:-2, 1:-2, :, pyom.taup1] - pyom.v[1:-2, 1:-2, :, pyom.tau]) / pyom.dt_mom
 
     """
@@ -205,17 +154,7 @@ def implicit_vert_friction(pyom):
     fxa = 0.5*(pyom.kappaM[1:-2, 1:-2, :-1] + pyom.kappaM[1:-2, 2:-1, :-1])
     pyom.flux_top[1:-2, 1:-2, :-1] = fxa * (pyom.v[1:-2, 1:-2, 1:, pyom.taup1] - pyom.v[1:-2, 1:-2, :-1, pyom.taup1]) \
             / pyom.dzw[:-1] * pyom.maskV[1:-2, 1:-2, 1:] * pyom.maskV[1:-2, 1:-2, :-1]
-    #for k in xrange(pyom.nz-1): # k = 1,nz-1
-    #    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-    #        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-    #            fxa = 0.5 * (pyom.kappaM[i,j,k] + pyom.kappaM[i,j+1,k])
-    #            pyom.flux_top[i,j,k] = fxa * (pyom.v[i,j,k+1,pyom.taup1] - pyom.v[i,j,k,pyom.taup1]) \
-    #                                    / pyom.dzw[k] * pyom.maskV[i,j,k+1] * pyom.maskV[i,j,k]
     diss[1:-2, 1:-2, :-1] = (pyom.v[1:-2, 1:-2, 1:, pyom.tau] - pyom.v[1:-2, 1:-2, :-1, pyom.tau]) * pyom.flux_top[1:-2, 1:-2, :-1] / pyom.dzw[:-1]
-    #for k in xrange(pyom.nz-1): # k = 1,nz-1
-    #    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-    #        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-    #            diss[i,j,k] = (pyom.v[i,j,k+1,pyom.tau] - pyom.v[i,j,k,pyom.tau]) * pyom.flux_top[i,j,k] / pyom.dzw[k]
     diss[:,:,pyom.nz-1] = 0.0
     diss = numerics.vgrid_to_tgrid(diss,pyom)
     pyom.K_diss_v += diss
@@ -223,35 +162,19 @@ def implicit_vert_friction(pyom):
     if not pyom.enable_hydrostatic:
         # !if (my_pe==0) print'(/a/)','ERROR: implicit vertical friction for vertical velocity not implemented'
         # !halt_stop(' in implicit_vert_friction')
-        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                ks = pyom.kbot[i,j] - 1
-                if ks >= 0:
-                    delta[ks:-1] = pyom.dt_mom / pyom.dzt[ks+1:] * 0.5 * (pyom.kappaM[i,k,ks:-1] + pyom.kappaM[i,j,ks+1])
-                    #for k in xrange(ks,pyom.nz-1): # k = ks,nz-1
-                    #    delta[k] = pyom.dt_mom / pyom.dzt[k+1] * 0.5 * (pyom.kappaM[i,j,k] + pyom.kappaM[i,j,k+1])
-                    delta[pyom.nz-1] = 0.0
-                    a_tri[ks+1:-1] = -delta[ks:-2] / pyom.dzw[ks+1:-1]
-                    #for k in xrange(ks+1,pyom.nz-1): # k = ks+1,nz-1
-                    #    a_tri[k] = -delta[k-1] / pyom.dzw[k]
-                    a_tri[ks] = 0.0
-                    a_tri[pyom.nz-1] = -delta[pyom.nz-2]/(0.5*pyom.dzw[pyom.nz-1])
-                    tmp1 = pyom.delta[ks:-1] / pyom.dzw[ks:-1]
-                    b_tri[ks:] = 1
-                    b_tri[ks:-1] += tmp1
-                    b_tri[ks+1:-1] += delta[ks:-2] / pyom.dzw[ks+1:-1]
-                    b_tri[-1] += delta[pyom.nz-2]/(0.5*pyom.dzw[nz-1])
-                    #for k in xrange(ks+1,pyom.nz-1): # k = ks+1,nz-1
-                    #    b_tri[k] = 1 + delta[k] / pyom.dzw[k] + delta[k-1] / pyom.dzw[k]
-                    #b_tri[pyom.nz-1] = 1 + delta[pyom.nz-2]/(0.5*pyom.dzw[nz-1])
-                    #b_tri[ks] = 1 + delta[ks] / pyom.dzw[ks]
-                    c_tri[ks:-1] = - delta[ks:-1] / pyom.dzw[ks:-1]
-                    #for k in xrange(ks,pyom.nz-1): # k = ks,nz-1
-                    #    c_tri[k] = - delta[k] / pyom.dzw[k]
-                    c_tri[pyom.nz-1] = 0.0
-                    d_tri[ks:] = pyom.w[i,j,ks:,pyom.tau]
-                    pyom.w[i,j,ks:,pyom.taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:])
-                #pyom.dw_mix[i,j,:] = (pyom.w[i,j,:,pyom.taup1] - pyom.w[i,j,:,pyom.tau]) / pyom.dt_mom
+        kss = pyom.kbot[2:-2, 2:-2] - 1
+        delta[:-1,:-1,1:-1] = pyom.dt_mom / pyom.dzt[np.newaxis,np.newaxis,:] * 0.5 * (pyom.kappaM[2:-2,2:-2,1:] + pyom.kappaM[2:-2,2:-2,:-1])
+        delta[:-1,:-1,-1] = 0.
+        a_tri[:-1,:-1,1:-1] = -delta[:-1,:-1,:-2] / pyom.dzw[np.newaxis,np.newaxis,1:-1]
+        a_tri[:-1,:-1,-1] = 0.
+        b_tri_edge = 1 + delta[:-1,:-1] / pyom.dzw[np.newaxis,np.newaxis,:]
+        b_tri[:-1,:-1,1:] = 1 + delta[:-1,:-1,:-1] / pyom.dzw[np.newaxis,np.newaxis,:-1]
+        b_tri[:-1,:-1,1:-1] += delta[:-1,:-1,1:-1] / pyom.dzw[np.newaxis,np.newaxis,1:-1]
+        c_tri[:-1,:-1,:-1] = - delta[:-1,:-1,:-1] / pyom.dzw[np.newaxis,np.newaxis,:-1]
+        c_tri[:-1,:-1,-1] = 0.
+        d_tri[:-1,:-1] = pyom.w[2:-2,2:-2,:,pyom.tau]
+        res, mask = utilities.solve_implicit(kss, a_tri[:-1,:-1], b_tri[:-1,:-1], c_tri[:-1,:-1], d_tri[:-1,:-1], pyom, b_edge=b_tri_edge)
+        pyom.w[2:-2,2:-2,:,pyom.taup1][mask] = res
         pyom.dw_mix[2:-2, 2:-2] = (pyom.w[2:-2,2:-2,:,pyom.taup1] - pyom.w[2:-2,2:-2,:,pyom.tau]) / pyom.dt_mom
 
         """
@@ -260,17 +183,7 @@ def implicit_vert_friction(pyom):
         fxa = 0.5 * (pyom.kappaM[1:-2, 1:-2, :-1] + pyom.kappaM[1:-2,1:-2,1:])
         pyom.flux_top[1:-2,1:-2,:-1] = fxa * (pyom.w[1:-2,1:-2,1:,pyom.taup1] - pyom.w[1:-2,1:-2,:-1,pyom.taup1]) \
                 / pyom.dzt[1:] * pyom.maskW[1:-2, 1:-2, 1:] * pyom.maskW[1:-2, 1:-2, :-1]
-        #for k in xrange(pyom.nz-1): # k = 1,nz-1
-        #    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-        #        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-        #            fxa = 0.5 * (pyom.kappaM[i,j,k] + pyom.kappaM[i,j,k+1])
-        #            pyom.flux_top[i,j,k] = fxa * (pyom.w[i,j,k+1,pyom.taup1] - pyom.w[i,j,k,pyom.taup1]) \
-        #                                    / pyom.dzt[k+1] * pyom.maskW[i,j,k+1] * pyom.maskW[i,j,k]
         diss[1:-2, 1:-2,:-1] = (pyom.w[1:-2,1:-2,1:,pyom.tau] - pyom.w[1:-2,1:-2,:-1,pyom.tau]) * pyom.flux_top[1:-2,1:-2,:-1] / pyom.dzt[1:]
-        #for k in xrange(pyom.nz-1): # k = 1,nz-1
-        #    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-        #        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-        #            diss[i,j,k] = (pyom.w[i,j,k+1,pyom.tau] - pyom.w[i,j,k,pyom.tau]) * pyom.flux_top[i,j,k] / pyom.dzt[k+1]
         diss[:,:,pyom.nz-1] = 0.0
         K_diss_v += diss
 
