@@ -1,18 +1,12 @@
 import numpy as np
 
 from climate.pyom import advection, diffusion, isoneutral, cyclic
-from climate.pyom import numerics, density
+from climate.pyom import numerics, density, utilities
 
 def thermodynamics(pyom):
     """
     integrate temperature and salinity and diagnose sources of dynamic enthalpy
     """
-
-    # integer :: i,j,k,ks
-    # real*8 :: a_tri(nz),b_tri(nz),c_tri(nz),d_tri(nz),delta(nz)
-    # real*8 :: aloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa,fxb
-    # real*8 :: get_drhodT,get_drhodS
-
     a_tri = np.zeros(pyom.nz)
     b_tri = np.zeros(pyom.nz)
     c_tri = np.zeros(pyom.nz)
@@ -110,7 +104,7 @@ def thermodynamics(pyom):
     with pyom.timers["isoneutral"]:
         if pyom.enable_hor_diffusion:
             diffusion.tempsalt_diffusion(pyom)
-        else:
+        if pyom.enable_biharmonic_mixing:
             diffusion.tempsalt_biharmonic(pyom)
 
         """
@@ -174,7 +168,7 @@ def thermodynamics(pyom):
         cyclic.setcyclic_x(pyom.salt[:,:,:,pyom.taup1])
 
     with pyom.timers["eq_of_state"]:
-        calc_eq_of_state(pyom,pyom.taup1)
+        calc_eq_of_state(pyom.taup1,pyom)
 
     """
     surface density flux
@@ -228,96 +222,55 @@ def advect_tracer(tr,dtr,pyom):
     """
     calculate time tendency of a tracer due to advection
     """
-    # integer, intent(in) :: is_,ie_,js_,je_,nz_
-    # real*8, intent(inout) :: dtr(is_:ie_,js_:je_,nz_),tr(is_:ie_,js_:je_,nz_)
-    # integer :: i,j,k
-
     if pyom.enable_superbee_advection:
         advection.adv_flux_superbee(pyom.flux_east,pyom.flux_north,pyom.flux_top,tr,pyom)
     else:
         advection.adv_flux_2nd(pyom.flux_east,pyom.flux_north,pyom.flux_top,tr,pyom)
-    for j in xrange(pyom.js_pe,pyom.je_pe):
-        for i in xrange(pyom.is_pe,pyom.ie_pe):
-            dtr[i,j,:] = pyom.maskT[i,j,:] * (-(pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) / (pyom.cost[j]*pyom.dxt[i]) \
-                                         -(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) / (pyom.cost[j]*pyom.dyt[j]))
-    k = 0 # k=1
-    dtr[:,:,k] = dtr[:,:,k] - pyom.maskT[:,:,k] * pyom.flux_top[:,:,k] / pyom.dzt[k]
-    for k in xrange(1,pyom.nz): # k=2,nz
-        dtr[:,:,k] = dtr[:,:,k] - pyom.maskT[:,:,k] * (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1]) / pyom.dzt[k]
+    dtr[2:-2, 2:-2, :] = pyom.maskT[2:-2, 2:-2, :] * (-(pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
+                                                        / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
+                                                     - (pyom.flux_north[2:-2, 2:-2, :] - pyom.flux_north[2:-2, 1:-3, :]) \
+                                                        / (pyom.cost[None, 2:-2, None] * pyom.dyt[None, 2:-2, None]))
+    dtr[:, :, 0] += -pyom.maskT[:, :, 0] * pyom.flux_top[:, :, 0] / pyom.dzt[0]
+    dtr[:, :, 1:] += -pyom.maskT[:, :, 1:] * (pyom.flux_top[:, :, 1:] - pyom.flux_top[:, :, :-1]) / pyom.dzt[1:]
 
 
 def advect_temperature(pyom):
     """
     integrate temperature
     """
-    if pyom.enable_superbee_advection:
-        advection.adv_flux_superbee(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.temp[:,:,:,pyom.tau],pyom)
-    else:
-        advection.adv_flux_2nd(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.temp[:,:,:,pyom.tau],pyom)
-    for j in xrange(pyom.js_pe,pyom.je_pe):
-        for i in xrange(pyom.is_pe,pyom.ie_pe):
-            pyom.dtemp[i,j,:,pyom.tau] = pyom.maskT[i,j,:] * (-(pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) / (pyom.cost[j]*pyom.dxt[i]) \
-                                               -(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) / (pyom.cost[j]*pyom.dyt[j]))
-    k = 0 # k=1
-    pyom.dtemp[:,:,k,pyom.tau] = pyom.dtemp[:,:,k,pyom.tau] - pyom.maskT[:,:,k] * pyom.flux_top[:,:,k] / pyom.dzt[k]
-    for k in xrange(1,pyom.nz):
-        pyom.dtemp[:,:,k,pyom.tau] = pyom.dtemp[:,:,k,pyom.tau] - pyom.maskT[:,:,k] * (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1]) / pyom.dzt[k]
+    return advect_tracer(pyom.temp[..., pyom.tau], pyom.dtemp[..., pyom.tau], pyom)
 
 
 def advect_salinity(pyom):
     """
     integrate salinity
     """
-    if pyom.enable_superbee_advection:
-        advection.adv_flux_superbee(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.salt[:,:,:,pyom.tau],pyom)
-    else:
-        advection.adv_flux_2nd(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.salt[:,:,:,pyom.tau],pyom)
-    for j in xrange(pyom.js_pe,pyom.je_pe):
-        for i in xrange(pyom.is_pe,pyom.ie_pe):
-            pyom.dsalt[i,j,:,pyom.tau] = pyom.maskT[i,j,:] * (-(pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) / (pyom.cost[j]*pyom.dxt[i]) \
-                                               -(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) / (pyom.cost[j]*pyom.dyt[j]))
-    k = 0 # k=1
-    pyom.dsalt[:,:,k,pyom.tau] = pyom.dsalt[:,:,k,pyom.tau] - pyom.maskT[:,:,k] * pyom.flux_top[:,:,k] / pyom.dzt[k]
-    for k in xrange(1,pyom.nz):
-        pyom.dsalt[:,:,k,pyom.tau] = pyom.dsalt[:,:,k,pyom.tau] - pyom.maskT[:,:,k] * (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1]) / pyom.dzt[k]
+    return advect_tracer(pyom.salt[..., pyom.tau], pyom.dsalt[..., pyom.tau], pyom)
 
 
-def calc_eq_of_state(pyom,n):
+def calc_eq_of_state(n,pyom):
     """
     calculate density, stability frequency, dynamic enthalpy and derivatives
     for time level n from temperature and salinity
     """
-
-    # integer, intent(in) :: n
-    # integer :: i,j,k
-    # real*8 :: get_rho,get_int_drhodT,get_int_drhodS, get_dyn_enthalpy
-    # real*8 :: fxa
+    density_args = (pyom.salt[..., n], pyom.temp[..., n], abs(pyom.zt), pyom)
 
     """
     calculate new density
     """
-    for k in xrange(pyom.nz): # k=1,nz
-        for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx):
-            for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx):
-                pyom.rho[i,j,k,n] = density.get_rho(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom) * pyom.maskT[i,j,k]
+    pyom.rho[..., n] = density.get_rho(*density_args) * pyom.maskT
 
     if pyom.enable_conserve_energy:
         """
         calculate new dynamic enthalpy and derivatives
         """
-        for k in xrange(pyom.nz): # k=1,nz
-            for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx):
-                for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx):
-                    pyom.Hd[i,j,k,n] = density.get_dyn_enthalpy(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom) * pyom.maskT[i,j,k]
-                    pyom.int_drhodT[i,j,k,n] = density.get_int_drhodT(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom)
-                    pyom.int_drhodS[i,j,k,n] = density.get_int_drhodS(pyom.salt[i,j,k,n],pyom.temp[i,j,k,n],abs(pyom.zt[k]),pyom)
+        pyom.Hd[..., n] = density.get_dyn_enthalpy(*density_args) * pyom.maskT
+        pyom.int_drhodT[..., n] = density.get_int_drhodT(*density_args)
+        pyom.int_drhodS[..., n] = density.get_int_drhodS(*density_args)
 
     """
     new stability frequency
     """
-    for k in xrange(pyom.nz-1): # k=1,nz-1
-        for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx):
-            for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx):
-                fxa = -pyom.grav / pyom.rho_0 / pyom.dzw[k] * pyom.maskW[i,j,k]
-                pyom.Nsqr[i,j,k,n] = fxa * (density.get_rho(pyom.salt[i,j,k+1,n],pyom.temp[i,j,k+1,n],abs(pyom.zt[k]),pyom)-pyom.rho[i,j,k,n])
-    pyom.Nsqr[:,:,pyom.nz-1,n] = pyom.Nsqr[:,:,pyom.nz-2,n]
+    fxa = -pyom.grav / pyom.rho_0 / pyom.dzw[None, None, :-1] * pyom.maskW[:, :, :-1]
+    pyom.Nsqr[:, :, :-1, n] = fxa * (density.get_rho(pyom.salt[:,:,1:,n], pyom.temp[:,:,1:,n], abs(pyom.zt), pyom) - pyom.rho[:,:,:-1,n])
+    pyom.Nsqr[:,:,-1,n] = pyom.Nsqr[:,:,-2,n]

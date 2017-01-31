@@ -59,7 +59,7 @@ def tempsalt_biharmonic(pyom):
                                  / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
                                  + (pyom.flux_north[1:, 1:, :] - pyom.flux_north[1:, :-1, :]) \
                                  / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None])
-    pyom.temp[:,:,:,pyom.taup1] = pyom.temp[:,:,:,pyom.taup1] + pyom.dt_tracer * pyom.dtemp_hmix * pyom.maskT
+    pyom.temp[:,:,:,pyom.taup1] += pyom.dt_tracer * pyom.dtemp_hmix * pyom.maskT
 
     if pyom.enable_conserve_energy:
         fxa = pyom.int_drhodT[-3, -3, -1, pyom.tau] # NOTE: probably a mistake in the fortran code
@@ -71,6 +71,7 @@ def tempsalt_biharmonic(pyom):
     pyom.flux_north[:, :-1, :] = -fxa * (pyom.salt[:, 1:, :, pyom.tau] - pyom.salt[:, :-1, :, pyom.tau]) \
                                   / pyom.dyu[None, :-1, None] * pyom.maskV[:, :-1, :] * pyom.cosu[None, :-1, None]
     pyom.flux_east[-1,:,:] = 0.
+
     pyom.flux_north[:,-1,:] = 0.
 
     del2[1:, 1:, :] = pyom.maskT[1:, 1:, :] * (pyom.flux_east[1:, 1:, :] - pyom.flux_east[:-1, 1:, :]) \
@@ -146,7 +147,7 @@ def tempsalt_diffusion(pyom):
                                                             / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
                                                        + (pyom.flux_north[1:, 1:, :] - pyom.flux_north[1:, :-1, :]) \
                                                             / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None]))
-    pyom.salt[:,:,:,pyom.taup1] = pyom.salt[:,:,:,pyom.taup1] + pyom.dt_tracer * pyom.dsalt_hmix * pyom.maskT
+    pyom.salt[:,:,:,pyom.taup1] += pyom.dt_tracer * pyom.dsalt_hmix * pyom.maskT
 
     if pyom.enable_conserve_energy:
         dissipation_on_wgrid(pyom.P_diss_hmix, pyom, int_drhodX=pyom.int_drhodS[..., pyom.tau])

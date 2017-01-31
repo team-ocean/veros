@@ -186,8 +186,8 @@ class PyOM(object):
         #real*8, allocatable :: r_bot_var_u(:,:)     # bottom friction coefficient in 1/s, on u points
         #real*8, allocatable :: r_bot_var_v(:,:)     # bottom friction coefficient in 1/s, on v points
         self.hor_friction_cosPower = 3
-        self.A_hbi = 0.0  # lateral bihamronic viscosity in m^4/s
-        self.K_hbi = 0.0  # lateral bihamronic diffusivity in m^4/s
+        self.A_hbi = 0.0  # lateral biharmonic viscosity in m^4/s
+        self.K_hbi = 0.0  # lateral biharmonic diffusivity in m^4/s
         self.kappaH_0 = 0.0
         self.kappaM_0 = 0.0   # fixed values for vertical viscosity/diffusivity which are set for no TKE model
         #real*8, allocatable :: kappaM(:,:,:)       # vertical viscosity in m^2/s
@@ -537,6 +537,15 @@ class PyOM(object):
                 self.eke_lee_flux = np.zeros((self.nx+4, self.ny+4))
                 self.c_Ri_diss = np.zeros((self.nx+4, self.ny+4))
 
+        """
+        New
+        """
+        self.diagnostics = []
+        self.timers = {k: Timer(k) for k in ("main","momentum","temperature",
+                                             "eke","idemix","tke","diagnostics",
+                                             "pressure","friction","isoneutral",
+                                             "vmix","eq_of_state")}
+
 
     def run(self, snapint, runlen):
         with self.timers["setup"]:
@@ -657,11 +666,6 @@ class PyOM(object):
         """
         self.set_parameter()
         self.allocate()
-        self.diagnostics = []
-        self.timers = {k: Timer(k) for k in ("main","momentum","temperature",
-                                             "eke","idemix","tke","diagnostics",
-                                             "pressure","friction","isoneutral",
-                                             "vmix","eq_of_state")}
 
         """
         Grid
