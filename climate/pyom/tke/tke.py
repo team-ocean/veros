@@ -1,21 +1,21 @@
 import numpy as np
 import math
 
-from climate.pyom import cyclic, advection
+from climate.pyom import cyclic, advection, utilities
 
 
 def set_tke_diffusivities(pyom):
     """
     set vertical diffusivities based on TKE model
     """
-    RiNumber = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
+    Rinumber = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
 
     if pyom.enable_tke:
-        sqrttke = np.sqrt(np.maximum(0., tke[:,:,:,pyom.tau]))
+        pyom.sqrttke = np.sqrt(np.maximum(0., pyom.tke[:,:,:,pyom.tau]))
         """
         calculate buoyancy length scale
         """
-        pyom.mxl[...] = math.sqrt(2) * sqrttke / np.sqrt(np.maximum(1e-12, pyom.Nsqr[:,:,:,pyom.tau])) * pyom.maskW
+        pyom.mxl[...] = math.sqrt(2) * pyom.sqrttke / np.sqrt(np.maximum(1e-12, pyom.Nsqr[:,:,:,pyom.tau])) * pyom.maskW
 
         """
         apply limits for mixing length
@@ -45,12 +45,12 @@ def set_tke_diffusivities(pyom):
         """
         if pyom.enable_cyclic_x:
             cyclic.setcyclic_x(pyom.K_diss_v)
-        pyom.KappaM = np.minimum(pyom.kappaM_max, pyom.c_k * pyom.mxl * sqrttke)
-        RiNumber = pyom.Nsqr[:,:,:,pyom.tau] / np.maximum(pyom.K_diss_v / np.maximum(1e-12, pyom.kappaM), 1e-12)
+        pyom.kappaM = np.minimum(pyom.kappaM_max, pyom.c_k * pyom.mxl * pyom.sqrttke)
+        Rinumber = pyom.Nsqr[:,:,:,pyom.tau] / np.maximum(pyom.K_diss_v / np.maximum(1e-12, pyom.kappaM), 1e-12)
         if pyom.enable_idemix:
-            RiNumber = np.minimum(RiNumber, pyom.KappaM * pyom.Nsqr[:,:,:,pyom.tau] / np.maximum(1e-12, pyom.alpha_c * pyom.E_iw[:,:,:,pyom.tau]**2))
-        pyom.PrandtlNumber = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
-        pyom.KappaH = pyom.KappaM / pyom.Prandtlnumber
+            Rinumber = np.minimum(Rinumber, pyom.kappaM * pyom.Nsqr[:,:,:,pyom.tau] / np.maximum(1e-12, pyom.alpha_c * pyom.E_iw[:,:,:,pyom.tau]**2))
+        pyom.Prandtlnumber = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
+        pyom.kappaH = pyom.kappaM / pyom.Prandtlnumber
         pyom.kappaM = np.maximum(pyom.kappaM_min, pyom.kappaM)
     else:
         pyom.kappaM = pyom.kappaM_0
@@ -66,8 +66,6 @@ def integrate_tke(pyom):
     """
     integrate Tke equation on W grid with surface flux boundary condition
     """
-    forc = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
-
     pyom.dt_tke = pyom.dt_mom  # use momentum time step to prevent spurious oscillations
 
     """
@@ -97,7 +95,7 @@ def integrate_tke(pyom):
         store bottom friction either in TKE or internal waves
         """
         if pyom.enable_store_bottom_friction_tke:
-            forc += K_diss_bot
+            forc += pyom.K_diss_bot
         else: # short-cut without idemix
             if pyom.enable_eke:
                 forc += pyom.eke_diss_iw
@@ -112,33 +110,27 @@ def integrate_tke(pyom):
     """
     vertical mixing and dissipation of TKE
     """
-    ks = pyom.kbot[2:-2,2:-2] - 1
-    land_mask = (ks >= 0)[:,:,None]
-    edge_mask = land_mask & (np.indices((pyom.nx, pyom.ny, pyom.nz))[2] == ks[:,:,None])
-    water_mask = land_mask & (np.indices((pyom.nx, pyom.ny, pyom.nz))[2] >= ks[:,:,None])
+    ks = pyom.kbot[2:-2, 2:-2] - 1
+    a_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
+    b_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
+    c_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
+    d_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
+    delta = np.zeros((pyom.nx,pyom.ny,pyom.nz))
 
-    if np.count_nonzero(land_mask):
-        a_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
-        b_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
-        c_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
-        d_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
-        delta = np.zeros((pyom.nx,pyom.ny,pyom.nz))
-
-        delta[water_mask] = (pyom.dt_tke / pyom.dzt[None, None, 1:] * pyom.alpha_tke * 0.5 \
-                            * (pyom.kappaM[2:-2, 2:-2, :-1] + pyom.kappaM[2:-2, 2:-2, 1:]))[water_mask]
-        delta[:,:,-1] = 0.
-        a_tri[:,:,1:-1] = -delta[:,:,:-2] / pyom.dzw[None,None,1:-1]
-        a_tri[edge_mask] = 0.
-        a_tri[:,:,-1] = -delta[:,:,-2] / (0.5 * pyom.dzw[-1])
-        b_tri[:,:,1:-1] = 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / pyom.dzw[None, None, 1:-1] \
-                            + pyom.dt_tke * pyom.c_eps * sqrttke[:, :, 1:-1] / pyom.mxl[:, :, 1:-1]
-        b_tri[edge_mask] = 1 + (delta / pyom.dzt[None,None,:])[edge_mask]
-        b_tri[:,:,-1] = 1 + delta[:,:,-2] / (0.5 * pyom.dzw[None,None,-1])
-        c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzw[None,None,:-1]
-        c_tri[:,:,-1] = 0.
-        d_tri[water_mask] = (tke[2:-2,2:-2,:,pyom.tau] + pyom.dt_tke * forc[2:-2, 2:-2, :])[water_mask]
-        d_tri[:,:,-1] += pyom.dt_tke * pyom.forc_tke_surface[2:-2, 2:-2, :] / (0.5 * pyom.dzw[-1])
-        tke[2:-2, 2:-2, :, pyom.taup1][water_mask] = numerics.solve_tridiag(a_tri[water_mask],b_tri[water_mask],c_tri[water_mask],d_tri[water_mask])
+    delta[:,:,:-1] = pyom.dt_tke / pyom.dzt[None, None, 1:] * pyom.alpha_tke * 0.5 \
+                    * (pyom.kappaM[2:-2, 2:-2, :-1] + pyom.kappaM[2:-2, 2:-2, 1:])
+    delta[:,:,-1] = 0.
+    a_tri[:,:,1:-1] = -delta[:,:,:-2] / pyom.dzw[None,None,1:-1]
+    a_tri[:,:,-1] = -delta[:,:,-2] / (0.5 * pyom.dzw[-1])
+    b_tri[:,:,1:-1] = 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / pyom.dzw[None, None, 1:-1] \
+                        + pyom.dt_tke * pyom.c_eps * pyom.sqrttke[2:-2, 2:-2, 1:-1] / pyom.mxl[2:-2, 2:-2, 1:-1]
+    b_tri_edge = 1 + (delta / pyom.dzt[None,None,:])
+    b_tri[:,:,-1] = 1 + delta[:,:,-2] / (0.5 * pyom.dzw[None,None,-1])
+    c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzw[None,None,:-1]
+    d_tri[:,:,:-1] = pyom.tke[2:-2,2:-2,:-1,pyom.tau] + pyom.dt_tke * forc[2:-2, 2:-2, :-1]
+    d_tri[:,:,-1] += pyom.dt_tke * pyom.forc_tke_surface[2:-2, 2:-2] / (0.5 * pyom.dzw[-1])
+    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge)
+    pyom.tke[2:-2, 2:-2, :, pyom.taup1][water_mask] = sol
 
     # ke = nz
     # for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
@@ -155,10 +147,10 @@ def integrate_tke(pyom):
     #     a_tri(ks) = 0.0
     #     a_tri(ke) = - delta(ke-1)/(0.5*dzw(ke))
     #     for k in xrange(ks+1,ke-1): # k = ks+1,ke-1
-    #      b_tri(k) = 1+ delta(k)/dzw(k) + delta(k-1)/dzw(k) + dt_tke*c_eps*sqrttke[i,j,k]/mxl[i,j,k]
+    #      b_tri(k) = 1+ delta(k)/dzw(k) + delta(k-1)/dzw(k) + dt_tke*c_eps*pyom.sqrttke[i,j,k]/mxl[i,j,k]
     #     enddo
-    #     b_tri(ke) = 1+ delta(ke-1)/(0.5*dzw(ke))           + dt_tke*c_eps/mxl(i,j,ke)*sqrttke(i,j,ke)
-    #     b_tri(ks) = 1+ delta(ks)/dzw(ks)                   + dt_tke*c_eps/mxl(i,j,ks)*sqrttke(i,j,ks)
+    #     b_tri(ke) = 1+ delta(ke-1)/(0.5*dzw(ke))           + dt_tke*c_eps/mxl(i,j,ke)*pyom.sqrttke(i,j,ke)
+    #     b_tri(ks) = 1+ delta(ks)/dzw(ks)                   + dt_tke*c_eps/mxl(i,j,ks)*pyom.sqrttke(i,j,ks)
     #     for k in xrange(ks,ke-1): # k = ks,ke-1
     #      c_tri(k) = - delta(k)/dzw(k)
     #     enddo
@@ -173,7 +165,7 @@ def integrate_tke(pyom):
     """
     store tke dissipation for diagnostics
     """
-    pyom.tke_diss = pyom.c_eps / pyom.mxl * sqrttke * pyom.tke[:,:,:,pyom.taup1]
+    pyom.tke_diss = pyom.c_eps / pyom.mxl * pyom.sqrttke * pyom.tke[:,:,:,pyom.taup1]
 
     """
     Add TKE if surface density flux drains TKE in uppermost box
@@ -207,7 +199,7 @@ def integrate_tke(pyom):
     if pyom.enable_tke_superbee_advection:
         advection.adv_flux_superbee_wgrid(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.tke[:,:,:,pyom.tau],pyom)
     if pyom.enable_tke_upwind_advection:
-        advection.adv_flux_upwind_wgrid(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.tke[:,:,:,pyom.tau])
+        advection.adv_flux_upwind_wgrid(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.tke[:,:,:,pyom.tau],pyom)
     if pyom.enable_tke_superbee_advection or pyom.enable_tke_upwind_advection:
         for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
             for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
