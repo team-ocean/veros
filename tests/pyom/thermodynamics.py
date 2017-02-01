@@ -15,7 +15,7 @@ class ThermodynamicsTest(PyOMTest):
                         "enable_tempsalt_sources": True,
                         "enable_hor_diffusion": True,
                         "enable_superbee_advection": True,
-                        "enable_tke": False,
+                        "enable_tke": True,
                         "enable_biharmonic_mixing": True,
                         "enable_neutral_diffusion": True,
                         "enable_skew_diffusion": True,
@@ -23,7 +23,6 @@ class ThermodynamicsTest(PyOMTest):
     def initialize(self):
         m = self.pyom_legacy.main_module
 
-        np.random.seed(123456)
         self.set_attribute("hor_friction_cosPower", np.random.randint(1,5))
 
         for a in ("iso_slopec","iso_dslope","K_iso_steep","dt_tracer","dt_mom","K_hbi","K_h","AB_eps"):
@@ -39,19 +38,19 @@ class ThermodynamicsTest(PyOMTest):
             self.set_attribute(a,2*np.random.rand(self.ny+4)-1.)
 
         for a in ("zt","dzt","dzw"):
-            self.set_attribute(a,100*np.random.rand(self.nz))
+            self.set_attribute(a, np.random.rand(self.nz))
 
         for a in ("area_u", "area_v", "area_t", "forc_rho_surface", "forc_temp_surface"):
-            self.set_attribute(a, 1e5 * np.random.rand(self.nx+4, self.ny+4))
+            self.set_attribute(a, np.random.rand(self.nx+4, self.ny+4))
 
         for a in ("flux_east","flux_north","flux_top","dtemp_hmix","dsalt_hmix","temp_source",
                   "salt_source","u_wgrid","v_wgrid","w_wgrid","K_iso","K_gm","kappa_gm","du_mix",
-                  "P_diss_iso","P_diss_skew","P_diss_adv","P_diss_v","P_diss_nonlin",
+                  "P_diss_iso","P_diss_skew","P_diss_v","P_diss_nonlin",
                   "kappaH"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
         for a in ("Hd","dHd","temp","salt","int_drhodS","int_drhodT","dtemp","dsalt",
-                  "u","v","w","Nsqr"):
+                  "u","v","w","Nsqr","tke"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz,3))
 
         for a in ("maskU", "maskV", "maskW", "maskT"):
@@ -97,5 +96,5 @@ class ThermodynamicsTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = ThermodynamicsTest(100, 250, 50, fortran=sys.argv[1])
+    test = ThermodynamicsTest(70, 60, 50, fortran=sys.argv[1])
     passed = test.run()

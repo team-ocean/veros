@@ -11,7 +11,7 @@ S0 = 35.0
 betaT = 1.67e-4
 betaS = 0.78e-3
 grav = 9.81
-z0=0.0
+z0 = 0.0
 
 def linear_eq_of_state_rho(sa,ct):
     return - (betaT*(ct-theta0) -betaS*(sa-S0))*rho0

@@ -54,7 +54,7 @@ class PyOM(object):
         """
         self.coord_degree = False # either spherical (true) or cartesian False coordinates
         self.enable_cyclic_x = False # enable cyclic boundary conditions
-        self.eq_of_state_type = 1                      # equation of state: 1: linear, 3: nonlinear with comp., 5: TEOS
+        self.eq_of_state_type = 1 # equation of state: 1: linear, 3: nonlinear with comp., 5: TEOS
         self.enable_implicit_vert_friction = False # enable implicit vertical friction
         self.enable_explicit_vert_friction = False # enable explicit vertical friction
         self.enable_hor_friction = False # enable horizontal friction
@@ -594,7 +594,6 @@ class PyOM(object):
 
                 with self.timers["eke"]:
                     if self.enable_eke:
-                        raise NotImplementedError()
                         eke.integrate_eke(self)
 
                 with self.timers["idemix"]:
@@ -637,10 +636,10 @@ class PyOM(object):
                 diagnostics.diagnose(self)
 
             # shift time
-            self.otaum1 = taum1
-            self.taum1 = tau
-            self.tau = taup1
-            self.taup1 = otaum1
+            #self.otaum1 = self.taum1
+            #self.taum1 = self.tau
+            #self.tau = self.taup1
+            #self.taup1 = self.otaum1
             self.itt += 1
 
         print("Timing summary:")

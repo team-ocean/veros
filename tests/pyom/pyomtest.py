@@ -5,6 +5,11 @@ from collections import OrderedDict
 from climate.pyom import PyOMLegacy
 from climate import Timer
 
+try:
+    flush = np.flush
+except AttributeError:
+    flush = lambda: None
+
 class PyOMTest(object):
     legacy_modules = ("main_module", "isoneutral_module", "tke_module",
                       "eke_module", "idemix_module")
@@ -44,7 +49,11 @@ class PyOMTest(object):
         for module in self.legacy_modules:
             module_handle = getattr(self.pyom_legacy,module)
             if hasattr(module_handle, attribute):
-                setattr(module_handle, attribute, np.asfortranarray(value))
+                try:
+                    v = np.asfortranarray(value).copy2numpy()
+                except AttributeError:
+                    v = np.asfortranarray(value)
+                setattr(module_handle, attribute, v)
                 assert np.all(value == getattr(module_handle, attribute)), attribute
                 return
         raise AttributeError("Legacy PyOM has no attribute {}".format(attribute))
@@ -127,6 +136,7 @@ class PyOMTest(object):
             pyom_args, pyom_legacy_args = self.test_routines[routine]
             with pyom_timers[routine]:
                 pyom_routine(*pyom_args)
+                flush()
             pyom_timers[routine].printTime()
             with pyom_legacy_timers[routine]:
                 pyom_legacy_routine(**pyom_legacy_args)
