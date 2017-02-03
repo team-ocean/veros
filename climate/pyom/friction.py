@@ -224,63 +224,79 @@ def linear_bottom_friction(pyom):
         """
         with spatially varying coefficient
         """
-        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-            for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-                k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
-                if k >= 0:
-                    pyom.du_mix[i,j,k] -= pyom.maskU[i,j,k] * pyom.r_bot_var_u[i,j] * pyom.u[i,j,k,pyom.tau]
+        k = np.maximum(pyom.kbot[1:-2,2:-2], pyom.kbot[2:-1,2:-2]) - 1
+        ijk = np.arange(pyom.nz) == k[:,:,np.newaxis]
+        pyom.du_mix[1:-2,2:-2][ijk] -= pyom.maskU[1:-2,2:-2][ijk] * pyom.r_bot_var_u[1:-2,2:-2,np.newaxis] * pyom.u[1:-2,2:-2][ijk, pyom.tau]
+        #for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+        #    for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+        #        k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
+        #        if k >= 0:
+        #            pyom.du_mix[i,j,k] -= pyom.maskU[i,j,k] * pyom.r_bot_var_u[i,j] * pyom.u[i,j,k,pyom.tau]
         if pyom.enable_conserve_energy:
             diss[...] = 0.0
-            for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-                for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-                    k = max(pyom.kbot(i,j),pyom.kbot(i+1,j)) - 1
-                    if k >= 0:
-                        diss[i,j,k] = pyom.maskU[i,j,k] * pyom.r_bot_var_u[i,j] * pyom.u[i,j,k,pyom.tau]**2
+            diss[1:-2,2:-2][ijk] = pyom.maskU[1:-2,2:-2][ijk] * pyom.r_bot_var_u[1:-2,2:-2,np.newaxis] * pyom.u[1:-2,2:-2][ijk,pyom.tau]**2
+            #for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+            #    for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+            #        k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
+            #        if k >= 0:
+            #            diss[i,j,k] = pyom.maskU[i,j,k] * pyom.r_bot_var_u[i,j] * pyom.u[i,j,k,pyom.tau]**2
             pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
 
-        for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                k = max(pyom.kbot(i,j+1),pyom.kbot(i,j)) - 1
-                if k >= 0:
-                    pyom.dv_mix[i,j,k] -= pyom.maskV[i,j,k] * pyom.r_bot_var_v(i,j) * pyom.v[i,j,k,pyom.tau]
+        k = np.maximum(pyom.kbot[2:-2, 2:-1], pyom.kbot[2:-2, 1:-2]) - 1
+        ijk = np.arange(pyom.nz) == k[:,:,np.newaxis]
+        pyom.dv_mix[2:-2,1:-2][ijk] -= pyom.maskV[2:-2,1:-2][ijk] * pyom.r_bot_var_v[2:-2,1:-2,np.newaxis] * pyom.v[2:-2,1:-2][ijk,pyom.tau]
+        #for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+        #    for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+        #        k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
+        #        if k >= 0:
+        #            pyom.dv_mix[i,j,k] -= pyom.maskV[i,j,k] * pyom.r_bot_var_v(i,j) * pyom.v[i,j,k,pyom.tau]
         if pyom.enable_conserve_energy:
             diss[...] = 0.0
-            for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-                for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                    k = max(pyom.kbot(i,j+1),pyom.kbot(i,j)) - 1
-                    if k >= 0:
-                        diss[i,j,k] = pyom.maskV[i,j,k] * pyom.r_bot_var_v(i,j) * pyom.v[i,j,k,pyom.tau]**2
+            diss[2:-2,1:-2][ijk] = pyom.maskV[2:-2,1:-2][ijk] * pyom.r_bot_var_v[2:-2,1:-2,np.newaxis] * pyom.v[2:-2,1:-2][ijk,pyom.tau]**2
+            #for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+            #    for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+            #        k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
+            #        if k >= 0:
+            #            diss[i,j,k] = pyom.maskV[i,j,k] * pyom.r_bot_var_v(i,j) * pyom.v[i,j,k,pyom.tau]**2
             pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
     else:
         """
         with constant coefficient
         """
-        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-            for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-                k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
-                if k >= 0:
-                    pyom.du_mix[i,j,k] -= pyom.maskU[i,j,k] * pyom.r_bot * pyom.u[i,j,k,pyom.tau]
+        k = np.maximum(pyom.kbot[1:-2,2:-2], pyom.kbot[2:-1,2:-2]) - 1
+        ijk = np.arange(pyom.nz) == k[:,:,np.newaxis]
+        pyom.du_mix[1:-2,2:-2][ijk] -= pyom.maskU[1:-2,2:-2][ijk] * pyom.r_bot * pyom.u[1:-2,2:-2][ijk, pyom.tau]
+        #for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+        #    for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+        #        k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
+        #        if k >= 0:
+        #            pyom.du_mix[i,j,k] -= pyom.maskU[i,j,k] * pyom.r_bot * pyom.u[i,j,k,pyom.tau]
         if pyom.enable_conserve_energy:
             diss[...] = 0.0
-            for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-                for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-                    k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
-                    if k>= 0:
-                        diss[i,j,k] = pyom.maskU[i,j,k] * pyom.r_bot * pyom.u[i,j,k,pyom.tau]**2
+            diss[1:-2,2:-2][ijk] = pyom.maskU[1:-2,2:-2][ijk] * pyom.r_bot * pyom.u[1:-2,2:-2][ijk,pyom.tau]**2
+            #for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
+            #    for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
+            #        k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
+            #        if k>= 0:
+            #            diss[i,j,k] = pyom.maskU[i,j,k] * pyom.r_bot * pyom.u[i,j,k,pyom.tau]**2
             pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
 
-        for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
-                if k >= 0:
-                    pyom.dv_mix[i,j,k] -= pyom.maskV[i,j,k] * pyom.r_bot * pyom.v[i,j,k,pyom.tau]
+        k = np.maximum(pyom.kbot[2:-2, 2:-1], pyom.kbot[2:-2, 1:-2]) - 1
+        ijk = np.arange(pyom.nz) == k[:,:,np.newaxis]
+        pyom.dv_mix[2:-2,1:-2][ijk] -= pyom.maskV[2:-2,1:-2][ijk] * pyom.r_bot * pyom.v[2:-2,1:-2][ijk,pyom.tau]
+        #for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+        #    for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+        #        k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
+        #        if k >= 0:
+        #            pyom.dv_mix[i,j,k] -= pyom.maskV[i,j,k] * pyom.r_bot * pyom.v[i,j,k,pyom.tau]
         if pyom.enable_conserve_energy:
             diss[...] = 0.0
-            for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-                for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                    k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
-                    if k >= 0:
-                        diss[i,j,k] = pyom.maskV[i,j,k] * pyom.r_bot * pyom.v[i,j,k,pyom.tau]**2
+            diss[2:-2,1:-2][ijk] = pyom.maskV[2:-2,1:-2][ijk] * pyom.r_bot * pyom.v[2:-2,1:-2][ijk,pyom.tau]**2
+            #for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
+            #    for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
+            #        k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
+            #        if k >= 0:
+            #            diss[i,j,k] = pyom.maskV[i,j,k] * pyom.r_bot * pyom.v[i,j,k,pyom.tau]**2
             pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
 
     if not pyom.enable_hydrostatic:
