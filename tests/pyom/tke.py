@@ -13,22 +13,21 @@ class TKETest(PyOMTest):
                         "enable_idemix": True,
                         "tke_mxl_choice": 1, # 2
                         "enable_tke": True,
+                        "enable_eke": True,
                         "enable_hydrostatic": True,
-                        "enable_store_cabbeling_heat": False,
-                        "enable_store_bottom_friction_tke": True,
+                        "enable_store_cabbeling_heat": True,
+                        "enable_store_bottom_friction_tke": False,
                         "enable_tke_hor_diffusion": True,
                         "enable_tke_superbee_advection": True,
                         "enable_tke_upwind_advection": True,
-
                      }
     def initialize(self):
         m = self.pyom_legacy.main_module
 
-        np.random.seed(123456)
-        #self.set_attribute("hor_friction_cosPower", np.random.randint(1,5))
+        #np.random.seed(123456)
 
-        for a in ("mxl_min","kappaM_0","kappaH_0","dt_tke",
-                  "dt_mom","c_eps","K_h_tke","AB_eps"):
+        for a in ("mxl_min","kappaM_0","kappaH_0","dt_tke", "c_k", "kappaM_min", "kappaM_max",
+                  "K_h_tke","AB_eps","c_eps", "alpha_tke","dt_mom"):
             self.set_attribute(a, np.random.rand())
 
         for a in ("dxt","dxu"):
@@ -43,12 +42,12 @@ class TKETest(PyOMTest):
         for a in ("dzt","dzw","zw"):
             self.set_attribute(a,100*np.random.rand(self.nz))
 
-        for a in ("tke_surf_corr","ht"):
+        for a in ("tke_surf_corr","ht","forc_tke_surface"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4))
 
         for a in ("K_diss_v", "P_diss_v", "P_diss_adv", "P_diss_nonlin", "eke_diss_tke",
-                  "kappaM", "kappaH", "K_diss_bot", "eke_diss_iw", "K_diss_gm", "K_diss_h",
-                  "P_diss_skew", "P_diss_hmix", "P_diss_iso","alpha_c","mxl"):
+                  "kappaM", "kappaH", "K_diss_bot", "eke_diss_iw", "K_diss_gm", "K_diss_h", "tke_diss",
+                  "P_diss_skew", "P_diss_hmix", "P_diss_iso","alpha_c","mxl","iw_diss", "Prandtlnumber"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
         for a in ("tke","dtke","Nsqr","E_iw"):
@@ -82,9 +81,9 @@ class TKETest(PyOMTest):
         if not passed:
             print(var, np.abs(v1[2:-2, 2:-2, ...]-v2[2:-2, 2:-2, ...]).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:
-                v1 = v1[...,1]
+                v1 = v1[...,-1]
             while v2.ndim > 2:
-                v2 = v2[...,1]
+                v2 = v2[...,-1]
             fig, axes = plt.subplots(1,3)
             axes[0].imshow(v1)
             axes[0].set_title("New")

@@ -1,7 +1,7 @@
 import numpy as np
 import math
 
-from climate.pyom import cyclic, advection, utilities
+from climate.pyom import cyclic, advection, utilities, numerics
 
 
 def set_tke_diffusivities(pyom):
@@ -78,39 +78,41 @@ def integrate_tke(pyom):
     state either to TKE or to heat
     """
     if not pyom.enable_store_cabbeling_heat:
-        forc += -pyom.P_diss_nonlin
+        forc[...] += -pyom.P_diss_nonlin
 
     """
     transfer part of dissipation of EKE to TKE
     """
     if pyom.enable_eke:
-        forc += pyom.eke_diss_tke
+        forc[...] += pyom.eke_diss_tke
 
     if pyom.enable_idemix:
         """
         transfer dissipation of internal waves to TKE
         """
-        forc += pyom.iw_diss
+        forc[...] += pyom.iw_diss
         """
         store bottom friction either in TKE or internal waves
         """
         if pyom.enable_store_bottom_friction_tke:
-            forc += pyom.K_diss_bot
-        else: # short-cut without idemix
-            if pyom.enable_eke:
-                forc += pyom.eke_diss_iw
-            else: # and without EKE model
-                if pyom.enable_store_cabbeling_heat:
-                    forc += pyom.K_diss_gm + pyom.K_diss_h - pyom.P_diss_skew \
-                            - pyom.P_diss_hmix  - pyom.P_diss_iso
-                else:
-                    forc += pyom.K_diss_gm + pyom.K_diss_h - pyom.P_diss_skew
-        forc += pyom.K_diss_bot
+            forc[...] += pyom.K_diss_bot
+    else: # short-cut without idemix
+        if pyom.enable_eke:
+            forc[...] += pyom.eke_diss_iw
+        else: # and without EKE model
+            if pyom.enable_store_cabbeling_heat:
+                forc[...] += pyom.K_diss_gm + pyom.K_diss_h - pyom.P_diss_skew \
+                        - pyom.P_diss_hmix  - pyom.P_diss_iso
+            else:
+                forc[...] += pyom.K_diss_gm + pyom.K_diss_h - pyom.P_diss_skew
+        forc[...] += pyom.K_diss_bot
+    print(np.max(forc), np.min(forc))
 
     """
     vertical mixing and dissipation of TKE
     """
     ks = pyom.kbot[2:-2, 2:-2] - 1
+
     a_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
     b_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
     c_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
@@ -119,79 +121,53 @@ def integrate_tke(pyom):
 
     delta[:,:,:-1] = pyom.dt_tke / pyom.dzt[None, None, 1:] * pyom.alpha_tke * 0.5 \
                     * (pyom.kappaM[2:-2, 2:-2, :-1] + pyom.kappaM[2:-2, 2:-2, 1:])
-    delta[:,:,-1] = 0.
+
     a_tri[:,:,1:-1] = -delta[:,:,:-2] / pyom.dzw[None,None,1:-1]
     a_tri[:,:,-1] = -delta[:,:,-2] / (0.5 * pyom.dzw[-1])
+
     b_tri[:,:,1:-1] = 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / pyom.dzw[None, None, 1:-1] \
                         + pyom.dt_tke * pyom.c_eps * pyom.sqrttke[2:-2, 2:-2, 1:-1] / pyom.mxl[2:-2, 2:-2, 1:-1]
-    b_tri_edge = 1 + (delta / pyom.dzt[None,None,:])
-    b_tri[:,:,-1] = 1 + delta[:,:,-2] / (0.5 * pyom.dzw[None,None,-1])
+    b_tri[:,:,-1] = 1 + delta[:,:,-2] / (0.5 * pyom.dzw[-1]) \
+                        + pyom.dt_tke * pyom.c_eps / pyom.mxl[2:-2, 2:-2, -1] * pyom.sqrttke[2:-2, 2:-2, -1]
+    b_tri_edge = 1 + delta / pyom.dzw[None,None,:] \
+                        + pyom.dt_tke * pyom.c_eps / pyom.mxl[2:-2, 2:-2, :] * pyom.sqrttke[2:-2, 2:-2, :]
+
     c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzw[None,None,:-1]
-    d_tri[:,:,:-1] = pyom.tke[2:-2,2:-2,:-1,pyom.tau] + pyom.dt_tke * forc[2:-2, 2:-2, :-1]
+
+    d_tri[...] = pyom.tke[2:-2, 2:-2, :, pyom.tau] + pyom.dt_tke * forc[2:-2, 2:-2, :]
     d_tri[:,:,-1] += pyom.dt_tke * pyom.forc_tke_surface[2:-2, 2:-2] / (0.5 * pyom.dzw[-1])
+
     sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge)
     pyom.tke[2:-2, 2:-2, :, pyom.taup1][water_mask] = sol
 
-    # ke = nz
-    # for j in xrange(js_pe,je_pe): # j = js_pe,je_pe
-    #  for i in xrange(is_pe,ie_pe): # i = is_pe,ie_pe
-    #    ks = kbot(i,j)
-    #    if ks>0:
-    #     for k in xrange(ks,ke-1): # k = ks,ke-1
-    #      delta(k) = dt_tke/dzt(k+1)*alpha_tke*0.5*(kappaM[i,j,k]+kappaM[i,j,k+1])
-    #     enddo
-    #     delta(ke) = 0.0
-    #     for k in xrange(ks+1,ke-1): # k = ks+1,ke-1
-    #       a_tri(k) = - delta(k-1)/dzw(k)
-    #     enddo
-    #     a_tri(ks) = 0.0
-    #     a_tri(ke) = - delta(ke-1)/(0.5*dzw(ke))
-    #     for k in xrange(ks+1,ke-1): # k = ks+1,ke-1
-    #      b_tri(k) = 1+ delta(k)/dzw(k) + delta(k-1)/dzw(k) + dt_tke*c_eps*pyom.sqrttke[i,j,k]/mxl[i,j,k]
-    #     enddo
-    #     b_tri(ke) = 1+ delta(ke-1)/(0.5*dzw(ke))           + dt_tke*c_eps/mxl(i,j,ke)*pyom.sqrttke(i,j,ke)
-    #     b_tri(ks) = 1+ delta(ks)/dzw(ks)                   + dt_tke*c_eps/mxl(i,j,ks)*pyom.sqrttke(i,j,ks)
-    #     for k in xrange(ks,ke-1): # k = ks,ke-1
-    #      c_tri(k) = - delta(k)/dzw(k)
-    #     enddo
-    #     c_tri(ke) = 0.0
-    #     d_tri(ks:ke) = tke(i,j,ks:ke,tau)  + dt_tke*forc(i,j,ks:ke)
-    #     d_tri(ks) = d_tri(ks)
-    #     d_tri(ke) = d_tri(ke) + dt_tke*forc_tke_surface(i,j)/(0.5*dzw(ke))
-    #     solve_tridiag(a_tri(ks:ke),b_tri(ks:ke),c_tri(ks:ke),d_tri(ks:ke),tke(i,j,ks:ke,taup1),ke-ks+1)
-    #    endif
-    #  enddo
-    # enddo
     """
     store tke dissipation for diagnostics
     """
-    pyom.tke_diss = pyom.c_eps / pyom.mxl * pyom.sqrttke * pyom.tke[:,:,:,pyom.taup1]
+    pyom.tke_diss[...] = pyom.c_eps / pyom.mxl * pyom.sqrttke * pyom.tke[:,:,:,pyom.taup1]
 
     """
     Add TKE if surface density flux drains TKE in uppermost box
     """
-    mask = pyom.tke[:, :, -1, pyom.taup1] < 0.0
-    pyom.tke_surf_corr[mask] = -pyom.tke[:, :, -1, pyom.taup1][mask] * 0.5 * pyom.dzw[-1] / pyom.dt_tke
-    pyom.tke[:, :, -1, pyom.taup1][mask] = 0.0
+    mask = pyom.tke[2:-2, 2:-2, -1, pyom.taup1] < 0.0
+    pyom.tke_surf_corr[...] = 0.
+    pyom.tke_surf_corr[2:-2, 2:-2][mask] = -pyom.tke[2:-2, 2:-2, -1, pyom.taup1][mask] * 0.5 * pyom.dzw[-1] / pyom.dt_tke
+    pyom.tke[2:-2, 2:-2, -1, pyom.taup1][mask] = 0.0
 
     if pyom.enable_tke_hor_diffusion:
         """
         add tendency due to lateral diffusion
         """
-        for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx): # j = js_pe-onx,je_pe+onx
-            for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx-1): # i = is_pe-onx,ie_pe+onx-1
-                pyom.flux_east[i,j,:] = pyom.K_h_tke * (pyom.tke[i+1,j,:,pyom.tau] - pyom.tke[i,j,:,pyom.tau]) \
-                                        / (pyom.cost[j] * pyom.dxu[i]) * pyom.maskU[i,j,:]
-        pyom.flux_east[0,:,:] = 0.
-        for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx-1): # j = js_pe-onx,je_pe+onx-1
-            pyom.flux_north[:,j,:] = pyom.K_h_tke * (pyom.tke[:,j+1,:,pyom.tau] - pyom.tke[:,j,:,pyom.tau]) \
-                                    / pyom.dyu[j] * pyom.maskV[:,j,:] * pyom.cosu[j]
+        pyom.flux_east[:-1, :, :] = pyom.K_h_tke * (pyom.tke[1:, :, :, pyom.tau] - pyom.tke[:-1, :, :, pyom.tau]) \
+                                    / (pyom.cost[None, :, None] * pyom.dxu[:-1, None, None]) * pyom.maskU[:-1, :, :]
+        pyom.flux_east[-5,:,:] = 0. # NOTE: probably a mistake in the fortran code, first index should be -1
+        pyom.flux_north[:, :-1, :] = pyom.K_h_tke * (pyom.tke[:, 1:, :, pyom.tau] - pyom.tke[:, :-1, :, pyom.tau]) \
+                                     / pyom.dyu[None, :-1, None] * pyom.maskV[:, :-1, :] * pyom.cosu[None, :-1, None]
         pyom.flux_north[:,-1,:] = 0.
-        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                pyom.tke[i,j,:,pyom.taup1] = pyom.tke[i,j,:,pyom.taup1] + pyom.dt_tke * pyom.maskW[i,j,:] * \
-                                 ((pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) / (pyom.cost[j] * pyom.dxt[i]) \
-                                 +(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) / (pyom.cost[j] * pyom.dyt[j]))
+        pyom.tke[2:-2, 2:-2, :, pyom.taup1] += pyom.dt_tke * pyom.maskW[2:-2, 2:-2, :] * \
+                                ((pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
+                                   / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
+                                + (pyom.flux_north[2:-2, 2:-2, :] - pyom.flux_north[2:-2, 1:-3, :]) \
+                                   / (pyom.cost[None, 2:-2, None] * pyom.dyt[None, 2:-2, None]))
 
     """
     add tendency due to advection
@@ -201,18 +177,15 @@ def integrate_tke(pyom):
     if pyom.enable_tke_upwind_advection:
         advection.adv_flux_upwind_wgrid(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.tke[:,:,:,pyom.tau],pyom)
     if pyom.enable_tke_superbee_advection or pyom.enable_tke_upwind_advection:
-        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                pyom.dtke[i,j,:,pyom.tau] = pyom.maskW[i,j,:] * (-(pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:]) / (pyom.cost[j] * pyom.dxt[i]) \
-                                     - (pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) / (pyom.cost[j] * pyom.dyt[j]))
-        k = 0
-        pyom.dtke[:,:,k,pyom.tau] = pyom.dtke[:,:,k,pyom.tau] - pyom.flux_top[:,:,k] / pyom.dzw[k]
-        for k in xrange(1,pyom.nz-1): # k = 2,nz-1
-            pyom.dtke[:,:,k,pyom.tau] = pyom.dtke[:,:,k,pyom.tau] - (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1]) / pyom.dzw[k]
-        k = pyom.nz - 1
-        pyom.dtke[:,:,k,pyom.tau] = pyom.dtke[:,:,k,pyom.tau] - (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1]) / (0.5*pyom.dzw[k])
+        pyom.dtke[2:-2, 2:-2, :, pyom.tau] = pyom.maskW[2:-2, 2:-2, :] * (-(pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
+                                                                           / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
+                                                                         - (pyom.flux_north[2:-2, 2:-2, :] - pyom.flux_north[2:-2, 1:-3, :]) \
+                                                                           / (pyom.cost[None, 2:-2, None] * pyom.dyt[None, 2:-2, None]))
+        pyom.dtke[:,:,0,pyom.tau] += -pyom.flux_top[:,:,0] / pyom.dzw[0]
+        pyom.dtke[:,:,1:-1,pyom.tau] += -(pyom.flux_top[:,:,1:-1] - pyom.flux_top[:,:,:-2]) / pyom.dzw[1:-1]
+        pyom.dtke[:,:,-1,pyom.tau] += -(pyom.flux_top[:,:,-1] - pyom.flux_top[:,:,-2]) / (0.5 * pyom.dzw[-1])
         """
         Adam Bashforth time stepping
         """
-        pyom.tke[:,:,:,pyom.taup1] = pyom.tke[:,:,:,pyom.taup1] + pyom.dt_tracer * ((1.5 + pyom.AB_eps) * pyom.dtke[:,:,:,pyom.tau] \
+        pyom.tke[:,:,:,pyom.taup1] += pyom.dt_tracer * ((1.5 + pyom.AB_eps) * pyom.dtke[:,:,:,pyom.tau] \
                                         - (0.5 + pyom.AB_eps) * pyom.dtke[:,:,:,pyom.taum1])
