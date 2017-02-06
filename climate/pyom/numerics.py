@@ -310,19 +310,17 @@ def calc_initial_conditions(pyom):
 
 
 def ugrid_to_tgrid(A,pyom):
-    # real*8, dimension(is_:ie_,js_:je_,nz_) :: A,B
     B = np.zeros_like(A)
-    for i in xrange(pyom.is_pe,pyom.ie_pe):
-        B[i,:,:] = (pyom.dxu[i] * A[i,:,:] + pyom.dxu[i-1] * A[i-1,:,:]) / (2*pyom.dxt[i])
+    B[2:-2,:,:] = (pyom.dxu[2:-2, None, None] * A[2:-2, :, :] + pyom.dxu[1:-3, None, None] * A[1:-3, :, :]) / (2*pyom.dxt[2:-2, None, None])
     return B
 
 
 def vgrid_to_tgrid(A,pyom):
-    # real*8, dimension(is_:ie_,js_:je_,nz_) :: A,B
     B = np.zeros_like(A)
-    for k in xrange(pyom.nz):
-        for j in xrange(pyom.js_pe,pyom.je_pe):
-            B[:,j,k] = (pyom.area_v[:,j] * A[:,j,k] + pyom.area_v[:,j-1] * A[:,j-1,k]) / (2*pyom.area_t[:,j])
+    B[:,2:-2,:] = (pyom.area_v[:,2:-2,None] * A[:,2:-2,:] + pyom.area_v[:,1:-3,None] * A[:,1:-3,:]) / (2*pyom.area_t[:,2:-2,None])
+    #for k in xrange(pyom.nz):
+    #    for j in xrange(pyom.js_pe,pyom.je_pe):
+    #        B[:,j,k] = (pyom.area_v[:,j] * A[:,j,k] + pyom.area_v[:,j-1] * A[:,j-1,k]) / (2*pyom.area_t[:,j])
     return B
 
 def solve_tridiag(a, b, c, d):
@@ -330,15 +328,10 @@ def solve_tridiag(a, b, c, d):
     return lapack.dgtsv(a[1:],b,c[:-1],d)[3]
 
 def calc_diss(diss,K_diss,tag,pyom):
-    # !real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
-    # !real*8 :: K_diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
-    # !real*8 :: diss_u(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
-    # real*8, dimension(is_:ie_,js_:je_,nz_) :: diss,K_diss,diss_u
-    # character*1 :: tag
-
     diss_u = np.zeros_like(diss)
 
     if tag == 'U':
+        #ks = np.maximum(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
         # dissipation interpolated on W-grid
         for j in xrange(pyom.js_pe,pyom.je_pe): # j=js_pe,je_pe
             for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i=is_pe-1,ie_pe

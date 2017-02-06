@@ -389,6 +389,8 @@ class PyOM(object):
         self.dv_mix = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.du_adv = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.dv_adv = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.u_source = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.v_source = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.p_hydro = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.psi = np.zeros((self.nx+4, self.ny+4, 3))
         self.dpsi = np.zeros((self.nx+4, self.ny+4, 3))
