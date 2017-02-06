@@ -535,7 +535,7 @@ class PyOM(object):
                 self.hrms_k0 = np.zeros((self.nx+4, self.ny+4))
                 self.c_lee = np.zeros((self.nx+4, self.ny+4))
                 self.eke_lee_flux = np.zeros((self.nx+4, self.ny+4))
-                self.c_Ri_diss = np.zeros((self.nx+4, self.ny+4))
+                self.c_Ri_diss = np.zeros((self.nx+4, self.ny+4, self.nz))
 
         """
         New
