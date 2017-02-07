@@ -88,9 +88,11 @@ def streamfunction_init(pyom):
     -----------------------------------------------------------------------
     """
     max_boundary= 2*np.max(nippts[:pyom.nisle])
-    pyom.boundary = np.zeros((pyom.nisle, max_boundary, 2), dtype=np.int)
-    pyom.line_dir = np.zeros((pyom.nisle, max_boundary, 2))
-    pyom.nr_boundary = np.zeros(pyom.nisle, dtype=np.int)
+    pyom.boundary_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
+    pyom.line_dir_south_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
+    pyom.line_dir_north_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
+    pyom.line_dir_east_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
+    pyom.line_dir_west_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
     pyom.psin = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nisle))
     pyom.dpsin = np.zeros((pyom.nisle, 3))
     pyom.line_psin = np.zeros((pyom.nisle, pyom.nisle))
@@ -119,15 +121,15 @@ def streamfunction_init(pyom):
         """
         n=0
         # avoid starting close to cyclic bondaries
-        (cont, ij, Dir) = avoid_cyclic_boundaries(Map, isle, n, pyom)
+        (cont, ij, Dir, startPos) = avoid_cyclic_boundaries(Map, isle, n, pyom)
 
         if not cont:
-            (cont, ij, Dir) = avoid_cyclic_boundaries2(Map, isle, n, pyom)
+            (cont, ij, Dir, startPos) = avoid_cyclic_boundaries2(Map, isle, n, pyom)
 
             if not cont:
                 raise RuntimeError('found no starting point for line integral')
 
-        print ' starting point of line integral is ',pyom.boundary[isle,n,:]
+        print ' starting point of line integral is ',startPos
         print ' starting direction is ', Dir
 
         """
@@ -135,9 +137,8 @@ def streamfunction_init(pyom):
          now find connecting lines
         -----------------------------------------------------------------------
         """
-        pyom.line_dir[isle,n,:] = Dir
         n = 1
-        pyom.boundary[isle,n,:] = np.array([ij[0], ij[1]])
+        pyom.boundary_mask[isle,ij[0],ij[1]] = 1
         cont = True
         while cont:
             """
@@ -148,13 +149,13 @@ def streamfunction_init(pyom):
             if Dir[0]== 0 and Dir[1]== 1:
                 ijp      = [ij[0]  ,ij[1]+1] #north
                 ijp_right= [ij[0]+1,ij[1]+1] #north
-            if Dir[0]==-1 and Dir[1]== 0:
+            elif Dir[0]==-1 and Dir[1]== 0:
                 ijp      = [ij[0]  ,ij[1]  ] #west
                 ijp_right= [ij[0]  ,ij[1]+1] #west
-            if Dir[0]== 0 and Dir[1]==-1:
+            elif Dir[0]== 0 and Dir[1]==-1:
                 ijp      = [ij[0]+1,ij[1]  ] #south
                 ijp_right= [ij[0]  ,ij[1]  ] #south
-            if Dir[0]== 1 and Dir[1]== 0:
+            elif Dir[0]== 1 and Dir[1]== 0:
                 ijp      = [ij[0]+1,ij[1]+1] #east
                 ijp_right= [ij[0]+1,ij[1]  ] #east
 
@@ -187,8 +188,8 @@ def streamfunction_init(pyom):
                 Dir =  np.array([-Dir[1],Dir[0]])
             else:
                 print 'unknown situation or lost track'
-                for n in xrange(1, n+1): #n=1,n
-                    print ' pos=',pyom.boundary[isle,n,:],' dir=',line_dir[isle,n,:]
+                #for n in xrange(1, n+1): #n=1,n
+                #    print ' pos=',pyom.boundary[isle,n,:],' dir=',line_dir[isle,n,:]
                 print ' map ahead is ',Map[ijp[0],ijp[1]] , Map[ijp_right[0],ijp_right[1]]
                 sys.exit(' in streamfunction_init ')
 
@@ -197,9 +198,17 @@ def streamfunction_init(pyom):
              go forward in direction
             -----------------------------------------------------------------------
             """
-            pyom.line_dir[isle,n,:] = Dir
+            #pyom.line_dir[isle,n,:] = Dir
+            if Dir[0]== 0 and Dir[1]== 1: #north
+                pyom.line_dir_north_mask[isle, ij[0], ij[1]] = 1
+            elif Dir[0]==-1 and Dir[1]== 0: #west
+                pyom.line_dir_west_mask[isle, ij[0], ij[1]] = 1
+            elif Dir[0]== 0 and Dir[1]==-1: #south
+                pyom.line_dir_south_mask[isle, ij[0], ij[1]] = 1
+            elif Dir[0]== 1 and Dir[1]== 0: #east
+                pyom.line_dir_east_mask[isle, ij[0], ij[1]] = 1
             ij += Dir
-            if pyom.boundary[isle,0,0] == ij[0] and pyom.boundary[isle,0,1] == ij[1]:
+            if startPos[0] == ij[0] and startPos[1] == ij[1]:
                 cont = False
 
             """
@@ -215,22 +224,22 @@ def streamfunction_init(pyom):
                 if verbose:
                     print ' shifting to eastern cyclic boundary'
                 ij[0] += pyom.nx
-            if pyom.boundary[isle,0,0] == ij[0] and pyom.boundary[isle,0,1] == ij[1]:
+            if startPos[0] == ij[0] and startPos[1] == ij[1]:
                 cont = False
 
             if cont:
                 n = n+1
                 if n > max_boundary:
                     raise RuntimeError('increase value of max_boundary')
-                pyom.boundary[isle,n,:] = ij
+                pyom.boundary_mask[isle,ij[0],ij[1]] = 1
 
-        pyom.nr_boundary[isle] = n+1
         print ' number of points is ',n+1
         if verbose:
             print ' '
             print ' Positions:'
-            for n in xrange(pyom.nr_boundary[isle]): #n=1,nr_boundary(isle)
-                print ' pos=',pyom.boundary[isle,n,:],' dir=',pyom.line_dir[isle,n,:]
+            print ' boundary:', pyom.boundary_mask[isle]
+            #for n in xrange(pyom.nr_boundary[isle]): #n=1,nr_boundary(isle)
+            #    print ' pos=',pyom.boundary[isle,n,:],' dir=',pyom.line_dir[isle,n,:]
 
     """
     -----------------------------------------------------------------------
@@ -240,11 +249,7 @@ def streamfunction_init(pyom):
     forc[...] = 0.0
     for isle in xrange(pyom.nisle): #isle=1,nisle
         pyom.psin[:,:,isle] = 0.0
-        for n in xrange(pyom.nr_boundary[isle]): #n=1,nr_boundary(isle)
-            i = pyom.boundary[isle,n,0]
-            j = pyom.boundary[isle,n,1]
-            if i >= 0 and i <= pyom.nx+3 and j >= 0 and j <= pyom.ny+3:
-                pyom.psin[i,j,isle] = 1.0
+        pyom.psin[pyom.boundary_mask[isle], isle] = 1.0
 
         if pyom.enable_cyclic_x:
             cyclic.setcyclic_x(pyom.psin[:,:,isle])
@@ -285,16 +290,20 @@ def avoid_cyclic_boundaries(Map, isle, n, pyom):
                 ij=np.array([i,j])
                 cont = True
                 Dir = np.array([1,0])
-                pyom.boundary[isle,n,:] = np.array([ij[0]-1,ij[1]])
-                return (cont, ij, Dir)
+                pyom.line_dir_east_mask[isle, ij[0]-1, ij[1]] = 1
+                #pyom.boundary[isle,n,:] = np.array([ij[0]-1,ij[1]])
+                pyom.boundary_mask[isle, ij[0]-1, ij[1]] = 1
+                return (cont, ij, Dir, np.array([ij[0]-1, ij[1]]))
             if Map[i,j] == -1 and Map[i,j+1] == 1:
                 # initial direction is westward, we come from the east
                 ij = np.array([i-1,j])
                 cont = True
                 Dir = np.array([-1,0])
-                pyom.boundary[isle,n,:] = np.array([ij[0]+1,ij[1]])
-                return (cont, ij, Dir)
-    return (False, None, np.array([0,0]))
+                pyom.line_dir_west_mask[isle, ij[0]-1, ij[1]] = 1
+                #pyom.boundary[isle,n,:] = np.array([ij[0]+1,ij[1]])
+                pyom.boundary_mask[isle,ij[0]+1,ij[1]] = 1
+                return (cont, ij, Dir, np.array([ij[0]+1, ij[1]]))
+    return (False, None, np.array([0,0]), np.array([0,0]))
 
 def avoid_cyclic_boundaries2(Map, isle, n, pyom):
     for i in xrange(pyom.nx/2,0,-1): #i=nx/2,1,-1  ! avoid starting close to cyclic bondaries
@@ -304,16 +313,18 @@ def avoid_cyclic_boundaries2(Map, isle, n, pyom):
                 ij=np.array([i,j])
                 cont = True
                 Dir = np.array([1,0])
-                pyom.boundary[isle,n,:]= np.array([ij[0]-1,ij[1]])
-                return (cont, ij, Dir)
+                pyom.line_dir_east_mask[isle, ij[0]-1, ij[1]] = 1
+                pyom.boundary_mask[isle, ij[0]-1, ij[1]] = 1
+                return (cont, ij, Dir, np.array([ij[0]-1, ij[1]]))
             if Map[i,j] == -1 and Map[i,j+1] == 1:
                 # initial direction is westward, we come from the east
                 ij=np.array([i-1,j])
                 cont = True
                 Dir = np.array([-1,0])
-                pyom.boundary[isle,n,:] = np.array([ij[0]+1,ij[1]])
-                return (cont, ij, Dir)
-    return (False, None, np.array([0,0]))
+                pyom.line_dir_west_mask[isle, ij[0]-1, ij[1]] = 1
+                pyom.boundary_mask[isle,ij[0]+1,ij[1]] = 1
+                return (cont, ij, Dir, np.array([ij[0]+1, ij[1]]))
+    return (False, None, np.array([0,0]), np.array([0,0]))
 
 def line_integral(isle,uloc,vloc,pyom):
     """
@@ -331,25 +342,16 @@ def line_integral(isle,uloc,vloc,pyom):
     #integer :: n,i,j,nm1,js,je,is,ie
     line = 0
 
-    for n in xrange(pyom.nr_boundary[isle]): #n=1,nr_boundary(isle)
-        nm1 = n-1
-        if nm1 < 1:
-            nm1 = pyom.nr_boundary[isle]
-        i = pyom.boundary[isle,n,0]
-        j = pyom.boundary[isle,n,1]
-        if i >= 1 and i <= pyom.nx+2 and j >= 1 and j <= pyom.ny+2:
-            if pyom.line_dir[isle,n,0] == 1 and pyom.line_dir[isle,n,1] == 0:   # to east
-                line += vloc[i,j]*pyom.dyu[j] + uloc[i,j+1]*pyom.dxu[i]*pyom.cost[j+1]
-            elif pyom.line_dir[isle,n,0] == -1 and pyom.line_dir[isle,n,1] == 0: # to west
-                line -= vloc[i+1,j]*pyom.dyu[j] - uloc[i,j]*pyom.dxu[i]*pyom.cost[j]
-            elif pyom.line_dir[isle,n,0] == 0 and pyom.line_dir[isle,n,1] == 1: # to north
-                line += vloc[i,j]*pyom.dyu[j]  - uloc[i,j]*pyom.dxu[i]*pyom.cost[j]
-            elif pyom.line_dir[isle,n,0] ==  0 and pyom.line_dir[isle,n,1] == -1: # to south
-                line += uloc[i,j+1]*pyom.dxu[i]*pyom.cost[j+1] - vloc[i+1,j]*pyom.dyu[j]
-            else:
-                print ' line_dir =',pyom.line_dir[isle,n,:],' at pos. ',pyom.boundary[isle,n,:]
-                sys.exit(' missing line_dir in line integral')
-    return line
+    east = vloc[1:-2,1:-2] * pyom.dyu[np.newaxis, 1:-2] + uloc[1:-2,2:-1]*pyom.dxu[1:-2, np.newaxis]*pyom.cost[np.newaxis,2:-1]
+    west = vloc[2:-1,1:-2]*pyom.dyu[np.newaxis, 1:-2] - uloc[1:-2,1:-2]*(pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
+    north = vloc[1:-2,1:-2]*pyom.dyu[np.newaxis,1:-2]  - uloc[1:-2,1:-2]*(pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
+    south = uloc[1:-2,2:-1]*(pyom.cost[2:-1]*pyom.dxu[1:-2, np.newaxis]) - vloc[2:-1,1:-2]*pyom.dyu[np.newaxis, 1:-2]
+    east = np.add.reduce(east[pyom.line_dir_east_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]])
+    west = np.add.reduce(west[pyom.line_dir_west_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]])
+    north = np.add.reduce(north[pyom.line_dir_north_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]])
+    south = np.add.reduce(south[pyom.line_dir_south_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]])
+
+    return east - west + north + south
 
 def mod10(m):
     if m > 0:
@@ -868,18 +870,4 @@ def make_inv_sfc(cf,Z,pyom):
 #
     #NOTE: This is time consuming
     for isle in xrange(pyom.nisle): #isle=1,nisle
-        #Vectorize solution, does not work with bohrium
-        #n = pyom.nr_boundary[isle]
-        #i = pyom.boundary[isle,:n,0]
-        #I = np.logical_and(i >= 0, i <= pyom.nx+3)
-        #i *= I*1
-        #j = pyom.boundary[isle,:n,1]
-        #J = np.logical_and(i >= 0, i <= pyom.ny+3)
-        #IJ = np.logical_and(I,J)
-        #j *= J*1
-        #Z[i, j] *= IJ*1
-        for n in xrange(pyom.nr_boundary[isle]): #n=1,nr_boundary(isle)
-            i = pyom.boundary[isle,n,0]
-            j = pyom.boundary[isle,n,1]
-            if i >= 0 and i <= pyom.nx+3 and j >= 0 and j <= pyom.ny+3:
-                Z[i,j] = 0.0
+        Z[pyom.boundary_mask[isle]] = 0.0
