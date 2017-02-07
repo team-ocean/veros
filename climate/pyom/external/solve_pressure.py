@@ -9,22 +9,18 @@
 import numpy as np
 import warnings
 import climate
-import sys
 
 from climate.pyom import cyclic
 
 def solve_pressure(pyom):
-    #real*8 :: fpx(pyom.is_pe-onx:pyom.ie_pe+onx,pyom.js_pe-onx:pyom.je_pe+onx)
-    #real*8 :: fpy(pyom.is_pe-onx:pyom.ie_pe+onx,pyom.js_pe-onx:pyom.je_pe+onx)
-    #real*8 :: forc(pyom.is_pe-onx:pyom.ie_pe+onx,pyom.js_pe-onx:pyom.je_pe+onx)
-    fpx = np.empty((pyom.nx+4, pyom.ny+4))
-    fpy = np.empty((pyom.ny+4, pyom.ny+4))
-    forc = np.empty((pyom.nx+4, pyom.ny+4))
+    fpx = np.zeros((pyom.nx+4, pyom.ny+4))
+    fpy = np.zeros((pyom.nx+4, pyom.ny+4))
+    forc = np.zeros((pyom.nx+4, pyom.ny+4))
 
     # hydrostatic pressure
     fxa = pyom.grav / pyom.rho_0
-    pyom.p_hydro[:,:,pyom.nz-1] = 0.5*pyom.rho[:,:,pyom.nz,pyom.tau]*fxa*pyom.dzw[pyom.nz]*pyom.maskT[:,:,pyom.nz]
-    for k in xrange(pyom.nz-1, 0, -1): #k=pyom.nz-1,1,-1
+    pyom.p_hydro[:,:,pyom.nz-1] = 0.5*pyom.rho[:,:,pyom.nz-1,pyom.tau]*fxa*pyom.dzw[pyom.nz-1]*pyom.maskT[:,:,pyom.nz-1]
+    for k in xrange(pyom.nz-2, 0, -1): #k=pyom.nz-1,1,-1
         pyom.p_hydro[:,:,k] = pyom.maskT[:,:,k]*(pyom.p_hydro[:,:,k+1] + 0.5*(pyom.rho[:,:,k+1,pyom.tau]+pyom.rho[:,:,k,pyom.tau])*fxa*pyom.dzw[k])
 
     # add hydrostatic pressure gradient to tendencies
@@ -47,8 +43,8 @@ def solve_pressure(pyom):
     for k in xrange(pyom.nz): #k=1,pyom.nz
         for j in xrange(pyom.js_pe, pyom.je_pe): #j=pyom.js_pe,pyom.je_pe
             for i in xrange(pyom.is_pe, pyom.ie_pe): #i=pyom.is_pe,pyom.ie_pe
-                fpx[i,j] += pyom.u[i,j,k,pyom.taup1] * pyom.maskU[i,j,k] * dzt[k] / pyom.dt_mom
-                fpy[i,j] += pyom.v[i,j,k,pyom.taup1] * pyom.maskV[i,j,k] * dzt[k] / pyom.dt_mom
+                fpx[i,j] += pyom.u[i,j,k,pyom.taup1] * pyom.maskU[i,j,k] * pyom.dzt[k] / pyom.dt_mom
+                fpy[i,j] += pyom.v[i,j,k,pyom.taup1] * pyom.maskV[i,j,k] * pyom.dzt[k] / pyom.dt_mom
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(fpx)
         cyclic.setcyclic_x(fpy)
@@ -56,15 +52,15 @@ def solve_pressure(pyom):
     # forc = 1/cos (u_x + (cos pyom.v)_y )
     for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
         for i in xrange(pyom.is_pe, pyom.ie_pe+1): #i=pyom.is_pe,pyom.ie_pe
-            forc[i,j] = (fpx[i,j]-fpx[i-1,j])/(pyom.cost[j]*pyom.dxt[i])+(pyom.cosu[j]*fpy[i,j]-pyom.cosu[j-1]*fpy[i,j-1])/(pyom.cost[j]*dyt[j])
-    if enable_free_surface:
+            forc[i,j] = (fpx[i,j]-fpx[i-1,j])/(pyom.cost[j]*pyom.dxt[i])+(pyom.cosu[j]*fpy[i,j]-pyom.cosu[j-1]*fpy[i,j-1])/(pyom.cost[j]*pyom.dyt[j])
+    if pyom.enable_free_surface:
         for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
             for i in xrange(pyom.is_pe, pyom.ie_pe+1): #i=pyom.is_pe,pyom.ie_pe
                 forc[i,j] -= pyom.psi[i,j,pyom.tau]/(pyom.grav*pyom.dt_mom**2)*pyom.maskT[i,j,pyom.nz]
 
     pyom.psi[:,:,pyom.taup1] = 2*pyom.psi[:,:,pyom.tau]-pyom.psi[:,:,pyom.taum1] # first guess
     #solve for surface pressure
-    congrad_surf_press(forc,congr_itts)
+    congrad_surf_press(forc,pyom.congr_itts,pyom)
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.psi[:,:,pyom.taup1])
 
@@ -75,7 +71,7 @@ def solve_pressure(pyom):
             pyom.v[i,j,:,pyom.taup1] -= pyom.dt_mom*( pyom.psi[i,j+1,pyom.taup1]-pyom.psi[i,j,pyom.taup1]) /pyom.dyu[j]*pyom.maskV[i,j,:]
 
 
-def make_coeff_surf_press():
+def make_coeff_surf_press(pyom):
     """
     -----------------------------------------------------------------------
              A * p = forc
@@ -91,32 +87,32 @@ def make_coeff_surf_press():
     -----------------------------------------------------------------------
     """
     #real*8 :: cf(is_:ie_,js_:je_,3,3),maskM(is_:ie_,js_:je_)
-    maskM = pyom.maskT[:,:,pyom.nz-1]
+    maskM = pyom.maskT[:,:,-1]
     cf = np.zeros((pyom.nx+4, pyom.ny+4, 3, 3))
     for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
         for i in xrange(pyom.is_pe, pyom.ie_pe+1): #i=pyom.is_pe,pyom.ie_pe
             mp = maskM[i,j] * maskM[i+1,j]
             mm = maskM[i,j] * maskM[i-1,j]
-            cf[i,j, 0+2, 0+2] -= mp*hu[i  ,j]/pyom.dxu[i  ]/pyom.dxt[i] /pyom.cost[j]**2
-            cf[i,j, 1+2, 0+2] += mp*hu[i  ,j]/pyom.dxu[i  ]/pyom.dxt[i] /pyom.cost[j]**2
-            cf[i,j, 0+2, 0+2] -= mm*hu[i-1,j]/pyom.dxu[i-1]/pyom.dxt[i] /pyom.cost[j]**2
-            cf[i,j,-1+2, 0+2] += mm*hu[i-1,j]/pyom.dxu[i-1]/pyom.dxt[i] /pyom.cost[j]**2
+            cf[i,j, 1, 1] -= mp*pyom.hu[i  ,j]/pyom.dxu[i  ]/pyom.dxt[i] /pyom.cost[j]**2
+            cf[i,j, 2, 1] += mp*pyom.hu[i  ,j]/pyom.dxu[i  ]/pyom.dxt[i] /pyom.cost[j]**2
+            cf[i,j, 1, 1] -= mm*pyom.hu[i-1,j]/pyom.dxu[i-1]/pyom.dxt[i] /pyom.cost[j]**2
+            cf[i,j, 0, 1] += mm*pyom.hu[i-1,j]/pyom.dxu[i-1]/pyom.dxt[i] /pyom.cost[j]**2
 
             mp = maskM[i,j] * maskM[i,j+1]
             mm = maskM[i,j] * maskM[i,j-1]
-            cf[i,j, 0+2, 0+2] -= mp*hv[i,j  ]/pyom.dyu[j  ]/dyt[j] *pyom.cosu[j  ]/pyom.cost[j]
-            cf[i,j, 0+2, 1+2] += mp*hv[i,j  ]/pyom.dyu[j  ]/dyt[j] *pyom.cosu[j  ]/pyom.cost[j]
-            cf[i,j, 0+2, 0+2] -= mm*hv[i,j-1]/pyom.dyu[j-1]/dyt[j] *pyom.cosu[j-1]/pyom.cost[j]
-            cf[i,j, 0+2,-1+2] += mm*hv[i,j-1]/pyom.dyu[j-1]/dyt[j] *pyom.cosu[j-1]/pyom.cost[j]
+            cf[i,j, 1, 1] -= mp*pyom.hv[i,j  ]/pyom.dyu[j  ]/pyom.dyt[j] *pyom.cosu[j  ]/pyom.cost[j]
+            cf[i,j, 1, 2] += mp*pyom.hv[i,j  ]/pyom.dyu[j  ]/pyom.dyt[j] *pyom.cosu[j  ]/pyom.cost[j]
+            cf[i,j, 1, 1] -= mm*pyom.hv[i,j-1]/pyom.dyu[j-1]/pyom.dyt[j] *pyom.cosu[j-1]/pyom.cost[j]
+            cf[i,j, 1, 0] += mm*pyom.hv[i,j-1]/pyom.dyu[j-1]/pyom.dyt[j] *pyom.cosu[j-1]/pyom.cost[j]
 
-    if enable_free_surface:
+    if pyom.enable_free_surface:
         for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
             for i in xrange(pyom.is_pe, pyom.ie_pe+1): #i=pyom.is_pe,pyom.ie_pe
-                cf[i,j,0+2,0+2] = cf[i,j,0+2,0+2] - 1./(pyom.grav*pyom.dt_mom**2) *maskM[i,j]
+                cf[i,j,1,1] += -1./(pyom.grav*pyom.dt_mom**2) *maskM[i,j]
     return cf
 
 
-def congrad_surf_press(forc, iterations):
+def congrad_surf_press(forc, iterations, pyom):
     """
     simple conjugate gradient solver
     """
@@ -134,7 +130,7 @@ def congrad_surf_press(forc, iterations):
 
     # congrad_surf_press.first is basically like a static variable
     if congrad_surf_press.first:
-        cf = make_coeff_surf_press()
+        cf = make_coeff_surf_press(pyom)
         congrad_surf_press.first = False
 
     apply_op(cf, pyom.psi[:,:,pyom.taup1], pyom, res) #  res = A *pyom.psi
