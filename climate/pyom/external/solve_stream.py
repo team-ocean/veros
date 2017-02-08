@@ -241,6 +241,7 @@ def streamfunction_init(pyom):
             #for n in xrange(pyom.nr_boundary[isle]): #n=1,nr_boundary(isle)
             #    print ' pos=',pyom.boundary[isle,n,:],' dir=',pyom.line_dir[isle,n,:]
 
+
     """
     -----------------------------------------------------------------------
      precalculate time independent boundary components of streamfunction
@@ -248,8 +249,7 @@ def streamfunction_init(pyom):
     """
     forc[...] = 0.0
     for isle in xrange(pyom.nisle): #isle=1,nisle
-        pyom.psin[:,:,isle] = 0.0
-        pyom.psin[pyom.boundary_mask[isle], isle] = 1.0
+        pyom.psin[:,:,isle] = pyom.boundary_mask[isle]
 
         if pyom.enable_cyclic_x:
             cyclic.setcyclic_x(pyom.psin[:,:,isle])
@@ -346,10 +346,10 @@ def line_integral(isle,uloc,vloc,pyom):
     west = vloc[2:-1,1:-2]*pyom.dyu[np.newaxis, 1:-2] - uloc[1:-2,1:-2]*(pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
     north = vloc[1:-2,1:-2]*pyom.dyu[np.newaxis,1:-2]  - uloc[1:-2,1:-2]*(pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
     south = uloc[1:-2,2:-1]*(pyom.cost[2:-1]*pyom.dxu[1:-2, np.newaxis]) - vloc[2:-1,1:-2]*pyom.dyu[np.newaxis, 1:-2]
-    east = np.add.reduce(east[pyom.line_dir_east_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]])
-    west = np.add.reduce(west[pyom.line_dir_west_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]])
-    north = np.add.reduce(north[pyom.line_dir_north_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]])
-    south = np.add.reduce(south[pyom.line_dir_south_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]])
+    east = np.sum(east * (pyom.line_dir_east_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
+    west = np.sum(west * (pyom.line_dir_west_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
+    north = np.sum(north * (pyom.line_dir_north_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
+    south = np.sum(south * (pyom.line_dir_south_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
 
     return east - west + north + south
 
@@ -854,7 +854,7 @@ def make_inv_sfc(cf,Z,pyom):
 #
     Y = Z[2:pyom.nx+2, 2:pyom.ny+2]
     if climate.is_bohrium:
-        Y = (1. / (Y+(Y==0)))*(Y!=0)
+        Y[...] = (1. / (Y+(Y==0)))*(Y!=0)
     else:
         Y[Y != 0] = 1./Y[Y != 0]
     #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
@@ -870,4 +870,4 @@ def make_inv_sfc(cf,Z,pyom):
 #
     #NOTE: This is time consuming
     for isle in xrange(pyom.nisle): #isle=1,nisle
-        Z[pyom.boundary_mask[isle]] = 0.0
+        Z *= np.invert(pyom.boundary_mask[isle]).astype(np.int)
