@@ -85,5 +85,5 @@ class DiffusionTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = DiffusionTest(500, 250, 50, fortran=sys.argv[1])
+    test = DiffusionTest(50, 25, 50, fortran=sys.argv[1])
     passed = test.run()

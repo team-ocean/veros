@@ -1,4 +1,4 @@
-from climate.pyom import cyclic, density
+from climate.pyom import cyclic, density, utilities, diffusion
 import climate
 
 import numpy as np
@@ -31,16 +31,8 @@ def u_centered_grid(dyt,dyu,yt,yu,n):
 
 def calc_grid(pyom):
     """
-    ---------------------------------------------------------------------------------
-        setup grid based on dxt,dyt,dzt and x_origin, y_origin
-    ---------------------------------------------------------------------------------
-    """""
-    #use main_module
-    #implicit none
-    #integer :: i,j
-    #real*8 :: aloc(nx,ny)
-    #real*8, dimension(1-onx:nx+onx) :: dxt_gl,dxu_gl,xt_gl,xu_gl
-    #real*8, dimension(1-onx:ny+onx) :: dyt_gl,dyu_gl,yt_gl,yu_gl
+    setup grid based on dxt,dyt,dzt and x_origin, y_origin
+    """
 
     aloc = np.zeros((pyom.nx,pyom.ny))
     dxt_gl = np.empty(pyom.nx+4)
@@ -52,9 +44,7 @@ def calc_grid(pyom):
     yt_gl  = np.empty(pyom.ny+4)
     yu_gl  = np.empty(pyom.ny+4)
     """
-    --------------------------------------------------------------
-     transfer from locally defined variables to global ones
-    --------------------------------------------------------------
+    transfer from locally defined variables to global ones
     """
     aloc[:,0] = pyom.dxt[2:pyom.nx+2]
 
@@ -82,9 +72,7 @@ def calc_grid(pyom):
     #    dyt_gl[pyom.ny+i+1] = dyt_gl[pyom.ny+1]
     #    dyt_gl[2-i] = dyt_gl[2]
     """
-    -------------------------------------------------------------
     grid in east/west direction
-    -------------------------------------------------------------
     """
     u_centered_grid(dxt_gl,dxu_gl,xt_gl,xu_gl,pyom.nx+4)
     xt_gl += -xu_gl[2]+pyom.x_origin
@@ -106,9 +94,7 @@ def calc_grid(pyom):
         #    dxu_gl[2-i] = dxu_gl[pyom.nx-i+2]
 
     """
-    --------------------------------------------------------------
-     grid in north/south direction
-    --------------------------------------------------------------
+    grid in north/south direction
     """
     u_centered_grid(dyt_gl,dyu_gl,yt_gl,yu_gl,pyom.ny+4)
     yt_gl += -yu_gl[2]+pyom.y_origin
@@ -116,9 +102,7 @@ def calc_grid(pyom):
 
     if pyom.coord_degree:
         """
-        --------------------------------------------------------------
-         convert from degrees to pseudo cartesian grid
-        --------------------------------------------------------------
+        convert from degrees to pseudo cartesian grid
         """
         dxt_gl *= pyom.degtom
         dxu_gl *= pyom.degtom
@@ -126,9 +110,7 @@ def calc_grid(pyom):
         dyu_gl *= pyom.degtom
 
     """
-    --------------------------------------------------------------
-      transfer to locally defined variables
-    --------------------------------------------------------------
+    transfer to locally defined variables
     """
     pyom.xt[:]  = xt_gl[:]
     pyom.xu[:]  = xu_gl[:]
@@ -141,9 +123,7 @@ def calc_grid(pyom):
     pyom.dyt[:] = dyt_gl[:]
 
     """
-    --------------------------------------------------------------
-     grid in vertical direction
-    --------------------------------------------------------------
+    grid in vertical direction
     """
     u_centered_grid(pyom.dzt,pyom.dzw,pyom.zt,pyom.zw,pyom.nz)
     #dzw(nz)=dzt(nz) #*0.5 # this is account for in the model directly
@@ -151,9 +131,7 @@ def calc_grid(pyom):
     pyom.zw -= pyom.zw[pyom.nz-1]  # zero at zw(nz)
 
     """
-    --------------------------------------------------------------
-     metric factors
-    --------------------------------------------------------------
+    metric factors
     """
     if pyom.coord_degree:
         pyom.cost = np.cos(pyom.yt*pyom.pi/180.)
@@ -165,9 +143,7 @@ def calc_grid(pyom):
         pyom.tantr[...] = 0.0
 
     """
-    --------------------------------------------------------------
-     precalculate area of boxes
-    --------------------------------------------------------------
+    precalculate area of boxes
     """
     pyom.area_t = pyom.cost * pyom.dyt * pyom.dxt[:, np.newaxis]
     pyom.area_u = pyom.cost*pyom.dyt * pyom.dxu[:, np.newaxis]
@@ -175,9 +151,7 @@ def calc_grid(pyom):
 
 def calc_beta(pyom):
     """
-    --------------------------------------------------------------
-     calculate beta = df/dy
-    --------------------------------------------------------------
+    calculate beta = df/dy
     """
     pyom.beta[:, 2:pyom.ny+2] = 0.5*(  (pyom.coriolis_t[:,3:pyom.ny+3]-pyom.coriolis_t[:,2:pyom.ny+2])/pyom.dyu[2:pyom.ny+2] + (pyom.coriolis_t[:,2:pyom.ny+2]-pyom.coriolis_t[:,1:pyom.ny+1])/pyom.dyu[1:pyom.ny+1] )
     #for j in xrange(2,pyom.ny+2): # j=js_pe,je_pe
@@ -185,15 +159,11 @@ def calc_beta(pyom):
 
 def calc_topo(pyom):
     """
-    --------------------------------------------------------------
-     calulate masks, total depth etc
-    --------------------------------------------------------------
+    calulate masks, total depth etc
     """
 
     """
-    --------------------------------------------------------------
-     close domain
-    --------------------------------------------------------------
+    close domain
     """
     pyom.kbot[:,:2] = 0
     pyom.kbot[:,-2:] = 0
@@ -204,9 +174,7 @@ def calc_topo(pyom):
         pyom.kbot[-2:,:] = 0
 
     """
-    --------------------------------------------------------------
-     Land masks
-    --------------------------------------------------------------
+    Land masks
     """
     pyom.maskT[...] = 0.0
 
@@ -258,9 +226,7 @@ def calc_topo(pyom):
     #for k in xrange(pyom.nz-1): # k=1,nz-1
     #    pyom.maskW[:,:,k] = np.minimum(pyom.maskT[:,:,k],pyom.maskT[:,:,k+1])
     """
-    --------------------------------------------------------------
-     total depth
-    --------------------------------------------------------------
+    total depth
     """
     pyom.ht[...] = 0.0
     pyom.hu[...] = 0.0
@@ -287,6 +253,7 @@ def calc_topo(pyom):
     if climate.is_bohrium:
         pyom.hur = np.array(hur)
         pyom.hvr = np.array(hvr)
+
 
 def calc_initial_conditions(pyom):
     """
@@ -318,48 +285,24 @@ def ugrid_to_tgrid(A,pyom):
 def vgrid_to_tgrid(A,pyom):
     B = np.zeros_like(A)
     B[:,2:-2,:] = (pyom.area_v[:,2:-2,None] * A[:,2:-2,:] + pyom.area_v[:,1:-3,None] * A[:,1:-3,:]) / (2*pyom.area_t[:,2:-2,None])
-    #for k in xrange(pyom.nz):
-    #    for j in xrange(pyom.js_pe,pyom.je_pe):
-    #        B[:,j,k] = (pyom.area_v[:,j] * A[:,j,k] + pyom.area_v[:,j-1] * A[:,j-1,k]) / (2*pyom.area_t[:,j])
     return B
+
 
 def solve_tridiag(a, b, c, d):
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
     return lapack.dgtsv(a[1:],b,c[:-1],d)[3]
 
+
 def calc_diss(diss,K_diss,tag,pyom):
     diss_u = np.zeros_like(diss)
-
+    ks = np.zeros_like(pyom.kbot)
     if tag == 'U':
-        #ks = np.maximum(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
-        # dissipation interpolated on W-grid
-        for j in xrange(pyom.js_pe,pyom.je_pe): # j=js_pe,je_pe
-            for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i=is_pe-1,ie_pe
-                ks = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
-                if ks >= 0:
-                    k = ks
-                    diss_u[i,j,k] = 0.5 * (diss[i,j,k] + diss[i,j,k+1]) + 0.5 * diss[i,j,k] * pyom.dzw[max(0,k-1)] / pyom.dzw[k]
-                    for k in xrange(ks+1,pyom.nz-1): # k=ks+1,nz-1
-                        diss_u[i,j,k] = 0.5 * (diss[i,j,k] + diss[i,j,k+1])
-                    k = pyom.nz-1
-                    diss_u[i,j,k] = diss[i,j,k]
-        # dissipation interpolated from U-grid to T-grid
-        diss_u = ugrid_to_tgrid(diss_u,pyom)
-        return K_diss + diss_u
+        ks[1:-2,2:-2] = np.maximum(pyom.kbot[1:-2,2:-2],pyom.kbot[2:-1,2:-2]) - 1
+        interpolator = ugrid_to_tgrid
     elif tag == 'V':
-        # dissipation interpolated on W-grid
-        for j in xrange(pyom.js_pe-1,pyom.je_pe): # j=js_pe-1,je_pe
-            for i in xrange(pyom.is_pe,pyom.ie_pe): # i=is_pe,ie_pe
-                ks = max(pyom.kbot[i,j],pyom.kbot[i,j+1]) - 1
-                if ks >= 0:
-                    k=ks
-                    diss_u[i,j,k] = 0.5*(diss[i,j,k] + diss[i,j,k+1]) + 0.5 * diss[i,j,k] * pyom.dzw[max(0,k-1)] / pyom.dzw[k]
-                    for k in xrange(ks+1,pyom.nz-1): # k=ks+1,nz-1
-                        diss_u[i,j,k] = 0.5*(diss[i,j,k] + diss[i,j,k+1])
-                    k = pyom.nz-1
-                    diss_u[i,j,k] = diss[i,j,k]
-        # dissipation interpolated from V-grid to T-grid
-        diss_u = vgrid_to_tgrid(diss_u,pyom)
-        return K_diss + diss_u
+        ks[2:-2,1:-2] = np.maximum(pyom.kbot[2:-2,1:-2],pyom.kbot[2:-2,2:-1]) - 1
+        interpolator = vgrid_to_tgrid
     else:
-        raise ValueError("unknown tag {}".format(tag))
+        raise ValueError("unknown tag {} (must be 'U' or 'V')".format(tag))
+    diffusion.dissipation_on_wgrid(diss_u, pyom, aloc=diss, ks=ks)
+    return K_diss + interpolator(diss_u, pyom)

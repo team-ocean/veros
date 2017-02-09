@@ -1,6 +1,6 @@
 import numpy as np
 
-from climate.pyom import numerics
+import climate.pyom.numerics
 
 def pad_z_edges(array):
     """
@@ -44,4 +44,4 @@ def solve_implicit(ks, a, b, c, d, pyom, b_edge=None):
     b_tri[edge_mask] = b_edge[edge_mask]
     c_tri[:,:,:-1] = c[:,:,:-1]
     c_tri[:,:,-1] = 0.
-    return numerics.solve_tridiag(a_tri[water_mask],b_tri[water_mask],c_tri[water_mask],d[water_mask]), water_mask
+    return climate.pyom.numerics.solve_tridiag(a_tri[water_mask],b_tri[water_mask],c_tri[water_mask],d[water_mask]), water_mask

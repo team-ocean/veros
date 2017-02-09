@@ -4,7 +4,7 @@ import math
 from climate.pyom import cyclic, utilities
 
 
-def dissipation_on_wgrid(P, pyom, int_drhodX=None, aloc=None):
+def dissipation_on_wgrid(P, pyom, int_drhodX=None, aloc=None, ks=None):
     if aloc is None:
         aloc = np.zeros_like(P)
         aloc[1:-1,1:-1,:] = 0.5 * pyom.grav / pyom.rho_0 * ((int_drhodX[2:,1:-1,:]-int_drhodX[1:-1,1:-1,:]) * pyom.flux_east[1:-1,1:-1,:] \
@@ -13,10 +13,13 @@ def dissipation_on_wgrid(P, pyom, int_drhodX=None, aloc=None):
                           + 0.5 * pyom.grav / pyom.rho_0 * ((int_drhodX[1:-1,2:,:]-int_drhodX[1:-1,1:-1,:]) * pyom.flux_north[1:-1,1:-1,:] \
                                                            +(int_drhodX[1:-1,1:-1,:]-int_drhodX[1:-1,:-2,:]) * pyom.flux_north[1:-1,:-2,:]) \
                                                          / (pyom.dyt[None,1:-1,None] * pyom.cost[None,1:-1,None])
-    ks = pyom.kbot[:,:] - 1
+    if ks is None:
+        ks = pyom.kbot[:,:] - 1
+
     land_mask = (ks >= 0)
     edge_mask = land_mask[:, :, None] & (np.indices((pyom.nx+4, pyom.ny+4, pyom.nz-1))[2] == ks[:,:,None])
     water_mask = land_mask[:, :, None] & (np.indices((pyom.nx+4, pyom.ny+4, pyom.nz-1))[2] > ks[:,:,None])
+
     if np.count_nonzero(land_mask):
         dzw_pad = utilities.pad_z_edges(pyom.dzw)
         P[:, :, :-1][edge_mask] += (0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) + 0.5 * (aloc[:, :, :-1] * dzw_pad[None, None, :-3] / pyom.dzw[None, None, :-1]))[edge_mask]
