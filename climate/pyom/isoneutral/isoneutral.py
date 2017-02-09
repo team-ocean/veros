@@ -147,18 +147,8 @@ def check_isoneutral_slope_crit(pyom):
         delta1a = np.min(pyom.dxt[2:-2, None, None] * np.abs(pyom.cost[None, 2:-2, None]) * pyom.dzt[None, None, :] * ft1)
         delta1b = np.min(pyom.dyt[None, 2:-2, None] * pyom.dzt[None, None, :] * ft1)
         delta_iso1 = min(pyom.dzt[0] * ft1 * pyom.dxt[-1] * np.abs(pyom.cost[-1]), delta1a, delta1b)
-        #i = pyom.is_pe+pyom.onx
-        #j = pyom.js_pe+pyom.onx
-        #k = 0 # k=1
-        #for k in xrange(pyom.nz): # k=1,nz
-        #    for j in xrange(pyom.js_pe,pyom.je_pe):
-        #        for i in xrange(pyom.is_pe,pyom.ie_pe):
-        #            delta1a = pyom.dxt[i]*np.abs(pyom.cost[j])*pyom.dzt[k]*ft1
-        #            delta1b = pyom.dyt[j]*pyom.dzt[k]*ft1
-        #            if delta_iso1 > delta1a or delta_iso1 > delta1b:
-        #                delta_iso1 = min(delta1a,delta1b)
 
-        print ("diffusion grid factor delta_iso1 = {:.5e}".format(delta_iso1))
+        print("diffusion grid factor delta_iso1 = {}".format(delta_iso1))
         if delta_iso1 < pyom.iso_slopec:
             raise RuntimeError("""
                    Without latitudinal filtering, delta_iso1 is the steepest

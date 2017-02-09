@@ -27,14 +27,14 @@ class ACC2(PyOMLegacy):
 
      i=self.isoneutral_module
      i.enable_neutral_diffusion = 1
-     i.k_iso_0 = 1000.0
-     i.k_iso_steep = 500.0
+     i.K_iso_0 = 1000.0
+     i.K_iso_steep = 500.0
      i.iso_dslope = 0.005
      i.iso_slopec = 0.01
      i.enable_skew_diffusion = 1
 
      m.enable_hor_friction = 1
-     m.a_h = (2*m.degtom)**3*2e-11
+     m.A_h = (2*m.degtom)**3*2e-11
      m.enable_hor_friction_cos_scaling = 1
      m.hor_friction_cospower=1
 
@@ -51,7 +51,7 @@ class ACC2(PyOMLegacy):
      t.tke_mxl_choice = 2
      #t.enable_tke_superbee_advection = 1
 
-     m.k_gm_0 = 1000.0
+     m.K_gm_0 = 1000.0
      e=self.eke_module
      e.enable_eke = 1
      e.eke_k_max  = 1e4
@@ -148,5 +148,4 @@ class ACC2(PyOMLegacy):
 
 if __name__ == "__main__":
     simulation = ACC2()
-    simulation.setup()
-    simulation.run()
+    simulation.run(snapint = 86400*10.0, runlen = 86400 * 10.0) #365*86400.*200)

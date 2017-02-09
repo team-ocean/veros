@@ -16,21 +16,21 @@ def set_eke_diffusivities(pyom):
     set skew diffusivity K_gm and isopycnal diffusivity K_iso
     set also vertical viscosity if TEM formalism is chosen
     """
-    C_Rossby = np.zeros((pyom.nx+4, pyom.ny+4))
+    C_rossby = np.zeros((pyom.nx+4, pyom.ny+4))
 
     if pyom.enable_eke:
         """
         calculate Rossby radius as minimum of mid-latitude and equatorial R. rad.
         """
-        C_Rossby[...] = np.sum(np.sqrt(np.maximum(0.,pyom.Nsqr[:,:,:,pyom.tau])) * pyom.dzw[None, None, :] * pyom.maskW[:,:,:] / pyom.pi, axis=2)
-        pyom.L_Rossby[...] = np.minimum(C_Rossby / np.maximum(np.abs(pyom.coriolis_t), 1e-16), \
-                                          np.sqrt(C_Rossby / np.maximum(2 * pyom.beta, 1e-16)))
+        C_rossby[...] = np.sum(np.sqrt(np.maximum(0.,pyom.Nsqr[:,:,:,pyom.tau])) * pyom.dzw[None, None, :] * pyom.maskW[:,:,:] / pyom.pi, axis=2)
+        pyom.L_rossby[...] = np.minimum(C_rossby / np.maximum(np.abs(pyom.coriolis_t), 1e-16), \
+                                          np.sqrt(C_rossby / np.maximum(2 * pyom.beta, 1e-16)))
         """
         calculate vertical viscosity and skew diffusivity
         """
         pyom.sqrteke = np.sqrt(np.maximum(0.,pyom.eke[:,:,:,pyom.tau]))
-        pyom.L_Rhines[...] = np.sqrt(pyom.sqrteke / np.maximum(pyom.beta[...,None], 1e-16))
-        pyom.eke_len[...] = np.maximum(pyom.eke_lmin, np.minimum(pyom.eke_cross * pyom.L_Rossby[...,None], pyom.eke_crhin * pyom.L_Rhines))
+        pyom.L_rhines[...] = np.sqrt(pyom.sqrteke / np.maximum(pyom.beta[...,None], 1e-16))
+        pyom.eke_len[...] = np.maximum(pyom.eke_lmin, np.minimum(pyom.eke_cross * pyom.L_rossby[...,None], pyom.eke_crhin * pyom.L_rhines))
         pyom.K_gm[...] = np.minimum(pyom.eke_k_max, pyom.eke_c_k * pyom.eke_len * pyom.sqrteke)
     else: # enable_eke
         """

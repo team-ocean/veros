@@ -23,7 +23,7 @@ def pad_z_edges(array):
     return newarray
 
 
-def solve_implicit(ks, a, b, c, d, pyom, b_edge=None):
+def solve_implicit(ks, a, b, c, d, pyom, b_edge=None, d_edge=None):
     land_mask = (ks >= 0)[:,:,None]
     if not np.count_nonzero(land_mask):
         return np.zeros_like(land_mask), np.zeros_like(land_mask)
@@ -34,14 +34,16 @@ def solve_implicit(ks, a, b, c, d, pyom, b_edge=None):
     a_tri = np.zeros_like(a)
     b_tri = np.zeros_like(b)
     c_tri = np.zeros_like(c)
-
-    if b_edge is None:
-        b_edge = np.zeros_like(edge_mask)
+    d_tri = np.zeros_like(d)
 
     a_tri[:,:,1:] = a[:,:,1:]
     a_tri[edge_mask] = 0.
     b_tri[:,:,1:] = b[:,:,1:]
-    b_tri[edge_mask] = b_edge[edge_mask]
+    if not (b_edge is None):
+        b_tri[edge_mask] = b_edge[edge_mask]
     c_tri[:,:,:-1] = c[:,:,:-1]
     c_tri[:,:,-1] = 0.
-    return climate.pyom.numerics.solve_tridiag(a_tri[water_mask],b_tri[water_mask],c_tri[water_mask],d[water_mask]), water_mask
+    d_tri[...] = d
+    if not (d_edge is None):
+        d_tri[edge_mask] = d_edge[edge_mask]
+    return climate.pyom.numerics.solve_tridiag(a_tri[water_mask],b_tri[water_mask],c_tri[water_mask],d_tri[water_mask]), water_mask

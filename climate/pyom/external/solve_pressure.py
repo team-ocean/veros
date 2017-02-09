@@ -86,7 +86,6 @@ def make_coeff_surf_press(pyom):
              forc = 1/cos^2 ( (h p_x)_x + cos (cos h p_y )_y )
     -----------------------------------------------------------------------
     """
-    #real*8 :: cf(is_:ie_,js_:je_,3,3),maskM(is_:ie_,js_:je_)
     maskM = pyom.maskT[:,:,-1]
     cf = np.zeros((pyom.nx+4, pyom.ny+4, 3, 3))
     for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
@@ -133,7 +132,7 @@ def congrad_surf_press(forc, iterations, pyom):
         cf = make_coeff_surf_press(pyom)
         congrad_surf_press.first = False
 
-    apply_op(cf, pyom.psi[:,:,pyom.taup1], pyom, res) #  res = A *pyom.psi
+    apply_op(cf, pyom.psi[:,:,pyom.taup1], res, pyom) #  res = A *pyom.psi
     for j in xrange(pyom.js_pe, pyom.je_pe): #j=pyom.js_pe,pyom.je_pe
         for i in xrange(pyom.is_pe, pyom.ie_pe): #i=pyom.is_pe,pyom.ie_pe
             res[i,j] = forc[i,j]-res[i,j]
@@ -142,21 +141,21 @@ def congrad_surf_press(forc, iterations, pyom):
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(p)
-    rsold = dot_sfp(res,res)
+    rsold = dot_sfp(res,res,pyom)
 
-    for n in xrange(1, congr_max_iterations+1): #n=1,congr_max_iterations
+    for n in xrange(1, pyom.congr_max_iterations + 1): #n=1,congr_max_iterations
         """
         key algorithm
         """
-        apply_op(pyom.is_pe-onx,pyom.ie_pe+onx,pyom.js_pe-onx,pyom.je_pe+onx,cf, p, Ap) #  Ap = A *p
-        alpha = rsold/dot_sfp(pyom.is_pe-onx,pyom.ie_pe+onx,pyom.js_pe-onx,pyom.je_pe+onx,p,Ap)
+        apply_op(cf, p, Ap, pyom) #  Ap = A *p
+        alpha = rsold/dot_sfp(p,Ap,pyom)
         pyom.psi[:,:,pyom.taup1] += alpha*p
         res -= alpha*Ap
-        rsnew = dot_sfp(pyom.is_pe-onx,pyom.ie_pe+onx,pyom.js_pe-onx,pyom.je_pe+onx,res,res)
+        rsnew = dot_sfp(res,res,pyom)
         p = res+rsnew/rsold*p
         if pyom.enable_cyclic_x:
             cyclic.setcyclic_x(p)
-        rsold[...] = rsnew
+        rsold = rsnew
         """
         test for divergence
         """
@@ -166,42 +165,42 @@ def congrad_surf_press(forc, iterations, pyom):
             rs_min = min(rs_min, abs(rsnew))
             if abs(rsnew) > 100.0 * rs_min:
                 warnings.warn("solver diverging after {} iterations".format(n))
-                fail(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon)
+                fail(n, pyom.enable_congrad_verbose, estimated_error, pyom.congr_epsilon)
         """
         test for convergence
         """
-        smax = absmax_sfp(pyom.is_pe-onx,pyom.ie_pe+onx,pyom.js_pe-onx,pyom.je_pe+onx,p)
+        smax = absmax_sfp(p, pyom)
         step = abs(alpha) * smax
         if n == 1:
             step1 = step
             estimated_error = step
-            if step < congr_epsilon:
-                info(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon)
+            if step < pyom.congr_epsilon:
+                info(n, pyom.enable_congrad_verbose, estimated_error, pyom.congr_epsilon)
                 return
-        elif step < congr_epsilon:
-            convergence_rate = exp(log(step/step1)/(n-1))
+        elif step < pyom.congr_epsilon:
+            convergence_rate = np.exp(np.log(step/step1)/(n-1))
             estimated_error = step*convergence_rate/(1.0-convergence_rate)
-            if estimated_error < congr_epsilon:
-                info(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon)
+            if estimated_error < pyom.congr_epsilon:
+                info(n, pyom.enable_congrad_verbose, estimated_error, pyom.congr_epsilon)
                 return
         """
         check for NaN
         """
         if np.isnan(estimated_error):
             warnings.warn("estimated error is NaN at iteration step {}".format(n))
-            fail(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon)
+            fail(n, pyom.enable_congrad_verbose, estimated_error, pyom.congr_epsilon)
 
-    warnings.warn("max iterations exceeded at itt={}".format(itt))
-    fail(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon)
+    warnings.warn("max iterations exceeded at itt={}".format(pyom.itt))
+    fail(n, pyom.enable_congrad_verbose, estimated_error, pyom.congr_epsilon)
 
 congrad_surf_press.first = True
 
-def info(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon):
+def info(n, enable_congrad_verbose, estimated_error, congr_epsilon):
     if enable_congrad_verbose:
         print ' estimated error=',estimated_error,'/',congr_epsilon
         print ' iterations=',n
 
-def fail(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon):
+def fail(n, enable_congrad_verbose, estimated_error, congr_epsilon):
     print ' estimated error=',estimated_error,'/',congr_epsilon
     print ' iterations=',n
     # check for NaN
@@ -211,7 +210,7 @@ def fail(n, my_pe, enable_congrad_verbose, estimated_error, congr_epsilon):
         raise RuntimeError("error is NaN, stopping integration")
 
 
-def apply_op(cf, p1, pyom, res):
+def apply_op(cf, p1, res, pyom):
     """
     apply operator A,  res = A *p1
     """
@@ -251,7 +250,7 @@ def absmax_sfp(p1,pyom):
     s2 = 0
     for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
         for i in xrange(pyom.is_pe, pyom.ie_pe+1): #i=pyom.is_pe,pyom.ie_pe
-            s2 = max( abs(p1[i,j]*pyom.maskT[i,j,pyom.nz]), s2 )
+            s2 = max(abs(p1[i,j]*pyom.maskT[i,j,-1]), s2)
             #s2 = max( abs(p1(i,j)), s2 )
     return s2
 
@@ -264,6 +263,6 @@ def dot_sfp(p1,p2,pyom):
     s2 = 0
     for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
         for i in xrange(pyom.is_pe, pyom.ie_pe+1): #i=pyom.is_pe,pyom.ie_pe
-            s2 = s2+p1[i,j]*p2[i,j]*pyom.maskT[i,j,pyom.nz]
+            s2 = s2+p1[i,j]*p2[i,j]*pyom.maskT[i,j,-1]
             #s2 = s2+p1(i,j)*p2(i,j)
     return s2

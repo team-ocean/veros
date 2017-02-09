@@ -24,7 +24,8 @@ class MomentumTest(PyOMTest):
                         "enable_bottom_friction": False,
                         "enable_quadratic_bottom_friction": False,
                         "enable_momentum_sources": False,
-                        "enable_streamfunction": False,
+                        "enable_streamfunction": True,
+                        "congr_max_iterations": 0,
                      }
     def initialize(self):
         m = self.pyom_legacy.main_module

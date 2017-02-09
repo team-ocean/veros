@@ -5,6 +5,7 @@ from climate.io import wrapper
 from climate import Timer
 from climate.pyom import momentum, numerics, thermodynamics, eke, tke, idemix
 from climate.pyom import isoneutral, external, diagnostics, non_hydrostatic
+from climate.pyom import advection, restart, cyclic
 
 class PyOM(object):
     """
@@ -308,6 +309,14 @@ class PyOM(object):
         self.eke_r_bot = 0.0 # bottom friction coefficient
         self.eke_hrms_k0_min = 0.0 # min value for bottom roughness parameter
 
+        """
+        New
+        """
+        self.diagnostics = []
+        self.timers = {k: Timer(k) for k in ("setup","main","momentum","temperature",
+                                             "eke","idemix","tke","diagnostics",
+                                             "pressure","friction","isoneutral",
+                                             "vmix","eq_of_state")}
 
     def allocate(self):
         self.xt = np.zeros(self.nx+4)
@@ -539,44 +548,41 @@ class PyOM(object):
                 self.eke_lee_flux = np.zeros((self.nx+4, self.ny+4))
                 self.c_Ri_diss = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        """
-        New
-        """
-        self.diagnostics = []
-        self.timers = {k: Timer(k) for k in ("main","momentum","temperature",
-                                             "eke","idemix","tke","diagnostics",
-                                             "pressure","friction","isoneutral",
-                                             "vmix","eq_of_state")}
 
 
     def run(self, snapint, runlen):
+        self.runlen = runlen
+        self.snapint = snapint
+
         with self.timers["setup"]:
             """
             Initialize model
             """
             self.setup()
+
             """
             read restart if present
             """
             print("Reading restarts:")
-            read_restart(self.itt)
-            if enable_diag_averages:
+            restart.read_restart(self.itt)
+
+            if self.enable_diag_averages:
                 diagnostics.diag_averages_read_restart(self)
-            if enable_diag_energy:
+            if self.enable_diag_energy:
                 raise NotImplementedError()
                 diagnostics.diag_energy_read_restart(self)
-            if enable_diag_overturning:
+            if self.enable_diag_overturning:
                 raise NotImplementedError()
                 diagnostics.diag_over_read_restart(self)
-            if enable_diag_particles:
+            if self.enable_diag_particles:
                 raise NotImplementedError()
                 diagnostics.particles_read_restart(self)
 
             self.enditt = self.itt + int(self.runlen / self.dt_tracer)
-            print("Starting integration for ",self.runlen," s")
-            print(" from time step ",self.itt," to ",self.enditt)
+            print("Starting integration for {:.2e}s".format(self.runlen))
+            print(" from time step {} to {}".format(self.itt,self.enditt))
 
-        while self.itt < endtt:
+        while self.itt < self.enditt:
             with self.timers["main"]:
                 self.set_forcing()
 
@@ -585,6 +591,9 @@ class PyOM(object):
                 if self.enable_idemix_M2 or self.enable_idemix_niw:
                     idemix.set_spectral_parameter(self)
 
+                eke.set_eke_diffusivities(self)
+                tke.set_tke_diffusivities(self)
+
                 with self.timers["momentum"]:
                     momentum.momentum(self)
 
@@ -592,7 +601,7 @@ class PyOM(object):
                     thermodynamics.thermodynamics(self)
 
                 if self.enable_eke or self.enable_tke or self.enable_idemix:
-                    numerics.calculate_velocity_on_wgrid(self)
+                    advection.calculate_velocity_on_wgrid(self)
 
                 with self.timers["eke"]:
                     if self.enable_eke:
@@ -643,24 +652,25 @@ class PyOM(object):
             #self.tau = self.taup1
             #self.taup1 = self.otaum1
             self.itt += 1
+            print("Current iteration: {}".format(self.itt))
 
         print("Timing summary:")
-        print(" setup time summary       = ",setupTimer.getTime()," s")
-        print(" main loop time summary   = ",mainTimer.getTime() ," s")
-        print("     momentum             = ",momTimer.getTime() ," s")
-        print("       pressure           = ",pressTimer.getTime() ," s")
-        print("       friction           = ",fricTimer.getTime() ," s")
-        print("     thermodynamics       = ",tempTimer.getTime() ," s")
-        print("       lateral mixing     = ",isoTimer.getTime() ," s")
-        print("       vertical mixing    = ",vmixTimer.getTime() ," s")
-        print("       equation of state  = ",eqOfStateTimer.getTime() ," s")
-        print("     EKE                  = ",ekeTimer.getTime() ," s")
-        print("     IDEMIX               = ",idemixTimer.getTime() ," s")
-        print("     TKE                  = ",tkeTimer.getTime() ," s")
-        print(" diagnostics              = ",diagTimer.getTime() ," s")
+        print(" setup time summary       = {}s".format(self.timers["setup"].getTime()))
+        print(" main loop time summary   = {}s".format(self.timers["main"].getTime()))
+        print("     momentum             = {}s".format(self.timers["momentum"].getTime()))
+        print("       pressure           = {}s".format(self.timers["pressure"].getTime()))
+        print("       friction           = {}s".format(self.timers["friction"].getTime()))
+        print("     thermodynamics       = {}s".format(self.timers["temperature"].getTime()))
+        print("       lateral mixing     = {}s".format(self.timers["isoneutral"].getTime()))
+        print("       vertical mixing    = {}s".format(self.timers["vmix"].getTime()))
+        print("       equation of state  = {}s".format(self.timers["eq_of_state"].getTime()))
+        print("     EKE                  = {}s".format(self.timers["eke"].getTime()))
+        print("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
+        print("     TKE                  = {}s".format(self.timers["tke"].getTime()))
+        print(" diagnostics              = {}s".format(self.timers["diagnostics"].getTime()))
 
     def setup(self):
-        print "setting up everything"
+        print("setting up everything")
 
         """
         allocate everything

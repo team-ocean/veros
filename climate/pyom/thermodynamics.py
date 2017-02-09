@@ -219,7 +219,7 @@ def advect_salinity(pyom):
     return advect_tracer(pyom.salt[..., pyom.tau], pyom.dsalt[..., pyom.tau], pyom)
 
 
-def calc_eq_of_state(n,pyom):
+def calc_eq_of_state(n, pyom):
     """
     calculate density, stability frequency, dynamic enthalpy and derivatives
     for time level n from temperature and salinity
@@ -243,5 +243,5 @@ def calc_eq_of_state(n,pyom):
     new stability frequency
     """
     fxa = -pyom.grav / pyom.rho_0 / pyom.dzw[None, None, :-1] * pyom.maskW[:, :, :-1]
-    pyom.Nsqr[:, :, :-1, n] = fxa * (density.get_rho(pyom.salt[:,:,1:,n], pyom.temp[:,:,1:,n], abs(pyom.zt), pyom) - pyom.rho[:,:,:-1,n])
+    pyom.Nsqr[:, :, :-1, n] = fxa * (density.get_rho(pyom.salt[:,:,1:,n], pyom.temp[:,:,1:,n], abs(pyom.zt[1:]), pyom) - pyom.rho[:,:,:-1,n])
     pyom.Nsqr[:,:,-1,n] = pyom.Nsqr[:,:,-2,n]

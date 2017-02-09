@@ -1,75 +1,54 @@
 import numpy as np
 
-from climate.pyom import advection, numerics
+from climate.pyom import advection, numerics, utilities
 
 def set_idemix_parameter(pyom):
     """
     set main IDEMIX parameter
     """
-    for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx): # j = js_pe-onx,je_pe+onx
-        for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx): # i = is_pe-onx,ie_pe+onx
-            bN0 = 0.0
-            for k in xrange(pyom.nz-1): # k = 1,nz-1
-                bN0 = bN0 + max(0., pyom.Nsqr[i,j,k,pyom.tau])**0.5 * pyom.dzw[k] * pyom.maskW[i,j,k]
-            bN0 = bN0 + max(0., pyom.Nsqr(i,j,pyom.nz,pyom.tau))**0.5 * 0.5 * pyom.dzw[pyom.nz] * pyom.maskW[i,j,pyom.nz]
-            for k in xrange(pyom.nz): # k = 1,nz
-                fxa = max(0., pyom.Nsqr[i,j,k,pyom.tau])**0.5 / (1e-22 + abs(pyom.coriolis_t(i,j)))
-                cstar = max(1e-2, bN0 / (pyom.pi*pyom.jstar))
-                c0[i,j,k] = max(0., gamma * cstar * gofx2(fxa) * pyom.maskW[i,j,k])
-                v0[i,j,k] = max(0., gamma * cstar * hofx1(fxa) * pyom.maskW[i,j,k])
-                pyom.alpha_c[i,j,k] = max(1e-4, mu0*np.arccosh(max(1.,fxa))*abs(pyom.coriolis_t(i,j))/cstar**2) * pyom.maskW[i,j,k]
+    bN0 = np.sum(np.sqrt(np.maximum(0., pyom.Nsqr[:,:,:-1,pyom.tau])) * pyom.dzw[None, None, :-1] * pyom.maskW[:,:,:-1], axis=2)
+    bN0 += np.sqrt(np.maximum(0., pyom.Nsqr[:,:,-1,pyom.tau])) * 0.5 * pyom.dzw[-1] * pyom.maskW[:,:,-1]
+    fxa = np.sqrt(np.maximum(0., pyom.Nsqr[...,pyom.tau])) / (1e-22 + np.abs(pyom.coriolis_t[...,None]))
+    cstar = np.maximum(1e-2, bN0[:,:,None] / (pyom.pi * pyom.jstar))
+    pyom.c0[...] = np.maximum(0., pyom.gamma * cstar * gofx2(fxa,pyom) * pyom.maskW)
+    pyom.v0[...] = np.maximum(0., pyom.gamma * cstar * hofx1(fxa,pyom) * pyom.maskW)
+    pyom.alpha_c[...] = np.maximum(1e-4, pyom.mu0 * np.arccosh(np.maximum(1.,fxa)) * np.abs(pyom.coriolis_t[...,None]) / cstar**2) * pyom.maskW
 
 
 def integrate_idemix(pyom):
     """
     integrate idemix on W grid
     """
-    # real*8 :: a_tri(pyom.nz),b_tri(pyom.nz),c_tri(pyom.nz),d_tri(pyom.nz),delta(pyom.nz)
-    # real*8 :: forc(pyom.is_pe-pyom.onx:pyom.ie_pe+pyom.onx,pyom.js_pe-pyom.onx:pyom.je_pe+pyom.onx,pyom.nz)
-    # real*8 :: maxE_iw(pyom.is_pe-pyom.onx:pyom.ie_pe+pyom.onx,pyom.js_pe-pyom.onx:pyom.je_pe+pyom.onx,pyom.nz)
-    # real*8 :: a_loc(pyom.is_pe-pyom.onx:pyom.ie_pe+pyom.onx,pyom.js_pe-pyom.onx:pyom.je_pe+pyom.onx)
-    a_tri = np.zeros(pyom.nz)
-    b_tri = np.zeros(pyom.nz)
-    c_tri = np.zeros(pyom.nz)
-    d_tri = np.zeros(pyom.nz)
+    a_tri, b_tri, c_tri, d_tri, delta = (np.zeros((pyom.nx, pyom.ny, pyom.nz)) for _ in range(5))
     forc = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
     maxE_iw = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
-    a_loc = np.zeros((pyom.nx+4, pyom.ny+4))
-
-    ke = pyom.nz-1
 
     """
     forcing by EKE dissipation
     """
     if pyom.enable_eke:
-        forc = pyom.eke_diss_iw
+        forc[...] = pyom.eke_diss_iw
     else: # shortcut without EKE model
         if pyom.enable_store_cabbeling_heat:
-            forc = pyom.K_diss_gm + pyom.K_diss_h - pyom.P_diss_skew - pyom.P_diss_hmix  - pyom.P_diss_iso
+            forc[...] = pyom.K_diss_gm + pyom.K_diss_h - pyom.P_diss_skew - pyom.P_diss_hmix  - pyom.P_diss_iso
         else:
-            forc = pyom.K_diss_gm + pyom.K_diss_h - pyom.P_diss_skew
+            forc[...] = pyom.K_diss_gm + pyom.K_diss_h - pyom.P_diss_skew
 
     if pyom.enable_eke and (pyom.enable_eke_diss_bottom or pyom.enable_eke_diss_surfbot):
         """
         vertically integrate EKE dissipation and inject at bottom and/or surface
         """
-        a_loc[...] = 0.
-        for k in xrange(pyom.nz-1): # k = 1,nz-1
-            a_loc += pyom.dzw[k] * forc[:,:,k] * pyom.maskW[:,:,k]
-        k = pyom.nz-1
-        a_loc = a_loc + 0.5*pyom.dzw(k)*forc[:,:,k]*pyom.maskW[:,:,k]
+        a_loc = np.sum(pyom.dzw[None, None, :-1] * forc[:,:,:-1] * pyom.maskW[:,:,:-1], axis=2)
+        a_loc += 0.5 * pyom.dzw[-1] * forc[:,:,-1] * pyom.maskW[:,:,-1]
         forc[...] = 0.
+
+        ks = np.maximum(0, pyom.kbot[2:-2, 2:-2] - 1)
+        mask = ks[:,:,None] == np.indices((pyom.nx, pyom.ny, pyom.nz))[2]
         if pyom.enable_eke_diss_bottom:
-            for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-                for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                    ks = max(0,pyom.kbot[i,j]-1)
-                    forc[i,j,ks] = a_loc[i,j] / pyom.dzw[ks]
+            forc[2:-2, 2:-2, :][mask] = (a_loc[2:-2, 2:-2, None] / pyom.dzw[None, None, :])[mask]
         else:
-            for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-                for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                    ks = max(0,pyom.kbot[i,j]-1)
-                    forc[i,j,ks] = pyom.eke_diss_surfbot_frac * a_loc[i,j] / pyom.dzw[ks]
-                    forc[i,j,ke] = (1.-pyom.eke_diss_surfbot_frac) * a_loc[i,j] / (0.5*pyom.dzw[ke])
+            forc[2:-2, 2:-2, :][mask] = (pyom.eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, None] / pyom.dzw[None, None, :])[mask]
+            forc[2:-2, 2:-2, -1] = (1. - pyom.eke_diss_surfbot_frac) * a_loc[2:-2, 2:-2] / (0.5 * pyom.dzw[-1])
 
     """
     forcing by bottom friction
@@ -83,57 +62,50 @@ def integrate_idemix(pyom):
     maxE_iw[...] = np.maximum(0., pyom.E_iw[:,:,:,pyom.tau])
 
     """
-    vertical diffusion and dissipation is solved implicitely
+    vertical diffusion and dissipation is solved implicitly
     """
-    for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-        for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-            ks = pyom.kbot[i,j] - 1
-            if ks >= 0:
-                for k in xrange(ks,ke-1): # k = ks,ke-1
-                    delta[k] = pyom.dt_tracer * tau_v / pyom.dzt[k+1] * 0.5 * (c0[i,j,k]+c0[i,j,k+1])
-                delta[ke] = 0.0
-                for k in xrange(ks+1,ke-1): # k = ks+1,ke-1
-                    a_tri[k] = -delta[k-1]*c0[i,j,k-1]/pyom.dzw[k]
-                a_tri[ks] = 0.0
-                a_tri[ke] = -delta[ke-1] / (0.5*pyom.dzw[ke]) * c0[i,j,ke-1]
-                for k in xrange(ks+1,ke-1): # k = ks+1,ke-1
-                    b_tri[k] = 1 + delta[k] * c0[i,j,k] / pyom.dzw[k] + delta[k-1] * c0[i,j,k] / pyom.dzw[k] \
-                                 + pyom.dt_tracer * pyom.alpha_c[i,j,k] * maxE_iw[i,j,k]
-                b_tri[ke] = 1 + delta[ke-1] / (0.5*pyom.dzw[ke]) * c0[i,j,ke] + pyom.dt_tracer * pyom.alpha_c[i,j,ke] * maxE_iw[i,j,ke]
-                b_tri[ks] = 1 + delta[ks] / pyom.dzw[ks] * c0[i,j,ks] + pyom.dt_tracer * pyom.alpha_c[i,j,ks] * maxE_iw[i,j,ks]
-                for k in xrange(ks,ke-1): # k = ks,ke-1
-                    c_tri[k] = -delta[k] / pyom.dzw[k] * c0[i,j,k+1]
-                c_tri[ke] = 0.0
-                d_tri[ks:] = pyom.E_iw[i,j,ks:,pyom.tau] + pyom.dt_tracer * forc[i,j,ks:]
-                d_tri[ks] += pyom.dt_tracer * pyom.forc_iw_bottom[i,j] / pyom.dzw[ks]
-                d_tri[ke] += pyom.dt_tracer * pyom.forc_iw_surface[i,j] / (0.5*pyom.dzw[ke])
-                pyom.E_iw[i,j,ks:,taup1] = numerics.solve_tridiag(a_tri[ks:],b_tri[ks:],c_tri[ks:],d_tri[ks:])
+    ks = pyom.kbot[2:-2, 2:-2] - 1
+    delta[:,:,:-1] = pyom.dt_tracer * pyom.tau_v / pyom.dzt[None, None, 1:] * 0.5 \
+                     * (pyom.c0[2:-2, 2:-2, :-1] + pyom.c0[2:-2, 2:-2, 1:])
+    delta[:,:,-1] = 0.
+    a_tri[:,:,1:-1] = -delta[:,:,:-2] * pyom.c0[2:-2,2:-2,:-2] / pyom.dzw[None, None, 1:-1]
+    a_tri[:,:,-1] = -delta[:,:,-2] / (0.5 * pyom.dzw[-1]) * pyom.c0[2:-2,2:-2,-2]
+    b_tri[:,:,1:-1] = 1 + delta[:,:,1:-1] * pyom.c0[2:-2, 2:-2, 1:-1] / pyom.dzw[None, None, 1:-1] \
+                      + delta[:,:,:-2] * pyom.c0[2:-2, 2:-2, 1:-1] / pyom.dzw[None, None, 1:-1] \
+                      + pyom.dt_tracer * pyom.alpha_c[2:-2, 2:-2, 1:-1] * maxE_iw[2:-2, 2:-2, 1:-1]
+    b_tri[:,:,-1] = 1 + delta[:,:,-2] / (0.5 * pyom.dzw[-1]) * pyom.c0[2:-2, 2:-2, -1] \
+                    + pyom.dt_tracer * pyom.alpha_c[2:-2, 2:-2, -1] * maxE_iw[2:-2, 2:-2, -1]
+    b_tri_edge = 1 + delta / pyom.dzw * pyom.c0[2:-2, 2:-2, :] \
+                 + pyom.dt_tracer * pyom.alpha_c[2:-2, 2:-2, :] * maxE_iw[2:-2, 2:-2, :]
+    c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzw[None, None, :-1] * pyom.c0[2:-2, 2:-2, 1:]
+    d_tri[...] = pyom.E_iw[2:-2, 2:-2, :, pyom.tau] + pyom.dt_tracer * forc[2:-2, 2:-2, :]
+    d_tri_edge = d_tri + pyom.dt_tracer * pyom.forc_iw_bottom[2:-2, 2:-2, None] / pyom.dzw[None, None, :]
+    d_tri[:,:,-1] += pyom.dt_tracer * pyom.forc_iw_surface[2:-2, 2:-2] / (0.5 * pyom.dzw[-1])
+    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge, d_edge=d_tri_edge)
+    pyom.E_iw[2:-2, 2:-2, :, pyom.taup1][water_mask] = sol
 
     """
     store IW dissipation
     """
-    pyom.iw_diss = pyom.alpha_c * maxE_iw[:,:,:] * pyom.E_iw[:,:,:,taup1]
+    pyom.iw_diss[...] = pyom.alpha_c * maxE_iw * pyom.E_iw[...,pyom.taup1]
 
     """
     add tendency due to lateral diffusion
     """
     if pyom.enable_idemix_hor_diffusion:
-        for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx): # j = js_pe-onx,je_pe+onx
-            for i in xrange(pyom.is_pe-pyom.onx,pyom.ie_pe+pyom.onx-1): # i = is_pe-onx,ie_pe+onx-1
-                pyom.flux_east[i,j,:] = tau_h * 0.5 * (v0[i+1,j,:] + v0[i,j,:]) \
-                                        * (v0[i+1,j,:] * pyom.E_iw[i+1,j,:,pyom.tau] - v0[i,j,:] * pyom.E_iw[i,j,:,pyom.tau]) \
-                                        / (pyom.cost[j] * dxu[i]) * pyom.maskU[i,j,:]
-        pyom.flux_east[pyom.ie_pe-pyom.onx,:,:] = 0. # NOTE: should this really be ie_pe-onx instead of ie_pe+onx?
-        for j in xrange(pyom.js_pe-pyom.onx,pyom.je_pe+pyom.onx-1): # j = js_pe-onx,je_pe+onx-1
-            pyom.flux_north[:,j,:] = tau_h * 0.5 * (v0[:,j+1,:] + v0[:,j,:]) \
-                                     * (v0[:,j+1,:] * pyom.E_iw[:,j+1,:,pyom.tau] - v0[:,j,:] * pyom.E_iw[:,j,:,pyom.tau]) \
-                                     / dyu[j] * pyom.maskV[:,j,:] * pyom.cosu[j]
-        pyom.flux_north[:,pyom.je_pe+pyom.onx-1,:] = 0.
-        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                pyom.E_iw[i,j,:,taup1] += pyom.dt_tracer*pyom.maskW[i,j,:] \
-                                        * ((pyom.flux_east[i,j,:] - pyom.flux_east[i-1,j,:])/(pyom.cost[j]*pyom.dxt[i]) \
-                                        + (pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:])/(pyom.cost[j]*pyom.dyt[j]))
+        pyom.flux_east[:-1,:,:] = pyom.tau_h * 0.5 * (pyom.v0[1:,:,:] + pyom.v0[:-1,:,:]) \
+                                * (pyom.v0[1:,:,:] * pyom.E_iw[1:,:,:,pyom.tau] - pyom.v0[:-1,:,:] * pyom.E_iw[:-1,:,:,pyom.tau]) \
+                                / (pyom.cost[None, :, None] * pyom.dxu[:-1, None, None]) * pyom.maskU[:-1,:,:]
+        pyom.flux_east[-5,:,:] = 0. # NOTE: probably a mistake in the fortran code, first index should be -1
+        pyom.flux_north[:,:-1,:] = pyom.tau_h * 0.5 * (pyom.v0[:,1:,:] + pyom.v0[:,:-1,:]) \
+                                 * (pyom.v0[:,1:,:] * pyom.E_iw[:,1:,:,pyom.tau] - pyom.v0[:,:-1,:] * pyom.E_iw[:,:-1,:,pyom.tau]) \
+                                 / pyom.dyu[None, :-1, None] * pyom.maskV[:,:-1,:] * pyom.cosu[None, :-1, None]
+        pyom.flux_north[:,-1,:] = 0.
+        pyom.E_iw[2:-2, 2:-2, :, pyom.taup1] += pyom.dt_tracer * pyom.maskW[2:-2,2:-2,:] \
+                                * ((pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
+                                    / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
+                                    + (pyom.flux_north[2:-2, 2:-2, :] - pyom.flux_north[2:-2, 1:-3, :]) \
+                                    / (pyom.cost[None, 2:-2, None] * pyom.dyt[None, 2:-2, None]))
 
     """
     add tendency due to advection
@@ -145,28 +117,26 @@ def integrate_idemix(pyom):
         advection.adv_flux_upwind_wgrid(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.E_iw[:,:,:,pyom.tau],pyom)
 
     if pyom.enable_idemix_superbee_advection or pyom.enable_idemix_upwind_advection:
-        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                dE_iw[i,j,:,pyom.tau] = pyom.maskW[i,j,:] * (-(pyom.flux_east[i,j,:] -  pyom.flux_east[i-1,j,:]) / (pyom.cost[j] * pyom.dxt[i]) \
-                                                             -(pyom.flux_north[i,j,:] - pyom.flux_north[i,j-1,:]) / (pyom.cost[j] * pyom.dyt[j]))
-        k = 0
-        dE_iw[:,:,k,pyom.tau] = dE_iw[:,:,k,pyom.tau] - pyom.flux_top[:,:,k] / pyom.dzw[k]
-        for k in xrange(1,pyom.nz-1): # k = 2,nz-1
-            dE_iw[:,:,k,pyom.tau] = dE_iw[:,:,k,pyom.tau] - (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1]) / pyom.dzw[k]
-        k = pyom.nz - 1
-        dE_iw[:,:,k,pyom.tau] = dE_iw[:,:,k,pyom.tau] - (pyom.flux_top[:,:,k] - pyom.flux_top[:,:,k-1]) / (0.5*pyom.dzw[k])
+        pyom.dE_iw[2:-2, 2:-2, :, pyom.tau] = pyom.maskW[2:-2, 2:-2, :] * (-(pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
+                                                                                / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
+                                                                           - (pyom.flux_north[2:-2, 2:-2, :] - pyom.flux_north[2:-2, 1:-3, :]) \
+                                                                                / (pyom.cost[None, 2:-2, None] * pyom.dyt[None, 2:-2, None]))
+        pyom.dE_iw[:,:,0,pyom.tau] += -pyom.flux_top[:,:,0] / pyom.dzw[0]
+        pyom.dE_iw[:,:,1:-1,pyom.tau] += -(pyom.flux_top[:,:,1:-1] - pyom.flux_top[:,:,:-2]) / pyom.dzw[None, None, 1:-1]
+        pyom.dE_iw[:,:,-1,pyom.tau] += -(pyom.flux_top[:,:,-1] - pyom.flux_top[:,:,-2]) / (0.5 * pyom.dzw[-1])
+
         """
         Adam Bashforth time stepping
         """
-        pyom.E_iw[:,:,:,taup1] += pyom.dt_tracer * ((1.5 + pyom.AB_eps) * dE_iw[:,:,:,pyom.tau] \
-                                                  - (0.5 + pyom.AB_eps) * dE_iw[:,:,:,pyom.taum1])
+        pyom.E_iw[:,:,:,pyom.taup1] += pyom.dt_tracer * ((1.5 + pyom.AB_eps) * pyom.dE_iw[:,:,:,pyom.tau] \
+                                                       - (0.5 + pyom.AB_eps) * pyom.dE_iw[:,:,:,pyom.taum1])
 
 
 def gofx2(x,pyom):
     """
     a function g(x)
     """
-    x = max(3.,x)
+    x[x < 3.] = 3. # NOTE: probably a mistake in the fortran code, should just set x locally
     c = 1.-(2./pyom.pi) * np.arcsin(1./x)
     return 2. / pyom.pi / c * 0.9 * x**(-2./3.) * (1 - np.exp(-x/4.3))
 

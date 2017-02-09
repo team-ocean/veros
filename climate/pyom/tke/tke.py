@@ -106,7 +106,6 @@ def integrate_tke(pyom):
             else:
                 forc[...] += pyom.K_diss_gm + pyom.K_diss_h - pyom.P_diss_skew
         forc[...] += pyom.K_diss_bot
-    print(np.max(forc), np.min(forc))
 
     """
     vertical mixing and dissipation of TKE
