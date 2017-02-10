@@ -1,6 +1,7 @@
 import numpy as np
 
 import climate.pyom.diagnostics
+from climate.pyom import isoneutral
 
 def init_diagnostics(pyom):
     """
@@ -17,7 +18,7 @@ def init_diagnostics(pyom):
 
     if pyom.enable_diag_snapshots:
         print("writing snapshots every {} seconds/{} time steps".format(pyom.snapint,pyom.snapint/pyom.dt_tracer))
-        diagnostics.init_snap_cdf()
+        diagnostics.init_snap_cdf(pyom)
 
     if pyom.enable_diag_averages:
         print("writing time averages every {} seconds/{} time steps".format(pyom.aveint,pyom.aveint/pyom.dt_tracer))
@@ -26,18 +27,18 @@ def init_diagnostics(pyom):
     if pyom.enable_diag_energy:
         print("writing energetics every {} seconds/{} time steps".format(pyom.energint,pyom.energint/pyom.dt_tracer))
         print(" diagnosing every {} time step".format(pyom.energfreq/pyom.dt_tracer))
-        diagnostics.init_diag_energy()
+        diagnostics.init_diag_energy(pyom)
 
     if pyom.enable_diag_overturning:
         print("writing isopyc. overturning every {} seconds/{} time steps".format(pyom.overint,pyom.overint/pyom.dt_tracer))
         print(" diagnosing every {} time step".format(pyom.overfreq/pyom.dt_tracer))
-        diagnostics.init_diag_overturning()
+        diagnostics.init_diag_overturning(pyom)
 
     if pyom.enable_diag_particles:
         print("writing particles every {} seconds/{} time steps".format(pyom.particles_int,pyom.particles_int/pyom.dt_tracer))
-        diagnostics.set_particles()
-        diagnostics.init_diag_particles()
-        diagnostics.init_write_particles()
+        diagnostics.set_particles(pyom)
+        diagnostics.init_diag_particles(pyom)
+        diagnostics.init_write_particles(pyom)
 
 
 def diagnose(pyom):
@@ -46,51 +47,51 @@ def diagnose(pyom):
     """
     diagnostics = climate.pyom.diagnostics
     GM_strfct_diagnosed = False
-    time = pyom.itt*pyom.dt_tracer
+    time = pyom.itt * pyom.dt_tracer
 
     if pyom.enable_diag_ts_monitor and time % pyom.ts_monint < pyom.dt_tracer:
         print("itt={} time={}s congr.itts={}".format(pyom.itt,time,pyom.congr_itts))
         if not pyom.enable_hydrostatic:
-            print("congr. non hydro itts={}".format(congr_itts_non_hydro))
-        diag_cfl()
+            print("congr. non hydro itts={}".format(pyom.congr_itts_non_hydro))
+        diagnostics.diag_cfl(pyom)
 
     if pyom.enable_diag_tracer_content and time % pyom.trac_cont_int < pyom.dt_tracer:
-        diag_tracer_content()
+        diagnostics.diag_tracer_content(pyom)
 
     if pyom.enable_diag_energy and time % pyom.energfreq < pyom.dt_tracer:
-        diagnose_energy()
+        diagnostics.diagnose_energy(pyom)
 
     if pyom.enable_diag_energy and time % pyom.energint < pyom.dt_tracer:
-        write_energy()
+        diagnostics.write_energy(pyom)
 
     if pyom.enable_diag_averages and time % pyom.avefreq < pyom.dt_tracer:
         if pyom.enable_neutral_diffusion and pyom.enable_skew_diffusion and not GM_strfct_diagnosed:
-            isoneutral_diag_streamfunction()
+            isoneutral.isoneutral_diag_streamfunction(pyom)
             GM_strfct_diagnosed = True
-        diag_averages()
+        diagnostics.diag_averages(pyom)
 
     if pyom.enable_diag_averages and time % pyom.aveint < pyom.dt_tracer:
-        write_averages()
+        diagnostics.write_averages(pyom)
 
     if pyom.enable_diag_snapshots and time % pyom.snapint < pyom.dt_tracer:
-        if pyom.enable_neutral_diffusion and pyom.enable_skew_diffusion and not pyom.GM_strfct_diagnosed:
-            isoneutral_diag_streamfunction()
+        if pyom.enable_neutral_diffusion and pyom.enable_skew_diffusion and not GM_strfct_diagnosed:
+            isoneutral.isoneutral_diag_streamfunction(pyom)
             GM_strfct_diagnosed = True
-        diag_snap()
+        diagnostics.diag_snap(pyom)
 
     if pyom.enable_diag_overturning and time % pyom.overfreq < pyom.dt_tracer:
         if pyom.enable_neutral_diffusion and pyom.enable_skew_diffusion and not GM_strfct_diagnosed:
-            isoneutral_diag_streamfunction()
+            isoneutral.isoneutral_diag_streamfunction(pyom)
             GM_strfct_diagnosed = True
-        diag_overturning()
+        diagnostics.diag_overturning(pyom)
 
     if pyom.enable_diag_overturning and time % pyom.overint < pyom.dt_tracer:
-        write_overturning()
+        diagnostics.write_overturning(pyom)
 
     if pyom.enable_diag_particles:
-        integrate_particles()
+        diagnostics.integrate_particles(pyom)
         if time % pyom.particles_int < pyom.dt_tracer:
-            write_particles()
+            diagnostics.write_particles(pyom)
 
 
 def diag_cfl(pyom):

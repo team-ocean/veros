@@ -313,6 +313,7 @@ class PyOM(object):
         New
         """
         self.diagnostics = []
+        self.average_nitts = 0
         self.timers = {k: Timer(k) for k in ("setup","main","momentum","temperature",
                                              "eke","idemix","tke","diagnostics",
                                              "pressure","friction","isoneutral",
@@ -583,76 +584,80 @@ class PyOM(object):
             print(" from time step {} to {}".format(self.itt,self.enditt))
 
         while self.itt < self.enditt:
-            with self.timers["main"]:
-                self.set_forcing()
+            try:
+                with self.timers["main"]:
+                    self.set_forcing()
 
-                if self.enable_idemix:
-                    idemix.set_idemix_parameter(self)
-                if self.enable_idemix_M2 or self.enable_idemix_niw:
-                    idemix.set_spectral_parameter(self)
-
-                eke.set_eke_diffusivities(self)
-                tke.set_tke_diffusivities(self)
-
-                with self.timers["momentum"]:
-                    momentum.momentum(self)
-
-                with self.timers["temperature"]:
-                    thermodynamics.thermodynamics(self)
-
-                if self.enable_eke or self.enable_tke or self.enable_idemix:
-                    advection.calculate_velocity_on_wgrid(self)
-
-                with self.timers["eke"]:
-                    if self.enable_eke:
-                        eke.integrate_eke(self)
-
-                with self.timers["idemix"]:
-                    if self.enable_idemix_M2:
-                        idemix.integrate_idemix_M2(self)
-                    if self.enable_idemix_niw:
-                        idemix.integrate_idemix_niw(self)
                     if self.enable_idemix:
-                        idemix.integrate_idemix(self)
+                        idemix.set_idemix_parameter(self)
                     if self.enable_idemix_M2 or self.enable_idemix_niw:
-                        idemix.wave_interaction(self)
+                        idemix.set_spectral_parameter(self)
 
-                with self.timers["tke"]:
-                    if self.enable_tke:
-                        tke.integrate_tke(self)
+                    eke.set_eke_diffusivities(self)
+                    tke.set_tke_diffusivities(self)
 
-                """
-                Main boundary exchange
-                for density, temp and salt this is done in integrate_tempsalt.f90
-                """
-                if self.enable_cyclic_x:
-                    cyclic.setcyclic_x(self.u[:,:,:,self.taup1])
-                    cyclic.setcyclic_x(self.v[:,:,:,self.taup1])
-                    if self.enable_tke:
-                        cyclic.setcyclic_x(self.tke[:,:,:,self.taup1])
-                    if self.enable_eke:
-                        cyclic.setcyclic_x(self.eke[:,:,:,self.taup1])
-                    if self.enable_idemix:
-                        cyclic.setcyclic_x(self.E_iw[:,:,:,self.taup1])
-                    if self.enable_idemix_M2:
-                        cyclic.setcyclic_x(self.E_M2[:,:,:,self.taup1])
-                    if self.enable_idemix_niw:
-                        cyclic.setcyclic_x(self.E_niw[:,:,:,self.taup1])
+                    with self.timers["momentum"]:
+                        momentum.momentum(self)
 
-                # diagnose vertical velocity at taup1
-                if self.enable_hydrostatic:
-                    momentum.vertical_velocity(self)
+                    with self.timers["temperature"]:
+                        thermodynamics.thermodynamics(self)
 
-            with self.timers["diagnostics"]:
-                diagnostics.diagnose(self)
+                    if self.enable_eke or self.enable_tke or self.enable_idemix:
+                        advection.calculate_velocity_on_wgrid(self)
 
-            # shift time
-            #self.otaum1 = self.taum1
-            #self.taum1 = self.tau
-            #self.tau = self.taup1
-            #self.taup1 = self.otaum1
-            self.itt += 1
-            print("Current iteration: {}".format(self.itt))
+                    with self.timers["eke"]:
+                        if self.enable_eke:
+                            eke.integrate_eke(self)
+
+                    with self.timers["idemix"]:
+                        if self.enable_idemix_M2:
+                            idemix.integrate_idemix_M2(self)
+                        if self.enable_idemix_niw:
+                            idemix.integrate_idemix_niw(self)
+                        if self.enable_idemix:
+                            idemix.integrate_idemix(self)
+                        if self.enable_idemix_M2 or self.enable_idemix_niw:
+                            idemix.wave_interaction(self)
+
+                    with self.timers["tke"]:
+                        if self.enable_tke:
+                            tke.integrate_tke(self)
+
+                    """
+                    Main boundary exchange
+                    for density, temp and salt this is done in integrate_tempsalt.f90
+                    """
+                    if self.enable_cyclic_x:
+                        cyclic.setcyclic_x(self.u[:,:,:,self.taup1])
+                        cyclic.setcyclic_x(self.v[:,:,:,self.taup1])
+                        if self.enable_tke:
+                            cyclic.setcyclic_x(self.tke[:,:,:,self.taup1])
+                        if self.enable_eke:
+                            cyclic.setcyclic_x(self.eke[:,:,:,self.taup1])
+                        if self.enable_idemix:
+                            cyclic.setcyclic_x(self.E_iw[:,:,:,self.taup1])
+                        if self.enable_idemix_M2:
+                            cyclic.setcyclic_x(self.E_M2[:,:,:,self.taup1])
+                        if self.enable_idemix_niw:
+                            cyclic.setcyclic_x(self.E_niw[:,:,:,self.taup1])
+
+                    # diagnose vertical velocity at taup1
+                    if self.enable_hydrostatic:
+                        momentum.vertical_velocity(self)
+
+                with self.timers["diagnostics"]:
+                    diagnostics.diagnose(self)
+
+                # shift time
+                otaum1 = self.taum1
+                self.taum1 = self.tau
+                self.tau = self.taup1
+                self.taup1 = otaum1
+                self.itt += 1
+                print("Current iteration: {}".format(self.itt))
+            except:
+                diagnostics.panic_snap(self)
+                raise
 
         print("Timing summary:")
         print(" setup time summary       = {}s".format(self.timers["setup"].getTime()))

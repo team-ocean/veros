@@ -1,5 +1,8 @@
+import os
+from collections import namedtuple
 
-def def_grid_cdf(ncfile):
+
+def def_grid_cdf(ncfile,pyom):
     """
     Define standard grid in netcdf file
     """
@@ -43,487 +46,486 @@ def def_grid_cdf(ncfile):
     itimeid.time_origin = "01-JAN-1900 00:00:00"
 
     z_tdim = ncfile.createDimension("zt",pyom.nz)
-    z_udim = ncfile.createDimension("zu",pyom.nz)
+    z_udim = ncfile.createDimension("zw",pyom.nz)
     z_tid = ncfile.createVariable("zt","f8",("zt",))
-    z_uid = ncfile.createVariable("zu","f8",("zu",))
-    z_tid.long_name = "Height on T grid"
+    z_uid = ncfile.createVariable("zw","f8",("zw",))
+    z_tid.long_name = "Vertical coordinate on T grid"
     z_tid.units = "m"
-    z_uid.long_name = "Height on U grid"
+    z_uid.long_name = "Vertical coordinate on W grid"
     z_uid.units = "m"
-
-    # iret= nf_put_vara_double(ncid,z_tid,1,nz ,zt)
-    # iret= nf_put_vara_double(ncid,z_uid,1,nz ,zw)
+    z_tid[...] = pyom.zt
+    z_uid[...] = pyom.zw
 
     if pyom.coord_degree:
-        lon_Tid[...] = pyom.xt
-        lon_uid[...] = pyom.xu
-        lat_Tid[...] = pyom.yt
-        lat_uid[...] = pyom.yu
+        Lon_tid[...] = pyom.xt[2:-2]
+        Lon_uid[...] = pyom.xu[2:-2]
+        Lat_tid[...] = pyom.yt[2:-2]
+        Lat_uid[...] = pyom.yu[2:-2]
     else:
-        lon_Tid[...] = pyom.xt / 1e3
-        lon_uid[...] = pyom.xu / 1e3
-        lat_Tid[...] = pyom.yt / 1e3
-        lat_uid[...] = pyom.yu / 1e3
+        Lon_tid[...] = pyom.xt[2:-2] / 1e3
+        Lon_uid[...] = pyom.xu[2:-2] / 1e3
+        Lat_tid[...] = pyom.yt[2:-2] / 1e3
+        Lat_uid[...] = pyom.yu[2:-2] / 1e3
 
-def init_snap_cdf():
+
+def panic_snap(pyom):
+    print("Writing snapshot before panic shutdown")
+    if not pyom.enable_diag_snapshots:
+        init_snap_cdf(pyom)
+    diag_snap(pyom)
+
+
+Var = namedtuple("Variable", ["name","dims","units"])
+snap_variables = {
+    "ht": Var("depth",("xt","yt"),"m"),
+    "temp": Var("Temperature",("xt","yt","zt","Time"),"deg C"),
+    "salt": Var("salt",("xt","yt","zt","Time"),"g/kg"),
+}
+
+
+def init_snap_cdf(pyom):
+    """
+    initialize NetCDF snapshot file
+    """
+    from netCDF4 import Dataset
+    fill_value = -1e33
+
+    print("Preparing file {}".format(pyom.snap_file))
+
+    with Dataset(pyom.snap_file, "w") as f:
+        f.set_fill_off()
+        def_grid_cdf(f, pyom)
+        for key, var in snap_variables.items():
+            v = f.createVariable(key, "f8", var.dims, fill_value=fill_value)
+            v.long_name = var.name
+            v.units = var.units
+            v.missing_value = fill_value
+
+    #       dims = (/Lon_tdim,lat_tdim,1,1/)
+    #       id  = ncvdef (ncid,'ht', NCFLOAT,2,dims,iret)
+    #       name = 'depth'; unit = 'm'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_tdim,itimedim/)
+    #       id  = ncvdef (ncid,'temp', NCFLOAT,4,dims,iret)
+    #       name = 'Temperature'; unit = 'deg C'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_tdim,itimedim/)
+    #       id  = ncvdef (ncid,'salt', NCFLOAT,4,dims,iret)
+    #       name = 'Salinity'; unit = 'g/kg'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_udim,lat_tdim,z_tdim,iTimedim/)
+    #       id  = ncvdef (ncid,'u', NCFLOAT,4,dims,iret)
+    #       name = 'Zonal velocity'; unit = 'm/s'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_udim,z_tdim,iTimedim/)
+    #       id  = ncvdef (ncid,'v', NCFLOAT,4,dims,iret)
+    #       name = 'Meridional velocity'; unit = 'm/s'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #       id  = ncvdef (ncid,'w', NCFLOAT,4,dims,iret)
+    #       name = 'Vertical velocity'; unit = 'm/s'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       if (enable_streamfunction) then
+    #        dims = (/Lon_udim,lat_udim,iTimedim,1/)
+    #        id  = ncvdef (ncid,'psi', NCFLOAT,3,dims,iret)
+    #        name = 'Streamfunction'; unit = 'm^3/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_udim,lat_udim,1,1/)
+    #        do n=1,nisle
+    #         write(name, '("psi",i3)') n
+    #         call replace_space_zero(name)
+    #         id  = ncvdef (ncid,name, NCFLOAT,2,dims,iret)
+    #         write(name, '("Boundary streamfunction ",i3)') n
+    #         unit = 'm^3/s'
+    #         call dvcdf(ncid,id,name,32,unit,16,spval)
+    #        enddo
+    #       else
+    #        dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
+    #        id  = ncvdef (ncid,'surf_press', NCFLOAT,3,dims,iret)
+    #        name = 'Surface pressure'; unit = 'm^2/s^2'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #       endif
+    #
+    #       if (.not. enable_hydrostatic) then
+    #        dims = (/Lon_tdim,lat_tdim,z_tdim,iTimedim/)
+    #        id  = ncvdef (ncid,'p_hydro', NCFLOAT,4,dims,iret)
+    #        name = 'Hydrostatic pressure'; unit = 'm^2/s^2'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_tdim,iTimedim/)
+    #        id  = ncvdef (ncid,'p_non_hydro', NCFLOAT,4,dims,iret)
+    #        name = 'Non hydrostatic pressure'; unit = 'm^2/s^2'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #       endif
+    #
+    #       dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
+    #       id  = ncvdef (ncid,'forc_temp_surface', NCFLOAT,3,dims,iret)
+    #       name = 'Surface temperature flux'; unit = 'deg C m/s'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
+    #       id  = ncvdef (ncid,'forc_salt_surface', NCFLOAT,3,dims,iret)
+    #       name = 'Surface salinity flux'; unit = 'g/Kg m/s'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_udim,lat_tdim,itimedim,1/)
+    #       id  = ncvdef (ncid,'taux', NCFLOAT,3,dims,iret)
+    #       name = 'Surface wind stress'; unit = 'm^2/s^2'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_udim,itimedim,1/)
+    #       id  = ncvdef (ncid,'tauy', NCFLOAT,3,dims,iret)
+    #       name = 'Surface wind stress'; unit = 'm^2/s^2'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #    if (enable_conserve_energy) then
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
+    #       id  = ncvdef (ncid,'K_diss_v', NCFLOAT,4,dims,iret)
+    #       name = 'Dissipation of kin. En.'; unit = 'm^2/s^3'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
+    #       id  = ncvdef (ncid,'K_diss_bot', NCFLOAT,4,dims,iret)
+    #       name = 'Dissipation of kin. En.'; unit = 'm^2/s^3'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
+    #       id  = ncvdef (ncid,'K_diss_h', NCFLOAT,4,dims,iret)
+    #       name = 'Dissipation of kin. En.'; unit = 'm^2/s^3'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
+    #       id  = ncvdef (ncid,'P_diss_v', NCFLOAT,4,dims,iret)
+    #       name = 'Dissipation of pot. En.'; unit = 'm^2/s^3'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
+    #       id  = ncvdef (ncid,'P_diss_nonlin', NCFLOAT,4,dims,iret)
+    #       name = 'Dissipation of pot. En.'; unit = 'm^2/s^3'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
+    #       id  = ncvdef (ncid,'P_diss_iso', NCFLOAT,4,dims,iret)
+    #       name = 'Dissipation of pot. En.'; unit = 'm^2/s^3'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
+    #       id  = ncvdef (ncid,'P_diss_skew', NCFLOAT,4,dims,iret)
+    #       name = 'Dissipation of pot. En.'; unit = 'm^2/s^3'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
+    #       id  = ncvdef (ncid,'P_diss_hmix', NCFLOAT,4,dims,iret)
+    #       name = 'Dissipation of pot. En.'; unit = 'm^2/s^3'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
+    #       id  = ncvdef (ncid,'K_diss_gm', NCFLOAT,4,dims,iret)
+    #       name = 'Dissipation of mean en.'; unit = 'm^2/s^3'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #     endif
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
+    #       id  = ncvdef (ncid,'Nsqr', NCFLOAT,4,dims,iret)
+    #       name = 'Square of stability frequency'; unit = '1/s^2'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #       id  = ncvdef (ncid,'kappaH', NCFLOAT,4,dims,iret)
+    #       name = 'Vertical diffusivity'; unit = 'm^2/s'
+    #       call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       if (enable_neutral_diffusion .and. enable_skew_diffusion) then
+    #        dims = (/Lon_tdim,lat_udim,z_tdim,iTimedim/)
+    #        id  = ncvdef (ncid,'B1_gm', NCFLOAT,4,dims,iret)
+    #        name = 'Zonal comp. GM streamfct.'; unit = 'm^2/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_udim,lat_tdim,z_tdim,iTimedim/)
+    #        id  = ncvdef (ncid,'B2_gm', NCFLOAT,4,dims,iret)
+    #        name = 'Meridional comp. GM streamfct.'; unit = 'm^2/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #       endif
+    #
+    #       if (enable_TEM_friction) then
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'kappa_gm', NCFLOAT,4,dims,iret)
+    #        name = 'Vertical diffusivity'; unit = 'm^2/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #       endif
+    #
+    #       if (enable_tke) then
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'tke', NCFLOAT,4,dims,iret)
+    #        name = 'Turbulent kinetic energy'; unit = 'm^2/s^2'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'Prandtl', NCFLOAT,4,dims,iret)
+    #        name = 'Prandtl number'; unit = ' '
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'mxl', NCFLOAT,4,dims,iret)
+    #        name = 'Mixing length'; unit = 'm'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'tke_diss', NCFLOAT,4,dims,iret)
+    #        name = 'TKE dissipation'; unit = 'm^2/s^3'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
+    #        id  = ncvdef (ncid,'forc_tke', NCFLOAT,3,dims,iret)
+    #        name = 'TKE surface flux'; unit = 'm^3/s^3'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
+    #        id  = ncvdef (ncid,'tke_surf_corr', NCFLOAT,3,dims,iret)
+    #        name = 'Correction of TKE surface flux'; unit = 'm^3/s^3'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       endif
+    #
+    #       if (enable_eke) then
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'EKE', NCFLOAT,4,dims,iret)
+    #        name = 'meso-scale energy'; unit = 'm^2/s^2'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
+    #        id  = ncvdef (ncid,'L_Rossby', NCFLOAT,3,dims,iret)
+    #        name = 'Rossby Radius'; unit = 'm'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'L_Rhines', NCFLOAT,4,dims,iret)
+    #        name = 'Rhines scale'; unit = 'm'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'K_gm', NCFLOAT,4,dims,iret)
+    #        name = 'skewness diffusivity'; unit = 'm^2/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'eke_diss_iw', NCFLOAT,4,dims,iret)
+    #        name = 'Dissipation of EKE to IW'; unit = 'm^2/s^3'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'eke_diss_tke', NCFLOAT,4,dims,iret)
+    #        name = 'Dissipation of EKE to TKE'; unit = 'm^2/s^3'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
+    #        id  = ncvdef (ncid,'eke_bot_flux', NCFLOAT,3,dims,iret)
+    #        name = 'flux by bottom friction'; unit = 'm^3/s^3'
+    #        call dvcdf(ncid,id,name,len_trim(name),unit,16,spval)
+    #
+    #        if (enable_eke_leewave_dissipation ) then
+    #
+    #         !dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
+    #         !id  = ncvdef (ncid,'hrms_k0', NCFLOAT,3,dims,iret)
+    #         !name = 'parameter'; unit = ' '
+    #         !call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #         dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
+    #         id  = ncvdef (ncid,'c_lee', NCFLOAT,3,dims,iret)
+    #         name = 'Lee wave dissipation coefficient'; unit = '1/s'
+    #         call dvcdf(ncid,id,name,len_trim(name),unit,16,spval)
+    #
+    #         dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
+    #         id  = ncvdef (ncid,'eke_lee_flux', NCFLOAT,3,dims,iret)
+    #         name = 'lee wave flux'; unit = 'm^3/s^3'
+    #         call dvcdf(ncid,id,name,len_trim(name),unit,16,spval)
+    #
+    #         dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #         id  = ncvdef (ncid,'c_Ri_diss', NCFLOAT,4,dims,iret)
+    #         name = 'Interior dissipation coefficient'; unit = '1/s'
+    #         call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        endif
+    #       endif
+    #
+    #       if (enable_idemix) then
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'E_iw', NCFLOAT,4,dims,iret)
+    #        name = 'Internal wave energy'; unit = 'm^2/s^2'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'c0', NCFLOAT,4,dims,iret)
+    #        name = 'vertical IW group velocity'; unit = 'm/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'v0', NCFLOAT,4,dims,iret)
+    #        name = 'hor. IW group velocity'; unit = 'm/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
+    #        id  = ncvdef (ncid,'iw_diss', NCFLOAT,4,dims,iret)
+    #        name = 'IW dissipation'; unit = 'm^2/s^3'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,1,1/)
+    #        id  = ncvdef (ncid,'forc_iw_surface', NCFLOAT,2,dims,iret)
+    #        name = 'IW surface forcing'; unit = 'm^3/s^3'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,1,1/)
+    #        id  = ncvdef (ncid,'forc_iw_bottom', NCFLOAT,2,dims,iret)
+    #        name = 'IW bottom forcing'; unit = 'm^3/s^3'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       endif
+    #
+    #       if (enable_idemix_M2) then
+    #
+    #        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
+    #        id  = ncvdef (ncid,'E_M2', NCFLOAT,3,dims,iret)
+    #        name = 'M2 Energy'; unit = 'm^3/s^2'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_tdim,itimedim/)
+    #        id  = ncvdef (ncid,'E_struct_M2', NCFLOAT,4,dims,iret)
+    #        name = 'M2 structure function'; unit = ' '
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
+    #        id  = ncvdef (ncid,'cg_M2', NCFLOAT,3,dims,iret)
+    #        name = 'M2 group velocity'; unit = 'm/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_udim,lat_tdim,itimedim,1/)
+    #        id  = ncvdef (ncid,'kdot_x_M2', NCFLOAT,3,dims,iret)
+    #        name = 'M2 refraction'; unit = '1/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_udim,itimedim,1/)
+    #        id  = ncvdef (ncid,'kdot_y_M2', NCFLOAT,3,dims,iret)
+    #        name = 'M2 refraction'; unit = '1/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
+    #        id  = ncvdef (ncid,'tau_M2', NCFLOAT,3,dims,iret)
+    #        name = 'M2 decay time scale'; unit = '1/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
+    #        id  = ncvdef (ncid,'alpha_M2_cont', NCFLOAT,3,dims,iret)
+    #        name = 'M2-continuum coupling coef'; unit = 's/m^3'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
+    #        id  = ncvdef (ncid,'forc_M2', NCFLOAT,3,dims,iret)
+    #        name = 'M2 forcing'; unit = 'm^3/s^3'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       endif
+    #
+    #       if (enable_idemix_niw) then
+    #        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
+    #        id  = ncvdef (ncid,'E_NIW', NCFLOAT,3,dims,iret)
+    #        name = 'NIW Energy'; unit = 'm^3/s^2'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,z_tdim,itimedim/)
+    #        id  = ncvdef (ncid,'E_struct_NIW', NCFLOAT,4,dims,iret)
+    #        name = 'NIW structure function'; unit = ' '
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
+    #        id  = ncvdef (ncid,'cg_NIW', NCFLOAT,3,dims,iret)
+    #        name = 'NIW group velocity'; unit = 'm/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_udim,lat_tdim,itimedim,1/)
+    #        id  = ncvdef (ncid,'kdot_x_NIW', NCFLOAT,3,dims,iret)
+    #        name = 'NIW refraction'; unit = '1/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_udim,itimedim,1/)
+    #        id  = ncvdef (ncid,'kdot_y_NIW', NCFLOAT,3,dims,iret)
+    #        name = 'NIW refraction'; unit = '1/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
+    #        id  = ncvdef (ncid,'tau_NIW', NCFLOAT,3,dims,iret)
+    #        name = 'NIW decay time scale'; unit = '1/s'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
+    #        id  = ncvdef (ncid,'forc_NIW', NCFLOAT,3,dims,iret)
+    #        name = 'NIW forcing'; unit = 'm^3/s^3'
+    #        call dvcdf(ncid,id,name,32,unit,16,spval)
+    #
+    #       endif
+    #
+    #       call ncclos (ncid, iret)
+    #  endif
+    #  call fortran_barrier
+    #
+    #
+    #  if (my_pe==0) iret=nf_open(snap_file,NF_WRITE,ncid)
+    #
+    #  bloc(is_pe:ie_pe,js_pe:je_pe) = ht(is_pe:ie_pe,js_pe:je_pe)
+    #  where( maskT(is_pe:ie_pe,js_pe:je_pe,nz) == 0.) bloc(is_pe:ie_pe,js_pe:je_pe) = spval
+    #  call pe0_recv_2D(nx,ny,bloc)
+    #  if (my_pe==0) then
+    #     iret=nf_inq_varid(ncid,'ht',id)
+    #     iret= nf_put_vara_double(ncid,id,(/1,1/), (/nx,ny/),bloc)
+    #  endif
+    #
+    #  do n=1,nisle
+    #    write(name, '("psi",i3)') n
+    #    call replace_space_zero(name)
+    #    bloc(is_pe:ie_pe,js_pe:je_pe) = psin(is_pe:ie_pe,js_pe:je_pe,n)
+    #    call pe0_recv_2D(nx,ny,bloc)
+    #    if (my_pe==0) then
+    #     iret=nf_inq_varid(ncid,name,id)
+    #     iret= nf_put_vara_double(ncid,id,(/1,1/), (/nx,ny/),bloc)
+    #    endif
+    #  enddo
+    #
+    #
+    #  if (enable_idemix) then
+    #    bloc(is_pe:ie_pe,js_pe:je_pe) = forc_iw_surface(is_pe:ie_pe,js_pe:je_pe)
+    #    where( maskW(is_pe:ie_pe,js_pe:je_pe,nz) == 0.) bloc(is_pe:ie_pe,js_pe:je_pe) = spval
+    #    call pe0_recv_2D(nx,ny,bloc)
+    #    if (my_pe==0) then
+    #     iret=nf_inq_varid(ncid,'forc_iw_surface',id)
+    #     iret= nf_put_vara_double(ncid,id,(/1,1/), (/nx,ny/),bloc)
+    #   endif
+    #
+    #    bloc(is_pe:ie_pe,js_pe:je_pe) = forc_iw_bottom(is_pe:ie_pe,js_pe:je_pe)
+    #    where( maskW(is_pe:ie_pe,js_pe:je_pe,nz) == 0.) bloc(is_pe:ie_pe,js_pe:je_pe) = spval
+    #    call pe0_recv_2D(nx,ny,bloc)
+    #    if (my_pe==0) then
+    #     iret=nf_inq_varid(ncid,'forc_iw_bottom',id)
+    #     iret= nf_put_vara_double(ncid,id,(/1,1/), (/nx,ny/),bloc)
+    #    endif
+    #  endif
+    #
+    #  if (my_pe==0) iret=nf_close(ncid)
+    #
+    # end subroutine init_snap_cdf
+
+def diag_snap(pyom):
     import warnings
     warnings.warn("routine is not implemented yet")
-# subroutine init_snap_cdf
-# !=======================================================================
-# !     initialize NetCDF snapshot file
-# !=======================================================================
-#  use main_module
-#  use isoneutral_module
-#  use tke_module
-#  use eke_module
-#  use idemix_module
-#  use diagnostics_module
-#  implicit none
-#  include "netcdf.inc"
-#  integer :: ncid,iret,n
-#  integer :: lon_tdim,lon_udim,itimedim
-#  integer :: lat_tdim,lat_udim,id,z_tdim,z_udim
-#  integer :: dims(4)
-#  character :: name*32, unit*16
-#  real*8, parameter :: spval = -1.0d33
-#  real*8 :: bloc(nx,ny)
-#
-#  if (my_pe==0) print'(a,a)',' preparing file ',snap_file(1:len_trim(snap_file))
-#
-#  call def_grid_cdf(snap_file)
-#
-#  if (my_pe==0) then
-#       iret=nf_open(snap_file,NF_WRITE, ncid)
-#       iret=nf_set_fill(ncid, NF_NOFILL, iret)
-#       call ncredf(ncid, iret)
-#       iret=nf_inq_dimid(ncid,'xt',lon_tdim)
-#       iret=nf_inq_dimid(ncid,'xu',lon_udim)
-#       iret=nf_inq_dimid(ncid,'yt',lat_tdim)
-#       iret=nf_inq_dimid(ncid,'yu',lat_udim)
-#       iret=nf_inq_dimid(ncid,'zt',z_tdim)
-#       iret=nf_inq_dimid(ncid,'zu',z_udim)
-#       iret=nf_inq_dimid(ncid,'Time',itimedim)
-#
-#       dims = (/Lon_tdim,lat_tdim,1,1/)
-#       id  = ncvdef (ncid,'ht', NCFLOAT,2,dims,iret)
-#       name = 'depth'; unit = 'm'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_tdim,itimedim/)
-#       id  = ncvdef (ncid,'temp', NCFLOAT,4,dims,iret)
-#       name = 'Temperature'; unit = 'deg C'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_tdim,itimedim/)
-#       id  = ncvdef (ncid,'salt', NCFLOAT,4,dims,iret)
-#       name = 'Salinity'; unit = 'g/kg'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_udim,lat_tdim,z_tdim,iTimedim/)
-#       id  = ncvdef (ncid,'u', NCFLOAT,4,dims,iret)
-#       name = 'Zonal velocity'; unit = 'm/s'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_udim,z_tdim,iTimedim/)
-#       id  = ncvdef (ncid,'v', NCFLOAT,4,dims,iret)
-#       name = 'Meridional velocity'; unit = 'm/s'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#       id  = ncvdef (ncid,'w', NCFLOAT,4,dims,iret)
-#       name = 'Vertical velocity'; unit = 'm/s'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       if (enable_streamfunction) then
-#        dims = (/Lon_udim,lat_udim,iTimedim,1/)
-#        id  = ncvdef (ncid,'psi', NCFLOAT,3,dims,iret)
-#        name = 'Streamfunction'; unit = 'm^3/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_udim,lat_udim,1,1/)
-#        do n=1,nisle
-#         write(name, '("psi",i3)') n
-#         call replace_space_zero(name)
-#         id  = ncvdef (ncid,name, NCFLOAT,2,dims,iret)
-#         write(name, '("Boundary streamfunction ",i3)') n
-#         unit = 'm^3/s'
-#         call dvcdf(ncid,id,name,32,unit,16,spval)
-#        enddo
-#       else
-#        dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
-#        id  = ncvdef (ncid,'surf_press', NCFLOAT,3,dims,iret)
-#        name = 'Surface pressure'; unit = 'm^2/s^2'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#       endif
-#
-#       if (.not. enable_hydrostatic) then
-#        dims = (/Lon_tdim,lat_tdim,z_tdim,iTimedim/)
-#        id  = ncvdef (ncid,'p_hydro', NCFLOAT,4,dims,iret)
-#        name = 'Hydrostatic pressure'; unit = 'm^2/s^2'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_tdim,iTimedim/)
-#        id  = ncvdef (ncid,'p_non_hydro', NCFLOAT,4,dims,iret)
-#        name = 'Non hydrostatic pressure'; unit = 'm^2/s^2'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#       endif
-#
-#       dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
-#       id  = ncvdef (ncid,'forc_temp_surface', NCFLOAT,3,dims,iret)
-#       name = 'Surface temperature flux'; unit = 'deg C m/s'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
-#       id  = ncvdef (ncid,'forc_salt_surface', NCFLOAT,3,dims,iret)
-#       name = 'Surface salinity flux'; unit = 'g/Kg m/s'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_udim,lat_tdim,itimedim,1/)
-#       id  = ncvdef (ncid,'taux', NCFLOAT,3,dims,iret)
-#       name = 'Surface wind stress'; unit = 'm^2/s^2'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_udim,itimedim,1/)
-#       id  = ncvdef (ncid,'tauy', NCFLOAT,3,dims,iret)
-#       name = 'Surface wind stress'; unit = 'm^2/s^2'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#    if (enable_conserve_energy) then
-#       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
-#       id  = ncvdef (ncid,'K_diss_v', NCFLOAT,4,dims,iret)
-#       name = 'Dissipation of kin. En.'; unit = 'm^2/s^3'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
-#       id  = ncvdef (ncid,'K_diss_bot', NCFLOAT,4,dims,iret)
-#       name = 'Dissipation of kin. En.'; unit = 'm^2/s^3'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
-#       id  = ncvdef (ncid,'K_diss_h', NCFLOAT,4,dims,iret)
-#       name = 'Dissipation of kin. En.'; unit = 'm^2/s^3'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
-#       id  = ncvdef (ncid,'P_diss_v', NCFLOAT,4,dims,iret)
-#       name = 'Dissipation of pot. En.'; unit = 'm^2/s^3'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
-#       id  = ncvdef (ncid,'P_diss_nonlin', NCFLOAT,4,dims,iret)
-#       name = 'Dissipation of pot. En.'; unit = 'm^2/s^3'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
-#       id  = ncvdef (ncid,'P_diss_iso', NCFLOAT,4,dims,iret)
-#       name = 'Dissipation of pot. En.'; unit = 'm^2/s^3'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
-#       id  = ncvdef (ncid,'P_diss_skew', NCFLOAT,4,dims,iret)
-#       name = 'Dissipation of pot. En.'; unit = 'm^2/s^3'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
-#       id  = ncvdef (ncid,'P_diss_hmix', NCFLOAT,4,dims,iret)
-#       name = 'Dissipation of pot. En.'; unit = 'm^2/s^3'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
-#       id  = ncvdef (ncid,'K_diss_gm', NCFLOAT,4,dims,iret)
-#       name = 'Dissipation of mean en.'; unit = 'm^2/s^3'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#     endif
-#
-#       dims = (/Lon_tdim,lat_tdim,z_udim,itimedim/)
-#       id  = ncvdef (ncid,'Nsqr', NCFLOAT,4,dims,iret)
-#       name = 'Square of stability frequency'; unit = '1/s^2'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#       id  = ncvdef (ncid,'kappaH', NCFLOAT,4,dims,iret)
-#       name = 'Vertical diffusivity'; unit = 'm^2/s'
-#       call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       if (enable_neutral_diffusion .and. enable_skew_diffusion) then
-#        dims = (/Lon_tdim,lat_udim,z_tdim,iTimedim/)
-#        id  = ncvdef (ncid,'B1_gm', NCFLOAT,4,dims,iret)
-#        name = 'Zonal comp. GM streamfct.'; unit = 'm^2/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_udim,lat_tdim,z_tdim,iTimedim/)
-#        id  = ncvdef (ncid,'B2_gm', NCFLOAT,4,dims,iret)
-#        name = 'Meridional comp. GM streamfct.'; unit = 'm^2/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#       endif
-#
-#       if (enable_TEM_friction) then
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'kappa_gm', NCFLOAT,4,dims,iret)
-#        name = 'Vertical diffusivity'; unit = 'm^2/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#       endif
-#
-#       if (enable_tke) then
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'tke', NCFLOAT,4,dims,iret)
-#        name = 'Turbulent kinetic energy'; unit = 'm^2/s^2'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'Prandtl', NCFLOAT,4,dims,iret)
-#        name = 'Prandtl number'; unit = ' '
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'mxl', NCFLOAT,4,dims,iret)
-#        name = 'Mixing length'; unit = 'm'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'tke_diss', NCFLOAT,4,dims,iret)
-#        name = 'TKE dissipation'; unit = 'm^2/s^3'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
-#        id  = ncvdef (ncid,'forc_tke', NCFLOAT,3,dims,iret)
-#        name = 'TKE surface flux'; unit = 'm^3/s^3'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
-#        id  = ncvdef (ncid,'tke_surf_corr', NCFLOAT,3,dims,iret)
-#        name = 'Correction of TKE surface flux'; unit = 'm^3/s^3'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       endif
-#
-#       if (enable_eke) then
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'EKE', NCFLOAT,4,dims,iret)
-#        name = 'meso-scale energy'; unit = 'm^2/s^2'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
-#        id  = ncvdef (ncid,'L_Rossby', NCFLOAT,3,dims,iret)
-#        name = 'Rossby Radius'; unit = 'm'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'L_Rhines', NCFLOAT,4,dims,iret)
-#        name = 'Rhines scale'; unit = 'm'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'K_gm', NCFLOAT,4,dims,iret)
-#        name = 'skewness diffusivity'; unit = 'm^2/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'eke_diss_iw', NCFLOAT,4,dims,iret)
-#        name = 'Dissipation of EKE to IW'; unit = 'm^2/s^3'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'eke_diss_tke', NCFLOAT,4,dims,iret)
-#        name = 'Dissipation of EKE to TKE'; unit = 'm^2/s^3'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
-#        id  = ncvdef (ncid,'eke_bot_flux', NCFLOAT,3,dims,iret)
-#        name = 'flux by bottom friction'; unit = 'm^3/s^3'
-#        call dvcdf(ncid,id,name,len_trim(name),unit,16,spval)
-#
-#        if (enable_eke_leewave_dissipation ) then
-#
-#         !dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
-#         !id  = ncvdef (ncid,'hrms_k0', NCFLOAT,3,dims,iret)
-#         !name = 'parameter'; unit = ' '
-#         !call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#         dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
-#         id  = ncvdef (ncid,'c_lee', NCFLOAT,3,dims,iret)
-#         name = 'Lee wave dissipation coefficient'; unit = '1/s'
-#         call dvcdf(ncid,id,name,len_trim(name),unit,16,spval)
-#
-#         dims = (/Lon_tdim,lat_tdim,iTimedim,1/)
-#         id  = ncvdef (ncid,'eke_lee_flux', NCFLOAT,3,dims,iret)
-#         name = 'lee wave flux'; unit = 'm^3/s^3'
-#         call dvcdf(ncid,id,name,len_trim(name),unit,16,spval)
-#
-#         dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#         id  = ncvdef (ncid,'c_Ri_diss', NCFLOAT,4,dims,iret)
-#         name = 'Interior dissipation coefficient'; unit = '1/s'
-#         call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        endif
-#       endif
-#
-#       if (enable_idemix) then
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'E_iw', NCFLOAT,4,dims,iret)
-#        name = 'Internal wave energy'; unit = 'm^2/s^2'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'c0', NCFLOAT,4,dims,iret)
-#        name = 'vertical IW group velocity'; unit = 'm/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'v0', NCFLOAT,4,dims,iret)
-#        name = 'hor. IW group velocity'; unit = 'm/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_udim,iTimedim/)
-#        id  = ncvdef (ncid,'iw_diss', NCFLOAT,4,dims,iret)
-#        name = 'IW dissipation'; unit = 'm^2/s^3'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,1,1/)
-#        id  = ncvdef (ncid,'forc_iw_surface', NCFLOAT,2,dims,iret)
-#        name = 'IW surface forcing'; unit = 'm^3/s^3'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,1,1/)
-#        id  = ncvdef (ncid,'forc_iw_bottom', NCFLOAT,2,dims,iret)
-#        name = 'IW bottom forcing'; unit = 'm^3/s^3'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       endif
-#
-#       if (enable_idemix_M2) then
-#
-#        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
-#        id  = ncvdef (ncid,'E_M2', NCFLOAT,3,dims,iret)
-#        name = 'M2 Energy'; unit = 'm^3/s^2'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_tdim,itimedim/)
-#        id  = ncvdef (ncid,'E_struct_M2', NCFLOAT,4,dims,iret)
-#        name = 'M2 structure function'; unit = ' '
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
-#        id  = ncvdef (ncid,'cg_M2', NCFLOAT,3,dims,iret)
-#        name = 'M2 group velocity'; unit = 'm/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_udim,lat_tdim,itimedim,1/)
-#        id  = ncvdef (ncid,'kdot_x_M2', NCFLOAT,3,dims,iret)
-#        name = 'M2 refraction'; unit = '1/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_udim,itimedim,1/)
-#        id  = ncvdef (ncid,'kdot_y_M2', NCFLOAT,3,dims,iret)
-#        name = 'M2 refraction'; unit = '1/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
-#        id  = ncvdef (ncid,'tau_M2', NCFLOAT,3,dims,iret)
-#        name = 'M2 decay time scale'; unit = '1/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
-#        id  = ncvdef (ncid,'alpha_M2_cont', NCFLOAT,3,dims,iret)
-#        name = 'M2-continuum coupling coef'; unit = 's/m^3'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
-#        id  = ncvdef (ncid,'forc_M2', NCFLOAT,3,dims,iret)
-#        name = 'M2 forcing'; unit = 'm^3/s^3'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       endif
-#
-#       if (enable_idemix_niw) then
-#        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
-#        id  = ncvdef (ncid,'E_NIW', NCFLOAT,3,dims,iret)
-#        name = 'NIW Energy'; unit = 'm^3/s^2'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,z_tdim,itimedim/)
-#        id  = ncvdef (ncid,'E_struct_NIW', NCFLOAT,4,dims,iret)
-#        name = 'NIW structure function'; unit = ' '
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
-#        id  = ncvdef (ncid,'cg_NIW', NCFLOAT,3,dims,iret)
-#        name = 'NIW group velocity'; unit = 'm/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_udim,lat_tdim,itimedim,1/)
-#        id  = ncvdef (ncid,'kdot_x_NIW', NCFLOAT,3,dims,iret)
-#        name = 'NIW refraction'; unit = '1/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_udim,itimedim,1/)
-#        id  = ncvdef (ncid,'kdot_y_NIW', NCFLOAT,3,dims,iret)
-#        name = 'NIW refraction'; unit = '1/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
-#        id  = ncvdef (ncid,'tau_NIW', NCFLOAT,3,dims,iret)
-#        name = 'NIW decay time scale'; unit = '1/s'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#        dims = (/Lon_tdim,lat_tdim,itimedim,1/)
-#        id  = ncvdef (ncid,'forc_NIW', NCFLOAT,3,dims,iret)
-#        name = 'NIW forcing'; unit = 'm^3/s^3'
-#        call dvcdf(ncid,id,name,32,unit,16,spval)
-#
-#       endif
-#
-#       call ncclos (ncid, iret)
-#  endif
-#  call fortran_barrier
-#
-#
-#  if (my_pe==0) iret=nf_open(snap_file,NF_WRITE,ncid)
-#
-#  bloc(is_pe:ie_pe,js_pe:je_pe) = ht(is_pe:ie_pe,js_pe:je_pe)
-#  where( maskT(is_pe:ie_pe,js_pe:je_pe,nz) == 0.) bloc(is_pe:ie_pe,js_pe:je_pe) = spval
-#  call pe0_recv_2D(nx,ny,bloc)
-#  if (my_pe==0) then
-#     iret=nf_inq_varid(ncid,'ht',id)
-#     iret= nf_put_vara_double(ncid,id,(/1,1/), (/nx,ny/),bloc)
-#  endif
-#
-#  do n=1,nisle
-#    write(name, '("psi",i3)') n
-#    call replace_space_zero(name)
-#    bloc(is_pe:ie_pe,js_pe:je_pe) = psin(is_pe:ie_pe,js_pe:je_pe,n)
-#    call pe0_recv_2D(nx,ny,bloc)
-#    if (my_pe==0) then
-#     iret=nf_inq_varid(ncid,name,id)
-#     iret= nf_put_vara_double(ncid,id,(/1,1/), (/nx,ny/),bloc)
-#    endif
-#  enddo
-#
-#
-#  if (enable_idemix) then
-#    bloc(is_pe:ie_pe,js_pe:je_pe) = forc_iw_surface(is_pe:ie_pe,js_pe:je_pe)
-#    where( maskW(is_pe:ie_pe,js_pe:je_pe,nz) == 0.) bloc(is_pe:ie_pe,js_pe:je_pe) = spval
-#    call pe0_recv_2D(nx,ny,bloc)
-#    if (my_pe==0) then
-#     iret=nf_inq_varid(ncid,'forc_iw_surface',id)
-#     iret= nf_put_vara_double(ncid,id,(/1,1/), (/nx,ny/),bloc)
-#   endif
-#
-#    bloc(is_pe:ie_pe,js_pe:je_pe) = forc_iw_bottom(is_pe:ie_pe,js_pe:je_pe)
-#    where( maskW(is_pe:ie_pe,js_pe:je_pe,nz) == 0.) bloc(is_pe:ie_pe,js_pe:je_pe) = spval
-#    call pe0_recv_2D(nx,ny,bloc)
-#    if (my_pe==0) then
-#     iret=nf_inq_varid(ncid,'forc_iw_bottom',id)
-#     iret= nf_put_vara_double(ncid,id,(/1,1/), (/nx,ny/),bloc)
-#    endif
-#  endif
-#
-#  if (my_pe==0) iret=nf_close(ncid)
-#
-# end subroutine init_snap_cdf
+
 #
 #
 # subroutine diag_snap
@@ -1178,37 +1180,5 @@ def init_snap_cdf():
 #  if (my_pe==0)   iret = nf_close (ncid)
 #
 # end subroutine diag_snap
+
 #
-#
-#
-# subroutine panic_snap
-# !=======================================================================
-# ! write a snapshot before panic shutdown
-# !=======================================================================
-#  use main_module
-#  use diagnostics_module
-#  if (.not. enable_diag_snapshots) call init_snap_cdf
-#  call diag_snap
-# end subroutine panic_snap
-#
-#
-#
-# subroutine dvcdf(ncid,ivarid,name,iname,unit,iunit,spval)
-# !=======================================================================
-# !     define some standard attributes of variable ivarid in NetCDF file ncid
-# !=======================================================================
-#  implicit none
-#  integer ncid,ivarid,iname,iunit,iret
-#  character (len=*) :: name, unit
-#  real*8 :: spval, vv
-#  include "netcdf.inc"
-#  vv=spval
-#  call ncaptc(ncid,ivarid, 'long_name', NCCHAR,iname , name, iret)
-#  if (iret.ne.0) print*,nf_strerror(iret)
-#  call ncaptc(ncid,ivarid, 'units',     NCCHAR,iunit, unit, iret)
-#  if (iret.ne.0) print*,nf_strerror(iret)
-#  call ncapt (ncid,ivarid, 'missing_value',NCDOUBLE,1,vv,iret)
-#  if (iret.ne.0) print*,nf_strerror(iret)
-#  call ncapt (ncid,ivarid, '_FillValue', NCDOUBLE, 1,vv, iret)
-#  if (iret.ne.0) print*,nf_strerror(iret)
-# end subroutine dvcdf

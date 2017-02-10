@@ -12,7 +12,7 @@ import numpy as np
 from scipy.linalg import lapack
 import climate
 from climate.pyom.external import solve_pressure, island
-from climate.pyom import cyclic
+from climate.pyom import cyclic, diagnostics
 
 def streamfunction_init(pyom):
     """
@@ -781,10 +781,7 @@ def fail(n, estimated_error, pyom):
     print ' iterations=',n
     # check for NaN
     if np.isnan(estimated_error):
-        print ' error is NaN, stopping integration '
-        #TODO: Snapshot data
-        #call panic_snap
-        sys.exit(' in solve_streamfunction')
+        raise RuntimeError('error is NaN, stopping integration')
 
 def absmax_sfc(p1, pyom):
     #use main_module

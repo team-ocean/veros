@@ -205,8 +205,6 @@ def fail(n, enable_congrad_verbose, estimated_error, congr_epsilon):
     print ' iterations=',n
     # check for NaN
     if np.isnan(estimated_error):
-        #TODO: snapshot
-        #call panic_snap
         raise RuntimeError("error is NaN, stopping integration")
 
 
