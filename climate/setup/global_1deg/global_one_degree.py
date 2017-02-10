@@ -41,6 +41,7 @@ MAIN_OPTIONS = dict(
     enable_hor_friction_cos_scaling = True,
     hor_friction_cosPower = 1,
     enable_tempsalt_sources = True,
+    enable_implicit_vert_friction = True,
 
     eq_of_state_type = 5,
 )
@@ -55,7 +56,6 @@ ISONEUTRAL_OPTIONS = dict(
 )
 
 TKE_OPTIONS = dict(
-    enable_implicit_vert_friction = True,
     enable_tke = True,
     c_k = 0.1,
     c_eps = 0.7,

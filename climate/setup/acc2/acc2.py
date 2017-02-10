@@ -25,6 +25,11 @@ class ACC2(PyOMLegacy):
      m.congr_max_iterations = 5000
      m.enable_streamfunction = 1
 
+     m.enable_diag_snapshots = True
+     m.enable_diag_averages = True
+     m.aveint = 10 * 86400
+     m.avefreq = 10 * 86400 / 24.
+
      i=self.isoneutral_module
      i.enable_neutral_diffusion = 1
      i.K_iso_0 = 1000.0
@@ -99,9 +104,7 @@ class ACC2(PyOMLegacy):
 
      # initial conditions
      m.temp[:,:,:,0:2] = ((1-m.zt[None,None,:]/m.zw[0])*15*m.maskT)[...,None]
-     #m.temp[:,:,:,m.taum1] =  (1-m.zt[None,None,:]/m.zw[0])*15*m.maskT
      m.salt[:,:,:,0:2] = 35.0*m.maskT[...,None]
-     #m.salt[:,:,:,m.taum1] = 35.0*m.maskT[:]
 
      # wind stress forcing
      for j in range(m.js_pe,m.je_pe+1):
@@ -130,22 +133,32 @@ class ACC2(PyOMLegacy):
 
 
    def set_forcing(self):
-     m=self.main_module
-     m.forc_temp_surface[:] = self.t_rest*(self.t_star-m.temp[:,:,-1,1])
+       m=self.main_module
+       m.forc_temp_surface[:] = self.t_rest*(self.t_star-m.temp[:,:,-1,1])
 
 
    def set_diagnostics(self):
-     m=self.main_module
-     diagnostics.register_average(name='temp',long_name='Temperature',         units = 'deg C' , grid = 'TTT', var = lambda: m.temp[...,1], pyom=m)
-     diagnostics.register_average(name='salt',long_name='Salinity',            units = 'g/kg' ,  grid = 'TTT', var = lambda: m.salt[...,1], pyom=m)
-     diagnostics.register_average(name='u',   long_name='Zonal velocity',      units = 'm/s' ,   grid = 'UTT', var = lambda: m.u[...,1], pyom=m)
-     diagnostics.register_average(name='v',   long_name='Meridional velocity', units = 'm/s' ,   grid = 'TUT', var = lambda: m.v[...,1], pyom=m)
-     diagnostics.register_average(name='w',   long_name='Vertical velocity',   units = 'm/s' ,   grid = 'TTU', var = lambda: m.w[...,1], pyom=m)
-     diagnostics.register_average(name='taux',long_name='wind stress',         units = 'm^2/s' , grid = 'UT',  var = lambda: m.surface_taux, pyom=m)
-     diagnostics.register_average(name='tauy',long_name='wind stress',         units = 'm^2/s' , grid = 'TU',  var = lambda: m.surface_tauy, pyom=m)
-     diagnostics.register_average(name='psi' ,long_name='Streamfunction',      units = 'm^3/s' , grid = 'UU',  var = lambda: m.psi[...,1], pyom=m)
+       m=self.main_module
+       if self.legacy_mode:
+           diagnostics.register_average(name="temp",long_name="Temperature",         units = "deg C" , grid = "TTT", var = lambda: m.temp[...,m.tau-1], pyom=m)
+           diagnostics.register_average(name="salt",long_name="Salinity",            units = "g/kg" ,  grid = "TTT", var = lambda: m.salt[...,m.tau-1], pyom=m)
+           diagnostics.register_average(name="u",   long_name="Zonal velocity",      units = "m/s" ,   grid = "UTT", var = lambda: m.u[...,m.tau-1], pyom=m)
+           diagnostics.register_average(name="v",   long_name="Meridional velocity", units = "m/s" ,   grid = "TUT", var = lambda: m.v[...,m.tau-1], pyom=m)
+           diagnostics.register_average(name="w",   long_name="Vertical velocity",   units = "m/s" ,   grid = "TTU", var = lambda: m.w[...,m.tau-1], pyom=m)
+           diagnostics.register_average(name="taux",long_name="wind stress",         units = "m^2/s" , grid = "UT",  var = lambda: m.surface_taux, pyom=m)
+           diagnostics.register_average(name="tauy",long_name="wind stress",         units = "m^2/s" , grid = "TU",  var = lambda: m.surface_tauy, pyom=m)
+           diagnostics.register_average(name="psi" ,long_name="Streamfunction",      units = "m^3/s" , grid = "UU",  var = lambda: m.psi[...,m.tau-1], pyom=m)
+       else:
+           diagnostics.register_average(name="temp",long_name="Temperature",         units = "deg C" , grid = "TTT", var = lambda: m.temp[...,m.tau], pyom=m)
+           diagnostics.register_average(name="salt",long_name="Salinity",            units = "g/kg" ,  grid = "TTT", var = lambda: m.salt[...,m.tau], pyom=m)
+           diagnostics.register_average(name="u",   long_name="Zonal velocity",      units = "m/s" ,   grid = "UTT", var = lambda: m.u[...,m.tau], pyom=m)
+           diagnostics.register_average(name="v",   long_name="Meridional velocity", units = "m/s" ,   grid = "TUT", var = lambda: m.v[...,m.tau], pyom=m)
+           diagnostics.register_average(name="w",   long_name="Vertical velocity",   units = "m/s" ,   grid = "TTU", var = lambda: m.w[...,m.tau], pyom=m)
+           diagnostics.register_average(name="taux",long_name="wind stress",         units = "m^2/s" , grid = "UT",  var = lambda: m.surface_taux, pyom=m)
+           diagnostics.register_average(name="tauy",long_name="wind stress",         units = "m^2/s" , grid = "TU",  var = lambda: m.surface_tauy, pyom=m)
+           diagnostics.register_average(name="psi" ,long_name="Streamfunction",      units = "m^3/s" , grid = "UU",  var = lambda: m.psi[...,m.tau], pyom=m)
 
 
 if __name__ == "__main__":
     simulation = ACC2()
-    simulation.run(snapint = 86400*10.0, runlen = 86400 * 10.0) #365*86400.*200)
+    simulation.run(snapint = 86400*1., runlen = 86400 * 100.0) #365*86400.*200)

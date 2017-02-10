@@ -1,11 +1,14 @@
 import warnings
 from collections import namedtuple
+import os
 import json
 import numpy as np
+
 from climate.pyom.diagnostics.diag_snap import def_grid_cdf
 
 
 Diagnostic = namedtuple("Diagnostic", ["name", "long_name", "units", "grid", "var", "sum"])
+
 
 def register_average(name,long_name,units,grid,var,pyom):
     """
@@ -24,7 +27,7 @@ def register_average(name,long_name,units,grid,var,pyom):
     if len(grid) != var().ndim:
         raise ValueError("number of dimensions must match grid")
 
-    if not all([g == "U" or g == "T" for g in grid]):
+    if not set(grid) <= {"U","T"}:
         raise ValueError("grid variable may only contain 'U' or 'T'")
 
     if not pyom.enable_diag_averages:
@@ -40,87 +43,113 @@ def register_average(name,long_name,units,grid,var,pyom):
     diag = Diagnostic(name, long_name, units, grid, var, np.zeros_like(var()))
     pyom.diagnostics.append(diag)
 
+
 def diag_averages(pyom):
+    pyom.average_nitts += 1
     for diag in pyom.diagnostics:
-        diag.sum[...] += diag.var()[...]
+        diag.sum[...] += diag.var()
+
+
+def _build_dimensions(grid):
+    if not len(grid) in [2,3]:
+        raise ValueError("Grid string must consist of 2 or 3 characters")
+    if not set(grid) <= {"U","T"}:
+        raise ValueError("Grid string may only consist of 'U' or 'T'")
+    dim_x = "xu" if grid[0] == "U" else "xt"
+    dim_y = "yu" if grid[1] == "U" else "yt"
+    if len(grid) == 3:
+        dim_z = "zw" if grid[2] == 'U' else "zt"
+        return dim_x, dim_y, dim_z, "Time"
+    else:
+        return dim_x, dim_y, "Time"
+
+
+def _get_mask(grid, pyom):
+    if not len(grid) in [2,3]:
+        raise ValueError("Grid string must consist of 2 or 3 characters")
+    if not set(grid) <= {"U","T"}:
+        raise ValueError("Grid string may only consist of 'U' or 'T'")
+    masks = {
+        "TT": pyom.maskT[:,:,-1],
+        "UT": pyom.maskU[:,:,-1],
+        "TU": pyom.maskV[:,:,-1],
+        "UU": pyom.maskZ[:,:,-1],
+        "TTT": pyom.maskT,
+        "UTT": pyom.maskU,
+        "TUT": pyom.maskV,
+        "TTU": pyom.maskW,
+        "UUT": pyom.maskZ,
+    }
+    return masks[grid]
+
 
 def write_averages(pyom):
     """
     write averages to netcdf file and zero array
     """
     from netCDF4 import Dataset
-    # real*8, parameter :: spval = -1.0d33
-    # real*8 :: bloc(nx,ny),fxa
 
     fill_value = -1e33
     filename = "averages_{}.cdf".format(pyom.itt)
-    with Dataset(filename,mode='a') as f:
-        print(" writing averages to file " + f)
-        def_grid_cdf(f)
+
+    with Dataset(filename,mode='w') as f:
+        print(" writing averages to file " + filename)
+        def_grid_cdf(f,pyom)
         f.set_fill_off()
         for diag in pyom.diagnostics: # n=1,number_diags
-            dim_x = "xu" if diag.grid[0] == 'U' else "xt"
-            dim_y = "yu" if diag.grid[1] == 'U' else "yt"
-            if len(diag.grid) == 3:
-                dim_z = "zu" if diag.grid[2] == 'U' else "zt"
-                dims = (dim_x, dim_y, dim_z, "Time")
-            else:
-                dims = (dim_x, dim_y, "Time")
-            var = f.createVariable(diag.name,"f8",dims,fill_value=fill_value)
+            dims = _build_dimensions(diag.grid)
+            mask = _get_mask(diag.grid,pyom)
+
             var_data = diag.sum
-            if diag.grid[:2] == "TU":
-                mask = pyom.maskV
-            elif diag.grid[:2] == "UT":
-                mask = pyom.maskU
-            else:
-                if diag.grid[2] == "T":
-                    mask = pyom.maskT
-                elif diag.grid[2] == "U":
-                    mask = pyom.maskU
             var_data[mask == 0] = np.nan
-            var[:] = var_data
+
+            var = f.createVariable(diag.name, "f8", dims, fill_value=fill_value)
+            var[...] = var_data[2:-2, 2:-2, ..., None] / pyom.average_nitts
             var.long_name = diag.long_name
             var.units = diag.units
             var.missing_value = fill_value
             diag.sum[...] = 0.
+    pyom.average_nitts = 0
+
+
+UNFINISHED_AVERAGES_FILENAME = "unfinished_averages.json"
+
 
 def diag_averages_write_restart(pyom):
     """
     write unfinished averages to restart file
     """
-    filename = "unfinished_averages.json"
     with open(filename,"w") as f:
-        print(" writing unfinished averages to {}".format(filename))
-        if not os.file_exists(filename):
+        print(" writing unfinished averages to {}".format(UNFINISHED_AVERAGES_FILENAME))
+        if not os.path.isfile(UNFINISHED_AVERAGES_FILENAME):
             warnings.warn("could not write restart file")
             return
-        json_data = dict(nx=pyom.nx, ny=pyom.ny, nz=pyom.nz,
-                         nitts=pyom.nitts)
+        json_data = dict(nx=pyom.nx, ny=pyom.ny, nz=pyom.nz, nitts=pyom.average_nitts)
         json_data["averages"] = dict()
         for diag in pyom.diagnostics:
             json_data["averages"][diag.name] = diag.sum.tolist()
         json.dump(json_data,f)
 
+
 def diag_averages_read_restart(pyom):
     """
     read unfinished averages from file
     """
-    filename = "unfinished_averages.json"
-    if not os.file_exists(filename):
-        warnings.warn("file {} not present\n"
-                      "reading no unfinished time averages".format(filename))
+    if not os.path.isfile(UNFINISHED_AVERAGES_FILENAME):
+        warnings.warn("file {} not present, reading no unfinished time averages".format(UNFINISHED_AVERAGES_FILENAME))
         return
-    print(" reading unfinished averages from {}".format(filename))
+    print(" reading unfinished averages from {}".format(UNFINISHED_AVERAGES_FILENAME))
 
     with open(filename,"r") as f:
         json_data = json.load(f)
 
     if json_data["nx"] != pyom.nx or json_data["ny"] != pyom.ny or json_data["nz"] != pyom.nz:
         warnings.warn("error reading restart file: read dimensions"
-                      "{} {} {} do not match dimensions {} {} {}"\
+                      "{} {} {} do not match dimensions {} {} {}" \
                      .format(json_data["nx"],json_data["ny"],json_data["nz"],
                              pyom.nx, pyom.ny, pyom.nz))
         return
 
     for diag in pyom.diagnostics:
         diag.sum[...] = np.array(json_data["averages"][diag.name])
+    pyom.average_nitts = json_data["nitts"]
