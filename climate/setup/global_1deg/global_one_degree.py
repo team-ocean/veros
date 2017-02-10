@@ -413,5 +413,4 @@ class GlobalOneDegree(PyOMLegacy):
 
 if __name__ == "__main__":
     simulation = GlobalOneDegree()
-    simulation.setup()
-    simulation.run()
+    simulation.run(runlen=86400*100, snapint=86400*10)
