@@ -570,14 +570,11 @@ class PyOM(object):
             if self.enable_diag_averages:
                 diagnostics.diag_averages_read_restart(self)
             if self.enable_diag_energy:
-                raise NotImplementedError()
                 diagnostics.diag_energy_read_restart(self)
             if self.enable_diag_overturning:
-                raise NotImplementedError()
                 diagnostics.diag_over_read_restart(self)
             if self.enable_diag_particles:
-                raise NotImplementedError()
-                diagnostics.particles_read_restart(self)
+                diagnostics.diag_particles_read_restart(self)
 
             self.enditt = self.itt + int(self.runlen / self.dt_tracer)
             print("Starting integration for {:.2e}s".format(self.runlen))

@@ -107,6 +107,7 @@ class ACC2(PyOMLegacy):
      m.salt[:,:,:,0:2] = 35.0*m.maskT[...,None]
 
      # wind stress forcing
+     # TODO: vectorize
      for j in range(m.js_pe,m.je_pe+1):
           jj = self.jf2py(j)
           taux=0.0
