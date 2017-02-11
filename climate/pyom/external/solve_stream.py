@@ -415,13 +415,13 @@ def solve_streamfunction(pyom,benchtest=False):
 
     # add hydrostatic pressure gradient
     pyom.du[2:pyom.nx+2,2:pyom.ny+2,:,pyom.tau] += \
-            (pyom.p_hydro[3:pyom.nx+3,2:pyom.ny+2,:]-pyom.p_hydro[2:pyom.nx+2,2:pyom.ny+2,:]) \
-            /(np.ones(pyom.nz)*pyom.cost[2:pyom.ny+2,np.newaxis]*pyom.dxu[2:pyom.nx+2,np.newaxis,np.newaxis]) \
+            -(pyom.p_hydro[3:pyom.nx+3,2:pyom.ny+2,:]-pyom.p_hydro[2:pyom.nx+2,2:pyom.ny+2,:]) \
+            /(pyom.cost[np.newaxis,2:pyom.ny+2,np.newaxis]*pyom.dxu[2:pyom.nx+2,np.newaxis,np.newaxis]) \
             *pyom.maskU[2:pyom.nx+2,2:pyom.ny+2,:]
     pyom.dv[2:pyom.nx+2,2:pyom.ny+2,:,pyom.tau] += \
-            (pyom.p_hydro[2:pyom.nx+2,3:pyom.ny+3,:]-pyom.p_hydro[2:pyom.nx+2,2:pyom.ny+2,:]) \
-            /(np.ones(pyom.nz) * pyom.dyu[2:pyom.ny+2, np.newaxis] * np.ones(pyom.nx)[:, np.newaxis, np.newaxis]) \
-            *pyom.maskV[2:pyom.nx+2,2:pyom.ny+2,:]
+            -(pyom.p_hydro[2:pyom.nx+2,3:pyom.ny+3,:]-pyom.p_hydro[2:pyom.nx+2,2:pyom.ny+2,:]) \
+            / pyom.dyu[np.newaxis, 2:pyom.ny+2, np.newaxis] \
+            * pyom.maskV[2:pyom.nx+2,2:pyom.ny+2,:]
     #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
     #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
     #        pyom.du[i,j,:,pyom.tau] += -( pyom.p_hydro[i+1,j,:]-pyom.p_hydro[i,j,:]  )/(pyom.dxu[i]*pyom.cost[j]) *pyom.maskU[i,j,:]
@@ -504,8 +504,8 @@ def solve_streamfunction(pyom,benchtest=False):
     pyom.psi[:, :, pyom.taup1] += pyom.dt_mom*np.add.reduce(( (1.5+pyom.AB_eps)*pyom.dpsin[1:pyom.nisle,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dpsin[1:pyom.nisle,pyom.taum1])*pyom.psin[:,:,1:pyom.nisle], axis=2)
     #for isle in xrange(1, pyom.nisle): #isle=2,nisle
     #    pyom.psi[:,:,pyom.taup1] += pyom.dt_mom*( (1.5+pyom.AB_eps)*pyom.dpsin[isle,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dpsin[isle,pyom.taum1])*pyom.psin[:,:,isle]
-    pyom.u[:,:,:,pyom.taup1]   += pyom.dt_mom*( pyom.du_mix+ (1.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.taum1] )*pyom.maskU
-    pyom.v[:,:,:,pyom.taup1]   += pyom.dt_mom*( pyom.dv_mix+ (1.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.taum1] )*pyom.maskV
+    pyom.u[:,:,:,pyom.taup1] = pyom.u[:,:,:,pyom.tau] + pyom.dt_mom*( pyom.du_mix+ (1.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.taum1] )*pyom.maskU
+    pyom.v[:,:,:,pyom.taup1] = pyom.v[:,:,:,pyom.tau] + pyom.dt_mom*( pyom.dv_mix+ (1.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.taum1] )*pyom.maskV
 
     # subtract incorrect vertical mean from baroclinic velocity
     #fpx[...] = 0.0
