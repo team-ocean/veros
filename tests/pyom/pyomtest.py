@@ -20,7 +20,7 @@ class PyOMTest(object):
     test_routines = None
 
 
-    def __init__(self, nx, ny, nz, fortran=None):
+    def __init__(self, nx, ny, nz, fortran):
         self.pyom_new = PyOMLegacy()
         self.pyom_legacy = PyOMLegacy(fortran=fortran)
 
@@ -41,7 +41,6 @@ class PyOMTest(object):
         self.pyom_legacy.fortran.allocate_tke_module()
         self.pyom_legacy.fortran.allocate_eke_module()
         self.pyom_legacy.fortran.allocate_idemix_module()
-
 
 
     def set_attribute(self, attribute, value):

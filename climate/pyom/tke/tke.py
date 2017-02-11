@@ -53,8 +53,8 @@ def set_tke_diffusivities(pyom):
         pyom.kappaH = pyom.kappaM / pyom.Prandtlnumber
         pyom.kappaM = np.maximum(pyom.kappaM_min, pyom.kappaM)
     else:
-        pyom.kappaM = pyom.kappaM_0
-        pyom.kappaH = pyom.kappaH_0
+        pyom.kappaM[...] = pyom.kappaM_0
+        pyom.kappaH[...] = pyom.kappaH_0
         if pyom.enable_hydrostatic:
             """
             simple convective adjustment

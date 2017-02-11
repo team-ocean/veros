@@ -119,14 +119,14 @@ def isoneutral_diag_streamfunction(pyom):
     K_gm_pad = utilities.pad_z_edges(pyom.K_gm)
 
     diffloc = 0.25 * (K_gm_pad[1:-2, 2:-2, 1:-1] + K_gm_pad[1:-2, 2:-2, :-2] + K_gm_pad[2:-1, 2:-2, 1:-1] + K_gm_pad[2:-1, 2:-2, :-2])
-    sumz = np.add.reduce(diffloc[..., None, None] * pyom.Ai_ez[1:-2, 2:-2, ...], axis=(3,4))
+    sumz = np.sum(diffloc[..., None, None] * pyom.Ai_ez[1:-2, 2:-2, ...], axis=(3,4))
     pyom.B2_gm[1:-2, 2:-2, :] = 0.25 * sumz
 
     """
     zonal component at north face of "T" cells
     """
     diffloc = 0.25 * (K_gm_pad[2:-2, 1:-2, 1:-1] + K_gm_pad[2:-2, 1:-2, :-2] + K_gm_pad[2:-2, 2:-1, 1:-1] + K_gm_pad[2:-2, 2:-1, :-2])
-    sumz = np.add.reduce(diffloc[..., None, None] * pyom.Ai_nz[2:-2, 1:-2, ...], axis=(3,4))
+    sumz = np.sum(diffloc[..., None, None] * pyom.Ai_nz[2:-2, 1:-2, ...], axis=(3,4))
     pyom.B1_gm[2:-2, 1:-2, :] = -0.25 * sumz
 
 

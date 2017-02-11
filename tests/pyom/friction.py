@@ -52,7 +52,8 @@ class FrictionTest(PyOMTest):
         for a in ("maskU", "maskV", "maskW", "maskT"):
             self.set_attribute(a,np.random.randint(0,2,size=(self.nx+4,self.ny+4,self.nz)).astype(np.float))
 
-        self.set_attribute("kbot",np.random.randint(0, self.nz, size=(self.nx+4,self.ny+4)))
+        #self.set_attribute("kbot",np.random.randint(0, self.nz, size=(self.nx+4,self.ny+4)))
+        self.set_attribute("kbot",np.random.randint(0, self.nz) * np.ones((self.nx+4,self.ny+4), dtype=np.int))
 
         self.test_module = friction
         pyom_args = (self.pyom_new,)
@@ -75,7 +76,7 @@ class FrictionTest(PyOMTest):
 
     def _check_var(self,var):
         v1, v2 = self.get_attribute(var)
-        passed = np.allclose(v1[2:-2, 2:-2, ...], v2[2:-2, 2:-2, ...])
+        passed = np.allclose(v1, v2)
         if not passed:
             print(var, np.abs(v1[2:-2, 2:-2, ...]-v2[2:-2, 2:-2, ...]).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:

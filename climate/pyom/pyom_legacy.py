@@ -10,6 +10,8 @@ class LowercaseAttributeWrapper(object):
         object.__setattr__(self,"_w",wrapped_object)
 
     def __getattr__(self, key):
+        if key == "_w":
+            return object.__getattribute__(self,"_w")
         return getattr(object.__getattribute__(self,"_w"),key.lower())
 
     def __setattr__(self, key, value):
@@ -87,3 +89,117 @@ class PyOMLegacy(PyOM):
             self.set_parameter()
             self.set_legacy_parameter()
             super(PyOMLegacy,self).setup(*args,**kwargs)
+
+
+    def run(self, snapint, runlen):
+        if not self.legacy_mode:
+            super(PyOMLegacy,self).run(snapint, runlen)
+            return
+
+        f = self.fortran
+        m = self.main_module
+        idm = self.idemix_module
+        ekm = self.eke_module
+        tkm = self.tke_module
+
+        m.runlen = runlen
+        m.snapint = snapint
+
+        with self.timers["setup"]:
+            """
+            Initialize model
+            """
+            self.setup()
+
+            m.enditt = m.itt + int(m.runlen / m.dt_tracer)
+            print("Starting integration for {:.2e}s".format(float(m.runlen)))
+            print(" from time step {} to {}".format(m.itt,m.enditt))
+
+        while m.itt < m.enditt:
+            with self.timers["main"]:
+                self.set_forcing()
+
+                if idm.enable_idemix:
+                    f.set_idemix_parameter()
+                if idm.enable_idemix_M2 or idm.enable_idemix_niw:
+                    f.set_spectral_parameter()
+
+                f.set_eke_diffusivities()
+                f.set_tke_diffusivities()
+
+                with self.timers["momentum"]:
+                    f.momentum()
+
+                with self.timers["temperature"]:
+                    f.thermodynamics()
+
+                if ekm.enable_eke or tkm.enable_tke or idm.enable_idemix:
+                    f.calculate_velocity_on_wgrid()
+
+                with self.timers["eke"]:
+                    if ekm.enable_eke:
+                        f.integrate_eke()
+
+                with self.timers["idemix"]:
+                    if idm.enable_idemix_M2:
+                        f.integrate_idemix_M2()
+                    if idm.enable_idemix_niw:
+                        f.integrate_idemix_niw()
+                    if idm.enable_idemix:
+                        f.integrate_idemix()
+                    if idm.enable_idemix_M2 or idm.enable_idemix_niw:
+                        f.wave_interaction()
+
+                with self.timers["tke"]:
+                    if tkm.enable_tke:
+                        f.integrate_tke()
+
+                """
+                Main boundary exchange
+                for density, temp and salt this is done in integrate_tempsalt.f90
+                """
+                f.border_exchg_xyz(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,m.u[:,:,:,m.taup1-1],m.nz)
+                f.setcyclic_xyz   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,m.u[:,:,:,m.taup1-1],m.nz)
+                f.border_exchg_xyz(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,m.v[:,:,:,m.taup1-1],m.nz)
+                f.setcyclic_xyz   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,m.v[:,:,:,m.taup1-1],m.nz)
+
+                if tkm.enable_tke:
+                    f.border_exchg_xyz(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,tkm.tke[:,:,:,m.taup1-1],m.nz)
+                    f.setcyclic_xyz   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,tkm.tke[:,:,:,m.taup1-1],m.nz)
+                if ekm.enable_eke:
+                    f.border_exchg_xyz(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,ekm.eke[:,:,:,m.taup1-1],m.nz)
+                    f.setcyclic_xyz   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,ekm.eke[:,:,:,m.taup1-1],m.nz)
+                if idm.enable_idemix:
+                    f.border_exchg_xyz(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_iw[:,:,:,m.taup1-1],m.nz)
+                    f.setcyclic_xyz   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_iw[:,:,:,m.taup1-1],m.nz)
+                if idm.enable_idemix_m2:
+                    f.border_exchg_xyp(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_m2[:,:,:,m.taup1-1],idm.np)
+                    f.setcyclic_xyp   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_m2[:,:,:,m.taup1-1],idm.np)
+                if idm.enable_idemix_niw:
+                    f.border_exchg_xyp(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_niw[:,:,:,m.taup1-1],idm.np)
+                    f.setcyclic_xyp   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_niw[:,:,:,m.taup1-1],idm.np)
+
+                # diagnose vertical velocity at taup1
+                if m.enable_hydrostatic:
+                    f.vertical_velocity()
+
+            #with self.timers["diagnostics"]:
+            #    diagnostics.diagnose(self)
+
+            # shift time
+            otaum1 = m.taum1 * 1
+            m.taum1 = m.tau
+            m.tau = m.taup1
+            m.taup1 = otaum1
+            m.itt += 1
+            print("Current iteration: {}".format(m.itt))
+
+
+        print("Timing summary:")
+        print(" setup time summary       = {}s".format(self.timers["setup"].getTime()))
+        print(" main loop time summary   = {}s".format(self.timers["main"].getTime()))
+        print("     momentum             = {}s".format(self.timers["momentum"].getTime()))
+        print("     thermodynamics       = {}s".format(self.timers["temperature"].getTime()))
+        print("     EKE                  = {}s".format(self.timers["eke"].getTime()))
+        print("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
+        print("     TKE                  = {}s".format(self.timers["tke"].getTime()))

@@ -10,66 +10,64 @@ def momentum(pyom):
     """
     time tendency due to Coriolis force
     """
-    pyom.du_cor[2:pyom.nx+2, 2:pyom.ny+2] = pyom.maskU[2:pyom.nx+2, 2:pyom.ny+2]\
-            *(pyom.coriolis_t[2:pyom.nx+2, 2:pyom.ny+2,None]*(pyom.v[2:pyom.nx+2, 2:pyom.ny+2,:,pyom.tau]+pyom.v[2:pyom.nx+2, 1:pyom.ny+1,:,pyom.tau])*pyom.dxt[2:pyom.nx+2,None,None]/pyom.dxu[2:pyom.nx+2,None,None] \
-            +pyom.coriolis_t[3:pyom.nx+3,2:pyom.ny+2,None]*(pyom.v[3:pyom.nx+3,2:pyom.ny+2,:,pyom.tau]+pyom.v[3:pyom.nx+3,1:pyom.ny+1,:,pyom.tau])*pyom.dxt[3:pyom.nx+3,None,None]/pyom.dxu[2:pyom.nx+2,None,None])*0.25
-    pyom.dv_cor[2:pyom.nx+2, 2:pyom.ny+2] = -pyom.maskV[2:pyom.nx+2, 2:pyom.ny+2]\
-            *(pyom.coriolis_t[2:pyom.nx+2, 2:pyom.ny+2,None]*(pyom.u[1:pyom.nx+1, 2:pyom.ny+2,:,pyom.tau]+pyom.u[2:pyom.nx+2, 2:pyom.ny+2,:,pyom.tau])*pyom.dyt[None,2:pyom.ny+2,None]*pyom.cost[None,2:pyom.ny+2,None]/(pyom.dyu[None,2:pyom.ny+2,None]*pyom.cosu[None,2:pyom.ny+2,None])\
-            +pyom.coriolis_t[2:pyom.nx+2,3:pyom.ny+3,None]*(pyom.u[1:pyom.nx+1, 3:pyom.ny+3,:,pyom.tau]+pyom.u[2:pyom.nx+2,3:pyom.ny+3,:,pyom.tau])*pyom.dyt[None,3:pyom.ny+3,None]*pyom.cost[None,3:pyom.ny+3,None]/(pyom.dyu[None,2:pyom.ny+2,None]*pyom.cosu[None,2:pyom.ny+2,None]))*0.25
+    pyom.du_cor[2:-2, 2:-2] = pyom.maskU[2:-2, 2:-2] \
+            * (pyom.coriolis_t[2:-2, 2:-2,None] * (pyom.v[2:-2, 2:-2,:,pyom.tau] + pyom.v[2:-2, 1:-3,:,pyom.tau]) \
+            * pyom.dxt[2:-2,None,None] / pyom.dxu[2:-2,None,None] \
+            + pyom.coriolis_t[3:-1,2:-2,None] * (pyom.v[3:-1,2:-2,:,pyom.tau] + pyom.v[3:-1,1:-3,:,pyom.tau]) \
+            * pyom.dxt[3:-1,None,None] / pyom.dxu[2:-2,None,None]) * 0.25
+    pyom.dv_cor[2:-2, 2:-2] = -pyom.maskV[2:-2, 2:-2]\
+            * (pyom.coriolis_t[2:-2, 2:-2,None] * (pyom.u[1:-3, 2:-2,:,pyom.tau] + pyom.u[2:-2, 2:-2,:,pyom.tau]) \
+            * pyom.dyt[None,2:-2,None] * pyom.cost[None,2:-2,None] \
+            / (pyom.dyu[None,2:-2,None] * pyom.cosu[None,2:-2,None]) \
+            + pyom.coriolis_t[2:-2,3:-1,None] * (pyom.u[1:-3, 3:-1,:,pyom.tau] + pyom.u[2:-2,3:-1,:,pyom.tau]) \
+            * pyom.dyt[None,3:-1,None] * pyom.cost[None,3:-1,None] \
+            / (pyom.dyu[None,2:-2,None] * pyom.cosu[None,2:-2,None])) * 0.25
 
     """
     time tendency due to metric terms
     """
     if pyom.coord_degree:
-        pyom.du_cor[2:pyom.nx+2, 2:pyom.ny+2] = pyom.maskU[2:pyom.nx+2, 2:pyom.ny+2]*0.125*pyom.tantr[None,2:pyom.ny+2,None]*(\
-                (pyom.u[2:pyom.nx+2, 2:pyom.ny+2,:,pyom.tau]+pyom.u[1:pyom.nx+1, 2:pyom.ny+2,:,pyom.tau])*(pyom.v[2:pyom.nx+2, 2:pyom.ny+2,:,pyom.tau]+pyom.v[2:pyom.nx+2, 1:pyom.ny+1,:,pyom.tau])*pyom.dxt[2:pyom.nx+2,None,None]/pyom.dxu[2:pyom.nx+2,None,None]\
-                + (pyom.u[3:pyom.nx+3, 2:pyom.ny+2,:,pyom.tau]+pyom.u[2:pyom.nx+2, 2:pyom.ny+2,:,pyom.tau])*(pyom.v[3:pyom.nx+3, 2:pyom.ny+2,:,pyom.tau]+pyom.v[3:pyom.nx+3, 1:pyom.ny+1,:,pyom.tau])*pyom.dxt[3:pyom.nx+3,None,None]/pyom.dxu[2:pyom.nx+2,None,None])
-        pyom.dv_cor[2:pyom.nx+2, 2:pyom.ny+2] = -pyom.maskV[2:pyom.nx+2, 2:pyom.ny+2]*0.125*(\
-                pyom.tantr[None,2:pyom.ny+2,None]*(pyom.u[2:pyom.nx+2,2:pyom.ny+2,:,pyom.tau]+pyom.u[1:pyom.nx+1,2:pyom.ny+2,:,pyom.tau])**2*pyom.dyt[None,2:pyom.ny+2,None]*pyom.cost[None,2:pyom.ny+2,None]/(pyom.dyu[None,2:pyom.ny+2,None]*pyom.cosu[None,2:pyom.ny+2,None]) \
-                + pyom.tantr[None,3:pyom.ny+3,None]*(pyom.u[2:pyom.nx+2,3:pyom.ny+3,:,pyom.tau]+pyom.u[1:pyom.nx+1,3:pyom.ny+3,:,pyom.tau])**2*pyom.dyt[None,3:pyom.ny+3,None]*pyom.cost[None,3:pyom.ny+3,None]/(pyom.dyu[None,2:pyom.ny+2,None]*pyom.cosu[None,2:pyom.ny+2,None]))
-        #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-        #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-        #        pyom.du_cor[i,j,:] += pyom.maskU[i,j,:]*0.125*pyom.tantr[j]*(\
-        #                          (pyom.u[i,j,:,pyom.tau]+pyom.u[i-1,j,:,pyom.tau])*(pyom.v[i,j,:,pyom.tau]+pyom.v[i,j-1,:,pyom.tau])*pyom.dxt[i]/pyom.dxu[i] \
-        #                        + (pyom.u[i+1,j,:,pyom.tau]+pyom.u[i,j,:,pyom.tau])*(pyom.v[i+1,j,:,pyom.tau]+pyom.v[i+1,j-1,:,pyom.tau])*pyom.dxt[i+1]/pyom.dxu[i])
-        #        pyom.dv_cor[i,j,:] -= pyom.maskV[i,j,:]*0.125*(\
-        #                               pyom.tantr[j]*(pyom.u[i,j,:,pyom.tau]+pyom.u[i-1,j,:,pyom.tau])**2*pyom.dyt[j]*pyom.cost[j]/(pyom.dyu[j]*pyom.cosu[j]) \
-        #                             + pyom.tantr[j+1]*(pyom.u[i,j+1,:,pyom.tau]+pyom.u[i-1,j+1,:,pyom.tau])**2*pyom.dyt[j+1]*pyom.cost[j+1]/(pyom.dyu[j]*pyom.cosu[j]))
+        pyom.du_cor[2:-2, 2:-2] += pyom.maskU[2:-2, 2:-2] * 0.125 * pyom.tantr[None,2:-2,None] \
+                * ((pyom.u[2:-2, 2:-2,:,pyom.tau] + pyom.u[1:-3, 2:-2,:,pyom.tau]) \
+                 * (pyom.v[2:-2, 2:-2,:,pyom.tau] + pyom.v[2:-2, 1:-3,:,pyom.tau]) \
+                 * pyom.dxt[2:-2,None,None] / pyom.dxu[2:-2,None,None] \
+                 + (pyom.u[3:-1, 2:-2,:,pyom.tau] + pyom.u[2:-2, 2:-2,:,pyom.tau]) \
+                 * (pyom.v[3:-1, 2:-2,:,pyom.tau] + pyom.v[3:-1, 1:-3,:,pyom.tau]) \
+                 * pyom.dxt[3:-1,None,None] / pyom.dxu[2:-2,None,None])
+        pyom.dv_cor[2:-2, 2:-2] += -pyom.maskV[2:-2, 2:-2] * 0.125 \
+                * (pyom.tantr[None,2:-2,None] * (pyom.u[2:-2,2:-2,:,pyom.tau] + pyom.u[1:-3,2:-2,:,pyom.tau])**2 \
+                * pyom.dyt[None,2:-2,None] * pyom.cost[None,2:-2,None] \
+                / (pyom.dyu[None,2:-2,None] * pyom.cosu[None,2:-2,None]) \
+                + pyom.tantr[None,3:-1,None] * (pyom.u[2:-2,3:-1,:,pyom.tau] + pyom.u[1:-3,3:-1,:,pyom.tau])**2 \
+                * pyom.dyt[None,3:-1,None] * pyom.cost[None,3:-1,None] \
+                / (pyom.dyu[None,2:-2,None] * pyom.cosu[None,2:-2,None]))
 
     """
     non hydrostatic Coriolis terms, metric terms are neglected
     """
     if not pyom.enable_hydrostatic:
-        pyom.du_cor[2:-2, :, 1:] = -pyom.maskU[2:-2, :, 1:]*0.25*(pyom.coriolis_h[2:-2,:,None]*pyom.area_t[2:-2,:,None]*(pyom.w[2:-2,:,1:,pyom.tau]+pyom.w[2:-2,:,:-1,pyom.tau])\
-                + pyom.coriolis_h[3:-1,:,None] * pyom.area_t[3:-1,:,None] * (pyom.w[3:-1,:,1:,pyom.tau]+pyom.w[3:-1,:,:-1,pyom.tau])) \
+        pyom.du_cor[2:-2, :, 1:] += -pyom.maskU[2:-2, :, 1:] * 0.25 \
+                * (pyom.coriolis_h[2:-2,:,None] * pyom.area_t[2:-2,:,None] \
+                * (pyom.w[2:-2,:,1:,pyom.tau] + pyom.w[2:-2,:,:-1,pyom.tau]) \
+                + pyom.coriolis_h[3:-1,:,None] * pyom.area_t[3:-1,:,None] \
+                * (pyom.w[3:-1,:,1:,pyom.tau] + pyom.w[3:-1,:,:-1,pyom.tau])) \
                 / pyom.area_u[2:-2,:,None]
-        #for k in xrange(1, pyom.nz): #k = 2,nz
-        #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-        #        pyom.du_cor[i,:,k] -= pyom.maskU[i,:,k]*0.25*(pyom.coriolis_h[i,:]*pyom.area_t[i,:]*(pyom.w[i,:,k,pyom.tau]+pyom.w[i,:,k-1,pyom.tau]) \
-        #                                           + pyom.coriolis_h[i+1,:]*pyom.area_t[i+1,:]*(pyom.w[i+1,:,k,pyom.tau]+pyom.w[i+1,:,k-1,pyom.tau])) \
-        #                                             / pyom.area_u[i,:]
-        pyom.du_cor[2:-2,:,0] -= pyom.maskU[2:-2,:,0]*0.25*(pyom.coriolis_h[2:-2]*pyom.area_t[2:-2]*(pyom.w[2:-2,:,0,pyom.tau]) \
-                + pyom.coriolis_h[3:-1]*pyom.area_t[3:-1]*(pyom.w[3:-1,:,0,pyom.tau]))/pyom.area_u[2:-2]
-        #k = 0
-        #for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-        #    pyom.du_cor[i,:,k] -= pyom.maskU[i,:,k]*0.25*(pyom.coriolis_h[i,:]*pyom.area_t[i,:]*(pyom.w[i,:,k,pyom.tau]) \
-        #                                       + pyom.coriolis_h[i+1,:]*pyom.area_t[i+1,:]*(pyom.w[i+1,:,k,pyom.tau]))/pyom.area_u[i,:]
-        pyom.dw_cor[2:-2,:,:-1] = pyom.maskW[2:-2,:,:-1] * 0.25 * (pyom.coriolis_h[2:-2,:,None] * pyom.dzt[None,None,:-1] * (pyom.u[2:-2,:,:-1,pyom.tau] + pyom.u[1:-3,:,:-1,pyom.tau]) \
-                + pyom.coriolis_h[2:-2,:,None] * pyom.dzt[None,None,1:] * (pyom.u[2:-2,:,1:,pyom.tau] + pyom.u[1:-3,:,1:,pyom.tau])) / pyom.dzw[None,None,:-1]
-        #for k in xrange(nz-1): #k = 1,nz-1
-        #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-        #        pyom.dw_cor[i,:,k] = pyom.maskW[i,:,k]*0.25*(pyom.coriolis_h[i,:]*pyom.dzt[k]*(pyom.u[i,:,k,pyom.tau]+pyom.u[i-1,:,k,pyom.tau]) \
-        #                                          + pyom.coriolis_h[i,:]*pyom.dzt[k+1]*(pyom.u[i,:,k+1,pyom.tau]+pyom.u[i-1,:,k+1,pyom.tau]))/pyom.dzw[k]
+        pyom.du_cor[2:-2,:,0] += -pyom.maskU[2:-2,:,0] * 0.25 \
+                * (pyom.coriolis_h[2:-2] * pyom.area_t[2:-2] * (pyom.w[2:-2,:,0,pyom.tau]) \
+                 + pyom.coriolis_h[3:-1] * pyom.area_t[3:-1] * (pyom.w[3:-1,:,0,pyom.tau])) \
+                 / pyom.area_u[2:-2]
+        pyom.dw_cor[2:-2,:,:-1] = pyom.maskW[2:-2,:,:-1] * 0.25 \
+                * (pyom.coriolis_h[2:-2,:,None] * pyom.dzt[None,None,:-1] \
+                * (pyom.u[2:-2,:,:-1,pyom.tau] + pyom.u[1:-3,:,:-1,pyom.tau]) \
+                +  pyom.coriolis_h[2:-2,:,None] * pyom.dzt[None,None,1:] \
+                * (pyom.u[2:-2,:,1:,pyom.tau] + pyom.u[1:-3,:,1:,pyom.tau])) \
+                / pyom.dzw[None,None,:-1]
 
     """
     transfer to time tendencies
     """
     pyom.du[2:-2,2:-2,:,pyom.tau] = pyom.du_cor[2:-2,2:-2]
     pyom.dv[2:-2,2:-2,:,pyom.tau] = pyom.dv_cor[2:-2,2:-2]
-    #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-    #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-    #        pyom.du[i,j,:,pyom.tau] = pyom.du_cor[i,j,:]
-    #        pyom.dv[i,j,:,pyom.tau] = pyom.dv_cor[i,j,:]
 
     if not pyom.enable_hydrostatic:
         pyom.dw[2:-2,2:-2,:,pyom.tau] = pyom.dw_cor[2:-2,2:-2]
@@ -80,12 +78,8 @@ def momentum(pyom):
     """
     wind stress forcing
     """
-    pyom.du[2:-2,2:-2,-1,pyom.tau] += pyom.maskU[2:-2,2:-2,-1]*pyom.surface_taux[2:-2,2:-2]/pyom.dzt[-1]
-    pyom.dv[2:-2,2:-2,-1,pyom.tau] += pyom.maskV[2:-2,2:-2,-1]*pyom.surface_tauy[2:-2,2:-2]/pyom.dzt[-1]
-    #for j in xrange(pyom.js_pe, pyom.je_pe): #j = js_pe,je_pe
-    #    for i in xrange(pyom.is_pe, pyom.ie_pe): #i = is_pe,ie_pe
-    #        pyom.du[i,j,pyom.nz-1,pyom.tau] += pyom.maskU[i,j,pyom.nz-1]*pyom.surface_taux[i,j]/pyom.dzt[pyom.nz-1]
-    #        pyom.dv[i,j,pyom.nz-1,pyom.tau] += pyom.maskV[i,j,pyom.nz-1]*pyom.surface_tauy[i,j]/pyom.dzt[pyom.nz-1]
+    pyom.du[2:-2,2:-2,-1,pyom.tau] += pyom.maskU[2:-2,2:-2,-1] * pyom.surface_taux[2:-2,2:-2] / pyom.dzt[-1]
+    pyom.dv[2:-2,2:-2,-1,pyom.tau] += pyom.maskV[2:-2,2:-2,-1] * pyom.surface_tauy[2:-2,2:-2] / pyom.dzt[-1]
 
     """
     advection
@@ -155,15 +149,15 @@ def momentum(pyom):
 def vertical_velocity(pyom):
     """
            vertical velocity from continuity :
-           \int_0^z w_z dz = w(z)-w(0) = - \int dz (u_x +v_y)
-            w(z) = -int dz u_x + v_y
+           \int_0^z w_z dz = w(z)-w(0) = - \int dz (u_x + v_y)
+           w(z) = -int dz u_x + v_y
     """
     fxa = np.empty((pyom.nx+3, pyom.ny+3, pyom.nz))
     # integrate from bottom to surface to see error in w
     fxa[:,:,0] = -pyom.maskW[1:,1:,0] * pyom.dzt[0] * \
           ((pyom.u[1:,1:,0,pyom.taup1]-pyom.u[:-1,1:,0,pyom.taup1])/(pyom.cost[None,1:]*pyom.dxt[1:,None]) \
           + (pyom.cosu[None,1:] * pyom.v[1:,1:,0,pyom.taup1] - pyom.cosu[None,:-1] * pyom.v[1:,:-1,0,pyom.taup1]) / (pyom.cost[None, 1:] * pyom.dyt[None, 1:]))
-    fxa[:,:,1:] = - pyom.maskW[1:,1:,1:] * pyom.dzt[None, None, 1:] \
+    fxa[:,:,1:] = -pyom.maskW[1:,1:,1:] * pyom.dzt[None, None, 1:] \
                     * ((pyom.u[1:,1:,1:,pyom.taup1] - pyom.u[:-1,1:,1:,pyom.taup1]) \
                     / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
                     + (pyom.cosu[None, 1:, None] * pyom.v[1:,1:,1:,pyom.taup1] \

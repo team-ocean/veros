@@ -104,7 +104,7 @@ def implicit_vert_friction(pyom):
     implicit vertical friction of zonal momentum
     """
     kss = np.maximum(pyom.kbot[1:-2, 1:-2], pyom.kbot[2:-1, 1:-2]) - 1
-    fxa = 0.5 * (pyom.kappaM[1:-2,1:-2,:-1] + pyom.kappaM[2:-1,1:-2,:-1])
+    fxa = 0.5 * (pyom.kappaM[1:-2, 1:-2, :-1] + pyom.kappaM[2:-1, 1:-2, :-1])
     delta[:,:,:-1] = pyom.dt_mom / pyom.dzw[:-1] * fxa * pyom.maskU[1:-2,1:-2,1:] * pyom.maskU[1:-2,1:-2,:-1]
     a_tri[:,:, 1:] = -delta[:,:,:-1] / pyom.dzt[None,None,1:]
     b_tri[:,:, 1:] = 1 + delta[:,:,:-1] / pyom.dzt[None,None,1:]
@@ -122,8 +122,9 @@ def implicit_vert_friction(pyom):
     """
     fxa = 0.5 * (pyom.kappaM[1:-2, 1:-2, :-1] + pyom.kappaM[2:-1, 1:-2, :-1])
     pyom.flux_top[1:-2, 1:-2, :-1] = fxa * (pyom.u[1:-2, 1:-2, 1:, pyom.taup1] - pyom.u[1:-2, 1:-2, :-1, pyom.taup1]) \
-            / pyom.dzw[:-1] * pyom.maskU[1:-2, 1:-2, 1:] * pyom.maskU[1:-2, 1:-2, :-1]
-    diss[1:-2, 1:-2, :-1] = (pyom.u[1:-2, 1:-2, 1:, pyom.tau] - pyom.u[1:-2, 1:-2, :-1, pyom.tau]) * pyom.flux_top[1:-2, 1:-2, :-1] / pyom.dzw[:-1]
+                                    / pyom.dzw[:-1] * pyom.maskU[1:-2, 1:-2, 1:] * pyom.maskU[1:-2, 1:-2, :-1]
+    diss[1:-2, 1:-2, :-1] = (pyom.u[1:-2, 1:-2, 1:, pyom.tau] - pyom.u[1:-2, 1:-2, :-1, pyom.tau]) \
+                            * pyom.flux_top[1:-2, 1:-2, :-1] / pyom.dzw[:-1]
     diss[:,:,-1] = 0.0
     diss[...] = numerics.ugrid_to_tgrid(diss,pyom)
     pyom.K_diss_v += diss
@@ -178,8 +179,8 @@ def implicit_vert_friction(pyom):
         fxa = 0.5 * (pyom.kappaM[1:-2, 1:-2, :-1] + pyom.kappaM[1:-2,1:-2,1:])
         pyom.flux_top[1:-2,1:-2,:-1] = fxa * (pyom.w[1:-2,1:-2,1:,pyom.taup1] - pyom.w[1:-2,1:-2,:-1,pyom.taup1]) \
                 / pyom.dzt[1:] * pyom.maskW[1:-2, 1:-2, 1:] * pyom.maskW[1:-2, 1:-2, :-1]
-        diss[1:-2, 1:-2,:-1] = (pyom.w[1:-2,1:-2,1:,pyom.tau] - pyom.w[1:-2,1:-2,:-1,pyom.tau]) * pyom.flux_top[1:-2,1:-2,:-1] / pyom.dzt[1:]
-        diss[:,:,pyom.nz-1] = 0.0
+        diss[1:-2, 1:-2, :-1] = (pyom.w[1:-2,1:-2,1:,pyom.tau] - pyom.w[1:-2,1:-2,:-1,pyom.tau]) * pyom.flux_top[1:-2,1:-2,:-1] / pyom.dzt[1:]
+        diss[:,:,-1] = 0.0
         pyom.K_diss_v += diss
 
 

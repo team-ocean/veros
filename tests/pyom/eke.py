@@ -40,11 +40,11 @@ class EKETest(PyOMTest):
         for a in ("dzt","dzw","zw"):
             self.set_attribute(a,100*np.random.rand(self.nz))
 
-        for a in ("eke_topo_hrms","eke_topo_lam","hrms_k0","coriolis_t","beta","eke_lee_flux","eke_bot_flux","L_Rossby"):
+        for a in ("eke_topo_hrms","eke_topo_lam","hrms_k0","coriolis_t","beta","eke_lee_flux","eke_bot_flux","L_rossby"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4))
 
         for a in ("eke_len","K_diss_h","K_diss_gm","P_diss_skew","P_diss_hmix","P_diss_iso",
-                  "kappaM","eke_diss_iw","eke_diss_tke","K_gm","flux_east","flux_north","flux_top","L_Rhines"):
+                  "kappaM","eke_diss_iw","eke_diss_tke","K_gm","flux_east","flux_north","flux_top","L_rhines"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
         for a in ("eke","deke","Nsqr","u","v",):
@@ -65,8 +65,8 @@ class EKETest(PyOMTest):
 
     def test_passed(self,routine):
         all_passed = True
-        for f in ("flux_east","flux_north","flux_top","eke","deke","hrms_k0","L_Rossby",
-                  "L_Rhines","eke_len","K_gm","kappa_gm","K_iso","sqrteke","c_lee","c_Ri_diss",
+        for f in ("flux_east","flux_north","flux_top","eke","deke","hrms_k0","L_rossby",
+                  "L_rhines","eke_len","K_gm","kappa_gm","K_iso","sqrteke","c_lee","c_Ri_diss",
                   "eke_diss_iw","eke_diss_tke","eke_lee_flux","eke_bot_flux"):
             passed = self._check_var(f)
             if not passed:

@@ -39,9 +39,9 @@ class ACC2(PyOMLegacy):
      i.enable_skew_diffusion = 1
 
      m.enable_hor_friction = 1
-     m.A_h = (2*m.degtom)**3*2e-11
+     m.A_h = (2*m.degtom)**3 * 2e-11
      m.enable_hor_friction_cos_scaling = 1
-     m.hor_friction_cospower=1
+     m.hor_friction_cosPower = 1
 
      m.enable_bottom_friction = 1
      m.r_bot = 1e-5
@@ -56,7 +56,7 @@ class ACC2(PyOMLegacy):
      t.tke_mxl_choice = 2
      #t.enable_tke_superbee_advection = 1
 
-     m.K_gm_0 = 1000.0
+     i.K_gm_0 = 1000.0
      e=self.eke_module
      e.enable_eke = 1
      e.eke_k_max  = 1e4
