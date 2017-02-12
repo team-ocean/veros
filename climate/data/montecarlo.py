@@ -1,5 +1,6 @@
 import numpy
 import climate.io.wrapper as wrapper
+from multiprocessing import Process
 
 class dist:
     normal, random = range(2)
@@ -20,6 +21,7 @@ def montecarlo(callback, samples, **kwargs):
                     vals[var] = randomInt(samples, minVal, maxVal)
         else:
             vals[var] = kwargs[var]
+    ps = []
     for i in xrange(samples):
         callVals = {}
         for var in vals:
@@ -27,7 +29,10 @@ def montecarlo(callback, samples, **kwargs):
                 callVals[var] = vals[var][i]
             else:
                 callVals[var] = vals[var]
-        callback(**callVals)
+        p = Process(target=callback, kwargs=callVals)
+        ps.append(p)
+        p.start()
+    [p.join() for p in ps]
 
 def normal(samples, minVal, maxVal):
     # Normal distribution from 0 to 2
