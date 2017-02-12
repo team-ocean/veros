@@ -93,9 +93,7 @@ class ACC2(PyOMLegacy):
    def set_topography(self):
      m=self.main_module
      (X,Y)= np.meshgrid(m.xt,m.yt); X=X.transpose(); Y=Y.transpose()
-     m.kbot[:] = 0
-     m.kbot[X > 1.0] = 1
-     m.kbot[Y < -20] = 1
+     m.kbot = (X > 1.0) | (Y < -20)
 
    def set_initial_conditions(self):
      m=self.main_module
@@ -107,19 +105,18 @@ class ACC2(PyOMLegacy):
      m.salt[:,:,:,0:2] = 35.0*m.maskT[...,None]
 
      # wind stress forcing
-     # TODO: vectorize
-     for j in range(m.js_pe,m.je_pe+1):
-          jj = self.jf2py(j)
-          taux=0.0
-          if  m.yt[jj]<-20 : taux =  .1e-3*np.sin(np.pi*(m.yu[jj]-yu_start)/(-20.0-yt_start))
-          if  m.yt[jj]>10  : taux =  .1e-3*(1-np.cos(2*np.pi*(m.yu[jj]-10.0)/(yu_end-10.0)))
-          m.surface_taux[:,jj] = taux*m.maskU[:,jj,-1]
+     taux = np.zeros(self.ny+1)
+     yt = m.yt[2:self.ny+3]
+     taux = (.1e-3*np.sin(np.pi*(m.yu[2:self.ny+3]-yu_start)/(-20.0-yt_start)))*(yt < -20) \
+             + (.1e-3*(1-np.cos(2*np.pi*(m.yu[2:self.ny+3]-10.0)/(yu_end-10.0))))*(yt > 10)
+     m.surface_taux[:,2:self.ny+3] = taux * m.maskU[:,2:self.ny+3,-1]
 
      # surface heatflux forcing
      self.t_rest = np.zeros(m.u[:,:,1,0].shape)
-     self.t_star = 15 * np.ones(m.u[:,:,1,0].shape)
-     self.t_star[:,m.yt < -20.] = 15*(m.yt[m.yt < -20.] - yt_start)/(-20.0-yt_start)
-     self.t_star[:,m.yt > 20.] = 15*(1-(m.yt[m.yt > 20.]-20)/(yt_end-20))
+     self.t_star = np.zeros(m.u[:,:,1,0].shape)
+     self.t_star[:, 2:-2] = 15 * np.invert((m.yt[2:-2] < -20) | (m.yt[2:-2] > 20)) \
+             + 15*(m.yt[2:-2] - yt_start)/(-20-yt_start)*(m.yt[2:-2] < -20) \
+             + 15*(1-(m.yt[2:-2]-20)/(yt_end-20))*(m.yt[2:-2] > 20.)
      self.t_rest = m.dzt[None,-1]/(30.*86400.)*m.maskT[:,:,-1]
 
      t=self.tke_module
