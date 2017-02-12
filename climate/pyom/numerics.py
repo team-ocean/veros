@@ -8,15 +8,17 @@ def u_centered_grid(dyt,dyu,yt,yu,n):
     yu[0] = 0
     yu[1:n] = np.add.accumulate(dyt[1:n])
 
-    #if climate.is_bohrium:
-    #    YT = yt.copy2numpy()
-    #else:
-    #    YT = yt
     yt[0] = yu[0]-dyt[0]*0.5
+    yt[1:n] = 2*yu[:n-1]
+    if climate.is_bohrium:
+        YT = yt.copy2numpy()
+    else:
+        YT = yt
     for i in xrange(1, n):
-        yt[i] = 2*yu[i-1] - yt[i-1]
-    #if climate.is_bohrium:
-    #    yt[...] = np.array(YT)
+        YT[i] -= YT[i-1]
+    if climate.is_bohrium:
+        YT = np.array(YT)
+        yt[1:n] = YT[1:n]
 
     dyu[:n-1] = yt[1:] - yt[:n-1]
     dyu[n-1] = 2*dyt[n-1] - dyu[n-2]
@@ -178,22 +180,16 @@ def calc_topo(pyom):
     """
     pyom.maskT[...] = 0.0
 
-    if climate.is_bohrium:
-        kbot = pyom.kbot.copy2numpy()
-    else:
-        kbot = pyom.kbot
+    #if climate.is_bohrium:
+    #    kbot = pyom.kbot.copy2numpy()
+    #else:
+    #    kbot = pyom.kbot
 
-    k_kbot = np.ones(pyom.nz, dtype=np.int) * kbot[:, :, np.newaxis]
+    k_kbot = np.ones(pyom.nz, dtype=np.int) * pyom.kbot[:, :, np.newaxis]
     ks = np.arange(pyom.nz, dtype=np.int) * np.ones(pyom.ny+4, dtype=np.int)[:, np.newaxis] * np.ones(pyom.nx+4, dtype=np.int)[:,np.newaxis,np.newaxis]
-    if climate.is_bohrium:
-        k_kbot = k_kbot.copy2numpy()
-        ks = ks.copy2numpy()
-        maskT = pyom.maskT.copy2numpy()
-    else:
-        maskT = pyom.maskT
-    maskT[(k_kbot > 0) & (k_kbot-1 <= ks)] = k_kbot[(k_kbot > 0) & (k_kbot-1 <= ks)]
-    if climate.is_bohrium:
-        pyom.maskT = np.array(maskT)
+    pyom.maskT[...] = pyom.maskT * np.invert((k_kbot > 0) & (k_kbot-1 <= ks)) + k_kbot * ((k_kbot > 0) & (k_kbot-1 <= ks))
+    #if climate.is_bohrium:
+    #    pyom.maskT = np.array(maskT)
     #for i in xrange(pyom.nx+4): # i=is_pe-onx,ie_pe+onx
     #    for j in xrange(pyom.ny+4): # j=js_pe-onx,je_pe+onx
     #        for k in xrange(pyom.nz): # k=1,nz
@@ -228,31 +224,15 @@ def calc_topo(pyom):
     """
     total depth
     """
-    pyom.ht[...] = 0.0
-    pyom.hu[...] = 0.0
-    pyom.hv[...] = 0.0
-    pyom.ht += np.add.reduce(pyom.maskT*pyom.dzt, axis=2)
-    pyom.hu += np.add.reduce(pyom.maskU*pyom.dzt, axis=2)
-    pyom.hv += np.add.reduce(pyom.maskV*pyom.dzt, axis=2)
-    #for k in xrange(pyom.nz): #k=1,nz
-    #    pyom.ht += pyom.maskT[:,:,k]*pyom.dzt[k]
-    #    pyom.hu += pyom.maskU[:,:,k]*pyom.dzt[k]
-    #    pyom.hv += pyom.maskV[:,:,k]*pyom.dzt[k]
-    if climate.is_bohrium:
-        hur = pyom.hur.copy2numpy()
-        hvr = pyom.hvr.copy2numpy()
-        hu = pyom.hu.copy2numpy()
-        hv = pyom.hv.copy2numpy()
-    else:
-        hur = pyom.hur
-        hvr = pyom.hvr
-        hu = pyom.hu
-        hv = pyom.hv
-    hur[hu != 0.0] = 1./hu[hu != 0.0]
-    hvr[hv != 0.0] = 1./hv[hv != 0.0]
-    if climate.is_bohrium:
-        pyom.hur = np.array(hur)
-        pyom.hvr = np.array(hvr)
+    #pyom.ht[...] = 0.0
+    #pyom.hu[...] = 0.0
+    #pyom.hv[...] = 0.0
+    pyom.ht = np.add.reduce(pyom.maskT*pyom.dzt, axis=2)
+    pyom.hu = np.add.reduce(pyom.maskU*pyom.dzt, axis=2)
+    pyom.hv = np.add.reduce(pyom.maskV*pyom.dzt, axis=2)
+
+    pyom.hur[...] = (1. / (pyom.hu+(pyom.hu==0)))*(pyom.hu!=0)
+    pyom.hvr[...] = (1. / (pyom.hv+(pyom.hv==0)))*(pyom.hv!=0)
 
 
 def calc_initial_conditions(pyom):

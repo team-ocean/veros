@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import Queue
+import climate
 
 def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyom, change_nisle=False, verbose=False):
     """
@@ -49,8 +50,10 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyo
     """
 
 
-    Map[kmt > 0] = ocean
-    Map[kmt <= 0] = land
+    if climate.is_bohrium:
+        Map[...] = ((kmt > 0) * ocean + (kmt <= 0) * land).copy2numpy()
+    else:
+        Map[...] = (kmt > 0) * ocean + (kmt <= 0) * land
     #for i in xrange(imt):
     #    for j in xrange(jmt):
     #        if kmt[i,j] > 0:

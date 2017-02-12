@@ -42,8 +42,8 @@ def streamfunction_init(pyom):
     iofs   = np.zeros(mnisle, dtype=np.int)
 
     if climate.is_bohrium:
-        allmap = allmap.copy2numpy()
         Map = Map.copy2numpy()
+        allmap = allmap.copy2numpy()
 
     print 'Initializing streamfunction method'
     verbose = pyom.enable_congrad_verbose
@@ -53,21 +53,20 @@ def streamfunction_init(pyom):
     -----------------------------------------------------------------------
     """
     kmt = np.zeros((pyom.nx+4, pyom.ny+4)) # note that routine will modify kmt
-    if climate.is_bohrium:
-        kbot = pyom.kbot.copy2numpy()
-        kmt = kmt.copy2numpy()
-    else:
-        kbot = pyom.kbot
-    kmt[2:pyom.nx+2, 2:pyom.ny+2][kbot[2:pyom.nx+2, 2:pyom.ny+2] > 0] = 5
+    #if climate.is_bohrium:
+    #    kbot = pyom.kbot.copy2numpy()
+    #    kmt = kmt.copy2numpy()
+    #else:
+    #    kbot = pyom.kbot
+    kmt[2:pyom.nx+2, 2:pyom.ny+2] = (pyom.kbot[2:pyom.nx+2, 2:pyom.ny+2] > 0) * 5
 
     #MPI stuff
     #call pe0_recv_2D_int(nx,ny,kmt(1:nx,1:ny))
     #call pe0_bcast_int(kmt,(nx+2*onx)*(ny+2*onx))
 
     if pyom.enable_cyclic_x:
-        for i in xrange(1, 3): #i=1,onx
-            kmt[pyom.nx+i+1,:] = kmt[i+1  ,:]
-            kmt[2-i,:] = kmt[pyom.nx-i+2,:]
+        kmt[-2:] = kmt[2:4]
+        kmt[0:2] = kmt[-4:-2]
 
     """
     -----------------------------------------------------------------------
@@ -77,9 +76,8 @@ def streamfunction_init(pyom):
     print ' starting MOMs algorithm for B-grid to determine number of islands'
     island.isleperim(kmt,allmap, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp,pyom,change_nisle=True, verbose=True)
     if pyom.enable_cyclic_x:
-        for i in xrange(1, 3): #i=1,onx
-            allmap[pyom.nx+i+1,:] = allmap[i+1  ,:]
-            allmap[2-i,:] = allmap[pyom.nx-i+2,:]
+        allmap[-2:] = allmap[2:4]
+        allmap[0:2] = allmap[-4:-2]
     showmap(allmap, pyom)
 
     """
@@ -108,8 +106,8 @@ def streamfunction_init(pyom):
          land map for island number isle: 1 is land, -1 is perimeter, 0 is ocean
         -----------------------------------------------------------------------
         """
-        kmt[...] = 1
-        kmt[allmap == isle+1] = 0
+        kmt[...] = allmap != isle+1
+        #kmt[] = 0
         island.isleperim(kmt,Map, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp,pyom)
         if verbose:
             showmap(Map, pyom)
