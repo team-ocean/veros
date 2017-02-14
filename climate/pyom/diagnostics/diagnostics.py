@@ -98,18 +98,27 @@ def diag_cfl(pyom):
     """
     check for CFL violation
     """
-    cfl = 0
-    wcfl = 0.
-    for k in xrange(1,nz): # k=1,nz
-        for j in xrange(js_pe,je_pe): # j=js_pe,je_pe
-            for i in xrange(is_pe,ie_pe): # i=is_pe,ie_pe
-                cfl = max(cfl, abs(u[i,j,k,tau])*maskU[i,j,k]/(cost[j]*dxt[i])*dt_tracer)
-                cfl = max(cfl, abs(v[i,j,k,tau])*maskV[i,j,k]/dyt[j]*dt_tracer)
-                wcfl = max(wcfl, abs(w[i,j,k,tau])*maskW[i,j,k]/dzt[k]*dt_tracer)
+    cfl = max(
+        np.max(np.abs(pyom.u[2:-2,2:-2,:,pyom.tau]) * pyom.maskU[2:-2,2:-2,:] \
+                / (pyom.cost[np.newaxis, 2:-2, np.newaxis] * pyom.dxt[2:-2, np.newaxis, np.newaxis]) \
+                * pyom.dt_tracer),
+        np.max(np.abs(pyom.v[2:-2,2:-2,:,pyom.tau]) * pyom.maskV[2:-2,2:-2,:] \
+                / pyom.dyt[np.newaxis, 2:-2, np.newaxis] * pyom.dt_tracer)
+    )
+    wcfl = np.max(np.abs(pyom.w[2:-2, 2:-2, :, pyom.tau]) * pyom.maskW[2:-2, 2:-2, :] \
+                  / pyom.dzt[np.newaxis, np.newaxis, :] * pyom.dt_tracer)
+    #cfl = 0
+    #wcfl = 0.
+    #for k in xrange(1,nz): # k=1,nz
+    #    for j in xrange(js_pe,je_pe): # j=js_pe,je_pe
+    #        for i in xrange(is_pe,ie_pe): # i=is_pe,ie_pe
+    #            cfl = max(cfl, abs(u[i,j,k,tau])*maskU[i,j,k]/(cost[j]*dxt[i])*dt_tracer)
+    #            cfl = max(cfl, abs(v[i,j,k,tau])*maskV[i,j,k]/dyt[j]*dt_tracer)
+    #            wcfl = max(wcfl, abs(w[i,j,k,tau])*maskW[i,j,k]/dzt[k]*dt_tracer)
 
     # global_max(cfl); call global_max(wcfl)
-    cfl = np.max(cfl)
-    wcfl = np.max(wcfl)
+    #cfl = np.max(cfl)
+    #wcfl = np.max(wcfl)
 
     # !if (cfl > 0.5.or.wcfl > 0.5) then
     # !  if (my_pe==0) print'(/a,f12.6)','ERROR:  maximal CFL number = ',max(cfl,wcfl)
@@ -121,26 +130,29 @@ def diag_cfl(pyom):
     # ! check for NaN
 
     if np.isnan(cfl) or np.isnan(wcfl):
-        print("ERROR: CFL number is NaN att itt = {} ... stopping integration".format(itt))
-        if not pyom.enable_diag_snapshots:
-            init_snap_cdf()
-        diag_snap()
-        halt_stop(' in diag_cfl')
+        raise RuntimeError("ERROR: CFL number is NaN att itt = {} ... stopping integration".format(itt))
 
     print("maximal hor. CFL number = {}".format(cfl))
     print("maximal ver. CFL number = {}".format(wcfl))
 
     if pyom.enable_eke or pyom.enable_tke or pyom.enable_idemix:
-        cfl = 0.0
-        wcfl = 0.0
-        for k in xrange(1,nz): # k=1,nz
-            for j in xrange(js_pe,je_pe): # j=js_pe,je_pe
-                for i in xrange(is_pe,ie_pe): # i=is_pe,ie_pe
-                    cfl = max(cfl, abs(u_wgrid[i,j,k])*maskU[i,j,k]/(cost[j]*dxt[i])*dt_tracer)
-                    cfl = max(cfl, abs(v_wgrid[i,j,k])*maskV[i,j,k]/dyt[j]*dt_tracer)
-                    wcfl = max(wcfl, abs(w_wgrid[i,j,k])*maskW[i,j,k]/dzt[k]*dt_tracer)
-        cfl = np.max(cfl)
-        wcfl = np.max(wcfl)
+        cfl = max(
+            np.max(np.abs(pyom.u_wgrid[2:-2,2:-2,:]) * pyom.maskU[2:-2,2:-2,:] \
+                    / (pyom.cost[np.newaxis, 2:-2, np.newaxis] * pyom.dxt[2:-2, np.newaxis, np.newaxis]) \
+                    * pyom.dt_tracer),
+            np.max(np.abs(pyom.v_wgrid[2:-2,2:-2,:]) * pyom.maskV[2:-2,2:-2,:] \
+                    / pyom.dyt[np.newaxis, 2:-2, np.newaxis] * pyom.dt_tracer)
+        )
+        wcfl = np.max(np.abs(pyom.w_wgrid[2:-2, 2:-2, :]) * pyom.maskW[2:-2, 2:-2, :] \
+                      / pyom.dzt[np.newaxis, np.newaxis, :] * pyom.dt_tracer)
+        #for k in xrange(1,nz): # k=1,nz
+        #    for j in xrange(js_pe,je_pe): # j=js_pe,je_pe
+        #        for i in xrange(is_pe,ie_pe): # i=is_pe,ie_pe
+        #            cfl = max(cfl, abs(u_wgrid[i,j,k])*maskU[i,j,k]/(cost[j]*dxt[i])*dt_tracer)
+        #            cfl = max(cfl, abs(v_wgrid[i,j,k])*maskV[i,j,k]/dyt[j]*dt_tracer)
+        #            wcfl = max(wcfl, abs(w_wgrid[i,j,k])*maskW[i,j,k]/dzt[k]*dt_tracer)
+        #cfl = np.max(cfl)
+        #wcfl = np.max(wcfl)
         print("maximal hor. CFL number on w grid = {}".format(cfl))
         print("maximal ver. CFL number on w grid = {}".format(wcfl))
 

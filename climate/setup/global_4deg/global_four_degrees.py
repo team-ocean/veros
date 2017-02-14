@@ -53,7 +53,7 @@ class GlobalFourDegree(PyOMLegacy):
         m.energint = 365*86400./24.
         m.energfreq = 86400
         m.enable_diag_averages   = True
-        m.aveint  = 365*86400.*10
+        m.aveint  = 86400.*30
         m.avefreq = 86400
 
         I=self.fortran.isoneutral_module
@@ -143,7 +143,7 @@ class GlobalFourDegree(PyOMLegacy):
 
         salt_data = self._read_binary("salt", shape=(m.nx,m.ny,m.nz))[:,:,::-1]
         m.salt[2:-2,2:-2,:,:2] = salt_data[...,np.newaxis] * m.maskT[2:-2,2:-2,:,np.newaxis]
-        
+
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
         self.taux[2:-2,2:-2,:] = self._read_binary("tau_x",shape=(m.nx,m.ny,12)) / m.rho_0
         self.tauy[2:-2,2:-2,:] = self._read_binary("tau_y",shape=(m.nx,m.ny,12)) / m.rho_0
@@ -241,4 +241,4 @@ class GlobalFourDegree(PyOMLegacy):
 
 
 if __name__ == "__main__":
-    GlobalFourDegree().run(snapint= 86400.0*25, runlen = 86400.*365*10)
+    GlobalFourDegree().run(snapint= 86400.0*25, runlen = 86400.*30)
