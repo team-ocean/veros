@@ -105,11 +105,11 @@ class ACC2(PyOMLegacy):
      m.salt[:,:,:,0:2] = 35.0*m.maskT[...,None]
 
      # wind stress forcing
-     taux = np.zeros(self.ny+1)
-     yt = m.yt[2:self.ny+3]
-     taux = (.1e-3*np.sin(np.pi*(m.yu[2:self.ny+3]-yu_start)/(-20.0-yt_start)))*(yt < -20) \
-             + (.1e-3*(1-np.cos(2*np.pi*(m.yu[2:self.ny+3]-10.0)/(yu_end-10.0))))*(yt > 10)
-     m.surface_taux[:,2:self.ny+3] = taux * m.maskU[:,2:self.ny+3,-1]
+     taux = np.zeros(m.ny+1)
+     yt = m.yt[2:m.ny+3]
+     taux = (.1e-3*np.sin(np.pi*(m.yu[2:m.ny+3]-yu_start)/(-20.0-yt_start)))*(yt < -20) \
+             + (.1e-3*(1-np.cos(2*np.pi*(m.yu[2:m.ny+3]-10.0)/(yu_end-10.0))))*(yt > 10)
+     m.surface_taux[:,2:m.ny+3] = taux * m.maskU[:,2:m.ny+3,-1]
 
      # surface heatflux forcing
      self.t_rest = np.zeros(m.u[:,:,1,0].shape)
