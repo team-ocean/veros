@@ -21,7 +21,7 @@ class ACC2(PyOMLegacy):
      m.coord_degree = 1
      m.enable_cyclic_x = 1
 
-     m.congr_epsilon = 1e-12
+     m.congr_epsilon = np.float(1e-12)
      m.congr_max_iterations = 5000
      m.enable_streamfunction = 1
 
