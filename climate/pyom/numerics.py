@@ -179,22 +179,9 @@ def calc_topo(pyom):
     Land masks
     """
     pyom.maskT[...] = 0.0
-
-    #if climate.is_bohrium:
-    #    kbot = pyom.kbot.copy2numpy()
-    #else:
-    #    kbot = pyom.kbot
-
-    k_kbot = np.ones(pyom.nz, dtype=np.int) * pyom.kbot[:, :, np.newaxis]
-    ks = np.arange(pyom.nz, dtype=np.int) * np.ones(pyom.ny+4, dtype=np.int)[:, np.newaxis] * np.ones(pyom.nx+4, dtype=np.int)[:,np.newaxis,np.newaxis]
-    pyom.maskT[...] = pyom.maskT * np.invert((k_kbot > 0) & (k_kbot-1 <= ks)) + k_kbot * ((k_kbot > 0) & (k_kbot-1 <= ks))
-    #if climate.is_bohrium:
-    #    pyom.maskT = np.array(maskT)
-    #for i in xrange(pyom.nx+4): # i=is_pe-onx,ie_pe+onx
-    #    for j in xrange(pyom.ny+4): # j=js_pe-onx,je_pe+onx
-    #        for k in xrange(pyom.nz): # k=1,nz
-    #            if kbot[i,j] > 0 and kbot[i,j]-1 <= k:
-    #                pyom.maskT[i,j,k] = kbot[i,j]
+    land_mask = pyom.kbot > 0
+    ks = np.indices(pyom.maskT.shape)[2]
+    pyom.maskT[...] = land_mask[...,np.newaxis] & (pyom.kbot[...,np.newaxis]-1 <= ks)
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.maskT)
