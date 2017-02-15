@@ -173,7 +173,7 @@ class PyOM(object):
         self.enable_streamfunction = False   # solve for streamfct instead of surface pressure
         self.enable_congrad_verbose = False # print some info
         self.congr_itts = 0                 # number of iterations of poisson solver NOTE: only has value 0 to init variable
-        self.congr_epsilon = 1e-12            # convergence criteria for poisson solver
+        self.congr_epsilon = np.array(1e-12)# convergence criteria for poisson solver
         self.congr_max_iterations = 1000    # max. number of iterations
 
         """

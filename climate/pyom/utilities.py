@@ -25,7 +25,7 @@ def pad_z_edges(array):
 
 def solve_implicit(ks, a, b, c, d, pyom, b_edge=None, d_edge=None):
     land_mask = (ks >= 0)[:,:,None]
-    if not np.count_nonzero(land_mask):
+    if not np.sum(land_mask):
         return np.zeros_like(land_mask), np.zeros_like(land_mask)
 
     edge_mask = land_mask & (np.indices((a.shape))[2] == ks[:,:,None])
@@ -40,7 +40,7 @@ def solve_implicit(ks, a, b, c, d, pyom, b_edge=None, d_edge=None):
     a_tri[edge_mask] = 0.
     b_tri[:,:,1:] = b[:,:,1:]
     if not (b_edge is None):
-        b_tri[edge_mask] = b_edge[edge_mask]
+        b_tri[...] = b_tri * np.invert(edge_mask) + b_edge * edge_mask
     c_tri[:,:,:-1] = c[:,:,:-1]
     c_tri[:,:,-1] = 0.
     d_tri[...] = d
