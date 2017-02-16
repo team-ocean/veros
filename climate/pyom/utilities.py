@@ -23,27 +23,21 @@ def pad_z_edges(array):
     return newarray
 
 
-def solve_implicit(ks, a, b, c, d, pyom, b_edge=None, d_edge=None):
+def solve_implicit(ks, a, b, c, d, b_edge=None, d_edge=None):
     land_mask = (ks >= 0)[:,:,None]
-    if not np.count_nonzero(land_mask):
+    if not np.any(land_mask):
         return np.zeros_like(land_mask), np.zeros_like(land_mask)
-
     edge_mask = land_mask & (np.indices((a.shape))[2] == ks[:,:,None])
     water_mask = land_mask & (np.indices((a.shape))[2] >= ks[:,:,None])
 
-    a_tri = np.zeros_like(a)
-    b_tri = np.zeros_like(b)
-    c_tri = np.zeros_like(c)
-    d_tri = np.zeros_like(d)
-
-    a_tri[:,:,1:] = a[:,:,1:]
-    a_tri[edge_mask] = 0.
-    b_tri[:,:,1:] = b[:,:,1:]
+    a_tri = np.where(water_mask, a, 0.)
+    a_tri = np.where(edge_mask, 0., a_tri)
+    b_tri = np.where(water_mask, b, 1.)
     if not (b_edge is None):
-        b_tri[edge_mask] = b_edge[edge_mask]
-    c_tri[:,:,:-1] = c[:,:,:-1]
+        b_tri = np.where(edge_mask, b_edge, b_tri)
+    c_tri = np.where(water_mask, c, 0.)
     c_tri[:,:,-1] = 0.
-    d_tri[...] = d
+    d_tri = np.where(water_mask, d, 0.)
     if not (d_edge is None):
-        d_tri[edge_mask] = d_edge[edge_mask]
-    return climate.pyom.numerics.solve_tridiag(a_tri[water_mask],b_tri[water_mask],c_tri[water_mask],d_tri[water_mask]), water_mask
+        d_tri = np.where(edge_mask, d_edge, d_tri)
+    return climate.pyom.numerics.solve_tridiag(a_tri,b_tri,c_tri,d_tri), water_mask

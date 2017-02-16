@@ -1,6 +1,7 @@
 import numpy as np
 import math
 
+import climate
 from climate.io import wrapper
 from climate import Timer
 from climate.pyom import momentum, numerics, thermodynamics, eke, tke, idemix
@@ -641,6 +642,9 @@ class PyOM(object):
                     # diagnose vertical velocity at taup1
                     if self.enable_hydrostatic:
                         momentum.vertical_velocity(self)
+
+                if climate.is_bohrium:
+                    np.flush()
 
                 with self.timers["diagnostics"]:
                     diagnostics.diagnose(self)

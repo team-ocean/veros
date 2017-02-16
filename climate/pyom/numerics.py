@@ -1,8 +1,10 @@
-from climate.pyom import cyclic, density, utilities, diffusion
-import climate
-
 import numpy as np
-from scipy.linalg import lapack
+
+import climate
+from climate.pyom import cyclic, density, utilities, diffusion
+
+if not climate.is_bohrium:
+    from scipy.linalg import lapack
 
 def u_centered_grid(dyt,dyu,yt,yu,n):
     yu[0] = 0
@@ -10,26 +12,13 @@ def u_centered_grid(dyt,dyu,yt,yu,n):
 
     yt[0] = yu[0]-dyt[0]*0.5
     yt[1:n] = 2*yu[:n-1]
-    if climate.is_bohrium:
-        YT = yt.copy2numpy()
-    else:
-        YT = yt
-    for i in xrange(1, n):
-        YT[i] -= YT[i-1]
-    if climate.is_bohrium:
-        YT = np.array(YT)
-        yt[1:n] = YT[1:n]
+
+    alternating_pattern = np.ones_like(yt)
+    alternating_pattern[::2] = -1
+    yt[:n] = alternating_pattern * np.cumsum(alternating_pattern * yt[:n])
 
     dyu[:n-1] = yt[1:] - yt[:n-1]
     dyu[n-1] = 2*dyt[n-1] - dyu[n-2]
-#  yt(1)=yu(1)-dyt(1)*0.5
-#  for i in xrange(2,n): # i=2,n
-#   yt(i) = 2*yu(i-1) - yt(i-1)
-#  enddo
-#  for i in xrange(1,n-1): # i=1,n-1
-#   dyu(i)= yt(i+1)-yt(i)
-#  enddo
-#  dyu(n)=2*dyt(n)- dyu(n-1)
 
 def calc_grid(pyom):
     """
@@ -257,7 +246,26 @@ def vgrid_to_tgrid(A,pyom):
 
 def solve_tridiag(a, b, c, d):
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-    return lapack.dgtsv(a[1:],b,c[:-1],d)[3]
+    if not climate.is_bohrium:
+        return lapack.dgtsv(a.flatten()[1:],b.flatten(),c.flatten()[:-1],d.flatten())[3].reshape(a.shape)
+
+    n = a.shape[-1]
+    x, cp, dp = np.zeros_like(a), np.zeros_like(a), np.zeros_like(a)
+
+    # initialize c-prime and d-prime
+    cp[...,0] = c[...,0]/b[...,0]
+    dp[...,0] = d[...,0]/b[...,0]
+
+    # solve for vectors c-prime and d-prime
+    for i in xrange(1, n):
+        m = b[...,i] - cp[...,i-1] * a[...,i]
+        fxa = 1.0 / m
+        cp[...,i] = c[...,i] * fxa
+        dp[...,i] = (d[...,i]-dp[...,i-1]*a[...,i]) * fxa
+    x[...,n-1] = dp[...,n-1]
+    for i in xrange(n-2, -1, -1):
+        x[...,i] = dp[...,i] - cp[...,i]*x[...,i+1]
+    return x
 
 
 def calc_diss(diss,K_diss,tag,pyom):

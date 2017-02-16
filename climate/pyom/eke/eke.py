@@ -120,8 +120,7 @@ def integrate_eke(pyom):
         vertically integrated EKE to account for vertical EKE radiation
         """
         mask = b_loc > 0
-        a_loc[mask] /= b_loc[mask]
-        a_loc[~mask] = 0.
+        a_loc[...] = np.where(mask, a_loc/b_loc, 0.)
         c_int[...] = a_loc[:,:,None]
     else:
         """
@@ -143,8 +142,8 @@ def integrate_eke(pyom):
     b_tri_edge = 1 + delta / pyom.dzw[None, None, :] + pyom.dt_tracer * c_int[2:-2, 2:-2, :]
     c_tri[:, :, :-1] = -delta[:, :, :-1] / pyom.dzw[None, None, :-1]
     d_tri[:, :, :] = pyom.eke[2:-2, 2:-2, :, pyom.tau] + pyom.dt_tracer * forc[2:-2, 2:-2, :]
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge)
-    pyom.eke[2:-2, 2:-2, :, pyom.taup1][water_mask] = sol
+    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    pyom.eke[2:-2, 2:-2, :, pyom.taup1] = np.where(water_mask, sol, pyom.eke[2:-2, 2:-2, :, pyom.taup1])
 
     """
     store eke dissipation
@@ -169,8 +168,7 @@ def integrate_eke(pyom):
         a_loc += (pyom.eke_diss_iw[:,:,-1] + pyom.eke_diss_tke[:,:,-1]) * pyom.dzw[-1] * 0.5
         b_loc += c_int[:,:,-1] * pyom.eke[:,:,-1,pyom.taup1] * pyom.dzw[-1] * 0.5
         mask = a_loc != 0
-        b_loc[mask] /= a_loc[mask]
-        b_loc[~mask] = 0.
+        b_loc[...] = np.where(mask, b_loc/a_loc, 0.)
         pyom.eke_diss_iw[...] *= b_loc[:,:,None]
         pyom.eke_diss_tke[...] *= b_loc[:,:,None]
 

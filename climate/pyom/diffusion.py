@@ -20,11 +20,11 @@ def dissipation_on_wgrid(P, pyom, int_drhodX=None, aloc=None, ks=None):
     edge_mask = land_mask[:, :, None] & (np.indices((pyom.nx+4, pyom.ny+4, pyom.nz-1))[2] == ks[:,:,None])
     water_mask = land_mask[:, :, None] & (np.indices((pyom.nx+4, pyom.ny+4, pyom.nz-1))[2] > ks[:,:,None])
 
-    if np.count_nonzero(land_mask):
+    if np.any(land_mask):
         dzw_pad = utilities.pad_z_edges(pyom.dzw)
-        P[:, :, :-1][edge_mask] += (0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) + 0.5 * (aloc[:, :, :-1] * dzw_pad[None, None, :-3] / pyom.dzw[None, None, :-1]))[edge_mask]
-        P[:, :, :-1][water_mask] += 0.5 * (aloc[:,:,:-1] + aloc[:,:,1:])[water_mask]
-        P[:, :, -1][land_mask] += aloc[:,:,-1][land_mask]
+        P[:, :, :-1] += (0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) + 0.5 * (aloc[:, :, :-1] * dzw_pad[None, None, :-3] / pyom.dzw[None, None, :-1])) * edge_mask
+        P[:, :, :-1] += 0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) * water_mask
+        P[:, :, -1] += aloc[:,:,-1] * land_mask
 
 
 def tempsalt_biharmonic(pyom):

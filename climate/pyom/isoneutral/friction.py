@@ -25,9 +25,9 @@ def isoneutral_friction(pyom):
     b_tri[:, :, 1:-1] = 1 + delta[:, :, 1:-1] / pyom.dzt[None, None, 1:-1] + delta[:, :, :-2] / pyom.dzt[None, None, 1:-1]
     b_tri[:, :, -1] = 1 + delta[:, :, -2] / pyom.dzt[-1]
     c_tri[...] = - delta / pyom.dzt[None, None, :]
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], pyom, b_edge=b_tri_edge)
-    pyom.u[1:-2, 1:-2, :, pyom.taup1][water_mask] = sol
-    pyom.du_mix[1:-2, 1:-2, :][water_mask] += (pyom.u[1:-2, 1:-2, :, pyom.taup1] - aloc[1:-2, 1:-2, :])[water_mask] / pyom.dt_mom
+    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], b_edge=b_tri_edge)
+    pyom.u[1:-2, 1:-2, :, pyom.taup1] = np.where(water_mask, sol, pyom.u[1:-2, 1:-2, :, pyom.taup1])
+    pyom.du_mix[1:-2, 1:-2, :] += (pyom.u[1:-2, 1:-2, :, pyom.taup1] - aloc[1:-2, 1:-2, :]) / pyom.dt_mom * water_mask
 
     if pyom.enable_conserve_energy:
         # diagnose dissipation
@@ -56,9 +56,9 @@ def isoneutral_friction(pyom):
     b_tri[:, :, 1:-1] = 1 + delta[:, :, 1:-1] / pyom.dzt[None, None, 1:-1] + delta[:, :, :-2] / pyom.dzt[None, None, 1:-1]
     b_tri[:, :, -1] = 1 + delta[:, :, -2] / pyom.dzt[-1]
     c_tri[...] = - delta / pyom.dzt[None, None, :]
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], pyom, b_edge=b_tri_edge)
-    pyom.v[1:-2, 1:-2, :, pyom.taup1][water_mask] = sol
-    pyom.dv_mix[1:-2, 1:-2, :][water_mask] += (pyom.v[1:-2, 1:-2, :, pyom.taup1] - aloc[1:-2, 1:-2, :])[water_mask] / pyom.dt_mom
+    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], b_edge=b_tri_edge)
+    pyom.v[1:-2, 1:-2, :, pyom.taup1] = np.where(water_mask, sol, pyom.v[1:-2, 1:-2, :, pyom.taup1])
+    pyom.dv_mix[1:-2, 1:-2, :] += (pyom.v[1:-2, 1:-2, :, pyom.taup1] - aloc[1:-2, 1:-2, :]) / pyom.dt_mom * water_mask
 
     if pyom.enable_conserve_energy:
         # diagnose dissipation

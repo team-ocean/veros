@@ -11,7 +11,8 @@ __all__ = [
     "setup"
 ]
 
+is_bohrium = np.__name__ == 'bohrium'
+
 for module in __all__:
     importlib.import_module('.%s' % module, 'climate')
 
-is_bohrium = np.__name__ == 'bohrium'

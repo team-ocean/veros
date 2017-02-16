@@ -17,15 +17,8 @@ def explicit_vert_friction(pyom):
     fxa = 0.5 * (pyom.kappaM[1:-2, 1:-2, :-1] + pyom.kappaM[2:-1, 1:-2, :-1])
     pyom.flux_top[1:-2, 1:-2, :-1] = fxa * (pyom.u[1:-2, 1:-2, 1:, pyom.tau] - pyom.u[1:-2, 1:-2, :-1, pyom.tau]) \
                                      / pyom.dzw[None, None, :-1] * pyom.maskU[1:-2, 1:-2, 1:] * pyom.maskU[1:-2, 1:-2, :-1]
-    #for k in xrange(pyom.nz-1): # k = 1,nz-1
-    #    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-    #        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-    #            fxa = 0.5 * (pyom.kappaM[i,j,k] + pyom.kappaM[i+1,j,k])
-    #            pyom.flux_top[i,j,k] = fxa * (pyom.u[i,j,k+1,pyom.tau] - pyom.u[i,j,k,pyom.tau]) \
-    #                                    / pyom.dzw[k]*pyom.maskU[i,j,k+1]*pyom.maskU[i,j,k]
     pyom.flux_top[:,:,-1] = 0.0
     pyom.du_mix[:,:,0] = pyom.flux_top[:,:,0] / pyom.dzt[0] * pyom.maskU[:,:,0]
-    #for k in xrange(1,pyom.nz): # k = 2,nz
     pyom.du_mix[:,:,1:] = (pyom.flux_top[:,:,1:] - pyom.flux_top[:,:,:-1]) / pyom.dzt[1:] * pyom.maskU[:,:,1:]
 
     """
@@ -112,8 +105,8 @@ def implicit_vert_friction(pyom):
     b_tri_edge = 1 + delta / pyom.dzt[None,None,:]
     c_tri[...] = -delta / pyom.dzt[None,None,:]
     d_tri[...] = pyom.u[1:-2,1:-2,:,pyom.tau]
-    res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge)
-    pyom.u[1:-2,1:-2,:,pyom.taup1][mask] = res
+    res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    pyom.u[1:-2,1:-2,:,pyom.taup1] = np.where(mask, res, pyom.u[1:-2,1:-2,:,pyom.taup1])
 
     pyom.du_mix[1:-2, 1:-2] = (pyom.u[1:-2,1:-2,:,pyom.taup1] - pyom.u[1:-2,1:-2,:,pyom.tau]) / pyom.dt_mom
 
@@ -142,8 +135,8 @@ def implicit_vert_friction(pyom):
     c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzt[None,None,:-1]
     c_tri[:,:,-1] = 0.
     d_tri[...] = pyom.v[1:-2,1:-2,:,pyom.tau]
-    res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge)
-    pyom.v[1:-2,1:-2,:,pyom.taup1][mask] = res
+    res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    pyom.v[1:-2,1:-2,:,pyom.taup1] = np.where(mask, res, pyom.v[1:-2,1:-2,:,pyom.taup1])
     pyom.dv_mix[1:-2, 1:-2] = (pyom.v[1:-2, 1:-2, :, pyom.taup1] - pyom.v[1:-2, 1:-2, :, pyom.tau]) / pyom.dt_mom
 
     """
@@ -169,8 +162,8 @@ def implicit_vert_friction(pyom):
         c_tri[:-1,:-1,:-1] = - delta[:-1,:-1,:-1] / pyom.dzw[None,None,:-1]
         c_tri[:-1,:-1,-1] = 0.
         d_tri[:-1,:-1] = pyom.w[2:-2,2:-2,:,pyom.tau]
-        res, mask = utilities.solve_implicit(kss, a_tri[:-1,:-1], b_tri[:-1,:-1], c_tri[:-1,:-1], d_tri[:-1,:-1], pyom, b_edge=b_tri_edge)
-        pyom.w[2:-2,2:-2,:,pyom.taup1][mask] = res
+        res, mask = utilities.solve_implicit(kss, a_tri[:-1,:-1], b_tri[:-1,:-1], c_tri[:-1,:-1], d_tri[:-1,:-1], b_edge=b_tri_edge)
+        pyom.w[2:-2,2:-2,:,pyom.taup1] = np.where(mask, res, pyom.w[2:-2,2:-2,:,pyom.taup1])
         pyom.dw_mix[2:-2, 2:-2] = (pyom.w[2:-2,2:-2,:,pyom.taup1] - pyom.w[2:-2,2:-2,:,pyom.tau]) / pyom.dt_mom
 
         """
@@ -219,38 +212,38 @@ def linear_bottom_friction(pyom):
         with spatially varying coefficient
         """
         k = np.maximum(pyom.kbot[1:-2,2:-2], pyom.kbot[2:-1,2:-2]) - 1
-        ijk = np.arange(pyom.nz) == k[:,:,None]
-        pyom.du_mix[1:-2,2:-2][ijk] -= (pyom.maskU[1:-2,2:-2] * pyom.r_bot_var_u[1:-2,2:-2,None])[ijk] * pyom.u[1:-2,2:-2][ijk, pyom.tau]
+        mask = np.arange(pyom.nz) == k[:,:,None]
+        pyom.du_mix[1:-2,2:-2] += -(pyom.maskU[1:-2,2:-2] * pyom.r_bot_var_u[1:-2,2:-2,None]) * pyom.u[1:-2,2:-2,:,pyom.tau] * mask
         if pyom.enable_conserve_energy:
             diss[...] = 0.0
-            diss[1:-2,2:-2][ijk] = (pyom.maskU[1:-2,2:-2] * pyom.r_bot_var_u[1:-2,2:-2,None])[ijk] * pyom.u[1:-2,2:-2][ijk,pyom.tau]**2
+            diss[1:-2,2:-2] = pyom.maskU[1:-2,2:-2] * pyom.r_bot_var_u[1:-2,2:-2,None] * pyom.u[1:-2,2:-2,:,pyom.tau]**2 * mask
             pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
 
         k = np.maximum(pyom.kbot[2:-2, 2:-1], pyom.kbot[2:-2, 1:-2]) - 1
-        ijk = np.arange(pyom.nz) == k[:,:,None]
-        pyom.dv_mix[2:-2,1:-2][ijk] -= (pyom.maskV[2:-2,1:-2] * pyom.r_bot_var_v[2:-2,1:-2,None])[ijk] * pyom.v[2:-2,1:-2][ijk,pyom.tau]
+        mask = np.arange(pyom.nz) == k[:,:,None]
+        pyom.dv_mix[2:-2,1:-2] += -(pyom.maskV[2:-2,1:-2] * pyom.r_bot_var_v[2:-2,1:-2,None]) * pyom.v[2:-2,1:-2,:,pyom.tau] * mask
         if pyom.enable_conserve_energy:
             diss[...] = 0.0
-            diss[2:-2,1:-2][ijk] = (pyom.maskV[2:-2,1:-2] * pyom.r_bot_var_v[2:-2,1:-2,None])[ijk] * pyom.v[2:-2,1:-2][ijk,pyom.tau]**2
+            diss[2:-2,1:-2] = pyom.maskV[2:-2,1:-2] * pyom.r_bot_var_v[2:-2,1:-2,None] * pyom.v[2:-2,1:-2,:,pyom.tau]**2 * mask
             pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
     else:
         """
         with constant coefficient
         """
         k = np.maximum(pyom.kbot[1:-2,2:-2], pyom.kbot[2:-1,2:-2]) - 1
-        ijk = np.arange(pyom.nz) == k[:,:,None]
-        pyom.du_mix[1:-2,2:-2][ijk] -= pyom.maskU[1:-2,2:-2][ijk] * pyom.r_bot * pyom.u[1:-2,2:-2][ijk, pyom.tau]
+        mask = np.arange(pyom.nz) == k[:,:,None]
+        pyom.du_mix[1:-2,2:-2] += -pyom.maskU[1:-2,2:-2] * pyom.r_bot * pyom.u[1:-2,2:-2,:,pyom.tau] * mask
         if pyom.enable_conserve_energy:
             diss[...] = 0.0
-            diss[1:-2,2:-2][ijk] = pyom.maskU[1:-2,2:-2][ijk] * pyom.r_bot * pyom.u[1:-2,2:-2][ijk,pyom.tau]**2
+            diss[1:-2,2:-2] = pyom.maskU[1:-2,2:-2] * pyom.r_bot * pyom.u[1:-2,2:-2,:,pyom.tau]**2 * mask
             pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
 
         k = np.maximum(pyom.kbot[2:-2, 2:-1], pyom.kbot[2:-2, 1:-2]) - 1
-        ijk = np.arange(pyom.nz) == k[:,:,None]
-        pyom.dv_mix[2:-2,1:-2][ijk] -= pyom.maskV[2:-2,1:-2][ijk] * pyom.r_bot * pyom.v[2:-2,1:-2][ijk,pyom.tau]
+        mask = np.arange(pyom.nz) == k[:,:,None]
+        pyom.dv_mix[2:-2,1:-2] += pyom.maskV[2:-2,1:-2] * pyom.r_bot * pyom.v[2:-2,1:-2,:,pyom.tau] * mask
         if pyom.enable_conserve_energy:
             diss[...] = 0.0
-            diss[2:-2,1:-2][ijk] = pyom.maskV[2:-2,1:-2][ijk] * pyom.r_bot * pyom.v[2:-2,1:-2][ijk,pyom.tau]**2
+            diss[2:-2,1:-2] = pyom.maskV[2:-2,1:-2] * pyom.r_bot * pyom.v[2:-2,1:-2,:,pyom.tau]**2 * mask
             pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
 
     if not pyom.enable_hydrostatic:

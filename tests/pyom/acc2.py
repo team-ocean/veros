@@ -56,7 +56,7 @@ class ACC2Test(PyOMTest):
         self.pyom_new = ACC2()
         self.pyom_legacy = ACC2(fortran=self.fortran)
         # integrate for some time steps and compare
-        n_steps = 50
+        n_steps = 3
         if n_steps == 0:
             self.pyom_new.setup()
             self.pyom_legacy.setup()

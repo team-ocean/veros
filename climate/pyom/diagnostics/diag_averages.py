@@ -4,6 +4,7 @@ import os
 import json
 import numpy as np
 
+import climate
 from climate.pyom.diagnostics.diag_snap import def_grid_cdf
 
 
@@ -80,7 +81,7 @@ def _get_mask(grid, pyom):
         "TTU": pyom.maskW,
         "UUT": pyom.maskZ,
     }
-    return masks[grid]
+    return masks[grid].astype(np.bool)
 
 
 def write_averages(pyom):
@@ -99,10 +100,9 @@ def write_averages(pyom):
         for diag in pyom.diagnostics: # n=1,number_diags
             dims = _build_dimensions(diag.grid)
             mask = _get_mask(diag.grid,pyom)
-
-            var_data = diag.sum
-            var_data[mask == 0] = np.nan
-
+            var_data = np.where(mask, diag.sum, np.nan)
+            if climate.is_bohrium:
+                var_data = var_data.copy2numpy()
             var = f.createVariable(diag.name, "f8", dims, fill_value=fill_value)
             var[...] = var_data[2:-2, 2:-2, ..., None] / pyom.average_nitts
             var.long_name = diag.long_name

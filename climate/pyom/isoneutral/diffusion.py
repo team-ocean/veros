@@ -81,8 +81,8 @@ def _calc_implicit_part(tr, pyom):
     b_tri[:,:,-1] = 1 + delta[:,:,-2] / pyom.dzt[None,None,-1]
     b_tri_edge = 1 + (delta[:,:,:] / pyom.dzt[None,None,:])
     c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzt[None,None,:-1]
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, tr[2:-2, 2:-2, :, pyom.taup1], pyom, b_edge=b_tri_edge)
-    tr[2:-2,2:-2,:,pyom.taup1][water_mask] = sol
+    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, tr[2:-2, 2:-2, :, pyom.taup1], b_edge=b_tri_edge)
+    tr[2:-2,2:-2,:,pyom.taup1] = np.where(water_mask, sol, tr[2:-2,2:-2,:,pyom.taup1])
 
 
 def isoneutral_diffusion(tr, istemp, pyom, iso=True, skew=False):

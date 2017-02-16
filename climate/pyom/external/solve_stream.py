@@ -9,7 +9,6 @@
 
 import sys
 import numpy as np
-from scipy.linalg import lapack
 import climate
 from climate.pyom.external import solve_pressure, island
 from climate.pyom import cyclic, diagnostics

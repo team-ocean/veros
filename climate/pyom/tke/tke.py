@@ -136,8 +136,8 @@ def integrate_tke(pyom):
     d_tri[...] = pyom.tke[2:-2, 2:-2, :, pyom.tau] + pyom.dt_tke * forc[2:-2, 2:-2, :]
     d_tri[:,:,-1] += pyom.dt_tke * pyom.forc_tke_surface[2:-2, 2:-2] / (0.5 * pyom.dzw[-1])
 
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge)
-    pyom.tke[2:-2, 2:-2, :, pyom.taup1][water_mask] = sol
+    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    pyom.tke[2:-2, 2:-2, :, pyom.taup1] = np.where(water_mask, sol, pyom.tke[2:-2, 2:-2, :, pyom.taup1])
 
     """
     store tke dissipation for diagnostics
@@ -149,8 +149,8 @@ def integrate_tke(pyom):
     """
     mask = pyom.tke[2:-2, 2:-2, -1, pyom.taup1] < 0.0
     pyom.tke_surf_corr[...] = 0.
-    pyom.tke_surf_corr[2:-2, 2:-2][mask] = -pyom.tke[2:-2, 2:-2, -1, pyom.taup1][mask] * 0.5 * pyom.dzw[-1] / pyom.dt_tke
-    pyom.tke[2:-2, 2:-2, -1, pyom.taup1][mask] = 0.0
+    pyom.tke_surf_corr[2:-2, 2:-2] = np.where(mask, -pyom.tke[2:-2, 2:-2, -1, pyom.taup1] * 0.5 * pyom.dzw[-1] / pyom.dt_tke, 0.)
+    pyom.tke[2:-2, 2:-2, -1, pyom.taup1] = np.maximum(0., pyom.tke[2:-2, 2:-2, -1, pyom.taup1])
 
     if pyom.enable_tke_hor_diffusion:
         """

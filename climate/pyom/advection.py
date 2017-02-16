@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 from climate import make_slice
 from climate.pyom.utilities import pad_z_edges
@@ -10,14 +11,17 @@ def _calc_cr(rjp,rj,rjm,vel):
     cr = np.zeros_like(rj)
     mask_rj = rj == 0.
     mask_vel = vel > 0
-    mask1 = ~mask_rj & mask_vel
-    cr[mask1] = rjm[mask1] / rj[mask1]
-    mask2 = ~mask_rj & ~mask_vel
-    cr[mask2] = rjp[mask2] / rj[mask2]
-    mask3 = mask_rj & mask_vel
-    cr[mask3] = rjm[mask3] * 1e20
-    mask4 = mask_rj & ~mask_vel
-    cr[mask4] = rjp[mask4] * 1e20
+
+    with warnings.catch_warnings(): # suppress "division by zero" warnings
+        warnings.simplefilter("ignore")
+        mask1 = ~mask_rj & mask_vel
+        cr = np.where(mask1, rjm / rj, cr)
+        mask2 = ~mask_rj & ~mask_vel
+        cr = np.where(mask2, rjp / rj, cr)
+        mask3 = mask_rj & mask_vel
+        cr = np.where(mask3, rjm * 1e20, cr)
+        mask4 = mask_rj & ~mask_vel
+        cr = np.where(mask4, rjp * 1e20, cr)
     return cr
 
 
@@ -112,12 +116,12 @@ def calculate_velocity_on_wgrid(pyom):
     pyom.v_wgrid[:,:,0] = pyom.v_wgrid[:,:,0] + pyom.v[:,:,0,pyom.tau] * pyom.maskV[:,:,0] * 0.5 * pyom.dzt[0] / pyom.dzw[0]
     for k in xrange(pyom.nz-1): #TODO: vectorize
         mask = pyom.maskW[:-1, :, k] * pyom.maskW[1:, :, k] == 0
-        pyom.u_wgrid[:-1, :, k+1][mask] += (pyom.u_wgrid[:-1, :, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1])[mask]
-        pyom.u_wgrid[:-1, :, k][mask] = 0.
+        pyom.u_wgrid[:-1, :, k+1] += (pyom.u_wgrid[:-1, :, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1]) * mask
+        pyom.u_wgrid[:-1, :, k] *= ~mask
 
         mask = pyom.maskW[:, :-1, k] * pyom.maskW[:, 1:, k] == 0
-        pyom.v_wgrid[:, :-1, k+1][mask] += (pyom.v_wgrid[:, :-1, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1])[mask]
-        pyom.v_wgrid[:, :-1, k][mask] = 0.
+        pyom.v_wgrid[:, :-1, k+1] += (pyom.v_wgrid[:, :-1, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1]) * mask
+        pyom.v_wgrid[:, :-1, k] *= ~mask
 
     # vertical advection velocity on W grid from continuity
     pyom.w_wgrid[:, :, 0] = 0.

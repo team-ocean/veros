@@ -60,10 +60,10 @@ def thermodynamics(pyom):
             + np.sum(0.5 * pyom.area_t[2:-2, 2:-2] * pyom.P_diss_adv[2:-2, 2:-2, -1] \
                             * pyom.dzw[-1] * pyom.maskW[2:-2, 2:-2, -1])
         tke_mask = pyom.tke[2:-2, 2:-2, :-1, pyom.tau] > 0.
-        fxb = np.sum((pyom.area_t[2:-2, 2:-2, None] * pyom.dzw[None, None, :-1] * pyom.maskW[2:-2, 2:-2, :-1])[tke_mask]) \
+        fxb = np.sum(pyom.area_t[2:-2, 2:-2, None] * pyom.dzw[None, None, :-1] * pyom.maskW[2:-2, 2:-2, :-1] * tke_mask) \
             + np.sum(0.5 * pyom.area_t[2:-2, 2:-2] * pyom.dzw[-1] * pyom.maskW[2:-2, 2:-2, -1])
         pyom.P_diss_adv[...] = 0.
-        pyom.P_diss_adv[2:-2, 2:-2, :-1][tke_mask] = fxa / fxb
+        pyom.P_diss_adv[2:-2, 2:-2, :-1] = fxa / fxb * tke_mask
         pyom.P_diss_adv[2:-2, 2:-2, -1] = fxa / fxb
 
     """
@@ -126,12 +126,12 @@ def thermodynamics(pyom):
         c_tri[:, :, :-1] = -delta[:, :, :-1] / pyom.dzt[None, None, :-1]
         d_tri[...] = pyom.temp[2:-2, 2:-2, :, pyom.taup1]
         d_tri[:, :, -1] += pyom.dt_tracer * pyom.forc_temp_surface[2:-2, 2:-2] / pyom.dzt[-1]
-        sol, mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge)
-        pyom.temp[2:-2, 2:-2, :, pyom.taup1][mask] = sol
+        sol, mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+        pyom.temp[2:-2, 2:-2, :, pyom.taup1] = np.where(mask, sol, pyom.temp[2:-2, 2:-2, :, pyom.taup1])
         d_tri[...] = pyom.salt[2:-2, 2:-2, :, pyom.taup1]
         d_tri[:, :, -1] += pyom.dt_tracer * pyom.forc_salt_surface[2:-2, 2:-2] / pyom.dzt[-1]
-        sol, mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge)
-        pyom.salt[2:-2, 2:-2, :, pyom.taup1][mask] = sol
+        sol, mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+        pyom.salt[2:-2, 2:-2, :, pyom.taup1] = np.where(mask, sol, pyom.salt[2:-2, 2:-2, :, pyom.taup1])
 
         pyom.dtemp_vmix[...] = (pyom.temp[:,:,:,pyom.taup1] - pyom.dtemp_vmix) / pyom.dt_tracer
         pyom.dsalt_vmix[...] = (pyom.salt[:,:,:,pyom.taup1] - pyom.dsalt_vmix) / pyom.dt_tracer
@@ -150,8 +150,8 @@ def thermodynamics(pyom):
     surface density flux
     """
     pyom.forc_rho_surface[...] = (
-                                density.get_drhodT(pyom.salt[:,:,-1,pyom.taup1],pyom.temp[:,:,-1,pyom.taup1],abs(pyom.zt[-1]),pyom) * pyom.forc_temp_surface \
-                              + density.get_drhodS(pyom.salt[:,:,-1,pyom.taup1],pyom.temp[:,:,-1,pyom.taup1],abs(pyom.zt[-1]),pyom) * pyom.forc_salt_surface \
+                                density.get_drhodT(pyom.salt[:,:,-1,pyom.taup1],pyom.temp[:,:,-1,pyom.taup1],np.abs(pyom.zt[-1]),pyom) * pyom.forc_temp_surface \
+                              + density.get_drhodS(pyom.salt[:,:,-1,pyom.taup1],pyom.temp[:,:,-1,pyom.taup1],np.abs(pyom.zt[-1]),pyom) * pyom.forc_salt_surface \
                             ) * pyom.maskT[:,:,-1]
 
     with pyom.timers["vmix"]:

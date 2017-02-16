@@ -35,7 +35,7 @@ def nonlin2_eq_of_state_salt(rho,ct,p):
 def nonlin2_eq_of_state_drhodT(ct,p):
     zz=-p-z0
     thetas = ct-theta0
-    return - ( betaT*(1-gammas*grav*zz*rho0) + betaTs*thetas )*rho0
+    return -(betaTs*thetas + betaT*(1-gammas*grav*zz*rho0)) * rho0
 
 def nonlin2_eq_of_state_drhodS():
     return betaS*rho0

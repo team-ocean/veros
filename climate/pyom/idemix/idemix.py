@@ -39,15 +39,15 @@ def integrate_idemix(pyom):
         vertically integrate EKE dissipation and inject at bottom and/or surface
         """
         a_loc = np.sum(pyom.dzw[None, None, :-1] * forc[:,:,:-1] * pyom.maskW[:,:,:-1], axis=2)
-        a_loc += 0.5 * pyom.dzw[-1] * forc[:,:,-1] * pyom.maskW[:,:,-1]
+        a_loc += 0.5 * forc[:,:,-1] * pyom.maskW[:,:,-1] * pyom.dzw[-1]
         forc[...] = 0.
 
         ks = np.maximum(0, pyom.kbot[2:-2, 2:-2] - 1)
         mask = ks[:,:,None] == np.indices((pyom.nx, pyom.ny, pyom.nz))[2]
         if pyom.enable_eke_diss_bottom:
-            forc[2:-2, 2:-2, :][mask] = (a_loc[2:-2, 2:-2, None] / pyom.dzw[None, None, :])[mask]
+            forc[2:-2, 2:-2, :] = np.where(mask, a_loc[2:-2, 2:-2, None] / pyom.dzw[None, None, :], forc[2:-2, 2:-2, :])
         else:
-            forc[2:-2, 2:-2, :][mask] = (pyom.eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, None] / pyom.dzw[None, None, :])[mask]
+            forc[2:-2, 2:-2, :] = np.where(mask, pyom.eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, None] / pyom.dzw[None, None, :], forc[2:-2, 2:-2, :])
             forc[2:-2, 2:-2, -1] = (1. - pyom.eke_diss_surfbot_frac) * a_loc[2:-2, 2:-2] / (0.5 * pyom.dzw[-1])
 
     """
@@ -81,8 +81,8 @@ def integrate_idemix(pyom):
     d_tri[...] = pyom.E_iw[2:-2, 2:-2, :, pyom.tau] + pyom.dt_tracer * forc[2:-2, 2:-2, :]
     d_tri_edge = d_tri + pyom.dt_tracer * pyom.forc_iw_bottom[2:-2, 2:-2, None] / pyom.dzw[None, None, :]
     d_tri[:,:,-1] += pyom.dt_tracer * pyom.forc_iw_surface[2:-2, 2:-2] / (0.5 * pyom.dzw[-1])
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, pyom, b_edge=b_tri_edge, d_edge=d_tri_edge)
-    pyom.E_iw[2:-2, 2:-2, :, pyom.taup1][water_mask] = sol
+    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge, d_edge=d_tri_edge)
+    pyom.E_iw[2:-2, 2:-2, :, pyom.taup1] = np.where(water_mask, sol, pyom.E_iw[2:-2, 2:-2, :, pyom.taup1])
 
     """
     store IW dissipation
