@@ -43,6 +43,10 @@ def streamfunction_init(pyom):
     if climate.is_bohrium:
         Map = Map.copy2numpy()
         allmap = allmap.copy2numpy()
+        iperm = iperm.copy2numpy()
+        jperm = jperm.copy2numpy()
+        nippts = nippts.copy2numpy()
+        iofs = iofs.copy2numpy()
 
     print 'Initializing streamfunction method'
     verbose = pyom.enable_congrad_verbose
@@ -84,7 +88,6 @@ def streamfunction_init(pyom):
      allocate variables
     -----------------------------------------------------------------------
     """
-    max_boundary= 2*np.max(nippts[:pyom.nisle])
     pyom.boundary_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
     pyom.line_dir_south_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
     pyom.line_dir_north_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
@@ -93,6 +96,13 @@ def streamfunction_init(pyom):
     pyom.psin = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nisle))
     pyom.dpsin = np.zeros((pyom.nisle, 3))
     pyom.line_psin = np.zeros((pyom.nisle, pyom.nisle))
+
+    if climate.is_bohrium:
+        pyom.boundary_mask = pyom.boundary_mask.copy2numpy()
+        pyom.line_dir_south_mask = pyom.line_dir_south_mask.copy2numpy()
+        pyom.line_dir_north_mask = pyom.line_dir_north_mask.copy2numpy()
+        pyom.line_dir_east_mask  = pyom.line_dir_east_mask.copy2numpy()
+        pyom.line_dir_west_mask  = pyom.line_dir_west_mask.copy2numpy()
 
     for isle in xrange(pyom.nisle): #isle=1,nisle
 
@@ -174,15 +184,15 @@ def streamfunction_init(pyom):
             elif Map[ijp[0],ijp[1]] == -1 and Map[ijp_right[0],ijp_right[1]] == -1:
                 if verbose:
                     print ' turn right'
-                Dir = np.array([Dir[1],-Dir[0]])
+                Dir = [Dir[1],-Dir[0]]
             elif Map[ijp[0],ijp[1]] == 1 and Map[ijp_right[0],ijp_right[1]] == 1:
                 if verbose:
                     print ' turn left'
-                Dir =  np.array([-Dir[1],Dir[0]])
+                Dir = [-Dir[1],Dir[0]]
             elif Map[ijp[0],ijp[1]] == 1 and Map[ijp_right[0],ijp_right[1]] == -1:
                 if verbose:
                     print ' turn left'
-                Dir =  np.array([-Dir[1],Dir[0]])
+                Dir = [-Dir[1],Dir[0]]
             else:
                 print 'unknown situation or lost track'
                 #for n in xrange(1, n+1): #n=1,n
@@ -204,7 +214,7 @@ def streamfunction_init(pyom):
                 pyom.line_dir_south_mask[isle, ij[0], ij[1]] = 1
             elif Dir[0]== 1 and Dir[1]== 0: #east
                 pyom.line_dir_east_mask[isle, ij[0], ij[1]] = 1
-            ij += Dir
+            ij = [ij[0] + Dir[0], ij[1] + Dir[1]]
             if startPos[0] == ij[0] and startPos[1] == ij[1]:
                 cont = False
 
@@ -226,8 +236,6 @@ def streamfunction_init(pyom):
 
             if cont:
                 n = n+1
-                if n > max_boundary:
-                    raise RuntimeError('increase value of max_boundary')
                 pyom.boundary_mask[isle,ij[0],ij[1]] = 1
 
         print ' number of points is ',n+1
@@ -237,6 +245,13 @@ def streamfunction_init(pyom):
             print ' boundary:', pyom.boundary_mask[isle]
             #for n in xrange(pyom.nr_boundary[isle]): #n=1,nr_boundary(isle)
             #    print ' pos=',pyom.boundary[isle,n,:],' dir=',pyom.line_dir[isle,n,:]
+
+    if climate.is_bohrium:
+        pyom.boundary_mask = np.array(pyom.boundary_mask)
+        pyom.line_dir_south_mask = np.array(pyom.line_dir_south_mask)
+        pyom.line_dir_north_mask = np.array(pyom.line_dir_north_mask)
+        pyom.line_dir_east_mask  = np.array(pyom.line_dir_east_mask)
+        pyom.line_dir_west_mask  = np.array(pyom.line_dir_west_mask)
 
 
     """
@@ -252,7 +267,7 @@ def streamfunction_init(pyom):
             cyclic.setcyclic_x(pyom.psin[:,:,isle])
         print ' solving for boundary contribution by island ',isle
 
-        converged = congrad_streamfunction(forc,pyom.psin[:,:,isle],pyom)
+        congrad_streamfunction(forc,pyom.psin[:,:,isle],pyom)
         print ' itts =  ',pyom.congr_itts
 
         if pyom.enable_cyclic_x:
@@ -284,44 +299,44 @@ def avoid_cyclic_boundaries(Map, isle, n, pyom):
         for j in xrange(1, pyom.ny+2): #j=0,ny
             if Map[i,j] == 1 and Map[i,j+1] == -1:
                 #initial direction is eastward, we come from the west
-                ij=np.array([i,j])
+                ij=[i,j]
                 cont = True
-                Dir = np.array([1,0])
+                Dir = [1,0]
                 pyom.line_dir_east_mask[isle, ij[0]-1, ij[1]] = 1
                 #pyom.boundary[isle,n,:] = np.array([ij[0]-1,ij[1]])
                 pyom.boundary_mask[isle, ij[0]-1, ij[1]] = 1
-                return (cont, ij, Dir, np.array([ij[0]-1, ij[1]]))
+                return (cont, ij, Dir, [ij[0]-1, ij[1]])
             if Map[i,j] == -1 and Map[i,j+1] == 1:
                 # initial direction is westward, we come from the east
-                ij = np.array([i-1,j])
+                ij = [i-1,j]
                 cont = True
-                Dir = np.array([-1,0])
+                Dir = [-1,0]
                 pyom.line_dir_west_mask[isle, ij[0]-1, ij[1]] = 1
                 #pyom.boundary[isle,n,:] = np.array([ij[0]+1,ij[1]])
                 pyom.boundary_mask[isle,ij[0]+1,ij[1]] = 1
-                return (cont, ij, Dir, np.array([ij[0]+1, ij[1]]))
-    return (False, None, np.array([0,0]), np.array([0,0]))
+                return (cont, ij, Dir, [ij[0]+1, ij[1]])
+    return (False, None, [0,0], [0,0])
 
 def avoid_cyclic_boundaries2(Map, isle, n, pyom):
     for i in xrange(pyom.nx/2,0,-1): #i=nx/2,1,-1  ! avoid starting close to cyclic bondaries
         for j in xrange(1, pyom.ny+2): #j=0,ny
             if Map[i,j] == 1 and Map[i,j+1] == -1:
                 # initial direction is eastward, we come from the west
-                ij=np.array([i,j])
+                ij = [i,j]
                 cont = True
-                Dir = np.array([1,0])
+                Dir = [1,0]
                 pyom.line_dir_east_mask[isle, ij[0]-1, ij[1]] = 1
                 pyom.boundary_mask[isle, ij[0]-1, ij[1]] = 1
-                return (cont, ij, Dir, np.array([ij[0]-1, ij[1]]))
+                return (cont, ij, Dir, [ij[0]-1, ij[1]])
             if Map[i,j] == -1 and Map[i,j+1] == 1:
                 # initial direction is westward, we come from the east
-                ij=np.array([i-1,j])
+                ij = [i-1,j]
                 cont = True
-                Dir = np.array([-1,0])
+                Dir = [-1,0]
                 pyom.line_dir_west_mask[isle, ij[0]-1, ij[1]] = 1
                 pyom.boundary_mask[isle,ij[0]+1,ij[1]] = 1
-                return (cont, ij, Dir, np.array([ij[0]+1, ij[1]]))
-    return (False, None, np.array([0,0]), np.array([0,0]))
+                return (cont, ij, Dir, [ij[0]+1, ij[1]])
+    return (False, None, [0,0], [0,0])
 
 def line_integral(isle,uloc,vloc,pyom):
     """
@@ -451,7 +466,7 @@ def solve_streamfunction(pyom,benchtest=False):
 
     # solve for interior streamfunction
     pyom.dpsi[:,:,pyom.taup1] = 2*pyom.dpsi[:,:,pyom.tau]-pyom.dpsi[:,:,pyom.taum1] # first guess, we need three time levels here
-    congrad_streamfunction(forc,pyom.dpsi[:,:,pyom.taup1], pyom,benchtest) #NOTE: This fucks with wall time
+    congrad_streamfunction(forc,pyom.dpsi[:,:,pyom.taup1], pyom) #NOTE: This fucks with wall time
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.dpsi[:,:,pyom.taup1])
@@ -568,7 +583,7 @@ def make_coeff_streamfunction(cf, pyom):
     #        cf[i,j, 1, 0] += pyom.hur[i,j  ]/pyom.dyu[j]/pyom.dyt[j  ]*pyom.cost[j  ]/pyom.cosu[j]
 
 
-def congrad_streamfunction(forc,sol,pyom,benchtest=False):
+def congrad_streamfunction(forc,sol,pyom):
     """
     =======================================================================
       conjugate gradient solver with preconditioner from MOM
@@ -594,7 +609,7 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
     #logical, save :: first = .true.
     #real*8 , allocatable,save :: cf(:,:,:,:)
     #logical :: converged
-    betak_min = 0.0
+    #betak_min = np.zeros(0.0)
 
     # congrad_streamfunction.first is basically like a static variable
     if congrad_streamfunction.first:
@@ -612,7 +627,7 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
          make approximate inverse operator Z (always even symmetry)
     -----------------------------------------------------------------------
     """
-    make_inv_sfc(congrad_streamfunction.cf, Z, pyom) #NOTE: this is not good for time
+    make_inv_sfc(congrad_streamfunction.cf, Z, pyom)
     """
     -----------------------------------------------------------------------
          impose boundary conditions on guess
@@ -639,11 +654,11 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
          see if guess is a solution, bail out to avoid division by zero
     -----------------------------------------------------------------------
     """
-    n = 0
+    n = np.int(0)
     inv_op_sfc(Z, res, Zres, pyom)
     Zresmax = absmax_sfc(Zres, pyom)
     # Assume convergence rate of 0.99 to extrapolate error
-    if (100.0 * Zresmax < pyom.congr_epsilon or benchtest):
+    if 100.0 * Zresmax < pyom.congr_epsilon:
         estimated_error = 100.0 * Zresmax
         print_info(n, estimated_error, pyom)
         return True #Converged
@@ -653,14 +668,17 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
          ss(0)    = zerovector()
     -----------------------------------------------------------------------
     """
-    betakm1 = 1.0
+    betakm1 = np.float(1.0)
     ss[...] = 0.
     """
     -----------------------------------------------------------------------
          begin iteration loop
     ----------------------------------------------------------------------
     """
-    for n in xrange(1, pyom.congr_max_iterations): #n = 1,congr_max_iterations
+    n = 1
+    cont = True
+    while n < pyom.congr_max_iterations and cont:
+    #for n in xrange(1, pyom.congr_max_iterations): #n = 1,congr_max_iterations
         """
         -----------------------------------------------------------------------
                Zres(k-1) = Z * res(k-1)
@@ -674,13 +692,14 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
         """
         betak = dot_sfc(Zres, res, pyom)
         if n == 1:
-            betak_min = abs(betak)
+            betak_min = np.abs(betak)
         elif n > 2:
-            betak_min = min(betak_min, abs(betak))
-            if abs(betak) > 100.0*betak_min:
+            betak_min = np.minimum(betak_min, np.abs(betak))
+            if np.abs(betak) > 100.0*betak_min:
                 print 'WARNING: solver diverging at itt=',pyom.congr_itts
                 fail(n, estimated_error, pyom)
-                return False #Converged
+                cont = False
+                #converged = False #Converged
         """
         -----------------------------------------------------------------------
                ss(k)      = Zres(k-1) + (beta(k)/beta(k-1)) * ss(k-1)
@@ -700,8 +719,6 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
         -----------------------------------------------------------------------
         """
         solve_pressure.apply_op(congrad_streamfunction.cf, ss, As, pyom)
-        #print "AS", As
-        #sys.exit()
         """
         -----------------------------------------------------------------------
                If ss=0 then the division for alpha(k) gives a float exception.
@@ -710,11 +727,12 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
         -----------------------------------------------------------------------
         """
         s_dot_As = dot_sfc(ss, As, pyom)
-        if abs(s_dot_As) < abs(betak)*1.e-10:
+        if np.abs(s_dot_As) < np.abs(betak)*np.float(1.e-10):
             smax = absmax_sfc(ss,pyom)
             estimated_error = 100.0 * smax
             print_info(n, estimated_error, pyom)
-            return True #Converged
+            cont = False
+            #converged = True #Converged
         """
         -----------------------------------------------------------------------
                alpha(k)  = beta(k) / (ss(k) * As(k))
@@ -728,8 +746,9 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
                res(k)    = res(k-1) - alpha(k) * As(k)
         -----------------------------------------------------------------------
         """
-        sol[2:pyom.nx+2, 2:pyom.ny+2] += alpha * ss[2:pyom.nx+2, 2:pyom.ny+2]
-        res[2:pyom.nx+2, 2:pyom.ny+2] += -alpha * As[2:pyom.nx+2, 2:pyom.ny+2]
+        if cont:
+            sol[2:pyom.nx+2, 2:pyom.ny+2] += alpha * ss[2:pyom.nx+2, 2:pyom.ny+2]
+            res[2:pyom.nx+2, 2:pyom.ny+2] += -alpha * As[2:pyom.nx+2, 2:pyom.ny+2]
         #for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
         #    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
         #        sol[i,j] += alpha * ss[i,j]
@@ -742,40 +761,45 @@ def congrad_streamfunction(forc,sol,pyom,benchtest=False):
                if (estimated_error) < congr_epsilon) exit
         -----------------------------------------------------------------------
         """
-        step = abs(alpha) * smax
+        step = np.abs(alpha) * smax
         if n == 1:
             step1 = step
             estimated_error = step
             if step < pyom.congr_epsilon:
                 print_info(n, estimated_error, pyom)
-                return True #Converged
+                cont = False
+                #converged = True #Converged
         elif step < pyom.congr_epsilon:
             convergence_rate = np.exp(np.log(step/step1)/(n-1))
             estimated_error = step*convergence_rate/(1.0-convergence_rate)
             if estimated_error < pyom.congr_epsilon:
                 print_info(n, estimated_error, pyom)
-                return True #Converged
+                cont = False
+                #converged = True #Converged
         betakm1 = betak
+        if cont:
+            n += 1
     """
     -----------------------------------------------------------------------
          end of iteration loop
     -----------------------------------------------------------------------
     """
-    print ' WARNING: max iterations exceeded at itt=',n
-    fail(n, estimated_error, pyom)
-    return False #Converged
+    if cont:
+        print ' WARNING: max iterations exceeded at itt=',n
+        fail(n, estimated_error, pyom)
+        #return False #Converged
 congrad_streamfunction.first = True
 
 def print_info(n, estimated_error, pyom):
     pyom.congr_itts = n
-    if pyom.enable_congrad_verbose:
-        print ' estimated error=',estimated_error,'/',pyom.congr_epsilon
-        print ' iterations=',n
+    #if pyom.enable_congrad_verbose:
+    #    print ' estimated error=',estimated_error,'/',pyom.congr_epsilon
+    #    print ' iterations=',n
 
 def fail(n, estimated_error, pyom):
     pyom.congr_itts = n
-    print ' estimated error=',estimated_error,'/',pyom.congr_epsilon
-    print ' iterations=',n
+    #print ' estimated error=',estimated_error,'/',pyom.congr_epsilon
+    #print ' iterations=',n
     # check for NaN
     if np.isnan(estimated_error):
         raise RuntimeError('error is NaN, stopping integration')
@@ -862,6 +886,5 @@ def make_inv_sfc(cf,Z,pyom):
 #
 #   make inverse zero on island perimeters that are not integrated
 #
-    #NOTE: This is time consuming
     for isle in xrange(pyom.nisle): #isle=1,nisle
         Z *= np.invert(pyom.boundary_mask[isle]).astype(np.int)

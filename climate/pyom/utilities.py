@@ -25,7 +25,7 @@ def pad_z_edges(array):
 
 def solve_implicit(ks, a, b, c, d, b_edge=None, d_edge=None):
     land_mask = (ks >= 0)[:,:,None]
-    if not np.any(land_mask):
+    if not np.sum(land_mask):
         return np.zeros_like(land_mask), np.zeros_like(land_mask)
     edge_mask = land_mask & (np.indices((a.shape))[2] == ks[:,:,None])
     water_mask = land_mask & (np.indices((a.shape))[2] >= ks[:,:,None])
