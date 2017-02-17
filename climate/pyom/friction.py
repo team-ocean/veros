@@ -240,7 +240,7 @@ def linear_bottom_friction(pyom):
 
         k = np.maximum(pyom.kbot[2:-2, 2:-1], pyom.kbot[2:-2, 1:-2]) - 1
         mask = np.arange(pyom.nz) == k[:,:,None]
-        pyom.dv_mix[2:-2,1:-2] += pyom.maskV[2:-2,1:-2] * pyom.r_bot * pyom.v[2:-2,1:-2,:,pyom.tau] * mask
+        pyom.dv_mix[2:-2,1:-2] += -pyom.maskV[2:-2,1:-2] * pyom.r_bot * pyom.v[2:-2,1:-2,:,pyom.tau] * mask
         if pyom.enable_conserve_energy:
             diss[...] = 0.0
             diss[2:-2,1:-2] = pyom.maskV[2:-2,1:-2] * pyom.r_bot * pyom.v[2:-2,1:-2,:,pyom.tau]**2 * mask
