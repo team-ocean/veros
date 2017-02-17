@@ -246,8 +246,8 @@ def vgrid_to_tgrid(A,pyom):
 
 def solve_tridiag(a, b, c, d):
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-    if not climate.is_bohrium:
-        return lapack.dgtsv(a.flatten()[1:],b.flatten(),c.flatten()[:-1],d.flatten())[3].reshape(a.shape)
+    #if not climate.is_bohrium:
+    #    return lapack.dgtsv(a.flatten()[1:],b.flatten(),c.flatten()[:-1],d.flatten())[3].reshape(a.shape)
 
     n = a.shape[-1]
     x, cp, dp = np.zeros_like(a), np.zeros_like(a), np.zeros_like(a)

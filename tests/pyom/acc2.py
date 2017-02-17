@@ -26,6 +26,12 @@ class ACC2Test(PyOMTest):
                 self._check_var(a)
         plt.show()
 
+    def _normalize(self,*arrays):
+        norm = np.abs(arrays[0]).max()
+        if norm == 0.:
+            return arrays
+        return (a / norm for a in arrays)
+
     def _check_var(self,var):
         v1, v2 = self.get_attribute(var)
         if v1.ndim > 1:
@@ -34,7 +40,7 @@ class ACC2Test(PyOMTest):
             v2 = v2[2:-2, 2:-2, ...]
         if v1 is None or v2 is None:
             raise RuntimeError(var)
-        passed = np.allclose(v1, v2)
+        passed = np.allclose(*self._normalize(v1,v2))
         if not passed:
             print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:
@@ -56,7 +62,7 @@ class ACC2Test(PyOMTest):
         self.pyom_new = ACC2()
         self.pyom_legacy = ACC2(fortran=self.fortran)
         # integrate for some time steps and compare
-        n_steps = 3
+        n_steps = 1
         if n_steps == 0:
             self.pyom_new.setup()
             self.pyom_legacy.setup()

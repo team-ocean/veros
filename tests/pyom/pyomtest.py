@@ -103,10 +103,6 @@ class PyOMTest(object):
         differing_objects = {}
         arrays = self.get_all_attributes(self.array_attribute_file)
         for a, (v1,v2) in arrays.items():
-            #if not v1 is None and np.asarray(v1).ndim > 1:
-            #    v1 = v1[2:-2, 2:-2]
-            #if not v2 is None and np.asarray(v2).ndim > 1:
-            #    v2 = v2[2:-2, 2:-2]
             if ((v1 is None) != (v2 is None)) or not np.array_equal(v1,v2):
                 differing_objects[a] = (v1,v2)
         return differing_objects

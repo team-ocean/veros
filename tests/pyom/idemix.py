@@ -79,23 +79,36 @@ class IDEMIXTest(PyOMTest):
         plt.show()
         return all_passed
 
+    def _normalize(self,*arrays):
+        norm = np.abs(arrays[0]).max()
+        if norm == 0.:
+            return arrays
+        return (a / norm for a in arrays)
+
     def _check_var(self,var):
         v1, v2 = self.get_attribute(var)
-        passed = np.allclose(v1[2:-2, 2:-2, ...], v2[2:-2, 2:-2, ...])
+        if v1.ndim > 1:
+            v1 = v1[2:-2, 2:-2, ...]
+        if v2.ndim > 1:
+            v2 = v2[2:-2, 2:-2, ...]
+        if v1 is None or v2 is None:
+            raise RuntimeError(var)
+        passed = np.allclose(*self._normalize(v1,v2))
         if not passed:
-            print(var, np.abs(v1[2:-2, 2:-2, ...]-v2[2:-2, 2:-2, ...]).max(), v1.max(), v2.max(), np.where(v1 != v2))
+            print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:
                 v1 = v1[...,-1]
             while v2.ndim > 2:
                 v2 = v2[...,-1]
-            fig, axes = plt.subplots(1,3)
-            axes[0].imshow(v1)
-            axes[0].set_title("New")
-            axes[1].imshow(v2)
-            axes[1].set_title("Legacy")
-            axes[2].imshow(v1 - v2)
-            axes[2].set_title("diff")
-            fig.suptitle(var)
+            if v1.ndim == 2:
+                fig, axes = plt.subplots(1,3)
+                axes[0].imshow(v1)
+                axes[0].set_title("New")
+                axes[1].imshow(v2)
+                axes[1].set_title("Legacy")
+                axes[2].imshow(v1 - v2)
+                axes[2].set_title("diff")
+                fig.suptitle(var)
         return passed
 
 if __name__ == "__main__":
