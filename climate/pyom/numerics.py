@@ -137,8 +137,8 @@ def calc_grid(pyom):
     precalculate area of boxes
     """
     pyom.area_t = pyom.cost * pyom.dyt * pyom.dxt[:, np.newaxis]
-    pyom.area_u = pyom.cost*pyom.dyt * pyom.dxu[:, np.newaxis]
-    pyom.area_v = pyom.cosu*pyom.dyu*pyom.dxt[:, np.newaxis]
+    pyom.area_u = pyom.cost * pyom.dyt * pyom.dxu[:, np.newaxis]
+    pyom.area_v = pyom.cosu * pyom.dyu * pyom.dxt[:, np.newaxis]
 
 def calc_beta(pyom):
     """
@@ -245,9 +245,14 @@ def vgrid_to_tgrid(A,pyom):
 
 
 def solve_tridiag(a, b, c, d):
+    """
+    Solves a tridiagonal matrix system with diagonals a, b, c and RHS vector d.
+    Uses LAPACK when running with NumPy, and otherwise the Thomas algorithm iterating over the
+    last axis of the input arrays.
+    """
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-    #if not climate.is_bohrium:
-    #    return lapack.dgtsv(a.flatten()[1:],b.flatten(),c.flatten()[:-1],d.flatten())[3].reshape(a.shape)
+    if not climate.is_bohrium:
+        return lapack.dgtsv(a.flatten()[1:],b.flatten(),c.flatten()[:-1],d.flatten())[3].reshape(a.shape)
 
     n = a.shape[-1]
     x, cp, dp = np.zeros_like(a), np.zeros_like(a), np.zeros_like(a)

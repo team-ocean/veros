@@ -4,10 +4,11 @@ from collections import OrderedDict
 
 from climate.pyom import PyOMLegacy
 from climate import Timer
+import climate
 
-try:
+if climate.is_bohrium:
     flush = np.flush
-except AttributeError:
+else:
     flush = lambda: None
 
 class PyOMTest(object):
@@ -18,6 +19,7 @@ class PyOMTest(object):
     extra_settings = None
     test_module = None
     test_routines = None
+    repetitions = 1
 
 
     def __init__(self, nx, ny, nz, fortran):
@@ -44,6 +46,8 @@ class PyOMTest(object):
 
 
     def set_attribute(self, attribute, value):
+        if climate.is_bohrium and isinstance(value, np.float):
+            value = np.asarray(value)
         setattr(self.pyom_new, attribute, value)
         for module in self.legacy_modules:
             module_handle = getattr(self.pyom_legacy,module)
@@ -61,6 +65,8 @@ class PyOMTest(object):
     def get_attribute(self, attribute):
         try:
             pyom_attr = getattr(self.pyom_new, attribute)
+            if climate.is_bohrium and isinstance(pyom_attr, np.ndarray):
+                pyom_attr = pyom_attr.copy2numpy()
         except AttributeError:
             pyom_attr = None
         pyom_legacy_attr = None
@@ -129,16 +135,20 @@ class PyOMTest(object):
         for routine in self.test_routines.keys():
             pyom_routine, pyom_legacy_routine = self.get_routine(routine,self.test_module)
             pyom_args, pyom_legacy_args = self.test_routines[routine]
-            with pyom_timers[routine]:
+            if climate.is_bohrium: # run routine once to pre-compile kernels
                 pyom_routine(*pyom_args)
-                flush()
+            self.initialize()
+            with pyom_timers[routine]:
+                for _ in range(self.repetitions):
+                    pyom_routine(*pyom_args)
+                    flush()
             pyom_timers[routine].printTime()
             with pyom_legacy_timers[routine]:
-                pyom_legacy_routine(**pyom_legacy_args)
+                for _ in range(self.repetitions):
+                    pyom_legacy_routine(**pyom_legacy_args)
             pyom_legacy_timers[routine].printTime()
             passed = self.test_passed(routine)
             if not passed:
                 all_passed = False
                 print("Test failed")
-            self.initialize()
         return all_passed

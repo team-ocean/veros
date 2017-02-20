@@ -5,9 +5,11 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import advection
+from climate.pyom import advection, numerics
 
 class AdvectionTest(PyOMTest):
+    repetitions = 100
+
     def initialize(self):
         m = self.pyom_legacy.main_module
 
@@ -32,8 +34,10 @@ class AdvectionTest(PyOMTest):
         for a in ("u","v","w","Hd"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz,3))
 
-        for a in ("maskU", "maskV", "maskW", "maskT"):
-            self.set_attribute(a,np.random.randint(0,2,size=(self.nx+4,self.ny+4,self.nz)).astype(np.float))
+        self.set_attribute("kbot",np.random.randint(0,self.nz,size=(self.nx+4,self.ny+4)).astype(np.float))
+        calc_topo_new, calc_topo_legacy = self.get_routine("calc_topo",submodule=numerics)
+        calc_topo_new(self.pyom_new)
+        calc_topo_legacy()
 
         self.test_module = advection
         pyom_args = (self.pyom_new.flux_east, self.pyom_new.flux_north, self.pyom_new.flux_top, self.pyom_new.Hd[...,1], self.pyom_new)
@@ -94,5 +98,5 @@ class AdvectionTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = AdvectionTest(100, 250, 50, fortran=sys.argv[1])
+    test = AdvectionTest(100, 120, 50, fortran=sys.argv[1])
     passed = test.run()
