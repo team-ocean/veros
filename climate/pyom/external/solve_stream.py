@@ -294,6 +294,7 @@ def streamfunction_init(pyom):
             #        fpy[i,j] = pyom.maskV[i,j,pyom.nz-1]*( pyom.psin[i,j,isle]-pyom.psin[i-1,j,isle])/(pyom.cosu[j]*pyom.dxt[i])*pyom.hvr[i,j]
             pyom.line_psin[n,isle] = line_integral(n,fpx,fpy, pyom)
 
+
 def avoid_cyclic_boundaries(Map, isle, n, pyom):
     for i in xrange(pyom.nx/2+2, pyom.nx+2): #i=nx/2+1,nx
         for j in xrange(1, pyom.ny+2): #j=0,ny
@@ -311,7 +312,7 @@ def avoid_cyclic_boundaries(Map, isle, n, pyom):
                 ij = [i-1,j]
                 cont = True
                 Dir = [-1,0]
-                pyom.line_dir_west_mask[isle, ij[0]-1, ij[1]] = 1
+                pyom.line_dir_west_mask[isle, ij[0]+1, ij[1]] = 1
                 #pyom.boundary[isle,n,:] = np.array([ij[0]+1,ij[1]])
                 pyom.boundary_mask[isle,ij[0]+1,ij[1]] = 1
                 return (cont, ij, Dir, [ij[0]+1, ij[1]])
@@ -333,7 +334,7 @@ def avoid_cyclic_boundaries2(Map, isle, n, pyom):
                 ij = [i-1,j]
                 cont = True
                 Dir = [-1,0]
-                pyom.line_dir_west_mask[isle, ij[0]-1, ij[1]] = 1
+                pyom.line_dir_west_mask[isle, ij[0]+1, ij[1]] = 1
                 pyom.boundary_mask[isle,ij[0]+1,ij[1]] = 1
                 return (cont, ij, Dir, [ij[0]+1, ij[1]])
     return (False, None, [0,0], [0,0])
@@ -344,25 +345,14 @@ def line_integral(isle,uloc,vloc,pyom):
      calculate line integral along island isle
     =======================================================================
     """
-    #integer :: isle
-    #integer :: js_,je_,is_,ie_
-    #!real*8 :: uloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #!real*8 :: vloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8 :: uloc(is_:ie_,js_:je_)
-    #real*8 :: vloc(is_:ie_,js_:je_)
-    #real*8 :: line
-    #integer :: n,i,j,nm1,js,je,is,ie
-    line = 0
-
     east = vloc[1:-2,1:-2] * pyom.dyu[np.newaxis, 1:-2] + uloc[1:-2,2:-1]*pyom.dxu[1:-2, np.newaxis]*pyom.cost[np.newaxis,2:-1]
-    west = vloc[2:-1,1:-2]*pyom.dyu[np.newaxis, 1:-2] - uloc[1:-2,1:-2]*(pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
+    west = vloc[2:-1,1:-2]*pyom.dyu[np.newaxis, 1:-2] + uloc[1:-2,1:-2]*(pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
     north = vloc[1:-2,1:-2]*pyom.dyu[np.newaxis,1:-2]  - uloc[1:-2,1:-2]*(pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
     south = uloc[1:-2,2:-1]*(pyom.cost[2:-1]*pyom.dxu[1:-2, np.newaxis]) - vloc[2:-1,1:-2]*pyom.dyu[np.newaxis, 1:-2]
     east = np.sum(east * (pyom.line_dir_east_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
     west = np.sum(west * (pyom.line_dir_west_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
     north = np.sum(north * (pyom.line_dir_north_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
     south = np.sum(south * (pyom.line_dir_south_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
-
     return east - west + north + south
 
 def mod10(m):
