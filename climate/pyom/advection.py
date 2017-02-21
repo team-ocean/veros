@@ -102,6 +102,9 @@ def adv_flux_superbee(adv_fe,adv_fn,adv_ft,var,pyom):
 def calculate_velocity_on_wgrid(pyom):
     """
     calculates advection velocity for tracer on W grid
+
+    Note: this implementation is not strictly equal to the Fortran version. They only match
+    if maskW has exactly one true value across each depth slice.
     """
     # lateral advection velocities on W grid
     pyom.u_wgrid[:,:,:-1] = pyom.u[:,:,1:,pyom.tau] * pyom.maskU[:,:,1:] * 0.5 * pyom.dzt[None,None,1:] / pyom.dzw[None,None,:-1] \
@@ -114,14 +117,12 @@ def calculate_velocity_on_wgrid(pyom):
     # redirect velocity at bottom and at topography
     pyom.u_wgrid[:,:,0] = pyom.u_wgrid[:,:,0] + pyom.u[:,:,0,pyom.tau] * pyom.maskU[:,:,0] * 0.5 * pyom.dzt[0] / pyom.dzw[0]
     pyom.v_wgrid[:,:,0] = pyom.v_wgrid[:,:,0] + pyom.v[:,:,0,pyom.tau] * pyom.maskV[:,:,0] * 0.5 * pyom.dzt[0] / pyom.dzw[0]
-    for k in xrange(pyom.nz-1): #TODO: vectorize
-        mask = pyom.maskW[:-1, :, k] * pyom.maskW[1:, :, k] == 0
-        pyom.u_wgrid[:-1, :, k+1] += (pyom.u_wgrid[:-1, :, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1]) * mask
-        pyom.u_wgrid[:-1, :, k] *= ~mask
-
-        mask = pyom.maskW[:, :-1, k] * pyom.maskW[:, 1:, k] == 0
-        pyom.v_wgrid[:, :-1, k+1] += (pyom.v_wgrid[:, :-1, k] * pyom.dzw[None, None, k] / pyom.dzw[None, None, k+1]) * mask
-        pyom.v_wgrid[:, :-1, k] *= ~mask
+    mask = (pyom.maskW[:-1, :, :-1] * pyom.maskW[1:, :, :-1]).astype(np.bool)
+    pyom.u_wgrid[:-1, :, 1:] += (pyom.u_wgrid[:-1, :, :-1] * pyom.dzw[None, None, :-1] / pyom.dzw[None, None, 1:]) * ~mask
+    pyom.u_wgrid[:-1, :, :-1] *= mask
+    mask = (pyom.maskW[:, :-1, :-1] * pyom.maskW[:, 1:, :-1]).astype(np.bool)
+    pyom.v_wgrid[:, :-1, 1:] += (pyom.v_wgrid[:, :-1, :-1] * pyom.dzw[None, None, :-1] / pyom.dzw[None, None, 1:]) * ~mask
+    pyom.v_wgrid[:, :-1, :-1] *= mask
 
     # vertical advection velocity on W grid from continuity
     pyom.w_wgrid[:, :, 0] = 0.
