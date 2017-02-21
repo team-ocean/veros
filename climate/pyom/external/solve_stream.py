@@ -1,33 +1,21 @@
 """
-=======================================================================
-      solve two dimensional Possion equation
-           A * dpsi = forc,  where A = nabla_h^2
-      with Dirichlet boundary conditions
-      used for streamfunction
-=======================================================================
+solve two dimensional Possion equation
+     A * dpsi = forc,  where A = nabla_h^2
+with Dirichlet boundary conditions
+used for streamfunction
 """
 
-import sys
 import numpy as np
+
 import climate
 from climate.pyom.external import solve_pressure, island
 from climate.pyom import cyclic, diagnostics
 
+
 def streamfunction_init(pyom):
     """
-    =======================================================================
-      prepare for island integrals
-    =======================================================================
+    prepare for island integrals
     """
-    #integer :: allmap(1-onx:nx+onx,1-onx:ny+onx)
-    #integer :: map(1-onx:nx+onx,1-onx:ny+onx)
-    #integer :: kmt(1-onx:nx+onx,1-onx:ny+onx)
-    #integer :: iperm(maxipp),jperm(maxipp),nippts(mnisle), iofs(mnisle)
-    #integer :: isle,n,i,j,ij(2),max_boundary,dir(2),ijp(2),ijp_right(2)
-    #logical :: cont,verbose ,converged
-    #real*8 :: forc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8 :: fpx(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8 :: fpy(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
     maxipp = 10000
     mnisle = 1000
     allmap = np.zeros((pyom.nx+4, pyom.ny+4))
@@ -48,45 +36,30 @@ def streamfunction_init(pyom):
         nippts = nippts.copy2numpy()
         iofs = iofs.copy2numpy()
 
-    print 'Initializing streamfunction method'
+    print("Initializing streamfunction method")
     verbose = pyom.enable_congrad_verbose
     """
-    -----------------------------------------------------------------------
-     communicate kbot to get the entire land map
-    -----------------------------------------------------------------------
+    communicate kbot to get the entire land map
     """
     kmt = np.zeros((pyom.nx+4, pyom.ny+4)) # note that routine will modify kmt
-    #if climate.is_bohrium:
-    #    kbot = pyom.kbot.copy2numpy()
-    #    kmt = kmt.copy2numpy()
-    #else:
-    #    kbot = pyom.kbot
-    kmt[2:pyom.nx+2, 2:pyom.ny+2] = (pyom.kbot[2:pyom.nx+2, 2:pyom.ny+2] > 0) * 5
-
-    #MPI stuff
-    #call pe0_recv_2D_int(nx,ny,kmt(1:nx,1:ny))
-    #call pe0_bcast_int(kmt,(nx+2*onx)*(ny+2*onx))
+    kmt[2:-2, 2:-2] = (pyom.kbot[2:-2, 2:-2] > 0) * 5
 
     if pyom.enable_cyclic_x:
         kmt[-2:] = kmt[2:4]
         kmt[0:2] = kmt[-4:-2]
 
     """
-    -----------------------------------------------------------------------
-     preprocess land map using MOMs algorithm for B-grid to determine number of islands
-    -----------------------------------------------------------------------
+    preprocess land map using MOMs algorithm for B-grid to determine number of islands
     """
-    print ' starting MOMs algorithm for B-grid to determine number of islands'
+    print(" starting MOMs algorithm for B-grid to determine number of islands")
     island.isleperim(kmt,allmap, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp,pyom,change_nisle=True, verbose=True)
     if pyom.enable_cyclic_x:
         allmap[-2:] = allmap[2:4]
         allmap[0:2] = allmap[-4:-2]
-    showmap(allmap, pyom)
+    _showmap(allmap, pyom)
 
     """
-    -----------------------------------------------------------------------
-     allocate variables
-    -----------------------------------------------------------------------
+    allocate variables
     """
     pyom.boundary_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
     pyom.line_dir_south_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
@@ -105,107 +78,87 @@ def streamfunction_init(pyom):
         pyom.line_dir_west_mask  = pyom.line_dir_west_mask.copy2numpy()
 
     for isle in xrange(pyom.nisle): #isle=1,nisle
-
-        print ' ------------------------'
-        print ' processing island #',isle
-        print ' ------------------------'
+        print(" ------------------------")
+        print(" processing island #{:d}".format(isle))
+        print(" ------------------------")
 
         """
-        -----------------------------------------------------------------------
-         land map for island number isle: 1 is land, -1 is perimeter, 0 is ocean
-        -----------------------------------------------------------------------
+        land map for island number isle: 1 is land, -1 is perimeter, 0 is ocean
         """
         kmt[...] = allmap != isle+1
-        #kmt[] = 0
         island.isleperim(kmt,Map, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp,pyom)
         if verbose:
-            showmap(Map, pyom)
+            _showmap(Map, pyom)
 
         """
-        -----------------------------------------------------------------------
-         find a starting point
-        -----------------------------------------------------------------------
+        find a starting point
         """
-        n=0
+        n = 0
         # avoid starting close to cyclic bondaries
-        (cont, ij, Dir, startPos) = avoid_cyclic_boundaries(Map, isle, n, pyom)
-
+        (cont, ij, Dir, startPos) = avoid_cyclic_boundaries(Map, isle, n, xrange(pyom.nx/2+2, pyom.nx+2), pyom)
         if not cont:
-            (cont, ij, Dir, startPos) = avoid_cyclic_boundaries2(Map, isle, n, pyom)
-
+            (cont, ij, Dir, startPos) = avoid_cyclic_boundaries(Map, isle, n, xrange(pyom.nx/2,0,-1), pyom)
             if not cont:
-                raise RuntimeError('found no starting point for line integral')
+                raise RuntimeError("found no starting point for line integral")
 
-        print ' starting point of line integral is ',startPos
-        print ' starting direction is ', Dir
+        print(" starting point of line integral is {!r}".format(startPos))
+        print(" starting direction is {!r}".format(Dir))
 
         """
-        -----------------------------------------------------------------------
-         now find connecting lines
-        -----------------------------------------------------------------------
+        now find connecting lines
         """
         n = 1
         pyom.boundary_mask[isle,ij[0],ij[1]] = 1
         cont = True
         while cont:
             """
-            -----------------------------------------------------------------------
-             consider map in front of line direction and to the right and decide where to go
-            -----------------------------------------------------------------------
+            consider map in front of line direction and to the right and decide where to go
             """
-            if Dir[0]== 0 and Dir[1]== 1:
-                ijp      = [ij[0]  ,ij[1]+1] #north
-                ijp_right= [ij[0]+1,ij[1]+1] #north
-            elif Dir[0]==-1 and Dir[1]== 0:
-                ijp      = [ij[0]  ,ij[1]  ] #west
-                ijp_right= [ij[0]  ,ij[1]+1] #west
-            elif Dir[0]== 0 and Dir[1]==-1:
-                ijp      = [ij[0]+1,ij[1]  ] #south
-                ijp_right= [ij[0]  ,ij[1]  ] #south
-            elif Dir[0]== 1 and Dir[1]== 0:
-                ijp      = [ij[0]+1,ij[1]+1] #east
-                ijp_right= [ij[0]+1,ij[1]  ] #east
+            if Dir[0]== 0 and Dir[1]== 1: # north
+                ijp      = [ij[0]  ,ij[1]+1]
+                ijp_right= [ij[0]+1,ij[1]+1]
+            elif Dir[0]==-1 and Dir[1]== 0: # west
+                ijp      = [ij[0]  ,ij[1]  ]
+                ijp_right= [ij[0]  ,ij[1]+1]
+            elif Dir[0]== 0 and Dir[1]==-1: # south
+                ijp      = [ij[0]+1,ij[1]  ]
+                ijp_right= [ij[0]  ,ij[1]  ]
+            elif Dir[0]== 1 and Dir[1]== 0: # east
+                ijp      = [ij[0]+1,ij[1]+1]
+                ijp_right= [ij[0]+1,ij[1]  ]
 
             """
-            -----------------------------------------------------------------------
-              4 cases are possible
-            -----------------------------------------------------------------------
+            4 cases are possible
             """
 
             if verbose:
-                print ' '
-                print ' position is  ',ij
-                print ' direction is ',Dir
-                print ' map ahead is ',Map[ijp[0],ijp[1]] , Map[ijp_right[0],ijp_right[1]]
+                print(" ")
+                print(" position is {!r}".format(ij))
+                print(" direction is {!r}".format(Dir))
+                print(" map ahead is {} {}".format(Map[ijp[0],ijp[1]], Map[ijp_right[0],ijp_right[1]]))
 
             if Map[ijp[0],ijp[1]] == -1 and Map[ijp_right[0],ijp_right[1]] == 1:
                 if verbose:
-                    print ' go forward'
+                    print(" go forward")
             elif Map[ijp[0],ijp[1]] == -1 and Map[ijp_right[0],ijp_right[1]] == -1:
                 if verbose:
-                    print ' turn right'
+                    print(" turn right")
                 Dir = [Dir[1],-Dir[0]]
             elif Map[ijp[0],ijp[1]] == 1 and Map[ijp_right[0],ijp_right[1]] == 1:
                 if verbose:
-                    print ' turn left'
+                    print(" turn left")
                 Dir = [-Dir[1],Dir[0]]
             elif Map[ijp[0],ijp[1]] == 1 and Map[ijp_right[0],ijp_right[1]] == -1:
                 if verbose:
-                    print ' turn left'
+                    print(" turn left")
                 Dir = [-Dir[1],Dir[0]]
             else:
-                print 'unknown situation or lost track'
-                #for n in xrange(1, n+1): #n=1,n
-                #    print ' pos=',pyom.boundary[isle,n,:],' dir=',line_dir[isle,n,:]
-                print ' map ahead is ',Map[ijp[0],ijp[1]] , Map[ijp_right[0],ijp_right[1]]
-                sys.exit(' in streamfunction_init ')
+                print(" map ahead is {} {}".format(Map[ijp[0],ijp[1]], Map[ijp_right[0],ijp_right[1]]))
+                raise RuntimeError("unknown situation or lost track")
 
             """
-            -----------------------------------------------------------------------
-             go forward in direction
-            -----------------------------------------------------------------------
+            go forward in direction
             """
-            #pyom.line_dir[isle,n,:] = Dir
             if Dir[0]== 0 and Dir[1]== 1: #north
                 pyom.line_dir_north_mask[isle, ij[0], ij[1]] = 1
             elif Dir[0]==-1 and Dir[1]== 0: #west
@@ -219,32 +172,28 @@ def streamfunction_init(pyom):
                 cont = False
 
             """
-            -----------------------------------------------------------------------
-             account for cyclic boundary conditions
-            -----------------------------------------------------------------------
+            account for cyclic boundary conditions
             """
             if pyom.enable_cyclic_x and Dir[0] == 1 and Dir[1] == 0 and ij[0] > pyom.nx+1:
                 if verbose:
-                    print ' shifting to western cyclic boundary'
+                    print(" shifting to western cyclic boundary")
                 ij[0] -= pyom.nx
             if pyom.enable_cyclic_x and Dir[0] == -1 and Dir[1] == 0 and ij[0] < 2:
                 if verbose:
-                    print ' shifting to eastern cyclic boundary'
+                    print(" shifting to eastern cyclic boundary")
                 ij[0] += pyom.nx
             if startPos[0] == ij[0] and startPos[1] == ij[1]:
                 cont = False
 
             if cont:
-                n = n+1
+                n += 1
                 pyom.boundary_mask[isle,ij[0],ij[1]] = 1
 
-        print ' number of points is ',n+1
+        print(" number of points is {:d}".format(n+1))
         if verbose:
-            print ' '
-            print ' Positions:'
-            print ' boundary:', pyom.boundary_mask[isle]
-            #for n in xrange(pyom.nr_boundary[isle]): #n=1,nr_boundary(isle)
-            #    print ' pos=',pyom.boundary[isle,n,:],' dir=',pyom.line_dir[isle,n,:]
+            print(" ")
+            print(" Positions:")
+            print(" boundary: {!r}".format(pyom.boundary_mask[isle]))
 
     if climate.is_bohrium:
         pyom.boundary_mask = np.array(pyom.boundary_mask)
@@ -255,154 +204,104 @@ def streamfunction_init(pyom):
 
 
     """
-    -----------------------------------------------------------------------
-     precalculate time independent boundary components of streamfunction
-    -----------------------------------------------------------------------
+    precalculate time independent boundary components of streamfunction
     """
     forc[...] = 0.0
-    for isle in xrange(pyom.nisle): #isle=1,nisle
+    for isle in xrange(pyom.nisle):
         pyom.psin[:,:,isle] = pyom.boundary_mask[isle]
 
         if pyom.enable_cyclic_x:
             cyclic.setcyclic_x(pyom.psin[:,:,isle])
-        print ' solving for boundary contribution by island ',isle
+        print(" solving for boundary contribution by island {:d}".format(isle))
 
         congrad_streamfunction(forc,pyom.psin[:,:,isle],pyom)
-        print ' itts =  ',pyom.congr_itts
+        print(" itts =  {:d}".format(pyom.congr_itts))
 
         if pyom.enable_cyclic_x:
             cyclic.setcyclic_x(pyom.psin[:,:,isle])
 
     """
-    -----------------------------------------------------------------------
-     precalculate time independent island integrals
-    -----------------------------------------------------------------------
+    precalculate time independent island integrals
     """
-    for n in xrange(pyom.nisle): #n=1,nisle
-        for isle in xrange(pyom.nisle): #isle=1,nisle
+    for n in xrange(pyom.nisle):
+        for isle in xrange(pyom.nisle):
             fpx[...] = 0
             fpy[...] = 0
-            fpx[1:, 1:] = -pyom.maskU[1:, 1:, pyom.nz-1]\
-                    *(pyom.psin[1:, 1:,isle]-pyom.psin[1:, :pyom.ny+3,isle])\
-                    /pyom.dyt[1:]*pyom.hur[1:, 1:]
-            fpy[1:, 1:] = pyom.maskV[1:, 1:, pyom.nz-1]\
-                    *(pyom.psin[1:, 1:,isle]-pyom.psin[:pyom.nx+3, 1:,isle])\
-                    /(pyom.cosu[1:]*pyom.dxt[1:, np.newaxis])*pyom.hvr[1:, 1:]
-            #for j in xrange(1, pyom.ny+4): #j=js_pe-onx+1,je_pe+onx
-            #    for i in xrange(1, pyom.nx+4): #i=is_pe-onx+1,ie_pe+onx
-            #        fpx[i,j] =-pyom.maskU[i,j,pyom.nz-1]*( pyom.psin[i,j,isle]-pyom.psin[i,j-1,isle])/pyom.dyt[j]*pyom.hur[i,j]
-            #        fpy[i,j] = pyom.maskV[i,j,pyom.nz-1]*( pyom.psin[i,j,isle]-pyom.psin[i-1,j,isle])/(pyom.cosu[j]*pyom.dxt[i])*pyom.hvr[i,j]
+            fpx[1:, 1:] = -pyom.maskU[1:, 1:, -1] \
+                    * (pyom.psin[1:, 1:, isle] - pyom.psin[1:, :-1, isle]) \
+                    / pyom.dyt[1:] * pyom.hur[1:, 1:]
+            fpy[1:, 1:] = pyom.maskV[1:, 1:, -1] \
+                    * (pyom.psin[1:, 1:, isle] - pyom.psin[:-1, 1:, isle]) \
+                    / (pyom.cosu[1:] * pyom.dxt[1:, np.newaxis]) * pyom.hvr[1:, 1:]
             pyom.line_psin[n,isle] = line_integral(n,fpx,fpy, pyom)
 
 
-def avoid_cyclic_boundaries(Map, isle, n, pyom):
-    for i in xrange(pyom.nx/2+2, pyom.nx+2): #i=nx/2+1,nx
+def avoid_cyclic_boundaries(Map, isle, n, x_range, pyom):
+    for i in x_range: #i=nx/2+1,nx
         for j in xrange(1, pyom.ny+2): #j=0,ny
             if Map[i,j] == 1 and Map[i,j+1] == -1:
                 #initial direction is eastward, we come from the west
-                ij=[i,j]
                 cont = True
                 Dir = [1,0]
-                pyom.line_dir_east_mask[isle, ij[0]-1, ij[1]] = 1
-                #pyom.boundary[isle,n,:] = np.array([ij[0]-1,ij[1]])
-                pyom.boundary_mask[isle, ij[0]-1, ij[1]] = 1
-                return (cont, ij, Dir, [ij[0]-1, ij[1]])
+                pyom.line_dir_east_mask[isle, i-1, j] = 1
+                pyom.boundary_mask[isle, i-1, j] = 1
+                return cont, (i,j), Dir, (i-1, j)
             if Map[i,j] == -1 and Map[i,j+1] == 1:
                 # initial direction is westward, we come from the east
-                ij = [i-1,j]
                 cont = True
                 Dir = [-1,0]
-                pyom.line_dir_west_mask[isle, ij[0]+1, ij[1]] = 1
-                #pyom.boundary[isle,n,:] = np.array([ij[0]+1,ij[1]])
-                pyom.boundary_mask[isle,ij[0]+1,ij[1]] = 1
-                return (cont, ij, Dir, [ij[0]+1, ij[1]])
-    return (False, None, [0,0], [0,0])
+                pyom.line_dir_west_mask[isle, i, j] = 1
+                pyom.boundary_mask[isle, i, j] = 1
+                return cont, (i-1,j), Dir, (i,j)
+    return False, None, [0,0], [0,0]
 
-def avoid_cyclic_boundaries2(Map, isle, n, pyom):
-    for i in xrange(pyom.nx/2,0,-1): #i=nx/2,1,-1  ! avoid starting close to cyclic bondaries
-        for j in xrange(1, pyom.ny+2): #j=0,ny
-            if Map[i,j] == 1 and Map[i,j+1] == -1:
-                # initial direction is eastward, we come from the west
-                ij = [i,j]
-                cont = True
-                Dir = [1,0]
-                pyom.line_dir_east_mask[isle, ij[0]-1, ij[1]] = 1
-                pyom.boundary_mask[isle, ij[0]-1, ij[1]] = 1
-                return (cont, ij, Dir, [ij[0]-1, ij[1]])
-            if Map[i,j] == -1 and Map[i,j+1] == 1:
-                # initial direction is westward, we come from the east
-                ij = [i-1,j]
-                cont = True
-                Dir = [-1,0]
-                pyom.line_dir_west_mask[isle, ij[0]+1, ij[1]] = 1
-                pyom.boundary_mask[isle,ij[0]+1,ij[1]] = 1
-                return (cont, ij, Dir, [ij[0]+1, ij[1]])
-    return (False, None, [0,0], [0,0])
 
 def line_integral(isle,uloc,vloc,pyom):
     """
-    =======================================================================
-     calculate line integral along island isle
-    =======================================================================
+    calculate line integral along island isle
     """
-    east = vloc[1:-2,1:-2] * pyom.dyu[np.newaxis, 1:-2] + uloc[1:-2,2:-1]*pyom.dxu[1:-2, np.newaxis]*pyom.cost[np.newaxis,2:-1]
-    west = vloc[2:-1,1:-2]*pyom.dyu[np.newaxis, 1:-2] + uloc[1:-2,1:-2]*(pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
-    north = vloc[1:-2,1:-2]*pyom.dyu[np.newaxis,1:-2]  - uloc[1:-2,1:-2]*(pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
-    south = uloc[1:-2,2:-1]*(pyom.cost[2:-1]*pyom.dxu[1:-2, np.newaxis]) - vloc[2:-1,1:-2]*pyom.dyu[np.newaxis, 1:-2]
+    east = vloc[1:-2,1:-2] * pyom.dyu[np.newaxis, 1:-2] + uloc[1:-2,2:-1] * pyom.dxu[1:-2, np.newaxis] * pyom.cost[np.newaxis,2:-1]
+    west = -vloc[2:-1,1:-2] * pyom.dyu[np.newaxis, 1:-2] - uloc[1:-2,1:-2] * (pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
+    north = vloc[1:-2,1:-2] * pyom.dyu[np.newaxis,1:-2]  - uloc[1:-2,1:-2] * (pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
+    south = -vloc[2:-1,1:-2] * pyom.dyu[np.newaxis, 1:-2] + uloc[1:-2,2:-1] * (pyom.cost[2:-1]*pyom.dxu[1:-2, np.newaxis])
     east = np.sum(east * (pyom.line_dir_east_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
     west = np.sum(west * (pyom.line_dir_west_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
     north = np.sum(north * (pyom.line_dir_north_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
     south = np.sum(south * (pyom.line_dir_south_mask[isle,1:-2,1:-2] & pyom.boundary_mask[isle,1:-2,1:-2]))
-    return east - west + north + south
+    return east + west + north + south
 
-def mod10(m):
+
+def _mod10(m):
     if m > 0:
         return m % 10
     else:
         return m
 
-def showmap(Map, pyom):
-    #integer :: js_,je_,is_,ie_
-    #!integer :: map(1-onx:nx+onx,1-onx:ny+onx)
-    #integer :: map(is_:ie_,js_:je_)
-    #integer,parameter :: linewidth=125
-    #integer :: istart,iremain,isweep,iline,i,j,mod10
-    #integer :: imt
-    linewidth = 125
 
+def _showmap(Map, pyom):
+    linewidth = 125
     imt = pyom.nx + 4
     iremain = imt
     istart = 0
     print("")
     print(" "*(5+min(linewidth,imt)/2-13) + "Land mass and perimeter")
-    for isweep in xrange(1, imt/linewidth + 2): #isweep=1,imt/linewidth + 1
+    for isweep in xrange(1, imt/linewidth + 2):
         iline = min(iremain, linewidth)
         iremain = iremain - iline
         if iline > 0:
-            print ' '
+            print(" ")
             print("".join(["{:5d}".format(istart+i+1-2) for i in xrange(1,iline+1,5)]))
-            for j in xrange(pyom.ny+3, -1, -1): #j=ny+onx,1-onx,-1
-                print("{:3d} ".format(j) + "".join([str(int(mod10(Map[istart+i -2,j]))) if mod10(Map[istart+i -2,j]) >= 0 else "*" for i in xrange(2, iline+2)]))
+            for j in xrange(pyom.ny+3, -1, -1):
+                print("{:3d} ".format(j) + "".join([str(int(_mod10(Map[istart+i -2,j]))) if _mod10(Map[istart+i -2,j]) >= 0 else "*" for i in xrange(2, iline+2)]))
             print("".join(["{:5d}".format(istart+i+1-2) for i in xrange(1,iline+1,5)]))
-            #print '(t6,32i5)', (istart+i+4-onx,i=1,iline,5)
             istart = istart + iline
     print("")
 
+
 def solve_streamfunction(pyom,benchtest=False):
     """
-    =======================================================================
-      solve for barotropic streamfunction
-    =======================================================================
+    solve for barotropic streamfunction
     """
-    # use main_module
-    # implicit none
-    # integer :: i,j,k,isle
-    # real*8 :: fxa,line_forc(nisle),line_psi0(nisle),aloc(nisle,nisle)
-    # real*8 :: fpx(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    # real*8 :: fpy(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    # real*8 :: forc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    # integer :: ipiv(nisle),info
-    # logical :: converged
     line_forc = np.empty(pyom.nisle)
     line_psi0 = np.empty(pyom.nisle)
     aloc      = np.empty((pyom.nisle, pyom.nisle))
@@ -416,27 +315,20 @@ def solve_streamfunction(pyom,benchtest=False):
         pyom.p_hydro[:,:,k] = pyom.maskT[:,:,k]*pyom.p_hydro[:,:,k+1]+ tmp[:,:,k] #0.5*(pyom.rho[:,:,k+1,pyom.tau]+pyom.rho[:,:,k,pyom.tau])*fxa*pyom.dzw[k])
 
     # add hydrostatic pressure gradient
-    pyom.du[2:pyom.nx+2,2:pyom.ny+2,:,pyom.tau] += \
-            -(pyom.p_hydro[3:pyom.nx+3,2:pyom.ny+2,:]-pyom.p_hydro[2:pyom.nx+2,2:pyom.ny+2,:]) \
-            /(pyom.cost[np.newaxis,2:pyom.ny+2,np.newaxis]*pyom.dxu[2:pyom.nx+2,np.newaxis,np.newaxis]) \
-            *pyom.maskU[2:pyom.nx+2,2:pyom.ny+2,:]
-    pyom.dv[2:pyom.nx+2,2:pyom.ny+2,:,pyom.tau] += \
-            -(pyom.p_hydro[2:pyom.nx+2,3:pyom.ny+3,:]-pyom.p_hydro[2:pyom.nx+2,2:pyom.ny+2,:]) \
-            / pyom.dyu[np.newaxis, 2:pyom.ny+2, np.newaxis] \
-            * pyom.maskV[2:pyom.nx+2,2:pyom.ny+2,:]
-    #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-    #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-    #        pyom.du[i,j,:,pyom.tau] += -( pyom.p_hydro[i+1,j,:]-pyom.p_hydro[i,j,:]  )/(pyom.dxu[i]*pyom.cost[j]) *pyom.maskU[i,j,:]
-    #        pyom.dv[i,j,:,pyom.tau] += -( pyom.p_hydro[i,j+1,:]-pyom.p_hydro[i,j,:]  ) /pyom.dyu[j]*pyom.maskV[i,j,:]
+    pyom.du[2:-2,2:-2,:,pyom.tau] += \
+            -(pyom.p_hydro[3:-1,2:-2,:]-pyom.p_hydro[2:-2,2:-2,:]) \
+            / (pyom.cost[np.newaxis,2:-2,np.newaxis] * pyom.dxu[2:-2,np.newaxis,np.newaxis]) \
+            *pyom.maskU[2:-2,2:-2,:]
+    pyom.dv[2:-2,2:-2,:,pyom.tau] += \
+            -(pyom.p_hydro[2:-2,3:-1,:]-pyom.p_hydro[2:-2,2:-2,:]) \
+            / pyom.dyu[np.newaxis, 2:-2, np.newaxis] \
+            * pyom.maskV[2:-2,2:-2,:]
 
     # forcing for barotropic streamfunction
     fpx = np.zeros((pyom.nx+4, pyom.ny+4))
     fpy = np.zeros((pyom.nx+4, pyom.ny+4))
-    fpx += np.add.reduce((pyom.du[:,:,:,pyom.tau]+pyom.du_mix)*pyom.maskU*pyom.dzt, axis=(2,))
-    fpy += np.add.reduce((pyom.dv[:,:,:,pyom.tau]+pyom.dv_mix)*pyom.maskV*pyom.dzt, axis=(2,))
-    #for k in xrange(pyom.nz): #k=1,nz
-    #    fpx += (pyom.du[:,:,k,pyom.tau]+pyom.du_mix[:,:,k])*pyom.maskU[:,:,k]*pyom.dzt[k]
-    #    fpy += (pyom.dv[:,:,k,pyom.tau]+pyom.dv_mix[:,:,k])*pyom.maskV[:,:,k]*pyom.dzt[k]
+    fpx += np.sum((pyom.du[:,:,:,pyom.tau] + pyom.du_mix) * pyom.maskU * pyom.dzt, axis=(2,))
+    fpy += np.sum((pyom.dv[:,:,:,pyom.tau] + pyom.dv_mix) * pyom.maskV * pyom.dzt, axis=(2,))
 
     fpx *= pyom.hur
     fpy *= pyom.hvr
@@ -446,16 +338,13 @@ def solve_streamfunction(pyom,benchtest=False):
         cyclic.setcyclic_x(fpy)
 
     forc = np.empty((pyom.nx+4, pyom.ny+4))
-    forc[2:pyom.nx+2, 2:pyom.ny+2] = (fpy[3:pyom.nx+3, 2:pyom.ny+2]-fpy[2:pyom.nx+2, 2:pyom.ny+2]) \
-            /(pyom.cosu[2:pyom.ny+2]*pyom.dxu[2:pyom.nx+2, np.newaxis]) \
-            -(pyom.cost[3:pyom.ny+3]*fpx[2:pyom.nx+2, 3:pyom.ny+3]-pyom.cost[2:pyom.ny+2]*fpx[2:pyom.nx+2, 2:pyom.ny+2]) \
-            /(pyom.cosu[2:pyom.ny+2]*pyom.dyu[2:pyom.ny+2])
-    #for j in (2, pyom.ny+2): #j=js_pe,je_pe
-    #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-    #        forc[i,j] = (fpy[i+1,j]-fpy[i,j])/(pyom.cosu[j]*pyom.dxu[i])-(pyom.cost[j+1]*fpx[i,j+1]-pyom.cost[j]*fpx[i,j])/(pyom.cosu[j]*pyom.dyu[j])
+    forc[2:-2, 2:-2] = (fpy[3:-1, 2:-2] - fpy[2:-2, 2:-2]) \
+            / (pyom.cosu[2:-2] * pyom.dxu[2:-2, np.newaxis]) \
+            - (pyom.cost[3:-1] * fpx[2:-2, 3:-1] - pyom.cost[2:-2] * fpx[2:-2, 2:-2]) \
+            / (pyom.cosu[2:-2] * pyom.dyu[2:-2])
 
     # solve for interior streamfunction
-    pyom.dpsi[:,:,pyom.taup1] = 2*pyom.dpsi[:,:,pyom.tau]-pyom.dpsi[:,:,pyom.taum1] # first guess, we need three time levels here
+    pyom.dpsi[:,:,pyom.taup1] = 2 * pyom.dpsi[:,:,pyom.tau] - pyom.dpsi[:,:,pyom.taum1] # first guess, we need three time levels here
     congrad_streamfunction(forc,pyom.dpsi[:,:,pyom.taup1], pyom) #NOTE: This fucks with wall time
 
     if pyom.enable_cyclic_x:
@@ -472,16 +361,12 @@ def solve_streamfunction(pyom,benchtest=False):
             fpy[...] = 0.0
             fpx[1:, 1:] = \
                     -pyom.maskU[1:, 1:, pyom.nz-1] \
-                    * (pyom.dpsi[1:, 1:,pyom.taup1]-pyom.dpsi[1:, :pyom.ny+3,pyom.taup1]) \
+                    * (pyom.dpsi[1:, 1:,pyom.taup1]-pyom.dpsi[1:, :-1,pyom.taup1]) \
                     /pyom.dyt[1:] *pyom.hur[1:, 1:]
             fpy[1:, 1:] = \
                     pyom.maskV[1:, 1:, pyom.nz-1] \
-                    * (pyom.dpsi[1:, 1:,pyom.taup1]-pyom.dpsi[:pyom.nx+3, 1:,pyom.taup1]) \
+                    * (pyom.dpsi[1:, 1:,pyom.taup1]-pyom.dpsi[:-1, 1:,pyom.taup1]) \
                     /(pyom.cosu[1:]*pyom.dxt[1:, np.newaxis])*pyom.hvr[1:,1:]
-            #for i in xrange(1, pyom.nx+4): #i=is_pe-onx+1,ie_pe+onx
-            #    for j in xrange(1, pyom.ny+4): #j=js_pe-onx+1,je_pe+onx
-            #        fpx[i,j] =-pyom.maskU[i,j,pyom.nz-1]*( pyom.dpsi[i,j,pyom.taup1]-pyom.dpsi[i,j-1,pyom.taup1])/pyom.dyt[j]*pyom.hur[i,j]
-            #        fpy[i,j] = pyom.maskV[i,j,pyom.nz-1]*( pyom.dpsi[i,j,pyom.taup1]-pyom.dpsi[i-1,j,pyom.taup1])/(pyom.cosu[j]*pyom.dxt[i])*pyom.hvr[i,j]
             line_psi0[k] = line_integral(k,fpx,fpy,pyom)
 
         line_forc -= line_psi0
@@ -496,111 +381,57 @@ def solve_streamfunction(pyom,benchtest=False):
         #(lu, ipiv, line_forc[1:pyom.nisle], info) = lapack.dgesv(aloc[1:pyom.nisle, 1:pyom.nisle], line_forc[1:pyom.nisle])
 
         #if info != 0:
-        #    print 'info = ',info
-        #    print ' line_forc=',line_forc[1:pyom.nisle]
-        #    sys.exit(' in solve_streamfunction, lapack info not zero ')
+        #    print("info = "),info
+        #    print(" line_forc="),line_forc[1:pyom.nisle]
+        #    sys.exit(" in solve_streamfunction, lapack info not zero ")
         pyom.dpsin[1:pyom.nisle,pyom.tau] = line_forc[1:pyom.nisle]
 
     # integrate barotropic and baroclinic velocity forward in time
     pyom.psi[:,:,pyom.taup1] = pyom.psi[:,:,pyom.tau]+ pyom.dt_mom*( (1.5+pyom.AB_eps)*pyom.dpsi[:,:,pyom.taup1] - (0.5+pyom.AB_eps)*pyom.dpsi[:,:,pyom.tau] )
-    pyom.psi[:, :, pyom.taup1] += pyom.dt_mom*np.add.reduce(( (1.5+pyom.AB_eps)*pyom.dpsin[1:pyom.nisle,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dpsin[1:pyom.nisle,pyom.taum1])*pyom.psin[:,:,1:pyom.nisle], axis=2)
-    #for isle in xrange(1, pyom.nisle): #isle=2,nisle
-    #    pyom.psi[:,:,pyom.taup1] += pyom.dt_mom*( (1.5+pyom.AB_eps)*pyom.dpsin[isle,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dpsin[isle,pyom.taum1])*pyom.psin[:,:,isle]
+    pyom.psi[:, :, pyom.taup1] += pyom.dt_mom * np.sum(((1.5+pyom.AB_eps)*pyom.dpsin[1:pyom.nisle,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dpsin[1:pyom.nisle,pyom.taum1]) * pyom.psin[:,:,1:pyom.nisle], axis=2)
     pyom.u[:,:,:,pyom.taup1] = pyom.u[:,:,:,pyom.tau] + pyom.dt_mom*( pyom.du_mix+ (1.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.taum1] )*pyom.maskU
     pyom.v[:,:,:,pyom.taup1] = pyom.v[:,:,:,pyom.tau] + pyom.dt_mom*( pyom.dv_mix+ (1.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.taum1] )*pyom.maskV
 
     # subtract incorrect vertical mean from baroclinic velocity
-    #fpx[...] = 0.0
-    #fpy[...] = 0.0
-    fpx = np.add.reduce(pyom.u[:,:,:,pyom.taup1]*pyom.maskU*pyom.dzt, axis=(2,))
-    fpy = np.add.reduce(pyom.v[:,:,:,pyom.taup1]*pyom.maskV*pyom.dzt, axis=(2,))
-    #for k in xrange(pyom.nz): #k=1,nz
-    #    fpx += pyom.u[:,:,k,pyom.taup1]*pyom.maskU[:,:,k]*pyom.dzt[k]
-    #    fpy += pyom.v[:,:,k,pyom.taup1]*pyom.maskV[:,:,k]*pyom.dzt[k]
+    fpx = np.sum(pyom.u[:,:,:,pyom.taup1]*pyom.maskU*pyom.dzt, axis=(2,))
+    fpy = np.sum(pyom.v[:,:,:,pyom.taup1]*pyom.maskV*pyom.dzt, axis=(2,))
     pyom.u[:,:,:,pyom.taup1] += (np.ones(pyom.nz)*-fpx[:, :, np.newaxis])*pyom.maskU*(np.ones(pyom.nz)*pyom.hur[:, :, np.newaxis])
     pyom.v[:,:,:,pyom.taup1] += (np.ones(pyom.nz)*-fpy[:, :, np.newaxis])*pyom.maskV*(np.ones(pyom.nz)*pyom.hvr[:, :, np.newaxis])
-    #for k in xrange(pyom.nz): #k=1,nz
-    #    pyom.u[:,:,k,pyom.taup1] = pyom.u[:,:,k,pyom.taup1]-fpx*pyom.maskU[:,:,k]*pyom.hur
-    #    pyom.v[:,:,k,pyom.taup1] = pyom.v[:,:,k,pyom.taup1]-fpy*pyom.maskV[:,:,k]*pyom.hvr
 
     # add barotropic mode to baroclinic velocity
-    pyom.u[2:pyom.nx+2, 2:pyom.ny+2, :, pyom.taup1] += \
-            -pyom.maskU[2:pyom.nx+2,2:pyom.ny+2,:]\
-            *(np.ones(pyom.nz)*( pyom.psi[2:pyom.nx+2,2:pyom.ny+2,pyom.taup1]-pyom.psi[2:pyom.nx+2,1:pyom.ny+1,pyom.taup1])[:, :,np.newaxis])\
-            /(np.ones(pyom.nz)*pyom.dyt[2:pyom.ny+2,np.newaxis]*np.ones(pyom.nx)[:, np.newaxis, np.newaxis])\
-            *(np.ones(pyom.nz)*pyom.hur[2:pyom.nx+2,2:pyom.ny+2][:, :, np.newaxis])
-    pyom.v[2:pyom.nx+2, 2:pyom.ny+2, :, pyom.taup1] += \
-            pyom.maskV[2:pyom.nx+2,2:pyom.ny+2,:]\
-            *(np.ones(pyom.nz)*( pyom.psi[2:pyom.nx+2,2:pyom.ny+2,pyom.taup1]-pyom.psi[1:pyom.nx+1,2:pyom.ny+2,pyom.taup1])[:, :,np.newaxis])\
-            /(np.ones(pyom.nz)*pyom.cosu[2:pyom.ny+2,np.newaxis]*pyom.dxt[2:pyom.nx+2, np.newaxis, np.newaxis])\
-            *(np.ones(pyom.nz)*pyom.hvr[2:pyom.nx+2,2:pyom.ny+2][:, :, np.newaxis])
-    #for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-    #    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-    #        pyom.u[i,j,:,pyom.taup1] += -pyom.maskU[i,j,:]*( pyom.psi[i,j,pyom.taup1]-pyom.psi[i,j-1,pyom.taup1])/pyom.dyt[j]*pyom.hur[i,j]
-    #        pyom.v[i,j,:,pyom.taup1] += pyom.maskV[i,j,:]*( pyom.psi[i,j,pyom.taup1]-pyom.psi[i-1,j,pyom.taup1])/(pyom.cosu[j]*pyom.dxt[i])*pyom.hvr[i,j]
+    pyom.u[2:-2, 2:-2, :, pyom.taup1] += \
+            -pyom.maskU[2:-2,2:-2,:]\
+            *(np.ones(pyom.nz) * (pyom.psi[2:-2,2:-2,pyom.taup1]-pyom.psi[2:-2,1:-3,pyom.taup1])[:, :,np.newaxis])\
+            /(np.ones(pyom.nz) * pyom.dyt[2:-2,np.newaxis]*np.ones(pyom.nx)[:, np.newaxis, np.newaxis])\
+            *(np.ones(pyom.nz) * pyom.hur[2:-2,2:-2][:, :, np.newaxis])
+    pyom.v[2:-2, 2:-2, :, pyom.taup1] += \
+            pyom.maskV[2:-2,2:-2,:]\
+            *(np.ones(pyom.nz) * (pyom.psi[2:-2,2:-2,pyom.taup1]-pyom.psi[1:-3,2:-2,pyom.taup1])[:, :,np.newaxis])\
+            /(np.ones(pyom.nz) * pyom.cosu[2:-2,np.newaxis]*pyom.dxt[2:-2, np.newaxis, np.newaxis])\
+            *(np.ones(pyom.nz) * pyom.hvr[2:-2,2:-2][:, :, np.newaxis])
 
 
 def make_coeff_streamfunction(cf, pyom):
     """
-    =======================================================================
-             A * p = forc
-             res = A * p
-             res = res +  cf(...,ii,jj,kk) * p(i+ii,j+jj,k+kk)
-    =======================================================================
+    A * p = forc
+    res = A * p
+    res = res +  cf(...,ii,jj,kk) * p(i+ii,j+jj,k+kk)
     """
-    #real*8 :: cf(is_:ie_,js_:je_,3,3)
-    #cf = np.zeros(ie_-is_+1, je_-js_+1, 3, 3)
-    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 1] -= pyom.hvr[3:pyom.nx+3, 2:pyom.ny+2]/(np.ones(pyom.ny)*pyom.dxu[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[3:pyom.nx+3, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:pyom.ny+2].T).T**2
-    cf[2:pyom.nx+2, 2:pyom.ny+2, 2, 1] += pyom.hvr[3:pyom.nx+3, 2:pyom.ny+2]/(np.ones(pyom.ny)*pyom.dxu[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[3:pyom.nx+3, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:pyom.ny+2].T).T**2
-    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 1] -= pyom.hvr[2:pyom.nx+2, 2:pyom.ny+2]/(np.ones(pyom.ny)*pyom.dxu[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:pyom.ny+2].T).T**2
-    cf[2:pyom.nx+2, 2:pyom.ny+2, 0, 1] += pyom.hvr[2:pyom.nx+2, 2:pyom.ny+2]/(np.ones(pyom.ny)*pyom.dxu[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[2:pyom.nx+2, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:pyom.ny+2].T).T**2
+    cf[2:-2, 2:-2, 1, 1] -= pyom.hvr[3:-1, 2:-2]/(np.ones(pyom.ny)*pyom.dxu[2:-2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[3:-1, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:-2].T).T**2
+    cf[2:-2, 2:-2, 2, 1] += pyom.hvr[3:-1, 2:-2]/(np.ones(pyom.ny)*pyom.dxu[2:-2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[3:-1, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:-2].T).T**2
+    cf[2:-2, 2:-2, 1, 1] -= pyom.hvr[2:-2, 2:-2]/(np.ones(pyom.ny)*pyom.dxu[2:-2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[2:-2, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:-2].T).T**2
+    cf[2:-2, 2:-2, 0, 1] += pyom.hvr[2:-2, 2:-2]/(np.ones(pyom.ny)*pyom.dxu[2:-2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[2:-2, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:-2].T).T**2
 
-    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 1] -= pyom.hur[2:pyom.nx+2, 3:pyom.ny+3]/(pyom.dyu[2:pyom.ny+2])/(pyom.dyt[3:pyom.ny+3])*pyom.cost[3:pyom.ny+3]/(pyom.cosu[2:pyom.ny+2])
-    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 2] += pyom.hur[2:pyom.nx+2, 3:pyom.ny+3]/(pyom.dyu[2:pyom.ny+2])/(pyom.dyt[3:pyom.ny+3])*pyom.cost[3:pyom.ny+3]/(pyom.cosu[2:pyom.ny+2])
-    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 1] -= pyom.hur[2:pyom.nx+2, 2:pyom.ny+2]/(pyom.dyu[2:pyom.ny+2])/(pyom.dyt[2:pyom.ny+2])*pyom.cost[2:pyom.ny+2]/(pyom.cosu[2:pyom.ny+2])
-    cf[2:pyom.nx+2, 2:pyom.ny+2, 1, 0] += pyom.hur[2:pyom.nx+2, 2:pyom.ny+2]/(pyom.dyu[2:pyom.ny+2])/(pyom.dyt[2:pyom.ny+2])*pyom.cost[2:pyom.ny+2]/(pyom.cosu[2:pyom.ny+2])
-
-    #for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-    #    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-    #        cf[i,j, 1, 1] -= pyom.hvr[i+1,j]/pyom.dxu[i]/pyom.dxt[i+1] /pyom.cosu[j]**2
-    #        cf[i,j, 2, 1] += pyom.hvr[i+1,j]/pyom.dxu[i]/pyom.dxt[i+1] /pyom.cosu[j]**2
-    #        cf[i,j, 1, 1] -= pyom.hvr[i  ,j]/pyom.dxu[i]/pyom.dxt[i  ] /pyom.cosu[j]**2
-    #        cf[i,j, 0, 1] += pyom.hvr[i  ,j]/pyom.dxu[i]/pyom.dxt[i  ] /pyom.cosu[j]**2
-
-    #        cf[i,j, 1, 1] -= pyom.hur[i,j+1]/pyom.dyu[j]/pyom.dyt[j+1]*pyom.cost[j+1]/pyom.cosu[j]
-    #        cf[i,j, 1, 2] += pyom.hur[i,j+1]/pyom.dyu[j]/pyom.dyt[j+1]*pyom.cost[j+1]/pyom.cosu[j]
-    #        cf[i,j, 1, 1] -= pyom.hur[i,j  ]/pyom.dyu[j]/pyom.dyt[j  ]*pyom.cost[j  ]/pyom.cosu[j]
-    #        cf[i,j, 1, 0] += pyom.hur[i,j  ]/pyom.dyu[j]/pyom.dyt[j  ]*pyom.cost[j  ]/pyom.cosu[j]
+    cf[2:-2, 2:-2, 1, 1] -= pyom.hur[2:-2, 3:-1]/(pyom.dyu[2:-2])/(pyom.dyt[3:-1])*pyom.cost[3:-1]/(pyom.cosu[2:-2])
+    cf[2:-2, 2:-2, 1, 2] += pyom.hur[2:-2, 3:-1]/(pyom.dyu[2:-2])/(pyom.dyt[3:-1])*pyom.cost[3:-1]/(pyom.cosu[2:-2])
+    cf[2:-2, 2:-2, 1, 1] -= pyom.hur[2:-2, 2:-2]/(pyom.dyu[2:-2])/(pyom.dyt[2:-2])*pyom.cost[2:-2]/(pyom.cosu[2:-2])
+    cf[2:-2, 2:-2, 1, 0] += pyom.hur[2:-2, 2:-2]/(pyom.dyu[2:-2])/(pyom.dyt[2:-2])*pyom.cost[2:-2]/(pyom.cosu[2:-2])
 
 
 def congrad_streamfunction(forc,sol,pyom):
     """
-    =======================================================================
-      conjugate gradient solver with preconditioner from MOM
-    =======================================================================
+    conjugate gradient solver with preconditioner from MOM
     """
-    #use main_module
-    #implicit none
-    #integer :: is_,ie_,js_,je_
-    #integer :: iterations, n,i,j
-    #!real*8  :: forc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #!real*8  :: sol(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8  :: forc(is_:ie_,js_:je_)
-    #real*8  :: sol(is_:ie_,js_:je_)
-    #real*8  :: res(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8  :: Z(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8  :: Zres(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8  :: ss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8  :: As(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8  :: estimated_error
-    #real*8  :: zresmax,betakm1,betak,betak_min=0,betaquot,s_dot_As,smax
-    #real*8  :: alpha,step,step1=0,convergence_rate
-    #real*8 , external :: absmax_sfc,dot_sfc
-    #logical, save :: first = .true.
-    #real*8 , allocatable,save :: cf(:,:,:,:)
-    #logical :: converged
-    #betak_min = np.zeros(0.0)
-
     # congrad_streamfunction.first is basically like a static variable
     if congrad_streamfunction.first:
         congrad_streamfunction.cf = np.zeros((pyom.nx+4, pyom.ny+4, 3, 3))
@@ -613,36 +444,24 @@ def congrad_streamfunction(forc,sol,pyom):
     As   = np.zeros((pyom.nx+4, pyom.ny+4))
     res  = np.zeros((pyom.nx+4, pyom.ny+4))
     """
-    -----------------------------------------------------------------------
-         make approximate inverse operator Z (always even symmetry)
-    -----------------------------------------------------------------------
+    make approximate inverse operator Z (always even symmetry)
     """
     make_inv_sfc(congrad_streamfunction.cf, Z, pyom)
     """
-    -----------------------------------------------------------------------
-         impose boundary conditions on guess
-         sol(0) = guess
-    -----------------------------------------------------------------------
+    impose boundary conditions on guess
+    sol(0) = guess
     """
-    #for i in xrange(pyom.nx+4):
-    #    for j in xrange(pyom.ny+4):
-    #        print "sol", i, j, sol[i,j]
-    #sys.exit()
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(sol)
     """
-    -----------------------------------------------------------------------
-         res(0)  = forc - A * eta(0)
-    -----------------------------------------------------------------------
+    res(0)  = forc - A * eta(0)
     """
     solve_pressure.apply_op(congrad_streamfunction.cf, sol, res, pyom)
-    res[2:pyom.nx+2, 2:pyom.ny+2] = forc[2:pyom.nx+2, 2:pyom.ny+2] - res[2:pyom.nx+2, 2:pyom.ny+2]
+    res[2:-2, 2:-2] = forc[2:-2, 2:-2] - res[2:-2, 2:-2]
 
     """
-    -----------------------------------------------------------------------
-         Zres(k-1) = Z * res(k-1)
-         see if guess is a solution, bail out to avoid division by zero
-    -----------------------------------------------------------------------
+    Zres(k-1) = Z * res(k-1)
+    see if guess is a solution, bail out to avoid division by zero
     """
     n = np.int(0)
     inv_op_sfc(Z, res, Zres, pyom)
@@ -653,32 +472,23 @@ def congrad_streamfunction(forc,sol,pyom):
         print_info(n, estimated_error, pyom)
         return True #Converged
     """
-    -----------------------------------------------------------------------
-         beta(0) = 1
-         ss(0)    = zerovector()
-    -----------------------------------------------------------------------
+    beta(0) = 1
+    ss(0)    = zerovector()
     """
     betakm1 = np.float(1.0)
     ss[...] = 0.
     """
-    -----------------------------------------------------------------------
-         begin iteration loop
-    ----------------------------------------------------------------------
+    begin iteration loop
     """
     n = 1
     cont = True
     while n < pyom.congr_max_iterations and cont:
-    #for n in xrange(1, pyom.congr_max_iterations): #n = 1,congr_max_iterations
         """
-        -----------------------------------------------------------------------
-               Zres(k-1) = Z * res(k-1)
-        -----------------------------------------------------------------------
+        Zres(k-1) = Z * res(k-1)
         """
         inv_op_sfc(Z, res, Zres, pyom)
         """
-        -----------------------------------------------------------------------
-               beta(k)   = res(k-1) * Zres(k-1)
-        -----------------------------------------------------------------------
+        beta(k)   = res(k-1) * Zres(k-1)
         """
         betak = dot_sfc(Zres, res, pyom)
         if n == 1:
@@ -686,35 +496,26 @@ def congrad_streamfunction(forc,sol,pyom):
         elif n > 2:
             betak_min = np.minimum(betak_min, np.abs(betak))
             if np.abs(betak) > 100.0*betak_min:
-                print 'WARNING: solver diverging at itt=',pyom.congr_itts
+                print("WARNING: solver diverging at itt={:d}".format(pyom.congr_itts))
                 fail(n, estimated_error, pyom)
                 cont = False
                 #converged = False #Converged
         """
-        -----------------------------------------------------------------------
-               ss(k)      = Zres(k-1) + (beta(k)/beta(k-1)) * ss(k-1)
-        -----------------------------------------------------------------------
+        ss(k)      = Zres(k-1) + (beta(k)/beta(k-1)) * ss(k-1)
         """
         betaquot = betak/betakm1
-        ss[2:pyom.nx+2,2:pyom.ny+2] = Zres[2:pyom.nx+2,2:pyom.ny+2] + betaquot*ss[2:pyom.nx+2,2:pyom.ny+2]
-        #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-        #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-        #        ss[i,j] = Zres[i,j] + betaquot*ss[i,j]
+        ss[2:-2,2:-2] = Zres[2:-2,2:-2] + betaquot*ss[2:-2,2:-2]
 
         if pyom.enable_cyclic_x:
             cyclic.setcyclic_x(ss)
         """
-        -----------------------------------------------------------------------
-               As(k)     = A * ss(k)
-        -----------------------------------------------------------------------
+        As(k)     = A * ss(k)
         """
         solve_pressure.apply_op(congrad_streamfunction.cf, ss, As, pyom)
         """
-        -----------------------------------------------------------------------
-               If ss=0 then the division for alpha(k) gives a float exception.
-               Assume convergence rate of 0.99 to extrapolate error.
-               Also assume alpha(k) ~ 1.
-        -----------------------------------------------------------------------
+        If ss=0 then the division for alpha(k) gives a float exception.
+        Assume convergence rate of 0.99 to extrapolate error.
+        Also assume alpha(k) ~ 1.
         """
         s_dot_As = dot_sfc(ss, As, pyom)
         if np.abs(s_dot_As) < np.abs(betak)*np.float(1.e-10):
@@ -724,32 +525,22 @@ def congrad_streamfunction(forc,sol,pyom):
             cont = False
             #converged = True #Converged
         """
-        -----------------------------------------------------------------------
-               alpha(k)  = beta(k) / (ss(k) * As(k))
-        -----------------------------------------------------------------------
+        alpha(k)  = beta(k) / (ss(k) * As(k))
         """
         alpha = betak / s_dot_As
         """
-        -----------------------------------------------------------------------
-               update values:
-               eta(k)   = eta(k-1) + alpha(k) * ss(k)
-               res(k)    = res(k-1) - alpha(k) * As(k)
-        -----------------------------------------------------------------------
+        update values:
+        eta(k)   = eta(k-1) + alpha(k) * ss(k)
+        res(k)    = res(k-1) - alpha(k) * As(k)
         """
         if cont:
-            sol[2:pyom.nx+2, 2:pyom.ny+2] += alpha * ss[2:pyom.nx+2, 2:pyom.ny+2]
-            res[2:pyom.nx+2, 2:pyom.ny+2] += -alpha * As[2:pyom.nx+2, 2:pyom.ny+2]
-        #for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-        #    for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-        #        sol[i,j] += alpha * ss[i,j]
-        #        res[i,j] += -alpha * As[i,j]
+            sol[2:-2, 2:-2] += alpha * ss[2:-2, 2:-2]
+            res[2:-2, 2:-2] += -alpha * As[2:-2, 2:-2]
 
         smax = absmax_sfc(ss, pyom)
         """
-        -----------------------------------------------------------------------
-               test for convergence
-               if (estimated_error) < congr_epsilon) exit
-        -----------------------------------------------------------------------
+        test for convergence
+        if (estimated_error) < congr_epsilon) exit
         """
         step = np.abs(alpha) * smax
         if n == 1:
@@ -770,108 +561,64 @@ def congrad_streamfunction(forc,sol,pyom):
         if cont:
             n += 1
     """
-    -----------------------------------------------------------------------
-         end of iteration loop
-    -----------------------------------------------------------------------
+    end of iteration loop
     """
     if cont:
-        print ' WARNING: max iterations exceeded at itt=',n
+        print(" WARNING: max iterations exceeded at itt="),n
         fail(n, estimated_error, pyom)
         #return False #Converged
 congrad_streamfunction.first = True
 
+
 def print_info(n, estimated_error, pyom):
     pyom.congr_itts = n
     #if pyom.enable_congrad_verbose:
-    #    print ' estimated error=',estimated_error,'/',pyom.congr_epsilon
-    #    print ' iterations=',n
+    #    print(" estimated error="),estimated_error,"/",pyom.congr_epsilon
+    #    print(" iterations="),n
+
 
 def fail(n, estimated_error, pyom):
     pyom.congr_itts = n
-    #print ' estimated error=',estimated_error,'/',pyom.congr_epsilon
-    #print ' iterations=',n
+    #print(" estimated error="),estimated_error,"/",pyom.congr_epsilon
+    #print(" iterations="),n
     # check for NaN
     if np.isnan(estimated_error):
-        raise RuntimeError('error is NaN, stopping integration')
+        raise RuntimeError("error is NaN, stopping integration")
+
 
 def absmax_sfc(p1, pyom):
-    #use main_module
-    #implicit none
-    #integer :: is_,ie_,js_,je_
-    #!real*8 :: s2,p1(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8 :: s2,p1(is_:ie_,js_:je_)
-    #integer :: i,j
     return np.max(np.abs(p1))
-    #s2 = 0
-    #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-    #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-    #        s2 = max( abs(p1[i,j]), s2 )
-    #return s2
+
 
 def dot_sfc(p1, p2, pyom):
-    #!real*8 :: s2,p1(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx),p2(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8 :: s2,p1(is_:ie_,js_:je_),p2(is_:ie_,js_:je_)
-    #integer :: i,j
-    return np.sum(p1[2:pyom.nx+2, 2:pyom.ny+2]*p2[2:pyom.nx+2, 2:pyom.ny+2])
-    #s2 = 0.0
-    #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-    #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-    #        s2 += p1[i,j]*p2[i,j]
-    #return s2
+    return np.sum(p1[2:-2, 2:-2]*p2[2:-2, 2:-2])
+
 
 def inv_op_sfc(Z,res,Zres,pyom):
     """
-    -----------------------------------------------------------------------
-         apply approximate inverse Z of the operator A
-    -----------------------------------------------------------------------
+    apply approximate inverse Z of the operator A
     """
-    #integer :: is_,ie_,js_,je_
-    #!real*8 :: Z(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #!real*8 :: res(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #!real*8 :: Zres(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8, dimension(is_:ie_,js_:je_) :: Z,res,Zres
-    #integer :: i,j
-    Zres[2:pyom.nx+2, 2:pyom.ny+2] = Z[2:pyom.nx+2, 2:pyom.ny+2] * res[2:pyom.nx+2, 2:pyom.ny+2]
-    #for i in xrange(2, pyom.nx+2): #is_pe, ie_pe
-    #    for j in xrange(2, pyom.ny+2): #js_pe, je_pe
-    #        Zres[i,j] = Z[i,j] * res[i,j]
+    Zres[2:-2, 2:-2] = Z[2:-2, 2:-2] * res[2:-2, 2:-2]
+
 
 def make_inv_sfc(cf,Z,pyom):
     """
-    -----------------------------------------------------------------------
-         construct an approximate inverse Z to A
-    -----------------------------------------------------------------------
+    construct an approximate inverse Z to A
     """
-    #integer :: is_,ie_,js_,je_
-    #!real*8 :: cf(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,3,3)
-    #!real*8 ::  Z(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx)
-    #real*8 :: cf(is_:ie_,js_:je_,3,3)
-    #real*8 :: Z (is_:ie_,js_:je_)
-    #integer :: i,j,isle,n
 #
 #   copy diagonal coefficients of A to Z
 #
     Z[...] = 0
-    Z[2:pyom.nx+2, 2:pyom.ny+2] = cf[2:pyom.nx+2, 2:pyom.ny+2,1,1]
-    #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-    #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-    #        Z[i,j] = cf[i,j,1,1]
+    Z[2:-2, 2:-2] = cf[2:-2, 2:-2,1,1]
 
 #
 #   now invert Z
 #
-    Y = Z[2:pyom.nx+2, 2:pyom.ny+2]
+    Y = Z[2:-2, 2:-2]
     if climate.is_bohrium:
         Y[...] = (1. / (Y+(Y==0)))*(Y!=0)
     else:
         Y[Y != 0] = 1./Y[Y != 0]
-    #for j in xrange(2, pyom.ny+2): #j=js_pe,je_pe
-    #    for i in xrange(2, pyom.nx+2): #i=is_pe,ie_pe
-    #        if Z[i,j] != 0.0:
-    #            Z[i,j] = 1./Z[i,j]
-    #        # Seems a bit redundant
-    #        #else:
-    #        #  Z(i,j) = 0.0
 
 #
 #   make inverse zero on island perimeters that are not integrated

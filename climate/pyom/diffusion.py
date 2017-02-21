@@ -16,7 +16,7 @@ def dissipation_on_wgrid(P, pyom, int_drhodX=None, aloc=None, ks=None):
     if ks is None:
         ks = pyom.kbot[:,:] - 1
 
-    land_mask = (ks >= 0)
+    land_mask = ks >= 0
     edge_mask = land_mask[:, :, None] & (np.indices((pyom.nx+4, pyom.ny+4, pyom.nz-1))[2] == ks[:,:,None])
     water_mask = land_mask[:, :, None] & (np.indices((pyom.nx+4, pyom.ny+4, pyom.nz-1))[2] > ks[:,:,None])
 
