@@ -1,6 +1,7 @@
 import numpy as np
 
 import climate
+from climate.pyom import cyclic
 from climate.pyom.external import island, utilities, congrad_streamfunction
 
 

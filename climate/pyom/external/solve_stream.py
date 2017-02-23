@@ -101,10 +101,10 @@ def solve_streamfunction(pyom,benchtest=False):
         pyom.dpsin[1:pyom.nisle,pyom.tau] = line_forc[1:pyom.nisle]
 
     # integrate barotropic and baroclinic velocity forward in time
-    pyom.psi[:,:,pyom.taup1] = pyom.psi[:,:,pyom.tau]+ pyom.dt_mom*( (1.5+pyom.AB_eps)*pyom.dpsi[:,:,pyom.taup1] - (0.5+pyom.AB_eps)*pyom.dpsi[:,:,pyom.tau] )
+    pyom.psi[:,:,pyom.taup1] = pyom.psi[:,:,pyom.tau] + pyom.dt_mom*((1.5+pyom.AB_eps)*pyom.dpsi[:,:,pyom.taup1] - (0.5+pyom.AB_eps)*pyom.dpsi[:,:,pyom.tau] )
     pyom.psi[:, :, pyom.taup1] += pyom.dt_mom * np.sum(((1.5+pyom.AB_eps)*pyom.dpsin[1:pyom.nisle,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dpsin[1:pyom.nisle,pyom.taum1]) * pyom.psin[:,:,1:pyom.nisle], axis=2)
-    pyom.u[:,:,:,pyom.taup1] = pyom.u[:,:,:,pyom.tau] + pyom.dt_mom*( pyom.du_mix+ (1.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.taum1] )*pyom.maskU
-    pyom.v[:,:,:,pyom.taup1] = pyom.v[:,:,:,pyom.tau] + pyom.dt_mom*( pyom.dv_mix+ (1.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.taum1] )*pyom.maskV
+    pyom.u[:,:,:,pyom.taup1] = pyom.u[:,:,:,pyom.tau] + pyom.dt_mom*(pyom.du_mix + (1.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.du[:,:,:,pyom.taum1] )*pyom.maskU
+    pyom.v[:,:,:,pyom.taup1] = pyom.v[:,:,:,pyom.tau] + pyom.dt_mom*(pyom.dv_mix + (1.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.tau] - (0.5+pyom.AB_eps)*pyom.dv[:,:,:,pyom.taum1] )*pyom.maskV
 
     # subtract incorrect vertical mean from baroclinic velocity
     fpx = np.sum(pyom.u[:,:,:,pyom.taup1]*pyom.maskU*pyom.dzt, axis=(2,))

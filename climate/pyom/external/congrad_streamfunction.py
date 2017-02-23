@@ -1,5 +1,6 @@
 import numpy as np
 
+from climate.pyom import cyclic
 from climate.pyom.external import utilities
 
 

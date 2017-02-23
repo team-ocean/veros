@@ -13,8 +13,6 @@ MAIN_OPTIONS = dict(
     coord_degree = True,
     enable_cyclic_x = True,
 
-    runlen = 365. * 86400 * 2,
-
     enable_diag_ts_monitor = True,
     ts_monint = 86400.0,
     enable_diag_snapshots = True,
@@ -306,10 +304,10 @@ class GlobalOneDegree(PyOMLegacy):
         ice = np.ones((m.nx+4, m.ny+4), dtype=np.uint8)
         mask1 = m.temp[:, :, -1, 1] * m.maskT[:, :, -1] <= -1.8
         mask2 = m.forc_temp_surface <= 0
-        mask = mask1 & mask2
-        m.forc_temp_surface[mask] = 0.0
-        m.forc_salt_surface[mask] = 0.0
-        ice[mask] = 0
+        mask = ~(mask1 & mask2)
+        m.forc_temp_surface *= mask
+        m.forc_salt_surface *= mask
+        ice *= mask
 
         # solar radiation
         m.temp_source[..., :] = (f1 * self.qsol[..., n1, None] + f2 * self.qsol[..., n2, None]) \
@@ -412,4 +410,4 @@ class GlobalOneDegree(PyOMLegacy):
 
 if __name__ == "__main__":
     simulation = GlobalOneDegree()
-    simulation.run(runlen=86400*100, snapint=86400*10)
+    simulation.run(runlen=86400.*100, snapint=86400*10)

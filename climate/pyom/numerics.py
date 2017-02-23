@@ -231,26 +231,10 @@ def solve_tridiag(a, b, c, d):
     last axis of the input arrays.
     """
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-    if not climate.is_bohrium:
+    if climate.is_bohrium:
+        return np.linalg.solve_tridiagonal(a,b,c,d)
+    else:
         return lapack.dgtsv(a.flatten()[1:],b.flatten(),c.flatten()[:-1],d.flatten())[3].reshape(a.shape)
-
-    n = a.shape[-1]
-    x, cp, dp = np.zeros_like(a), np.zeros_like(a), np.zeros_like(a)
-
-    # initialize c-prime and d-prime
-    cp[...,0] = c[...,0]/b[...,0]
-    dp[...,0] = d[...,0]/b[...,0]
-
-    # solve for vectors c-prime and d-prime
-    for i in xrange(1, n):
-        m = b[...,i] - cp[...,i-1] * a[...,i]
-        fxa = 1.0 / m
-        cp[...,i] = c[...,i] * fxa
-        dp[...,i] = (d[...,i]-dp[...,i-1]*a[...,i]) * fxa
-    x[...,n-1] = dp[...,n-1]
-    for i in xrange(n-2, -1, -1):
-        x[...,i] = dp[...,i] - cp[...,i]*x[...,i+1]
-    return x
 
 
 def calc_diss(diss,K_diss,tag,pyom):
