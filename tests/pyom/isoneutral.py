@@ -8,6 +8,7 @@ from climate import Timer
 from climate.pyom import isoneutral
 
 class IsoneutralTest(PyOMTest):
+    repetitions = 20
     extra_settings = {
                       "enable_neutral_diffusion": True,
                       "enable_skew_diffusion": True
@@ -118,5 +119,5 @@ class IsoneutralTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = IsoneutralTest(100, 250, 50, fortran=sys.argv[1])
+    test = IsoneutralTest(150, 120, 50, fortran=sys.argv[1])
     passed = test.run()

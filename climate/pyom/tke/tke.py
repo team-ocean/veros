@@ -24,14 +24,18 @@ def set_tke_diffusivities(pyom):
             """
             bounded by the distance to surface/bottom
             """
-            for k in xrange(pyom.nz): # k = 1,nz
-                pyom.mxl[:,:,k] = np.minimum(np.minimum(-pyom.zw[k] + pyom.dzw[k] * 0.5, pyom.mxl[:,:,k]) , pyom.ht + pyom.zw[k])
-            pyom.mxl = np.maximum(pyom.mxl, pyom.mxl_min)
+            pyom.mxl[...] = np.minimum(
+                                np.minimum(pyom.mxl, -pyom.zw[np.newaxis, np.newaxis, :] \
+                                                     + pyom.dzw[np.newaxis, np.newaxis, :] * 0.5
+                                          )
+                                      , pyom.ht[:, :, np.newaxis] + pyom.zw[np.newaxis, np.newaxis, :]
+                                      )
+            pyom.mxl[...] = np.maximum(pyom.mxl, pyom.mxl_min)
         elif pyom.tke_mxl_choice == 2:
             """
             bound length scale as in mitgcm/OPA code
             """
-            for k in xrange(pyom.nz-2,-1,-1): # k = nz-1,1,-1
+            for k in xrange(pyom.nz-2,-1,-1): # TODO: vectorize
                 pyom.mxl[:,:,k] = np.minimum(pyom.mxl[:,:,k], pyom.mxl[:,:,k+1] + pyom.dzt[k+1])
             pyom.mxl[:,:,-1] = np.minimum(pyom.mxl[:,:,-1], pyom.mxl_min + pyom.dzt[-1])
             for k in xrange(1,pyom.nz): # k = 2,nz
@@ -59,7 +63,7 @@ def set_tke_diffusivities(pyom):
             """
             simple convective adjustment
             """
-            pyom.kappaH[pyom.Nsqr[:,:,:,pyom.tau] < 0.0] = 1.0
+            pyom.kappaH[...] = np.where(pyom.Nsqr[:,:,:,pyom.tau] < 0.0, 1.0, pyom.kappaH)
 
 
 def integrate_tke(pyom):

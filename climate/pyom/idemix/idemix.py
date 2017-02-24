@@ -6,8 +6,8 @@ def set_idemix_parameter(pyom):
     """
     set main IDEMIX parameter
     """
-    bN0 = np.sum(np.sqrt(np.maximum(0., pyom.Nsqr[:,:,:-1,pyom.tau])) * pyom.dzw[None, None, :-1] * pyom.maskW[:,:,:-1], axis=2)
-    bN0 += np.sqrt(np.maximum(0., pyom.Nsqr[:,:,-1,pyom.tau])) * 0.5 * pyom.dzw[-1] * pyom.maskW[:,:,-1]
+    bN0 = np.sum(np.sqrt(np.maximum(0., pyom.Nsqr[:,:,:-1,pyom.tau])) * pyom.dzw[None, None, :-1] * pyom.maskW[:,:,:-1], axis=2) \
+        + np.sqrt(np.maximum(0., pyom.Nsqr[:,:,-1,pyom.tau])) * 0.5 * pyom.dzw[-1:] * pyom.maskW[:,:,-1]
     fxa = np.sqrt(np.maximum(0., pyom.Nsqr[...,pyom.tau])) / (1e-22 + np.abs(pyom.coriolis_t[...,None]))
     cstar = np.maximum(1e-2, bN0[:,:,None] / (pyom.pi * pyom.jstar))
     pyom.c0[...] = np.maximum(0., pyom.gamma * cstar * gofx2(fxa,pyom) * pyom.maskW)
@@ -69,18 +69,18 @@ def integrate_idemix(pyom):
                      * (pyom.c0[2:-2, 2:-2, :-1] + pyom.c0[2:-2, 2:-2, 1:])
     delta[:,:,-1] = 0.
     a_tri[:,:,1:-1] = -delta[:,:,:-2] * pyom.c0[2:-2,2:-2,:-2] / pyom.dzw[None, None, 1:-1]
-    a_tri[:,:,-1] = -delta[:,:,-2] / (0.5 * pyom.dzw[-1]) * pyom.c0[2:-2,2:-2,-2]
+    a_tri[:,:,-1] = -delta[:,:,-2] / (0.5 * pyom.dzw[-1:]) * pyom.c0[2:-2,2:-2,-2]
     b_tri[:,:,1:-1] = 1 + delta[:,:,1:-1] * pyom.c0[2:-2, 2:-2, 1:-1] / pyom.dzw[None, None, 1:-1] \
                       + delta[:,:,:-2] * pyom.c0[2:-2, 2:-2, 1:-1] / pyom.dzw[None, None, 1:-1] \
                       + pyom.dt_tracer * pyom.alpha_c[2:-2, 2:-2, 1:-1] * maxE_iw[2:-2, 2:-2, 1:-1]
-    b_tri[:,:,-1] = 1 + delta[:,:,-2] / (0.5 * pyom.dzw[-1]) * pyom.c0[2:-2, 2:-2, -1] \
+    b_tri[:,:,-1] = 1 + delta[:,:,-2] / (0.5 * pyom.dzw[-1:]) * pyom.c0[2:-2, 2:-2, -1] \
                     + pyom.dt_tracer * pyom.alpha_c[2:-2, 2:-2, -1] * maxE_iw[2:-2, 2:-2, -1]
     b_tri_edge = 1 + delta / pyom.dzw * pyom.c0[2:-2, 2:-2, :] \
                  + pyom.dt_tracer * pyom.alpha_c[2:-2, 2:-2, :] * maxE_iw[2:-2, 2:-2, :]
     c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzw[None, None, :-1] * pyom.c0[2:-2, 2:-2, 1:]
     d_tri[...] = pyom.E_iw[2:-2, 2:-2, :, pyom.tau] + pyom.dt_tracer * forc[2:-2, 2:-2, :]
     d_tri_edge = d_tri + pyom.dt_tracer * pyom.forc_iw_bottom[2:-2, 2:-2, None] / pyom.dzw[None, None, :]
-    d_tri[:,:,-1] += pyom.dt_tracer * pyom.forc_iw_surface[2:-2, 2:-2] / (0.5 * pyom.dzw[-1])
+    d_tri[:,:,-1] += pyom.dt_tracer * pyom.forc_iw_surface[2:-2, 2:-2] / (0.5 * pyom.dzw[-1:])
     sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge, d_edge=d_tri_edge)
     pyom.E_iw[2:-2, 2:-2, :, pyom.taup1] = np.where(water_mask, sol, pyom.E_iw[2:-2, 2:-2, :, pyom.taup1])
 
@@ -121,9 +121,9 @@ def integrate_idemix(pyom):
                                                                                 / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
                                                                            - (pyom.flux_north[2:-2, 2:-2, :] - pyom.flux_north[2:-2, 1:-3, :]) \
                                                                                 / (pyom.cost[None, 2:-2, None] * pyom.dyt[None, 2:-2, None]))
-        pyom.dE_iw[:,:,0,pyom.tau] += -pyom.flux_top[:,:,0] / pyom.dzw[0]
+        pyom.dE_iw[:,:,0,pyom.tau] += -pyom.flux_top[:,:,0] / pyom.dzw[0:1]
         pyom.dE_iw[:,:,1:-1,pyom.tau] += -(pyom.flux_top[:,:,1:-1] - pyom.flux_top[:,:,:-2]) / pyom.dzw[None, None, 1:-1]
-        pyom.dE_iw[:,:,-1,pyom.tau] += -(pyom.flux_top[:,:,-1] - pyom.flux_top[:,:,-2]) / (0.5 * pyom.dzw[-1])
+        pyom.dE_iw[:,:,-1,pyom.tau] += -(pyom.flux_top[:,:,-1] - pyom.flux_top[:,:,-2]) / (0.5 * pyom.dzw[-1:])
 
         """
         Adam Bashforth time stepping

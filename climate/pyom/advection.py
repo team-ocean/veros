@@ -1,27 +1,26 @@
 import numpy as np
 import warnings
 
-from climate import make_slice
+import climate
 from climate.pyom.utilities import pad_z_edges
 
 def _calc_cr(rjp,rj,rjm,vel):
     """
     Calculates cr value used in superbee advection scheme
     """
-    cr = np.zeros_like(rj)
+    eps = 1e-20 # prevent division by 0
     mask_rj = rj == 0.
     mask_vel = vel > 0
-
-    with warnings.catch_warnings(): # suppress "division by zero" warnings
-        warnings.simplefilter("ignore")
-        mask1 = ~mask_rj & mask_vel
-        cr = np.where(mask1, rjm / rj, cr)
-        mask2 = ~mask_rj & ~mask_vel
-        cr = np.where(mask2, rjp / rj, cr)
-        mask3 = mask_rj & mask_vel
-        cr = np.where(mask3, rjm * 1e20, cr)
-        mask4 = mask_rj & ~mask_vel
-        cr = np.where(mask4, rjp * 1e20, cr)
+    if climate.is_bohrium: # prevent precision problems
+        np.flush()
+    mask1 = ~mask_rj & mask_vel
+    cr = np.where(mask1, rjm / (rj + eps), np.zeros_like(rj))
+    mask2 = ~mask_rj & ~mask_vel
+    cr[...] = np.where(mask2, rjp / (rj + eps), cr)
+    mask3 = mask_rj & mask_vel
+    cr[...] = np.where(mask3, rjm * 1e20, cr)
+    mask4 = mask_rj & ~mask_vel
+    cr[...] = np.where(mask4, rjp * 1e20, cr)
     return cr
 
 
@@ -29,24 +28,15 @@ def _adv_superbee(vel, var, mask, dx, axis, pyom):
     limiter = lambda cr: np.maximum(0.,np.maximum(np.minimum(1.,2*cr), np.minimum(2.,cr)))
     velfac = 1
     if axis == 0:
-        i, ii = make_slice(1,-2)
-        j, jj = make_slice(2,-2)
-        k, kk = make_slice()
-        sm1, s, sp1, sp2 = ((ii+n,j,k) for n in range(-1,3))
-        dx = pyom.cost[None, j, None] * dx[i, None, None]
+        sm1, s, sp1, sp2 = ((slice(1+n,-2+n or None),slice(2,-2),slice(None)) for n in range(-1,3))
+        dx = pyom.cost[None, 2:-2, None] * dx[1:-2, None, None]
     elif axis == 1:
-        i, ii = make_slice(2,-2)
-        j, jj = make_slice(1,-2)
-        k, kk = make_slice()
-        sm1, s, sp1, sp2 = ((i,jj+n,k) for n in range(-1,3))
-        dx = (pyom.cost * dx)[None,j,None]
-        velfac = pyom.cosu[None, j, None]
+        sm1, s, sp1, sp2 = ((slice(2,-2),slice(1+n,-2+n or None),slice(None)) for n in range(-1,3))
+        dx = (pyom.cost * dx)[None, 1:-2, None]
+        velfac = pyom.cosu[None, 1:-2, None]
     elif axis == 2:
-        i, ii = make_slice(2,-2)
-        j, jj = make_slice(2,-2)
-        k, kk = make_slice(1,-2)
         vel, var, mask = (pad_z_edges(a) for a in (vel,var,mask))
-        sm1, s, sp1, sp2 = ((i,j,kk+n) for n in range(-1,3))
+        sm1, s, sp1, sp2 = ((slice(2,-2),slice(2,-2),slice(1+n,-2+n or None)) for n in range(-1,3))
         dx = dx[None,None,:-1]
     else:
         raise ValueError("axis must be 0, 1, or 2")
@@ -62,20 +52,10 @@ def adv_flux_2nd(adv_fe,adv_fn,adv_ft,var,pyom):
     """
     2th order advective tracer flux
     """
-    i, ii = make_slice(1,-2)
-    j, jj = make_slice(2,-2)
-    k, kk = make_slice()
-    adv_fe[i, j, k] = 0.5*(var[i,j,k] + var[ii+1,j,k]) * pyom.u[i,j,k,pyom.tau] * pyom.maskU[i,j,k]
-
-    i, ii = make_slice(2,-2)
-    j, jj = make_slice(1,-2)
-    k, kk = make_slice()
-    adv_fn[i,j,k] = pyom.cosu[None,j,None] * 0.5 * (var[i,j,k] + var[i,jj+1,k]) * pyom.v[i,j,k,pyom.tau] * pyom.maskV[i,j,k]
-
-    i, ii = make_slice(2,-2)
-    j, jj = make_slice(2,-2)
-    k, kk = make_slice(None,-1)
-    adv_ft[i,j,k] = 0.5 * (var[i,j,k] + var[i,j,kk+1]) * pyom.w[i,j,k,pyom.tau] * pyom.maskW[i,j,k]
+    adv_fe[1:-2, 2:-2, :] = 0.5*(var[1:-2, 2:-2, :] + var[2:-1, 2:-2, :]) * pyom.u[1:-2, 2:-2, :, pyom.tau] * pyom.maskU[1:-2, 2:-2, :]
+    adv_fn[2:-2, 1:-2, :] = pyom.cosu[None,1:-2,None] * 0.5 * (var[2:-2, 1:-2, :] + var[2:-2, 2:-1, :]) \
+                    * pyom.v[2:-2, 1:-2, :, pyom.tau] * pyom.maskV[2:-2, 1:-2, :]
+    adv_ft[2:-2, 2:-2, :-1] = 0.5 * (var[2:-2, 2:-2, :-1] + var[2:-2, 2:-2, 1:]) * pyom.w[2:-2, 2:-2, :-1, pyom.tau] * pyom.maskW[2:-2, 2:-2, :-1]
     adv_ft[:,:,-1] = 0.
 
 
@@ -111,17 +91,17 @@ def calculate_velocity_on_wgrid(pyom):
                           + pyom.u[:,:,:-1,pyom.tau] * pyom.maskU[:,:,:-1] * 0.5 * pyom.dzt[None,None,:-1] / pyom.dzw[None,None,:-1]
     pyom.v_wgrid[:,:,:-1] = pyom.v[:,:,1:,pyom.tau] * pyom.maskV[:,:,1:] * 0.5 * pyom.dzt[None,None,1:] / pyom.dzw[None,None,:-1] \
                           + pyom.v[:,:,:-1,pyom.tau] * pyom.maskV[:,:,:-1] * 0.5 * pyom.dzt[None,None,:-1] / pyom.dzw[None,None,:-1]
-    pyom.u_wgrid[:,:,-1] = pyom.u[:,:,-1,pyom.tau] * pyom.maskU[:,:,-1] * 0.5 * pyom.dzt[-1] / pyom.dzw[-1]
-    pyom.v_wgrid[:,:,-1] = pyom.v[:,:,-1,pyom.tau] * pyom.maskV[:,:,-1] * 0.5 * pyom.dzt[-1] / pyom.dzw[-1]
+    pyom.u_wgrid[:,:,-1] = pyom.u[:,:,-1,pyom.tau] * pyom.maskU[:,:,-1] * 0.5 * pyom.dzt[-1:] / pyom.dzw[-1:]
+    pyom.v_wgrid[:,:,-1] = pyom.v[:,:,-1,pyom.tau] * pyom.maskV[:,:,-1] * 0.5 * pyom.dzt[-1:] / pyom.dzw[-1:]
 
     # redirect velocity at bottom and at topography
-    pyom.u_wgrid[:,:,0] = pyom.u_wgrid[:,:,0] + pyom.u[:,:,0,pyom.tau] * pyom.maskU[:,:,0] * 0.5 * pyom.dzt[0] / pyom.dzw[0]
-    pyom.v_wgrid[:,:,0] = pyom.v_wgrid[:,:,0] + pyom.v[:,:,0,pyom.tau] * pyom.maskV[:,:,0] * 0.5 * pyom.dzt[0] / pyom.dzw[0]
-    mask = (pyom.maskW[:-1, :, :-1] * pyom.maskW[1:, :, :-1]).astype(np.bool)
-    pyom.u_wgrid[:-1, :, 1:] += (pyom.u_wgrid[:-1, :, :-1] * pyom.dzw[None, None, :-1] / pyom.dzw[None, None, 1:]) * ~mask
+    pyom.u_wgrid[:,:,0] = pyom.u_wgrid[:,:,0] + pyom.u[:,:,0,pyom.tau] * pyom.maskU[:,:,0] * 0.5 * pyom.dzt[0:1] / pyom.dzw[0:1]
+    pyom.v_wgrid[:,:,0] = pyom.v_wgrid[:,:,0] + pyom.v[:,:,0,pyom.tau] * pyom.maskV[:,:,0] * 0.5 * pyom.dzt[0:1] / pyom.dzw[0:1]
+    mask = pyom.maskW[:-1, :, :-1] * pyom.maskW[1:, :, :-1]
+    pyom.u_wgrid[:-1, :, 1:] += (pyom.u_wgrid[:-1, :, :-1] * pyom.dzw[None, None, :-1] / pyom.dzw[None, None, 1:]) * (1.-mask)
     pyom.u_wgrid[:-1, :, :-1] *= mask
-    mask = (pyom.maskW[:, :-1, :-1] * pyom.maskW[:, 1:, :-1]).astype(np.bool)
-    pyom.v_wgrid[:, :-1, 1:] += (pyom.v_wgrid[:, :-1, :-1] * pyom.dzw[None, None, :-1] / pyom.dzw[None, None, 1:]) * ~mask
+    mask = pyom.maskW[:, :-1, :-1] * pyom.maskW[:, 1:, :-1]
+    pyom.v_wgrid[:, :-1, 1:] += (pyom.v_wgrid[:, :-1, :-1] * pyom.dzw[None, None, :-1] / pyom.dzw[None, None, 1:]) * (1.-mask)
     pyom.v_wgrid[:, :-1, :-1] *= mask
 
     # vertical advection velocity on W grid from continuity

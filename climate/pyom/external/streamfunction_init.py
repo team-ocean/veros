@@ -14,8 +14,6 @@ def streamfunction_init(pyom):
     allmap = np.zeros((pyom.nx+4, pyom.ny+4))
     Map    = np.zeros((pyom.nx+4, pyom.ny+4))
     forc   = np.zeros((pyom.nx+4, pyom.ny+4))
-    fpx    = np.empty((pyom.nx+4, pyom.ny+4))
-    fpy    = np.empty((pyom.nx+4, pyom.ny+4))
     iperm  = np.zeros(maxipp)
     jperm  = np.zeros(maxipp)
     nippts = np.zeros(mnisle, dtype=np.int)
@@ -45,7 +43,7 @@ def streamfunction_init(pyom):
     preprocess land map using MOMs algorithm for B-grid to determine number of islands
     """
     print(" starting MOMs algorithm for B-grid to determine number of islands")
-    island.isleperim(kmt,allmap, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp,pyom,change_nisle=True, verbose=True)
+    island.isleperim(kmt,allmap, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp,pyom, change_nisle=True, verbose=True)
     if pyom.enable_cyclic_x:
         allmap[-2:] = allmap[2:4]
         allmap[0:2] = allmap[-4:-2]
@@ -54,11 +52,11 @@ def streamfunction_init(pyom):
     """
     allocate variables
     """
-    pyom.boundary_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
-    pyom.line_dir_south_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
-    pyom.line_dir_north_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
-    pyom.line_dir_east_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
-    pyom.line_dir_west_mask = np.zeros((pyom.nisle, pyom.nx+4, pyom.ny+4)).astype(np.bool)
+    pyom.boundary_mask = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nisle)).astype(np.bool)
+    pyom.line_dir_south_mask = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nisle)).astype(np.bool)
+    pyom.line_dir_north_mask = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nisle)).astype(np.bool)
+    pyom.line_dir_east_mask = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nisle)).astype(np.bool)
+    pyom.line_dir_west_mask = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nisle)).astype(np.bool)
     pyom.psin = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nisle))
     pyom.dpsin = np.zeros((pyom.nisle, 3))
     pyom.line_psin = np.zeros((pyom.nisle, pyom.nisle))
@@ -101,7 +99,7 @@ def streamfunction_init(pyom):
         now find connecting lines
         """
         n = 1
-        pyom.boundary_mask[isle,ij[0],ij[1]] = 1
+        pyom.boundary_mask[ij[0],ij[1], isle] = 1
         cont = True
         while cont:
             """
@@ -153,13 +151,13 @@ def streamfunction_init(pyom):
             go forward in direction
             """
             if Dir[0]== 0 and Dir[1]== 1: #north
-                pyom.line_dir_north_mask[isle, ij[0], ij[1]] = 1
+                pyom.line_dir_north_mask[ij[0], ij[1], isle] = 1
             elif Dir[0]==-1 and Dir[1]== 0: #west
-                pyom.line_dir_west_mask[isle, ij[0], ij[1]] = 1
+                pyom.line_dir_west_mask[ij[0], ij[1], isle] = 1
             elif Dir[0]== 0 and Dir[1]==-1: #south
-                pyom.line_dir_south_mask[isle, ij[0], ij[1]] = 1
+                pyom.line_dir_south_mask[ij[0], ij[1], isle] = 1
             elif Dir[0]== 1 and Dir[1]== 0: #east
-                pyom.line_dir_east_mask[isle, ij[0], ij[1]] = 1
+                pyom.line_dir_east_mask[ij[0], ij[1], isle] = 1
             ij = [ij[0] + Dir[0], ij[1] + Dir[1]]
             if startPos[0] == ij[0] and startPos[1] == ij[1]:
                 cont = False
@@ -180,13 +178,13 @@ def streamfunction_init(pyom):
 
             if cont:
                 n += 1
-                pyom.boundary_mask[isle,ij[0],ij[1]] = 1
+                pyom.boundary_mask[ij[0],ij[1],isle] = 1
 
         print(" number of points is {:d}".format(n+1))
         if verbose:
             print(" ")
             print(" Positions:")
-            print(" boundary: {!r}".format(pyom.boundary_mask[isle]))
+            print(" boundary: {!r}".format(pyom.boundary_mask[...,isle]))
 
     if climate.is_bohrium:
         pyom.boundary_mask = np.array(pyom.boundary_mask)
@@ -200,33 +198,32 @@ def streamfunction_init(pyom):
     precalculate time independent boundary components of streamfunction
     """
     forc[...] = 0.0
+    pyom.psin[...] = pyom.boundary_mask
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(pyom.psin)
+
     for isle in xrange(pyom.nisle):
-        pyom.psin[:,:,isle] = pyom.boundary_mask[isle]
-
-        if pyom.enable_cyclic_x:
-            cyclic.setcyclic_x(pyom.psin[:,:,isle])
         print(" solving for boundary contribution by island {:d}".format(isle))
-
         congrad_streamfunction.congrad_streamfunction(forc,pyom.psin[:,:,isle],pyom)
         print(" itts =  {:d}".format(pyom.congr_itts))
 
-        if pyom.enable_cyclic_x:
-            cyclic.setcyclic_x(pyom.psin[:,:,isle])
+    if pyom.enable_cyclic_x:
+        cyclic.setcyclic_x(pyom.psin)
 
     """
     precalculate time independent island integrals
     """
-    for n in xrange(pyom.nisle):
-        for isle in xrange(pyom.nisle):
-            fpx[...] = 0
-            fpy[...] = 0
-            fpx[1:, 1:] = -pyom.maskU[1:, 1:, -1] \
-                    * (pyom.psin[1:, 1:, isle] - pyom.psin[1:, :-1, isle]) \
-                    / pyom.dyt[1:] * pyom.hur[1:, 1:]
-            fpy[1:, 1:] = pyom.maskV[1:, 1:, -1] \
-                    * (pyom.psin[1:, 1:, isle] - pyom.psin[:-1, 1:, isle]) \
-                    / (pyom.cosu[1:] * pyom.dxt[1:, np.newaxis]) * pyom.hvr[1:, 1:]
-            pyom.line_psin[n,isle] = utilities.line_integral(n,fpx,fpy, pyom)
+    fpx = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nisle))
+    fpy = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nisle))
+
+    fpx[1:, 1:, :] = -pyom.maskU[1:, 1:, -1, np.newaxis] \
+            * (pyom.psin[1:, 1:, :] - pyom.psin[1:, :-1, :]) \
+            / pyom.dyt[np.newaxis,1:,np.newaxis] * pyom.hur[1:, 1:, np.newaxis]
+    fpy[1:, 1:, ...] = pyom.maskV[1:, 1:, -1, np.newaxis] \
+            * (pyom.psin[1:, 1:, :] - pyom.psin[:-1, 1:, :]) \
+            / (pyom.cosu[np.newaxis,1:,np.newaxis] * pyom.dxt[1:, np.newaxis, np.newaxis]) \
+            * pyom.hvr[1:, 1:, np.newaxis]
+    pyom.line_psin[...] = utilities.line_integrals(fpx, fpy, pyom)
 
 
 def _avoid_cyclic_boundaries(Map, isle, n, x_range, pyom):
@@ -236,15 +233,15 @@ def _avoid_cyclic_boundaries(Map, isle, n, x_range, pyom):
                 #initial direction is eastward, we come from the west
                 cont = True
                 Dir = [1,0]
-                pyom.line_dir_east_mask[isle, i-1, j] = 1
-                pyom.boundary_mask[isle, i-1, j] = 1
+                pyom.line_dir_east_mask[i-1, j, isle] = 1
+                pyom.boundary_mask[i-1, j, isle] = 1
                 return cont, (i,j), Dir, (i-1, j)
             if Map[i,j] == -1 and Map[i,j+1] == 1:
                 # initial direction is westward, we come from the east
                 cont = True
                 Dir = [-1,0]
-                pyom.line_dir_west_mask[isle, i, j] = 1
-                pyom.boundary_mask[isle, i, j] = 1
+                pyom.line_dir_west_mask[i, j, isle] = 1
+                pyom.boundary_mask[i, j, isle] = 1
                 return cont, (i-1,j), Dir, (i,j)
     return False, None, [0,0], [0,0]
 

@@ -8,6 +8,7 @@ from climate import Timer
 from climate.pyom import idemix
 
 class IDEMIXTest(PyOMTest):
+    repetitions = 100
     extra_settings = {
                       "enable_idemix": True,
                       "enable_idemix_hor_diffusion": True,
@@ -112,5 +113,5 @@ class IDEMIXTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = IDEMIXTest(50, 60, 70, fortran=sys.argv[1])
+    test = IDEMIXTest(150, 120, 50, fortran=sys.argv[1])
     passed = test.run()

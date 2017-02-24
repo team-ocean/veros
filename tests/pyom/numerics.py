@@ -8,6 +8,7 @@ from climate import Timer
 from climate.pyom import numerics
 
 class NumericsTest(PyOMTest):
+    repetitions = 100
     extra_settings = {
                         "enable_cyclic_x": True,
                         "coord_degree": False,
@@ -96,5 +97,5 @@ class NumericsTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = NumericsTest(100, 90, 50, fortran=sys.argv[1])
+    test = NumericsTest(150, 120, 50, fortran=sys.argv[1])
     passed = test.run()

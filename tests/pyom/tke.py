@@ -8,10 +8,11 @@ from climate import Timer
 from climate.pyom import tke
 
 class TKETest(PyOMTest):
+    repetitions = 100
     extra_settings = {
                         "enable_cyclic_x": True,
                         "enable_idemix": True,
-                        "tke_mxl_choice": 1, # 2
+                        "tke_mxl_choice": 1,
                         "enable_tke": True,
                         "enable_eke": True,
                         "enable_hydrostatic": True,
@@ -108,5 +109,5 @@ class TKETest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = TKETest(80, 70, 50, fortran=sys.argv[1])
+    test = TKETest(150, 120, 50, fortran=sys.argv[1])
     passed = test.run()

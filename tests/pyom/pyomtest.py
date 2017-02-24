@@ -120,6 +120,7 @@ class PyOMTest(object):
 
     def run(self):
         self.initialize()
+        flush()
         differing_scalars = self.check_scalar_objects()
         differing_arrays = self.check_array_objects()
         if differing_scalars or differing_arrays:
@@ -135,9 +136,6 @@ class PyOMTest(object):
         for routine in self.test_routines.keys():
             pyom_routine, pyom_legacy_routine = self.get_routine(routine,self.test_module)
             pyom_args, pyom_legacy_args = self.test_routines[routine]
-            if climate.is_bohrium: # run routine once to pre-compile kernels
-                pyom_routine(*pyom_args)
-            self.initialize()
             with pyom_timers[routine]:
                 for _ in range(self.repetitions):
                     pyom_routine(*pyom_args)
@@ -148,7 +146,10 @@ class PyOMTest(object):
                     pyom_legacy_routine(**pyom_legacy_args)
             pyom_legacy_timers[routine].printTime()
             passed = self.test_passed(routine)
+            flush()
             if not passed:
                 all_passed = False
                 print("Test failed")
+            self.initialize()
+            flush()
         return all_passed

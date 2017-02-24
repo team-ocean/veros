@@ -82,12 +82,12 @@ class EKETest(PyOMTest):
 
     def _check_var(self,var):
         v1, v2 = self.get_attribute(var)
+        if v1 is None or v2 is None:
+            raise RuntimeError(var)
         if v1.ndim > 1:
             v1 = v1[2:-2, 2:-2, ...]
         if v2.ndim > 1:
             v2 = v2[2:-2, 2:-2, ...]
-        if v1 is None or v2 is None:
-            raise RuntimeError(var)
         passed = np.allclose(*self._normalize(v1,v2))
         if not passed:
             print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
@@ -107,5 +107,5 @@ class EKETest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = EKETest(80, 70, 50, fortran=sys.argv[1])
+    test = EKETest(150, 120, 50, fortran=sys.argv[1])
     passed = test.run()

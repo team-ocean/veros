@@ -62,7 +62,7 @@ class AdvectionTest(PyOMTest):
             passed = self._check_var(f)
             if not passed:
                 all_passed = False
-        plt.show()
+        #plt.show()
         return all_passed
 
     def _normalize(self,*arrays):
@@ -98,5 +98,5 @@ class AdvectionTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = AdvectionTest(100, 120, 50, fortran=sys.argv[1])
+    test = AdvectionTest(150, 120, 50, fortran=sys.argv[1])
     passed = test.run()

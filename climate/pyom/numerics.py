@@ -60,8 +60,8 @@ def calc_grid(pyom):
     grid in east/west direction
     """
     u_centered_grid(dxt_gl,dxu_gl,xt_gl,xu_gl)
-    xt_gl += -xu_gl[2] + pyom.x_origin
-    xu_gl += -xu_gl[2] + pyom.x_origin
+    xt_gl += pyom.x_origin - xu_gl[2]
+    xu_gl += pyom.x_origin - xu_gl[2]
 
     if pyom.enable_cyclic_x:
         xt_gl[pyom.nx+2:pyom.nx+4] = xt_gl[2:4]
@@ -75,8 +75,8 @@ def calc_grid(pyom):
     grid in north/south direction
     """
     u_centered_grid(dyt_gl,dyu_gl,yt_gl,yu_gl)
-    yt_gl += -yu_gl[2] + pyom.y_origin
-    yu_gl += -yu_gl[2] + pyom.y_origin
+    yt_gl += pyom.y_origin - yu_gl[2]
+    yu_gl += pyom.y_origin - yu_gl[2]
 
     if pyom.coord_degree:
         """

@@ -4,14 +4,14 @@ import math
 from climate.pyom import cyclic, utilities
 
 
-def dissipation_on_wgrid(P, pyom, int_drhodX=None, aloc=None, ks=None):
+def dissipation_on_wgrid(p_arr, pyom, int_drhodX=None, aloc=None, ks=None):
     if aloc is None:
-        aloc = np.zeros_like(P)
-        aloc[1:-1,1:-1,:] = 0.5 * pyom.grav / pyom.rho_0 * ((int_drhodX[2:,1:-1,:]-int_drhodX[1:-1,1:-1,:]) * pyom.flux_east[1:-1,1:-1,:] \
-                                                           +(int_drhodX[1:-1,1:-1,:]-int_drhodX[:-2,1:-1,:]) * pyom.flux_east[:-2,1:-1,:]) \
+        aloc = np.zeros_like(p_arr)
+        aloc[1:-1,1:-1,:] = 0.5 * pyom.grav / pyom.rho_0 * ((int_drhodX[2:,1:-1,:] - int_drhodX[1:-1,1:-1,:]) * pyom.flux_east[1:-1,1:-1,:] \
+                                                           +(int_drhodX[1:-1,1:-1,:] - int_drhodX[:-2,1:-1,:]) * pyom.flux_east[:-2,1:-1,:]) \
                                                          / (pyom.dxt[1:-1,None,None] * pyom.cost[None,1:-1,None]) \
-                          + 0.5 * pyom.grav / pyom.rho_0 * ((int_drhodX[1:-1,2:,:]-int_drhodX[1:-1,1:-1,:]) * pyom.flux_north[1:-1,1:-1,:] \
-                                                           +(int_drhodX[1:-1,1:-1,:]-int_drhodX[1:-1,:-2,:]) * pyom.flux_north[1:-1,:-2,:]) \
+                          + 0.5 * pyom.grav / pyom.rho_0 * ((int_drhodX[1:-1,2:,:] - int_drhodX[1:-1,1:-1,:]) * pyom.flux_north[1:-1,1:-1,:] \
+                                                           +(int_drhodX[1:-1,1:-1,:] - int_drhodX[1:-1,:-2,:]) * pyom.flux_north[1:-1,:-2,:]) \
                                                          / (pyom.dyt[None,1:-1,None] * pyom.cost[None,1:-1,None])
     if ks is None:
         ks = pyom.kbot[:,:] - 1
@@ -22,9 +22,9 @@ def dissipation_on_wgrid(P, pyom, int_drhodX=None, aloc=None, ks=None):
 
     if np.any(land_mask):
         dzw_pad = utilities.pad_z_edges(pyom.dzw)
-        P[:, :, :-1] += (0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) + 0.5 * (aloc[:, :, :-1] * dzw_pad[None, None, :-3] / pyom.dzw[None, None, :-1])) * edge_mask
-        P[:, :, :-1] += 0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) * water_mask
-        P[:, :, -1] += aloc[:,:,-1] * land_mask
+        p_arr[:, :, :-1] += (0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) + 0.5 * (aloc[:, :, :-1] * dzw_pad[None, None, :-3] / pyom.dzw[None, None, :-1])) * edge_mask
+        p_arr[:, :, :-1] += 0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) * water_mask
+        p_arr[:, :, -1] += aloc[:,:,-1] * land_mask
 
 
 def tempsalt_biharmonic(pyom):

@@ -78,10 +78,6 @@ class StreamfunctionTest(PyOMTest):
         v1, v2 = self.get_attribute(var)
         if v1 is None or v2 is None:
             raise RuntimeError(var)
-        #if v1.ndim > 1:
-        #    v1 = v1[2:-2, 2:-2, ...]
-        #if v2.ndim > 1:
-        #    v2 = v2[2:-2, 2:-2, ...]
 
         passed = np.allclose(*self._normalize(v1,v2))
         if not passed:
@@ -102,5 +98,5 @@ class StreamfunctionTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = StreamfunctionTest(150, 200, 50, fortran=sys.argv[1])
+    test = StreamfunctionTest(170, 150, 50, fortran=sys.argv[1])
     passed = test.run()

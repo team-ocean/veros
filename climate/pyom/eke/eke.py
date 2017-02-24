@@ -32,7 +32,7 @@ def set_eke_diffusivities(pyom):
         pyom.L_rhines[...] = np.sqrt(pyom.sqrteke / np.maximum(pyom.beta[...,None], 1e-16))
         pyom.eke_len[...] = np.maximum(pyom.eke_lmin, np.minimum(pyom.eke_cross * pyom.L_rossby[...,None], pyom.eke_crhin * pyom.L_rhines))
         pyom.K_gm[...] = np.minimum(pyom.eke_k_max, pyom.eke_c_k * pyom.eke_len * pyom.sqrteke)
-    else: # enable_eke
+    else:
         """
         use fixed GM diffusivity
         """
@@ -64,7 +64,7 @@ def integrate_eke(pyom):
     by non-linear eq.of state either to EKE or to heat
     """
     if not pyom.enable_store_cabbeling_heat:
-        forc[...] += - pyom.P_diss_hmix - pyom.P_diss_iso
+        forc[...] += -pyom.P_diss_hmix - pyom.P_diss_iso
 
     """
     coefficient for dissipation of EKE:
@@ -81,8 +81,8 @@ def integrate_eke(pyom):
         full_mask = boundary_mask[:,:,None] & (ki == ks[:,:,None])
         fxa = np.maximum(0, pyom.Nsqr[2:-2, 2:-2, :, pyom.tau])**0.25
         fxa *= 1.5 * fxa / np.sqrt(np.maximum(1e-6, np.abs(pyom.coriolis_t[2:-2, 2:-2, None]))) - 2
-        pyom.c_lee[2:-2, 2:-2][boundary_mask] = (pyom.c_lee0 * pyom.hrms_k0[2:-2, 2:-2, None] * np.sqrt(pyom.sqrteke[2:-2, 2:-2, :]) \
-                                        * np.maximum(0, fxa) / pyom.dzw[None, None, :])[full_mask]
+        pyom.c_lee[2:-2, 2:-2] += boundary_mask * np.sum((pyom.c_lee0 * pyom.hrms_k0[2:-2, 2:-2, None] * np.sqrt(pyom.sqrteke[2:-2, 2:-2, :]) \
+                                        * np.maximum(0, fxa) / pyom.dzw[None, None, :]) * full_mask, axis=-1)
 
         """
         Ri-dependent dissipation by interior loss of balance
@@ -110,17 +110,17 @@ def integrate_eke(pyom):
         """
         add bottom fluxes by lee waves and bottom friction to a_loc
         """
-        a_loc[2:-2, 2:-2][boundary_mask] += (pyom.c_lee[2:-2,2:-2,None] * pyom.eke[2:-2,2:-2,:,pyom.tau] \
-                                             * pyom.maskW[2:-2,2:-2,:] * pyom.dzw[None, None, :] \
-                      + 2 * pyom.eke_r_bot * pyom.eke[2:-2,2:-2,:,pyom.tau] * math.sqrt(2.0) * pyom.sqrteke[2:-2,2:-2,:] \
-                        * pyom.maskW[2:-2,2:-2,:])[full_mask]
+        a_loc[2:-2, 2:-2] += np.sum(pyom.c_lee[2:-2,2:-2,None] * pyom.eke[2:-2,2:-2,:,pyom.tau] \
+                                * pyom.maskW[2:-2,2:-2,:] * pyom.dzw[None, None, :] \
+                            + 2 * pyom.eke_r_bot * pyom.eke[2:-2,2:-2,:,pyom.tau] * math.sqrt(2.0) * pyom.sqrteke[2:-2,2:-2,:] \
+                                * pyom.maskW[2:-2,2:-2,:] * full_mask, axis=-1) * boundary_mask
 
         """
         dissipation constant is vertically integrated forcing divided by
         vertically integrated EKE to account for vertical EKE radiation
         """
         mask = b_loc > 0
-        a_loc[...] = np.where(mask, a_loc/b_loc, 0.)
+        a_loc[...] = np.where(mask, a_loc/(b_loc+1e-20), 0.)
         c_int[...] = a_loc[:,:,None]
     else:
         """
@@ -155,10 +155,10 @@ def integrate_eke(pyom):
         """
         flux by lee wave generation and bottom friction
         """
-        pyom.eke_diss_iw[2:-2, 2:-2, :][full_mask] += (pyom.c_lee[2:-2, 2:-2, None] * pyom.eke[2:-2, 2:-2, :, pyom.taup1] \
-                                                       * pyom.maskW[2:-2, 2:-2, :])[full_mask]
-        pyom.eke_diss_tke[2:-2, 2:-2, :][full_mask] += (2 * pyom.eke_r_bot * pyom.eke[2:-2, 2:-2, :, pyom.taup1] * math.sqrt(2.0) \
-                                    * pyom.sqrteke[2:-2, 2:-2, :] * pyom.maskW[2:-2, 2:-2, :] / pyom.dzw[None, None, :])[full_mask]
+        pyom.eke_diss_iw[2:-2, 2:-2, :] += (pyom.c_lee[2:-2, 2:-2, None] * pyom.eke[2:-2, 2:-2, :, pyom.taup1] \
+                                                       * pyom.maskW[2:-2, 2:-2, :]) * full_mask
+        pyom.eke_diss_tke[2:-2, 2:-2, :] += (2 * pyom.eke_r_bot * pyom.eke[2:-2, 2:-2, :, pyom.taup1] * math.sqrt(2.0) \
+                                    * pyom.sqrteke[2:-2, 2:-2, :] * pyom.maskW[2:-2, 2:-2, :] / pyom.dzw[None, None, :]) * full_mask
 
         """
         account for sligthly incorrect integral of dissipation due to time stepping

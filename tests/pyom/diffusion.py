@@ -8,6 +8,8 @@ from climate import Timer
 from climate.pyom import diffusion
 
 class DiffusionTest(PyOMTest):
+    repetitions = 100
+    
     extra_settings = {
                         "enable_cyclic_x": True,
                         "enable_conserve_energy": False,
@@ -98,5 +100,5 @@ class DiffusionTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = DiffusionTest(50, 25, 50, fortran=sys.argv[1])
+    test = DiffusionTest(150, 120, 50, fortran=sys.argv[1])
     passed = test.run()
