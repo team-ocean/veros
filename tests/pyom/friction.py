@@ -8,6 +8,7 @@ from climate import Timer
 from climate.pyom import friction
 
 class FrictionTest(PyOMTest):
+    repetitions = 100
     extra_settings = {
                         "enable_cyclic_x": True,
                         "enable_hydrostatic": True, # False
@@ -52,8 +53,7 @@ class FrictionTest(PyOMTest):
         for a in ("maskU", "maskV", "maskW", "maskT"):
             self.set_attribute(a,np.random.randint(0,2,size=(self.nx+4,self.ny+4,self.nz)).astype(np.float))
 
-        #self.set_attribute("kbot",np.random.randint(0, self.nz, size=(self.nx+4,self.ny+4)))
-        self.set_attribute("kbot",np.random.randint(0, self.nz) * np.ones((self.nx+4,self.ny+4), dtype=np.int))
+        self.set_attribute("kbot",np.random.randint(0, self.nz, size=(self.nx+4,self.ny+4)))
 
         self.test_module = friction
         pyom_args = (self.pyom_new,)

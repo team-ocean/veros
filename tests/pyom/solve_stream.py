@@ -8,8 +8,9 @@ from climate import Timer
 from climate.pyom import numerics, external
 
 class StreamfunctionTest(PyOMTest):
+    repetitions = 100
     extra_settings = {
-                        "enable_cyclic_x": False,
+                        "enable_cyclic_x": True,
                         "enable_congrad_verbose": False,
                         "congr_epsilon": 1e-12,
                         "congr_max_iterations": 10000,
@@ -22,16 +23,16 @@ class StreamfunctionTest(PyOMTest):
             self.set_attribute(a,np.random.rand())
 
         for a in ("dxt",):
-            self.set_attribute(a,1 + 100*np.random.rand(self.nx+4))
+            self.set_attribute(a,100 + 10*np.random.rand(self.nx+4))
 
         for a in ("dyt",):
-            self.set_attribute(a,1 + 100*np.random.rand(self.ny+4))
+            self.set_attribute(a,100 + 10*np.random.rand(self.ny+4))
 
         for a in ("dzt",):
-            self.set_attribute(a,np.random.rand(self.nz))
+            self.set_attribute(a,10 + np.random.rand(self.nz))
 
         for a in ("psi", "dpsi"):
-            self.set_attribute(a,np.random.rand(self.nx+4,self.ny+4, 3))
+            self.set_attribute(a,np.zeros((self.nx+4,self.ny+4,3)))
 
         for a in ("du_mix", "dv_mix"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
@@ -40,7 +41,8 @@ class StreamfunctionTest(PyOMTest):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz,3))
 
         kbot = np.random.randint(1, self.nz, size=(self.nx+4,self.ny+4))
-        kbot.flat[np.random.randint(0, np.prod(kbot.shape), size=50)] = 0
+        # add some islands, but avoid boundaries
+        kbot[3:-3,3:-3].flat[np.random.randint(0, (self.nx-2) * (self.ny-2), size=50)] = 0
         self.set_attribute("kbot",kbot)
 
         for r in ("calc_grid", "calc_topo"):
@@ -48,11 +50,16 @@ class StreamfunctionTest(PyOMTest):
             num_new(self.pyom_new)
             num_legacy()
 
+        init_new, init_legacy = self.get_routine("streamfunction_init",submodule=external)
+        init_new(self.pyom_new)
+        init_legacy()
+
+
         self.test_module = external
         pyom_args = (self.pyom_new,)
         pyom_legacy_args = dict()
         self.test_routines = OrderedDict()
-        self.test_routines["streamfunction_init"] = (pyom_args, pyom_legacy_args)
+        #self.test_routines["streamfunction_init"] = (pyom_args, pyom_legacy_args)
         self.test_routines["solve_streamfunction"] = (pyom_args, pyom_legacy_args)
 
 

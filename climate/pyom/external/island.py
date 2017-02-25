@@ -5,26 +5,8 @@ import climate
 
 def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyom, change_nisle=False, verbose=False):
     """
-    =======================================================================
-             Island and Island Perimeter Mapping Routines
-             December 1993/revised February 1995
-
-    =======================================================================
+    Island and Island Perimeter Mapping Routines
     """
-    #use island_module
-    #implicit real (kind=8) (a-h,o-z)
-    #common /qsize/ maxqsize
-    #integer kmt(imt,jmt), map(imt,jmt), iperm(maxipp)
-    #integer jperm(maxipp), nippts(mnisle), iofs(mnisle)
-    #integer nisle,imt,jmt,mnisle,maxipp
-    #logical cyclic_bc,verbose
-    #parameter (maxq=10000)
-    #dimension iq(maxq)
-    #dimension jq(maxq)
-    #integer qfront, qback
-    #integer ocean,my_pe
-    #parameter (land=1, ocean=0)
-    #parameter (kmt_land=0, kmt_ocean=1)
     land = 1
     kmt_land = 0
     ocean = 0
@@ -36,36 +18,21 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyo
         print ' using cyclic boundary conditions'
 
     # initialize number of changes to kmt
-
     nchanges = 0
     """
-    -----------------------------------------------------------------------
-         copy kmt to map changing notation
-         initially, 0 means ocean and 1 means unassigned land in map
-         as land masses are found, they are labeled 2, 3, 4, ...,
-         and their perimeter ocean cells -2, -3, -4, ...,
-         when no land points remain unassigned, land mass numbers are
-         reduced by 1 and their perimeter ocean points relabelled accordingly
-    -----------------------------------------------------------------------
+    copy kmt to map changing notation
+    initially, 0 means ocean and 1 means unassigned land in map
+    as land masses are found, they are labeled 2, 3, 4, ...,
+    and their perimeter ocean cells -2, -3, -4, ...,
+    when no land points remain unassigned, land mass numbers are
+    reduced by 1 and their perimeter ocean points relabelled accordingly
     """
-
-
-    if climate.is_bohrium:
-        Map[...] = ((kmt > 0) * ocean + (kmt <= 0) * land).copy2numpy()
-    else:
-        Map[...] = (kmt > 0) * ocean + (kmt <= 0) * land
-    #for i in xrange(imt):
-    #    for j in xrange(jmt):
-    #        if kmt[i,j] > 0:
-    #            Map[i,j] = ocean
-    #        else:
-    #            Map[i,j] = land
-
+    if climate.is_bohrium: # sync before assigning values to numpy array Map
+        np.flush()
+    Map[...] = np.where(kmt > 0, ocean, land)
 
     """
-    -----------------------------------------------------------------------
-         find unassigned land points and expand them to continents
-    -----------------------------------------------------------------------
+    find unassigned land points and expand them to continents
     """
     maxqsize = 0
     queue = Queue.Queue()
@@ -96,9 +63,7 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyo
                 nippts[label] = 0
     nisle = label - 1
     """
-    -----------------------------------------------------------------------
-         relabel land masses and their ocean perimeters
-    ------------------------------------------------------------------------
+    relabel land masses and their ocean perimeters
     """
     Map[iwest:ieast+1, :jnorth+1] -= np.sign(Map[iwest:ieast+1, :jnorth+1])
 
@@ -121,23 +86,21 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyo
 
 def expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp, pyom):
     """
-    -----------------------------------------------------------------------
-              The subroutine expand uses a "flood fill" algorithm
-              to expand one previously unmarked land
-              point to its entire connected land mass and its perimeter
-              ocean points.   Diagonally adjacent land points are
-              considered connected.  Perimeter "collisions" (i.e.,
-              ocean points that are adjacent to two unconnected
-              land masses) are detected and error messages generated.
+    The subroutine expand uses a "flood fill" algorithm
+    to expand one previously unmarked land
+    point to its entire connected land mass and its perimeter
+    ocean points.   Diagonally adjacent land points are
+    considered connected.  Perimeter "collisions" (i.e.,
+    ocean points that are adjacent to two unconnected
+    land masses) are detected and error messages generated.
 
-              The subroutine expand uses a queue of size maxq of
-              coordinate pairs of candidate points.  Suggested
-              size for maxq is 4*(imt+jmt).  Queue overflow stops
-              execution with a message to increase the size of maxq.
-              Similarly a map with more that maxipp island perimeter
-              points or more than mnisle land masses stops execution
-              with an appropriate error message.
-    -----------------------------------------------------------------------
+    The subroutine expand uses a queue of size maxq of
+    coordinate pairs of candidate points.  Suggested
+    size for maxq is 4*(imt+jmt).  Queue overflow stops
+    execution with a message to increase the size of maxq.
+    Similarly a map with more that maxipp island perimeter
+    points or more than mnisle land masses stops execution
+    with an appropriate error message.
     """
     #implicit real (kind=8) (a-h,o-z)
     #dimension map(imt,jmt)
@@ -252,8 +215,6 @@ def expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisl
 
 
 def jn_isl(j,jmt):
-#     j coordinate to the north of j
-      #integer offmap
     offmap = -1
     if j < jmt - 1:
         return j + 1
@@ -262,10 +223,6 @@ def jn_isl(j,jmt):
 
 
 def js_isl(j):
-#      implicit real (kind=8) (a-h,o-z)
-#     j coordinate to the south of j
-#      integer offmap
-#      parameter (offmap = -1)
     offmap = -1
     if j > 0:
         return j - 1
@@ -274,11 +231,6 @@ def js_isl(j):
 
 
 def ie_isl(i, imt, pyom):
-#     use island_module
-#     implicit real (kind=8) (a-h,o-z)
-#     i coordinate to the east of i
-#     integer offmap
-#     parameter (offmap = -1)
     offmap = -1
     if pyom.enable_cyclic_x:
         if i < imt-2:

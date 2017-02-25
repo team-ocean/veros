@@ -36,17 +36,15 @@ def streamfunction_init(pyom):
     kmt[2:-2, 2:-2] = (pyom.kbot[2:-2, 2:-2] > 0) * 5
 
     if pyom.enable_cyclic_x:
-        kmt[-2:] = kmt[2:4]
-        kmt[0:2] = kmt[-4:-2]
+        cyclic.setcyclic_x(kmt)
 
     """
     preprocess land map using MOMs algorithm for B-grid to determine number of islands
     """
     print(" starting MOMs algorithm for B-grid to determine number of islands")
-    island.isleperim(kmt,allmap, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp,pyom, change_nisle=True, verbose=True)
+    island.isleperim(kmt, allmap, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp, pyom, change_nisle=True, verbose=True)
     if pyom.enable_cyclic_x:
-        allmap[-2:] = allmap[2:4]
-        allmap[0:2] = allmap[-4:-2]
+        cyclic.setcyclic_x(allmap)
     _showmap(allmap, pyom)
 
     """
@@ -77,7 +75,7 @@ def streamfunction_init(pyom):
         land map for island number isle: 1 is land, -1 is perimeter, 0 is ocean
         """
         kmt[...] = allmap != isle+1
-        island.isleperim(kmt,Map, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp,pyom)
+        island.isleperim(kmt, Map, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp, pyom)
         if verbose:
             _showmap(Map, pyom)
 
@@ -86,9 +84,9 @@ def streamfunction_init(pyom):
         """
         n = 0
         # avoid starting close to cyclic bondaries
-        (cont, ij, Dir, startPos) = _avoid_cyclic_boundaries(Map, isle, n, xrange(pyom.nx/2+2, pyom.nx+2), pyom)
+        (cont, ij, Dir, startPos) = _avoid_cyclic_boundaries(Map, isle, n, (pyom.nx/2+1, pyom.nx+2), pyom)
         if not cont:
-            (cont, ij, Dir, startPos) = _avoid_cyclic_boundaries(Map, isle, n, xrange(pyom.nx/2,0,-1), pyom)
+            (cont, ij, Dir, startPos) = _avoid_cyclic_boundaries(Map, isle, n, (pyom.nx/2,-1,-1), pyom)
             if not cont:
                 raise RuntimeError("found no starting point for line integral")
 
@@ -223,12 +221,12 @@ def streamfunction_init(pyom):
             * (pyom.psin[1:, 1:, :] - pyom.psin[:-1, 1:, :]) \
             / (pyom.cosu[np.newaxis,1:,np.newaxis] * pyom.dxt[1:, np.newaxis, np.newaxis]) \
             * pyom.hvr[1:, 1:, np.newaxis]
-    pyom.line_psin[...] = utilities.line_integrals(fpx, fpy, pyom)
+    pyom.line_psin[...] = utilities.line_integrals(fpx, fpy, pyom, kind="full")
 
 
 def _avoid_cyclic_boundaries(Map, isle, n, x_range, pyom):
-    for i in x_range: #i=nx/2+1,nx
-        for j in xrange(1, pyom.ny+2): #j=0,ny
+    for i in xrange(*x_range):
+        for j in xrange(1, pyom.ny+2):
             if Map[i,j] == 1 and Map[i,j+1] == -1:
                 #initial direction is eastward, we come from the west
                 cont = True

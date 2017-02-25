@@ -1,5 +1,6 @@
 import numpy as np
 
+import climate
 from climate.pyom import cyclic
 from climate.pyom.external import utilities
 
@@ -136,6 +137,8 @@ def congrad_streamfunction(forc,sol,pyom):
         betakm1 = betak
         if cont:
             n += 1
+        if climate.is_bohrium:
+            np.flush()
     """
     end of iteration loop
     """
@@ -152,15 +155,15 @@ def _make_coeff_streamfunction(cf, pyom):
     res = A * p
     res = res +  cf(...,ii,jj,kk) * p(i+ii,j+jj,k+kk)
     """
-    cf[2:-2, 2:-2, 1, 1] -= pyom.hvr[3:-1, 2:-2]/(np.ones(pyom.ny)*pyom.dxu[2:-2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[3:-1, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:-2].T).T**2
-    cf[2:-2, 2:-2, 2, 1] += pyom.hvr[3:-1, 2:-2]/(np.ones(pyom.ny)*pyom.dxu[2:-2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[3:-1, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:-2].T).T**2
-    cf[2:-2, 2:-2, 1, 1] -= pyom.hvr[2:-2, 2:-2]/(np.ones(pyom.ny)*pyom.dxu[2:-2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[2:-2, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:-2].T).T**2
-    cf[2:-2, 2:-2, 0, 1] += pyom.hvr[2:-2, 2:-2]/(np.ones(pyom.ny)*pyom.dxu[2:-2, np.newaxis])/(np.ones(pyom.ny)*pyom.dxt[2:-2, np.newaxis])/(np.ones(pyom.nx)*pyom.cosu[np.newaxis, 2:-2].T).T**2
+    cf[2:-2, 2:-2, 1, 1] -= pyom.hvr[3:-1, 2:-2] / pyom.dxu[2:-2, np.newaxis] / pyom.dxt[3:-1, np.newaxis] / pyom.cosu[np.newaxis, 2:-2]**2
+    cf[2:-2, 2:-2, 2, 1] += pyom.hvr[3:-1, 2:-2] / pyom.dxu[2:-2, np.newaxis] / pyom.dxt[3:-1, np.newaxis] / pyom.cosu[np.newaxis, 2:-2]**2
+    cf[2:-2, 2:-2, 1, 1] -= pyom.hvr[2:-2, 2:-2] / pyom.dxu[2:-2, np.newaxis] / pyom.dxt[2:-2, np.newaxis] / pyom.cosu[np.newaxis, 2:-2]**2
+    cf[2:-2, 2:-2, 0, 1] += pyom.hvr[2:-2, 2:-2] / pyom.dxu[2:-2, np.newaxis] / pyom.dxt[2:-2, np.newaxis] / pyom.cosu[np.newaxis, 2:-2]**2
 
-    cf[2:-2, 2:-2, 1, 1] -= pyom.hur[2:-2, 3:-1]/(pyom.dyu[2:-2])/(pyom.dyt[3:-1])*pyom.cost[3:-1]/(pyom.cosu[2:-2])
-    cf[2:-2, 2:-2, 1, 2] += pyom.hur[2:-2, 3:-1]/(pyom.dyu[2:-2])/(pyom.dyt[3:-1])*pyom.cost[3:-1]/(pyom.cosu[2:-2])
-    cf[2:-2, 2:-2, 1, 1] -= pyom.hur[2:-2, 2:-2]/(pyom.dyu[2:-2])/(pyom.dyt[2:-2])*pyom.cost[2:-2]/(pyom.cosu[2:-2])
-    cf[2:-2, 2:-2, 1, 0] += pyom.hur[2:-2, 2:-2]/(pyom.dyu[2:-2])/(pyom.dyt[2:-2])*pyom.cost[2:-2]/(pyom.cosu[2:-2])
+    cf[2:-2, 2:-2, 1, 1] -= pyom.hur[2:-2, 3:-1] / pyom.dyu[np.newaxis, 2:-2] / pyom.dyt[np.newaxis, 3:-1] * pyom.cost[np.newaxis, 3:-1] / pyom.cosu[np.newaxis, 2:-2]
+    cf[2:-2, 2:-2, 1, 2] += pyom.hur[2:-2, 3:-1] / pyom.dyu[np.newaxis, 2:-2] / pyom.dyt[np.newaxis, 3:-1] * pyom.cost[np.newaxis, 3:-1] / pyom.cosu[np.newaxis, 2:-2]
+    cf[2:-2, 2:-2, 1, 1] -= pyom.hur[2:-2, 2:-2] / pyom.dyu[np.newaxis, 2:-2] / pyom.dyt[np.newaxis, 2:-2] * pyom.cost[np.newaxis, 2:-2] / pyom.cosu[np.newaxis, 2:-2]
+    cf[2:-2, 2:-2, 1, 0] += pyom.hur[2:-2, 2:-2] / pyom.dyu[np.newaxis, 2:-2] / pyom.dyt[np.newaxis, 2:-2] * pyom.cost[np.newaxis, 2:-2] / pyom.cosu[np.newaxis, 2:-2]
 
 
 def _print_info(n, estimated_error, pyom):
