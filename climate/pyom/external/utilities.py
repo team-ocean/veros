@@ -40,21 +40,6 @@ def line_integrals(uloc,vloc,pyom,kind="same"):
     return east + west + north + south
 
 
-def line_integral(isle,uloc,vloc,pyom):
-    """
-    calculate line integrals along island isle
-    """
-    east = vloc[1:-2,1:-2] * pyom.dyu[np.newaxis, 1:-2] + uloc[1:-2,2:-1] * pyom.dxu[1:-2, np.newaxis] * pyom.cost[np.newaxis,2:-1]
-    west = -vloc[2:-1,1:-2] * pyom.dyu[np.newaxis, 1:-2] - uloc[1:-2,1:-2] * (pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
-    north = vloc[1:-2,1:-2] * pyom.dyu[np.newaxis,1:-2]  - uloc[1:-2,1:-2] * (pyom.cost[1:-2]*pyom.dxu[1:-2,np.newaxis])
-    south = -vloc[2:-1,1:-2] * pyom.dyu[np.newaxis, 1:-2] + uloc[1:-2,2:-1] * (pyom.cost[2:-1]*pyom.dxu[1:-2, np.newaxis])
-    east = np.sum(east * (pyom.line_dir_east_mask[1:-2,1:-2,isle] & pyom.boundary_mask[1:-2,1:-2,isle]))
-    west = np.sum(west * (pyom.line_dir_west_mask[1:-2,1:-2,isle] & pyom.boundary_mask[1:-2,1:-2,isle]))
-    north = np.sum(north * (pyom.line_dir_north_mask[1:-2,1:-2,isle] & pyom.boundary_mask[1:-2,1:-2,isle]))
-    south = np.sum(south * (pyom.line_dir_south_mask[1:-2,1:-2,isle] & pyom.boundary_mask[1:-2,1:-2,isle]))
-    return east + west + north + south
-
-
 def absmax_sfc(p1, pyom):
     return np.max(np.abs(p1))
 
@@ -85,8 +70,8 @@ def make_inv_sfc(cf,Z,pyom):
     else:
         Y[Y != 0] = 1./Y[Y != 0]
     # make inverse zero on island perimeters that are not integrated
-    for isle in xrange(pyom.nisle): #isle=1,nisle
-        Z *= np.invert(pyom.boundary_mask[...,isle]).astype(np.int)
+    # for isle in xrange(pyom.nisle): #isle=1,nisle
+    Z *= np.prod(np.invert(pyom.boundary_mask).astype(np.int), axis=2)
 
 
 def apply_op(cf, p1, res, pyom):
