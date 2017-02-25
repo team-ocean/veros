@@ -237,48 +237,33 @@ def quadratic_bottom_friction(pyom):
     quadratic bottom friction
     dissipation is calculated and added to K_diss_bot
     """
-    diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
-    aloc = np.zeros((pyom.nx+4, pyom.ny+4))
-
     # we might want to account for EKE in the drag, also a tidal residual
-    aloc[...] = 0.0
-    for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-        for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-            k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
-            if k >= 0:
-                fxa = pyom.maskV[i,j,k] * pyom.v[i,j,k,pyom.tau]**2 + pyom.maskV[i,j-1,k] * pyom.v[i,j-1,k,pyom.tau]**2 \
-                      + pyom.maskV[i+1,j,k] * pyom.v[i+1,j,k,pyom.tau]**2 + pyom.maskV[i+1,j-1,k] * pyom.v[i+1,j-1,k,pyom.tau]**2
-                fxa = np.sqrt(pyom.u[i,j,k,pyom.tau]**2 + 0.25*fxa)
-                aloc[i,j] = pyom.maskU[i,j,k] * pyom.r_quad_bot * pyom.u[i,j,k,pyom.tau] * fxa / pyom.dzt[k]
-                pyom.du_mix[i,j,k] -= aloc[i,j]
+    k = np.maximum(pyom.kbot[1:-2,2:-2],pyom.kbot[2:-1,2:-2]) - 1
+    mask = k[..., np.newaxis] == np.indices((pyom.nx+1, pyom.ny, pyom.nz))[2]
+    fxa = pyom.maskV[1:-2,2:-2,:] * pyom.v[1:-2,2:-2,:,pyom.tau]**2 + pyom.maskV[1:-2,1:-3,:] * pyom.v[1:-2,1:-3,:,pyom.tau]**2 \
+        + pyom.maskV[2:-1,2:-2,:] * pyom.v[2:-1,2:-2,:,pyom.tau]**2 + pyom.maskV[2:-1,1:-3,:] * pyom.v[2:-1,1:-3,:,pyom.tau]**2
+    fxa = np.sqrt(pyom.u[1:-2,2:-2,:,pyom.tau]**2 + 0.25 * fxa)
+    aloc = pyom.maskU[1:-2,2:-2,:] * pyom.r_quad_bot * pyom.u[1:-2,2:-2,:,pyom.tau] \
+                             * fxa / pyom.dzt[np.newaxis, np.newaxis, :] * mask
+    pyom.du_mix[1:-2,2:-2,:] += -aloc
 
     if pyom.enable_conserve_energy:
-        diss[...] = 0.0
-        for j in xrange(pyom.js_pe,pyom.je_pe): # j = js_pe,je_pe
-            for i in xrange(pyom.is_pe-1,pyom.ie_pe): # i = is_pe-1,ie_pe
-                k = max(pyom.kbot[i,j],pyom.kbot[i+1,j]) - 1
-                if k >= 0:
-                    diss[i,j,k] = aloc[i,j] * pyom.u[i,j,k,pyom.tau]
+        diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
+        diss[1:-2,2:-2,:] = aloc * pyom.u[1:-2,2:-2,:,pyom.tau]
         pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
 
-    aloc[...] = 0.0
-    for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-        for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-            k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
-            if k >= 0:
-                fxa = pyom.maskU[i,j,k] * pyom.u[i,j,k,pyom.tau]**2 + pyom.maskU[i-1,j,k] * pyom.u[i-1,j,k,pyom.tau]**2 \
-                      + pyom.maskU[i,j+1,k] * pyom.u[i,j+1,k,pyom.tau]**2 + pyom.maskU[i-1,j+1,k] * pyom.u[i-1,j+1,k,pyom.tau]**2
-                fxa = np.sqrt(pyom.v[i,j,k,pyom.tau]**2 + 0.25*fxa)
-                aloc[i,j] = pyom.maskV[i,j,k] * pyom.r_quad_bot * pyom.v[i,j,k,pyom.tau] * fxa / pyom.dzt[k]
-                pyom.dv_mix[i,j,k] -= aloc[i,j]
+    k = np.maximum(pyom.kbot[2:-2,1:-2],pyom.kbot[2:-2,2:-1]) - 1
+    mask = k[..., np.newaxis] == np.indices((pyom.nx, pyom.ny+1, pyom.nz))[2]
+    fxa = pyom.maskU[2:-2,1:-2,:] * pyom.u[2:-2,1:-2,:,pyom.tau]**2 + pyom.maskU[1:-3,1:-2,:] * pyom.u[1:-3,1:-2,:,pyom.tau]**2 \
+        + pyom.maskU[2:-2,2:-1,:] * pyom.u[2:-2,2:-1,:,pyom.tau]**2 + pyom.maskU[1:-3,2:-1,:] * pyom.u[1:-3,2:-1,:,pyom.tau]**2
+    fxa = np.sqrt(pyom.v[2:-2,1:-2,:,pyom.tau]**2 + 0.25 * fxa)
+    aloc = pyom.maskV[2:-2,1:-2,:] * pyom.r_quad_bot * pyom.v[2:-2,1:-2,:,pyom.tau] \
+                             * fxa / pyom.dzt[np.newaxis, np.newaxis, :] * mask
+    pyom.dv_mix[2:-2,1:-2,:] += -aloc
 
     if pyom.enable_conserve_energy:
-        diss[...] = 0.0
-        for j in xrange(pyom.js_pe-1,pyom.je_pe): # j = js_pe-1,je_pe
-            for i in xrange(pyom.is_pe,pyom.ie_pe): # i = is_pe,ie_pe
-                k = max(pyom.kbot[i,j+1],pyom.kbot[i,j]) - 1
-                if k >= 0:
-                    diss[i,j,k] = aloc[i,j] * pyom.v[i,j,k,pyom.tau]
+        diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
+        diss[2:-2,1:-2,:] = aloc * pyom.v[2:-2,1:-2,:,pyom.tau]
         pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
 
     if not pyom.enable_hydrostatic:
@@ -528,17 +513,11 @@ def momentum_sources(pyom):
     other momentum sources
     dissipation is calculated and added to K_diss_bot
     """
-    diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
-
-    for k in xrange(pyom.nz): # k = 1,nz
-        pyom.du_mix[:,:,k] += pyom.maskU[:,:,k] * pyom.u_source[:,:,k]
+    pyom.du_mix[...] += pyom.maskU * pyom.u_source
     if pyom.enable_conserve_energy:
-        for k in xrange(pyom.nz): # k = 1,nz
-            diss[:,:,k] = -pyom.maskU[:,:,k] * pyom.u[:,:,k,pyom.tau] * pyom.u_source[:,:,k]
+        diss = -pyom.maskU * pyom.u[..., pyom.tau] * pyom.u_source
         pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
-    for k in xrange(pyom.nz): # k = 1,nz
-        pyom.dv_mix[:,:,k] += pyom.maskV[:,:,k] * pyom.v_source[:,:,k]
+    pyom.dv_mix[...] += pyom.maskV * pyom.v_source
     if pyom.enable_conserve_energy:
-        for k in xrange(pyom.nz): # k = 1,nz
-            diss[:,:,k] = -pyom.maskV[:,:,k] * pyom.v[:,:,k,pyom.tau] * pyom.v_source[:,:,k]
+        diss = -pyom.maskV * pyom.v[..., pyom.tau] * pyom.v_source
         pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)

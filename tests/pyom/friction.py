@@ -92,9 +92,9 @@ class FrictionTest(PyOMTest):
         if not passed:
             print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:
-                v1 = v1[...,-1]
+                v1 = v1[...,1]
             while v2.ndim > 2:
-                v2 = v2[...,-1]
+                v2 = v2[...,1]
             if v1.ndim == 2:
                 fig, axes = plt.subplots(1,3)
                 axes[0].imshow(v1)
@@ -107,5 +107,5 @@ class FrictionTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = FrictionTest(80, 70, 50, fortran=sys.argv[1])
+    test = FrictionTest(150, 120, 50, fortran=sys.argv[1])
     passed = test.run()
