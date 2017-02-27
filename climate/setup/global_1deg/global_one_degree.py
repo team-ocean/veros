@@ -40,7 +40,7 @@ MAIN_OPTIONS = dict(
     enable_tempsalt_sources = True,
     enable_implicit_vert_friction = True,
 
-    eq_of_state_type = 5,
+    eq_of_state_type = 3,
 )
 
 ISONEUTRAL_OPTIONS = dict(

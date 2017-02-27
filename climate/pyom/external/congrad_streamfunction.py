@@ -75,7 +75,7 @@ def congrad_streamfunction(forc,sol,pyom):
             if np.abs(betak) > 100.0*betak_min:
                 print("WARNING: solver diverging at itt={:d}".format(pyom.congr_itts))
                 _fail(n, estimated_error, pyom)
-                cont = False
+                #cont = False
                 #converged = False #Converged
         """
         ss(k)      = Zres(k-1) + (beta(k)/beta(k-1)) * ss(k-1)

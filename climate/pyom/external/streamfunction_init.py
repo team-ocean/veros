@@ -2,7 +2,7 @@ import numpy as np
 
 import climate
 from climate.pyom import cyclic
-from climate.pyom.external import island, utilities, congrad_streamfunction
+from climate.pyom.external import island, utilities, congrad_streamfunction, congrad_streamfunction_scipy
 
 
 def streamfunction_init(pyom):
