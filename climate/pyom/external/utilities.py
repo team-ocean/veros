@@ -71,7 +71,8 @@ def make_inv_sfc(cf,Z,pyom):
         Y[Y != 0] = 1./Y[Y != 0]
     # make inverse zero on island perimeters that are not integrated
     # for isle in xrange(pyom.nisle): #isle=1,nisle
-    Z *= np.prod(np.invert(pyom.boundary_mask).astype(np.int), axis=2)
+    if pyom.nisle:
+        Z *= np.prod(np.invert(pyom.boundary_mask).astype(np.int), axis=2)
 
 
 def apply_op(cf, p1, res, pyom):
