@@ -8,7 +8,7 @@ from climate import Timer
 from climate.pyom import numerics, external
 
 class StreamfunctionTest(PyOMTest):
-    repetitions = 100
+    repetitions = 1
     extra_settings = {
                         "enable_cyclic_x": True,
                         "enable_congrad_verbose": False,
@@ -23,13 +23,13 @@ class StreamfunctionTest(PyOMTest):
             self.set_attribute(a,np.random.rand())
 
         for a in ("dxt",):
-            self.set_attribute(a,100 + 10*np.random.rand(self.nx+4))
+            self.set_attribute(a,100 * np.ones(self.nx+4) + 10*np.random.rand(self.nx+4))
 
         for a in ("dyt",):
-            self.set_attribute(a,100 + 10*np.random.rand(self.ny+4))
+            self.set_attribute(a,100 * np.ones(self.ny+4) + 10*np.random.rand(self.ny+4))
 
         for a in ("dzt",):
-            self.set_attribute(a,10 + np.random.rand(self.nz))
+            self.set_attribute(a,10 * np.ones(self.nz))#+ np.random.rand(self.nz))
 
         for a in ("psi", "dpsi"):
             self.set_attribute(a,np.zeros((self.nx+4,self.ny+4,3)))
@@ -42,7 +42,7 @@ class StreamfunctionTest(PyOMTest):
 
         kbot = np.random.randint(1, self.nz, size=(self.nx+4,self.ny+4))
         # add some islands, but avoid boundaries
-        kbot[3:-3,3:-3].flat[np.random.randint(0, (self.nx-2) * (self.ny-2), size=50)] = 0
+        kbot[3:-3,3:-3].flat[np.random.randint(0, (self.nx-2) * (self.ny-2), size=5)] = 0
         self.set_attribute("kbot",kbot)
 
         for r in ("calc_grid", "calc_topo"):
@@ -105,5 +105,5 @@ class StreamfunctionTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = StreamfunctionTest(170, 150, 50, fortran=sys.argv[1])
+    test = StreamfunctionTest(120, 130, 50, fortran=sys.argv[1])
     passed = test.run()

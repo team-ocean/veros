@@ -202,7 +202,7 @@ def streamfunction_init(pyom):
 
     for isle in xrange(pyom.nisle):
         print(" solving for boundary contribution by island {:d}".format(isle))
-        congrad_streamfunction.congrad_streamfunction(forc,pyom.psin[:,:,isle],pyom)
+        congrad_streamfunction_scipy.congrad_streamfunction(forc,pyom.psin[:,:,isle],pyom)
         print(" itts =  {:d}".format(pyom.congr_itts))
 
     if pyom.enable_cyclic_x:

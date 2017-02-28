@@ -96,7 +96,7 @@ def congrad_streamfunction(forc,sol,pyom):
         """
         s_dot_As = utilities.dot_sfc(ss, As, pyom)
         if np.abs(s_dot_As) < np.abs(betak)*np.float(1.e-10):
-            smax = absmax_sfc(ss,pyom)
+            smax = utilities.absmax_sfc(ss,pyom)
             estimated_error = 100.0 * smax
             _print_info(n, estimated_error, pyom)
             cont = False
