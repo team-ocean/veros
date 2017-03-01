@@ -15,14 +15,17 @@ def congrad_streamfunction(forc,sol,pyom):
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(sol)
         def make_cyclic(x):
-            pass#cyclic.setcyclic_x(x.reshape(pyom.nx+4, pyom.ny+4))
+            print(x.reshape(pyom.nx+4, pyom.ny+4)[:2,5])
+            x[...] = cyclic.setcyclic_x(x.reshape(pyom.nx+4, pyom.ny+4)).flatten()
+            print(x.reshape(pyom.nx+4, pyom.ny+4)[:2,5])
     else:
         make_cyclic = lambda x: None
 
     preconditioner = _make_inv_sfc(pyom)
-    solution, info = spalg.bicg(congrad_streamfunction.matrix, forc.flatten(),
-                                    x0=sol.flatten(), callback=make_cyclic, tol=pyom.congr_epsilon,
-                                    maxiter=pyom.congr_max_iterations, M=preconditioner)
+    solution, info = spalg.bicgstab(congrad_streamfunction.matrix, forc.flatten(),
+                                    x0=sol.flatten(), tol=pyom.congr_epsilon, callback=make_cyclic,
+                                    maxiter=pyom.congr_max_iterations)#, M=preconditioner)
+    print(info)
     sol[...] = solution.reshape(pyom.nx+4,pyom.ny+4)
 congrad_streamfunction.first = True
 
@@ -67,14 +70,31 @@ def _assemble_matrix(pyom):
     #north_diag[:, -1] = 0.
     #south_diag[:, 0] = 0.
 
-    # assemble dia_matrix input
-    offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1)
-    cf = np.zeros((5, main_diag.size))
-    cf[0] = main_diag.flatten()
-    cf[1] = east_diag.flatten()
-    cf[2] = west_diag.flatten()
-    cf[3] = north_diag.flatten()
-    cf[4] = south_diag.flatten()
+    if pyom.enable_cyclic_x:
+        wrap_diag_east, wrap_diag_west = (np.zeros((pyom.nx+4, pyom.ny+4)) for _ in range(2))
+        wrap_diag_east[2,2:-2] = east_diag[-3,2:-2]
+        east_diag[-3,2:-2] = 0.
+        wrap_diag_west[-3,2:-2] = west_diag[2,2:-2]
+        west_diag[2,2:-2] = 0.
+        # assemble dia_matrix input
+        offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1, -main_diag.shape[1] * (pyom.nx-1), main_diag.shape[1] * (pyom.nx-1))
+        cf = np.zeros((7, main_diag.size))
+        cf[0] = main_diag.flatten()
+        cf[1] = east_diag.flatten()
+        cf[2] = west_diag.flatten()
+        cf[3] = north_diag.flatten()
+        cf[4] = south_diag.flatten()
+        cf[5] = wrap_diag_east.flatten()
+        cf[6] = wrap_diag_west.flatten()
+    else:
+        # assemble dia_matrix input
+        offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1)
+        cf = np.zeros((5, main_diag.size))
+        cf[0] = main_diag.flatten()
+        cf[1] = east_diag.flatten()
+        cf[2] = west_diag.flatten()
+        cf[3] = north_diag.flatten()
+        cf[4] = south_diag.flatten()
     return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T
 
 

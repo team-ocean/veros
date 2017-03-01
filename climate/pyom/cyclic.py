@@ -4,6 +4,7 @@ def setcyclic_x(array):
     """
     array[-2:, ...] = array[2:4, ...]
     array[:2, ...] = array[-4:-2, ...]
+    return array
 
 def setcyclic_p(array):
     """
