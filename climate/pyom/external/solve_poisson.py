@@ -77,6 +77,8 @@ def _assemble_poisson_matrix(pyom):
         wrap_diag_east, wrap_diag_west = (np.zeros((pyom.nx+4, pyom.ny+4)) for _ in range(2))
         wrap_diag_east[2, 2:-2] = west_diag[2, 2:-2]
         wrap_diag_west[-3, 2:-2] = east_diag[-3, 2:-2]
+        west_diag[2, 2:-2] = 0.
+        east_diag[-3, 2:-2] = 0.
 
     # construct sparse matrix
     cf = tuple(diag.flatten() for diag in (main_diag, east_diag, west_diag, north_diag, south_diag))

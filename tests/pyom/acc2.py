@@ -1,4 +1,4 @@
-from climate.setup import ACC2
+from climate.setup.acc2 import ACC2
 from pyomtest import PyOMTest
 
 import sys
@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class ACC2Test(PyOMTest):
+    timesteps = 50
     def __init__(self, fortran):
         self.fortran = fortran
 
@@ -46,9 +47,9 @@ class ACC2Test(PyOMTest):
         if not passed:
             print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:
-                v1 = v1[...,-1]
+                v1 = v1[...,0]
             while v2.ndim > 2:
-                v2 = v2[...,-1]
+                v2 = v2[...,0]
             if v1.ndim == 2:
                 fig, axes = plt.subplots(1,3)
                 axes[0].imshow(v1)
@@ -64,13 +65,12 @@ class ACC2Test(PyOMTest):
         self.pyom_new = ACC2()
         self.pyom_legacy = ACC2(fortran=self.fortran)
         # integrate for some time steps and compare
-        n_steps = 50
-        if n_steps == 0:
+        if self.timesteps == 0:
             self.pyom_new.setup()
             self.pyom_legacy.setup()
         else:
-            self.pyom_new.run(runlen = n_steps * 86400. / 2, snapint=1e10)
-            self.pyom_legacy.run(runlen = n_steps * 86400. / 2, snapint=1e10)
+            self.pyom_new.run(runlen = self.timesteps * 86400. / 2, snapint=1e10)
+            self.pyom_legacy.run(runlen = self.timesteps * 86400. / 2, snapint=1e10)
         self._check_all_objects()
 
 if __name__ == "__main__":

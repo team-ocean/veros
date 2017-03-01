@@ -22,9 +22,9 @@ def solve_streamfunction(pyom):
     #hydrostatic pressure
     fxa = pyom.grav / pyom.rho_0
     tmp = 0.5 * (pyom.rho[:,:,:,pyom.tau]) * fxa * pyom.dzw * pyom.maskT
-    pyom.p_hydro[:,:,pyom.nz-1] = tmp[:,:,-1]
-    tmp[:,:,:-1] += 0.5 * pyom.rho[:,:,1:,pyom.tau] * fxa*pyom.dzw[:-1] * pyom.maskT[:,:,:-1]
-    pyom.p_hydro[:,:,-2::-1] = np.cumsum(pyom.maskT[:,:,-2::-1] * tmp[:,:,:0:-1], axis=2)
+    pyom.p_hydro[:,:,-1] = tmp[:,:,-1]
+    tmp[:,:,:-1] += 0.5 * pyom.rho[:,:,1:,pyom.tau] * fxa * pyom.dzw[:-1] * pyom.maskT[:,:,:-1]
+    pyom.p_hydro[:,:,-2::-1] = pyom.maskT[:,:,-2::-1] * (pyom.p_hydro[:,:,-1,np.newaxis] + np.cumsum(tmp[:,:,-2::-1], axis=2))
 
     # add hydrostatic pressure gradient
     pyom.du[2:-2,2:-2,:,pyom.tau] += \

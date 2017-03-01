@@ -29,15 +29,15 @@ class StreamfunctionTest(PyOMTest):
             self.set_attribute(a,100 * np.ones(self.ny+4) + 10*np.random.rand(self.ny+4))
 
         for a in ("dzt",):
-            self.set_attribute(a,10 * np.ones(self.nz))#+ np.random.rand(self.nz))
+            self.set_attribute(a,10 + np.random.rand(self.nz))
 
         for a in ("psi", "dpsi"):
-            self.set_attribute(a,np.zeros((self.nx+4,self.ny+4,3)))
+            self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,3))
 
         for a in ("du_mix", "dv_mix"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
-        for a in ("u","v","du","dv"):
+        for a in ("u","v","du","dv","rho"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz,3))
 
         kbot = np.random.randint(1, self.nz, size=(self.nx+4,self.ny+4))
@@ -105,5 +105,5 @@ class StreamfunctionTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = StreamfunctionTest(120, 130, 50, fortran=sys.argv[1])
+    test = StreamfunctionTest(120, 150, 50, fortran=sys.argv[1])
     passed = test.run()
