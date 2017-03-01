@@ -2,7 +2,7 @@ import numpy as np
 
 import climate
 from climate.pyom import cyclic
-from climate.pyom.external import island, utilities, congrad_streamfunction, congrad_streamfunction_scipy
+from climate.pyom.external import island, utilities, solve_poisson
 
 
 def streamfunction_init(pyom):
@@ -202,8 +202,7 @@ def streamfunction_init(pyom):
 
     for isle in xrange(pyom.nisle):
         print(" solving for boundary contribution by island {:d}".format(isle))
-        congrad_streamfunction_scipy.congrad_streamfunction(forc,pyom.psin[:,:,isle],pyom)
-        print(" itts =  {:d}".format(pyom.congr_itts))
+        solve_poisson.solve(forc,pyom.psin[:,:,isle],pyom)
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.psin)

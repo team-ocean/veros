@@ -8,7 +8,7 @@ used for streamfunction
 import numpy as np
 
 import climate
-from climate.pyom.external import solve_pressure, island, utilities, congrad_streamfunction, congrad_streamfunction_scipy
+from climate.pyom.external import solve_pressure, island, utilities, solve_poisson
 from climate.pyom import cyclic
 
 
@@ -52,7 +52,7 @@ def solve_streamfunction(pyom):
 
     # solve for interior streamfunction
     pyom.dpsi[:,:,pyom.taup1] = 2 * pyom.dpsi[:,:,pyom.tau] - pyom.dpsi[:,:,pyom.taum1] # first guess, we need three time levels here
-    congrad_streamfunction_scipy.congrad_streamfunction(forc, pyom.dpsi[:,:,pyom.taup1], pyom)
+    solve_poisson.solve(forc, pyom.dpsi[:,:,pyom.taup1], pyom)
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.dpsi[:,:,pyom.taup1])
