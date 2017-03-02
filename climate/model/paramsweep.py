@@ -5,8 +5,7 @@ from multiprocessing import Process
 class dist:
     normal, random = range(2)
 
-# Monte carlo simulation data
-def montecarlo(callback, samples, **kwargs):
+def paramsweep(callback, samples, **kwargs):
     """ generate random samples based on values """
     vals = {}
     for var in kwargs:
