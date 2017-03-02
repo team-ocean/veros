@@ -4,7 +4,7 @@ import numpy as np
 from .timer import Timer
 
 __all__ = [
-    "data",
+    "model",
     "io",
     "pyom",
     "setup"
