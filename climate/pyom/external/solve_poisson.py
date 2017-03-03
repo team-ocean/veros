@@ -1,59 +1,72 @@
 import numpy as np
 import scipy.sparse
-import scipy.sparse.linalg as spalg
 
-import climate
+try:
+    import pyamg
+    has_pyamg = True
+except ImportError:
+    import warnings
+    warnings.warn("pyamg was not found, falling back to SciPy CG solver")
+    import scipy.sparse.linalg as spalg
+    has_pyamg = False
+
 from climate.pyom import cyclic
 
 
-def solve(rhs, sol, pyom):
+def solve(rhs, sol, pyom, boundary_val=None):
     """
-    Main solver for streamfunction. Solves a 2D Poisson equation.
+    Main solver for streamfunction. Solves a 2D Poisson equation. Uses either pyamg
+    or scipy.sparse.linalg linear solvers.
     """
-    # assemble static matrices on first call only
-    if solve.first:
+    # only assemble matrix if parent object changes
+    if not solve.pyom or solve.pyom != id(pyom):
         solve.matrix = _assemble_poisson_matrix(pyom)
-        solve.preconditioner = _assemble_preconditioner(solve.matrix, pyom)
-        sparse_preconditioner = scipy.sparse.dia_matrix((solve.preconditioner.flatten(),0), shape=(sol.size, sol.size))
-        solve.matrix = sparse_preconditioner * solve.matrix
-        solve.first = False
+        if has_pyamg:
+            B = np.ones(rhs.size)
+            solve.amg_solver = pyamg.smoothed_aggregation_solver(solve.matrix,B)
+        else:
+            solve.preconditioner = _jacobi_preconditioner(solve.matrix, pyom)
+        solve.pyom = id(pyom)
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(sol)
 
-    rhs *= solve.preconditioner
-    solution, info = spalg.bicgstab(solve.matrix, rhs.flatten(),
-                                    x0=sol.flatten(), tol=pyom.congr_epsilon,
-                                    maxiter=pyom.congr_max_iterations)
-    if info > 0:
-        print("WARNING: streamfunction solver did not converge after {} iterations".format(info))
-    sol[...] = solution.reshape(pyom.nx+4,pyom.ny+4)
-solve.first = True
+    if boundary_val is None:
+        boundary_val = sol
+
+    # set right hand side on boundaries
+    z = np.prod(~pyom.boundary_mask, axis=2).astype(np.bool)
+    rhs[...] = np.where(z, rhs, boundary_val)
+
+    tolerance = pyom.congr_epsilon * 1e-8 # to achieve the same precision as the legacy solver
+    if has_pyamg:
+        residuals = []
+        solution = solve.amg_solver.solve(b=rhs.flatten(), x0=sol.flatten(), tol=tolerance,
+                                         residuals=residuals, accel="bicgstab")
+        rel_res = residuals[-1] / residuals[0]
+        if rel_res > tolerance:
+            print("WARNING: streamfunction solver did not converge - residual: {:.2e}".format(rel_res))
+    else:
+        solution, info = spalg.bicgstab(solve.matrix, rhs.flatten(),
+                                        x0=sol.flatten(), tol=tolerance,
+                                        maxiter=pyom.congr_max_iterations,
+                                        M=solve.preconditioner)
+        if info > 0:
+            print("WARNING: streamfunction solver did not converge after {} iterations".format(info))
 
 
-def _assemble_preconditioner(matrix, pyom):
+    sol[...] = boundary_val
+    sol[2:-2,2:-2] = solution.reshape(pyom.nx+4,pyom.ny+4)[2:-2,2:-2]
+solve.pyom = None
+
+
+def _jacobi_preconditioner(matrix, pyom):
     """
     Construct a simple Jacobi preconditioner
-
-    .. note::
-        This preconditioner is generally singular. Thus, it will modify the solution of the
-        system to satisfy the island boundary conditions.
     """
-    # copy diagonal coefficients of A to Z
-    Z = np.zeros((pyom.nx+4, pyom.ny+4))
-    Z[2:-2, 2:-2] = matrix.diagonal().copy().reshape(pyom.nx+4, pyom.ny+4)[2:-2, 2:-2]
-
-    # now invert Z
-    Y = Z[2:-2, 2:-2]
-    if climate.is_bohrium:
-        Y[...] = (1. / (Y+(Y==0)))*(Y!=0)
-    else:
-        Y[Y != 0] = 1./Y[Y != 0]
-
-    # make inverse zero on island perimeters that are not integrated
-    if pyom.nisle:
-        Z[...] *= np.prod(np.invert(pyom.boundary_mask), axis=2)
-    return Z
+    Z = np.ones((pyom.nx+4, pyom.ny+4))
+    Z[2:-2, 2:-2] = 1. / matrix.diagonal().copy().reshape(pyom.nx+4, pyom.ny+4)[2:-2, 2:-2]
+    return scipy.sparse.dia_matrix((Z.flatten(),0), shape=(Z.size,Z.size)).tocsr()
 
 
 def _assemble_poisson_matrix(pyom):
@@ -72,20 +85,21 @@ def _assemble_poisson_matrix(pyom):
     north_diag[2:-2, 2:-2] = pyom.hur[2:-2, 3:-1] / pyom.dyu[np.newaxis, 2:-2] / pyom.dyt[np.newaxis, 3:-1] * pyom.cost[np.newaxis, 3:-1] / pyom.cosu[np.newaxis, 2:-2]
     south_diag[2:-2, 2:-2] = pyom.hur[2:-2, 2:-2] / pyom.dyu[np.newaxis, 2:-2] / pyom.dyt[np.newaxis, 2:-2] * pyom.cost[np.newaxis, 2:-2] / pyom.cosu[np.newaxis, 2:-2]
 
+    z = np.prod(np.invert(pyom.boundary_mask), axis=2) # used to enforce boundary conditions
     if pyom.enable_cyclic_x:
         # couple edges of the domain
         wrap_diag_east, wrap_diag_west = (np.zeros((pyom.nx+4, pyom.ny+4)) for _ in range(2))
-        wrap_diag_east[2, 2:-2] = west_diag[2, 2:-2]
-        wrap_diag_west[-3, 2:-2] = east_diag[-3, 2:-2]
+        wrap_diag_east[2, 2:-2] = west_diag[2, 2:-2] * z[2, 2:-2]
+        wrap_diag_west[-3, 2:-2] = east_diag[-3, 2:-2] * z[-3, 2:-2]
         west_diag[2, 2:-2] = 0.
         east_diag[-3, 2:-2] = 0.
 
     # construct sparse matrix
-    cf = tuple(diag.flatten() for diag in (main_diag, east_diag, west_diag, north_diag, south_diag))
+    cf = tuple(diag.flatten() for diag in (z * main_diag + (1-z), z * east_diag, z * west_diag, z * north_diag, z * south_diag))
     offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1)
 
     if pyom.enable_cyclic_x:
         offsets += (-main_diag.shape[1] * (pyom.nx-1), main_diag.shape[1] * (pyom.nx-1))
         cf += (wrap_diag_east.flatten(), wrap_diag_west.flatten())
 
-    return scipy.sparse.dia_matrix((np.array(cf), offsets), shape=(main_diag.size, main_diag.size)).T
+    return scipy.sparse.dia_matrix((np.array(cf), offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()

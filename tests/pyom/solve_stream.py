@@ -8,7 +8,7 @@ from climate import Timer
 from climate.pyom import numerics, external
 
 class StreamfunctionTest(PyOMTest):
-    repetitions = 1
+    repetitions = 100
     extra_settings = {
                         "enable_cyclic_x": True,
                         "enable_congrad_verbose": False,
@@ -42,7 +42,7 @@ class StreamfunctionTest(PyOMTest):
 
         kbot = np.random.randint(1, self.nz, size=(self.nx+4,self.ny+4))
         # add some islands, but avoid boundaries
-        kbot[3:-3,3:-3].flat[np.random.randint(0, (self.nx-2) * (self.ny-2), size=5)] = 0
+        kbot[3:-3,3:-3].flat[np.random.randint(0, (self.nx-2) * (self.ny-2), size=10)] = 0
         self.set_attribute("kbot",kbot)
 
         for r in ("calc_grid", "calc_topo"):

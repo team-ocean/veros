@@ -8,7 +8,9 @@ setup(
     packages = find_packages(),
     install_requires = [
         'numpy<1.12', #NOTE: this is for testing purposes only as the original PyOM does not support numpy 1.12
-        'scipy'
+        'scipy',
+        'pyamg',
+	'netCDF4'
         ],
 
     author = "René Løwe Jacobsen",

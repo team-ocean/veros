@@ -47,9 +47,9 @@ class ACC2Test(PyOMTest):
         if not passed:
             print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:
-                v1 = v1[...,0]
+                v1 = v1[...,-1]
             while v2.ndim > 2:
-                v2 = v2[...,0]
+                v2 = v2[...,-1]
             if v1.ndim == 2:
                 fig, axes = plt.subplots(1,3)
                 axes[0].imshow(v1)
