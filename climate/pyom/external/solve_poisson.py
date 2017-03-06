@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import scipy.sparse
 
@@ -5,7 +6,6 @@ try:
     import pyamg
     has_pyamg = True
 except ImportError:
-    import warnings
     warnings.warn("pyamg was not found, falling back to SciPy CG solver")
     import scipy.sparse.linalg as spalg
     has_pyamg = False
@@ -17,15 +17,16 @@ def solve(rhs, sol, pyom, boundary_val=None):
     """
     Main solver for streamfunction. Solves a 2D Poisson equation. Uses either pyamg
     or scipy.sparse.linalg linear solvers.
+
+    :param rhs: Right-hand side vector
+    :param sol: Initial guess, gets overwritten with solution
+    :param boundary_val: Array containing values to set on boundary elements. Defaults to `sol`.
     """
-    # only assemble matrix if parent object changes
-    if not solve.pyom or solve.pyom != id(pyom):
-        solve.matrix = _assemble_poisson_matrix(pyom)
+    if not solve.pyom or solve.pyom != id(pyom): # only initialize solver if parent object changes
         if has_pyamg:
-            B = np.ones(rhs.size)
-            solve.amg_solver = pyamg.smoothed_aggregation_solver(solve.matrix,B)
+            solve.linear_solver = _get_amg_solver(pyom)
         else:
-            solve.preconditioner = _jacobi_preconditioner(solve.matrix, pyom)
+            solve.linear_solver = _get_scipy_solver(pyom)
         solve.pyom = id(pyom)
 
     if pyom.enable_cyclic_x:
@@ -34,30 +35,44 @@ def solve(rhs, sol, pyom, boundary_val=None):
     if boundary_val is None:
         boundary_val = sol
 
-    # set right hand side on boundaries
     z = np.prod(~pyom.boundary_mask, axis=2).astype(np.bool)
-    rhs[...] = np.where(z, rhs, boundary_val)
+    rhs[...] = np.where(z, rhs, boundary_val) # set right hand side on boundaries
+    linear_solution = solve.linear_solver(rhs,sol)
+    sol[...] = boundary_val
+    sol[2:-2,2:-2] = linear_solution.reshape(pyom.nx+4,pyom.ny+4)[2:-2,2:-2]
+solve.pyom = None
 
-    tolerance = pyom.congr_epsilon * 1e-8 # to achieve the same precision as the legacy solver
-    if has_pyamg:
+
+def _get_scipy_solver(pyom):
+    matrix = _assemble_poisson_matrix(pyom)
+    preconditioner = _jacobi_preconditioner(matrix, pyom)
+    preconditioner.diagonal()[...] *= np.prod(~pyom.boundary_mask, axis=2).astype(np.int).flatten()
+    matrix = preconditioner * matrix
+    def scipy_solver(rhs,x0):
+        rhs = rhs.flatten() * preconditioner.diagonal()
+        solution, info = spalg.bicgstab(matrix, rhs,
+                                        x0=x0.flatten(), tol=pyom.congr_epsilon,
+                                        maxiter=pyom.congr_max_iterations)
+        if info > 0:
+            warnings.warn("Streamfunction solver did not converge after {} iterations".format(info))
+        return solution
+    return scipy_solver
+
+
+def _get_amg_solver(pyom):
+    matrix = _assemble_poisson_matrix(pyom)
+    near_null_space = np.ones(matrix.shape[0])
+    ml = pyamg.smoothed_aggregation_solver(matrix, near_null_space)
+    def amg_solver(rhs,x0):
         residuals = []
-        solution = solve.amg_solver.solve(b=rhs.flatten(), x0=sol.flatten(), tol=tolerance,
+        tolerance = pyom.congr_epsilon * 1e-8 # to achieve the same precision as the preconditioned scipy solver
+        solution = ml.solve(b=rhs.flatten(), x0=x0.flatten(), tol=tolerance,
                                          residuals=residuals, accel="bicgstab")
         rel_res = residuals[-1] / residuals[0]
         if rel_res > tolerance:
-            print("WARNING: streamfunction solver did not converge - residual: {:.2e}".format(rel_res))
-    else:
-        solution, info = spalg.bicgstab(solve.matrix, rhs.flatten(),
-                                        x0=sol.flatten(), tol=tolerance,
-                                        maxiter=pyom.congr_max_iterations,
-                                        M=solve.preconditioner)
-        if info > 0:
-            print("WARNING: streamfunction solver did not converge after {} iterations".format(info))
-
-
-    sol[...] = boundary_val
-    sol[2:-2,2:-2] = solution.reshape(pyom.nx+4,pyom.ny+4)[2:-2,2:-2]
-solve.pyom = None
+            warnings.warn("Streamfunction solver did not converge - residual: {:.2e}".format(rel_res))
+        return solution
+    return amg_solver
 
 
 def _jacobi_preconditioner(matrix, pyom):
