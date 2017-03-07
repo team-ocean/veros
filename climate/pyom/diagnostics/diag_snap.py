@@ -1,7 +1,9 @@
 import os
 from collections import namedtuple
 from netCDF4 import Dataset
+import numpy as np
 
+from io_threading import threaded_netcdf
 
 def def_grid_cdf(ncfile,pyom):
     """
@@ -16,6 +18,7 @@ def def_grid_cdf(ncfile,pyom):
     lat_tdim = ncfile.createDimension("yt", pyom.ny)
     lat_udim = ncfile.createDimension("yu", pyom.ny)
     iTimedim = ncfile.createDimension("Time", None)
+    isle_dim = ncfile.createDimension("isle", pyom.nisle)
     # grid variables
     lon_tid = ncfile.createVariable("xt","f8",("xt",))
     lon_uid = ncfile.createVariable("xu","f8",("xu",))
@@ -67,6 +70,11 @@ def def_grid_cdf(ncfile,pyom):
         lat_tid[...] = pyom.yt[2:-2] / 1e3
         lat_uid[...] = pyom.yu[2:-2] / 1e3
 
+    ht_id = ncfile.createVariable("ht","f8",("xt","yt"))
+    ht_id.long_name = "Depth"
+    ht_id.units = "m"
+    ht_id[...] = pyom.ht[2:-2, 2:-2]
+
 
 def panic_snap(pyom):
     print("Writing snapshot before panic shutdown")
@@ -82,7 +90,6 @@ V_GRID = ("xt","yu","zt","Time")
 W_GRID = ("xt","yt","zw","Time")
 
 MAIN_VARIABLES = {
-    "ht": Var("depth",("xt","yt"),"m"),
     "temp": Var("Temperature",T_GRID, "deg C"),
     "salt": Var("Salinity",T_GRID, "g/kg"),
     "u": Var("Zonal velocity", U_GRID, "m/s"),
@@ -90,8 +97,8 @@ MAIN_VARIABLES = {
     "w": Var("Vertical velocity", W_GRID, "m/s"),
     "forc_temp_surface": Var("Surface temperature flux", ("xt","yt","Time"), "m^2/s^2"),
     "forc_salt_surface": Var("Surface salinity flux", ("xt","yt","Time"), "m^2/s^2"),
-    "taux": Var("Surface wind stress", ("xu","yt","Time"), "m^2/s^2"),
-    "tauy": Var("Surface wind stress", ("xt","yu","Time"), "m^2/s^2"),
+    "surface_taux": Var("Surface wind stress", ("xu","yt","Time"), "m^2/s^2"),
+    "surface_tauy": Var("Surface wind stress", ("xt","yu","Time"), "m^2/s^2"),
     "Nsqr": Var("Square of stability frequency", W_GRID, "1/s^2"),
     "kappaH": Var("Vertical diffusivity", W_GRID, "m^2/s"),
 }
@@ -109,7 +116,7 @@ CONDITIONAL_VARIABLES = {
     },
     "enable_streamfunction": {
         "psi": Var("Streamfunction", ("xu","yu","Time"), "m^3/s"),
-        "psin": Var("Boundary streamfunction", ("xu","yu","Time",None), "m^3/s")
+        "psin": Var("Boundary streamfunction", ("xu","yu","Time","isle"), "m^3/s")
     },
     "not enable_streamfunction": {
         "surf_press": Var("Surface pressure", ("xt","yt","Time"), "m^2/s^2")
@@ -127,7 +134,7 @@ CONDITIONAL_VARIABLES = {
     },
     "enable_tke": {
         "tke": Var("Turbulent kinetic energy", W_GRID, "m^2/s^2"),
-        "Prandtl", Var("Prandtl number", W_GRID, ""),
+        "Prandtl": Var("Prandtl number", W_GRID, ""),
         "mxl": Var("Mixing length", W_GRID, "m"),
         "tke_diss": Var("TKE dissipation", W_GRID, "m^2/s^3"),
         "forc_tke": Var("TKE surface flux", ("xt","yt","Time"), "m^3/s^3"),
@@ -179,14 +186,14 @@ FILL_VALUE = -1e33
 
 
 def _init_var(key, var, ncfile):
-    v = f.createVariable(key, "f8", var.dims, fill_value=FILL_VALUE)
+    v = ncfile.createVariable(key, "f8", var.dims, fill_value=FILL_VALUE)
     v.long_name = var.name
     v.units = var.units
     v.missing_value = FILL_VALUE
 
 
 def _get_condition(condition, pyom):
-    return not getattr(pyom,condition[3:]) if condition.startswith("not ") else getattr(pyom, condition)
+    return not getattr(pyom,condition[4:]) if condition.startswith("not ") else getattr(pyom, condition)
 
 
 def init_snap_cdf(pyom):
@@ -195,25 +202,26 @@ def init_snap_cdf(pyom):
     """
     print("Preparing file {}".format(pyom.snap_file))
 
-    with Dataset(pyom.snap_file, "w") as f:
-        f.set_fill_off()
-        def_grid_cdf(f, pyom)
+    with threaded_netcdf(Dataset(pyom.snap_file, "w"), pyom, file_id="snapshot") as snap_dataset:
+        def_grid_cdf(snap_dataset, pyom)
         for key, var in MAIN_VARIABLES.items():
-            _init_var(key,var,f)
+            _init_var(key,var,snap_dataset)
         for condition, vardict in CONDITIONAL_VARIABLES.items():
             if _get_condition(condition, pyom):
                 for key, var in vardict.items():
-                    _init_var(key,var,f)
+                    _init_var(key,var,snap_dataset)
 
 
-def _write_var(key, var, ncfile, pyom):
-    var_data = getattr(key, pyom)
+def _write_var(key, var, n, ncfile, pyom):
+    var_data = getattr(pyom,key)
+    if var_data.ndim == 4:
+        var_data = var_data[..., pyom.tau]
     grid_masks = {T_GRID: pyom.maskT, U_GRID: pyom.maskU,
                   V_GRID: pyom.maskV, W_GRID: pyom.maskW}
     for grid, mask in grid_masks.items():
         if var.dims == grid:
             var_data = np.where(mask.astype(np.bool), var_data, FILL_VALUE)
-    f[key].append(var_data)
+    ncfile[key][..., n] = var_data[2:-2, 2:-2, ...]
 
 
 def diag_snap(pyom):
@@ -222,10 +230,12 @@ def diag_snap(pyom):
         print(" writing snapshot at {}s".format(time_in_days * 86400.))
     else:
         print(" writing snapshot at {}d".format(time_in_days))
-    with Dataset(pyom.snap_file, "w") as f:
-        f["Time"].append(time_in_days)
+
+    with threaded_netcdf(Dataset(pyom.snap_file, "a"), pyom, file_id="snapshot") as snap_dataset:
+        snapshot_number = snap_dataset["Time"].size
+        snap_dataset["Time"][snapshot_number] = time_in_days
         for key, var in MAIN_VARIABLES.items():
-            _write_var(key, var, f)
+            _write_var(key, var, snapshot_number, snap_dataset, pyom)
         for condition, vardict in CONDITIONAL_VARIABLES.items():
             if _get_condition(condition, pyom):
-                _write_var(key, var, f)
+                _write_var(key, var, snapshot_number, snap_dataset, pyom)

@@ -3,9 +3,11 @@ from collections import namedtuple
 import os
 import json
 import numpy as np
+from netCDF4 import Dataset
 
 import climate
 from climate.pyom.diagnostics.diag_snap import def_grid_cdf
+from climate.pyom.diagnostics.io_threading import threaded_netcdf
 
 
 Diagnostic = namedtuple("Diagnostic", ["name", "long_name", "units", "grid", "var", "sum"])
@@ -88,16 +90,13 @@ def write_averages(pyom):
     """
     write averages to netcdf file and zero array
     """
-    from netCDF4 import Dataset
-
     fill_value = -1e33
     filename = "averages_{}.cdf".format(pyom.itt)
 
-    with Dataset(filename,mode='w') as f:
+    with threaded_netcdf(Dataset(filename,mode='w'), pyom) as f:
         print(" writing averages to file " + filename)
-        def_grid_cdf(f,pyom)
-        f.set_fill_off()
-        for diag in pyom.diagnostics: # n=1,number_diags
+        def_grid_cdf(f, pyom)
+        for diag in pyom.diagnostics:
             dims = _build_dimensions(diag.grid)
             mask = _get_mask(diag.grid,pyom)
             var_data = np.where(mask, diag.sum, np.nan)
@@ -113,7 +112,6 @@ def write_averages(pyom):
 
 
 UNFINISHED_AVERAGES_FILENAME = "unfinished_averages.json"
-
 
 def diag_averages_write_restart(pyom):
     """

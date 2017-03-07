@@ -314,6 +314,8 @@ class PyOM(object):
         New
         """
         self.diagnostics = []
+        self.use_io_threads = True
+        self.io_timeout = None
         self.average_nitts = 0
         self.timers = {k: Timer(k) for k in ("setup","main","momentum","temperature",
                                              "eke","idemix","tke","diagnostics",
