@@ -2,11 +2,10 @@ import numpy as np
 import math
 
 import climate
-from climate.io import wrapper
 from climate import Timer
-from climate.pyom import momentum, numerics, thermodynamics, eke, tke, idemix
-from climate.pyom import isoneutral, external, diagnostics, non_hydrostatic
-from climate.pyom import advection, restart, cyclic
+from climate.pyom import momentum, numerics, thermodynamics, eke, tke, idemix, \
+                         isoneutral, external, diagnostics, non_hydrostatic, \
+                         advection, restart, cyclic
 
 class PyOM(object):
     """
@@ -34,6 +33,16 @@ class PyOM(object):
     set_diagnostics = _not_implemented
 
     def __init__(self):
+        self.set_default_settings()
+        self.diagnostics = []
+        self.average_nitts = 0
+        self.timers = {k: Timer(k) for k in ("setup","main","momentum","temperature",
+                                             "eke","idemix","tke","diagnostics",
+                                             "pressure","friction","isoneutral",
+                                             "vmix","eq_of_state")}
+
+
+    def set_default_settings(self):
         """
         Model parameters
         """
@@ -172,9 +181,8 @@ class PyOM(object):
         """
         self.enable_free_surface = False   # implicit free surface
         self.enable_streamfunction = False   # solve for streamfct instead of surface pressure
-        self.enable_congrad_verbose = False # print some info
-        self.congr_itts = 0                 # number of iterations of poisson solver NOTE: only has value 0 to init variable
-        self.congr_epsilon = np.array(1e-12)# convergence criteria for poisson solver
+        self.enable_congrad_verbose = False  # print some info
+        self.congr_epsilon = 1e-12 # convergence criteria for poisson solver
         self.congr_max_iterations = 1000    # max. number of iterations
 
         """
@@ -273,8 +281,8 @@ class PyOM(object):
         self.enable_diag_overturning = False # enable isopycnal overturning diagnostic
         self.enable_diag_tracer_content = False # enable tracer content and variance monitor
         self.enable_diag_particles = False # enable integration of particles
-        self.snap_file = "pyOM.cdf"
-        self.diag_energy_file = "energy.cdf"
+        self.snap_file = "snapshot.nc"
+        self.diag_energy_file = "energy.nc"
         self.snapint = 0. # intervall between snapshots to be written in seconds
         self.aveint = 0. # intervall between time averages to be written in seconds
         self.energint = 0. # intervall between energy diag to be written in seconds
@@ -313,120 +321,115 @@ class PyOM(object):
         """
         New
         """
-        self.diagnostics = []
         self.use_io_threads = True
         self.io_timeout = None
-        self.average_nitts = 0
-        self.timers = {k: Timer(k) for k in ("setup","main","momentum","temperature",
-                                             "eke","idemix","tke","diagnostics",
-                                             "pressure","friction","isoneutral",
-                                             "vmix","eq_of_state")}
+
 
     def allocate(self):
-        self.xt = np.zeros(self.nx+4)
-        self.xu = np.zeros(self.nx+4)
-        self.yt = np.zeros(self.ny+4)
-        self.yu = np.zeros(self.ny+4)
-        self.dxt = np.zeros(self.nx+4)
-        self.dxu = np.zeros(self.nx+4)
-        self.dyt = np.zeros(self.ny+4)
-        self.dyu = np.zeros(self.ny+4)
+        self.xt = np.zeros(self.nx+4) # zonal (x) coordinate of T-grid point in meters
+        self.xu = np.zeros(self.nx+4) # zonal (x) coordinate of U-grid point in meters
+        self.yt = np.zeros(self.ny+4) # meridional (y) coordinate of T-grid point in meters
+        self.yu = np.zeros(self.ny+4) # meridional (y) coordinate of V-grid point in meters
+        self.dxt = np.zeros(self.nx+4) # zonal T-grid spacing
+        self.dxu = np.zeros(self.nx+4) # zonal U-grid spacing
+        self.dyt = np.zeros(self.ny+4) # meridional T-grid spacing
+        self.dyu = np.zeros(self.ny+4) # meridional U-grid spacing
 
-        self.zt = np.zeros(self.nz)
-        self.dzt = np.zeros(self.nz)
-        self.zw = np.zeros(self.nz)
-        self.dzw = np.zeros(self.nz)
+        self.zt = np.zeros(self.nz) # vertical coordinate in m
+        self.dzt = np.zeros(self.nz) # vertical spacing
+        self.zw = np.zeros(self.nz) # vertical coordinate in m
+        self.dzw = np.zeros(self.nz) # vertical spacing
 
-        self.cost = np.ones(self.ny+4)
-        self.cosu = np.ones(self.ny+4)
-        self.tantr = np.zeros(self.ny+4)
-        self.coriolis_t = np.zeros((self.nx+4, self.ny+4))
-        self.coriolis_h = np.zeros((self.nx+4, self.ny+4))
+        self.cost = np.ones(self.ny+4) # metric factor for spherical coordinates on T grid
+        self.cosu = np.ones(self.ny+4) # metric factor for spherical coordinates on U grid
+        self.tantr = np.zeros(self.ny+4) # metric factor for spherical coordinates
+        self.coriolis_t = np.zeros((self.nx+4, self.ny+4)) # coriolis frequency at T grid point in 1/s
+        self.coriolis_h = np.zeros((self.nx+4, self.ny+4)) # horizontal coriolis frequency at T grid point in 1/s
 
-        self.kbot = np.zeros((self.nx+4, self.ny+4), dtype=np.int)
-        self.ht = np.zeros((self.nx+4, self.ny+4))
-        self.hu = np.zeros((self.nx+4, self.ny+4))
-        self.hv = np.zeros((self.nx+4, self.ny+4))
-        self.hur = np.zeros((self.nx+4, self.ny+4))
-        self.hvr = np.zeros((self.nx+4, self.ny+4))
-        self.beta = np.zeros((self.nx+4, self.ny+4))
-        self.area_t = np.zeros((self.nx+4, self.ny+4))
-        self.area_u = np.zeros((self.nx+4, self.ny+4))
-        self.area_v = np.zeros((self.nx+4, self.ny+4))
+        self.kbot = np.zeros((self.nx+4, self.ny+4), dtype=np.int) # 0 denotes land, 0<kmt<=nz denotes deepest cell zt(kmt-1)
+        self.ht = np.zeros((self.nx+4, self.ny+4)) # total depth in m
+        self.hu = np.zeros((self.nx+4, self.ny+4)) # total depth in m at u-grid
+        self.hv = np.zeros((self.nx+4, self.ny+4)) # total depth in m at v-grid
+        self.hur = np.zeros((self.nx+4, self.ny+4)) # total depth in m at u-grid
+        self.hvr = np.zeros((self.nx+4, self.ny+4)) # total depth in m at v-grid
+        self.beta = np.zeros((self.nx+4, self.ny+4)) # df/dy in 1/ms
+        self.area_t = np.zeros((self.nx+4, self.ny+4)) # Area of T-box in m^2
+        self.area_u = np.zeros((self.nx+4, self.ny+4)) # Area of U-box in m^2
+        self.area_v = np.zeros((self.nx+4, self.ny+4)) # Area of V-box in m^2
 
-        self.maskT = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.maskU = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.maskV = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.maskW = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.maskZ = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.maskT = np.zeros((self.nx+4, self.ny+4, self.nz)) # mask in physical space for tracer points
+        self.maskU = np.zeros((self.nx+4, self.ny+4, self.nz)) # mask in physical space for U points
+        self.maskV = np.zeros((self.nx+4, self.ny+4, self.nz)) # mask in physical space for V points
+        self.maskW = np.zeros((self.nx+4, self.ny+4, self.nz)) # mask in physical space for W points
+        self.maskZ = np.zeros((self.nx+4, self.ny+4, self.nz)) # mask in physical space for Zeta points
 
-        self.rho = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.int_drhodT = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.rho = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # density in kg/m^3
+        self.int_drhodT = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # partial derivatives of dyn. enthalpy
         self.int_drhodS = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.Nsqr = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.Hd = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.dHd = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+        self.Nsqr = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # Square of stability frequency in 1/s^2
+        self.Hd = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # dynamic enthalpy
+        self.dHd = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # hange of dynamic enthalpy due to advection
 
-        self.temp = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.dtemp = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.salt = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.dsalt = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.dtemp_vmix = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dtemp_hmix = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dsalt_vmix = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dsalt_hmix = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dtemp_iso = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dsalt_iso = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.forc_temp_surface = np.zeros((self.nx+4, self.ny+4))
-        self.forc_salt_surface = np.zeros((self.nx+4, self.ny+4))
+        self.temp = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # conservative temperature in deg C
+        self.dtemp = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # conversative temperature tendency
+        self.salt = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # salinity in g/Kg
+        self.dsalt = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # salinity tendency
+        self.dtemp_vmix = np.zeros((self.nx+4, self.ny+4, self.nz)) # change of temperature due to vertical mixing
+        self.dtemp_hmix = np.zeros((self.nx+4, self.ny+4, self.nz)) # change of temperature due to lateral mixing
+        self.dsalt_vmix = np.zeros((self.nx+4, self.ny+4, self.nz)) # change of salinity due to vertical mixing
+        self.dsalt_hmix = np.zeros((self.nx+4, self.ny+4, self.nz)) # change salinity due to lateral mixing
+        self.dtemp_iso = np.zeros((self.nx+4, self.ny+4, self.nz)) # change of temperature due to isopynal mixing plus skew mixing
+        self.dsalt_iso = np.zeros((self.nx+4, self.ny+4, self.nz)) # change of salinity due to isopynal mixing plus skew mixing
+        self.forc_temp_surface = np.zeros((self.nx+4, self.ny+4)) # surface temperature flux
+        self.forc_salt_surface = np.zeros((self.nx+4, self.ny+4)) # surface salinity flux
 
         if self.enable_tempsalt_sources:
-            self.temp_source = np.zeros((self.nx+4, self.ny+4, self.nz))
-            self.salt_source = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.temp_source = np.zeros((self.nx+4, self.ny+4, self.nz)) # non conservative source of temperature in K/s
+            self.salt_source = np.zeros((self.nx+4, self.ny+4, self.nz)) # non conservative source of salinity in g/(kgs)
         if self.enable_momentum_sources:
-            self.u_source = np.zeros((self.nx+4, self.ny+4, self.nz))
-            self.v_source = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self.u_source = np.zeros((self.nx+4, self.ny+4, self.nz)) # non conservative source of zonal velocity
+            self.v_source = np.zeros((self.nx+4, self.ny+4, self.nz)) # non conservative source of meridional velocity
 
-        self.flux_east = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.flux_east = np.zeros((self.nx+4, self.ny+4, self.nz)) # multi-purpose fluxes
         self.flux_north = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.flux_top = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.u = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.v = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.w = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.du = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.dv = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
-        self.du_cor = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dv_cor = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.du_mix = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dv_mix = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.du_adv = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.dv_adv = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.u_source = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.v_source = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.p_hydro = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.psi = np.zeros((self.nx+4, self.ny+4, 3))
-        self.dpsi = np.zeros((self.nx+4, self.ny+4, 3))
+        self.u = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # zonal velocity
+        self.v = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # meridional velocity
+        self.w = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # vertical velocity
+        self.du = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # zonal velocity tendency
+        self.dv = np.zeros((self.nx+4, self.ny+4, self.nz, 3)) # meridional velocity tendency
+        self.du_cor = np.zeros((self.nx+4, self.ny+4, self.nz)) # change of u due to Coriolis force
+        self.dv_cor = np.zeros((self.nx+4, self.ny+4, self.nz)) # change of v due to Coriolis force
+        self.du_mix = np.zeros((self.nx+4, self.ny+4, self.nz)) # change of u due to implicit vertical mixing
+        self.dv_mix = np.zeros((self.nx+4, self.ny+4, self.nz)) # change of v due to implicit vertical mixing
+        self.du_adv = np.zeros((self.nx+4, self.ny+4, self.nz)) # change of u due to advection
+        self.dv_adv = np.zeros((self.nx+4, self.ny+4, self.nz)) # change of v due to advection
+        self.u_source = np.zeros((self.nx+4, self.ny+4, self.nz)) # non conservative source of zonal velocity
+        self.v_source = np.zeros((self.nx+4, self.ny+4, self.nz)) # non conservative source of meridional velocity
+        self.p_hydro = np.zeros((self.nx+4, self.ny+4, self.nz)) # hydrostatic pressure
+        self.psi = np.zeros((self.nx+4, self.ny+4, 3)) # surface pressure or streamfunction
+        self.dpsi = np.zeros((self.nx+4, self.ny+4, 3)) # change of streamfunction
 
         self.kappaM = np.zeros((self.nx+4, self.ny+4, self.nz))
         self.kappaH = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-        self.surface_taux = np.zeros((self.nx+4, self.ny+4))
-        self.surface_tauy = np.zeros((self.nx+4, self.ny+4))
-        self.forc_rho_surface = np.zeros((self.nx+4, self.ny+4))
+        self.surface_taux = np.zeros((self.nx+4, self.ny+4)) # zonal wind stress
+        self.surface_tauy = np.zeros((self.nx+4, self.ny+4)) # meridional wind stress
+        self.forc_rho_surface = np.zeros((self.nx+4, self.ny+4)) # surface potential density flux
 
-        self.K_diss_v       = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.K_diss_h       = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.K_diss_gm      = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.K_diss_bot     = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_v       = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_nonlin  = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_adv     = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_comp    = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_hmix    = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_iso     = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_skew    = np.zeros((self.nx+4, self.ny+4, self.nz))
-        self.P_diss_sources = np.zeros((self.nx+4, self.ny+4, self.nz))
+        self.K_diss_v = np.zeros((self.nx+4, self.ny+4, self.nz)) # kinetic energy dissipation by vertical, rayleigh and bottom friction
+        self.K_diss_h = np.zeros((self.nx+4, self.ny+4, self.nz)) # kinetic energy dissipation by horizontal friction
+        self.K_diss_gm = np.zeros((self.nx+4, self.ny+4, self.nz)) # mean energy dissipation by GM (TRM formalism only)
+        self.K_diss_bot = np.zeros((self.nx+4, self.ny+4, self.nz)) # mean energy dissipation by bottom and rayleigh friction
+        self.P_diss_v = np.zeros((self.nx+4, self.ny+4, self.nz)) # potential energy dissipation by vertical diffusion
+        self.P_diss_nonlin = np.zeros((self.nx+4, self.ny+4, self.nz)) # potential energy dissipation by nonlinear equation of state
+        self.P_diss_adv = np.zeros((self.nx+4, self.ny+4, self.nz)) # potential energy dissipation by advection
+        self.P_diss_comp = np.zeros((self.nx+4, self.ny+4, self.nz)) # potential energy dissipation by compression
+        self.P_diss_hmix = np.zeros((self.nx+4, self.ny+4, self.nz)) # potential energy dissipation by horizontal mixing
+        self.P_diss_iso = np.zeros((self.nx+4, self.ny+4, self.nz)) # potential energy dissipation by isopycnal mixing
+        self.P_diss_skew = np.zeros((self.nx+4, self.ny+4, self.nz)) # potential energy dissipation by GM (w/o TRM)
+        self.P_diss_sources = np.zeros((self.nx+4, self.ny+4, self.nz)) # potential energy dissipation by restoring zones, etc
 
         self.r_bot_var_u = np.zeros((self.nx+4, self.ny+4))
         self.r_bot_var_v = np.zeros((self.nx+4, self.ny+4))
