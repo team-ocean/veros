@@ -1,18 +1,17 @@
-import numpy as np
 import warnings
 
-import climate
+from climate.pyom import pyom_method
 from climate.pyom.utilities import pad_z_edges
 
-def _calc_cr(rjp,rj,rjm,vel):
+@pyom_method
+def _calc_cr(pyom,rjp,rj,rjm,vel):
     """
     Calculates cr value used in superbee advection scheme
     """
     eps = 1e-20 # prevent division by 0
     mask_rj = rj == 0.
     mask_vel = vel > 0
-    if climate.is_bohrium: # prevent precision problems
-        np.flush()
+    pyom.flush() # prevent precision problems
     mask1 = ~mask_rj & mask_vel
     cr = np.where(mask1, rjm / (rj + eps), np.zeros_like(rj))
     mask2 = ~mask_rj & ~mask_vel
@@ -23,8 +22,8 @@ def _calc_cr(rjp,rj,rjm,vel):
     cr[...] = np.where(mask4, rjp * 1e20, cr)
     return cr
 
-
-def _adv_superbee(vel, var, mask, dx, axis, pyom):
+@pyom_method
+def _adv_superbee(pyom, vel, var, mask, dx, axis):
     limiter = lambda cr: np.maximum(0.,np.maximum(np.minimum(1.,2*cr), np.minimum(2.,cr)))
     velfac = 1
     if axis == 0:
@@ -44,11 +43,11 @@ def _adv_superbee(vel, var, mask, dx, axis, pyom):
     rjp = (var[sp2] - var[sp1]) * mask[sp1]
     rj = (var[sp1] - var[s]) * mask[s]
     rjm = (var[s] - var[sm1]) * mask[sm1]
-    cr = limiter(_calc_cr(rjp,rj,rjm,vel[s]))
+    cr = limiter(_calc_cr(pyom, rjp, rj, rjm, vel[s]))
     return velfac * vel[s] * (var[sp1] + var[s]) * 0.5 - np.abs(velfac * vel[s]) * ((1.-cr) + uCFL*cr) * rj * 0.5
 
-
-def adv_flux_2nd(adv_fe,adv_fn,adv_ft,var,pyom):
+@pyom_method
+def adv_flux_2nd(pyom,adv_fe,adv_fn,adv_ft,var):
     """
     2th order advective tracer flux
     """
@@ -58,8 +57,8 @@ def adv_flux_2nd(adv_fe,adv_fn,adv_ft,var,pyom):
     adv_ft[2:-2, 2:-2, :-1] = 0.5 * (var[2:-2, 2:-2, :-1] + var[2:-2, 2:-2, 1:]) * pyom.w[2:-2, 2:-2, :-1, pyom.tau] * pyom.maskW[2:-2, 2:-2, :-1]
     adv_ft[:,:,-1] = 0.
 
-
-def adv_flux_superbee(adv_fe,adv_fn,adv_ft,var,pyom):
+@pyom_method
+def adv_flux_superbee(pyom,adv_fe,adv_fn,adv_ft,var):
     """
     from MITgcm
     Calculates advection of a tracer
@@ -73,12 +72,12 @@ def adv_flux_superbee(adv_fe,adv_fn,adv_ft,var,pyom):
     where the $\psi(C_r)$ is the limiter function and $C_r$ is
     the slope ratio.
     """
-    adv_fe[1:-2, 2:-2, :] = _adv_superbee(pyom.u[..., pyom.tau], var, pyom.maskU, pyom.dxt, 0, pyom)
-    adv_fn[2:-2, 1:-2, :] = _adv_superbee(pyom.v[..., pyom.tau], var, pyom.maskV, pyom.dyt, 1, pyom)
-    adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(pyom.w[..., pyom.tau], var, pyom.maskW, pyom.dzt, 2, pyom)
+    adv_fe[1:-2, 2:-2, :] = _adv_superbee(pyom, pyom.u[..., pyom.tau], var, pyom.maskU, pyom.dxt, 0)
+    adv_fn[2:-2, 1:-2, :] = _adv_superbee(pyom, pyom.v[..., pyom.tau], var, pyom.maskV, pyom.dyt, 1)
+    adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(pyom, pyom.w[..., pyom.tau], var, pyom.maskW, pyom.dzt, 2)
     adv_ft[..., -1] = 0.
 
-
+@pyom_method
 def calculate_velocity_on_wgrid(pyom):
     """
     calculates advection velocity for tracer on W grid
@@ -112,26 +111,27 @@ def calculate_velocity_on_wgrid(pyom):
                                      / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None])), axis=2)
 
 
-
-def adv_flux_superbee_wgrid(adv_fe,adv_fn,adv_ft,var,pyom):
+@pyom_method
+def adv_flux_superbee_wgrid(pyom,adv_fe,adv_fn,adv_ft,var):
     """
     Calculates advection of a tracer defined on Wgrid
     """
     maskUtr = np.zeros_like(adv_fe)
     maskUtr[:-1, :, :] = pyom.maskW[1:, :, :] * pyom.maskW[:-1, :, :]
-    adv_fe[1:-2, 2:-2, :] = _adv_superbee(pyom.u_wgrid, var, maskUtr, pyom.dxt, 0, pyom)
+    adv_fe[1:-2, 2:-2, :] = _adv_superbee(pyom, pyom.u_wgrid, var, maskUtr, pyom.dxt, 0)
 
     maskVtr = np.zeros_like(adv_fn)
     maskVtr[:, :-1, :] = pyom.maskW[:, 1:, :] * pyom.maskW[:, :-1, :]
-    adv_fn[2:-2, 1:-2, :] = _adv_superbee(pyom.v_wgrid, var, maskVtr, pyom.dyt, 1, pyom)
+    adv_fn[2:-2, 1:-2, :] = _adv_superbee(pyom, pyom.v_wgrid, var, maskVtr, pyom.dyt, 1)
 
     maskWtr = np.zeros_like(adv_ft)
     maskWtr[:, :, :-1] = pyom.maskW[:, :, 1:] * pyom.maskW[:, :, :-1]
-    adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(pyom.w_wgrid, var, maskWtr, pyom.dzw, 2, pyom)
+    adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(pyom, pyom.w_wgrid, var, maskWtr, pyom.dzw, 2)
     adv_ft[..., -1] = 0.0
 
 
-def adv_flux_upwind_wgrid(adv_fe,adv_fn,adv_ft,var,pyom):
+@pyom_method
+def adv_flux_upwind_wgrid(pyom,adv_fe,adv_fn,adv_ft,var):
     """
     Calculates advection of a tracer defined on Wgrid
     """

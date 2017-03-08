@@ -1,5 +1,11 @@
 import climate
 import numpy as np
+try:
+    import bohrium as bh
+    flush = bh.flush
+except ImportError:
+    flush = lambda: None
+    
 import time
 
 class Timer:
@@ -12,8 +18,7 @@ class Timer:
         self.starts.append(time.time())
 
     def __exit__(self, type, value, traceback):
-        if climate.is_bohrium:
-            np.flush()
+        flush()
         self.ends.append(time.time())
 
     def printTime(self):

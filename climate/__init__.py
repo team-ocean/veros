@@ -1,7 +1,7 @@
 import importlib
-import numpy as np
 
 from .timer import Timer
+from .replace_numpy import replace_numpy
 
 __all__ = [
     "model",
@@ -9,8 +9,6 @@ __all__ = [
     "pyom",
     "setup"
 ]
-
-is_bohrium = np.__name__ == 'bohrium'
 
 for module in __all__:
     importlib.import_module('.%s' % module, 'climate')

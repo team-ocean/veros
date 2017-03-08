@@ -1,7 +1,19 @@
-import numpy as np
 import math
+import argparse
+import warnings
 
-import climate
+import numpy
+if numpy.__name__ == "bohrium":
+    warnings.warn("Running pyOM with -m bohrium is discouraged (use --backend bohrium instead)")
+    import numpy_force
+    numpy = numpy_force
+try:
+    import bohrium
+except ImportError:
+    bohrium = None
+
+BACKENDS = {"numpy": numpy, "bohrium": bohrium}
+
 from climate import Timer
 from climate.pyom import momentum, numerics, thermodynamics, eke, tke, idemix, \
                          isoneutral, external, diagnostics, non_hydrostatic, \
@@ -9,9 +21,11 @@ from climate.pyom import momentum, numerics, thermodynamics, eke, tke, idemix, \
 
 class PyOM(object):
     """
-    Constants
+    Main class for PyOM.
     """
-    pi = np.pi
+
+    # Constants
+    pi = numpy.pi
     radius = 6370.0e3 # Earth radius in m
     degtom = radius / 180.0 * pi # conversion degrees latitude to meters
     mtodeg = 1 / degtom # reverse conversion
@@ -19,9 +33,7 @@ class PyOM(object):
     rho_0 = 1024.0 # Boussinesq reference density in kg/m^3
     grav = 9.81 # gravitational constant in m/s^2
 
-    """
-    Interface
-    """
+    # Interface
     def _not_implemented(self):
         raise NotImplementedError("Needs to be implemented by subclass")
     set_parameter = _not_implemented
@@ -32,7 +44,8 @@ class PyOM(object):
     set_topography = _not_implemented
     set_diagnostics = _not_implemented
 
-    def __init__(self):
+    def __init__(self, backend=None):
+        self.backend, self.backend_name = self._get_backend(backend)
         self.set_default_settings()
         self.diagnostics = []
         self.average_nitts = 0
@@ -40,6 +53,19 @@ class PyOM(object):
                                              "eke","idemix","tke","diagnostics",
                                              "pressure","friction","isoneutral",
                                              "vmix","eq_of_state")}
+
+    def _get_backend(self, backend):
+        if backend is None:
+            parser = argparse.ArgumentParser(description="PyOM command line interface")
+            parser.add_argument("--backend", "-b", default="numpy", choices=BACKENDS.keys(),
+                        help="Backend to use for computations. Defaults to 'numpy'.")
+            args, _ = parser.parse_known_args()
+            backend = args.backend
+        if not backend in BACKENDS.keys():
+            raise ValueError("unrecognized backend {} (must be either of: {!r})".format(backend, BACKENDS.keys()))
+        if BACKENDS[backend] is None:
+            raise ValueError("{} backend failed to import".format(backend))
+        return BACKENDS[backend], backend
 
 
     def set_default_settings(self):
@@ -326,6 +352,7 @@ class PyOM(object):
 
 
     def allocate(self):
+        np = self.backend
         self.xt = np.zeros(self.nx+4) # zonal (x) coordinate of T-grid point in meters
         self.xu = np.zeros(self.nx+4) # zonal (x) coordinate of U-grid point in meters
         self.yt = np.zeros(self.ny+4) # meridional (y) coordinate of T-grid point in meters
@@ -556,6 +583,12 @@ class PyOM(object):
                 self.c_Ri_diss = np.zeros((self.nx+4, self.ny+4, self.nz))
 
 
+    def flush(self):
+        try:
+            self.backend.flush()
+        except AttributeError:
+            pass
+
 
     def run(self, snapint, runlen):
         self.runlen = runlen
@@ -648,8 +681,7 @@ class PyOM(object):
                     if self.enable_hydrostatic:
                         momentum.vertical_velocity(self)
 
-                if climate.is_bohrium:
-                    np.flush()
+                self.flush()
 
                 with self.timers["diagnostics"]:
                     diagnostics.diagnose(self)
@@ -679,6 +711,7 @@ class PyOM(object):
         print("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
         print("     TKE                  = {}s".format(self.timers["tke"].getTime()))
         print(" diagnostics              = {}s".format(self.timers["diagnostics"].getTime()))
+
 
     def setup(self):
         print("setting up everything")

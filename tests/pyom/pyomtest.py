@@ -1,15 +1,13 @@
 import sys
 import numpy as np
+import bohrium as bh
 from collections import OrderedDict
 
 from climate.pyom import PyOMLegacy
 from climate import Timer
 import climate
 
-if climate.is_bohrium:
-    flush = np.flush
-else:
-    flush = lambda: None
+flush = bh.flush
 
 class PyOMTest(object):
     legacy_modules = ("main_module", "isoneutral_module", "tke_module",
@@ -46,9 +44,10 @@ class PyOMTest(object):
 
 
     def set_attribute(self, attribute, value):
-        if climate.is_bohrium and isinstance(value, np.float):
-            value = np.asarray(value)
-        setattr(self.pyom_new, attribute, value)
+        if isinstance(value, np.ndarray):
+            getattr(self.pyom_new, attribute)[...] = value
+        else:
+            setattr(self.pyom_new, attribute, value)
         for module in self.legacy_modules:
             module_handle = getattr(self.pyom_legacy,module)
             if hasattr(module_handle, attribute):
@@ -65,10 +64,12 @@ class PyOMTest(object):
     def get_attribute(self, attribute):
         try:
             pyom_attr = getattr(self.pyom_new, attribute)
-            if climate.is_bohrium and isinstance(pyom_attr, np.ndarray):
-                pyom_attr = pyom_attr.copy2numpy()
         except AttributeError:
             pyom_attr = None
+        try:
+            pyom_attr = pyom_attr.copy2numpy()
+        except AttributeError:
+            pass
         pyom_legacy_attr = None
         for module in self.legacy_modules:
             module_handle = getattr(self.pyom_legacy,module)

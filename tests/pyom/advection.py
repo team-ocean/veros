@@ -40,7 +40,7 @@ class AdvectionTest(PyOMTest):
         calc_topo_legacy()
 
         self.test_module = advection
-        pyom_args = (self.pyom_new.flux_east, self.pyom_new.flux_north, self.pyom_new.flux_top, self.pyom_new.Hd[...,1], self.pyom_new)
+        pyom_args = (self.pyom_new, self.pyom_new.flux_east, self.pyom_new.flux_north, self.pyom_new.flux_top, self.pyom_new.Hd[...,1])
         pyom_legacy_args = dict(is_=-1, ie_=m.nx+2, js_=-1, je_=m.ny+2, nz_=m.nz, adv_fe=m.flux_east, adv_fn=m.flux_north, adv_ft=m.flux_top, var=m.Hd[...,1])
         self.test_routines = OrderedDict()
         self.test_routines["calculate_velocity_on_wgrid"] = ((self.pyom_new,), dict())
