@@ -1,11 +1,12 @@
 import os
 from collections import namedtuple
 from netCDF4 import Dataset
-import numpy as np
 
-from io_threading import threaded_netcdf
+from climate.pyom.diagnostics.io_threading import threaded_netcdf
+from climate.pyom import pyom_method
 
-def def_grid_cdf(ncfile,pyom):
+@pyom_method
+def def_grid_cdf(pyom,ncfile):
     """
     Define standard grid in netcdf file
     """
@@ -75,7 +76,7 @@ def def_grid_cdf(ncfile,pyom):
     ht_id.units = "m"
     ht_id[...] = pyom.ht[2:-2, 2:-2]
 
-
+@pyom_method
 def panic_snap(pyom):
     print("Writing snapshot before panic shutdown")
     if not pyom.enable_diag_snapshots:
@@ -184,35 +185,35 @@ CONDITIONAL_VARIABLES = {
 }
 FILL_VALUE = -1e33
 
-
-def _init_var(key, var, ncfile):
+@pyom_method
+def _init_var(pyom, key, var, ncfile):
     v = ncfile.createVariable(key, "f8", var.dims, fill_value=FILL_VALUE)
     v.long_name = var.name
     v.units = var.units
     v.missing_value = FILL_VALUE
 
-
-def _get_condition(condition, pyom):
+@pyom_method
+def _get_condition(pyom, condition):
     return not getattr(pyom,condition[4:]) if condition.startswith("not ") else getattr(pyom, condition)
 
-
+@pyom_method
 def init_snap_cdf(pyom):
     """
     initialize NetCDF snapshot file
     """
     print("Preparing file {}".format(pyom.snap_file))
 
-    with threaded_netcdf(Dataset(pyom.snap_file, "w"), pyom, file_id="snapshot") as snap_dataset:
-        def_grid_cdf(snap_dataset, pyom)
+    with threaded_netcdf(pyom, Dataset(pyom.snap_file, "w"), file_id="snapshot") as snap_dataset:
+        def_grid_cdf(pyom, snap_dataset)
         for key, var in MAIN_VARIABLES.items():
-            _init_var(key,var,snap_dataset)
+            _init_var(pyom,key,var,snap_dataset)
         for condition, vardict in CONDITIONAL_VARIABLES.items():
-            if _get_condition(condition, pyom):
+            if _get_condition(pyom,condition):
                 for key, var in vardict.items():
-                    _init_var(key,var,snap_dataset)
+                    _init_var(pyom,key,var,snap_dataset)
 
-
-def _write_var(key, var, n, ncfile, pyom):
+@pyom_method
+def _write_var(pyom, key, var, n, ncfile):
     var_data = getattr(pyom,key)
     if var_data.ndim == 4:
         var_data = var_data[..., pyom.tau]
@@ -223,7 +224,7 @@ def _write_var(key, var, n, ncfile, pyom):
             var_data = np.where(mask.astype(np.bool), var_data, FILL_VALUE)
     ncfile[key][..., n] = var_data[2:-2, 2:-2, ...]
 
-
+@pyom_method
 def diag_snap(pyom):
     time_in_days = pyom.itt * pyom.dt_tracer / 86400.
     if time_in_days < 1.0:
@@ -231,11 +232,11 @@ def diag_snap(pyom):
     else:
         print(" writing snapshot at {}d".format(time_in_days))
 
-    with threaded_netcdf(Dataset(pyom.snap_file, "a"), pyom, file_id="snapshot") as snap_dataset:
+    with threaded_netcdf(pyom, Dataset(pyom.snap_file, "a"), file_id="snapshot") as snap_dataset:
         snapshot_number = snap_dataset["Time"].size
         snap_dataset["Time"][snapshot_number] = time_in_days
         for key, var in MAIN_VARIABLES.items():
-            _write_var(key, var, snapshot_number, snap_dataset, pyom)
+            _write_var(pyom, key, var, snapshot_number, snap_dataset)
         for condition, vardict in CONDITIONAL_VARIABLES.items():
-            if _get_condition(condition, pyom):
-                _write_var(key, var, snapshot_number, snap_dataset, pyom)
+            if _get_condition(pyom, condition):
+                _write_var(pyom, key, var, snapshot_number, snap_dataset)

@@ -2,18 +2,17 @@ import warnings
 from collections import namedtuple
 import os
 import json
-import numpy as np
 from netCDF4 import Dataset
 
-import climate
+from climate.pyom import pyom_method
 from climate.pyom.diagnostics.diag_snap import def_grid_cdf
 from climate.pyom.diagnostics.io_threading import threaded_netcdf
 
 
 Diagnostic = namedtuple("Diagnostic", ["name", "long_name", "units", "grid", "var", "sum"])
 
-
-def register_average(name,long_name,units,grid,var,pyom):
+@pyom_method
+def register_average(pyom,name,long_name,units,grid,var):
     """
     register a variables to be averaged
     this routine may be called by user in set_diagnostics
@@ -46,14 +45,14 @@ def register_average(name,long_name,units,grid,var,pyom):
     diag = Diagnostic(name, long_name, units, grid, var, np.zeros_like(var()))
     pyom.diagnostics.append(diag)
 
-
+@pyom_method
 def diag_averages(pyom):
     pyom.average_nitts += 1
     for diag in pyom.diagnostics:
         diag.sum[...] += diag.var()
 
-
-def _build_dimensions(grid):
+@pyom_method
+def _build_dimensions(pyom, grid):
     if not len(grid) in [2,3]:
         raise ValueError("Grid string must consist of 2 or 3 characters")
     if not set(grid) <= {"U","T"}:
@@ -66,8 +65,8 @@ def _build_dimensions(grid):
     else:
         return dim_x, dim_y, "Time"
 
-
-def _get_mask(grid, pyom):
+@pyom_method
+def _get_mask(pyom, grid):
     if not len(grid) in [2,3]:
         raise ValueError("Grid string must consist of 2 or 3 characters")
     if not set(grid) <= {"U","T"}:
@@ -85,7 +84,7 @@ def _get_mask(grid, pyom):
     }
     return masks[grid].astype(np.bool)
 
-
+@pyom_method
 def write_averages(pyom):
     """
     write averages to netcdf file and zero array
@@ -93,14 +92,14 @@ def write_averages(pyom):
     fill_value = -1e33
     filename = "averages_{}.cdf".format(pyom.itt)
 
-    with threaded_netcdf(Dataset(filename,mode='w'), pyom) as f:
+    with threaded_netcdf(pyom, Dataset(filename,mode='w')) as f:
         print(" writing averages to file " + filename)
-        def_grid_cdf(f, pyom)
+        def_grid_cdf(pyom, f)
         for diag in pyom.diagnostics:
-            dims = _build_dimensions(diag.grid)
-            mask = _get_mask(diag.grid,pyom)
+            dims = _build_dimensions(pyom,diag.grid)
+            mask = _get_mask(pyom,diag.grid)
             var_data = np.where(mask, diag.sum, np.nan)
-            if climate.is_bohrium:
+            if pyom.backend_name == "bohrium":
                 var_data = var_data.copy2numpy()
             var = f.createVariable(diag.name, "f8", dims, fill_value=fill_value)
             var[...] = var_data[2:-2, 2:-2, ..., None] / pyom.average_nitts
@@ -113,6 +112,7 @@ def write_averages(pyom):
 
 UNFINISHED_AVERAGES_FILENAME = "unfinished_averages.json"
 
+@pyom_method
 def diag_averages_write_restart(pyom):
     """
     write unfinished averages to restart file
@@ -128,7 +128,7 @@ def diag_averages_write_restart(pyom):
             json_data["averages"][diag.name] = diag.sum.tolist()
         json.dump(json_data,f)
 
-
+@pyom_method
 def diag_averages_read_restart(pyom):
     """
     read unfinished averages from file

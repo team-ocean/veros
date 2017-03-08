@@ -1,9 +1,7 @@
-import numpy as np
+from climate.pyom import pyom_method
 
-import climate
-
-
-def line_integrals(uloc,vloc,pyom,kind="same"):
+@pyom_method
+def line_integrals(pyom,uloc,vloc,kind="same"):
     """
     calculate line integrals along all islands
 
@@ -39,23 +37,23 @@ def line_integrals(uloc,vloc,pyom,kind="same"):
     south = np.sum(south[s1] * (pyom.line_dir_south_mask[1:-2,1:-2] & pyom.boundary_mask[1:-2,1:-2])[s2], axis=(0,1))
     return east + west + north + south
 
-
-def absmax_sfc(p1, pyom):
+@pyom_method
+def absmax_sfc(pyom, p1):
     return np.max(np.abs(p1))
 
-
-def dot_sfc(p1, p2, pyom):
+@pyom_method
+def dot_sfc(pyom, p1, p2):
     return np.sum(p1[2:-2, 2:-2]*p2[2:-2, 2:-2])
 
-
-def inv_op_sfc(Z,res,Zres,pyom):
+@pyom_method
+def inv_op_sfc(pyom, Z, res, Zres):
     """
     apply approximate inverse Z of the operator A
     """
     Zres[2:-2, 2:-2] = Z[2:-2, 2:-2] * res[2:-2, 2:-2]
 
-
-def make_inv_sfc(cf,Z,pyom):
+@pyom_method
+def make_inv_sfc(pyom, cf, Z):
     """
     construct an approximate inverse Z to A
     """
@@ -74,8 +72,8 @@ def make_inv_sfc(cf,Z,pyom):
     if pyom.nisle:
         Z *= np.prod(np.invert(pyom.boundary_mask).astype(np.int), axis=2)
 
-
-def apply_op(cf, p1, res, pyom):
+@pyom_method
+def apply_op(pyom, cf, p1, res):
     """
     apply operator A,  res = A *p1
     """
@@ -91,8 +89,8 @@ def apply_op(cf, p1, res, pyom):
     P1[:,:,2,2] = p1[3:pyom.nx+3, 3:pyom.ny+3]
     res[2:pyom.nx+2, 2:pyom.ny+2] = np.sum(cf[2:pyom.nx+2, 2:pyom.ny+2] * P1, axis=(2,3))
 
-
-def absmax_sfp(p1,pyom):
+@pyom_method
+def absmax_sfp(pyom, p1):
     s2 = 0
     for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
         for i in xrange(pyom.is_pe, pyom.ie_pe+1): #i=pyom.is_pe,pyom.ie_pe
@@ -100,8 +98,8 @@ def absmax_sfp(p1,pyom):
             #s2 = max( abs(p1(i,j)), s2 )
     return s2
 
-
-def dot_sfp(p1,p2,pyom):
+@pyom_method
+def dot_sfp(pyom, p1, p2):
     s2 = 0
     for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
         for i in xrange(pyom.is_pe, pyom.ie_pe+1): #i=pyom.is_pe,pyom.ie_pe

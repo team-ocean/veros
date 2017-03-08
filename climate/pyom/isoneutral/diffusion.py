@@ -1,9 +1,8 @@
-import numpy as np
-
-from climate.pyom import numerics, utilities
+from climate.pyom import numerics, utilities, pyom_method
 from climate.pyom.diffusion import dissipation_on_wgrid
 
-def _calc_tracer_fluxes(tr, K_iso, K_skew, pyom):
+@pyom_method
+def _calc_tracer_fluxes(pyom, tr, K_iso, K_skew):
     tr_pad = np.empty((pyom.nx+4,pyom.ny+4,pyom.nz+2))
     tr_pad[:,:,1:-1] = tr[...,pyom.tau]
     tr_pad[:,:,0] = tr[:,:,1,pyom.tau]
@@ -56,7 +55,7 @@ def _calc_tracer_fluxes(tr, K_iso, K_skew, pyom):
     pyom.flux_top[2:-2,2:-2,:-1] = sumx / (4*pyom.dxt[2:-2,None,None]) + sumy / (4*pyom.dyt[None,2:-2,None] * pyom.cost[None,2:-2,None])
     pyom.flux_top[:,:,-1] = 0.
 
-
+@pyom_method
 def _calc_explicit_part(pyom):
     aloc = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
     aloc[2:-2,2:-2,:] = pyom.maskT[2:-2,2:-2,:] * ((pyom.flux_east[2:-2,2:-2,:] - pyom.flux_east[1:-3,2:-2,:]) / (pyom.cost[None,2:-2,None] * pyom.dxt[2:-2,None,None]) \
@@ -65,8 +64,8 @@ def _calc_explicit_part(pyom):
     aloc[:,:,1:] += pyom.maskT[:,:,1:] * (pyom.flux_top[:,:,1:] - pyom.flux_top[:,:,:-1]) / pyom.dzt[None,None,1:]
     return aloc
 
-
-def _calc_implicit_part(tr, pyom):
+@pyom_method
+def _calc_implicit_part(pyom, tr):
     ks = pyom.kbot[2:-2,2:-2] - 1
 
     a_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
@@ -81,11 +80,11 @@ def _calc_implicit_part(tr, pyom):
     b_tri[:,:,-1] = 1 + delta[:,:,-2] / pyom.dzt[None,None,-1]
     b_tri_edge = 1 + (delta[:,:,:] / pyom.dzt[None,None,:])
     c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzt[None,None,:-1]
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, tr[2:-2, 2:-2, :, pyom.taup1], b_edge=b_tri_edge)
+    sol, water_mask = utilities.solve_implicit(pyom, ks, a_tri, b_tri, c_tri, tr[2:-2, 2:-2, :, pyom.taup1], b_edge=b_tri_edge)
     tr[2:-2,2:-2,:,pyom.taup1] = np.where(water_mask, sol, tr[2:-2,2:-2,:,pyom.taup1])
 
-
-def isoneutral_diffusion(tr, istemp, pyom, iso=True, skew=False):
+@pyom_method
+def isoneutral_diffusion(pyom, tr, istemp, iso=True, skew=False):
     """
     Isopycnal diffusion for tracer,
     following functional formulation by Griffies et al
@@ -101,7 +100,7 @@ def isoneutral_diffusion(tr, istemp, pyom, iso=True, skew=False):
     else:
         K_skew = np.zeros_like(pyom.K_gm)
 
-    _calc_tracer_fluxes(tr, K_iso, K_skew, pyom)
+    _calc_tracer_fluxes(pyom, tr, K_iso, K_skew)
 
     """
     add explicit part
@@ -118,7 +117,7 @@ def isoneutral_diffusion(tr, istemp, pyom, iso=True, skew=False):
     """
     if iso:
         aloc[...] = tr[:,:,:,pyom.taup1]
-        _calc_implicit_part(tr,pyom)
+        _calc_implicit_part(pyom,tr)
         if istemp:
             pyom.dtemp_iso += (tr[:,:,:,pyom.taup1] - aloc) / pyom.dt_tracer
         else:
@@ -137,9 +136,9 @@ def isoneutral_diffusion(tr, istemp, pyom, iso=True, skew=False):
         dissipation interpolated on W-grid
         """
         if not iso:
-            dissipation_on_wgrid(pyom.P_diss_skew, pyom, int_drhodX=int_drhodX)
+            dissipation_on_wgrid(pyom, pyom.P_diss_skew, int_drhodX=int_drhodX)
         else:
-            dissipation_on_wgrid(pyom.P_diss_iso, pyom, int_drhodX=int_drhodX)
+            dissipation_on_wgrid(pyom, pyom.P_diss_iso, int_drhodX=int_drhodX)
 
         """
         diagnose dissipation of dynamic enthalpy by explicit and implicit vertical mixing
@@ -154,21 +153,21 @@ def isoneutral_diffusion(tr, istemp, pyom, iso=True, skew=False):
                                                                                                          - tracer[2:-2,2:-2,:-1,pyom.taup1]) \
                                                                                         / pyom.dzw[None,None,:-1] * pyom.maskW[2:-2,2:-2,:-1]
 
-
-def isoneutral_skew_diffusion(tr,istemp,pyom):
+@pyom_method
+def isoneutral_skew_diffusion(pyom,tr,istemp):
     """
     Isopycnal skew diffusion for tracer,
     following functional formulation by Griffies et al
     Dissipation is calculated and stored in pyom.P_diss_skew
     T/S changes are added to dtemp_iso/dsalt_iso
     """
-    isoneutral_diffusion(tr,istemp,pyom,skew=True,iso=False)
+    isoneutral_diffusion(pyom,tr,istemp,skew=True,iso=False)
 
-
-def isoneutral_diffusion_all(tr,istemp,pyom):
+@pyom_method
+def isoneutral_diffusion_all(pyom,tr,istemp):
     """
     Isopycnal diffusion plus skew diffusion for tracer,
     following functional formulation by Griffies et al
     Dissipation is calculated and stored in P_diss_iso
     """
-    isoneutral_diffusion(tr,istemp,pyom,skew=True,iso=True)
+    isoneutral_diffusion(pyom,tr,istemp,skew=True,iso=True)

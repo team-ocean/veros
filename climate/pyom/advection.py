@@ -34,7 +34,7 @@ def _adv_superbee(pyom, vel, var, mask, dx, axis):
         dx = (pyom.cost * dx)[None, 1:-2, None]
         velfac = pyom.cosu[None, 1:-2, None]
     elif axis == 2:
-        vel, var, mask = (pad_z_edges(a) for a in (vel,var,mask))
+        vel, var, mask = (pad_z_edges(pyom, a) for a in (vel,var,mask))
         sm1, s, sp1, sp2 = ((slice(2,-2),slice(2,-2),slice(1+n,-2+n or None)) for n in range(-1,3))
         dx = dx[None,None,:-1]
     else:

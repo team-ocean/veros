@@ -1,5 +1,4 @@
 import warnings
-import numpy as np
 import scipy.sparse
 
 try:
@@ -10,10 +9,10 @@ except ImportError:
     import scipy.sparse.linalg as spalg
     has_pyamg = False
 
-from climate.pyom import cyclic
+from climate.pyom import cyclic, pyom_method
 
-
-def solve(rhs, sol, pyom, boundary_val=None):
+@pyom_method
+def solve(pyom, rhs, sol, boundary_val=None):
     """
     Main solver for streamfunction. Solves a 2D Poisson equation. Uses either pyamg
     or scipy.sparse.linalg linear solvers.
@@ -42,10 +41,10 @@ def solve(rhs, sol, pyom, boundary_val=None):
     sol[2:-2,2:-2] = linear_solution.reshape(pyom.nx+4,pyom.ny+4)[2:-2,2:-2]
 solve.pyom = None
 
-
+@pyom_method
 def _get_scipy_solver(pyom):
     matrix = _assemble_poisson_matrix(pyom)
-    preconditioner = _jacobi_preconditioner(matrix, pyom)
+    preconditioner = _jacobi_preconditioner(pyom, matrix)
     preconditioner.diagonal()[...] *= np.prod(~pyom.boundary_mask, axis=2).astype(np.int).flatten()
     matrix = preconditioner * matrix
     def scipy_solver(rhs,x0):
@@ -58,12 +57,18 @@ def _get_scipy_solver(pyom):
         return solution
     return scipy_solver
 
-
+@pyom_method
 def _get_amg_solver(pyom):
     matrix = _assemble_poisson_matrix(pyom)
-    near_null_space = np.ones(matrix.shape[0])
+    if pyom.backend_name == "bohrium":
+        near_null_space = np.ones(matrix.shape[0], bohrium=False)
+    else:
+        near_null_space = np.ones(matrix.shape[0])
     ml = pyamg.smoothed_aggregation_solver(matrix, near_null_space)
     def amg_solver(rhs,x0):
+        if pyom.backend_name == "bohrium":
+            rhs = rhs.copy2numpy()
+            x0 = x0.copy2numpy()
         residuals = []
         tolerance = pyom.congr_epsilon * 1e-8 # to achieve the same precision as the preconditioned scipy solver
         solution = ml.solve(b=rhs.flatten(), x0=x0.flatten(), tol=tolerance,
@@ -71,11 +76,11 @@ def _get_amg_solver(pyom):
         rel_res = residuals[-1] / residuals[0]
         if rel_res > tolerance:
             warnings.warn("Streamfunction solver did not converge - residual: {:.2e}".format(rel_res))
-        return solution
+        return np.asarray(solution)
     return amg_solver
 
-
-def _jacobi_preconditioner(matrix, pyom):
+@pyom_method
+def _jacobi_preconditioner(pyom, matrix):
     """
     Construct a simple Jacobi preconditioner
     """
@@ -83,7 +88,7 @@ def _jacobi_preconditioner(matrix, pyom):
     Z[2:-2, 2:-2] = 1. / matrix.diagonal().copy().reshape(pyom.nx+4, pyom.ny+4)[2:-2, 2:-2]
     return scipy.sparse.dia_matrix((Z.flatten(),0), shape=(Z.size,Z.size)).tocsr()
 
-
+@pyom_method
 def _assemble_poisson_matrix(pyom):
     """
     Construct a sparse matrix based on the stencil for the 2D Poisson equation.
@@ -116,5 +121,9 @@ def _assemble_poisson_matrix(pyom):
     if pyom.enable_cyclic_x:
         offsets += (-main_diag.shape[1] * (pyom.nx-1), main_diag.shape[1] * (pyom.nx-1))
         cf += (wrap_diag_east.flatten(), wrap_diag_west.flatten())
-
-    return scipy.sparse.dia_matrix((np.array(cf), offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()
+        
+    if pyom.backend_name == "bohrium":
+        cf = np.array(cf, bohrium=False)
+    else:
+        cf = np.array(cf)
+    return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()

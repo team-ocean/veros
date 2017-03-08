@@ -1,10 +1,7 @@
-import numpy as np
-
-import climate
-from climate.pyom import cyclic
+from climate.pyom import cyclic, pyom_method
 from climate.pyom.external import island, utilities, solve_poisson
 
-
+@pyom_method
 def streamfunction_init(pyom):
     """
     prepare for island integrals
@@ -12,15 +9,15 @@ def streamfunction_init(pyom):
     maxipp = 10000
     mnisle = 1000
     allmap = np.zeros((pyom.nx+4, pyom.ny+4))
-    Map    = np.zeros((pyom.nx+4, pyom.ny+4))
-    forc   = np.zeros((pyom.nx+4, pyom.ny+4))
-    iperm  = np.zeros(maxipp)
-    jperm  = np.zeros(maxipp)
+    boundary_map = np.zeros((pyom.nx+4, pyom.ny+4))
+    forc = np.zeros((pyom.nx+4, pyom.ny+4))
+    iperm = np.zeros(maxipp)
+    jperm = np.zeros(maxipp)
     nippts = np.zeros(mnisle, dtype=np.int)
-    iofs   = np.zeros(mnisle, dtype=np.int)
+    iofs = np.zeros(mnisle, dtype=np.int)
 
-    if climate.is_bohrium:
-        Map = Map.copy2numpy()
+    if pyom.backend_name == "bohrium":
+        boundary_map = boundary_map.copy2numpy()
         allmap = allmap.copy2numpy()
         iperm = iperm.copy2numpy()
         jperm = jperm.copy2numpy()
@@ -42,10 +39,10 @@ def streamfunction_init(pyom):
     preprocess land map using MOMs algorithm for B-grid to determine number of islands
     """
     print(" starting MOMs algorithm for B-grid to determine number of islands")
-    island.isleperim(kmt, allmap, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp, pyom, change_nisle=True, verbose=True)
+    island.isleperim(pyom, kmt, allmap, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp, change_nisle=True, verbose=True)
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(allmap)
-    _showmap(allmap, pyom)
+    _showmap(pyom, allmap)
 
     """
     allocate variables
@@ -59,7 +56,7 @@ def streamfunction_init(pyom):
     pyom.dpsin = np.zeros((pyom.nisle, 3))
     pyom.line_psin = np.zeros((pyom.nisle, pyom.nisle))
 
-    if climate.is_bohrium:
+    if pyom.backend_name == "bohrium":
         pyom.boundary_mask = pyom.boundary_mask.copy2numpy()
         pyom.line_dir_south_mask = pyom.line_dir_south_mask.copy2numpy()
         pyom.line_dir_north_mask = pyom.line_dir_north_mask.copy2numpy()
@@ -75,18 +72,18 @@ def streamfunction_init(pyom):
         land map for island number isle: 1 is land, -1 is perimeter, 0 is ocean
         """
         kmt[...] = allmap != isle+1
-        island.isleperim(kmt, Map, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp, pyom)
+        island.isleperim(pyom, kmt, boundary_map, iperm, jperm, iofs, nippts, pyom.nx+4, pyom.ny+4, mnisle, maxipp)
         if verbose:
-            _showmap(Map, pyom)
+            _showmap(pyom, boundary_map)
 
         """
         find a starting point
         """
         n = 0
         # avoid starting close to cyclic bondaries
-        (cont, ij, Dir, startPos) = _avoid_cyclic_boundaries(Map, isle, n, (pyom.nx/2+1, pyom.nx+2), pyom)
+        (cont, ij, Dir, startPos) = _avoid_cyclic_boundaries(pyom, boundary_map, isle, n, (pyom.nx/2+1, pyom.nx+2))
         if not cont:
-            (cont, ij, Dir, startPos) = _avoid_cyclic_boundaries(Map, isle, n, (pyom.nx/2,-1,-1), pyom)
+            (cont, ij, Dir, startPos) = _avoid_cyclic_boundaries(pyom, boundary_map, isle, n, (pyom.nx/2,-1,-1))
             if not cont:
                 raise RuntimeError("found no starting point for line integral")
 
@@ -124,25 +121,25 @@ def streamfunction_init(pyom):
                 print(" ")
                 print(" position is {!r}".format(ij))
                 print(" direction is {!r}".format(Dir))
-                print(" map ahead is {} {}".format(Map[ijp[0],ijp[1]], Map[ijp_right[0],ijp_right[1]]))
+                print(" map ahead is {} {}".format(boundary_map[ijp[0],ijp[1]], boundary_map[ijp_right[0],ijp_right[1]]))
 
-            if Map[ijp[0],ijp[1]] == -1 and Map[ijp_right[0],ijp_right[1]] == 1:
+            if boundary_map[ijp[0],ijp[1]] == -1 and boundary_map[ijp_right[0],ijp_right[1]] == 1:
                 if verbose:
                     print(" go forward")
-            elif Map[ijp[0],ijp[1]] == -1 and Map[ijp_right[0],ijp_right[1]] == -1:
+            elif boundary_map[ijp[0],ijp[1]] == -1 and boundary_map[ijp_right[0],ijp_right[1]] == -1:
                 if verbose:
                     print(" turn right")
                 Dir = [Dir[1],-Dir[0]]
-            elif Map[ijp[0],ijp[1]] == 1 and Map[ijp_right[0],ijp_right[1]] == 1:
+            elif boundary_map[ijp[0],ijp[1]] == 1 and boundary_map[ijp_right[0],ijp_right[1]] == 1:
                 if verbose:
                     print(" turn left")
                 Dir = [-Dir[1],Dir[0]]
-            elif Map[ijp[0],ijp[1]] == 1 and Map[ijp_right[0],ijp_right[1]] == -1:
+            elif boundary_map[ijp[0],ijp[1]] == 1 and boundary_map[ijp_right[0],ijp_right[1]] == -1:
                 if verbose:
                     print(" turn left")
                 Dir = [-Dir[1],Dir[0]]
             else:
-                print(" map ahead is {} {}".format(Map[ijp[0],ijp[1]], Map[ijp_right[0],ijp_right[1]]))
+                print(" map ahead is {} {}".format(boundary_map[ijp[0],ijp[1]], boundary_map[ijp_right[0],ijp_right[1]]))
                 raise RuntimeError("unknown situation or lost track")
 
             """
@@ -184,13 +181,12 @@ def streamfunction_init(pyom):
             print(" Positions:")
             print(" boundary: {!r}".format(pyom.boundary_mask[...,isle]))
 
-    if climate.is_bohrium:
-        pyom.boundary_mask = np.array(pyom.boundary_mask)
-        pyom.line_dir_south_mask = np.array(pyom.line_dir_south_mask)
-        pyom.line_dir_north_mask = np.array(pyom.line_dir_north_mask)
-        pyom.line_dir_east_mask  = np.array(pyom.line_dir_east_mask)
-        pyom.line_dir_west_mask  = np.array(pyom.line_dir_west_mask)
-
+    if pyom.backend_name == "bohrium":
+        pyom.boundary_mask = np.asarray(pyom.boundary_mask)
+        pyom.line_dir_south_mask = np.asarray(pyom.line_dir_south_mask)
+        pyom.line_dir_north_mask = np.asarray(pyom.line_dir_north_mask)
+        pyom.line_dir_east_mask  = np.asarray(pyom.line_dir_east_mask)
+        pyom.line_dir_west_mask  = np.asarray(pyom.line_dir_west_mask)
 
     """
     precalculate time independent boundary components of streamfunction
@@ -200,7 +196,7 @@ def streamfunction_init(pyom):
 
     for isle in xrange(pyom.nisle):
         print(" solving for boundary contribution by island {:d}".format(isle))
-        solve_poisson.solve(forc,pyom.psin[:,:,isle],pyom)
+        solve_poisson.solve(pyom,forc,pyom.psin[:,:,isle])
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.psin)
@@ -218,20 +214,20 @@ def streamfunction_init(pyom):
             * (pyom.psin[1:, 1:, :] - pyom.psin[:-1, 1:, :]) \
             / (pyom.cosu[np.newaxis,1:,np.newaxis] * pyom.dxt[1:, np.newaxis, np.newaxis]) \
             * pyom.hvr[1:, 1:, np.newaxis]
-    pyom.line_psin[...] = utilities.line_integrals(fpx, fpy, pyom, kind="full")
+    pyom.line_psin[...] = utilities.line_integrals(pyom, fpx, fpy, kind="full")
 
-
-def _avoid_cyclic_boundaries(Map, isle, n, x_range, pyom):
+@pyom_method
+def _avoid_cyclic_boundaries(pyom, boundary_map, isle, n, x_range):
     for i in xrange(*x_range):
         for j in xrange(1, pyom.ny+2):
-            if Map[i,j] == 1 and Map[i,j+1] == -1:
+            if boundary_map[i,j] == 1 and boundary_map[i,j+1] == -1:
                 #initial direction is eastward, we come from the west
                 cont = True
                 Dir = [1,0]
                 pyom.line_dir_east_mask[i-1, j, isle] = 1
                 pyom.boundary_mask[i-1, j, isle] = 1
                 return cont, (i,j), Dir, (i-1, j)
-            if Map[i,j] == -1 and Map[i,j+1] == 1:
+            if boundary_map[i,j] == -1 and boundary_map[i,j+1] == 1:
                 # initial direction is westward, we come from the east
                 cont = True
                 Dir = [-1,0]
@@ -240,8 +236,8 @@ def _avoid_cyclic_boundaries(Map, isle, n, x_range, pyom):
                 return cont, (i-1,j), Dir, (i,j)
     return False, None, [0,0], [0,0]
 
-
-def _showmap(Map, pyom):
+@pyom_method
+def _showmap(pyom, boundary_map):
     linewidth = 125
     imt = pyom.nx + 4
     iremain = imt
@@ -255,11 +251,10 @@ def _showmap(Map, pyom):
             print(" ")
             print("".join(["{:5d}".format(istart+i+1-2) for i in xrange(1,iline+1,5)]))
             for j in xrange(pyom.ny+3, -1, -1):
-                print("{:3d} ".format(j) + "".join([str(int(_mod10(Map[istart+i -2,j]))) if _mod10(Map[istart+i -2,j]) >= 0 else "*" for i in xrange(2, iline+2)]))
+                print("{:3d} ".format(j) + "".join([str(int(_mod10(boundary_map[istart+i -2,j]))) if _mod10(boundary_map[istart+i -2,j]) >= 0 else "*" for i in xrange(2, iline+2)]))
             print("".join(["{:5d}".format(istart+i+1-2) for i in xrange(1,iline+1,5)]))
             istart = istart + iline
     print("")
-
 
 def _mod10(m):
     if m > 0:

@@ -1,10 +1,9 @@
-import numpy as np
 import math
 
-from climate.pyom import cyclic, utilities
+from climate.pyom import pyom_method, cyclic, utilities
 
-
-def dissipation_on_wgrid(p_arr, pyom, int_drhodX=None, aloc=None, ks=None):
+@pyom_method
+def dissipation_on_wgrid(pyom, p_arr, int_drhodX=None, aloc=None, ks=None):
     if aloc is None:
         aloc = np.zeros_like(p_arr)
         aloc[1:-1,1:-1,:] = 0.5 * pyom.grav / pyom.rho_0 * ((int_drhodX[2:,1:-1,:] - int_drhodX[1:-1,1:-1,:]) * pyom.flux_east[1:-1,1:-1,:] \
@@ -21,12 +20,12 @@ def dissipation_on_wgrid(p_arr, pyom, int_drhodX=None, aloc=None, ks=None):
     water_mask = land_mask[:, :, None] & (np.indices((pyom.nx+4, pyom.ny+4, pyom.nz-1))[2] > ks[:,:,None])
 
     if np.any(land_mask):
-        dzw_pad = utilities.pad_z_edges(pyom.dzw)
+        dzw_pad = utilities.pad_z_edges(pyom, pyom.dzw)
         p_arr[:, :, :-1] += (0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) + 0.5 * (aloc[:, :, :-1] * dzw_pad[None, None, :-3] / pyom.dzw[None, None, :-1])) * edge_mask
         p_arr[:, :, :-1] += 0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) * water_mask
         p_arr[:, :, -1] += aloc[:,:,-1] * land_mask
 
-
+@pyom_method
 def tempsalt_biharmonic(pyom):
     """
     biharmonic mixing of pyom.temp and salinity,
@@ -67,7 +66,7 @@ def tempsalt_biharmonic(pyom):
     if pyom.enable_conserve_energy:
         fxa = pyom.int_drhodT[-3, -3, -1, pyom.tau] # NOTE: probably a mistake in the fortran code
         pyom.P_diss_hmix[...] = 0.
-        dissipation_on_wgrid(pyom.P_diss_hmix, pyom, int_drhodX=pyom.int_drhodT[..., pyom.tau])
+        dissipation_on_wgrid(pyom, pyom.P_diss_hmix, int_drhodX=pyom.int_drhodT[..., pyom.tau])
 
     pyom.flux_east[:-1, :, :] = -fxa * (pyom.salt[1:, :, :, pyom.tau] - pyom.salt[:-1, :, :, pyom.tau]) \
                                     / (pyom.cost[None, :, None] * pyom.dxu[:-1, None, None]) * pyom.maskU[:-1, :, :]
@@ -99,9 +98,9 @@ def tempsalt_biharmonic(pyom):
     pyom.salt[:,:,:,pyom.taup1] += pyom.dt_tracer * pyom.dsalt_hmix * pyom.maskT
 
     if pyom.enable_conserve_energy:
-        dissipation_on_wgrid(pyom.P_diss_hmix, pyom, int_drhodX=pyom.int_drhodS[..., pyom.tau])
+        dissipation_on_wgrid(pyom, pyom.P_diss_hmix, int_drhodX=pyom.int_drhodS[..., pyom.tau])
 
-
+@pyom_method
 def tempsalt_diffusion(pyom):
     """
     Diffusion of pyom.temp and salinity,
@@ -131,7 +130,7 @@ def tempsalt_diffusion(pyom):
     if pyom.enable_conserve_energy:
         fxa = pyom.int_drhodT[-3, -3, -1, pyom.tau] # NOTE: probably a mistake in the fortran code
         pyom.P_diss_hmix[...] = 0.
-        dissipation_on_wgrid(pyom.P_diss_hmix, pyom, int_drhodX=pyom.int_drhodT[..., pyom.tau])
+        dissipation_on_wgrid(pyom, pyom.P_diss_hmix, int_drhodX=pyom.int_drhodT[..., pyom.tau])
 
     # horizontal diffusion of salinity
     pyom.flux_east[:-1, :, :] = pyom.K_h * (pyom.salt[1:, :, :, pyom.tau] - pyom.salt[:-1, :, :, pyom.tau]) \
@@ -153,9 +152,9 @@ def tempsalt_diffusion(pyom):
     pyom.salt[:,:,:,pyom.taup1] += pyom.dt_tracer * pyom.dsalt_hmix * pyom.maskT
 
     if pyom.enable_conserve_energy:
-        dissipation_on_wgrid(pyom.P_diss_hmix, pyom, int_drhodX=pyom.int_drhodS[..., pyom.tau])
+        dissipation_on_wgrid(pyom, pyom.P_diss_hmix, int_drhodX=pyom.int_drhodS[..., pyom.tau])
 
-
+@pyom_method
 def tempsalt_sources(pyom):
     """
     Sources of pyom.temp and salinity,
@@ -167,4 +166,4 @@ def tempsalt_sources(pyom):
     if pyom.enable_conserve_energy:
         aloc = -pyom.grav / pyom.rho_0 * pyom.maskT * (pyom.int_drhodT[...,pyom.tau] * pyom.temp_source + pyom.int_drhodS[...,pyom.tau] * pyom.salt_source)
         pyom.P_diss_sources[...] = 0.
-        dissipation_on_wgrid(pyom.P_diss_sources, pyom, aloc=aloc)
+        dissipation_on_wgrid(pyom, pyom.P_diss_sources, aloc=aloc)

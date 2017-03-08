@@ -1,7 +1,6 @@
 import importlib
 
 from .timer import Timer
-from .replace_numpy import replace_numpy
 
 __all__ = [
     "model",
@@ -12,4 +11,3 @@ __all__ = [
 
 for module in __all__:
     importlib.import_module('.%s' % module, 'climate')
-

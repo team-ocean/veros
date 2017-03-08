@@ -1,9 +1,8 @@
 import math
-import numpy as np
 
-from climate.pyom import numerics, utilities, cyclic
+from climate.pyom import numerics, utilities, cyclic, pyom_method
 
-
+@pyom_method
 def explicit_vert_friction(pyom):
     """
     explicit vertical friction
@@ -27,7 +26,7 @@ def explicit_vert_friction(pyom):
     diss[1:-2, 1:-2, :-1] = (pyom.u[1:-2, 1:-2, 1:, pyom.tau] - pyom.u[1:-2, 1:-2, :-1, pyom.tau]) \
                             * pyom.flux_top[1:-2, 1:-2, :-1] / pyom.dzw[np.newaxis, np.newaxis, :-1]
     diss[:,:,pyom.nz-1] = 0.0
-    diss[...] = numerics.ugrid_to_tgrid(diss,pyom)
+    diss[...] = numerics.ugrid_to_tgrid(pyom,diss)
     pyom.K_diss_v += diss
 
     """
@@ -48,7 +47,7 @@ def explicit_vert_friction(pyom):
     diss[1:-2, 1:-2, :-1] = (pyom.v[1:-2, 1:-2, 1:, pyom.tau] - pyom.v[1:-2, 1:-2, :-1, pyom.tau]) \
                  * pyom.flux_top[1:-2, 1:-2, :-1] / pyom.dzw[np.newaxis, np.newaxis, :-1]
     diss[:,:,-1] = 0.0
-    diss[...] = numerics.vgrid_to_tgrid(diss,pyom)
+    diss[...] = numerics.vgrid_to_tgrid(pyom,diss)
     pyom.K_diss_v += diss
 
     if not pyom.enable_hydrostatic:
@@ -70,7 +69,7 @@ def explicit_vert_friction(pyom):
         """
         # to be implemented
 
-
+@pyom_method
 def implicit_vert_friction(pyom):
     """
     vertical friction
@@ -95,7 +94,7 @@ def implicit_vert_friction(pyom):
     b_tri_edge = 1 + delta / pyom.dzt[None,None,:]
     c_tri[...] = -delta / pyom.dzt[None,None,:]
     d_tri[...] = pyom.u[1:-2,1:-2,:,pyom.tau]
-    res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    res, mask = utilities.solve_implicit(pyom, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
     pyom.u[1:-2,1:-2,:,pyom.taup1] = np.where(mask, res, pyom.u[1:-2,1:-2,:,pyom.taup1])
 
     pyom.du_mix[1:-2, 1:-2] = (pyom.u[1:-2,1:-2,:,pyom.taup1] - pyom.u[1:-2,1:-2,:,pyom.tau]) / pyom.dt_mom
@@ -109,7 +108,7 @@ def implicit_vert_friction(pyom):
     diss[1:-2, 1:-2, :-1] = (pyom.u[1:-2, 1:-2, 1:, pyom.tau] - pyom.u[1:-2, 1:-2, :-1, pyom.tau]) \
                             * pyom.flux_top[1:-2, 1:-2, :-1] / pyom.dzw[:-1]
     diss[:,:,-1] = 0.0
-    diss[...] = numerics.ugrid_to_tgrid(diss,pyom)
+    diss[...] = numerics.ugrid_to_tgrid(pyom,diss)
     pyom.K_diss_v += diss
 
     """
@@ -125,7 +124,7 @@ def implicit_vert_friction(pyom):
     c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzt[None,None,:-1]
     c_tri[:,:,-1] = 0.
     d_tri[...] = pyom.v[1:-2,1:-2,:,pyom.tau]
-    res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    res, mask = utilities.solve_implicit(pyom, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
     pyom.v[1:-2,1:-2,:,pyom.taup1] = np.where(mask, res, pyom.v[1:-2,1:-2,:,pyom.taup1])
     pyom.dv_mix[1:-2, 1:-2] = (pyom.v[1:-2, 1:-2, :, pyom.taup1] - pyom.v[1:-2, 1:-2, :, pyom.tau]) / pyom.dt_mom
 
@@ -137,7 +136,7 @@ def implicit_vert_friction(pyom):
             / pyom.dzw[:-1] * pyom.maskV[1:-2, 1:-2, 1:] * pyom.maskV[1:-2, 1:-2, :-1]
     diss[1:-2, 1:-2, :-1] = (pyom.v[1:-2, 1:-2, 1:, pyom.tau] - pyom.v[1:-2, 1:-2, :-1, pyom.tau]) * pyom.flux_top[1:-2, 1:-2, :-1] / pyom.dzw[:-1]
     diss[:,:,-1] = 0.0
-    diss = numerics.vgrid_to_tgrid(diss,pyom)
+    diss = numerics.vgrid_to_tgrid(pyom,diss)
     pyom.K_diss_v += diss
 
     if not pyom.enable_hydrostatic:
@@ -152,7 +151,7 @@ def implicit_vert_friction(pyom):
         c_tri[:-1,:-1,:-1] = - delta[:-1,:-1,:-1] / pyom.dzw[None,None,:-1]
         c_tri[:-1,:-1,-1] = 0.
         d_tri[:-1,:-1] = pyom.w[2:-2,2:-2,:,pyom.tau]
-        res, mask = utilities.solve_implicit(kss, a_tri[:-1,:-1], b_tri[:-1,:-1], c_tri[:-1,:-1], d_tri[:-1,:-1], b_edge=b_tri_edge)
+        res, mask = utilities.solve_implicit(pyom, kss, a_tri[:-1,:-1], b_tri[:-1,:-1], c_tri[:-1,:-1], d_tri[:-1,:-1], b_edge=b_tri_edge)
         pyom.w[2:-2,2:-2,:,pyom.taup1] = np.where(mask, res, pyom.w[2:-2,2:-2,:,pyom.taup1])
         pyom.dw_mix[2:-2, 2:-2] = (pyom.w[2:-2,2:-2,:,pyom.taup1] - pyom.w[2:-2,2:-2,:,pyom.tau]) / pyom.dt_mom
 
@@ -166,7 +165,7 @@ def implicit_vert_friction(pyom):
         diss[:,:,-1] = 0.0
         pyom.K_diss_v += diss
 
-
+@pyom_method
 def rayleigh_friction(pyom):
     """
     interior Rayleigh friction
@@ -175,15 +174,15 @@ def rayleigh_friction(pyom):
     pyom.du_mix[...] += -pyom.maskU * pyom.r_ray * pyom.u[..., pyom.tau]
     if pyom.enable_conserve_energy:
         diss = pyom.maskU * pyom.r_ray * pyom.u[...,pyom.tau]**2
-        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
+        pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'U')
     pyom.dv_mix[...] += -pyom.maskV * pyom.r_ray * pyom.v[...,pyom.tau]
     if pyom.enable_conserve_energy:
         diss = pyom.maskV * pyom.r_ray * pyom.v[...,pyom.tau]**2
-        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
+        pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'V')
     if not pyom.enable_hydrostatic:
         raise NotImplementedError("Rayleigh friction for vertical velocity not implemented")
 
-
+@pyom_method
 def linear_bottom_friction(pyom):
     """
     linear bottom friction
@@ -199,7 +198,7 @@ def linear_bottom_friction(pyom):
         if pyom.enable_conserve_energy:
             diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
             diss[1:-2,2:-2] = pyom.maskU[1:-2,2:-2] * pyom.r_bot_var_u[1:-2,2:-2,None] * pyom.u[1:-2,2:-2,:,pyom.tau]**2 * mask
-            pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
+            pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'U')
 
         k = np.maximum(pyom.kbot[2:-2, 2:-1], pyom.kbot[2:-2, 1:-2]) - 1
         mask = np.arange(pyom.nz) == k[:,:,None]
@@ -207,7 +206,7 @@ def linear_bottom_friction(pyom):
         if pyom.enable_conserve_energy:
             diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
             diss[2:-2,1:-2] = pyom.maskV[2:-2,1:-2] * pyom.r_bot_var_v[2:-2,1:-2,None] * pyom.v[2:-2,1:-2,:,pyom.tau]**2 * mask
-            pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
+            pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'V')
     else:
         """
         with constant coefficient
@@ -218,7 +217,7 @@ def linear_bottom_friction(pyom):
         if pyom.enable_conserve_energy:
             diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
             diss[1:-2,2:-2] = pyom.maskU[1:-2,2:-2] * pyom.r_bot * pyom.u[1:-2,2:-2,:,pyom.tau]**2 * mask
-            pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
+            pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'U')
 
         k = np.maximum(pyom.kbot[2:-2, 2:-1], pyom.kbot[2:-2, 1:-2]) - 1
         mask = np.arange(pyom.nz) == k[:,:,None]
@@ -226,12 +225,12 @@ def linear_bottom_friction(pyom):
         if pyom.enable_conserve_energy:
             diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
             diss[2:-2,1:-2] = pyom.maskV[2:-2,1:-2] * pyom.r_bot * pyom.v[2:-2,1:-2,:,pyom.tau]**2 * mask
-            pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
+            pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'V')
 
     if not pyom.enable_hydrostatic:
         raise NotImplementedError("bottom friction for vertical velocity not implemented")
 
-
+@pyom_method
 def quadratic_bottom_friction(pyom):
     """
     quadratic bottom friction
@@ -250,7 +249,7 @@ def quadratic_bottom_friction(pyom):
     if pyom.enable_conserve_energy:
         diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
         diss[1:-2,2:-2,:] = aloc * pyom.u[1:-2,2:-2,:,pyom.tau]
-        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
+        pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'U')
 
     k = np.maximum(pyom.kbot[2:-2,1:-2],pyom.kbot[2:-2,2:-1]) - 1
     mask = k[..., np.newaxis] == np.indices((pyom.nx, pyom.ny+1, pyom.nz))[2]
@@ -264,12 +263,12 @@ def quadratic_bottom_friction(pyom):
     if pyom.enable_conserve_energy:
         diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
         diss[2:-2,1:-2,:] = aloc * pyom.v[2:-2,1:-2,:,pyom.tau]
-        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
+        pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'V')
 
     if not pyom.enable_hydrostatic:
         raise NotImplementedError("bottom friction for vertical velocity not implemented")
 
-
+@pyom_method
 def harmonic_friction(pyom):
     """
     horizontal harmonic friction
@@ -314,7 +313,7 @@ def harmonic_friction(pyom):
                 + (pyom.u[1:-2,2:-2,:,pyom.tau] - pyom.u[1:-2,1:-3,:,pyom.tau]) * pyom.flux_north[1:-2,1:-3]) \
                     / (pyom.cost[2:-2] * pyom.dyt[2:-2])[None,:,None]
         pyom.K_diss_h[...] = 0.
-        pyom.K_diss_h[...] = numerics.calc_diss(diss,pyom.K_diss_h,'U',pyom)
+        pyom.K_diss_h[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_h,'U')
 
     """
     Meridional velocity
@@ -352,7 +351,7 @@ def harmonic_friction(pyom):
                 + 0.5*((pyom.v[2:-2,2:-1,:,pyom.tau] - pyom.v[2:-2,1:-2,:,pyom.tau]) * pyom.flux_north[2:-2,1:-2] \
                 + (pyom.v[2:-2,1:-2,:,pyom.tau] - pyom.v[2:-2,:-3,:,pyom.tau]) * pyom.flux_north[2:-2,:-3]) \
                 / (pyom.cosu[1:-2] * pyom.dyu[1:-2])[None,:,None]
-        pyom.K_diss_h[...] = numerics.calc_diss(diss,pyom.K_diss_h,'V',pyom)
+        pyom.K_diss_h[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_h,'V')
 
     if not pyom.enable_hydrostatic:
         if pyom.enable_hor_friction_cos_scaling:
@@ -378,7 +377,7 @@ def harmonic_friction(pyom):
         """
         # to be implemented
 
-
+@pyom_method
 def biharmonic_friction(pyom):
     """
     horizontal biharmonic friction
@@ -438,7 +437,7 @@ def biharmonic_friction(pyom):
                                     + (pyom.u[1:-2,2:-2,:,pyom.tau] - pyom.u[1:-2,1:-3,:,pyom.tau]) * pyom.flux_north[1:-2,1:-3,:]) \
                                     / (pyom.cost[np.newaxis, 2:-2, np.newaxis] * pyom.dyt[np.newaxis, 2:-2, np.newaxis])
         pyom.K_diss_h[...] = 0.
-        pyom.K_diss_h[...] = numerics.calc_diss(diss,pyom.K_diss_h,'U',pyom)
+        pyom.K_diss_h[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_h,'U')
 
     """
     Meridional velocity
@@ -486,9 +485,9 @@ def biharmonic_friction(pyom):
                              - 0.5*((pyom.v[2:-2,2:-1,:,pyom.tau] - pyom.v[2:-2,1:-2,:,pyom.tau]) * pyom.flux_north[2:-2,1:-2,:] \
                                   + (pyom.v[2:-2,1:-2,:,pyom.tau] - pyom.v[2:-2,:-3,:,pyom.tau]) * pyom.flux_north[2:-2,:-3,:]) \
                                   / (pyom.cosu[np.newaxis, 1:-2, np.newaxis] * pyom.dyu[np.newaxis, 1:-2, np.newaxis])
-        pyom.K_diss_h[...] = numerics.calc_diss(diss,pyom.K_diss_h,'V',pyom)
+        pyom.K_diss_h[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_h,'V')
 
-
+@pyom_method
 def momentum_sources(pyom):
     """
     other momentum sources
@@ -497,8 +496,8 @@ def momentum_sources(pyom):
     pyom.du_mix[...] += pyom.maskU * pyom.u_source
     if pyom.enable_conserve_energy:
         diss = -pyom.maskU * pyom.u[..., pyom.tau] * pyom.u_source
-        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'U',pyom)
+        pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'U')
     pyom.dv_mix[...] += pyom.maskV * pyom.v_source
     if pyom.enable_conserve_energy:
         diss = -pyom.maskV * pyom.v[..., pyom.tau] * pyom.v_source
-        pyom.K_diss_bot[...] = numerics.calc_diss(diss,pyom.K_diss_bot,'V',pyom)
+        pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'V')

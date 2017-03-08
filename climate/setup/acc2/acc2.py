@@ -1,6 +1,4 @@
-from climate.pyom import PyOMLegacy, diagnostics
-
-import numpy as np
+from climate.pyom import PyOMLegacy, diagnostics, pyom_method
 
 yt_start = -39.0
 yt_end = 43
@@ -11,6 +9,7 @@ class ACC2(PyOMLegacy):
    """
    A simple global model with a Southern Ocean and Atlantic part
    """
+   @pyom_method
    def set_parameter(self):
      m=self.main_module
 
@@ -77,6 +76,7 @@ class ACC2(PyOMLegacy):
 
      m.eq_of_state_type = 3
 
+   @pyom_method
    def set_grid(self):
      m=self.main_module
      ddz = np.array([50.,70.,100.,140.,190.,240.,290.,340.,390.,440.,490.,540.,590.,640.,690.])
@@ -86,15 +86,18 @@ class ACC2(PyOMLegacy):
      m.y_origin= -40.0
      m.dzt[:] = ddz[::-1]/2.5
 
+   @pyom_method
    def set_coriolis(self):
      m=self.main_module
      m.coriolis_t[:,:] = 2*m.omega*np.sin(m.yt[None,:]/180.*np.pi)
 
+   @pyom_method
    def set_topography(self):
      m=self.main_module
      (X,Y)= np.meshgrid(m.xt,m.yt); X=X.transpose(); Y=Y.transpose()
      m.kbot = (X > 1.0) | (Y < -20)
 
+   @pyom_method
    def set_initial_conditions(self):
      m=self.main_module
      XT, YT = np.meshgrid(m.xt,m.yt); XT=XT.transpose(); YT=YT.transpose()
@@ -129,12 +132,12 @@ class ACC2(PyOMLegacy):
        i.forc_iw_bottom[:] =  1.0e-6*m.maskW[:,:,-1]
        i.forc_iw_surface[:] = 0.1e-6*m.maskW[:,:,-1]
 
-
+   @pyom_method
    def set_forcing(self):
        m=self.main_module
        m.forc_temp_surface[:] = self.t_rest*(self.t_star-m.temp[:,:,-1,1])
 
-
+   @pyom_method
    def set_diagnostics(self):
        m=self.main_module
        if self.legacy_mode:

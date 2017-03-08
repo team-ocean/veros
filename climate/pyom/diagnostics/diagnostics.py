@@ -1,8 +1,7 @@
-import numpy as np
-
 import climate.pyom.diagnostics
-from climate.pyom import isoneutral
+from climate.pyom import isoneutral, pyom_method
 
+@pyom_method
 def init_diagnostics(pyom):
     """
     initialize diagnostic routines
@@ -40,7 +39,7 @@ def init_diagnostics(pyom):
         diagnostics.init_diag_particles(pyom)
         diagnostics.init_write_particles(pyom)
 
-
+@pyom_method
 def diagnose(pyom):
     """
     call diagnostic routines
@@ -50,9 +49,7 @@ def diagnose(pyom):
     time = pyom.itt * pyom.dt_tracer
 
     if pyom.enable_diag_ts_monitor and time % pyom.ts_monint < pyom.dt_tracer:
-        print("itt={} time={}s congr.itts={}".format(pyom.itt,time,pyom.congr_itts))
-        if not pyom.enable_hydrostatic:
-            print("congr. non hydro itts={}".format(pyom.congr_itts_non_hydro))
+        print("itt={} time={}s".format(pyom.itt,time))
         diagnostics.diag_cfl(pyom)
 
     if pyom.enable_diag_tracer_content and time % pyom.trac_cont_int < pyom.dt_tracer:
@@ -93,7 +90,7 @@ def diagnose(pyom):
         if time % pyom.particles_int < pyom.dt_tracer:
             diagnostics.write_particles(pyom)
 
-
+@pyom_method
 def diag_cfl(pyom):
     """
     check for CFL violation
@@ -107,27 +104,6 @@ def diag_cfl(pyom):
     )
     wcfl = np.max(np.abs(pyom.w[2:-2, 2:-2, :, pyom.tau]) * pyom.maskW[2:-2, 2:-2, :] \
                   / pyom.dzt[np.newaxis, np.newaxis, :] * pyom.dt_tracer)
-    #cfl = 0
-    #wcfl = 0.
-    #for k in xrange(1,nz): # k=1,nz
-    #    for j in xrange(js_pe,je_pe): # j=js_pe,je_pe
-    #        for i in xrange(is_pe,ie_pe): # i=is_pe,ie_pe
-    #            cfl = max(cfl, abs(u[i,j,k,tau])*maskU[i,j,k]/(cost[j]*dxt[i])*dt_tracer)
-    #            cfl = max(cfl, abs(v[i,j,k,tau])*maskV[i,j,k]/dyt[j]*dt_tracer)
-    #            wcfl = max(wcfl, abs(w[i,j,k,tau])*maskW[i,j,k]/dzt[k]*dt_tracer)
-
-    # global_max(cfl); call global_max(wcfl)
-    #cfl = np.max(cfl)
-    #wcfl = np.max(wcfl)
-
-    # !if (cfl > 0.5.or.wcfl > 0.5) then
-    # !  if (my_pe==0) print'(/a,f12.6)','ERROR:  maximal CFL number = ',max(cfl,wcfl)
-    # !  if (my_pe==0) print'(a,i9,a/)' ,' at itt = ',itt,' ... stopping integration '
-    # !  if (.not. enable_diag_snapshots )   call init_snap_cdf
-    # !  call diag_snap
-    # !  call halt_stop(' in diag_cfl')
-    # !endif
-    # ! check for NaN
 
     if np.isnan(cfl) or np.isnan(wcfl):
         raise RuntimeError("ERROR: CFL number is NaN att itt = {} ... stopping integration".format(itt))
@@ -145,30 +121,21 @@ def diag_cfl(pyom):
         )
         wcfl = np.max(np.abs(pyom.w_wgrid[2:-2, 2:-2, :]) * pyom.maskW[2:-2, 2:-2, :] \
                       / pyom.dzt[np.newaxis, np.newaxis, :] * pyom.dt_tracer)
-        #for k in xrange(1,nz): # k=1,nz
-        #    for j in xrange(js_pe,je_pe): # j=js_pe,je_pe
-        #        for i in xrange(is_pe,ie_pe): # i=is_pe,ie_pe
-        #            cfl = max(cfl, abs(u_wgrid[i,j,k])*maskU[i,j,k]/(cost[j]*dxt[i])*dt_tracer)
-        #            cfl = max(cfl, abs(v_wgrid[i,j,k])*maskV[i,j,k]/dyt[j]*dt_tracer)
-        #            wcfl = max(wcfl, abs(w_wgrid[i,j,k])*maskW[i,j,k]/dzt[k]*dt_tracer)
-        #cfl = np.max(cfl)
-        #wcfl = np.max(wcfl)
         print("maximal hor. CFL number on w grid = {}".format(cfl))
         print("maximal ver. CFL number on w grid = {}".format(wcfl))
 
-
+@pyom_method
 def diag_tracer_content(pyom):
     """
     Diagnose tracer content
     """
-    # real*8, save :: tempm1=0.,saltm1=0.,vtemp1=0.,vsalt1=0.
-
     volm = 0
     tempm = 0
     vtemp = 0
     saltm = 0
     vsalt = 0
 
+    # TODO: vectorize
     for k in xrange(1,nz): # k=1,nz
         for j in xrange(js_pe,je_pe): # j=js_pe,je_pe
             for i in xrange(is_pe,ie_pe): # i=is_pe,ie_pe

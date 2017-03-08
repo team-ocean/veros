@@ -1,9 +1,7 @@
-import numpy as np
-
 from climate.pyom import advection, diffusion, isoneutral, cyclic
-from climate.pyom import numerics, density, utilities
+from climate.pyom import numerics, density, utilities, pyom_method
 
-
+@pyom_method
 def thermodynamics(pyom):
     """
     integrate temperature and salinity and diagnose sources of dynamic enthalpy
@@ -16,9 +14,9 @@ def thermodynamics(pyom):
         advection of dynamic enthalpy
         """
         if pyom.enable_superbee_advection:
-            advection.adv_flux_superbee(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.Hd[:,:,:,pyom.tau],pyom)
+            advection.adv_flux_superbee(pyom,pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.Hd[:,:,:,pyom.tau])
         else:
-            advection.adv_flux_2nd(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.Hd[:,:,:,pyom.tau],pyom)
+            advection.adv_flux_2nd(pyom,pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.Hd[:,:,:,pyom.tau])
 
         pyom.dHd[2:-2, 2:-2, :, pyom.tau] = pyom.maskT[2:-2, 2:-2, :] * (-(pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
                                                                             / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
@@ -50,7 +48,7 @@ def thermodynamics(pyom):
         dissipation by advection interpolated on W-grid
         """
         pyom.P_diss_adv[...] = 0.
-        diffusion.dissipation_on_wgrid(pyom.P_diss_adv, pyom, aloc=aloc)
+        diffusion.dissipation_on_wgrid(pyom, pyom.P_diss_adv, aloc=aloc)
 
         """
         distribute pyom.P_diss_adv over domain, prevent draining of TKE
@@ -97,12 +95,12 @@ def thermodynamics(pyom):
             pyom.dtemp_iso[...] = 0.0
             pyom.dsalt_iso[...] = 0.0
             isoneutral.isoneutral_diffusion_pre(pyom)
-            isoneutral.isoneutral_diffusion(pyom.temp,True,pyom)
-            isoneutral.isoneutral_diffusion(pyom.salt,False,pyom)
+            isoneutral.isoneutral_diffusion(pyom,pyom.temp,True)
+            isoneutral.isoneutral_diffusion(pyom,pyom.salt,False)
             if pyom.enable_skew_diffusion:
                 pyom.P_diss_skew[...] = 0.0
-                isoneutral.isoneutral_skew_diffusion(pyom.temp,True,pyom)
-                isoneutral.isoneutral_skew_diffusion(pyom.salt,False,pyom)
+                isoneutral.isoneutral_skew_diffusion(pyom,pyom.temp,True)
+                isoneutral.isoneutral_skew_diffusion(pyom,pyom.salt,False)
 
     with pyom.timers["vmix"]:
         """
@@ -126,11 +124,11 @@ def thermodynamics(pyom):
         c_tri[:, :, :-1] = -delta[:, :, :-1] / pyom.dzt[None, None, :-1]
         d_tri[...] = pyom.temp[2:-2, 2:-2, :, pyom.taup1]
         d_tri[:, :, -1] += pyom.dt_tracer * pyom.forc_temp_surface[2:-2, 2:-2] / pyom.dzt[-1]
-        sol, mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+        sol, mask = utilities.solve_implicit(pyom, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
         pyom.temp[2:-2, 2:-2, :, pyom.taup1] = np.where(mask, sol, pyom.temp[2:-2, 2:-2, :, pyom.taup1])
         d_tri[...] = pyom.salt[2:-2, 2:-2, :, pyom.taup1]
         d_tri[:, :, -1] += pyom.dt_tracer * pyom.forc_salt_surface[2:-2, 2:-2] / pyom.dzt[-1]
-        sol, mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+        sol, mask = utilities.solve_implicit(pyom, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
         pyom.salt[2:-2, 2:-2, :, pyom.taup1] = np.where(mask, sol, pyom.salt[2:-2, 2:-2, :, pyom.taup1])
 
         pyom.dtemp_vmix[...] = (pyom.temp[:,:,:,pyom.taup1] - pyom.dtemp_vmix) / pyom.dt_tracer
@@ -144,14 +142,14 @@ def thermodynamics(pyom):
         cyclic.setcyclic_x(pyom.salt[..., pyom.taup1])
 
     with pyom.timers["eq_of_state"]:
-        calc_eq_of_state(pyom.taup1, pyom)
+        calc_eq_of_state(pyom, pyom.taup1)
 
     """
     surface density flux
     """
     pyom.forc_rho_surface[...] = (
-                                density.get_drhodT(pyom.salt[:,:,-1,pyom.taup1],pyom.temp[:,:,-1,pyom.taup1],np.abs(pyom.zt[-1]),pyom) * pyom.forc_temp_surface \
-                              + density.get_drhodS(pyom.salt[:,:,-1,pyom.taup1],pyom.temp[:,:,-1,pyom.taup1],np.abs(pyom.zt[-1]),pyom) * pyom.forc_salt_surface \
+                                density.get_drhodT(pyom,pyom.salt[:,:,-1,pyom.taup1],pyom.temp[:,:,-1,pyom.taup1],np.abs(pyom.zt[-1])) * pyom.forc_temp_surface \
+                              + density.get_drhodS(pyom,pyom.salt[:,:,-1,pyom.taup1],pyom.temp[:,:,-1,pyom.taup1],np.abs(pyom.zt[-1])) * pyom.forc_salt_surface \
                             ) * pyom.maskT[:,:,-1]
 
     with pyom.timers["vmix"]:
@@ -188,15 +186,15 @@ def thermodynamics(pyom):
             pyom.P_diss_v[:,:,:-1] = pyom.kappaH[:,:,:-1] * pyom.Nsqr[:,:,:-1,pyom.taup1]
             pyom.P_diss_v[:,:,-1] = -pyom.forc_rho_surface * pyom.maskT[:,:,-1] * pyom.grav / pyom.rho_0
 
-
-def advect_tracer(tr,dtr,pyom):
+@pyom_method
+def advect_tracer(pyom, tr, dtr):
     """
     calculate time tendency of a tracer due to advection
     """
     if pyom.enable_superbee_advection:
-        advection.adv_flux_superbee(pyom.flux_east,pyom.flux_north,pyom.flux_top,tr,pyom)
+        advection.adv_flux_superbee(pyom,pyom.flux_east,pyom.flux_north,pyom.flux_top,tr)
     else:
-        advection.adv_flux_2nd(pyom.flux_east,pyom.flux_north,pyom.flux_top,tr,pyom)
+        advection.adv_flux_2nd(pyom,pyom.flux_east,pyom.flux_north,pyom.flux_top,tr)
     dtr[2:-2, 2:-2, :] = pyom.maskT[2:-2, 2:-2, :] * (-(pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
                                                         / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
                                                      - (pyom.flux_north[2:-2, 2:-2, :] - pyom.flux_north[2:-2, 1:-3, :]) \
@@ -204,27 +202,27 @@ def advect_tracer(tr,dtr,pyom):
     dtr[:, :, 0] += -pyom.maskT[:, :, 0] * pyom.flux_top[:, :, 0] / pyom.dzt[0]
     dtr[:, :, 1:] += -pyom.maskT[:, :, 1:] * (pyom.flux_top[:, :, 1:] - pyom.flux_top[:, :, :-1]) / pyom.dzt[1:]
 
-
+@pyom_method
 def advect_temperature(pyom):
     """
     integrate temperature
     """
-    return advect_tracer(pyom.temp[..., pyom.tau], pyom.dtemp[..., pyom.tau], pyom)
+    return advect_tracer(pyom, pyom.temp[..., pyom.tau], pyom.dtemp[..., pyom.tau])
 
-
+@pyom_method
 def advect_salinity(pyom):
     """
     integrate salinity
     """
-    return advect_tracer(pyom.salt[..., pyom.tau], pyom.dsalt[..., pyom.tau], pyom)
+    return advect_tracer(pyom, pyom.salt[..., pyom.tau], pyom.dsalt[..., pyom.tau])
 
-
-def calc_eq_of_state(n, pyom):
+@pyom_method
+def calc_eq_of_state(pyom, n):
     """
     calculate density, stability frequency, dynamic enthalpy and derivatives
     for time level n from temperature and salinity
     """
-    density_args = (pyom.salt[..., n], pyom.temp[..., n], np.abs(pyom.zt), pyom)
+    density_args = (pyom, pyom.salt[..., n], pyom.temp[..., n], np.abs(pyom.zt))
 
     """
     calculate new density
@@ -243,5 +241,5 @@ def calc_eq_of_state(n, pyom):
     new stability frequency
     """
     fxa = -pyom.grav / pyom.rho_0 / pyom.dzw[None, None, :-1] * pyom.maskW[:, :, :-1]
-    pyom.Nsqr[:, :, :-1, n] = fxa * (density.get_rho(pyom.salt[:,:,1:,n], pyom.temp[:,:,1:,n], np.abs(pyom.zt[:-1]), pyom) - pyom.rho[:,:,:-1,n])
+    pyom.Nsqr[:, :, :-1, n] = fxa * (density.get_rho(pyom, pyom.salt[:,:,1:,n], pyom.temp[:,:,1:,n], np.abs(pyom.zt[:-1])) - pyom.rho[:,:,:-1,n])
     pyom.Nsqr[:, :, -1, n] = pyom.Nsqr[:,:,-2,n]

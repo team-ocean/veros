@@ -1,7 +1,6 @@
-import numpy as np
+from climate.pyom import friction, isoneutral, external, non_hydrostatic, pyom_method
 
-from climate.pyom import friction, isoneutral, external, non_hydrostatic
-
+@pyom_method
 def momentum(pyom):
     """
     solve for momentum for taup1
@@ -145,7 +144,7 @@ def momentum(pyom):
         if not pyom.enable_hydrostatic:
             non_hydrostytic.solve_non_hydrostatic(pyom)
 
-
+@pyom_method
 def vertical_velocity(pyom):
     """
            vertical velocity from continuity :
@@ -165,7 +164,7 @@ def vertical_velocity(pyom):
                     / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None]))
     pyom.w[1:,1:,:,pyom.taup1] = np.cumsum(fxa, axis=2)
 
-
+@pyom_method
 def momentum_advection(pyom):
     """
     Advection of momentum with second order which is energy conserving

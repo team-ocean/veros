@@ -3,8 +3,10 @@ import linear_eq as lq
 import nonlinear_eq1 as nq1
 import nonlinear_eq2 as nq2
 import nonlinear_eq3 as nq3
+from climate.pyom import pyom_method
 
-def get_rho(salt_loc,temp_loc,press,pyom):
+@pyom_method
+def get_rho(pyom,salt_loc,temp_loc,press):
     """
     calculate density as a function of temperature, salinity and pressure
     """
@@ -21,8 +23,8 @@ def get_rho(salt_loc,temp_loc,press,pyom):
     else:
         raise ValueError('unknown equation of state')
 
-
-def get_dyn_enthalpy(salt_loc,temp_loc,press,pyom):
+@pyom_method
+def get_dyn_enthalpy(pyom,salt_loc,temp_loc,press):
     """
     calculate dynamic enthalpy as a function of temperature, salinity and pressure
     """
@@ -39,8 +41,8 @@ def get_dyn_enthalpy(salt_loc,temp_loc,press,pyom):
     else:
         raise ValueError('unknown equation of state')
 
-
-def get_salt(rho_loc,temp_loc,press_loc,pyom):
+@pyom_method
+def get_salt(pyom,rho_loc,temp_loc,press_loc):
     """
     calculate salinity as a function of density, temperature and pressure
     """
@@ -55,8 +57,8 @@ def get_salt(rho_loc,temp_loc,press_loc,pyom):
     else:
         raise ValueError('unknown equation of state')
 
-
-def get_drhodT(salt_loc,temp_loc,press_loc,pyom):
+@pyom_method
+def get_drhodT(pyom,salt_loc,temp_loc,press_loc):
     """
     calculate drho/dT as a function of temperature, salinity and pressure
     """
@@ -73,8 +75,8 @@ def get_drhodT(salt_loc,temp_loc,press_loc,pyom):
     else:
         raise ValueError('unknown equation of state')
 
-
-def get_drhodS(salt_loc,temp_loc,press_loc,pyom):
+@pyom_method
+def get_drhodS(pyom,salt_loc,temp_loc,press_loc):
     """
     calculate drho/dS as a function of temperature, salinity and pressure
     """
@@ -91,8 +93,8 @@ def get_drhodS(salt_loc,temp_loc,press_loc,pyom):
     else:
         raise ValueError('unknown equation of state')
 
-
-def get_drhodp(salt_loc,temp_loc,press_loc,pyom):
+@pyom_method
+def get_drhodp(pyom,salt_loc,temp_loc,press_loc):
     """
     calculate drho/dP as a function of temperature, salinity and pressure
     """
@@ -109,8 +111,8 @@ def get_drhodp(salt_loc,temp_loc,press_loc,pyom):
     else:
         raise ValueError('unknown equation of state')
 
-
-def get_int_drhodT(salt_loc,temp_loc,press_loc,pyom):
+@pyom_method
+def get_int_drhodT(pyom,salt_loc,temp_loc,press_loc):
     """
     calculate int_z^0 drho/dT dz' as a function of temperature, salinity and pressure
     """
@@ -127,8 +129,8 @@ def get_int_drhodT(salt_loc,temp_loc,press_loc,pyom):
     else:
         raise ValueError('unknown equation of state')
 
-
-def get_int_drhodS(salt_loc,temp_loc,press_loc,pyom):
+@pyom_method
+def get_int_drhodS(pyom,salt_loc,temp_loc,press_loc):
     """
     calculate int_z^0 drho/dS dz' as a function of temperature, salinity and pressure
     """

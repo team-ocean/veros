@@ -1,8 +1,8 @@
-import numpy as np
 import math
 
-from climate.pyom import utilities, advection
+from climate.pyom import utilities, advection, pyom_method
 
+@pyom_method
 def init_eke(pyom):
     """
     Initialize EKE
@@ -10,7 +10,7 @@ def init_eke(pyom):
     if pyom.enable_eke_leewave_dissipation:
         pyom.hrms_k0[...] = np.maximum(pyom.eke_hrms_k0_min, 2 / pyom.pi * pyom.eke_topo_hrms**2 / np.maximum(1e-12, pyom.eke_topo_lam)**1.5)
 
-
+@pyom_method
 def set_eke_diffusivities(pyom):
     """
     set skew diffusivity K_gm and isopycnal diffusivity K_iso
@@ -46,7 +46,7 @@ def set_eke_diffusivities(pyom):
     else:
         pyom.K_iso[...] = pyom.K_iso_0 # always constant
 
-
+@pyom_method
 def integrate_eke(pyom):
     """
     integrate EKE equation on W grid
@@ -142,7 +142,7 @@ def integrate_eke(pyom):
     b_tri_edge = 1 + delta / pyom.dzw[None, None, :] + pyom.dt_tracer * c_int[2:-2, 2:-2, :]
     c_tri[:, :, :-1] = -delta[:, :, :-1] / pyom.dzw[None, None, :-1]
     d_tri[:, :, :] = pyom.eke[2:-2, 2:-2, :, pyom.tau] + pyom.dt_tracer * forc[2:-2, 2:-2, :]
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    sol, water_mask = utilities.solve_implicit(pyom, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
     pyom.eke[2:-2, 2:-2, :, pyom.taup1] = np.where(water_mask, sol, pyom.eke[2:-2, 2:-2, :, pyom.taup1])
 
     """
@@ -204,9 +204,9 @@ def integrate_eke(pyom):
     add tendency due to advection
     """
     if pyom.enable_eke_superbee_advection:
-        advection.adv_flux_superbee_wgrid(pyom.flux_east, pyom.flux_north, pyom.flux_top, pyom.eke[:,:,:,pyom.tau], pyom)
+        advection.adv_flux_superbee_wgrid(pyom, pyom.flux_east, pyom.flux_north, pyom.flux_top, pyom.eke[:,:,:,pyom.tau])
     if pyom.enable_eke_upwind_advection:
-        advection.adv_flux_upwind_wgrid(pyom.flux_east, pyom.flux_north, pyom.flux_top, pyom.eke[:,:,:,pyom.tau], pyom)
+        advection.adv_flux_upwind_wgrid(pyom, pyom.flux_east, pyom.flux_north, pyom.flux_top, pyom.eke[:,:,:,pyom.tau])
     if pyom.enable_eke_superbee_advection or pyom.enable_eke_upwind_advection:
         pyom.deke[2:-2,2:-2,:,pyom.tau] = pyom.maskW[2:-2,2:-2,:] * (-(pyom.flux_east[2:-2,2:-2,:] - pyom.flux_east[1:-3,2:-2,:]) \
                                        / (pyom.cost[None,2:-2,None] * pyom.dxt[2:-2,None,None]) \

@@ -1,8 +1,8 @@
-import numpy as np
-
 import climate.pyom.numerics
+from climate.pyom import pyom_method
 
-def pad_z_edges(array):
+@pyom_method
+def pad_z_edges(pyom, array):
     """
     Pads the z-axis of an array by repeating its edge values
     """
@@ -22,8 +22,8 @@ def pad_z_edges(array):
         raise ValueError("Array to pad needs to have 1 or at least 3 dimensions")
     return newarray
 
-
-def solve_implicit(ks, a, b, c, d, b_edge=None, d_edge=None):
+@pyom_method
+def solve_implicit(pyom, ks, a, b, c, d, b_edge=None, d_edge=None):
     land_mask = (ks >= 0)[:,:,None]
     if not np.sum(land_mask):
         return np.zeros_like(land_mask), np.zeros_like(land_mask)
@@ -40,4 +40,4 @@ def solve_implicit(ks, a, b, c, d, b_edge=None, d_edge=None):
     d_tri = np.where(water_mask, d, 0.)
     if not (d_edge is None):
         d_tri = np.where(edge_mask, d_edge, d_tri)
-    return climate.pyom.numerics.solve_tridiag(a_tri,b_tri,c_tri,d_tri), water_mask
+    return climate.pyom.numerics.solve_tridiag(pyom,a_tri,b_tri,c_tri,d_tri), water_mask

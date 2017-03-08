@@ -1,9 +1,7 @@
 import os
-import numpy as np
 from netCDF4 import Dataset
 
-from climate.pyom import PyOMLegacy, diagnostics
-
+from climate.pyom import PyOMLegacy, diagnostics, pyom_method
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = dict(
@@ -27,7 +25,7 @@ class GlobalFourDegree(PyOMLegacy):
     """
     global 4 deg model with 15 levels
     """
-
+    @pyom_method
     def set_parameter(self):
         m=self.fortran.main_module
 
@@ -98,12 +96,12 @@ class GlobalFourDegree(PyOMLegacy):
 
         m.eq_of_state_type = 5
 
-
+    @pyom_method
     def _read_binary(self, var, shape=(-1,), dtype=">f"):
         data = np.array(np.fromfile(DATA_FILES[var], dtype=dtype, count=np.prod(shape)).reshape(shape, order="F"), dtype=np.float)
         return data
 
-
+    @pyom_method
     def set_grid(self):
         m=self.fortran.main_module
         ddz = np.array([50.,70.,100.,140.,190.,240.,290.,340.,390.,440.,490.,540.,590.,640.,690.])
@@ -113,12 +111,12 @@ class GlobalFourDegree(PyOMLegacy):
         m.y_origin = -76.0
         m.x_origin = 4.0
 
-
+    @pyom_method
     def set_coriolis(self):
         m=self.fortran.main_module
         m.coriolis_t[...] = 2*m.omega*np.sin(m.yt[np.newaxis,:]/180.*m.pi)
 
-
+    @pyom_method
     def set_topography(self):
         m = self.main_module
         bathymetry_data = self._read_binary("bathymetry", (m.nx, m.ny), dtype=">i")
@@ -130,7 +128,7 @@ class GlobalFourDegree(PyOMLegacy):
         m.kbot[2:-2, 2:-2][mask_bathy] = 0
         m.kbot[m.kbot == m.nz] = 0
 
-
+    @pyom_method
     def set_initial_conditions(self):
         """ setup initial conditions
         """
@@ -170,7 +168,7 @@ class GlobalFourDegree(PyOMLegacy):
             idm.forc_iw_bottom[2:-2,2:-2] = self._read_binary("tidal_energy", shape=(m.nx,m.ny)) / m.rho_0
             idm.forc_iw_surface[2:-2,2:-2] = self._read_binary("wind_energy", shape=(m.nx,m.ny)) / m.rho_0 * 0.2
 
-
+    @pyom_method
     def _get_periodic_interval(self, currentTime, cycleLength, recSpacing, nbrec):
         # interpolation routine taken from mitgcm
         locTime = currentTime - recSpacing * 0.5 + cycleLength * (2 - round(currentTime / cycleLength))
@@ -181,7 +179,7 @@ class GlobalFourDegree(PyOMLegacy):
         wght1 = 1. - wght2
         return (tRec1, wght1), (tRec2, wght2)
 
-
+    @pyom_method
     def set_forcing(self):
         m=self.fortran.main_module
 
@@ -217,27 +215,27 @@ class GlobalFourDegree(PyOMLegacy):
             m.temp_source[:] = m.maskT * self.rest_tscl * (f1*self.t_star[:,:,:,n1] + f2*self.t_star[:,:,:,n2] - m.temp[:,:,:,1])
             m.salt_source[:] = m.maskT * self.rest_tscl * (f1*self.s_star[:,:,:,n1] + f2*self.s_star[:,:,:,n2] - m.salt[:,:,:,1])
 
-
+    @pyom_method
     def set_diagnostics(self):
         m=self.fortran.main_module
         if self.legacy_mode:
-            diagnostics.register_average(name='temp',long_name='Temperature',         units = 'deg C' , grid = 'TTT', var = lambda: m.temp[...,m.tau-1], pyom=m)
-            diagnostics.register_average(name='salt',long_name='Salinity',            units = 'g/kg' ,  grid = 'TTT', var = lambda: m.salt[...,m.tau-1], pyom=m)
-            diagnostics.register_average(name='u',   long_name='Zonal velocity',      units = 'm/s' ,   grid = 'UTT', var = lambda: m.u[...,m.tau-1], pyom=m)
-            diagnostics.register_average(name='v',   long_name='Meridional velocity', units = 'm/s' ,   grid = 'TUT', var = lambda: m.v[...,m.tau-1], pyom=m)
-            diagnostics.register_average(name='w',   long_name='Vertical velocity',   units = 'm/s' ,   grid = 'TTU', var = lambda: m.w[...,m.tau-1], pyom=m)
-            diagnostics.register_average(name='taux',long_name='wind stress',         units = 'm^2/s' , grid = 'UT',  var = lambda: m.surface_taux, pyom=m)
-            diagnostics.register_average(name='tauy',long_name='wind stress',         units = 'm^2/s' , grid = 'TU',  var = lambda: m.surface_tauy, pyom=m)
-            diagnostics.register_average(name='psi' ,long_name='Streamfunction',      units = 'm^3/s' , grid = 'UU',  var = lambda: m.psi[...,m.tau-1], pyom=m)
+            diagnostics.register_average(m,name='temp',long_name='Temperature',         units = 'deg C' , grid = 'TTT', var = lambda: m.temp[...,m.tau-1])
+            diagnostics.register_average(m,name='salt',long_name='Salinity',            units = 'g/kg' ,  grid = 'TTT', var = lambda: m.salt[...,m.tau-1])
+            diagnostics.register_average(m,name='u',   long_name='Zonal velocity',      units = 'm/s' ,   grid = 'UTT', var = lambda: m.u[...,m.tau-1])
+            diagnostics.register_average(m,name='v',   long_name='Meridional velocity', units = 'm/s' ,   grid = 'TUT', var = lambda: m.v[...,m.tau-1])
+            diagnostics.register_average(m,name='w',   long_name='Vertical velocity',   units = 'm/s' ,   grid = 'TTU', var = lambda: m.w[...,m.tau-1])
+            diagnostics.register_average(m,name='taux',long_name='wind stress',         units = 'm^2/s' , grid = 'UT',  var = lambda: m.surface_taux)
+            diagnostics.register_average(m,name='tauy',long_name='wind stress',         units = 'm^2/s' , grid = 'TU',  var = lambda: m.surface_tauy)
+            diagnostics.register_average(m,name='psi' ,long_name='Streamfunction',      units = 'm^3/s' , grid = 'UU',  var = lambda: m.psi[...,m.tau-1])
         else:
-            diagnostics.register_average(name='temp',long_name='Temperature',         units = 'deg C' , grid = 'TTT', var = lambda: m.temp[...,m.tau], pyom=m)
-            diagnostics.register_average(name='salt',long_name='Salinity',            units = 'g/kg' ,  grid = 'TTT', var = lambda: m.salt[...,m.tau], pyom=m)
-            diagnostics.register_average(name='u',   long_name='Zonal velocity',      units = 'm/s' ,   grid = 'UTT', var = lambda: m.u[...,m.tau], pyom=m)
-            diagnostics.register_average(name='v',   long_name='Meridional velocity', units = 'm/s' ,   grid = 'TUT', var = lambda: m.v[...,m.tau], pyom=m)
-            diagnostics.register_average(name='w',   long_name='Vertical velocity',   units = 'm/s' ,   grid = 'TTU', var = lambda: m.w[...,m.tau], pyom=m)
-            diagnostics.register_average(name='taux',long_name='wind stress',         units = 'm^2/s' , grid = 'UT',  var = lambda: m.surface_taux, pyom=m)
-            diagnostics.register_average(name='tauy',long_name='wind stress',         units = 'm^2/s' , grid = 'TU',  var = lambda: m.surface_tauy, pyom=m)
-            diagnostics.register_average(name='psi' ,long_name='Streamfunction',      units = 'm^3/s' , grid = 'UU',  var = lambda: m.psi[...,m.tau], pyom=m)
+            diagnostics.register_average(m,name='temp',long_name='Temperature',         units = 'deg C' , grid = 'TTT', var = lambda: m.temp[...,m.tau])
+            diagnostics.register_average(m,name='salt',long_name='Salinity',            units = 'g/kg' ,  grid = 'TTT', var = lambda: m.salt[...,m.tau])
+            diagnostics.register_average(m,name='u',   long_name='Zonal velocity',      units = 'm/s' ,   grid = 'UTT', var = lambda: m.u[...,m.tau])
+            diagnostics.register_average(m,name='v',   long_name='Meridional velocity', units = 'm/s' ,   grid = 'TUT', var = lambda: m.v[...,m.tau])
+            diagnostics.register_average(m,name='w',   long_name='Vertical velocity',   units = 'm/s' ,   grid = 'TTU', var = lambda: m.w[...,m.tau])
+            diagnostics.register_average(m,name='taux',long_name='wind stress',         units = 'm^2/s' , grid = 'UT',  var = lambda: m.surface_taux)
+            diagnostics.register_average(m,name='tauy',long_name='wind stress',         units = 'm^2/s' , grid = 'TU',  var = lambda: m.surface_tauy)
+            diagnostics.register_average(m,name='psi' ,long_name='Streamfunction',      units = 'm^3/s' , grid = 'UU',  var = lambda: m.psi[...,m.tau])
 
 
 if __name__ == "__main__":

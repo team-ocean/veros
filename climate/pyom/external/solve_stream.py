@@ -5,19 +5,16 @@ with Dirichlet boundary conditions
 used for streamfunction
 """
 
-import numpy as np
-
-import climate
 from climate.pyom.external import solve_pressure, island, utilities, solve_poisson
-from climate.pyom import cyclic
+from climate.pyom import cyclic, pyom_method
 
-
+@pyom_method
 def solve_streamfunction(pyom):
     """
     solve for barotropic streamfunction
     """
-    line_forc = np.empty(pyom.nisle)
-    aloc = np.empty((pyom.nisle, pyom.nisle))
+    line_forc = np.zeros(pyom.nisle)
+    aloc = np.zeros((pyom.nisle, pyom.nisle))
 
     #hydrostatic pressure
     fxa = pyom.grav / pyom.rho_0
@@ -52,14 +49,14 @@ def solve_streamfunction(pyom):
 
     # solve for interior streamfunction
     pyom.dpsi[:,:,pyom.taup1] = 2 * pyom.dpsi[:,:,pyom.tau] - pyom.dpsi[:,:,pyom.taum1] # first guess, we need three time levels here
-    solve_poisson.solve(forc, pyom.dpsi[:,:,pyom.taup1], pyom)
+    solve_poisson.solve(pyom, forc, pyom.dpsi[:,:,pyom.taup1])
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.dpsi[:,:,pyom.taup1])
 
     if pyom.nisle > 1:
         # calculate island integrals of forcing, keep psi constant on island 1
-        line_forc[1:] = utilities.line_integrals(fpx[...,np.newaxis], fpy[...,np.newaxis], pyom, kind="same")[1:]
+        line_forc[1:] = utilities.line_integrals(pyom, fpx[...,np.newaxis], fpy[...,np.newaxis], kind="same")[1:]
 
         # calculate island integrals of interior streamfunction
         fpx[...] = 0.
@@ -70,10 +67,10 @@ def solve_streamfunction(pyom):
         fpy[1:, 1:] = pyom.maskV[1:, 1:, -1] \
                         * (pyom.dpsi[1:, 1:, pyom.taup1] - pyom.dpsi[:-1, 1:, pyom.taup1]) \
                         / (pyom.cosu[np.newaxis, 1:] * pyom.dxt[1:, np.newaxis]) * pyom.hvr[1:, 1:]
-        line_forc[1:] += -utilities.line_integrals(fpx[..., np.newaxis], fpy[..., np.newaxis], pyom, kind="same")[1:]
+        line_forc[1:] += -utilities.line_integrals(pyom, fpx[..., np.newaxis], fpy[..., np.newaxis], kind="same")[1:]
 
         # solve for time dependent boundary values
-        if climate.is_bohrium:
+        if pyom.backend_name == "bohrium":
             line_forc[1:] = np.linalg.jacobi(pyom.line_psin[1:, 1:], line_forc[1:])
         else:
             line_forc[1:] = np.linalg.solve(pyom.line_psin[1:, 1:], line_forc[1:])

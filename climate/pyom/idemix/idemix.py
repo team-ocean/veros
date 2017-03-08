@@ -1,7 +1,6 @@
-import numpy as np
+from climate.pyom import advection, numerics, utilities, pyom_method
 
-from climate.pyom import advection, numerics, utilities
-
+@pyom_method
 def set_idemix_parameter(pyom):
     """
     set main IDEMIX parameter
@@ -10,11 +9,11 @@ def set_idemix_parameter(pyom):
         + np.sqrt(np.maximum(0., pyom.Nsqr[:,:,-1,pyom.tau])) * 0.5 * pyom.dzw[-1:] * pyom.maskW[:,:,-1]
     fxa = np.sqrt(np.maximum(0., pyom.Nsqr[...,pyom.tau])) / (1e-22 + np.abs(pyom.coriolis_t[...,None]))
     cstar = np.maximum(1e-2, bN0[:,:,None] / (pyom.pi * pyom.jstar))
-    pyom.c0[...] = np.maximum(0., pyom.gamma * cstar * gofx2(fxa,pyom) * pyom.maskW)
-    pyom.v0[...] = np.maximum(0., pyom.gamma * cstar * hofx1(fxa,pyom) * pyom.maskW)
+    pyom.c0[...] = np.maximum(0., pyom.gamma * cstar * gofx2(pyom,fxa) * pyom.maskW)
+    pyom.v0[...] = np.maximum(0., pyom.gamma * cstar * hofx1(pyom,fxa) * pyom.maskW)
     pyom.alpha_c[...] = np.maximum(1e-4, pyom.mu0 * np.arccosh(np.maximum(1.,fxa)) * np.abs(pyom.coriolis_t[...,None]) / cstar**2) * pyom.maskW
 
-
+@pyom_method
 def integrate_idemix(pyom):
     """
     integrate idemix on W grid
@@ -81,7 +80,7 @@ def integrate_idemix(pyom):
     d_tri[...] = pyom.E_iw[2:-2, 2:-2, :, pyom.tau] + pyom.dt_tracer * forc[2:-2, 2:-2, :]
     d_tri_edge = d_tri + pyom.dt_tracer * pyom.forc_iw_bottom[2:-2, 2:-2, None] / pyom.dzw[None, None, :]
     d_tri[:,:,-1] += pyom.dt_tracer * pyom.forc_iw_surface[2:-2, 2:-2] / (0.5 * pyom.dzw[-1:])
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge, d_edge=d_tri_edge)
+    sol, water_mask = utilities.solve_implicit(pyom, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge, d_edge=d_tri_edge)
     pyom.E_iw[2:-2, 2:-2, :, pyom.taup1] = np.where(water_mask, sol, pyom.E_iw[2:-2, 2:-2, :, pyom.taup1])
 
     """
@@ -111,10 +110,10 @@ def integrate_idemix(pyom):
     add tendency due to advection
     """
     if pyom.enable_idemix_superbee_advection:
-        advection.adv_flux_superbee_wgrid(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.E_iw[:,:,:,pyom.tau],pyom)
+        advection.adv_flux_superbee_wgrid(pyom,pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.E_iw[:,:,:,pyom.tau])
 
     if pyom.enable_idemix_upwind_advection:
-        advection.adv_flux_upwind_wgrid(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.E_iw[:,:,:,pyom.tau],pyom)
+        advection.adv_flux_upwind_wgrid(pyom,pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.E_iw[:,:,:,pyom.tau])
 
     if pyom.enable_idemix_superbee_advection or pyom.enable_idemix_upwind_advection:
         pyom.dE_iw[2:-2, 2:-2, :, pyom.tau] = pyom.maskW[2:-2, 2:-2, :] * (-(pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
@@ -131,8 +130,8 @@ def integrate_idemix(pyom):
         pyom.E_iw[:,:,:,pyom.taup1] += pyom.dt_tracer * ((1.5 + pyom.AB_eps) * pyom.dE_iw[:,:,:,pyom.tau] \
                                                        - (0.5 + pyom.AB_eps) * pyom.dE_iw[:,:,:,pyom.taum1])
 
-
-def gofx2(x,pyom):
+@pyom_method
+def gofx2(pyom,x):
     """
     a function g(x)
     """
@@ -140,8 +139,8 @@ def gofx2(x,pyom):
     c = 1.-(2./pyom.pi) * np.arcsin(1./x)
     return 2. / pyom.pi / c * 0.9 * x**(-2./3.) * (1 - np.exp(-x/4.3))
 
-
-def hofx1(x,pyom):
+@pyom_method
+def hofx1(pyom,x):
     """
     a function h(x)
     """

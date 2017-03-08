@@ -1,5 +1,6 @@
 import threading
 import contextlib
+from climate.pyom import pyom_method
 
 _io_locks = {}
 def _add_to_locks(file_id, lock_immediately=False):
@@ -11,7 +12,7 @@ def _add_to_locks(file_id, lock_immediately=False):
         if not lock_immediately:
             _io_locks[file_id].set()
 
-def _wait_for_disk(file_id, pyom):
+def _wait_for_disk(pyom, file_id):
     """
     Wait for the lock of file_id to be released
     """
@@ -29,15 +30,15 @@ def _write_to_disk(ncfile, file_id=None):
     if not file_id is None:
         _io_locks[file_id].set()
 
-
+@pyom_method
 @contextlib.contextmanager
-def threaded_netcdf(ncfile, pyom, file_id=None):
+def threaded_netcdf(pyom, ncfile, file_id=None):
     """
     If using IO threads, start a new thread to write the netCDF data to disk.
     Note that locking only occurs when file_id is given.
     """
     if not file_id is None:
-        _wait_for_disk(file_id, pyom)
+        _wait_for_disk(pyom, file_id)
         _io_locks[file_id].clear()
     try:
         yield ncfile

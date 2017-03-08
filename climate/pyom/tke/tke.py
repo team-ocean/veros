@@ -1,9 +1,8 @@
-import numpy as np
 import math
 
-from climate.pyom import cyclic, advection, utilities, numerics
+from climate.pyom import cyclic, advection, utilities, numerics, pyom_method
 
-
+@pyom_method
 def set_tke_diffusivities(pyom):
     """
     set vertical diffusivities based on TKE model
@@ -65,7 +64,7 @@ def set_tke_diffusivities(pyom):
             """
             pyom.kappaH[...] = np.where(pyom.Nsqr[:,:,:,pyom.tau] < 0.0, 1.0, pyom.kappaH)
 
-
+@pyom_method
 def integrate_tke(pyom):
     """
     integrate Tke equation on W grid with surface flux boundary condition
@@ -140,7 +139,7 @@ def integrate_tke(pyom):
     d_tri[...] = pyom.tke[2:-2, 2:-2, :, pyom.tau] + pyom.dt_tke * forc[2:-2, 2:-2, :]
     d_tri[:,:,-1] += pyom.dt_tke * pyom.forc_tke_surface[2:-2, 2:-2] / (0.5 * pyom.dzw[-1])
 
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    sol, water_mask = utilities.solve_implicit(pyom, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
     pyom.tke[2:-2, 2:-2, :, pyom.taup1] = np.where(water_mask, sol, pyom.tke[2:-2, 2:-2, :, pyom.taup1])
 
     """
@@ -176,9 +175,9 @@ def integrate_tke(pyom):
     add tendency due to advection
     """
     if pyom.enable_tke_superbee_advection:
-        advection.adv_flux_superbee_wgrid(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.tke[:,:,:,pyom.tau],pyom)
+        advection.adv_flux_superbee_wgrid(pyom,pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.tke[:,:,:,pyom.tau])
     if pyom.enable_tke_upwind_advection:
-        advection.adv_flux_upwind_wgrid(pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.tke[:,:,:,pyom.tau],pyom)
+        advection.adv_flux_upwind_wgrid(pyom,pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.tke[:,:,:,pyom.tau])
     if pyom.enable_tke_superbee_advection or pyom.enable_tke_upwind_advection:
         pyom.dtke[2:-2, 2:-2, :, pyom.tau] = pyom.maskW[2:-2, 2:-2, :] * (-(pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
                                                                            / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \

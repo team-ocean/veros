@@ -1,11 +1,10 @@
-import sys
-import numpy as np
 import Queue
-import climate
+from climate.pyom import pyom_method
 
-def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyom, change_nisle=False, verbose=False):
+@pyom_method
+def isleperim(pyom, kmt, boundary_map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp, change_nisle=False, verbose=False):
     """
-    Island and Island Perimeter Mapping Routines
+    Island and Island Perimeter boundary_mapping Routines
     """
     land = 1
     kmt_land = 0
@@ -13,9 +12,9 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyo
     kmt_ocean = 1
 
     if verbose:
-        print ' Finding perimeters of all land masses'
+        print(' Finding perimeters of all land masses')
     if pyom.enable_cyclic_x and verbose:
-        print ' using cyclic boundary conditions'
+        print(' using cyclic boundary conditions')
 
     # initialize number of changes to kmt
     nchanges = 0
@@ -27,9 +26,8 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyo
     when no land points remain unassigned, land mass numbers are
     reduced by 1 and their perimeter ocean points relabelled accordingly
     """
-    if climate.is_bohrium: # sync before assigning values to numpy array Map
-        np.flush()
-    Map[...] = np.where(kmt > 0, ocean, land)
+    pyom.flush() # sync before assigning values to numpy array boundary_map
+    boundary_map[...] = np.where(kmt > 0, ocean, land)
 
     """
     find unassigned land points and expand them to continents
@@ -49,9 +47,9 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyo
         ieast = imt-1
     for j in xrange(jnorth, -1, -1): #j=jnorth,1,-1
         for i in xrange(iwest, ieast): #i=iwest,ieast
-            if Map[i,j] == land:
+            if boundary_map[i,j] == land:
                 queue.put((i,j))
-                expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp, pyom)
+                expand(pyom, boundary_map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp)
                 if verbose:
                     print ' number of island perimeter points: nippts(',label-1,')=',nippts[label]
                 label += 1
@@ -65,15 +63,15 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyo
     """
     relabel land masses and their ocean perimeters
     """
-    Map[iwest:ieast+1, :jnorth+1] -= np.sign(Map[iwest:ieast+1, :jnorth+1])
+    boundary_map[iwest:ieast+1, :jnorth+1] -= np.sign(boundary_map[iwest:ieast+1, :jnorth+1])
 
     iofs[:nisle-1] = iofs[1:nisle]
     nippts[:nisle-1] = nippts[1:nisle]
     nisle -= 1
 
     if pyom.enable_cyclic_x:
-        Map[0,:] = Map[imt-2, :]
-        Map[imt-1,:] = Map[1,:]
+        boundary_map[0,:] = boundary_map[imt-2, :]
+        boundary_map[imt-1,:] = boundary_map[1,:]
 
     if change_nisle:
         pyom.nisle = nisle
@@ -84,7 +82,8 @@ def isleperim(kmt, Map, iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp,pyo
         print ' number of land masses is ', pyom.nisle
         print ' number of island perimeter points is ',  nippts[pyom.nisle] + iofs[pyom.nisle]
 
-def expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp, pyom):
+@pyom_method
+def expand(pyom, boundary_map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp):
     """
     The subroutine expand uses a "flood fill" algorithm
     to expand one previously unmarked land
@@ -102,26 +101,6 @@ def expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisl
     points or more than mnisle land masses stops execution
     with an appropriate error message.
     """
-    #implicit real (kind=8) (a-h,o-z)
-    #dimension map(imt,jmt)
-
-    #dimension iperm(maxipp)
-    #dimension jperm(maxipp)
-    #dimension nippts(mnisle)
-    #dimension iofs(mnisle)
-
-    #parameter (maxq=10000)
-    #dimension iq(maxq)
-    #dimension jq(maxq)
-    #integer qfront, qback
-    #logical qempty
-
-    #integer offmap, ocean
-    #parameter (offmap = -1)
-    #parameter (land = 1, ocean = 0)
-
-    #parameter (mnisle2=1000)
-    #logical bridge_to(1:mnisle2)
     offmap = -1
     ocean = 0
     land = 1
@@ -145,29 +124,29 @@ def expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisl
         if i == offmap or j == offmap:
             continue
 #       case: map(i,j) is already labeled for this land mass
-        elif Map[i,j] == label:
+        elif boundary_map[i,j] == label:
             continue
 #       case: map(i,j) is an ocean perimeter point of this land mass
-        elif Map[i,j] == -label:
+        elif boundary_map[i,j] == -label:
             continue
 #       case: map(i,j) is an unassigned land point
-        elif Map[i,j] == land:
-            Map[i,j] = label
+        elif boundary_map[i,j] == land:
+            boundary_map[i,j] = label
 #           print *, 'labeling ',i,j,' as ',label
             queue.put((i, jn_isl(j,jmt)))
-            queue.put((ie_isl(i,imt, pyom), jn_isl(j,jmt)))
-            queue.put((ie_isl(i,imt, pyom), j))
-            queue.put((ie_isl(i,imt, pyom), js_isl(j)))
+            queue.put((ie_isl(pyom,i,imt), jn_isl(j,jmt)))
+            queue.put((ie_isl(pyom,i,imt), j))
+            queue.put((ie_isl(pyom,i,imt), js_isl(j)))
             queue.put((i, js_isl(j)))
-            queue.put((iw_isl(i,imt, pyom), js_isl(j)))
-            queue.put((iw_isl(i,imt, pyom), j))
-            queue.put((iw_isl(i,imt, pyom), jn_isl(j,jmt)))
+            queue.put((iw_isl(pyom,i,imt), js_isl(j)))
+            queue.put((iw_isl(pyom,i,imt), j))
+            queue.put((iw_isl(pyom,i,imt), jn_isl(j,jmt)))
             continue
 #       case: map(i,j) is an ocean point adjacent to this land mass
-        elif Map[i,j] == ocean or Map[i,j] < 0:
+        elif boundary_map[i,j] == ocean or boundary_map[i,j] < 0:
 
 #           subcase: map(i,j) is a perimeter ocean point of another mass
-            if Map[i,j] < 0:
+            if boundary_map[i,j] < 0:
                 nerror = nerror + 1
                 #if (my_pe==0) print '(a,a,i3,a,i3,a,a,i3,a,i3)','PERIMETER VIOLATION==> ',&
                 #         'map(',i,',',j,') is in the perimeter of both ', 'land masses ', -map(i,j)-1, ' and ', label-1
@@ -198,7 +177,7 @@ def expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisl
                 continue
 
 #           case: map(i,j) is a ocean point--label it for current mass
-            Map[i,j] = -label
+            boundary_map[i,j] = -label
             nippts[label] = nippts[label] + 1
 #           print *, 'iofs(label)=',iofs(label)
 #           print *, 'nippts(label)=',nippts(label)
@@ -211,7 +190,7 @@ def expand(Map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisl
 #       ************* this case should not happen **************
         else:
             nerror = nerror + 1
-            print 'ERROR ==>  ','map(',i,',',j,') is labeled for both ', 'land masses ', Map[i,j]-1,' and ',label-1
+            print 'ERROR ==>  ','map(',i,',',j,') is labeled for both ', 'land masses ', boundary_map[i,j]-1,' and ',label-1
 
 
 def jn_isl(j,jmt):
@@ -230,7 +209,7 @@ def js_isl(j):
         return offmap
 
 
-def ie_isl(i, imt, pyom):
+def ie_isl(pyom, i, imt):
     offmap = -1
     if pyom.enable_cyclic_x:
         if i < imt-2:
@@ -244,7 +223,7 @@ def ie_isl(i, imt, pyom):
             return offmap
 
 
-def iw_isl(i, imt, pyom):
+def iw_isl(pyom, i, imt):
     offmap = -1
     if pyom.enable_cyclic_x:
         if i > 1:

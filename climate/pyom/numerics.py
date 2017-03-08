@@ -1,13 +1,8 @@
-import numpy as np
+from climate.pyom import cyclic, density, utilities, diffusion, pyom_method
+from scipy.linalg import lapack
 
-import climate
-from climate.pyom import cyclic, density, utilities, diffusion
-
-if not climate.is_bohrium:
-    from scipy.linalg import lapack
-
-
-def u_centered_grid(dyt,dyu,yt,yu):
+@pyom_method
+def u_centered_grid(pyom, dyt, dyu, yt, yu):
     yu[0] = 0
     yu[1:] = np.cumsum(dyt[1:])
 
@@ -21,7 +16,7 @@ def u_centered_grid(dyt,dyu,yt,yu):
     dyu[:-1] = yt[1:] - yt[:-1]
     dyu[-1] = 2*dyt[-1] - dyu[-2]
 
-
+@pyom_method
 def calc_grid(pyom):
     """
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
@@ -59,7 +54,7 @@ def calc_grid(pyom):
     """
     grid in east/west direction
     """
-    u_centered_grid(dxt_gl,dxu_gl,xt_gl,xu_gl)
+    u_centered_grid(pyom, dxt_gl, dxu_gl, xt_gl, xu_gl)
     xt_gl += pyom.x_origin - xu_gl[2]
     xu_gl += pyom.x_origin - xu_gl[2]
 
@@ -74,7 +69,7 @@ def calc_grid(pyom):
     """
     grid in north/south direction
     """
-    u_centered_grid(dyt_gl,dyu_gl,yt_gl,yu_gl)
+    u_centered_grid(pyom, dyt_gl, dyu_gl, yt_gl, yu_gl)
     yt_gl += pyom.y_origin - yu_gl[2]
     yu_gl += pyom.y_origin - yu_gl[2]
 
@@ -103,7 +98,7 @@ def calc_grid(pyom):
     """
     grid in vertical direction
     """
-    u_centered_grid(pyom.dzt,pyom.dzw,pyom.zt,pyom.zw)
+    u_centered_grid(pyom, pyom.dzt, pyom.dzw, pyom.zt, pyom.zw)
     pyom.zt -= pyom.zw[-1]
     pyom.zw -= pyom.zw[-1]  # zero at zw(nz)
 
@@ -126,7 +121,7 @@ def calc_grid(pyom):
     pyom.area_u = pyom.cost * pyom.dyt * pyom.dxu[:, np.newaxis]
     pyom.area_v = pyom.cosu * pyom.dyu * pyom.dxt[:, np.newaxis]
 
-
+@pyom_method
 def calc_beta(pyom):
     """
     calculate beta = df/dy
@@ -136,7 +131,7 @@ def calc_beta(pyom):
                                 + (pyom.coriolis_t[:,2:pyom.ny+2] - pyom.coriolis_t[:,1:pyom.ny+1]) \
                                 /pyom.dyu[1:pyom.ny+1])
 
-
+@pyom_method
 def calc_topo(pyom):
     """
     calulate masks, total depth etc
@@ -190,7 +185,7 @@ def calc_topo(pyom):
     mask = (pyom.hv == 0).astype(np.float)
     pyom.hvr[...] = 1. / (pyom.hv + mask) * (1-mask)
 
-
+@pyom_method
 def calc_initial_conditions(pyom):
     """
     calculate dyn. enthalp, etc
@@ -202,42 +197,42 @@ def calc_initial_conditions(pyom):
         cyclic.setcyclic_x(pyom.temp)
         cyclic.setcyclic_x(pyom.salt)
 
-    pyom.rho[...] = density.get_rho(pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None],pyom) * pyom.maskT[...,None]
-    pyom.Hd[...] = density.get_dyn_enthalpy(pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None],pyom) * pyom.maskT[...,None]
-    pyom.int_drhodT[...] = density.get_int_drhodT(pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None],pyom)
-    pyom.int_drhodS[...] = density.get_int_drhodS(pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None],pyom)
+    pyom.rho[...] = density.get_rho(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None]) * pyom.maskT[...,None]
+    pyom.Hd[...] = density.get_dyn_enthalpy(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None]) * pyom.maskT[...,None]
+    pyom.int_drhodT[...] = density.get_int_drhodT(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None])
+    pyom.int_drhodS[...] = density.get_int_drhodS(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None])
 
     fxa = -pyom.grav / pyom.rho_0 / pyom.dzw[None,None,:] * pyom.maskW
-    pyom.Nsqr[:,:,:-1,:] = fxa[:,:,:-1,None] * (density.get_rho(pyom.salt[:,:,1:,:],pyom.temp[:,:,1:,:],np.abs(pyom.zt)[:-1,None],pyom) - pyom.rho[:,:,:-1,:])
+    pyom.Nsqr[:,:,:-1,:] = fxa[:,:,:-1,None] * (density.get_rho(pyom,pyom.salt[:,:,1:,:],pyom.temp[:,:,1:,:],np.abs(pyom.zt)[:-1,None]) - pyom.rho[:,:,:-1,:])
     pyom.Nsqr[:,:,-1,:] = pyom.Nsqr[:,:,-2,:]
 
+@pyom_method
+def ugrid_to_tgrid(pyom, a):
+    b = np.zeros_like(a)
+    b[2:-2,:,:] = (pyom.dxu[2:-2, None, None] * a[2:-2, :, :] + pyom.dxu[1:-3, None, None] * a[1:-3, :, :]) / (2*pyom.dxt[2:-2, None, None])
+    return b
 
-def ugrid_to_tgrid(A,pyom):
-    B = np.zeros_like(A)
-    B[2:-2,:,:] = (pyom.dxu[2:-2, None, None] * A[2:-2, :, :] + pyom.dxu[1:-3, None, None] * A[1:-3, :, :]) / (2*pyom.dxt[2:-2, None, None])
-    return B
+@pyom_method
+def vgrid_to_tgrid(pyom, a):
+    b = np.zeros_like(a)
+    b[:,2:-2,:] = (pyom.area_v[:,2:-2,None] * a[:,2:-2,:] + pyom.area_v[:,1:-3,None] * a[:,1:-3,:]) / (2*pyom.area_t[:,2:-2,None])
+    return b
 
-
-def vgrid_to_tgrid(A,pyom):
-    B = np.zeros_like(A)
-    B[:,2:-2,:] = (pyom.area_v[:,2:-2,None] * A[:,2:-2,:] + pyom.area_v[:,1:-3,None] * A[:,1:-3,:]) / (2*pyom.area_t[:,2:-2,None])
-    return B
-
-
-def solve_tridiag(a, b, c, d):
+@pyom_method
+def solve_tridiag(pyom, a, b, c, d):
     """
     Solves a tridiagonal matrix system with diagonals a, b, c and RHS vector d.
     Uses LAPACK when running with NumPy, and otherwise the Thomas algorithm iterating over the
     last axis of the input arrays.
     """
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-    if climate.is_bohrium:
+    try:
         return np.linalg.solve_tridiagonal(a,b,c,d)
-    else:
+    except AttributeError:
         return lapack.dgtsv(a.flatten()[1:],b.flatten(),c.flatten()[:-1],d.flatten())[3].reshape(a.shape)
 
-
-def calc_diss(diss,K_diss,tag,pyom):
+@pyom_method
+def calc_diss(pyom, diss, K_diss, tag):
     diss_u = np.zeros_like(diss)
     ks = np.zeros_like(pyom.kbot)
     if tag == 'U':
@@ -248,5 +243,5 @@ def calc_diss(diss,K_diss,tag,pyom):
         interpolator = vgrid_to_tgrid
     else:
         raise ValueError("unknown tag {} (must be 'U' or 'V')".format(tag))
-    diffusion.dissipation_on_wgrid(diss_u, pyom, aloc=diss, ks=ks)
-    return K_diss + interpolator(diss_u, pyom)
+    diffusion.dissipation_on_wgrid(pyom, diss_u, aloc=diss, ks=ks)
+    return K_diss + interpolator(pyom, diss_u)

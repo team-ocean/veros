@@ -1,7 +1,6 @@
 import os
-import numpy as np
 
-from climate.pyom import PyOMLegacy, cyclic, diagnostics
+from climate.pyom import PyOMLegacy, cyclic, diagnostics, pyom_method
 
 MAIN_OPTIONS = dict(
     nx = 360,
@@ -112,6 +111,7 @@ class GlobalOneDegree(PyOMLegacy):
     https://wiki.zmaw.de/ifm/TO/pyOM2/1x1%20global%20model
     """
 
+    @pyom_method
     def set_parameter(self):
         """
         set main parameters
@@ -126,16 +126,16 @@ class GlobalOneDegree(PyOMLegacy):
         self._set_parameters(self.eke_module, EKE_OPTIONS)
         self._set_parameters(self.idemix_module, IDEMIX_OPTIONS)
 
-
+    @pyom_method
     def _set_parameters(self,module,parameters):
         for key, attribute in parameters.items():
             setattr(module,key,attribute)
 
-
+    @pyom_method
     def _read_binary(self, var, shape=(-1,), dtype=">f"):
         return np.array(np.fromfile(DATA_FILES[var], dtype=dtype).reshape(shape, order="F"), dtype=np.float)
 
-
+    @pyom_method
     def set_grid(self):
         dz_data = self._read_binary("dz")
         m = self.main_module
@@ -145,12 +145,12 @@ class GlobalOneDegree(PyOMLegacy):
         m.y_origin = -79.
         m.x_origin = 91.
 
-
+    @pyom_method
     def set_coriolis(self):
         m = self.main_module
         m.coriolis_t[...] = 2 * m.omega * np.sin(m.yt[None,:] / 180. * m.pi)
 
-
+    @pyom_method
     def set_initial_conditions(self):
         m = self.main_module
         self.t_star = np.zeros((m.nx+4, m.ny+4, 12))
@@ -263,7 +263,7 @@ class GlobalOneDegree(PyOMLegacy):
         self.divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / m.dzt[1:]
         self.divpen_shortwave[0] = 0
 
-
+    @pyom_method
     def _get_periodic_interval(self, currentTime, cycleLength, recSpacing, nbrec):
         # interpolation routine taken from mitgcm
         locTime = currentTime - recSpacing * 0.5 + cycleLength * (2 - round(currentTime / cycleLength))
@@ -274,6 +274,7 @@ class GlobalOneDegree(PyOMLegacy):
         wght1 = 1. - wght2
         return (tRec1, wght1), (tRec2, wght2)
 
+    @pyom_method
     def set_forcing(self):
         t_rest = 30 * 86400
         cp_0 = 3991.86795711963 # J/kg /K
@@ -314,6 +315,7 @@ class GlobalOneDegree(PyOMLegacy):
                                         * self.divpen_shortwave[None, None, :] * ice[..., None] \
                                         * m.maskT[..., :] / cp_0 / m.rho_0
 
+    @pyom_method
     def set_topography(self):
         m = self.main_module
 
@@ -343,71 +345,71 @@ class GlobalOneDegree(PyOMLegacy):
         mask_channel = (i >= 269) & (i < 271) & (j == 130) # i = 270,271; j = 131
         m.kbot[2:-2, 2:-2][mask_channel] = 0
 
-
+    @pyom_method
     def set_diagnostics(self):
         m = self.main_module
         idm = self.idemix_module
         tkm = self.tke_module
         ekm = self.eke_module
 
-        diagnostics.register_average("taux","Zonal wind stress","m^2/s","UT",lambda: m.surface_taux,self)
-        diagnostics.register_average("tauy","Meridional wind stress","m^2/s","TU",lambda: m.surface_tauy,self)
-        diagnostics.register_average("forc_temp_surface","Surface temperature flux","m K/s","TT",lambda: m.forc_temp_surface,self)
-        diagnostics.register_average("forc_salt_surface","Surface salinity flux","m g/s kg","TT",lambda: m.forc_salt_surface,self)
+        diagnostics.register_average(self,"taux","Zonal wind stress","m^2/s","UT",lambda: m.surface_taux)
+        diagnostics.register_average(self,"tauy","Meridional wind stress","m^2/s","TU",lambda: m.surface_tauy)
+        diagnostics.register_average(self,"forc_temp_surface","Surface temperature flux","m K/s","TT",lambda: m.forc_temp_surface)
+        diagnostics.register_average(self,"forc_salt_surface","Surface salinity flux","m g/s kg","TT",lambda: m.forc_salt_surface)
         if m.enable_streamfunction:
-            diagnostics.register_average("psi","Barotropic streamfunction","m^2/s","UU",lambda: m.psi[:,:,1],self)
+            diagnostics.register_average(self,"psi","Barotropic streamfunction","m^2/s","UU",lambda: m.psi[:,:,1])
         else:
-            diagnostics.register_average("psi","Surface pressure","m^2/s","TT",lambda: m.psi[:,:,1],self)
-        diagnostics.register_average("temp","Temperature","deg C","TTT",lambda: m.temp[:,:,:,1],self)
-        diagnostics.register_average("salt","Salinity","g/kg","TTT",lambda: m.salt[:,:,:,1],self)
-        diagnostics.register_average("u","Zonal velocity","m/s","UTT",lambda: m.u[:,:,:,1],self)
-        diagnostics.register_average("v","Meridional velocity","m/s","TUT",lambda: m.v[:,:,:,1],self)
-        diagnostics.register_average("w","Vertical velocity","m/s","TTU",lambda: m.w[:,:,:,1],self)
-        diagnostics.register_average("Nsqr","Square of stability frequency","1/s^2","TTU",lambda: m.Nsqr[:,:,:,1],self)
-        diagnostics.register_average("Hd","Dynamic enthalpy","m^2/s^2","TTT",lambda: m.Hd[:,:,:,1],self)
-        diagnostics.register_average("rho","Density","kg/m^3","TTT",lambda: m.rho[:,:,:,1],self)
-        diagnostics.register_average("K_diss_v","Dissipation by vertical friction","m^2/s^3","TTU",lambda: m.K_diss_v,self)
-        diagnostics.register_average("P_diss_v","Dissipation by vertical mixing","m^2/s^3","TTU",lambda: m.P_diss_v,self)
-        diagnostics.register_average("P_diss_nonlin","Dissipation by nonlinear vert. mix.","m^2/s^3","TTU",lambda: m.P_diss_nonlin,self)
-        diagnostics.register_average("P_diss_iso","Dissipation by Redi mixing tensor","m^2/s^3","TTU",lambda: m.P_diss_iso,self)
-        diagnostics.register_average("kappaH","Vertical diffusivity","m^2/s","TTU",lambda: m.kappaH,self)
+            diagnostics.register_average(self,"psi","Surface pressure","m^2/s","TT",lambda: m.psi[:,:,1])
+        diagnostics.register_average(self,"temp","Temperature","deg C","TTT",lambda: m.temp[:,:,:,1])
+        diagnostics.register_average(self,"salt","Salinity","g/kg","TTT",lambda: m.salt[:,:,:,1])
+        diagnostics.register_average(self,"u","Zonal velocity","m/s","UTT",lambda: m.u[:,:,:,1])
+        diagnostics.register_average(self,"v","Meridional velocity","m/s","TUT",lambda: m.v[:,:,:,1])
+        diagnostics.register_average(self,"w","Vertical velocity","m/s","TTU",lambda: m.w[:,:,:,1])
+        diagnostics.register_average(self,"Nsqr","Square of stability frequency","1/s^2","TTU",lambda: m.Nsqr[:,:,:,1])
+        diagnostics.register_average(self,"Hd","Dynamic enthalpy","m^2/s^2","TTT",lambda: m.Hd[:,:,:,1])
+        diagnostics.register_average(self,"rho","Density","kg/m^3","TTT",lambda: m.rho[:,:,:,1])
+        diagnostics.register_average(self,"K_diss_v","Dissipation by vertical friction","m^2/s^3","TTU",lambda: m.K_diss_v)
+        diagnostics.register_average(self,"P_diss_v","Dissipation by vertical mixing","m^2/s^3","TTU",lambda: m.P_diss_v)
+        diagnostics.register_average(self,"P_diss_nonlin","Dissipation by nonlinear vert. mix.","m^2/s^3","TTU",lambda: m.P_diss_nonlin)
+        diagnostics.register_average(self,"P_diss_iso","Dissipation by Redi mixing tensor","m^2/s^3","TTU",lambda: m.P_diss_iso)
+        diagnostics.register_average(self,"kappaH","Vertical diffusivity","m^2/s","TTU",lambda: m.kappaH)
         if m.enable_skew_diffusion:
-            diagnostics.register_average("B1_gm","Zonal component of GM streamfct.","m^2/s","TUT",lambda: m.B1_gm,self)
-            diagnostics.register_average("B2_gm","Meridional component of GM streamfct.","m^2/s","UTT",lambda: m.B2_gm,self)
+            diagnostics.register_average(self,"B1_gm","Zonal component of GM streamfct.","m^2/s","TUT",lambda: m.B1_gm)
+            diagnostics.register_average(self,"B2_gm","Meridional component of GM streamfct.","m^2/s","UTT",lambda: m.B2_gm)
         if m.enable_TEM_friction:
-            diagnostics.register_average("kappa_gm","Vertical GM viscosity","m^2/s","TTU",lambda: m.kappa_gm,self)
-            diagnostics.register_average("K_diss_gm","Dissipation by GM friction","m^2/s^3","TTU",lambda: m.K_diss_gm,self)
+            diagnostics.register_average(self,"kappa_gm","Vertical GM viscosity","m^2/s","TTU",lambda: m.kappa_gm)
+            diagnostics.register_average(self,"K_diss_gm","Dissipation by GM friction","m^2/s^3","TTU",lambda: m.K_diss_gm)
         if tkm.enable_tke:
-            diagnostics.register_average("TKE","Turbulent kinetic energy","m^2/s^2","TTU",lambda: tkm.tke[:,:,:,1],self)
-            diagnostics.register_average("Prandtl","Prandtl number"," ","TTU",lambda: tkm.Prandtlnumber,self)
-            diagnostics.register_average("mxl","Mixing length"," ","TTU",lambda: tkm.mxl,self)
-            diagnostics.register_average("tke_diss","Dissipation of TKE","m^2/s^3","TTU",lambda: tkm.tke_diss,self)
-            diagnostics.register_average("forc_tke_surface","TKE surface forcing","m^3/s^2","TT",lambda: tkm.forc_tke_surface,self)
-            diagnostics.register_average("tke_surface_corr","TKE surface flux correction","m^3/s^2","TT",lambda: tkm.tke_surf_corr,self)
+            diagnostics.register_average(self,"TKE","Turbulent kinetic energy","m^2/s^2","TTU",lambda: tkm.tke[:,:,:,1])
+            diagnostics.register_average(self,"Prandtl","Prandtl number"," ","TTU",lambda: tkm.Prandtlnumber)
+            diagnostics.register_average(self,"mxl","Mixing length"," ","TTU",lambda: tkm.mxl)
+            diagnostics.register_average(self,"tke_diss","Dissipation of TKE","m^2/s^3","TTU",lambda: tkm.tke_diss)
+            diagnostics.register_average(self,"forc_tke_surface","TKE surface forcing","m^3/s^2","TT",lambda: tkm.forc_tke_surface)
+            diagnostics.register_average(self,"tke_surface_corr","TKE surface flux correction","m^3/s^2","TT",lambda: tkm.tke_surf_corr)
         if idm.enable_idemix:
-            diagnostics.register_average("E_iw","Internal wave energy","m^2/s^2","TTU",lambda: idm.E_iw[:,:,:,1],self)
-            diagnostics.register_average("forc_iw_surface","IW surface forcing","m^3/s^2","TT",lambda: idm.forc_iw_surface,self)
-            diagnostics.register_average("forc_iw_bottom","IW bottom forcing","m^3/s^2","TT",lambda: idm.forc_iw_bottom,self)
-            diagnostics.register_average("iw_diss","Dissipation of E_iw","m^2/s^3","TTU",lambda: idm.iw_diss,self)
-            diagnostics.register_average("c0","Vertical IW group velocity","m/s","TTU",lambda: idm.c0,self)
-            diagnostics.register_average("v0","Horizontal IW group velocity","m/s","TTU",lambda: idm.v0,self)
+            diagnostics.register_average(self,"E_iw","Internal wave energy","m^2/s^2","TTU",lambda: idm.E_iw[:,:,:,1])
+            diagnostics.register_average(self,"forc_iw_surface","IW surface forcing","m^3/s^2","TT",lambda: idm.forc_iw_surface)
+            diagnostics.register_average(self,"forc_iw_bottom","IW bottom forcing","m^3/s^2","TT",lambda: idm.forc_iw_bottom)
+            diagnostics.register_average(self,"iw_diss","Dissipation of E_iw","m^2/s^3","TTU",lambda: idm.iw_diss)
+            diagnostics.register_average(self,"c0","Vertical IW group velocity","m/s","TTU",lambda: idm.c0)
+            diagnostics.register_average(self,"v0","Horizontal IW group velocity","m/s","TTU",lambda: idm.v0)
         if ekm.enable_eke:
-            diagnostics.register_average("EKE","Eddy energy","m^2/s^2","TTU",lambda: ekm.eke[:,:,:,1],self)
-            diagnostics.register_average("K_gm","Lateral diffusivity","m^2/s","TTU",lambda: ekm.K_gm,self)
-            # diagnostics.register_average("eke_diss","Eddy energy dissipation","m^2/s^3","TTU",lambda: ekm.eke_diss,self)
-            diagnostics.register_average("L_Rossby","Rossby radius","m","TT",lambda: ekm.L_rossby,self)
-            diagnostics.register_average("L_Rhines","Rhines scale","m","TTU",lambda: ekm.L_rhines,self)
+            diagnostics.register_average(self,"EKE","Eddy energy","m^2/s^2","TTU",lambda: ekm.eke[:,:,:,1])
+            diagnostics.register_average(self,"K_gm","Lateral diffusivity","m^2/s","TTU",lambda: ekm.K_gm)
+            # diagnostics.register_average(self,"eke_diss","Eddy energy dissipation","m^2/s^3","TTU",lambda: ekm.eke_diss)
+            diagnostics.register_average(self,"L_Rossby","Rossby radius","m","TT",lambda: ekm.L_rossby)
+            diagnostics.register_average(self,"L_Rhines","Rhines scale","m","TTU",lambda: ekm.L_rhines)
         if idm.enable_idemix_M2:
-            diagnostics.register_average("E_M2","M2 tidal energy","m^2/s^2","TT",lambda: idm.E_M2_int,self)
-            diagnostics.register_average("cg_M2","M2 group velocity","m/s","TT",lambda: idm.cg_M2,self)
-            diagnostics.register_average("tau_M2","Decay scale","1/s","TT",lambda: idm.tau_M2,self)
-            diagnostics.register_average("alpha_M2_cont","Interaction coeff.","s/m^3","TT",lambda: idm.alpha_M2_cont,self)
+            diagnostics.register_average(self,"E_M2","M2 tidal energy","m^2/s^2","TT",lambda: idm.E_M2_int)
+            diagnostics.register_average(self,"cg_M2","M2 group velocity","m/s","TT",lambda: idm.cg_M2)
+            diagnostics.register_average(self,"tau_M2","Decay scale","1/s","TT",lambda: idm.tau_M2)
+            diagnostics.register_average(self,"alpha_M2_cont","Interaction coeff.","s/m^3","TT",lambda: idm.alpha_M2_cont)
         if idm.enable_idemix_niw:
-            diagnostics.register_average("E_niw","NIW energy","m^2/s^2","TT",lambda: idm.E_niw_int,self)
-            diagnostics.register_average("cg_niw","NIW group velocity","m/s","TT",lambda: idm.cg_niw,self)
-            diagnostics.register_average("tau_niw","Decay scale","1/s","TT",lambda: idm.tau_niw,self)
+            diagnostics.register_average(self,"E_niw","NIW energy","m^2/s^2","TT",lambda: idm.E_niw_int)
+            diagnostics.register_average(self,"cg_niw","NIW group velocity","m/s","TT",lambda: idm.cg_niw)
+            diagnostics.register_average(self,"tau_niw","Decay scale","1/s","TT",lambda: idm.tau_niw)
 
 
 if __name__ == "__main__":
     simulation = GlobalOneDegree()
-    simulation.run(runlen=86400.*0.1, snapint=86400*10)
+    simulation.run(runlen=86400., snapint=86400*10)

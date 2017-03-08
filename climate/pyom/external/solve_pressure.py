@@ -5,13 +5,11 @@
       used for surface pressure or free surface
       method same as pressure method in MITgcm
 """
-
-import numpy as np
 import warnings
-import climate
 
-from climate.pyom import cyclic
+from climate.pyom import cyclic, pyom_method
 
+@pyom_method
 def solve_pressure(pyom):
     fpx = np.zeros((pyom.nx+4, pyom.ny+4))
     fpy = np.zeros((pyom.nx+4, pyom.ny+4))
@@ -70,7 +68,7 @@ def solve_pressure(pyom):
             pyom.u[i,j,:,pyom.taup1] -= pyom.dt_mom*( pyom.psi[i+1,j,pyom.taup1]-pyom.psi[i,j,pyom.taup1])/(pyom.dxu[i]*pyom.cost[j]) *pyom.maskU[i,j,:]
             pyom.v[i,j,:,pyom.taup1] -= pyom.dt_mom*( pyom.psi[i,j+1,pyom.taup1]-pyom.psi[i,j,pyom.taup1]) /pyom.dyu[j]*pyom.maskV[i,j,:]
 
-
+@pyom_method
 def make_coeff_surf_press(pyom):
     """
     -----------------------------------------------------------------------
@@ -110,8 +108,8 @@ def make_coeff_surf_press(pyom):
                 cf[i,j,1,1] += -1./(pyom.grav*pyom.dt_mom**2) *maskM[i,j]
     return cf
 
-
-def congrad_surf_press(forc, iterations, pyom):
+@pyom_method
+def congrad_surf_press(pyom, forc, iterations):
     """
     simple conjugate gradient solver
     """
@@ -206,61 +204,3 @@ def fail(n, enable_congrad_verbose, estimated_error, congr_epsilon):
     # check for NaN
     if np.isnan(estimated_error):
         raise RuntimeError("error is NaN, stopping integration")
-
-
-def apply_op(cf, p1, res, pyom):
-    """
-    apply operator A,  res = A *p1
-    """
-    #integer :: is_,ie_,js_,je_
-    #!real*8 :: cf(pyom.is_pe-onx:pyom.ie_pe+onx,pyom.js_pe-onx:pyom.je_pe+onx,3,3)
-    #!real*8 :: p1(pyom.is_pe-onx:pyom.ie_pe+onx,pyom.js_pe-onx:pyom.je_pe+onx), res(pyom.is_pe-onx:pyom.ie_pe+onx,pyom.js_pe-onx:pyom.je_pe+onx)
-    #real*8 :: cf(is_:ie_,js_:je_,3,3), p1(is_:ie_,js_:je_), res(is_:ie_,js_:je_)
-    #integer :: i,j,ii,jj
-
-    P1 = np.empty((pyom.nx, pyom.ny, 3,3))
-    P1[:,:,0,0] = p1[1:pyom.nx+1, 1:pyom.ny+1]
-    P1[:,:,0,1] = p1[1:pyom.nx+1, 2:pyom.ny+2]
-    P1[:,:,0,2] = p1[1:pyom.nx+1, 3:pyom.ny+3]
-    P1[:,:,1,0] = p1[2:pyom.nx+2, 1:pyom.ny+1]
-    P1[:,:,1,1] = p1[2:pyom.nx+2, 2:pyom.ny+2]
-    P1[:,:,1,2] = p1[2:pyom.nx+2, 3:pyom.ny+3]
-    P1[:,:,2,0] = p1[3:pyom.nx+3, 1:pyom.ny+1]
-    P1[:,:,2,1] = p1[3:pyom.nx+3, 2:pyom.ny+2]
-    P1[:,:,2,2] = p1[3:pyom.nx+3, 3:pyom.ny+3]
-    res[2:pyom.nx+2, 2:pyom.ny+2] = np.add.reduce(cf[2:pyom.nx+2, 2:pyom.ny+2] * P1,axis=(2,3))
-    #if climate.is_bohrium:
-    #    np.flush()
-
-    #for jj in xrange(-1, 2): #jj=-1,1
-    #    for ii in xrange(-1, 2): #ii=-1,1
-    #        for j in xrange(2, pyom.ny+2): #j=pyom.js_pe,pyom.je_pe
-    #            for i in xrange(2, pyom.nx+2): #i=pyom.is_pe,pyom.ie_pe
-    #                res[i,j] += cf[i,j,ii+1,jj+1]*p1[i+ii,j+jj]
-    # return res
-
-def absmax_sfp(p1,pyom):
-    #integer :: is_,ie_,js_,je_
-    #real*8 :: absmax_sfp,s2
-    #!real*8 :: p1(pyom.is_pe-onx:pyom.ie_pe+onx,pyom.js_pe-onx:pyom.je_pe+onx)
-    #real*8 :: p1(is_:ie_,js_:je_)
-    #integer :: i,j
-    s2 = 0
-    for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
-        for i in xrange(pyom.is_pe, pyom.ie_pe+1): #i=pyom.is_pe,pyom.ie_pe
-            s2 = max(abs(p1[i,j]*pyom.maskT[i,j,-1]), s2)
-            #s2 = max( abs(p1(i,j)), s2 )
-    return s2
-
-
-def dot_sfp(p1,p2,pyom):
-    #real*8 :: dot_sfp,s2
-    #!real*8 :: p1(pyom.is_pe-onx:pyom.ie_pe+onx,pyom.js_pe-onx:pyom.je_pe+onx),p2(pyom.is_pe-onx:pyom.ie_pe+onx,pyom.js_pe-onx:pyom.je_pe+onx)
-    #real*8 :: p1(is_:ie_,js_:je_),p2(is_:ie_,js_:je_)
-    #integer :: is_,ie_,js_,je_,i,j
-    s2 = 0
-    for j in xrange(pyom.js_pe, pyom.je_pe+1): #j=pyom.js_pe,pyom.je_pe
-        for i in xrange(pyom.is_pe, pyom.ie_pe+1): #i=pyom.is_pe,pyom.ie_pe
-            s2 = s2+p1[i,j]*p2[i,j]*pyom.maskT[i,j,-1]
-            #s2 = s2+p1(i,j)*p2(i,j)
-    return s2
