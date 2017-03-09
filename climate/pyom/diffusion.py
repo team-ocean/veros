@@ -19,7 +19,7 @@ def dissipation_on_wgrid(pyom, p_arr, int_drhodX=None, aloc=None, ks=None):
     edge_mask = land_mask[:, :, None] & (np.indices((pyom.nx+4, pyom.ny+4, pyom.nz-1))[2] == ks[:,:,None])
     water_mask = land_mask[:, :, None] & (np.indices((pyom.nx+4, pyom.ny+4, pyom.nz-1))[2] > ks[:,:,None])
 
-    if np.any(land_mask):
+    if np.sum(land_mask):
         dzw_pad = utilities.pad_z_edges(pyom, pyom.dzw)
         p_arr[:, :, :-1] += (0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) + 0.5 * (aloc[:, :, :-1] * dzw_pad[None, None, :-3] / pyom.dzw[None, None, :-1])) * edge_mask
         p_arr[:, :, :-1] += 0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) * water_mask

@@ -1,4 +1,4 @@
-import numpy as np
+from climate.pyom import pyom_method
 
 """
 ==========================================================================
@@ -58,7 +58,8 @@ v47 = -1.200507748551599e-15
 v48 =  6.057902487546866e-17
 rho0 = 1024.0
 
-def gsw_rho(sa,ct,p):
+@pyom_method
+def gsw_rho(pyom,sa,ct,p):
     """
      density as a function of T, S, and p
      sa     : Absolute Salinity                               [g/kg]
@@ -66,6 +67,7 @@ def gsw_rho(sa,ct,p):
      p      : sea pressure                                    [dbar]
     ==========================================================================
     """
+    p = np.asarray(p) # convert scalar value if necessary
     sqrtsa = np.sqrt(sa)
     v_hat_denominator = v01 + ct*(v02 + ct*(v03 + v04*ct)) \
                       + sa*(v05 + ct*(v06 + v07*ct) \
@@ -80,7 +82,8 @@ def gsw_rho(sa,ct,p):
                     + p*(v47 + v48*ct)))
     return v_hat_denominator/v_hat_numerator - rho0
 
-def gsw_drhodT(sa, ct, p):
+@pyom_method
+def gsw_drhodT(pyom, sa, ct, p):
     """
     d/dT of density
     sa     : Absolute Salinity                               [g/kg]
@@ -88,6 +91,7 @@ def gsw_drhodT(sa, ct, p):
     p      : sea pressure                                    [dbar]
     ==========================================================================
     """
+    p = np.asarray(p) # convert scalar value if necessary
     a01 =  2.839940833161907e0
     a02 = -6.295518531177023e-2
     a03 =  3.545416635222918e-3
@@ -143,7 +147,8 @@ def gsw_drhodT(sa, ct, p):
     rho = rec_num*v_hat_denominator
     return (dvhatden_dct-dvhatnum_dct*rho)*rec_num
 
-def gsw_drhodS(sa, ct, p):
+@pyom_method
+def gsw_drhodS(pyom, sa, ct, p):
     """
      d/dS of density
      sa     : Absolute Salinity                               [g/kg]
@@ -151,6 +156,7 @@ def gsw_drhodS(sa, ct, p):
      p      : sea pressure                                    [dbar]
     ==========================================================================
     """
+    p = np.asarray(p) # convert scalar value if necessary
     b01 = -6.698001071123802e0
     b02 = -2.986498947203215e-2
     b03 =  2.327859407479162e-4
@@ -198,7 +204,8 @@ def gsw_drhodS(sa, ct, p):
     rho = rec_num*v_hat_denominator
     return (dvhatden_dsa-dvhatnum_dsa*rho)*rec_num
 
-def gsw_drhodP(sa, ct, p):
+@pyom_method
+def gsw_drhodP(pyom, sa, ct, p):
     """
      d/dp of density
      sa     : Absolute Salinity                               [g/kg]
@@ -206,6 +213,7 @@ def gsw_drhodP(sa, ct, p):
      p      : sea pressure                                    [dbar]
     ==========================================================================
     """
+    p = np.asarray(p) # convert scalar value if necessary
     c01 = -2.233269627352527e-2
     c02 = -3.436090079851880e-4
     c03 =  3.726050720345733e-6
@@ -249,7 +257,8 @@ def gsw_drhodP(sa, ct, p):
     rho = rec_num*v_hat_denominator
     return pa2db*(dvhatden_dp-dvhatnum_dp*rho)*rec_num
 
-def gsw_dyn_enthalpy(sa,ct,p):
+@pyom_method
+def gsw_dyn_enthalpy(pyom,sa,ct,p):
     """
      Calculates dynamic enthalpy of seawater using the computationally
      efficient 48-term expression for density in terms of SA, CT and p
@@ -263,7 +272,7 @@ def gsw_dyn_enthalpy(sa,ct,p):
      p      : sea pressure                                    [dbar]
     ==========================================================================
     """
-
+    p = np.asarray(p) # convert scalar value if necessary
     db2pa = 1e4                             # factor to convert from dbar to Pa
     sqrtsa = np.sqrt(sa)
     a0 = v21 + ct*(v22 + ct*(v23 + ct*(v24 + v25*ct))) \
@@ -287,7 +296,8 @@ def gsw_dyn_enthalpy(sa,ct,p):
                 + part*np.log(1.0 + (b2*p*(cb - ca))/(ca*(cb + b2*p))))
     return Hd- p*db2pa/rho0
 
-def gsw_dHdT1(sa,ct,p):
+@pyom_method
+def gsw_dHdT1(pyom,sa,ct,p):
     """
      d/dT of dynamic enthalpy, numerical derivative
      sa     : Absolute Salinity                               [g/kg]
@@ -295,10 +305,12 @@ def gsw_dHdT1(sa,ct,p):
      p      : sea pressure                                    [dbar]
     ==========================================================================
     """
+    p = np.asarray(p) # convert scalar value if necessary
     delta = 1e-4
     return (gsw_dyn_enthalpy(sa,ct+delta,p)-gsw_dyn_enthalpy(sa,ct,p))/delta
 
-def gsw_dHdS1(sa,ct,p):
+@pyom_method
+def gsw_dHdS1(pyom,sa,ct,p):
     """
      d/dS of dynamic enthalpy, numerical derivative
      sa     : Absolute Salinity                               [g/kg]
@@ -306,10 +318,12 @@ def gsw_dHdS1(sa,ct,p):
      p      : sea pressure                                    [dbar]
     ==========================================================================
     """
+    p = np.asarray(p) # convert scalar value if necessary
     delta = 1e-4
     return (gsw_dyn_enthalpy(sa+delta,ct,p)-gsw_dyn_enthalpy(sa,ct,p))/delta
 
-def gsw_dHdT(sa_in, ct_in, p):
+@pyom_method
+def gsw_dHdT(pyom, sa_in, ct_in, p):
     """
     Code should not look like this, but I am not 100% sure what this does.
 
@@ -318,6 +332,7 @@ def gsw_dHdT(sa_in, ct_in, p):
     ct     : Conservative Temperature                        [deg C]
     p      : sea pressure                                    [dbar]
     """
+    p = np.asarray(p) # convert scalar value if necessary
     sa = np.maximum(1e-1,sa_in) # prevent division by zero
     ct = np.maximum(-12,ct_in)  # prevent blowing up for values smaller than -15 degC
     t1 = v45 * ct
@@ -423,15 +438,15 @@ def gsw_dHdT(sa_in, ct_in, p):
     - 2.0 * t282 * t245 / t292 * (t25 + t26 + t28 + t287 + t152)) / t252
     return t305
 
-def gsw_dHdS(sa_in, ct_in, p):
+@pyom_method
+def gsw_dHdS(pyom, sa_in, ct_in, p):
     """
-    Code should not look like this, but I am not 100% sure what this does.
-
     d/dS of dynamic enthalpy, analytical derivative
     sa     : Absolute Salinity                               [g/kg]
     ct     : Conservative Temperature                        [deg C]
     p      : sea pressure                                    [dbar]
     """
+    p = np.asarray(p) # convert scalar value if necessary
     sa = np.maximum(1e-1,sa_in) # prevent division by zero
     ct = np.maximum(-12.0, ct_in)  # prevent blowing up for values smaller than -15 degC
     t1 = ct * v46

@@ -204,7 +204,7 @@ class GlobalFourDegree(PyOMLegacy):
         # salinity restoring
         t_rest= 30*86400.0
         sss = f1*self.sss_clim[:,:,n1] + f2*self.sss_clim[:,:,n2]
-        m.forc_salt_surface[:] = m.dzt[-1] / t_rest * (sss - m.salt[:,:,-1,1]) * m.maskT[:,:,-1]
+        m.forc_salt_surface[:] = 1. / t_rest * (sss - m.salt[:,:,-1,1]) * m.maskT[:,:,-1] * m.dzt[-1]
 
         # apply simple ice mask
         mask = (m.temp[:,:,-1,1] * m.maskT[:,:,-1] <= -1.8) & (m.forc_temp_surface <= 0.0)
@@ -239,4 +239,4 @@ class GlobalFourDegree(PyOMLegacy):
 
 
 if __name__ == "__main__":
-    GlobalFourDegree().run(snapint= 86400.0*25, runlen = 86400.*30)
+    GlobalFourDegree().run(snapint= 86400.0*10, runlen = 86400.*365)

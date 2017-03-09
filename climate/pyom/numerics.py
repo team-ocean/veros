@@ -190,7 +190,7 @@ def calc_initial_conditions(pyom):
     """
     calculate dyn. enthalp, etc
     """
-    if np.any(pyom.salt < 0.0):
+    if np.sum(pyom.salt < 0.0):
         raise RuntimeError("encountered negative salinity")
 
     if pyom.enable_cyclic_x:
