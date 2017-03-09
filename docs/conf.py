@@ -20,6 +20,10 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
+# Mock packages with C dependencies
+import mock
+MOCK_MODULES = ['pyamg', 'netCDF4']
+sys.modules.update((mod_name, mock.MagicMock()) for mod_name in MOCK_MODULES)
 
 # -- General configuration ------------------------------------------------
 
@@ -154,6 +158,3 @@ texinfo_documents = [
      author, 'PyOM', 'One line description of project.',
      'Miscellaneous'),
 ]
-
-
-
