@@ -20,18 +20,23 @@ from climate.pyom import momentum, numerics, thermodynamics, eke, tke, idemix, \
                          advection, restart, cyclic
 
 class PyOM(object):
-    """
-    Main class for PyOM.
+    """Main class for PyOM.
+
+    Args:
+        backend (bool, optional): Backend to use for array operations.
+            Possible values are `numpy` and `bohrium`. Defaults to `None`, which
+            tries to read the backend from the command line (set via a flag
+            `-b`/`--backend`), and uses `numpy` if no command line argument is given.
     """
 
     # Constants
     pi = numpy.pi
-    radius = 6370.0e3 # Earth radius in m
-    degtom = radius / 180.0 * pi # conversion degrees latitude to meters
-    mtodeg = 1 / degtom # reverse conversion
-    omega = pi / 43082.0 # earth rotation frequency in 1/s
-    rho_0 = 1024.0 # Boussinesq reference density in kg/m^3
-    grav = 9.81 # gravitational constant in m/s^2
+    radius = 6370.0e3 #: Earth radius in m
+    degtom = radius / 180.0 * pi #: Conversion degrees latitude to meters
+    mtodeg = 1 / degtom #: Conversion meters to degrees latitude
+    omega = pi / 43082.0 #: Earth rotation frequency in 1/s
+    rho_0 = 1024.0 #: Boussinesq reference density in $kg/m^3$
+    grav = 9.81 #: Gravitational constant in $m/s^2$
 
     # Interface
     def _not_implemented(self):
