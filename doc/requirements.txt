@@ -1,0 +1,5 @@
+Pygments>=2.0
+Sphinx
+numpy
+scipy
+mock
