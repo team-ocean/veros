@@ -22,6 +22,7 @@ def init_diagnostics(pyom):
     if pyom.enable_diag_averages:
         print("writing time averages every {} seconds/{} time steps".format(pyom.aveint,pyom.aveint/pyom.dt_tracer))
         print(" averaging every {} time step".format(pyom.avefreq/pyom.dt_tracer))
+        diagnostics.register_averages(pyom)
 
     if pyom.enable_diag_energy:
         print("writing energetics every {} seconds/{} time steps".format(pyom.energint,pyom.energint/pyom.dt_tracer))

@@ -85,7 +85,8 @@ def _jacobi_preconditioner(pyom, matrix):
     Construct a simple Jacobi preconditioner
     """
     Z = np.ones((pyom.nx+4, pyom.ny+4))
-    Z[2:-2, 2:-2] = 1. / matrix.diagonal().copy().reshape(pyom.nx+4, pyom.ny+4)[2:-2, 2:-2]
+    Y = matrix.diagonal().copy().reshape(pyom.nx+4, pyom.ny+4)[2:-2, 2:-2]
+    Z[2:-2, 2:-2] = np.where(Y != 0., 1. / Y, 1.)
     return scipy.sparse.dia_matrix((Z.flatten(),0), shape=(Z.size,Z.size)).tocsr()
 
 @pyom_method
@@ -104,7 +105,6 @@ def _assemble_poisson_matrix(pyom):
     west_diag[2:-2, 2:-2] = pyom.hvr[2:-2, 2:-2] / pyom.dxu[2:-2, np.newaxis] / pyom.dxt[2:-2, np.newaxis] / pyom.cosu[np.newaxis, 2:-2]**2
     north_diag[2:-2, 2:-2] = pyom.hur[2:-2, 3:-1] / pyom.dyu[np.newaxis, 2:-2] / pyom.dyt[np.newaxis, 3:-1] * pyom.cost[np.newaxis, 3:-1] / pyom.cosu[np.newaxis, 2:-2]
     south_diag[2:-2, 2:-2] = pyom.hur[2:-2, 2:-2] / pyom.dyu[np.newaxis, 2:-2] / pyom.dyt[np.newaxis, 2:-2] * pyom.cost[np.newaxis, 2:-2] / pyom.cosu[np.newaxis, 2:-2]
-
     z = np.prod(np.invert(pyom.boundary_mask), axis=2) # used to enforce boundary conditions
     if pyom.enable_cyclic_x:
         # couple edges of the domain
@@ -121,7 +121,7 @@ def _assemble_poisson_matrix(pyom):
     if pyom.enable_cyclic_x:
         offsets += (-main_diag.shape[1] * (pyom.nx-1), main_diag.shape[1] * (pyom.nx-1))
         cf += (wrap_diag_east.flatten(), wrap_diag_west.flatten())
-        
+
     if pyom.backend_name == "bohrium":
         cf = np.array(cf, bohrium=False)
     else:

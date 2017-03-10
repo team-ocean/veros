@@ -10,6 +10,9 @@ Welcome to PyOM's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   settings
+   variables
+
 
 
 Indices and tables

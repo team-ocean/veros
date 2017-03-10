@@ -1,112 +1,46 @@
 import warnings
-from collections import namedtuple
 import os
 import json
+from collections import namedtuple
 from netCDF4 import Dataset
 
-from climate.pyom import pyom_method
-from climate.pyom.diagnostics.diag_snap import def_grid_cdf
+from climate.pyom import pyom_method, variables
+from climate.pyom.diagnostics.diag_snap import def_grid_cdf, init_var, write_var
 from climate.pyom.diagnostics.io_threading import threaded_netcdf
 
-
-Diagnostic = namedtuple("Diagnostic", ["name", "long_name", "units", "grid", "var", "sum"])
+Running_sum = namedtuple("Running_sum", ("var", "sum"))
 
 @pyom_method
-def register_average(pyom,name,long_name,units,grid,var):
+def register_averages(pyom):
     """
-    register a variables to be averaged
-    this routine may be called by user in set_diagnostics
-    name : NetCDF variables name (must be unique)
-    long_name:  long name
-    units : units
-    grid : two or three digits, either 'T' for T grid or 'U' for shifted grid
-           U is shifted by 1/2 grid point
-    var : callable returning the variable to be averaged
+    register all variables to be averaged
     """
-    if not callable(var):
-        raise TypeError("var must be a callable that returns the variable to be averaged")
-
-    if len(grid) != var().ndim:
-        raise ValueError("number of dimensions must match grid")
-
-    if not set(grid) <= {"U","T"}:
-        raise ValueError("grid variable may only contain 'U' or 'T'")
-
-    if not pyom.enable_diag_averages:
-        warnings.warn("switch on enable_diag_averages to use time averaging")
-        return
-
-    print(" time averaging variable {}".format(name))
-    print(" long name {} units {} grid {}".format(long_name,units,grid))
-
-    if name.strip() in (d.name.strip() for d in pyom.diagnostics):
-        raise RuntimeError("name {} already in use".format(name))
-
-    diag = Diagnostic(name, long_name, units, grid, var, np.zeros_like(var()))
-    pyom.diagnostics.append(diag)
+    pyom.average_nitts = 0
+    pyom.average_vars = {}
+    for key, var in pyom.variables.items():
+        if var.average:
+            pyom.average_vars[key] = Running_sum(var, np.zeros_like(getattr(pyom, key)))
 
 @pyom_method
 def diag_averages(pyom):
     pyom.average_nitts += 1
-    for diag in pyom.diagnostics:
-        diag.sum[...] += diag.var()
-
-@pyom_method
-def _build_dimensions(pyom, grid):
-    if not len(grid) in [2,3]:
-        raise ValueError("Grid string must consist of 2 or 3 characters")
-    if not set(grid) <= {"U","T"}:
-        raise ValueError("Grid string may only consist of 'U' or 'T'")
-    dim_x = "xu" if grid[0] == "U" else "xt"
-    dim_y = "yu" if grid[1] == "U" else "yt"
-    if len(grid) == 3:
-        dim_z = "zw" if grid[2] == 'U' else "zt"
-        return dim_x, dim_y, dim_z, "Time"
-    else:
-        return dim_x, dim_y, "Time"
-
-@pyom_method
-def _get_mask(pyom, grid):
-    if not len(grid) in [2,3]:
-        raise ValueError("Grid string must consist of 2 or 3 characters")
-    if not set(grid) <= {"U","T"}:
-        raise ValueError("Grid string may only consist of 'U' or 'T'")
-    masks = {
-        "TT": pyom.maskT[:,:,-1],
-        "UT": pyom.maskU[:,:,-1],
-        "TU": pyom.maskV[:,:,-1],
-        "UU": pyom.maskZ[:,:,-1],
-        "TTT": pyom.maskT,
-        "UTT": pyom.maskU,
-        "TUT": pyom.maskV,
-        "TTU": pyom.maskW,
-        "UUT": pyom.maskZ,
-    }
-    return masks[grid].astype(np.bool)
+    for key, var in pyom.average_vars.items():
+        var.sum[...] += getattr(pyom, key)
 
 @pyom_method
 def write_averages(pyom):
     """
     write averages to netcdf file and zero array
     """
-    fill_value = -1e33
-    filename = "averages_{}.cdf".format(pyom.itt)
-
-    with threaded_netcdf(pyom, Dataset(filename,mode='w')) as f:
+    filename = pyom.average_filename.format(pyom.itt)
+    with threaded_netcdf(pyom, Dataset(filename, mode='w')) as f:
         print(" writing averages to file " + filename)
         def_grid_cdf(pyom, f)
-        for diag in pyom.diagnostics:
-            dims = _build_dimensions(pyom,diag.grid)
-            mask = _get_mask(pyom,diag.grid)
-            var_data = np.where(mask, diag.sum, np.nan)
-            if pyom.backend_name == "bohrium":
-                var_data = var_data.copy2numpy()
-            var = f.createVariable(diag.name, "f8", dims, fill_value=fill_value)
-            var[...] = var_data[2:-2, 2:-2, ..., None] / pyom.average_nitts
-            var.long_name = diag.long_name
-            var.units = diag.units
-            var.missing_value = fill_value
-            diag.sum[...] = 0.
+        for key, runsum in pyom.average_vars.items():
+            init_var(pyom, key, runsum.var, f)
+            runsum.sum[...] /= pyom.average_nitts
+            write_var(pyom, key, runsum.var, 0, f, var_data=runsum.sum)
+            runsum.sum[...] = 0.
     pyom.average_nitts = 0
 
 

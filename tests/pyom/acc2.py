@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class ACC2Test(PyOMTest):
-    timesteps = 50
+    timesteps = 1
     def __init__(self, fortran):
         self.fortran = fortran
 
@@ -43,7 +43,11 @@ class ACC2Test(PyOMTest):
             v2 = v2[2:-2, 2:-2, ...]
         if v1 is None or v2 is None:
             raise RuntimeError(var)
-        passed = np.allclose(*self._normalize(v1,v2),atol=1e-6)
+        try:
+            passed = np.allclose(*self._normalize(v1,v2),atol=1e-6)
+        except ValueError:
+            print(var)
+            raise
         if not passed:
             print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:

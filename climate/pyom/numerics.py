@@ -22,14 +22,14 @@ def calc_grid(pyom):
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
     """
     aloc = np.zeros((pyom.nx,pyom.ny))
-    dxt_gl = np.empty(pyom.nx+4)
-    dxu_gl = np.empty(pyom.nx+4)
-    xt_gl  = np.empty(pyom.nx+4)
-    xu_gl  = np.empty(pyom.nx+4)
-    dyt_gl = np.empty(pyom.ny+4)
-    dyu_gl = np.empty(pyom.ny+4)
-    yt_gl  = np.empty(pyom.ny+4)
-    yu_gl  = np.empty(pyom.ny+4)
+    dxt_gl = np.zeros(pyom.nx+4)
+    dxu_gl = np.zeros(pyom.nx+4)
+    xt_gl  = np.zeros(pyom.nx+4)
+    xu_gl  = np.zeros(pyom.nx+4)
+    dyt_gl = np.zeros(pyom.ny+4)
+    dyu_gl = np.zeros(pyom.ny+4)
+    yt_gl  = np.zeros(pyom.ny+4)
+    yu_gl  = np.zeros(pyom.ny+4)
 
     """
     transfer from locally defined variables to global ones
@@ -106,9 +106,9 @@ def calc_grid(pyom):
     metric factors
     """
     if pyom.coord_degree:
-        pyom.cost = np.cos(pyom.yt*pyom.pi/180.)
-        pyom.cosu = np.cos(pyom.yu*pyom.pi/180.)
-        pyom.tantr = np.tan(pyom.yt*pyom.pi/180.) / pyom.radius
+        pyom.cost[...] = np.cos(pyom.yt * pyom.pi / 180.)
+        pyom.cosu[...] = np.cos(pyom.yu * pyom.pi / 180.)
+        pyom.tantr[...] = np.tan(pyom.yt * pyom.pi / 180.) / pyom.radius
     else:
         pyom.cost[...] = 1.0
         pyom.cosu[...] = 1.0
@@ -117,9 +117,9 @@ def calc_grid(pyom):
     """
     precalculate area of boxes
     """
-    pyom.area_t = pyom.cost * pyom.dyt * pyom.dxt[:, np.newaxis]
-    pyom.area_u = pyom.cost * pyom.dyt * pyom.dxu[:, np.newaxis]
-    pyom.area_v = pyom.cosu * pyom.dyu * pyom.dxt[:, np.newaxis]
+    pyom.area_t[...] = pyom.cost * pyom.dyt * pyom.dxt[:, np.newaxis]
+    pyom.area_u[...] = pyom.cost * pyom.dyt * pyom.dxu[:, np.newaxis]
+    pyom.area_v[...] = pyom.cosu * pyom.dyu * pyom.dxt[:, np.newaxis]
 
 @pyom_method
 def calc_beta(pyom):
@@ -127,9 +127,9 @@ def calc_beta(pyom):
     calculate beta = df/dy
     """
     pyom.beta[:, 2:pyom.ny+2] = 0.5*((pyom.coriolis_t[:,3:pyom.ny+3] - pyom.coriolis_t[:,2:pyom.ny+2]) \
-                                / pyom.dyu[2:pyom.ny+2] \
-                                + (pyom.coriolis_t[:,2:pyom.ny+2] - pyom.coriolis_t[:,1:pyom.ny+1]) \
-                                /pyom.dyu[1:pyom.ny+1])
+                                    / pyom.dyu[2:pyom.ny+2] \
+                                   + (pyom.coriolis_t[:,2:pyom.ny+2] - pyom.coriolis_t[:,1:pyom.ny+1]) \
+                                    / pyom.dyu[1:pyom.ny+1])
 
 @pyom_method
 def calc_topo(pyom):

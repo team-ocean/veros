@@ -1,4 +1,4 @@
-from climate.pyom import PyOMLegacy, diagnostics, pyom_method
+from climate.pyom import PyOMLegacy, pyom_method
 
 yt_start = -39.0
 yt_end = 43
@@ -20,7 +20,7 @@ class ACC2(PyOMLegacy):
      m.coord_degree = 1
      m.enable_cyclic_x = 1
 
-     m.congr_epsilon = np.float(1e-12)
+     m.congr_epsilon = 1e-12
      m.congr_max_iterations = 5000
      m.enable_streamfunction = 1
 
@@ -76,14 +76,15 @@ class ACC2(PyOMLegacy):
 
      m.eq_of_state_type = 3
 
+
    @pyom_method
    def set_grid(self):
      m=self.main_module
      ddz = np.array([50.,70.,100.,140.,190.,240.,290.,340.,390.,440.,490.,540.,590.,640.,690.])
      m.dxt[:] = 2.0
      m.dyt[:] = 2.0
-     m.x_origin=  0.0
-     m.y_origin= -40.0
+     m.x_origin = 0.0
+     m.y_origin = -40.0
      m.dzt[:] = ddz[::-1]/2.5
 
    @pyom_method
@@ -95,7 +96,7 @@ class ACC2(PyOMLegacy):
    def set_topography(self):
      m=self.main_module
      (X,Y)= np.meshgrid(m.xt,m.yt); X=X.transpose(); Y=Y.transpose()
-     m.kbot = (X > 1.0) | (Y < -20)
+     m.kbot[...] = (X > 1.0) | (Y < -20)
 
    @pyom_method
    def set_initial_conditions(self):
@@ -125,7 +126,7 @@ class ACC2(PyOMLegacy):
      t=self.tke_module
      if t.enable_tke:
         t.forc_tke_surface[2:-2,2:-2] = np.sqrt((0.5*(m.surface_taux[2:-2,2:-2]+m.surface_taux[1:-3,2:-2]))**2  \
-                                              +(0.5*(m.surface_tauy[2:-2,2:-2]+m.surface_tauy[2:-2,1:-3]))**2 )**(1.5)
+                                              + (0.5*(m.surface_tauy[2:-2,2:-2]+m.surface_tauy[2:-2,1:-3]))**2)**(1.5)
 
      i=self.idemix_module
      if i.enable_idemix:
@@ -139,25 +140,9 @@ class ACC2(PyOMLegacy):
 
    @pyom_method
    def set_diagnostics(self):
-       m=self.main_module
-       if self.legacy_mode:
-           diagnostics.register_average(name="temp",long_name="Temperature",         units = "deg C" , grid = "TTT", var = lambda: m.temp[...,m.tau-1], pyom=m)
-           diagnostics.register_average(name="salt",long_name="Salinity",            units = "g/kg" ,  grid = "TTT", var = lambda: m.salt[...,m.tau-1], pyom=m)
-           diagnostics.register_average(name="u",   long_name="Zonal velocity",      units = "m/s" ,   grid = "UTT", var = lambda: m.u[...,m.tau-1], pyom=m)
-           diagnostics.register_average(name="v",   long_name="Meridional velocity", units = "m/s" ,   grid = "TUT", var = lambda: m.v[...,m.tau-1], pyom=m)
-           diagnostics.register_average(name="w",   long_name="Vertical velocity",   units = "m/s" ,   grid = "TTU", var = lambda: m.w[...,m.tau-1], pyom=m)
-           diagnostics.register_average(name="taux",long_name="wind stress",         units = "m^2/s" , grid = "UT",  var = lambda: m.surface_taux, pyom=m)
-           diagnostics.register_average(name="tauy",long_name="wind stress",         units = "m^2/s" , grid = "TU",  var = lambda: m.surface_tauy, pyom=m)
-           diagnostics.register_average(name="psi" ,long_name="Streamfunction",      units = "m^3/s" , grid = "UU",  var = lambda: m.psi[...,m.tau-1], pyom=m)
-       else:
-           diagnostics.register_average(name="temp",long_name="Temperature",         units = "deg C" , grid = "TTT", var = lambda: m.temp[...,m.tau], pyom=m)
-           diagnostics.register_average(name="salt",long_name="Salinity",            units = "g/kg" ,  grid = "TTT", var = lambda: m.salt[...,m.tau], pyom=m)
-           diagnostics.register_average(name="u",   long_name="Zonal velocity",      units = "m/s" ,   grid = "UTT", var = lambda: m.u[...,m.tau], pyom=m)
-           diagnostics.register_average(name="v",   long_name="Meridional velocity", units = "m/s" ,   grid = "TUT", var = lambda: m.v[...,m.tau], pyom=m)
-           diagnostics.register_average(name="w",   long_name="Vertical velocity",   units = "m/s" ,   grid = "TTU", var = lambda: m.w[...,m.tau], pyom=m)
-           diagnostics.register_average(name="taux",long_name="wind stress",         units = "m^2/s" , grid = "UT",  var = lambda: m.surface_taux, pyom=m)
-           diagnostics.register_average(name="tauy",long_name="wind stress",         units = "m^2/s" , grid = "TU",  var = lambda: m.surface_tauy, pyom=m)
-           diagnostics.register_average(name="psi" ,long_name="Streamfunction",      units = "m^3/s" , grid = "UU",  var = lambda: m.psi[...,m.tau], pyom=m)
+       m = self.main_module
+       for var in ("salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy"):
+           m.variables[var].average = True
 
 
 if __name__ == "__main__":
