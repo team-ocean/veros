@@ -36,8 +36,8 @@ class PyOM(object):
     degtom = radius / 180.0 * pi #: Conversion degrees latitude to meters
     mtodeg = 1 / degtom #: Conversion meters to degrees latitude
     omega = pi / 43082.0 #: Earth rotation frequency in 1/s
-    rho_0 = 1024.0 #: Boussinesq reference density in $kg/m^3$
-    grav = 9.81 #: Gravitational constant in $m/s^2$
+    rho_0 = 1024.0 #: Boussinesq reference density in :math`kg/m^3`
+    grav = 9.81 #: Gravitational constant in :math:`m/s^2`
 
     # Interface
     def _not_implemented(self):
