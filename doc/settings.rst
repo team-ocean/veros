@@ -2,7 +2,15 @@ Available settings
 ------------------
 
 .. exec::
-  import json
   from climate.pyom.settings import SETTINGS
-  json_obj = json.dumps(SETTINGS, sort_keys=True, indent=4)
-  print '.. code-block:: JavaScript\n\n    %s\n\n' % json_obj
+  #headings = ["Setting", "Default value", "Description"]
+  #print(".. csv-table:: Available settings")
+  #print("   :header: {}".format(" ,".join(headings)))
+  #print("   :widths: 10, 10, 20")
+  #print("")
+  for key, sett in SETTINGS.items():
+      print(".. data:: {} = {}".format(key, sett.default))
+      print("")
+      print("   {}".format(sett.description))
+      print("")
+      #print('   "{}", "{}", "{}"'.format(key, sett.default, sett.description))

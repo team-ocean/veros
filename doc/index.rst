@@ -10,6 +10,7 @@ Welcome to PyOM's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   usage
    settings
    variables
 
@@ -21,7 +22,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
-.. autoclass:: climate.pyom.PyOM
-   :members:
-   :undoc-members:
