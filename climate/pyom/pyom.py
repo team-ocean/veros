@@ -1,5 +1,4 @@
 import math
-import argparse
 import warnings
 import logging
 
@@ -20,16 +19,22 @@ BACKENDS = {"numpy": numpy, "bohrium": bohrium}
 from climate import Timer
 from climate.pyom import momentum, numerics, thermodynamics, eke, tke, idemix, \
                          isoneutral, external, diagnostics, non_hydrostatic, \
-                         advection, restart, cyclic, variables, settings
+                         advection, restart, cyclic, variables, settings, cli
 
 class PyOM(object):
     """Main class for PyOM.
 
     Args:
         backend (bool, optional): Backend to use for array operations.
-            Possible values are `numpy` and `bohrium`. Defaults to `None`, which
+            Possible values are `numpy` and `bohrium`. Defaults to ``None``, which
             tries to read the backend from the command line (set via a flag
             `-b`/`--backend`), and uses `numpy` if no command line argument is given.
+        loglevel (one of {debug, info, warning, error, critical}, optional): Verbosity
+            of the model. Tries to read value from command line if not given
+            (`-v`/`--loglevel`). Defaults to `info`.
+        logfile (path, optional): Path to a log file to write output to. Tries to
+            read value from command line if not given (`-l`/`--logfile`). Defaults
+            to stdout.
     """
 
     # Constants
@@ -38,22 +43,11 @@ class PyOM(object):
     degtom = radius / 180.0 * pi #: Conversion degrees latitude to meters
     mtodeg = 1 / degtom #: Conversion meters to degrees latitude
     omega = pi / 43082.0 #: Earth rotation frequency in 1/s
-    rho_0 = 1024.0 #: Boussinesq reference density in :math`kg/m^3`
+    rho_0 = 1024.0 #: Boussinesq reference density in :math:`kg/m^3`
     grav = 9.81 #: Gravitational constant in :math:`m/s^2`
 
-    # Interface
-    def _not_implemented(self):
-        raise NotImplementedError("Needs to be implemented by subclass")
-    set_parameter = _not_implemented
-    set_initial_conditions = _not_implemented
-    set_grid = _not_implemented
-    set_coriolis = _not_implemented
-    set_forcing = _not_implemented
-    set_topography = _not_implemented
-    set_diagnostics = _not_implemented
-
     def __init__(self, backend=None, loglevel=None, logfile=None):
-        args = self._parse_command_line()
+        args = cli.parse_command_line()
         self.backend, self.backend_name = self._get_backend(backend or args.backend)
         logging.basicConfig(logfile=logfile or args.logfile, filemode="w",
                             level=getattr(logging, (loglevel or args.loglevel).upper()),
@@ -65,19 +59,7 @@ class PyOM(object):
                                              "pressure","friction","isoneutral",
                                              "vmix","eq_of_state")}
 
-    def _parse_command_line(self):
-        parser = argparse.ArgumentParser(description="PyOM command line interface")
-        parser.add_argument("--backend", "-b", default="numpy", choices=BACKENDS.keys(),
-                            help="Backend to use for computations. Defaults to 'numpy'.")
-        parser.add_argument("--loglevel", "-v", default="info",
-                            choices=("debug","info","warning","error","critical"),
-                            help="Log level used for output. Defaults to 'info'.")
-        parser.add_argument("--logfile", "-l", default=None,
-                            help="Log file to write to. Writing to stdout if not set.")
-        parser.add_argument("--profile", "-p", default=False, action="store_true",
-                            help="Profile PyOM using pyinstrument")
-        args, _ = parser.parse_known_args()
-        return args
+
 
     def _get_backend(self, backend):
         if not backend in BACKENDS.keys():
@@ -111,6 +93,8 @@ class PyOM(object):
 
 
     def flush(self):
+        """Flush computations if supported by the current backend.
+        """
         try:
             self.backend.flush()
         except AttributeError:
@@ -122,14 +106,8 @@ class PyOM(object):
         self.snapint = snapint
 
         with self.timers["setup"]:
-            """
-            Initialize model
-            """
             self.setup()
 
-            """
-            read restart if present
-            """
             print("Reading restarts:")
             restart.read_restart(self.itt)
 
@@ -145,7 +123,6 @@ class PyOM(object):
             self.enditt = self.itt + int(self.runlen / self.dt_tracer)
             logging.info("Starting integration for {:.2e}s".format(self.runlen))
             logging.info(" from time step {} to {}".format(self.itt,self.enditt))
-
 
         try:
             while self.itt < self.enditt:
@@ -194,9 +171,6 @@ class PyOM(object):
                         if self.enable_tke:
                             tke.integrate_tke(self)
 
-                    """
-                    Main boundary exchange
-                    """
                     if self.enable_cyclic_x:
                         cyclic.setcyclic_x(self.u[:,:,:,self.taup1])
                         cyclic.setcyclic_x(self.v[:,:,:,self.taup1])
@@ -254,41 +228,26 @@ class PyOM(object):
                     profiler.stop()
                     with open("profile.html", "w") as f:
                         f.write(profiler.output_html())
-                except UnboundLocalError:
+                except UnboundLocalError: # profiler has not been started
                     pass
 
 
     def setup(self):
         print("setting up everything")
 
-        """
-        allocate everything
-        """
         self.set_parameter()
         self.allocate()
 
-        """
-        Grid
-        """
         self.set_grid()
         numerics.calc_grid(self)
 
-        """
-        Coriolis
-        """
         self.set_coriolis()
         numerics.calc_beta(self)
 
-        """
-        topography
-        """
         self.set_topography()
         numerics.calc_topo(self)
         idemix.calc_spectral_topo(self)
 
-        """
-        initial condition and forcing
-        """
         self.set_initial_conditions()
         numerics.calc_initial_conditions(self)
 
@@ -296,25 +255,49 @@ class PyOM(object):
         if self.enable_streamfunction:
             external.streamfunction_init(self)
 
-        """
-        initialize diagnostics
-        """
         self.set_diagnostics()
         diagnostics.init_diagnostics(self)
 
-        """
-        initialize EKE module
-        """
         eke.init_eke(self)
 
-        """
-        initialize isoneutral module
-        """
         isoneutral.check_isoneutral_slope_crit(self)
 
-        """
-        check setup
-        """
         if self.enable_tke and not self.enable_implicit_vert_friction:
             raise RuntimeError("ERROR: use TKE model only with implicit vertical friction\n"
                                "\t-> switch on enable_implicit_vert_fricton in setup")
+
+
+    def _not_implemented(self):
+        raise NotImplementedError("Needs to be implemented by subclass")
+
+    def set_parameter(self):
+        """To be implemented by subclass.
+
+        First function to be called during setup,
+        should be used to modify model settings.
+
+        Example:
+          >>> def set_parameter(self):
+          >>>     self.nx, self.ny, self.nz = (360, 120, 50)
+          >>>     self.coord_degree = True
+          >>>     self.enable_cyclic = True
+        """
+        self._not_implemented()
+
+    def set_initial_conditions(self):
+        """To be implemented by subclass.
+
+        May be used to set initial conditions.
+
+        Example:
+          >>> @pyom_method
+          >>> def set_initial_conditions(self):
+          >>>     self.u[:, :, :, self.tau] = np.random.rand(self.u.shape[:-1])
+        """
+        self._not_implemented()
+
+    set_grid = _not_implemented
+    set_coriolis = _not_implemented
+    set_forcing = _not_implemented
+    set_topography = _not_implemented
+    set_diagnostics = _not_implemented
