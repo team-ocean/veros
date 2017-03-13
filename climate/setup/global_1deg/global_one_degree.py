@@ -1,13 +1,13 @@
 import os
 
-from climate.pyom import PyOMLegacy, cyclic, diagnostics, pyom_method
+from climate.pyom import PyOMLegacy, cyclic, pyom_method
 
 MAIN_OPTIONS = dict(
     nx = 360,
     ny = 160,
     nz = 115,
-    dt_mom = 3600.0 / 2.0,
-    dt_tracer = 3600.0 / 2.0,
+    dt_mom = 3600.0,
+    dt_tracer = 3600.0,
 
     coord_degree = True,
     enable_cyclic_x = True,
@@ -15,7 +15,6 @@ MAIN_OPTIONS = dict(
     enable_diag_ts_monitor = True,
     ts_monint = 86400.0,
     enable_diag_snapshots = True,
-    snapint = 365 * 86400.0 / 12.,
 
     enable_diag_overturning = True,
     overint = 365 * 86400,
@@ -27,7 +26,7 @@ MAIN_OPTIONS = dict(
     aveint = 365 * 86400,
     avefreq = 365 * 86400 / 24.,
 
-    congr_epsilon = 1e-6,
+    congr_epsilon = 1e-10,
     congr_max_iterations = 10000,
     enable_streamfunction = True,
     #enable_congrad_verbose = True,
@@ -148,7 +147,7 @@ class GlobalOneDegree(PyOMLegacy):
     @pyom_method
     def set_coriolis(self):
         m = self.main_module
-        m.coriolis_t[...] = 2 * m.omega * np.sin(m.yt[None,:] / 180. * m.pi)
+        m.coriolis_t[...] = 2 * m.omega * np.sin(m.yt[np.newaxis, :] / 180. * m.pi)
 
     @pyom_method
     def set_initial_conditions(self):
@@ -190,65 +189,64 @@ class GlobalOneDegree(PyOMLegacy):
 
         # Qnet and dQ/dT and Qsol
         qnet_data = self._read_binary("q_net", (m.nx, m.ny, 12))
-        self.qnet[2:-2, 2:-2, :] = -qnet_data * m.maskT[2:-2, 2:-2, :12]
+        self.qnet[2:-2, 2:-2, :] = -qnet_data * m.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         qnec_data = self._read_binary("dqdt", (m.nx, m.ny, 12))
-        self.qnec[2:-2, 2:-2, :] = qnec_data * m.maskT[2:-2, 2:-2, :12]
+        self.qnec[2:-2, 2:-2, :] = qnec_data * m.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         qsol_data = self._read_binary("swf", (m.nx, m.ny, 12))
-        self.qsol[2:-2, 2:-2, :] = -qsol_data * m.maskT[2:-2, 2:-2, :12]
+        self.qsol[2:-2, 2:-2, :] = -qsol_data * m.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         # SST and SSS
         sst_data = self._read_binary("sst", (m.nx, m.ny, 12))
-        self.t_star[2:-2, 2:-2, :] = sst_data * m.maskT[2:-2, 2:-2, :12]
+        self.t_star[2:-2, 2:-2, :] = sst_data * m.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         sss_data = self._read_binary("sss", (m.nx, m.ny, 12))
-        self.s_star[2:-2, 2:-2, :] = sss_data * m.maskT[2:-2, 2:-2, :12]
+        self.s_star[2:-2, 2:-2, :] = sss_data * m.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         idm = self.idemix_module
         if idm.enable_idemix:
             tidal_energy_data = self._read_binary("tidal_energy", (m.nx, m.ny))
             mask_x, mask_y = (i+2 for i in np.indices((m.nx, m.ny)))
-            mask_z = np.maximum(0, m.kbot[2:-2, 2:-2]-1)
+            mask_z = np.maximum(0, m.kbot[2:-2, 2:-2] - 1)
             tidal_energy_data[:, :] *= m.maskW[mask_x, mask_y, mask_z] / m.rho_0
 
             if idm.enable_idemix_M2:
-                idm.forc_M2[2:-2, 2:-2, 1:m.np-1] = 0.5 * tidal_energy_data[..., None] / (2*m.pi)
-            else:
+                idm.forc_M2[2:-2, 2:-2, 1:-1] = 0.5 * tidal_energy_data[..., np.newaxis] / (2*m.pi)
                 idm.forc_iw_bottom[2:-2, 2:-2] = 0.5 * tidal_energy_data
-        else:
-             idm.forc_iw_bottom[2:-2, 2:-2] = tidal_energy_data
+            else:
+                idm.forc_iw_bottom[2:-2, 2:-2] = tidal_energy_data
 
-        wind_energy_data = self._read_binary("wind_energy", (m.nx, m.ny))
-        wind_energy_data[...] *= m.maskW[2:-2, 2:-2, -1] / m.rho_0 * 0.2
+            wind_energy_data = self._read_binary("wind_energy", (m.nx, m.ny))
+            wind_energy_data[...] *= m.maskW[2:-2, 2:-2, -1] / m.rho_0 * 0.2
 
-        if idm.enable_idemix_niw:
-            idm.forc_niw[2:-2, 2:-2, :m.np-1] = 1.0 * wind_energy_data[..., None] / (2*m.pi)
-            idm.forc_iw_surface[2:-2, 2:-2] = 0.
-        else:
-            idm.forc_iw_surface[2:-2, 2:-2] = wind_energy_data
+            if idm.enable_idemix_niw:
+                idm.forc_niw[2:-2, 2:-2, :m.np-1] = 1.0 * wind_energy_data[..., np.newaxis] / (2*m.pi)
+                idm.forc_iw_surface[2:-2, 2:-2] = 0.
+            else:
+                idm.forc_iw_surface[2:-2, 2:-2] = wind_energy_data
 
-        if idm.enable_idemix_niw:
-            idm.omega_niw[2:-2] = np.maximum(1e-8, np.abs(1.05 * m.coriolis_t))
+            if idm.enable_idemix_niw:
+                idm.omega_niw[2:-2] = np.maximum(1e-8, np.abs(1.05 * m.coriolis_t))
 
-        if idm.enable_idemix_niw or idm.enable_idemix_M2:
-            """
-             if enable_idemix_niw .or. enable_idemix_M2:
-              iret = nf_open("hrms_1deg.nc",NF_nowrite,ncid)
-              iret = nf_inq_varid(ncid,"HRMS",id)
-              iret = nf_get_vara_double(ncid,id,(/is_pe,js_pe/),(/ie_pe-is_pe+1,je_pe-js_pe+1/),topo_hrms(is_pe:ie_pe,js_pe:je_pe))
-              iret = nf_inq_varid(ncid,"LAM",id)
-              iret = nf_get_vara_double(ncid,id,(/is_pe,js_pe/),(/ie_pe-is_pe+1,je_pe-js_pe+1/),topo_lam(is_pe:ie_pe,js_pe:je_pe))
-              ncclos (ncid, iret)
+            if idm.enable_idemix_niw or idm.enable_idemix_M2:
+                """
+                 if enable_idemix_niw .or. enable_idemix_M2:
+                  iret = nf_open("hrms_1deg.nc",NF_nowrite,ncid)
+                  iret = nf_inq_varid(ncid,"HRMS",id)
+                  iret = nf_get_vara_double(ncid,id,(/is_pe,js_pe/),(/ie_pe-is_pe+1,je_pe-js_pe+1/),topo_hrms(is_pe:ie_pe,js_pe:je_pe))
+                  iret = nf_inq_varid(ncid,"LAM",id)
+                  iret = nf_get_vara_double(ncid,id,(/is_pe,js_pe/),(/ie_pe-is_pe+1,je_pe-js_pe+1/),topo_lam(is_pe:ie_pe,js_pe:je_pe))
+                  ncclos (ncid, iret)
 
-              border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,topo_hrms)
-              setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,topo_hrms)
-              border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,topo_lam)
-              setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,topo_lam)
-             endif
-             """
-            # NOTE: file hrms_1deg.nc needed
-            raise NotImplementedError
+                  border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,topo_hrms)
+                  setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,topo_hrms)
+                  border_exchg_xy(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,topo_lam)
+                  setcyclic_xy   (is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,topo_lam)
+                 endif
+                 """
+                # NOTE: file hrms_1deg.nc needed
+                raise NotImplementedError
 
         """
         Initialize penetration profile for solar radiation
@@ -261,7 +259,7 @@ class GlobalOneDegree(PyOMLegacy):
         pen = rpart_shortwave * np.exp(swarg1) + (1.0 - rpart_shortwave) * np.exp(swarg2)
         self.divpen_shortwave = np.zeros(m.nz)
         self.divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / m.dzt[1:]
-        self.divpen_shortwave[0] = 0
+        self.divpen_shortwave[0] = pen[0] / m.dzt[0]
 
     @pyom_method
     def _get_periodic_interval(self, currentTime, cycleLength, recSpacing, nbrec):
@@ -276,7 +274,7 @@ class GlobalOneDegree(PyOMLegacy):
 
     @pyom_method
     def set_forcing(self):
-        t_rest = 30 * 86400
+        t_rest = 30. * 86400.
         cp_0 = 3991.86795711963 # J/kg /K
         fxa = 365 * 86400.
 
@@ -299,7 +297,7 @@ class GlobalOneDegree(PyOMLegacy):
         m.forc_temp_surface[...] = (self.qqnet + self.qqnec * (fxa - m.temp[..., -1, 1])) \
                                             * m.maskT[..., -1] / cp_0 / m.rho_0
         fxa = f1 * self.s_star[..., n1] + f2 * self.s_star[..., n2]
-        m.forc_salt_surface[...] = m.dzt[-1] / t_rest * (fxa - m.salt[..., -1, 1]) * m.maskT[..., -1]
+        m.forc_salt_surface[...] = 1. / t_rest * (fxa - m.salt[..., -1, 1]) * m.maskT[..., -1] * m.dzt[-1]
 
         # apply simple ice mask
         ice = np.ones((m.nx+4, m.ny+4), dtype=np.uint8)
@@ -320,7 +318,7 @@ class GlobalOneDegree(PyOMLegacy):
         m = self.main_module
 
         bathymetry_data = self._read_binary("bathymetry", (m.nx, m.ny))
-        salt_data = self._read_binary("salt", (m.nx, m.ny, m.nz))
+        salt_data = self._read_binary("salt", (m.nx, m.ny, m.nz))[:,:,::-1]
 
         for k in xrange(m.nz-1, -1, -1):
             mask_salt = salt_data[:,:,k] != 0.
@@ -329,7 +327,7 @@ class GlobalOneDegree(PyOMLegacy):
         mask_bathy = bathymetry_data == 0
         m.kbot[2:-2, 2:-2][mask_bathy] = 0
 
-        m.kbot = np.minimum(m.kbot,m.nz)
+        m.kbot *= m.kbot != m.nz
 
         # close some channels
         i, j = np.indices((m.nx,m.ny))
@@ -337,7 +335,7 @@ class GlobalOneDegree(PyOMLegacy):
         mask_channel = (i >= 207) & (i < 214) & (j < 5) # i = 208,214; j = 1,5
         m.kbot[2:-2, 2:-2][mask_channel] = 0
 
-        # Aleuten island
+        # Aleutian islands
         mask_channel = (i == 104) & (j == 134) # i = 105; j = 135
         m.kbot[2:-2, 2:-2][mask_channel] = 0
 
@@ -351,65 +349,33 @@ class GlobalOneDegree(PyOMLegacy):
         idm = self.idemix_module
         tkm = self.tke_module
         ekm = self.eke_module
-
-        diagnostics.register_average(self,"taux","Zonal wind stress","m^2/s","UT",lambda: m.surface_taux)
-        diagnostics.register_average(self,"tauy","Meridional wind stress","m^2/s","TU",lambda: m.surface_tauy)
-        diagnostics.register_average(self,"forc_temp_surface","Surface temperature flux","m K/s","TT",lambda: m.forc_temp_surface)
-        diagnostics.register_average(self,"forc_salt_surface","Surface salinity flux","m g/s kg","TT",lambda: m.forc_salt_surface)
-        if m.enable_streamfunction:
-            diagnostics.register_average(self,"psi","Barotropic streamfunction","m^2/s","UU",lambda: m.psi[:,:,1])
-        else:
-            diagnostics.register_average(self,"psi","Surface pressure","m^2/s","TT",lambda: m.psi[:,:,1])
-        diagnostics.register_average(self,"temp","Temperature","deg C","TTT",lambda: m.temp[:,:,:,1])
-        diagnostics.register_average(self,"salt","Salinity","g/kg","TTT",lambda: m.salt[:,:,:,1])
-        diagnostics.register_average(self,"u","Zonal velocity","m/s","UTT",lambda: m.u[:,:,:,1])
-        diagnostics.register_average(self,"v","Meridional velocity","m/s","TUT",lambda: m.v[:,:,:,1])
-        diagnostics.register_average(self,"w","Vertical velocity","m/s","TTU",lambda: m.w[:,:,:,1])
-        diagnostics.register_average(self,"Nsqr","Square of stability frequency","1/s^2","TTU",lambda: m.Nsqr[:,:,:,1])
-        diagnostics.register_average(self,"Hd","Dynamic enthalpy","m^2/s^2","TTT",lambda: m.Hd[:,:,:,1])
-        diagnostics.register_average(self,"rho","Density","kg/m^3","TTT",lambda: m.rho[:,:,:,1])
-        diagnostics.register_average(self,"K_diss_v","Dissipation by vertical friction","m^2/s^3","TTU",lambda: m.K_diss_v)
-        diagnostics.register_average(self,"P_diss_v","Dissipation by vertical mixing","m^2/s^3","TTU",lambda: m.P_diss_v)
-        diagnostics.register_average(self,"P_diss_nonlin","Dissipation by nonlinear vert. mix.","m^2/s^3","TTU",lambda: m.P_diss_nonlin)
-        diagnostics.register_average(self,"P_diss_iso","Dissipation by Redi mixing tensor","m^2/s^3","TTU",lambda: m.P_diss_iso)
-        diagnostics.register_average(self,"kappaH","Vertical diffusivity","m^2/s","TTU",lambda: m.kappaH)
+        average_vars = ("surface_taux", "surface_tauy", "forc_temp_surface", "forc_salt_surface",
+                        "psi", "temp", "salt", "u", "v", "w", "Nsqr", "Hd", "rho",
+                        "K_diss_v", "P_diss_v", "P_diss_nonlin", "P_diss_iso", "kappaH")
         if m.enable_skew_diffusion:
-            diagnostics.register_average(self,"B1_gm","Zonal component of GM streamfct.","m^2/s","TUT",lambda: m.B1_gm)
-            diagnostics.register_average(self,"B2_gm","Meridional component of GM streamfct.","m^2/s","UTT",lambda: m.B2_gm)
+            average_vars += ("B1_gm", "B2_gm")
         if m.enable_TEM_friction:
-            diagnostics.register_average(self,"kappa_gm","Vertical GM viscosity","m^2/s","TTU",lambda: m.kappa_gm)
-            diagnostics.register_average(self,"K_diss_gm","Dissipation by GM friction","m^2/s^3","TTU",lambda: m.K_diss_gm)
+            average_vars += ("kappa_gm", "K_diss_gm")
         if tkm.enable_tke:
-            diagnostics.register_average(self,"TKE","Turbulent kinetic energy","m^2/s^2","TTU",lambda: tkm.tke[:,:,:,1])
-            diagnostics.register_average(self,"Prandtl","Prandtl number"," ","TTU",lambda: tkm.Prandtlnumber)
-            diagnostics.register_average(self,"mxl","Mixing length"," ","TTU",lambda: tkm.mxl)
-            diagnostics.register_average(self,"tke_diss","Dissipation of TKE","m^2/s^3","TTU",lambda: tkm.tke_diss)
-            diagnostics.register_average(self,"forc_tke_surface","TKE surface forcing","m^3/s^2","TT",lambda: tkm.forc_tke_surface)
-            diagnostics.register_average(self,"tke_surface_corr","TKE surface flux correction","m^3/s^2","TT",lambda: tkm.tke_surf_corr)
+            average_vars += ("tke", "Prandtlnumber", "mxl", "tke_diss",
+                             "forc_tke_surface", "tke_surf_corr")
         if idm.enable_idemix:
-            diagnostics.register_average(self,"E_iw","Internal wave energy","m^2/s^2","TTU",lambda: idm.E_iw[:,:,:,1])
-            diagnostics.register_average(self,"forc_iw_surface","IW surface forcing","m^3/s^2","TT",lambda: idm.forc_iw_surface)
-            diagnostics.register_average(self,"forc_iw_bottom","IW bottom forcing","m^3/s^2","TT",lambda: idm.forc_iw_bottom)
-            diagnostics.register_average(self,"iw_diss","Dissipation of E_iw","m^2/s^3","TTU",lambda: idm.iw_diss)
-            diagnostics.register_average(self,"c0","Vertical IW group velocity","m/s","TTU",lambda: idm.c0)
-            diagnostics.register_average(self,"v0","Horizontal IW group velocity","m/s","TTU",lambda: idm.v0)
+            average_vars += ("E_iw", "forc_iw_surface", "forc_iw_bottom", "iw_diss",
+                             "c0", "v0")
         if ekm.enable_eke:
-            diagnostics.register_average(self,"EKE","Eddy energy","m^2/s^2","TTU",lambda: ekm.eke[:,:,:,1])
-            diagnostics.register_average(self,"K_gm","Lateral diffusivity","m^2/s","TTU",lambda: ekm.K_gm)
-            # diagnostics.register_average(self,"eke_diss","Eddy energy dissipation","m^2/s^3","TTU",lambda: ekm.eke_diss)
-            diagnostics.register_average(self,"L_Rossby","Rossby radius","m","TT",lambda: ekm.L_rossby)
-            diagnostics.register_average(self,"L_Rhines","Rhines scale","m","TTU",lambda: ekm.L_rhines)
+            average_vars += ("eke", "K_gm", "L_rossby", "L_rhines")
         if idm.enable_idemix_M2:
-            diagnostics.register_average(self,"E_M2","M2 tidal energy","m^2/s^2","TT",lambda: idm.E_M2_int)
-            diagnostics.register_average(self,"cg_M2","M2 group velocity","m/s","TT",lambda: idm.cg_M2)
-            diagnostics.register_average(self,"tau_M2","Decay scale","1/s","TT",lambda: idm.tau_M2)
-            diagnostics.register_average(self,"alpha_M2_cont","Interaction coeff.","s/m^3","TT",lambda: idm.alpha_M2_cont)
+            average_vars += ("E_M2", "cg_M2", "tau_M2", "alpha_M2_cont")
         if idm.enable_idemix_niw:
-            diagnostics.register_average(self,"E_niw","NIW energy","m^2/s^2","TT",lambda: idm.E_niw_int)
-            diagnostics.register_average(self,"cg_niw","NIW group velocity","m/s","TT",lambda: idm.cg_niw)
-            diagnostics.register_average(self,"tau_niw","Decay scale","1/s","TT",lambda: idm.tau_niw)
+            average_vars += ("E_niw", "cg_niw", "tau_niw")
+        for var in average_vars:
+            self.variables[var].average = True
 
 
 if __name__ == "__main__":
-    simulation = GlobalOneDegree()
-    simulation.run(runlen=86400., snapint=86400*10)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fortran","-f",default=None,help="Path to fortran library")
+    args, _ = parser.parse_known_args()
+    simulation = GlobalOneDegree(fortran=args.fortran)
+    simulation.run(runlen=86400., snapint=86400.*.1)

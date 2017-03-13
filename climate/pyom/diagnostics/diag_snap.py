@@ -67,6 +67,8 @@ def write_var(pyom, key, var, n, ncfile, var_data=None):
         var_data = np.where(gridmask.astype(np.bool)[newaxes], var_data, variables.FILL_VALUE)
     var_data = variables.remove_ghosts(var_data, var.dims) * var.scale
     tmask = tuple(pyom.tau if dim == variables.TIMESTEPS[0] else slice(None) for dim in var.dims)
+    if pyom.backend_name == "bohrium":
+        var_data = var_data.copy2numpy()
     if "Time" in ncfile[key].dimensions:
         ncfile[key][..., n] = var_data[tmask]
     else:

@@ -34,19 +34,19 @@ def calc_grid(pyom):
     """
     transfer from locally defined variables to global ones
     """
-    aloc[:,0] = pyom.dxt[2:pyom.nx+2]
+    aloc[:,0] = pyom.dxt[2:-2]
 
-    dxt_gl[2:pyom.nx+2] = aloc[:,0]
+    dxt_gl[2:-2] = aloc[:,0]
 
     if pyom.enable_cyclic_x:
         dxt_gl[pyom.nx+2:pyom.nx+4] = dxt_gl[2:4]
-        dxt_gl[:2] = dxt_gl[pyom.nx:pyom.nx+2]
+        dxt_gl[:2] = dxt_gl[pyom.nx:-2]
     else:
         dxt_gl[pyom.nx+2:pyom.nx+4] = dxt_gl[pyom.nx+1]
         dxt_gl[:2] = dxt_gl[2]
 
-    aloc[0,:] = pyom.dyt[2:pyom.ny+2]
-    dyt_gl[2:pyom.ny+2] = aloc[0, :]
+    aloc[0,:] = pyom.dyt[2:-2]
+    dyt_gl[2:-2] = aloc[0, :]
 
     dyt_gl[pyom.ny+2:pyom.ny+4] = dyt_gl[pyom.ny+1]
     dyt_gl[:2] = dyt_gl[2]
@@ -60,11 +60,11 @@ def calc_grid(pyom):
 
     if pyom.enable_cyclic_x:
         xt_gl[pyom.nx+2:pyom.nx+4] = xt_gl[2:4]
-        xt_gl[:2] = xt_gl[pyom.nx:pyom.nx+2]
+        xt_gl[:2] = xt_gl[pyom.nx:-2]
         xu_gl[pyom.nx+2:pyom.nx+4] = xt_gl[2:4]
-        xu_gl[:2] = xu_gl[pyom.nx:pyom.nx+2]
+        xu_gl[:2] = xu_gl[pyom.nx:-2]
         dxu_gl[pyom.nx+2:pyom.nx+4] = dxu_gl[2:4]
-        dxu_gl[:2] = dxu_gl[pyom.nx:pyom.nx+2]
+        dxu_gl[:2] = dxu_gl[pyom.nx:-2]
 
     """
     grid in north/south direction
@@ -126,10 +126,10 @@ def calc_beta(pyom):
     """
     calculate beta = df/dy
     """
-    pyom.beta[:, 2:pyom.ny+2] = 0.5*((pyom.coriolis_t[:,3:pyom.ny+3] - pyom.coriolis_t[:,2:pyom.ny+2]) \
-                                    / pyom.dyu[2:pyom.ny+2] \
-                                   + (pyom.coriolis_t[:,2:pyom.ny+2] - pyom.coriolis_t[:,1:pyom.ny+1]) \
-                                    / pyom.dyu[1:pyom.ny+1])
+    pyom.beta[:, 2:-2] = 0.5*((pyom.coriolis_t[:,3:-1] - pyom.coriolis_t[:,2:-2]) \
+                                    / pyom.dyu[2:-2] \
+                                   + (pyom.coriolis_t[:,2:-2] - pyom.coriolis_t[:,1:-3]) \
+                                    / pyom.dyu[1:-3])
 
 @pyom_method
 def calc_topo(pyom):
@@ -163,22 +163,24 @@ def calc_topo(pyom):
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.maskU)
     pyom.maskV[...] = pyom.maskT
-    pyom.maskV[:, :pyom.ny+3] = np.minimum(pyom.maskT[:,:pyom.ny+3], pyom.maskT[:,1:pyom.ny+4])
+    pyom.maskV[:, :-1] = np.minimum(pyom.maskT[:,:-1], pyom.maskT[:,1:pyom.ny+4])
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.maskV)
     pyom.maskZ[...] = pyom.maskT
-    pyom.maskZ[:pyom.nx+3, :pyom.ny+3] = np.minimum(np.minimum(pyom.maskT[:pyom.nx+3, :pyom.ny+3],pyom.maskT[:pyom.nx+3, 1:pyom.ny+4]),pyom.maskT[1:pyom.nx+4, :pyom.ny+3])
+    pyom.maskZ[:pyom.nx+3, :-1] = np.minimum(np.minimum(pyom.maskT[:pyom.nx+3, :-1],
+                                                               pyom.maskT[:pyom.nx+3, 1:pyom.ny+4]),
+                                                    pyom.maskT[1:pyom.nx+4, :-1])
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.maskZ)
     pyom.maskW[...] = pyom.maskT
-    pyom.maskW[:,:,:pyom.nz-1] = np.minimum(pyom.maskT[:,:,:pyom.nz-1],pyom.maskT[:,:,1:pyom.nz])
+    pyom.maskW[:,:,:pyom.nz-1] = np.minimum(pyom.maskT[:,:,:pyom.nz-1], pyom.maskT[:,:,1:pyom.nz])
 
     """
     total depth
     """
-    pyom.ht[...] = np.sum(pyom.maskT * pyom.dzt, axis=2)
-    pyom.hu[...] = np.sum(pyom.maskU * pyom.dzt, axis=2)
-    pyom.hv[...] = np.sum(pyom.maskV * pyom.dzt, axis=2)
+    pyom.ht[...] = np.sum(pyom.maskT * pyom.dzt[np.newaxis, np.newaxis, :], axis=2)
+    pyom.hu[...] = np.sum(pyom.maskU * pyom.dzt[np.newaxis, np.newaxis, :], axis=2)
+    pyom.hv[...] = np.sum(pyom.maskV * pyom.dzt[np.newaxis, np.newaxis, :], axis=2)
 
     mask = (pyom.hu == 0).astype(np.float)
     pyom.hur[...] = 1. / (pyom.hu + mask) * (1-mask)
@@ -197,13 +199,15 @@ def calc_initial_conditions(pyom):
         cyclic.setcyclic_x(pyom.temp)
         cyclic.setcyclic_x(pyom.salt)
 
-    pyom.rho[...] = density.get_rho(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None]) * pyom.maskT[...,None]
-    pyom.Hd[...] = density.get_dyn_enthalpy(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None]) * pyom.maskT[...,None]
-    pyom.int_drhodT[...] = density.get_int_drhodT(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None])
-    pyom.int_drhodS[...] = density.get_int_drhodS(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,None])
+    pyom.rho[...] = density.get_rho(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,np.newaxis]) * pyom.maskT[...,np.newaxis]
+    pyom.Hd[...] = density.get_dyn_enthalpy(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,np.newaxis]) * pyom.maskT[...,np.newaxis]
+    pyom.int_drhodT[...] = density.get_int_drhodT(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,np.newaxis])
+    pyom.int_drhodS[...] = density.get_int_drhodS(pyom,pyom.salt,pyom.temp,np.abs(pyom.zt)[:,np.newaxis])
 
-    fxa = -pyom.grav / pyom.rho_0 / pyom.dzw[None,None,:] * pyom.maskW
-    pyom.Nsqr[:,:,:-1,:] = fxa[:,:,:-1,None] * (density.get_rho(pyom,pyom.salt[:,:,1:,:],pyom.temp[:,:,1:,:],np.abs(pyom.zt)[:-1,None]) - pyom.rho[:,:,:-1,:])
+    fxa = -pyom.grav / pyom.rho_0 / pyom.dzw[np.newaxis,np.newaxis,:] * pyom.maskW
+    pyom.Nsqr[:,:,:-1,:] = fxa[:,:,:-1,np.newaxis] * \
+                          (density.get_rho(pyom,pyom.salt[:,:,1:,:],pyom.temp[:,:,1:,:],np.abs(pyom.zt)[:-1,np.newaxis]) \
+                          - pyom.rho[:,:,:-1,:])
     pyom.Nsqr[:,:,-1,:] = pyom.Nsqr[:,:,-2,:]
 
 @pyom_method
@@ -215,7 +219,7 @@ def ugrid_to_tgrid(pyom, a):
 @pyom_method
 def vgrid_to_tgrid(pyom, a):
     b = np.zeros_like(a)
-    b[:,2:-2,:] = (pyom.area_v[:,2:-2,None] * a[:,2:-2,:] + pyom.area_v[:,1:-3,None] * a[:,1:-3,:]) / (2*pyom.area_t[:,2:-2,None])
+    b[:,2:-2,:] = (pyom.area_v[:,2:-2,np.newaxis] * a[:,2:-2,:] + pyom.area_v[:,1:-3,np.newaxis] * a[:,1:-3,:]) / (2*pyom.area_t[:,2:-2,np.newaxis])
     return b
 
 @pyom_method

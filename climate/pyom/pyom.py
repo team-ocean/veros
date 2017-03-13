@@ -1,6 +1,7 @@
 import math
 import argparse
 import warnings
+import logging
 
 import numpy
 if numpy.__name__ == "bohrium":
@@ -9,6 +10,7 @@ if numpy.__name__ == "bohrium":
     numpy = numpy_force
 try:
     import bohrium
+    import bohrium.lapack
 except ImportError:
     warnings.warn("Could not import Bohrium")
     bohrium = None
@@ -50,21 +52,34 @@ class PyOM(object):
     set_topography = _not_implemented
     set_diagnostics = _not_implemented
 
-    def __init__(self, backend=None):
-        self.backend, self.backend_name = self._get_backend(backend)
+    def __init__(self, backend=None, loglevel=None, logfile=None):
+        args = self._parse_command_line()
+        self.backend, self.backend_name = self._get_backend(backend or args.backend)
+        logging.basicConfig(logfile=logfile or args.logfile, filemode="w",
+                            level=getattr(logging, (loglevel or args.loglevel).upper()),
+                            format="%(message)s")
+        self.profile_mode = args.profile
         self.set_default_settings()
         self.timers = {k: Timer(k) for k in ("setup","main","momentum","temperature",
                                              "eke","idemix","tke","diagnostics",
                                              "pressure","friction","isoneutral",
                                              "vmix","eq_of_state")}
 
+    def _parse_command_line(self):
+        parser = argparse.ArgumentParser(description="PyOM command line interface")
+        parser.add_argument("--backend", "-b", default="numpy", choices=BACKENDS.keys(),
+                            help="Backend to use for computations. Defaults to 'numpy'.")
+        parser.add_argument("--loglevel", "-v", default="info",
+                            choices=("debug","info","warning","error","critical"),
+                            help="Log level used for output. Defaults to 'info'.")
+        parser.add_argument("--logfile", "-l", default=None,
+                            help="Log file to write to. Writing to stdout if not set.")
+        parser.add_argument("--profile", "-p", default=False, action="store_true",
+                            help="Profile PyOM using pyinstrument")
+        args, _ = parser.parse_known_args()
+        return args
+
     def _get_backend(self, backend):
-        if backend is None:
-            parser = argparse.ArgumentParser(description="PyOM command line interface")
-            parser.add_argument("--backend", "-b", default="numpy", choices=BACKENDS.keys(),
-                        help="Backend to use for computations. Defaults to 'numpy'.")
-            args, _ = parser.parse_known_args()
-            backend = args.backend
         if not backend in BACKENDS.keys():
             raise ValueError("unrecognized backend {} (must be either of: {!r})".format(backend, BACKENDS.keys()))
         if BACKENDS[backend] is None:
@@ -128,11 +143,17 @@ class PyOM(object):
                 diagnostics.diag_particles_read_restart(self)
 
             self.enditt = self.itt + int(self.runlen / self.dt_tracer)
-            print("Starting integration for {:.2e}s".format(self.runlen))
-            print(" from time step {} to {}".format(self.itt,self.enditt))
+            logging.info("Starting integration for {:.2e}s".format(self.runlen))
+            logging.info(" from time step {} to {}".format(self.itt,self.enditt))
 
-        while self.itt < self.enditt:
-            try:
+
+        try:
+            while self.itt < self.enditt:
+                if self.itt == 3 and self.profile_mode:
+                    import pyinstrument
+                    profiler = pyinstrument.Profiler()
+                    profiler.start()
+
                 with self.timers["main"]:
                     self.set_forcing()
 
@@ -173,7 +194,6 @@ class PyOM(object):
 
                     """
                     Main boundary exchange
-                    for density, temp and salt this is done in integrate_tempsalt.f90
                     """
                     if self.enable_cyclic_x:
                         cyclic.setcyclic_x(self.u[:,:,:,self.taup1])
@@ -204,25 +224,36 @@ class PyOM(object):
                 self.tau = self.taup1
                 self.taup1 = otaum1
                 self.itt += 1
-                print("Current iteration: {}".format(self.itt))
-            except:
-                diagnostics.panic_snap(self)
-                raise
+                logging.info("Current iteration: {}".format(self.itt))
+                logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
-        print("Timing summary:")
-        print(" setup time summary       = {}s".format(self.timers["setup"].getTime()))
-        print(" main loop time summary   = {}s".format(self.timers["main"].getTime()))
-        print("     momentum             = {}s".format(self.timers["momentum"].getTime()))
-        print("       pressure           = {}s".format(self.timers["pressure"].getTime()))
-        print("       friction           = {}s".format(self.timers["friction"].getTime()))
-        print("     thermodynamics       = {}s".format(self.timers["temperature"].getTime()))
-        print("       lateral mixing     = {}s".format(self.timers["isoneutral"].getTime()))
-        print("       vertical mixing    = {}s".format(self.timers["vmix"].getTime()))
-        print("       equation of state  = {}s".format(self.timers["eq_of_state"].getTime()))
-        print("     EKE                  = {}s".format(self.timers["eke"].getTime()))
-        print("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
-        print("     TKE                  = {}s".format(self.timers["tke"].getTime()))
-        print(" diagnostics              = {}s".format(self.timers["diagnostics"].getTime()))
+        except:
+            diagnostics.panic_snap(self)
+            raise
+
+        finally:
+            logging.debug("Timing summary:")
+            logging.debug(" setup time summary       = {}s".format(self.timers["setup"].getTime()))
+            logging.debug(" main loop time summary   = {}s".format(self.timers["main"].getTime()))
+            logging.debug("     momentum             = {}s".format(self.timers["momentum"].getTime()))
+            logging.debug("       pressure           = {}s".format(self.timers["pressure"].getTime()))
+            logging.debug("       friction           = {}s".format(self.timers["friction"].getTime()))
+            logging.debug("     thermodynamics       = {}s".format(self.timers["temperature"].getTime()))
+            logging.debug("       lateral mixing     = {}s".format(self.timers["isoneutral"].getTime()))
+            logging.debug("       vertical mixing    = {}s".format(self.timers["vmix"].getTime()))
+            logging.debug("       equation of state  = {}s".format(self.timers["eq_of_state"].getTime()))
+            logging.debug("     EKE                  = {}s".format(self.timers["eke"].getTime()))
+            logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
+            logging.debug("     TKE                  = {}s".format(self.timers["tke"].getTime()))
+            logging.debug(" diagnostics              = {}s".format(self.timers["diagnostics"].getTime()))
+
+            if self.profile_mode:
+                try:
+                    profiler.stop()
+                    with open("profile.html", "w") as f:
+                        f.write(profiler.output_html())
+                except UnboundLocalError:
+                    pass
 
 
     def setup(self):

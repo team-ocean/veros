@@ -21,6 +21,7 @@ def solve(pyom, rhs, sol, boundary_val=None):
     :param sol: Initial guess, gets overwritten with solution
     :param boundary_val: Array containing values to set on boundary elements. Defaults to `sol`.
     """
+    pyom.flush()
     if not solve.pyom or solve.pyom != id(pyom): # only initialize solver if parent object changes
         if has_pyamg:
             solve.linear_solver = _get_amg_solver(pyom)

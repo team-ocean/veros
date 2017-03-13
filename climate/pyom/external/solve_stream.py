@@ -8,6 +8,7 @@ used for streamfunction
 from climate.pyom.external import solve_pressure, island, utilities, solve_poisson
 from climate.pyom import cyclic, pyom_method
 
+
 @pyom_method
 def solve_streamfunction(pyom):
     """
@@ -71,9 +72,9 @@ def solve_streamfunction(pyom):
 
         # solve for time dependent boundary values
         if pyom.backend_name == "bohrium":
-            line_forc[1:] = np.linalg.jacobi(pyom.line_psin[1:, 1:], line_forc[1:])
+            line_forc[1:] = np.lapack.gesv(pyom.line_psin[1:, 1:], line_forc[1:])
         else:
-            line_forc[1:] = np.linalg.solve(pyom.line_psin[1:, 1:], line_forc[1:])
+            line_forc[1:] = np.linalg.lapack.dgesv(pyom.line_psin[1:, 1:], line_forc[1:])[2]
         pyom.dpsin[1:,pyom.tau] = line_forc[1:]
 
     # integrate barotropic and baroclinic velocity forward in time

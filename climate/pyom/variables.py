@@ -196,11 +196,11 @@ MAIN_VARIABLES = OrderedDict([
         "Square of stability frequency", output=True
     )),
     ("Hd", Var(
-        "Dynamic enthalpy", T_GRID + TIMESTEPS, "?", "Dynamic enthalpy", output=True
+        "Dynamic enthalpy", T_GRID + TIMESTEPS, "m^2/s^2", "Dynamic enthalpy", output=True
     )),
     ("dHd", Var(
-        "Change of dyn. enth. by adv.", T_GRID + TIMESTEPS, "?",
-        "Change of dynamic enthalpy due to advection", output=True
+        "Change of dyn. enth. by adv.", T_GRID + TIMESTEPS, "m^2/s^3",
+        "Change of dynamic enthalpy due to advection"
     )),
 
     ("temp", Var(
@@ -244,11 +244,11 @@ MAIN_VARIABLES = OrderedDict([
 
     )),
     ("forc_temp_surface", Var(
-        "Surface temperature flux", T_HOR, "m^2/s^2", "Surface temperature flux",
+        "Surface temperature flux", T_HOR, "m K/s", "Surface temperature flux",
         output=True
     )),
     ("forc_salt_surface", Var(
-        "Surface salinity flux", T_HOR, "m^2/s^2", "Surface salinity flux",
+        "Surface salinity flux", T_HOR, "m g/s kg", "Surface salinity flux",
         output=True
     )),
 
@@ -302,14 +302,6 @@ MAIN_VARIABLES = OrderedDict([
     ("dv_adv", Var(
         "Change of v by advection", V_GRID, "m/s^2",
         "Change of v due to advection"
-    )),
-    ("u_source", Var(
-        "Source of zonal velocity", U_GRID, "m/s^2 (?)",
-        "Non-conservative source of zonal velocity", output=True
-    )),
-    ("v_source", Var(
-        "Source of meridional velocity", V_GRID, "m/s^2 (?)",
-        "Non-conservative source of meridional velocity", output=True
     )),
     ("p_hydro", Var(
         "Hydrostatic pressure", T_GRID, "m^2/s^2", "Hydrostatic pressure", output=True
@@ -519,6 +511,28 @@ CONDITIONAL_VARIABLES = OrderedDict([
         ("surf_press", Var("Surface pressure", T_HOR, "m^2/s^2", "Surface pressure", output=True)),
     ])),
 
+    ("enable_tempsalt_sources", OrderedDict([
+        ("temp_source", Var(
+            "Source of temperature", T_GRID, "K/s",
+            "Non-conservative source of temperature", output=True
+        )),
+        ("salt_source", Var(
+            "Source of salt", T_GRID, "g/(kg s)",
+            "Non-conservative source of salt", output=True
+        )),
+    ])),
+
+    ("enable_momentum_sources", OrderedDict([
+        ("u_source", Var(
+            "Source of zonal velocity", U_GRID, "m/s^2 (?)",
+            "Non-conservative source of zonal velocity", output=True
+        )),
+        ("v_source", Var(
+            "Source of meridional velocity", V_GRID, "m/s^2 (?)",
+            "Non-conservative source of meridional velocity", output=True
+        )),
+    ])),
+
     ("not enable_hydrostatic", OrderedDict([
         ("p_non_hydro", Var(
             "Non-hydrostatic pressure", T_GRID, "m^2/s^2",
@@ -590,7 +604,7 @@ CONDITIONAL_VARIABLES = OrderedDict([
         ("Prandtlnumber", Var("Prandtl number", W_GRID, "", "Prandtl number")),
         ("mxl", Var("Mixing length", W_GRID, "m", "Mixing length")),
         ("forc_tke_surface", Var(
-            "TKE surface flux", T_HOR, "m^3/s^3", "TKE surface flux"
+            "TKE surface flux", T_HOR, "m^3/s^3", "TKE surface flux", output=True
         )),
         ("tke_diss", Var(
             "TKE dissipation", W_GRID, "m^2/s^3", "TKE dissipation"
@@ -613,7 +627,7 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "square-root of eke", W_GRID, "m/s", "square-root of eke"
         )),
         ("L_rossby", Var("Rossby radius", T_HOR, "m", "Rossby radius")),
-        ("L_rhines", Var("Rhines scale", T_GRID, "m", "Rhines scale")),
+        ("L_rhines", Var("Rhines scale", W_GRID, "m", "Rhines scale")),
         ("eke_len", Var("Eddy length scale", T_GRID, "m", "Eddy length scale")),
         ("eke_diss_iw", Var(
             "Dissipation of EKE to IW", W_GRID, "m^2/s^3",
@@ -671,11 +685,11 @@ CONDITIONAL_VARIABLES = OrderedDict([
         )),
         ("forc_iw_surface", Var(
             "IW surface forcing", T_HOR, "m^3/s^3",
-            "Internal wave surface forcing", time_dependent=False
+            "Internal wave surface forcing", time_dependent=False, output=True
         )),
         ("forc_iw_bottom", Var(
             "IW bottom forcing", T_HOR, "m^3/s^3",
-            "Internal wave bottom forcing", time_dependent=False
+            "Internal wave bottom forcing", time_dependent=False, output=True
         )),
     ])),
     ("enable_idemix_M2", OrderedDict([

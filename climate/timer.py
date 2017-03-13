@@ -1,4 +1,3 @@
-import climate
 import numpy as np
 try:
     import bohrium as bh
@@ -22,9 +21,19 @@ class Timer:
         self.ends.append(time.time())
 
     def printTime(self):
+        self._check_if_active()
         totalTime = sum([self.ends[i] - self.starts[i] for i in xrange(len(self.starts))])
         print "[%s]:" % self.name, totalTime, "s"
 
     def getTime(self):
+        self._check_if_active()
         totalTime = sum([self.ends[i] - self.starts[i] for i in xrange(len(self.starts))])
         return totalTime
+
+    def getLastTime(self):
+        self._check_if_active()
+        return self.ends[-1] - self.starts[-1]
+
+    def _check_if_active(self):
+        if len(self.ends) != len(self.starts):
+            raise RuntimeError("must be called after Timer context ends")
