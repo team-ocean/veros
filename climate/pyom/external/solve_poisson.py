@@ -65,7 +65,7 @@ def _get_amg_solver(pyom):
         near_null_space = np.ones(matrix.shape[0], bohrium=False)
     else:
         near_null_space = np.ones(matrix.shape[0])
-    ml = pyamg.smoothed_aggregation_solver(matrix, near_null_space)
+    ml = pyamg.smoothed_aggregation_solver(matrix, near_null_space[:, np.newaxis])
     def amg_solver(rhs,x0):
         if pyom.backend_name == "bohrium":
             rhs = rhs.copy2numpy()
