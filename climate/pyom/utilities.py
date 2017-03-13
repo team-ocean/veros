@@ -27,8 +27,8 @@ def solve_implicit(pyom, ks, a, b, c, d, b_edge=None, d_edge=None):
     land_mask = (ks >= 0)[:,:,None]
     if not np.sum(land_mask):
         return np.zeros_like(land_mask), np.zeros_like(land_mask)
-    edge_mask = land_mask & (np.indices((a.shape))[2] == ks[:,:,None])
-    water_mask = land_mask & (np.indices((a.shape))[2] >= ks[:,:,None]) # NOTE: this is in fact maskT!
+    edge_mask = land_mask & (np.arange(a.shape[2])[np.newaxis, np.newaxis, :] == ks[:,:,np.newaxis])
+    water_mask = land_mask & (np.arange(a.shape[2])[np.newaxis, np.newaxis, :] >= ks[:,:,np.newaxis])
 
     a_tri = np.where(water_mask, a, 0.)
     a_tri = np.where(edge_mask, 0., a_tri)

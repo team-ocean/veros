@@ -76,7 +76,7 @@ def integrate_eke(pyom):
         """
         pyom.c_lee[...] = 0.
         ks = pyom.kbot[2:-2, 2:-2] - 1
-        _, _, ki = np.indices((pyom.nx, pyom.ny, pyom.nz))
+        ki = np.arange(pyom.nz)[np.newaxis, np.newaxis, :]
         boundary_mask = (ks >= 0) & (ks < pyom.nz-1)
         full_mask = boundary_mask[:,:,None] & (ki == ks[:,:,None])
         fxa = np.maximum(0, pyom.Nsqr[2:-2, 2:-2, :, pyom.tau])**0.25

@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class ACC2Test(PyOMTest):
-    timesteps = 1
+    timesteps = 5
     def __init__(self, fortran):
         self.fortran = fortran
 

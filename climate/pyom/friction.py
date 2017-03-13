@@ -237,8 +237,8 @@ def quadratic_bottom_friction(pyom):
     dissipation is calculated and added to K_diss_bot
     """
     # we might want to account for EKE in the drag, also a tidal residual
-    k = np.maximum(pyom.kbot[1:-2,2:-2],pyom.kbot[2:-1,2:-2]) - 1
-    mask = k[..., np.newaxis] == np.indices((pyom.nx+1, pyom.ny, pyom.nz))[2]
+    k = np.maximum(pyom.kbot[1:-2,2:-2], pyom.kbot[2:-1,2:-2]) - 1
+    mask = k[..., np.newaxis] == np.arange(pyom.nz)[np.newaxis, np.newaxis, :]
     fxa = pyom.maskV[1:-2,2:-2,:] * pyom.v[1:-2,2:-2,:,pyom.tau]**2 + pyom.maskV[1:-2,1:-3,:] * pyom.v[1:-2,1:-3,:,pyom.tau]**2 \
         + pyom.maskV[2:-1,2:-2,:] * pyom.v[2:-1,2:-2,:,pyom.tau]**2 + pyom.maskV[2:-1,1:-3,:] * pyom.v[2:-1,1:-3,:,pyom.tau]**2
     fxa = np.sqrt(pyom.u[1:-2,2:-2,:,pyom.tau]**2 + 0.25 * fxa)
@@ -251,8 +251,8 @@ def quadratic_bottom_friction(pyom):
         diss[1:-2,2:-2,:] = aloc * pyom.u[1:-2,2:-2,:,pyom.tau]
         pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'U')
 
-    k = np.maximum(pyom.kbot[2:-2,1:-2],pyom.kbot[2:-2,2:-1]) - 1
-    mask = k[..., np.newaxis] == np.indices((pyom.nx, pyom.ny+1, pyom.nz))[2]
+    k = np.maximum(pyom.kbot[2:-2,1:-2], pyom.kbot[2:-2,2:-1]) - 1
+    mask = k[..., np.newaxis] == np.arange(pyom.nz)[np.newaxis, np.newaxis, :]
     fxa = pyom.maskU[2:-2,1:-2,:] * pyom.u[2:-2,1:-2,:,pyom.tau]**2 + pyom.maskU[1:-3,1:-2,:] * pyom.u[1:-3,1:-2,:,pyom.tau]**2 \
         + pyom.maskU[2:-2,2:-1,:] * pyom.u[2:-2,2:-1,:,pyom.tau]**2 + pyom.maskU[1:-3,2:-1,:] * pyom.u[1:-3,2:-1,:,pyom.tau]**2
     fxa = np.sqrt(pyom.v[2:-2,1:-2,:,pyom.tau]**2 + 0.25 * fxa)

@@ -25,7 +25,7 @@ def set_tke_diffusivities(pyom):
             """
             pyom.mxl[...] = np.minimum(
                                 np.minimum(pyom.mxl, -pyom.zw[np.newaxis, np.newaxis, :] \
-                                                     + pyom.dzw[np.newaxis, np.newaxis, :] * 0.5
+                                                    + pyom.dzw[np.newaxis, np.newaxis, :] * 0.5
                                           )
                                       , pyom.ht[:, :, np.newaxis] + pyom.zw[np.newaxis, np.newaxis, :]
                                       )

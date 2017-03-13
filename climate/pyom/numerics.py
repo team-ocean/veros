@@ -153,8 +153,8 @@ def calc_topo(pyom):
     """
     pyom.maskT[...] = 0.0
     land_mask = pyom.kbot > 0
-    ks = np.indices(pyom.maskT.shape)[2]
-    pyom.maskT[...] = land_mask[...,np.newaxis] & (pyom.kbot[...,np.newaxis]-1 <= ks)
+    ks = np.arange(pyom.maskT.shape[2])[np.newaxis, np.newaxis, :]
+    pyom.maskT[...] = land_mask[...,np.newaxis] & (pyom.kbot[...,np.newaxis] - 1 <= ks)
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.maskT)
