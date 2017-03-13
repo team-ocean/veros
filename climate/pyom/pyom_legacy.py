@@ -59,6 +59,7 @@ class PyOMLegacy(PyOM):
         self.jf2py = lambda j: j+self.onx-self.js_pe
         self.ip2fy = lambda i: i+self.is_pe-self.onx
         self.jp2fy = lambda j: j+self.js_pe-self.onx
+        self.get_tau = lambda: self.tau - 1 if self.legacy_mode else self.tau
 
     def setup(self, *args, **kwargs):
         if self.legacy_mode:

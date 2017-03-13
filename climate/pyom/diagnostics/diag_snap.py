@@ -3,6 +3,11 @@ from netCDF4 import Dataset
 from climate.pyom.diagnostics.io_threading import threaded_netcdf
 from climate.pyom import pyom_method, variables
 
+"""
+netCDF output is designed to follow the COARDS guidelines from
+http://ferret.pmel.noaa.gov/Ferret/documentation/coards-netcdf-conventions
+"""
+
 @pyom_method
 def def_grid_cdf(pyom, ncfile):
     """
@@ -14,7 +19,7 @@ def def_grid_cdf(pyom, ncfile):
     dims = variables.OUTPUT_DIMENSIONS
     for dim in dims:
         var = pyom.variables[dim]
-        nc_dim = ncfile.createDimension(dim, variables.get_dimensions(pyom, var.dims, include_ghosts=False)[0])
+        nc_dim = ncfile.createDimension(dim, variables.get_dimensions(pyom, var.dims[::-1], include_ghosts=False)[0])
         init_var(pyom, dim, var, ncfile)
     nc_dim_time = ncfile.createDimension("Time", None)
     nc_dim_var_time = ncfile.createVariable("Time","f8",("Time",))
@@ -37,10 +42,15 @@ def init_var(pyom, key, var, ncfile):
     if var.time_dependent:
         dims += ("Time",)
     if not key in ncfile.variables:
-        v = ncfile.createVariable(key, var.dtype, dims, fill_value=variables.FILL_VALUE)
+        # revert all dimensions in netCDF output (convention in most ocean models)
+        v = ncfile.createVariable(key, var.dtype, dims[::-1],
+                                 fill_value=variables.FILL_VALUE,
+                                 zlib=pyom.enable_netcdf_zlib_compression)
         v.long_name = var.name
         v.units = var.units
         v.missing_value = variables.FILL_VALUE
+        for extra_key, extra_attr in var.extra_attributes.items():
+            setattr(v, extra_key, extra_attr)
         if not var.time_dependent:
             write_var(pyom, key, var, None, ncfile)
 
@@ -70,9 +80,9 @@ def write_var(pyom, key, var, n, ncfile, var_data=None):
     if pyom.backend_name == "bohrium":
         var_data = var_data.copy2numpy()
     if "Time" in ncfile[key].dimensions:
-        ncfile[key][..., n] = var_data[tmask]
+        ncfile[key][n, ...] = var_data[tmask].T
     else:
-        ncfile[key][...] = var_data[tmask]
+        ncfile[key][...] = var_data[tmask].T
 
 
 @pyom_method

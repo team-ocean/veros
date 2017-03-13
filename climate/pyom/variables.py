@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 class Var:
     def __init__(self, name, dims, units, long_description, dtype=None, output=False,
-                 time_dependent = True, scale=1., average=False):
+                 time_dependent = True, scale=1., average=False, extra_attributes=None):
         self.name = name
         self.dims = dims
         self.units = units
@@ -12,6 +12,7 @@ class Var:
         self.time_dependent = time_dependent
         self.scale = scale
         self.average = average
+        self.extra_attributes = extra_attributes or {} #: Additional attributes to be written in netCDF output
 
 
 # fill value for netCDF output (invalid data is replaced by this value)
@@ -88,10 +89,11 @@ def get_grid_mask(pyom, grid):
 MAIN_VARIABLES = OrderedDict([
     ("zt", Var(
         "Vertical coordinate (T)", ZT, "m", "Vertical coordinate",
-        output=True, time_dependent=False
+        output=True, time_dependent=False, extra_attributes={"positive": "up"}
     )),
     ("zw", Var(
-        "Vertical coordinate (W)", ZW, "m", "Vertical coordinate", output=True, time_dependent=False
+        "Vertical coordinate (W)", ZW, "m", "Vertical coordinate", output=True,
+        time_dependent=False, extra_attributes={"positive": "up"}
     )),
     ("dzt", Var(
         "Vertical spacing (T)", ZT, "m", "Vertical spacing", output=True, time_dependent=False
@@ -344,42 +346,42 @@ MAIN_VARIABLES = OrderedDict([
 CONDITIONAL_VARIABLES = OrderedDict([
     ("coord_degree", OrderedDict([
         ("xt", Var(
-            "Zonal coordinate (T)", XT, "deg E",
+            "Zonal coordinate (T)", XT, "degrees_east",
             "Zonal (x) coordinate of T-grid point",
             output=True, time_dependent=False
         )),
         ("xu", Var(
-            "Zonal coordinate (U)", XU, "deg E",
+            "Zonal coordinate (U)", XU, "degrees_east",
             "Zonal (x) coordinate of U-grid point",
             output=True, time_dependent=False
         )),
         ("yt", Var(
-            "Meridional coordinate (T)", YT, "deg N",
+            "Meridional coordinate (T)", YT, "degrees_north",
             "Meridional (y) coordinate of T-grid point",
             output=True, time_dependent=False
         )),
         ("yu", Var(
-            "Meridional coordinate (U)", YU, "deg N",
+            "Meridional coordinate (U)", YU, "degrees_north",
             "Meridional (y) coordinate of U-grid point",
             output=True, time_dependent=False
         )),
         ("dxt", Var(
-            "Zonal T-grid spacing", XT, "deg E",
+            "Zonal T-grid spacing", XT, "degrees_east",
             "Zonal (x) spacing of T-grid point",
             output=True, time_dependent=False
         )),
         ("dxu", Var(
-            "Zonal U-grid spacing", XU, "deg E",
+            "Zonal U-grid spacing", XU, "degrees_east",
             "Zonal (x) spacing of U-grid point",
             output=True, time_dependent=False
         )),
         ("dyt", Var(
-            "Meridional T-grid spacing", YT, "deg N",
+            "Meridional T-grid spacing", YT, "degrees_north",
             "Meridional (y) spacing of T-grid point",
             output=True, time_dependent=False
         )),
         ("dyu", Var(
-            "Meridional U-grid spacing", YU, "deg N",
+            "Meridional U-grid spacing", YU, "degrees_north",
             "Meridional (y) spacing of U-grid point",
             output=True, time_dependent=False
         ))

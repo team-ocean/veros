@@ -150,5 +150,6 @@ SETTINGS = OrderedDict([
     # New
     ("use_io_threads", Setting(True, "")),
     ("io_timeout", Setting(None, "")),
-    ("average_filename", Setting("averages_{}.nc", ""))
+    ("enable_netcdf_zlib_compression", Setting(True, "")),
+    ("average_filename", Setting("averages_{}.nc", "")),
 ])

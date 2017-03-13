@@ -294,14 +294,14 @@ class GlobalOneDegree(PyOMLegacy):
         fxa = f1 * self.t_star[..., n1] + f2 * self.t_star[..., n2]
         self.qqnec = f1 * self.qnec[..., n1] + f2 * self.qnec[..., n2]
         self.qqnet = f1 * self.qnet[..., n1] + f2 * self.qnet[..., n2]
-        m.forc_temp_surface[...] = (self.qqnet + self.qqnec * (fxa - m.temp[..., -1, 1])) \
+        m.forc_temp_surface[...] = (self.qqnet + self.qqnec * (fxa - m.temp[..., -1, self.get_tau()])) \
                                             * m.maskT[..., -1] / cp_0 / m.rho_0
         fxa = f1 * self.s_star[..., n1] + f2 * self.s_star[..., n2]
-        m.forc_salt_surface[...] = 1. / t_rest * (fxa - m.salt[..., -1, 1]) * m.maskT[..., -1] * m.dzt[-1]
+        m.forc_salt_surface[...] = 1. / t_rest * (fxa - m.salt[..., -1, self.get_tau()]) * m.maskT[..., -1] * m.dzt[-1]
 
         # apply simple ice mask
         ice = np.ones((m.nx+4, m.ny+4), dtype=np.uint8)
-        mask1 = m.temp[:, :, -1, 1] * m.maskT[:, :, -1] <= -1.8
+        mask1 = m.temp[:, :, -1, self.get_tau()] * m.maskT[:, :, -1] <= -1.8
         mask2 = m.forc_temp_surface <= 0
         mask = ~(mask1 & mask2)
         m.forc_temp_surface *= mask

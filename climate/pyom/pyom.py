@@ -150,6 +150,8 @@ class PyOM(object):
         try:
             while self.itt < self.enditt:
                 if self.itt == 3 and self.profile_mode:
+                    # when using bohrium, most kernels should be pre-compiled
+                    # after three iterations
                     import pyinstrument
                     profiler = pyinstrument.Profiler()
                     profiler.start()

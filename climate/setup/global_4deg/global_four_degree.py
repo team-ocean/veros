@@ -1,4 +1,5 @@
 import os
+import logging
 from netCDF4 import Dataset
 
 from climate.pyom import PyOMLegacy, diagnostics, pyom_method
@@ -122,7 +123,7 @@ class GlobalFourDegree(PyOMLegacy):
         bathymetry_data = self._read_binary("bathymetry", (m.nx, m.ny), dtype=">i")
         salt_data = self._read_binary("salt", (m.nx, m.ny, m.nz))[:,:,::-1]
         for k in xrange(m.nz-1, -1, -1):
-            mask_salt = salt_data[:,:,k] > 0.
+            mask_salt = salt_data[:,:,k] != 0.
             m.kbot[2:-2, 2:-2][mask_salt] = k+1
         mask_bathy = bathymetry_data == 0
         m.kbot[2:-2, 2:-2][mask_bathy] = 0
@@ -156,7 +157,7 @@ class GlobalFourDegree(PyOMLegacy):
         self.qnet[self.qnet <= -1e10] = 0.0
 
         fxa = np.sum(self.qnet[2:-2, 2:-2, :] * m.area_t[2:-2, 2:-2, np.newaxis]) / 12 / np.sum(m.area_t[2:-2, 2:-2])
-        print (' removing an annual mean heat flux imbalance of %e W/m^2' % fxa)
+        logging.info(" removing an annual mean heat flux imbalance of %e W/m^2" % fxa)
         self.qnet[...] = (self.qnet - fxa) * m.maskT[: ,: , -1, np.newaxis]
 
         # SST and SSS
@@ -183,7 +184,7 @@ class GlobalFourDegree(PyOMLegacy):
     def set_forcing(self):
         m=self.fortran.main_module
 
-        (n1,f1), (n2,f2) = self._get_periodic_interval((m.itt-1)*m.dt_tracer, 365*86400.0, 365*86400./12., 12)
+        (n1,f1), (n2,f2) = self._get_periodic_interval((m.itt - 1) * m.dt_tracer, 365*86400.0, 365*86400./12., 12)
 
         # wind stress
         m.surface_taux[:]=(f1*self.taux[:,:,n1] + f2*self.taux[:,:,n2])
@@ -199,44 +200,27 @@ class GlobalFourDegree(PyOMLegacy):
         sst  =  f1*self.sst_clim[:,:,n1] + f2*self.sst_clim[:,:,n2]
         qnec =  f1*self.qnec[:,:,n1] + f2*self.qnec[:,:,n2]
         qnet =  f1*self.qnet[:,:,n1] + f2*self.qnet[:,:,n2]
-        m.forc_temp_surface[:] =(qnet + qnec * (sst - m.temp[:,:,-1,1])) * m.maskT[:,:,-1] / cp_0 / m.rho_0
+        m.forc_temp_surface[:] = (qnet + qnec * (sst - m.temp[:,:,-1,self.get_tau()])) * m.maskT[:,:,-1] / cp_0 / m.rho_0
 
         # salinity restoring
-        t_rest= 30*86400.0
+        t_rest= 30 * 86400.0
         sss = f1*self.sss_clim[:,:,n1] + f2*self.sss_clim[:,:,n2]
-        m.forc_salt_surface[:] = 1. / t_rest * (sss - m.salt[:,:,-1,1]) * m.maskT[:,:,-1] * m.dzt[-1]
+        m.forc_salt_surface[:] = 1. / t_rest * (sss - m.salt[:,:,-1,self.get_tau()]) * m.maskT[:,:,-1] * m.dzt[-1]
 
         # apply simple ice mask
-        mask = (m.temp[:,:,-1,1] * m.maskT[:,:,-1] <= -1.8) & (m.forc_temp_surface <= 0.0)
+        mask = (m.temp[:,:,-1,self.get_tau()] * m.maskT[:,:,-1] <= -1.8) & (m.forc_temp_surface <= 0.0)
         m.forc_temp_surface[mask] = 0.0
         m.forc_salt_surface[mask] = 0.0
 
         if m.enable_tempsalt_sources:
-            m.temp_source[:] = m.maskT * self.rest_tscl * (f1*self.t_star[:,:,:,n1] + f2*self.t_star[:,:,:,n2] - m.temp[:,:,:,1])
-            m.salt_source[:] = m.maskT * self.rest_tscl * (f1*self.s_star[:,:,:,n1] + f2*self.s_star[:,:,:,n2] - m.salt[:,:,:,1])
+            m.temp_source[:] = m.maskT * self.rest_tscl * (f1*self.t_star[:,:,:,n1] + f2*self.t_star[:,:,:,n2] - m.temp[:,:,:,self.get_tau()])
+            m.salt_source[:] = m.maskT * self.rest_tscl * (f1*self.s_star[:,:,:,n1] + f2*self.s_star[:,:,:,n2] - m.salt[:,:,:,self.get_tau()])
 
     @pyom_method
     def set_diagnostics(self):
-        m=self.fortran.main_module
-        if self.legacy_mode:
-            diagnostics.register_average(m,name='temp',long_name='Temperature',         units = 'deg C' , grid = 'TTT', var = lambda: m.temp[...,m.tau-1])
-            diagnostics.register_average(m,name='salt',long_name='Salinity',            units = 'g/kg' ,  grid = 'TTT', var = lambda: m.salt[...,m.tau-1])
-            diagnostics.register_average(m,name='u',   long_name='Zonal velocity',      units = 'm/s' ,   grid = 'UTT', var = lambda: m.u[...,m.tau-1])
-            diagnostics.register_average(m,name='v',   long_name='Meridional velocity', units = 'm/s' ,   grid = 'TUT', var = lambda: m.v[...,m.tau-1])
-            diagnostics.register_average(m,name='w',   long_name='Vertical velocity',   units = 'm/s' ,   grid = 'TTU', var = lambda: m.w[...,m.tau-1])
-            diagnostics.register_average(m,name='taux',long_name='wind stress',         units = 'm^2/s' , grid = 'UT',  var = lambda: m.surface_taux)
-            diagnostics.register_average(m,name='tauy',long_name='wind stress',         units = 'm^2/s' , grid = 'TU',  var = lambda: m.surface_tauy)
-            diagnostics.register_average(m,name='psi' ,long_name='Streamfunction',      units = 'm^3/s' , grid = 'UU',  var = lambda: m.psi[...,m.tau-1])
-        else:
-            diagnostics.register_average(m,name='temp',long_name='Temperature',         units = 'deg C' , grid = 'TTT', var = lambda: m.temp[...,m.tau])
-            diagnostics.register_average(m,name='salt',long_name='Salinity',            units = 'g/kg' ,  grid = 'TTT', var = lambda: m.salt[...,m.tau])
-            diagnostics.register_average(m,name='u',   long_name='Zonal velocity',      units = 'm/s' ,   grid = 'UTT', var = lambda: m.u[...,m.tau])
-            diagnostics.register_average(m,name='v',   long_name='Meridional velocity', units = 'm/s' ,   grid = 'TUT', var = lambda: m.v[...,m.tau])
-            diagnostics.register_average(m,name='w',   long_name='Vertical velocity',   units = 'm/s' ,   grid = 'TTU', var = lambda: m.w[...,m.tau])
-            diagnostics.register_average(m,name='taux',long_name='wind stress',         units = 'm^2/s' , grid = 'UT',  var = lambda: m.surface_taux)
-            diagnostics.register_average(m,name='tauy',long_name='wind stress',         units = 'm^2/s' , grid = 'TU',  var = lambda: m.surface_tauy)
-            diagnostics.register_average(m,name='psi' ,long_name='Streamfunction',      units = 'm^3/s' , grid = 'UU',  var = lambda: m.psi[...,m.tau])
-
+        m = self.fortran.main_module
+        for var in ("temp", "salt", "u", "v", "w", "surface_taux", "surface_tauy", "psi"):
+            m.variables[var].average = True
 
 if __name__ == "__main__":
     GlobalFourDegree().run(snapint= 86400.0*10, runlen = 86400.*365)
