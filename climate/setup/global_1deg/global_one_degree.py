@@ -29,7 +29,6 @@ MAIN_OPTIONS = dict(
     congr_epsilon = 1e-10,
     congr_max_iterations = 10000,
     enable_streamfunction = True,
-    #enable_congrad_verbose = True,
 
     enable_hor_friction = True,
     A_h = 5e4,
@@ -320,14 +319,13 @@ class GlobalOneDegree(PyOMLegacy):
         bathymetry_data = self._read_binary("bathymetry")
         salt_data = self._read_binary("salt")[:,:,::-1]
 
-        for k in xrange(m.nz-1, -1, -1):
-            mask_salt = salt_data[:,:,k] != 0.
-            m.kbot[2:-2, 2:-2][mask_salt] = k+1
+        mask_salt = salt_data == 0.
+        m.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
 
         mask_bathy = bathymetry_data == 0
         m.kbot[2:-2, 2:-2][mask_bathy] = 0
 
-        m.kbot *= m.kbot != m.nz
+        m.kbot *= m.kbot <= m.nz
 
         # close some channels
         i, j = np.indices((m.nx,m.ny))
