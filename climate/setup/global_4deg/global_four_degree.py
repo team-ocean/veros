@@ -6,17 +6,17 @@ from climate.pyom import PyOMLegacy, diagnostics, pyom_method
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = dict(
-    dz = "dz.bin",
-    temperature = "lev_t.bin",
-    salt = "lev_s.bin",
-    sss = "lev_sss.bin",
-    sst = "lev_sst.bin",
-    tau_x = "trenberth_taux.bin",
-    tau_y = "trenberth_tauy.bin",
-    q_net = "ncep_qnet.bin",
-    bathymetry = "bathymetry.bin",
-    tidal_energy = "tidal_energy.bin",
-    wind_energy = "wind_energy.bin",
+    dz = "dz.npy",
+    temperature = "lev_t.npy",
+    salt = "lev_s.npy",
+    sss = "lev_sss.npy",
+    sst = "lev_sst.npy",
+    tau_x = "trenberth_taux.npy",
+    tau_y = "trenberth_tauy.npy",
+    q_net = "ncep_qnet.npy",
+    bathymetry = "bathymetry.npy",
+    tidal_energy = "tidal_energy.npy",
+    wind_energy = "wind_energy.npy",
     ecmwf = "ecmwf_4deg_monthly.cdf",
 )
 DATA_FILES = {key: os.path.join(BASE_PATH, val) for key, val in DATA_FILES.items()}
@@ -98,9 +98,8 @@ class GlobalFourDegree(PyOMLegacy):
         m.eq_of_state_type = 5
 
     @pyom_method
-    def _read_binary(self, var, shape=(-1,), dtype=">f"):
-        data = np.array(np.fromfile(DATA_FILES[var], dtype=dtype, count=np.prod(shape)).reshape(shape, order="F"), dtype=np.float)
-        return data
+    def _read_binary(self, var):
+        return np.load(DATA_FILES[var])
 
     @pyom_method
     def set_grid(self):
@@ -120,8 +119,8 @@ class GlobalFourDegree(PyOMLegacy):
     @pyom_method
     def set_topography(self):
         m = self.main_module
-        bathymetry_data = self._read_binary("bathymetry", (m.nx, m.ny), dtype=">i")
-        salt_data = self._read_binary("salt", (m.nx, m.ny, m.nz))[:,:,::-1]
+        bathymetry_data = self._read_binary("bathymetry")
+        salt_data = self._read_binary("salt")[:,:,::-1]
         for k in xrange(m.nz-1, -1, -1):
             mask_salt = salt_data[:,:,k] != 0.
             m.kbot[2:-2, 2:-2][mask_salt] = k+1
@@ -137,22 +136,23 @@ class GlobalFourDegree(PyOMLegacy):
         self.taux, self.tauy, self.qnec, self.qnet, self.sss_clim, self.sst_clim = (np.zeros((m.nx+4,m.ny+4,12)) for _ in range(6))
 
         # initial conditions for T and S
-        temp_data = self._read_binary("temperature", shape=(m.nx,m.ny,m.nz))[:,:,::-1]
+        temp_data = self._read_binary("temperature")[:,:,::-1]
+        print(temp_data.shape)
         m.temp[2:-2,2:-2,:,:2] = temp_data[...,np.newaxis] * m.maskT[2:-2,2:-2,:,np.newaxis]
 
-        salt_data = self._read_binary("salt", shape=(m.nx,m.ny,m.nz))[:,:,::-1]
+        salt_data = self._read_binary("salt")[:,:,::-1]
         m.salt[2:-2,2:-2,:,:2] = salt_data[...,np.newaxis] * m.maskT[2:-2,2:-2,:,np.newaxis]
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
-        self.taux[2:-2,2:-2,:] = self._read_binary("tau_x",shape=(m.nx,m.ny,12)) / m.rho_0
-        self.tauy[2:-2,2:-2,:] = self._read_binary("tau_y",shape=(m.nx,m.ny,12)) / m.rho_0
+        self.taux[2:-2,2:-2,:] = self._read_binary("tau_x") / m.rho_0
+        self.tauy[2:-2,2:-2,:] = self._read_binary("tau_y") / m.rho_0
 
         # heat flux
         with Dataset(DATA_FILES["ecmwf"],"r") as ecmwf_data:
             self.qnec[2:-2,2:-2,:] = np.array(ecmwf_data.variables["Q3"]).transpose()
             self.qnec[self.qnec <= -1e10] = 0.0
 
-        q = self._read_binary("q_net",shape=(m.nx,m.ny,12))
+        q = self._read_binary("q_net")
         self.qnet[2:-2,2:-2,:] = -q
         self.qnet[self.qnet <= -1e10] = 0.0
 
@@ -161,13 +161,13 @@ class GlobalFourDegree(PyOMLegacy):
         self.qnet[...] = (self.qnet - fxa) * m.maskT[: ,: , -1, np.newaxis]
 
         # SST and SSS
-        self.sst_clim[2:-2,2:-2,:] = self._read_binary("sst",shape=(m.nx,m.ny,12))
-        self.sss_clim[2:-2,2:-2,:] = self._read_binary("sss",shape=(m.nx,m.ny,12))
+        self.sst_clim[2:-2,2:-2,:] = self._read_binary("sst")
+        self.sss_clim[2:-2,2:-2,:] = self._read_binary("sss")
 
         idm = self.fortran.idemix_module
         if idm.enable_idemix:
-            idm.forc_iw_bottom[2:-2,2:-2] = self._read_binary("tidal_energy", shape=(m.nx,m.ny)) / m.rho_0
-            idm.forc_iw_surface[2:-2,2:-2] = self._read_binary("wind_energy", shape=(m.nx,m.ny)) / m.rho_0 * 0.2
+            idm.forc_iw_bottom[2:-2,2:-2] = self._read_binary("tidal_energy") / m.rho_0
+            idm.forc_iw_surface[2:-2,2:-2] = self._read_binary("wind_energy") / m.rho_0 * 0.2
 
     @pyom_method
     def _get_periodic_interval(self, currentTime, cycleLength, recSpacing, nbrec):

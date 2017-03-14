@@ -1,7 +1,7 @@
 from functools import wraps
 import climate.pyom
 
-def pyom_method(function):
+def pyom_method(function, flush_on_exit=True):
     """Decorator that injects the current backend as variable ``np`` into the wrapped function.
 
     .. note::
@@ -36,7 +36,8 @@ def pyom_method(function):
                 del g['np']
             else:
                 g['np'] = oldvalue
-        pyom.flush()
+        if flush_on_exit:
+            pyom.flush()
         return res
     return pyom_method_wrapper
 pyom_method.methods = []

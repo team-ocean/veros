@@ -87,19 +87,19 @@ IDEMIX_OPTIONS = dict(
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 
 DATA_FILES = dict(
-    dz = "dz.bin",
-    temperature = "lev_clim_temp.bin",
-    salt = "lev_clim_salt.bin",
-    sss = "lev_sss.bin",
-    tau_x = "ECMWFBB_taux.bin",
-    tau_y = "ECMWFBB_tauy.bin",
-    q_net = "ECMWFBB_qnet.bin",
-    dqdt = "ECMWFBB_dqdt.bin",
-    swf = "ECMWFBB_swf.bin",
-    sst = "ECMWFBB_target_sst.bin",
-    bathymetry = "bathymetry.bin",
-    tidal_energy = "tidal_energy.bin",
-    wind_energy = "wind_energy_ncep.bin"
+    dz = "dz.npy",
+    temperature = "lev_clim_temp.npy",
+    salt = "lev_clim_salt.npy",
+    sss = "lev_sss.npy",
+    tau_x = "ECMWFBB_taux.npy",
+    tau_y = "ECMWFBB_tauy.npy",
+    q_net = "ECMWFBB_qnet.npy",
+    dqdt = "ECMWFBB_dqdt.npy",
+    swf = "ECMWFBB_swf.npy",
+    sst = "ECMWFBB_target_sst.npy",
+    bathymetry = "bathymetry.npy",
+    tidal_energy = "tidal_energy.npy",
+    wind_energy = "wind_energy_ncep.npy"
 )
 DATA_FILES = {key: os.path.join(BASE_PATH, val) for key, val in DATA_FILES.items()}
 
@@ -131,8 +131,8 @@ class GlobalOneDegree(PyOMLegacy):
             setattr(module,key,attribute)
 
     @pyom_method
-    def _read_binary(self, var, shape=(-1,), dtype=">f"):
-        return np.array(np.fromfile(DATA_FILES[var], dtype=dtype).reshape(shape, order="F"), dtype=np.float)
+    def _read_binary(self, var):
+        return np.load(DATA_FILES[var])
 
     @pyom_method
     def set_grid(self):
@@ -166,20 +166,20 @@ class GlobalOneDegree(PyOMLegacy):
         efold2_shortwave = 23.0
 
         # initial conditions
-        temp_data = self._read_binary("temperature", (m.nx, m.ny, m.nz))
+        temp_data = self._read_binary("temperature")
         m.temp[2:-2, 2:-2, :, 0] = temp_data[..., ::-1] * m.maskT[2:-2, 2:-2, :]
         m.temp[2:-2, 2:-2, :, 1] = temp_data[..., ::-1] * m.maskT[2:-2, 2:-2, :]
 
-        salt_data = self._read_binary("salt", (m.nx, m.ny, m.nz))
+        salt_data = self._read_binary("salt")
         m.salt[2:-2, 2:-2, :, 0] = salt_data[..., ::-1] * m.maskT[2:-2, 2:-2, :]
         m.salt[2:-2, 2:-2, :, 1] = salt_data[..., ::-1] * m.maskT[2:-2, 2:-2, :]
 
         # wind stress on MIT grid
-        taux_data = self._read_binary("tau_x", (m.nx, m.ny, 12))
+        taux_data = self._read_binary("tau_x")
         self.taux[2:-2, 2:-2, :] = taux_data / m.rho_0
         self.taux[self.taux < -99.9] = 0.
 
-        tauy_data = self._read_binary("tau_y", (m.nx, m.ny, 12))
+        tauy_data = self._read_binary("tau_y")
         self.tauy[2:-2, 2:-2, :] = tauy_data / m.rho_0
         self.tauy[self.tauy < -99.9] = 0.
 
@@ -188,25 +188,25 @@ class GlobalOneDegree(PyOMLegacy):
             cyclic.setcyclic_x(self.tauy)
 
         # Qnet and dQ/dT and Qsol
-        qnet_data = self._read_binary("q_net", (m.nx, m.ny, 12))
+        qnet_data = self._read_binary("q_net")
         self.qnet[2:-2, 2:-2, :] = -qnet_data * m.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qnec_data = self._read_binary("dqdt", (m.nx, m.ny, 12))
+        qnec_data = self._read_binary("dqdt")
         self.qnec[2:-2, 2:-2, :] = qnec_data * m.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qsol_data = self._read_binary("swf", (m.nx, m.ny, 12))
+        qsol_data = self._read_binary("swf")
         self.qsol[2:-2, 2:-2, :] = -qsol_data * m.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         # SST and SSS
-        sst_data = self._read_binary("sst", (m.nx, m.ny, 12))
+        sst_data = self._read_binary("sst")
         self.t_star[2:-2, 2:-2, :] = sst_data * m.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        sss_data = self._read_binary("sss", (m.nx, m.ny, 12))
+        sss_data = self._read_binary("sss")
         self.s_star[2:-2, 2:-2, :] = sss_data * m.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         idm = self.idemix_module
         if idm.enable_idemix:
-            tidal_energy_data = self._read_binary("tidal_energy", (m.nx, m.ny))
+            tidal_energy_data = self._read_binary("tidal_energy")
             mask_x, mask_y = (i+2 for i in np.indices((m.nx, m.ny)))
             mask_z = np.maximum(0, m.kbot[2:-2, 2:-2] - 1)
             tidal_energy_data[:, :] *= m.maskW[mask_x, mask_y, mask_z] / m.rho_0
@@ -217,7 +217,7 @@ class GlobalOneDegree(PyOMLegacy):
             else:
                 idm.forc_iw_bottom[2:-2, 2:-2] = tidal_energy_data
 
-            wind_energy_data = self._read_binary("wind_energy", (m.nx, m.ny))
+            wind_energy_data = self._read_binary("wind_energy")
             wind_energy_data[...] *= m.maskW[2:-2, 2:-2, -1] / m.rho_0 * 0.2
 
             if idm.enable_idemix_niw:
@@ -317,8 +317,8 @@ class GlobalOneDegree(PyOMLegacy):
     def set_topography(self):
         m = self.main_module
 
-        bathymetry_data = self._read_binary("bathymetry", (m.nx, m.ny))
-        salt_data = self._read_binary("salt", (m.nx, m.ny, m.nz))[:,:,::-1]
+        bathymetry_data = self._read_binary("bathymetry")
+        salt_data = self._read_binary("salt")[:,:,::-1]
 
         for k in xrange(m.nz-1, -1, -1):
             mask_salt = salt_data[:,:,k] != 0.
