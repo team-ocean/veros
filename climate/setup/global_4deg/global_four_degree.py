@@ -137,7 +137,7 @@ class GlobalFourDegree(PyOMLegacy):
 
         # initial conditions for T and S
         temp_data = self._read_binary("temperature")[:,:,::-1]
-        m.temp[2:-2,2:-2,:,:2] = temp_data[:,:,,np.newaxis] * m.maskT[2:-2,2:-2,:,np.newaxis]
+        m.temp[2:-2,2:-2,:,:2] = temp_data[:,:,:,np.newaxis] * m.maskT[2:-2,2:-2,:,np.newaxis]
 
         salt_data = self._read_binary("salt")[:,:,::-1]
         m.salt[2:-2,2:-2,:,:2] = salt_data[...,np.newaxis] * m.maskT[2:-2,2:-2,:,np.newaxis]
