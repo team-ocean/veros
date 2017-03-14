@@ -20,7 +20,7 @@ def pyom_method(function):
     """
     pyom_method.methods.append(function)
     @wraps(function)
-    def wrapper(pyom, *args, **kwargs):
+    def pyom_method_wrapper(pyom, *args, **kwargs):
         if not isinstance(pyom, climate.pyom.PyOM):
             raise TypeError("first argument to a pyom_method must be subclass of PyOM")
         g = function.__globals__
@@ -36,6 +36,7 @@ def pyom_method(function):
                 del g['np']
             else:
                 g['np'] = oldvalue
+        pyom.flush()
         return res
-    return wrapper
+    return pyom_method_wrapper
 pyom_method.methods = []
