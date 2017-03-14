@@ -192,11 +192,12 @@ def streamfunction_init(pyom):
     precalculate time independent boundary components of streamfunction
     """
     forc[...] = 0.0
-    pyom.psin[...] = pyom.boundary_mask #np.random.rand(*pyom.psin.shape)
+    # initialize with noise to achieve uniform convergence
+    pyom.psin[...] = np.random.rand(*pyom.psin.shape)
 
     for isle in xrange(pyom.nisle):
         print(" solving for boundary contribution by island {:d}".format(isle))
-        solve_poisson.solve(pyom,forc,pyom.psin[:,:,isle])
+        solve_poisson.solve(pyom, forc, pyom.psin[:,:,isle], boundary_val=pyom.boundary_mask[:,:,isle])
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(pyom.psin)
