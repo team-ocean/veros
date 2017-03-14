@@ -8,7 +8,7 @@ from climate import Timer
 from climate.pyom import numerics, external
 
 class StreamfunctionTest(PyOMTest):
-    repetitions = 1
+    repetitions = 100
     extra_settings = {
                         "enable_cyclic_x": True,
                         "enable_streamfunction": True,
@@ -19,15 +19,15 @@ class StreamfunctionTest(PyOMTest):
     def initialize(self):
         m = self.pyom_legacy.main_module
 
-        np.random.seed(123456)
+        #np.random.seed(123456)
         for a in ("dt_mom", "AB_eps", "x_origin", "y_origin"):
             self.set_attribute(a,np.random.rand())
 
         for a in ("dxt",):
-            self.set_attribute(a,100 * np.ones(self.nx+4) + 10*np.random.rand(self.nx+4))
+            self.set_attribute(a,100 * np.ones(self.nx+4) + np.random.rand(self.nx+4))
 
         for a in ("dyt",):
-            self.set_attribute(a,100 * np.ones(self.ny+4) + 10*np.random.rand(self.ny+4))
+            self.set_attribute(a,100 * np.ones(self.ny+4) + np.random.rand(self.ny+4))
 
         for a in ("dzt",):
             self.set_attribute(a,10 + np.random.rand(self.nz))
@@ -106,5 +106,5 @@ class StreamfunctionTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = StreamfunctionTest(120, 150, 50, fortran=sys.argv[1])
+    test = StreamfunctionTest(160, 150, 50, fortran=sys.argv[1])
     passed = test.run()
