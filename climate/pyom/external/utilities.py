@@ -38,41 +38,6 @@ def line_integrals(pyom,uloc,vloc,kind="same"):
     return east + west + north + south
 
 @pyom_method
-def absmax_sfc(pyom, p1):
-    return np.max(np.abs(p1))
-
-@pyom_method
-def dot_sfc(pyom, p1, p2):
-    return np.sum(p1[2:-2, 2:-2]*p2[2:-2, 2:-2])
-
-@pyom_method
-def inv_op_sfc(pyom, Z, res, Zres):
-    """
-    apply approximate inverse Z of the operator A
-    """
-    Zres[2:-2, 2:-2] = Z[2:-2, 2:-2] * res[2:-2, 2:-2]
-
-@pyom_method
-def make_inv_sfc(pyom, cf, Z):
-    """
-    construct an approximate inverse Z to A
-    """
-    # copy diagonal coefficients of A to Z
-    Z[...] = 0
-    Z[2:-2, 2:-2] = cf[2:-2, 2:-2,1,1]
-
-    # now invert Z
-    Y = Z[2:-2, 2:-2]
-    if climate.is_bohrium:
-        Y[...] = (1. / (Y+(Y==0)))*(Y!=0)
-    else:
-        Y[Y != 0] = 1./Y[Y != 0]
-    # make inverse zero on island perimeters that are not integrated
-    # for isle in xrange(pyom.nisle): #isle=1,nisle
-    if pyom.nisle:
-        Z *= np.prod(np.invert(pyom.boundary_mask).astype(np.int), axis=2)
-
-@pyom_method
 def apply_op(pyom, cf, p1, res):
     """
     apply operator A,  res = A *p1
