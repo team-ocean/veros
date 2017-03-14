@@ -33,13 +33,22 @@ def set_tke_diffusivities(pyom):
         elif pyom.tke_mxl_choice == 2:
             """
             bound length scale as in mitgcm/OPA code
+
+            Note that the following code doesn't vectorize. If critical for performance,
+            consider re-implementing it in Cython.
             """
-            for k in xrange(pyom.nz-2,-1,-1): # TODO: vectorize
-                pyom.mxl[:,:,k] = np.minimum(pyom.mxl[:,:,k], pyom.mxl[:,:,k+1] + pyom.dzt[k+1])
-            pyom.mxl[:,:,-1] = np.minimum(pyom.mxl[:,:,-1], pyom.mxl_min + pyom.dzt[-1])
-            for k in xrange(1,pyom.nz): # k = 2,nz
-                pyom.mxl[:,:,k] = np.minimum(pyom.mxl[:,:,k], pyom.mxl[:,:,k-1] + pyom.dzt[k])
-            pyom.mxl = np.maximum(pyom.mxl, pyom.mxl_min)
+            if pyom.backend_name == "bohrium":
+                mxl = pyom.mxl.copy2numpy()
+                dzt = pyom.dzt.copy2numpy()
+            else:
+                mxl = pyom.mxl
+                dzt = pyom.dzt
+            for k in xrange(pyom.nz-2,-1,-1):
+                mxl[:,:,k] = np.minimum(mxl[:,:,k], mxl[:,:,k+1] + dzt[k+1])
+            mxl[:,:,-1] = np.minimum(mxl[:,:,-1], pyom.mxl_min + dzt[-1])
+            for k in xrange(1,pyom.nz):
+                mxl[:,:,k] = np.minimum(mxl[:,:,k], mxl[:,:,k-1] + dzt[k])
+            pyom.mxl[...] = np.maximum(np.asarray(mxl), pyom.mxl_min)
         else:
             raise ValueError("unknown mixing length choice in tke_mxl_choice")
 
