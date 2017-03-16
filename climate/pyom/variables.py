@@ -87,6 +87,26 @@ def get_grid_mask(pyom, grid):
 
 
 MAIN_VARIABLES = OrderedDict([
+    ("dxt", Var(
+        "Zonal T-grid spacing", XT, "m",
+        "Zonal (x) spacing of T-grid point",
+        output=True, time_dependent=False
+    )),
+    ("dxu", Var(
+        "Zonal U-grid spacing", XU, "m",
+        "Zonal (x) spacing of U-grid point",
+        output=True, time_dependent=False
+    )),
+    ("dyt", Var(
+        "Meridional T-grid spacing", YT, "m",
+        "Meridional (y) spacing of T-grid point",
+        output=True, time_dependent=False
+    )),
+    ("dyu", Var(
+        "Meridional U-grid spacing", YU, "m",
+        "Meridional (y) spacing of U-grid point",
+        output=True, time_dependent=False
+    )),
     ("zt", Var(
         "Vertical coordinate (T)", ZT, "m", "Vertical coordinate",
         output=True, time_dependent=False, extra_attributes={"positive": "up"}
@@ -365,26 +385,6 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "Meridional (y) coordinate of U-grid point",
             output=True, time_dependent=False
         )),
-        ("dxt", Var(
-            "Zonal T-grid spacing", XT, "degrees_east",
-            "Zonal (x) spacing of T-grid point",
-            output=True, time_dependent=False
-        )),
-        ("dxu", Var(
-            "Zonal U-grid spacing", XU, "degrees_east",
-            "Zonal (x) spacing of U-grid point",
-            output=True, time_dependent=False
-        )),
-        ("dyt", Var(
-            "Meridional T-grid spacing", YT, "degrees_north",
-            "Meridional (y) spacing of T-grid point",
-            output=True, time_dependent=False
-        )),
-        ("dyu", Var(
-            "Meridional U-grid spacing", YU, "degrees_north",
-            "Meridional (y) spacing of U-grid point",
-            output=True, time_dependent=False
-        ))
     ])),
 
     ("not coord_degree", OrderedDict([
@@ -408,26 +408,6 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "Meridional (y) coordinate of U-grid point",
             output=True, scale=1e-3, time_dependent=False
         )),
-        ("dxt", Var(
-            "Zonal T-grid spacing", XT, "m",
-            "Zonal (x) spacing of T-grid point",
-            output=True, time_dependent=False
-        )),
-        ("dxu", Var(
-            "Zonal U-grid spacing", XU, "m",
-            "Zonal (x) spacing of U-grid point",
-            output=True, time_dependent=False
-        )),
-        ("dyt", Var(
-            "Meridional T-grid spacing", YT, "m",
-            "Meridional (y) spacing of T-grid point",
-            output=True, time_dependent=False
-        )),
-        ("dyu", Var(
-            "Meridional U-grid spacing", YU, "m",
-            "Meridional (y) spacing of U-grid point",
-            output=True, time_dependent=False
-        ))
     ])),
 
     ("enable_conserve_energy", OrderedDict([
