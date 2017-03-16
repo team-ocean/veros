@@ -101,9 +101,9 @@ class PyOM(object):
             pass
 
 
-    def run(self, snapint, runlen):
-        self.runlen = runlen
-        self.snapint = snapint
+    def run(self, **kwargs):
+        for arg, val in kwargs.items():
+            setattr(self, arg, val)
 
         with self.timers["setup"]:
             self.setup()
@@ -233,8 +233,7 @@ class PyOM(object):
 
 
     def setup(self):
-        print("setting up everything")
-
+        logging.info("Setting up everything")
         self.set_parameter()
         self.allocate()
 
