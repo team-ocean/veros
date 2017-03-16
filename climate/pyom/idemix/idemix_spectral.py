@@ -1,4 +1,4 @@
-import numpy as np
+from climate.pyom import pyom_method
 
 def adv_flux_superbee_spectral(is_,ie_,js_,je_,np_,adv_fe,adv_fn,adv_ft,var,uvel,vvel,wvel,pyom):
     """
@@ -193,13 +193,12 @@ def reflect_ini(pyom):
                 bc_east[i,js_pe:je_pe,k][bc_east_mask] = kk
 
 
+@pyom_method
 def calc_spectral_topo(pyom):
     """
     spectral stuff related to topography
     """
-    # integer :: i,j,k
-
-    if pyom.idemix_module.enable_idemix_M2 or pyom.idemix_module.enable_idemix_niw:
+    if pyom.enable_idemix_M2 or pyom.enable_idemix_niw:
         # wavenumber grid
         dphit = 2.*pyom.pi/(np-2)
         dphiu = dphit
