@@ -1,6 +1,7 @@
 from netCDF4 import Dataset
 import scipy.interpolate
 import scipy.spatial
+import scipy.ndimage
 
 from climate.pyom import PyOM, pyom_method, cyclic
 
@@ -8,7 +9,6 @@ class NorthAtlanticHighResolution(PyOM):
     """ Based on
     http://journals.ametsoc.org/doi/10.1175/1520-0485%282000%29030%3C1532%3ANSOTNA%3E2.0.CO%3B2
     """
-    interpolator_initialized = False
 
     @pyom_method
     def set_parameter(self):
@@ -72,14 +72,7 @@ class NorthAtlanticHighResolution(PyOM):
         self.coriolis_t[:,:] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
     @pyom_method
-    def _init_interpolator(self, coords, mask):
-        data_coords = tuple(c[mask] for c in np.meshgrid(*coords, indexing="ij"))
-        delaunay = scipy.spatial.Delaunay(np.vstack([i.flatten() for i in data_coords]).T)
-        self.linear_interpolator = lambda val: scipy.interpolate.LinearNDInterpolator(delaunay, val)
-
-
-    @pyom_method
-    def _interpolate(self, coords, var, grid=None, fill_value="nan"):
+    def _interpolate(self, coords, var, grid=None):
         if grid is None:
             if len(coords) == 2:
                 interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], self.zt[-1:], indexing="ij")
@@ -88,43 +81,55 @@ class NorthAtlanticHighResolution(PyOM):
         else:
             interp_coords = np.meshgrid(*grid, indexing="ij")
         interp_coords = np.rollaxis(np.asarray(interp_coords),0,len(interp_coords)+1)
-        return self.linear_interpolator(var[var > -1e19])(interp_coords)
-        # if fill_value == "nan":
-        #     fill_value = np.nan
-        # if grid is None:
-        #     if len(coords) == 2:
-        #         interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
-        #     elif len(coords) == 3:
-        #         interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], self.zt, indexing="ij")
-        #else:
-        #    interp_coords = np.meshgrid(*grid, indexing="ij")
-        #interp_coords = np.rollaxis(np.asarray(interp_coords),0,len(coords)+1)
-        #
-        # var = np.array(var)
-        # invalid_mask = var < -1e19
-        # if np.any(invalid_mask):
-        #     var[invalid_mask] = np.nan
-        # interp_values = scipy.interpolate.interpn(coords, var, interp_coords,
-        #                 method="linear", bounds_error=False, fill_value=fill_value)
-        # mask = np.isnan(interp_values)
-        # if np.any(mask):
-        #     ccoords = np.meshgrid(*coords, indexing="ij")
-        #     interp_values[mask] = scipy.interpolate.griddata(tuple(c[~invalid_mask] for c in ccoords), var[~invalid_mask], interp_coords,
-        #                           method="nearest")[mask]
-        # return interp_values
+
+        if grid is None:
+             if len(coords) == 2:
+                 interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
+             elif len(coords) == 3:
+                 interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], self.zt, indexing="ij")
+        else:
+            interp_coords = np.meshgrid(*grid, indexing="ij")
+        interp_coords = np.rollaxis(np.asarray(interp_coords),0,len(coords)+1)
+
+        var = np.array(var)
+        invalid_mask = var < -1e19
+        if np.any(invalid_mask):
+            var[invalid_mask] = np.nan
+        interp_values = scipy.interpolate.interpn(coords, var, interp_coords,
+                        method="linear", bounds_error=False, fill_value=np.nan)
+        mask = np.isnan(interp_values)
+        if np.any(mask):
+            ccoords = np.meshgrid(*coords, indexing="ij")
+            interp_values[mask] = scipy.interpolate.griddata(tuple(c[~invalid_mask] for c in ccoords), var[~invalid_mask], interp_coords,
+                                                             method="nearest")[mask]
+            #interp_values[mask] = scipy.interpolate.interpn(coords, var, interp_coords,
+            #                method="nearest", bounds_error=False, fill_value=None)[mask]
+        #mask = np.isnan(interp_values)
+        #if np.any(mask):
+        #    interp_values[mask] = 0
+        return interp_values
 
     @pyom_method
     def set_topography(self):
         with Dataset("forcing.cdf","r") as forcing_file:
             topo_x, topo_y, topo_kmt, topo_depth = (forcing_file.variables[k][...].T for k in ("xt","yt","kmt","depth_t"))
+            topo_x -= 360
             topo_bottom_depth = np.where(topo_kmt > 0, -topo_depth[topo_kmt - 1], 100)
+        #with Dataset("ETOPO1_Bed_g_gmt4_NA.nc","r") as topography_file:
+        #    topo_x, topo_y, topo_bottom_depth = (topography_file.variables[k][...].T for k in ("x","y","z"))
+        #    topo_bottom_depth = scipy.ndimage.gaussian_filter(topo_bottom_depth, sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny))
             interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
             interp_coords = np.rollaxis(np.asarray(interp_coords),0,3)
-            z_interp = scipy.interpolate.interpn((topo_x - 360, topo_y), topo_bottom_depth, interp_coords,
+            z_interp = scipy.interpolate.interpn((topo_x, topo_y), topo_bottom_depth, interp_coords,
                                                   method="linear", bounds_error=False, fill_value=None)
         self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - self.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
         self.kbot *= self.kbot < self.nz
 
+        import matplotlib.pyplot as plt
+        plt.imshow(topo_bottom_depth)
+        plt.figure()
+        plt.imshow(z_interp)
+        plt.show()
 
     @pyom_method
     def set_initial_conditions(self):
@@ -132,7 +137,7 @@ class NorthAtlanticHighResolution(PyOM):
             forc_coords = [forcing_file.variables[k][...].T for k in ("xt","yt","zt")]
             forc_coords[0][...] += -360
             forc_coords[2][...] = -.01 * forc_coords[2][::-1]
-            self._init_interpolator(forc_coords, forcing_file.variables["temp_ic"][::-1, :, :].T > -1e19)
+            #self._init_interpolator(forc_coords, forcing_file.variables["temp_ic"][::-1, :, :].T > -1e19)
             temp = self._interpolate(forc_coords, forcing_file.variables["temp_ic"][::-1, :, :].T)
             self.temp[2:-2, 2:-2, :, self.tau] = self.maskT[2:-2, 2:-2, :] * temp
             salt = 35. + 1000 * self._interpolate(forc_coords, forcing_file.variables["salt_ic"][::-1, :, :].T)
@@ -140,9 +145,11 @@ class NorthAtlanticHighResolution(PyOM):
 
             self._taux = np.zeros((self.nx+4, self.ny+4, 12))
             self._tauy = np.zeros((self.nx+4, self.ny+4, 12))
+            forc_u_coords_hor = [forcing_file.variables[k][...].T for k in ("xu","yu")]
+            forc_u_coords_hor[0][...] += -360
             for k in xrange(12):
-                self._taux[2:-2, 2:-2, k] = self._interpolate(forc_coords[:-1], forcing_file.variables["taux"][k,...].T, grid=(self.xu[2:-2], self.yt[2:-2])) / 10. / self.rho_0
-                self._tauy[2:-2, 2:-2, k] = self._interpolate(forc_coords[:-1], forcing_file.variables["tauy"][k,...].T, grid=(self.xt[2:-2], self.yu[2:-2])) / 10. / self.rho_0
+                self._taux[2:-2, 2:-2, k] = self._interpolate(forc_u_coords_hor, forcing_file.variables["taux"][k,...].T, grid=(self.xu[2:-2], self.yt[2:-2])) / 10. / self.rho_0
+                self._tauy[2:-2, 2:-2, k] = self._interpolate(forc_u_coords_hor, forcing_file.variables["tauy"][k,...].T, grid=(self.xt[2:-2], self.yu[2:-2])) / 10. / self.rho_0
 
             for t in (self._taux, self._tauy):
                 if self.enable_cyclic_x:
