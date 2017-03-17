@@ -1,12 +1,13 @@
 from netCDF4 import Dataset
+from PIL import Image
 import scipy.interpolate
 import scipy.spatial
 import scipy.ndimage
 
 from climate.pyom import PyOM, pyom_method, cyclic
 
-class NorthAtlanticHighResolution(PyOM):
-    """ Based on
+class NorthAtlantic(PyOM):
+    """ Inspired by
     http://journals.ametsoc.org/doi/10.1175/1520-0485%282000%29030%3C1532%3ANSOTNA%3E2.0.CO%3B2
     """
 
@@ -14,7 +15,7 @@ class NorthAtlanticHighResolution(PyOM):
     def set_parameter(self):
         """set main parameter
         """
-        self.nx, self.ny, self.nz = (150,160,45)#(87,89,45)
+        self.nx, self.ny, self.nz = (150,160,45)
         self.x_origin = -98.
         self.y_origin = -20.
         self._x_boundary = 17.2
@@ -46,7 +47,7 @@ class NorthAtlanticHighResolution(PyOM):
         self.enable_tempsalt_sources = True
 
         self.enable_implicit_vert_friction = True
-        self.enable_tke = False
+        self.enable_tke = True
         self.c_k = 0.1
         self.c_eps = 0.7
         self.alpha_tke = 30.0
@@ -55,7 +56,7 @@ class NorthAtlanticHighResolution(PyOM):
 
         self.K_gm_0 = 1000.0
 
-        self.enable_idemix = False
+        self.enable_idemix = True
         self.enable_idemix_hor_diffusion = True
 
         self.eq_of_state_type = 5
@@ -73,15 +74,6 @@ class NorthAtlanticHighResolution(PyOM):
 
     @pyom_method
     def _interpolate(self, coords, var, grid=None):
-        if grid is None:
-            if len(coords) == 2:
-                interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], self.zt[-1:], indexing="ij")
-            elif len(coords) == 3:
-                interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], self.zt, indexing="ij")
-        else:
-            interp_coords = np.meshgrid(*grid, indexing="ij")
-        interp_coords = np.rollaxis(np.asarray(interp_coords),0,len(interp_coords)+1)
-
         if grid is None:
              if len(coords) == 2:
                  interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
@@ -102,34 +94,21 @@ class NorthAtlanticHighResolution(PyOM):
             ccoords = np.meshgrid(*coords, indexing="ij")
             interp_values[mask] = scipy.interpolate.griddata(tuple(c[~invalid_mask] for c in ccoords), var[~invalid_mask], interp_coords,
                                                              method="nearest")[mask]
-            #interp_values[mask] = scipy.interpolate.interpn(coords, var, interp_coords,
-            #                method="nearest", bounds_error=False, fill_value=None)[mask]
-        #mask = np.isnan(interp_values)
-        #if np.any(mask):
-        #    interp_values[mask] = 0
         return interp_values
 
     @pyom_method
     def set_topography(self):
-        with Dataset("forcing.cdf","r") as forcing_file:
-            topo_x, topo_y, topo_kmt, topo_depth = (forcing_file.variables[k][...].T for k in ("xt","yt","kmt","depth_t"))
-            topo_x -= 360
-            topo_bottom_depth = np.where(topo_kmt > 0, -topo_depth[topo_kmt - 1], 100)
-        #with Dataset("ETOPO1_Bed_g_gmt4_NA.nc","r") as topography_file:
-        #    topo_x, topo_y, topo_bottom_depth = (topography_file.variables[k][...].T for k in ("x","y","z"))
-        #    topo_bottom_depth = scipy.ndimage.gaussian_filter(topo_bottom_depth, sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny))
+        with Dataset("ETOPO1_Bed_g_gmt4_NA.nc","r") as topography_file:
+            topo_x, topo_y, topo_bottom_depth = (topography_file.variables[k][...].T for k in ("x","y","z"))
+            topo_mask = np.flipud(np.asarray(Image.open("topo_mask.png"))).T
+            topo_bottom_depth *= 1 - topo_mask
+            topo_bottom_depth = scipy.ndimage.gaussian_filter(topo_bottom_depth, sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny))
             interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
             interp_coords = np.rollaxis(np.asarray(interp_coords),0,3)
             z_interp = scipy.interpolate.interpn((topo_x, topo_y), topo_bottom_depth, interp_coords,
-                                                  method="linear", bounds_error=False, fill_value=None)
+                                                  method="nearest", bounds_error=False, fill_value=0)
         self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - self.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
         self.kbot *= self.kbot < self.nz
-
-        import matplotlib.pyplot as plt
-        plt.imshow(topo_bottom_depth)
-        plt.figure()
-        plt.imshow(z_interp)
-        plt.show()
 
     @pyom_method
     def set_initial_conditions(self):
@@ -137,7 +116,6 @@ class NorthAtlanticHighResolution(PyOM):
             forc_coords = [forcing_file.variables[k][...].T for k in ("xt","yt","zt")]
             forc_coords[0][...] += -360
             forc_coords[2][...] = -.01 * forc_coords[2][::-1]
-            #self._init_interpolator(forc_coords, forcing_file.variables["temp_ic"][::-1, :, :].T > -1e19)
             temp = self._interpolate(forc_coords, forcing_file.variables["temp_ic"][::-1, :, :].T)
             self.temp[2:-2, 2:-2, :, self.tau] = self.maskT[2:-2, 2:-2, :] * temp
             salt = 35. + 1000 * self._interpolate(forc_coords, forcing_file.variables["salt_ic"][::-1, :, :].T)
@@ -173,7 +151,7 @@ class NorthAtlanticHighResolution(PyOM):
         with Dataset("restoring_zone.cdf", "r") as restoring_file:
             rest_coords = [restoring_file.variables[k][...].T for k in ("xt","yt","zt")]
             rest_coords[0][...] += -360
-            rest_coords[2][...] = -.01 * forc_coords[2][::-1]
+            rest_coords[2][...] = -.01 * rest_coords[2][::-1]
 
             # sponge layers
             self._t_star = np.zeros((self.nx+4, self.ny+4, self.nz, 12))
@@ -184,14 +162,12 @@ class NorthAtlanticHighResolution(PyOM):
             for k in xrange(12):
                 self._t_star[2:-2, 2:-2, :, k] = self._interpolate(rest_coords, restoring_file.variables["t_star"][k,...].T)
                 self._s_star[2:-2, 2:-2, :, k] = self._interpolate(rest_coords, restoring_file.variables["s_star"][k,...].T)
-            for d in (self._rest_tscl, self._t_star, self._s_star):
-                d[...] *= d > -1e10
 
         if self.enable_idemix:
-            f = np.fromfile("tidal_energy.bin", dtype =">f").reshape(self.nx, self.ny, order="F") / self.rho_0
-            self.forc_iw_bottom[2:-2, 2:-2] = f
-            f = np.fromfile("wind_energy.bin", dtype =">f").reshape(self.nx, self.ny, order="F") / self.rho_0 * 0.2
-            self.forc_iw_surface[2:-2,2:-2] = f
+            f = np.load("tidal_energy.npy") / self.rho_0
+            self.forc_iw_bottom[2:-2, 2:-2] = self._interpolate(forc_coords[:-1], f)
+            f = np.load("wind_energy.npy") / self.rho_0 * 0.2
+            self.forc_iw_surface[2:-2,2:-2] = self._interpolate(forc_coords[:-1], f)
 
     @pyom_method
     def _get_periodic_interval(self,currentTime,cycleLength,recSpacing,nbRec):
@@ -243,5 +219,5 @@ class NorthAtlanticHighResolution(PyOM):
 
 
 if __name__ == "__main__":
-    sim = NorthAtlanticHighResolution()
-    sim.run(snapint = 86400.0)
+    sim = NorthAtlantic()
+    sim.run(snapint = sim.dt_tracer)
