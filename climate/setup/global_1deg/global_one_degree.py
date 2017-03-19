@@ -260,16 +260,16 @@ class GlobalOneDegree(PyOMLegacy):
         self.divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / m.dzt[1:]
         self.divpen_shortwave[0] = pen[0] / m.dzt[0]
 
-    @pyom_method
-    def _get_periodic_interval(self, currentTime, cycleLength, recSpacing, nbrec):
-        # interpolation routine taken from mitgcm
-        locTime = currentTime - recSpacing * 0.5 + cycleLength * (2 - round(currentTime / cycleLength))
+    def _get_periodic_interval(self,currentTime,cycleLength,recSpacing,nbRec):
+        """  interpolation routine taken from mitgcm
+        """
+        locTime = currentTime - recSpacing * 0.5 + cycleLength * (2 - round(currentTime/cycleLength))
         tmpTime = locTime % cycleLength
-        tRec1 = int(tmpTime / recSpacing)
-        tRec2 = int(tmpTime % nbrec)
-        wght2 = (tmpTime - recSpacing * tRec1) / recSpacing
-        wght1 = 1. - wght2
-        return (tRec1, wght1), (tRec2, wght2)
+        tRec1 = 1 + int(tmpTime/recSpacing)
+        tRec2 = 1 + tRec1 % int(nbRec)
+        wght2 = (tmpTime - recSpacing*(tRec1 - 1)) / recSpacing
+        wght1 = 1.0 - wght2
+        return (tRec1-1, wght1), (tRec2-1, wght2)
 
     @pyom_method
     def set_forcing(self):
@@ -325,7 +325,7 @@ class GlobalOneDegree(PyOMLegacy):
         mask_bathy = bathymetry_data == 0
         m.kbot[2:-2, 2:-2][mask_bathy] = 0
 
-        m.kbot *= m.kbot <= m.nz
+        m.kbot *= m.kbot < m.nz
 
         # close some channels
         i, j = np.indices((m.nx,m.ny))
@@ -373,7 +373,7 @@ class GlobalOneDegree(PyOMLegacy):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fortran","-f",default=None,help="Path to fortran library")
+    parser.add_argument("--fortran","-f", default=None, help="Path to fortran library")
     args, _ = parser.parse_known_args()
     simulation = GlobalOneDegree(fortran=args.fortran)
-    simulation.run(runlen=86400., snapint=86400.*.1)
+    simulation.run(runlen=86400., snapint=86400./2.)

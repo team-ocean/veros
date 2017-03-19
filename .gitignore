@@ -2,8 +2,8 @@
 *.cdf
 *.nc
 
-# profiler output
-profile.html
+# documentation and profiler output
+*.html
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

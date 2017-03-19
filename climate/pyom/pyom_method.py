@@ -1,7 +1,7 @@
 from functools import wraps
 import climate.pyom
 
-def pyom_method(function, flush_on_exit=True):
+def pyom_method(function):
     """Decorator that injects the current backend as variable ``np`` into the wrapped function.
 
     .. note::
@@ -18,7 +18,13 @@ def pyom_method(function, flush_on_exit=True):
        >>>     def set_topography(self):
        >>>         self.kbot[...] = np.random.randint(0, self.nz, size=self.kbot.shape)
     """
-    pyom_method.methods.append(function)
+    return _pyom_method(function, True)
+
+def pyom_inline_method(function):
+    return _pyom_method(function, False)
+
+def _pyom_method(function, flush_on_exit):
+    _pyom_method.methods.append(function)
     @wraps(function)
     def pyom_method_wrapper(pyom, *args, **kwargs):
         if not isinstance(pyom, climate.pyom.PyOM):
@@ -40,4 +46,4 @@ def pyom_method(function, flush_on_exit=True):
             pyom.flush()
         return res
     return pyom_method_wrapper
-pyom_method.methods = []
+_pyom_method.methods = []

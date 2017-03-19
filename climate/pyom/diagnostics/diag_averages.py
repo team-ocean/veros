@@ -2,7 +2,6 @@ import warnings
 import os
 import json
 from collections import namedtuple
-from netCDF4 import Dataset
 
 from climate.pyom import pyom_method, variables
 from climate.pyom.diagnostics.diag_snap import def_grid_cdf, init_var, write_var
@@ -33,7 +32,7 @@ def write_averages(pyom):
     write averages to netcdf file and zero array
     """
     filename = pyom.average_filename.format(pyom.itt)
-    with threaded_netcdf(pyom, Dataset(filename, mode='w')) as f:
+    with threaded_netcdf(pyom, filename, "w") as f:
         print(" writing averages to file " + filename)
         def_grid_cdf(pyom, f)
         for key, runsum in pyom.average_vars.items():

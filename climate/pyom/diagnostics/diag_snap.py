@@ -13,7 +13,7 @@ def def_grid_cdf(pyom, ncfile):
     """
     Define standard grid in netcdf file
     """
-    if not isinstance(ncfile,Dataset):
+    if not isinstance(ncfile, Dataset):
         raise TypeError("Argument needs to be a netCDF4 Dataset")
 
     dims = variables.OUTPUT_DIMENSIONS
@@ -61,7 +61,7 @@ def init_snap_cdf(pyom):
     initialize NetCDF snapshot file
     """
     print("Preparing file {}".format(pyom.snap_file))
-    with threaded_netcdf(pyom, Dataset(pyom.snap_file, "w"), file_id="snapshot") as snap_dataset:
+    with threaded_netcdf(pyom, pyom.snap_file, "w") as snap_dataset:
         def_grid_cdf(pyom, snap_dataset)
         for key, var in pyom.variables.items():
             if var.output:
@@ -79,10 +79,10 @@ def write_var(pyom, key, var, n, ncfile, var_data=None):
     tmask = tuple(pyom.tau if dim == variables.TIMESTEPS[0] else slice(None) for dim in var.dims)
     if pyom.backend_name == "bohrium":
         var_data = var_data.copy2numpy()
-    if "Time" in ncfile[key].dimensions:
-        ncfile[key][n, ...] = var_data[tmask].T
+    if "Time" in ncfile.variables[key].dimensions:
+        ncfile.variables[key][n, ...] = var_data[tmask].T
     else:
-        ncfile[key][...] = var_data[tmask].T
+        ncfile.variables[key][...] = var_data[tmask].T
 
 
 @pyom_method
@@ -93,7 +93,7 @@ def diag_snap(pyom):
     else:
         print(" writing snapshot at {}d".format(time_in_days))
 
-    with threaded_netcdf(pyom, Dataset(pyom.snap_file, "a"), file_id="snapshot") as snap_dataset:
+    with threaded_netcdf(pyom, pyom.snap_file, "a") as snap_dataset:
         snapshot_number = snap_dataset["Time"].size
         snap_dataset["Time"][snapshot_number] = time_in_days
         for key, var in pyom.variables.items():

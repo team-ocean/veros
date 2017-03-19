@@ -168,16 +168,16 @@ class GlobalFourDegree(PyOMLegacy):
             idm.forc_iw_bottom[2:-2,2:-2] = self._read_binary("tidal_energy") / m.rho_0
             idm.forc_iw_surface[2:-2,2:-2] = self._read_binary("wind_energy") / m.rho_0 * 0.2
 
-    @pyom_method
-    def _get_periodic_interval(self, currentTime, cycleLength, recSpacing, nbrec):
-        # interpolation routine taken from mitgcm
-        locTime = currentTime - recSpacing * 0.5 + cycleLength * (2 - round(currentTime / cycleLength))
+    def _get_periodic_interval(self,currentTime,cycleLength,recSpacing,nbRec):
+        """  interpolation routine taken from mitgcm
+        """
+        locTime = currentTime - recSpacing * 0.5 + cycleLength * (2 - round(currentTime/cycleLength))
         tmpTime = locTime % cycleLength
-        tRec1 = int(tmpTime / recSpacing)
-        tRec2 = int(tmpTime % nbrec)
-        wght2 = (tmpTime - recSpacing * tRec1) / recSpacing
-        wght1 = 1. - wght2
-        return (tRec1, wght1), (tRec2, wght2)
+        tRec1 = 1 + int(tmpTime/recSpacing)
+        tRec2 = 1 + tRec1 % int(nbRec)
+        wght2 = (tmpTime - recSpacing*(tRec1 - 1)) / recSpacing
+        wght1 = 1.0 - wght2
+        return (tRec1-1, wght1), (tRec2-1, wght2)
 
     @pyom_method
     def set_forcing(self):

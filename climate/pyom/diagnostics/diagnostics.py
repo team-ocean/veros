@@ -18,6 +18,7 @@ def init_diagnostics(pyom):
     if pyom.enable_diag_snapshots:
         print("writing snapshots every {} seconds/{} time steps".format(pyom.snapint,pyom.snapint/pyom.dt_tracer))
         diagnostics.init_snap_cdf(pyom)
+        diagnostics.diag_snap(pyom)
 
     if pyom.enable_diag_averages:
         print("writing time averages every {} seconds/{} time steps".format(pyom.aveint,pyom.aveint/pyom.dt_tracer))
@@ -48,6 +49,9 @@ def diagnose(pyom):
     diagnostics = climate.pyom.diagnostics
     GM_strfct_diagnosed = False
     time = pyom.itt * pyom.dt_tracer
+
+    if np.any(~np.isfinite(pyom.u)):
+        raise RuntimeError("Solver diverged")
 
     if pyom.enable_diag_ts_monitor and time % pyom.ts_monint < pyom.dt_tracer:
         print("itt={} time={}s".format(pyom.itt,time))
@@ -107,7 +111,7 @@ def diag_cfl(pyom):
                   / pyom.dzt[np.newaxis, np.newaxis, :] * pyom.dt_tracer)
 
     if np.isnan(cfl) or np.isnan(wcfl):
-        raise RuntimeError("ERROR: CFL number is NaN att itt = {} ... stopping integration".format(itt))
+        raise RuntimeError("CFL number is NaN att itt = {}".format(itt))
 
     print("maximal hor. CFL number = {}".format(cfl))
     print("maximal ver. CFL number = {}".format(wcfl))

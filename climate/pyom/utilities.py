@@ -1,20 +1,20 @@
 import climate.pyom.numerics
-from climate.pyom import pyom_method
+from climate.pyom import pyom_method, pyom_inline_method
 
-@pyom_method
+@pyom_inline_method
 def pad_z_edges(pyom, array):
     """
     Pads the z-axis of an array by repeating its edge values
     """
     if array.ndim == 1:
-        newarray = np.empty(array.shape[0] + 2)
+        newarray = np.zeros(array.shape[0] + 2)
         newarray[1:-1] = array
         newarray[0] = array[0]
         newarray[-1] = array[-1]
     elif array.ndim >= 3:
         a = list(array.shape)
         a[2] += 2
-        newarray = np.empty(a)
+        newarray = np.zeros(a)
         newarray[:,:,1:-1,...] = array
         newarray[:,:,0,...] = array[:,:,0,...]
         newarray[:,:,-1,...] = array[:,:,-1,...]

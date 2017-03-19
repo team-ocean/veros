@@ -92,9 +92,9 @@ class PyOMLegacy(PyOM):
             super(PyOMLegacy,self).setup(*args,**kwargs)
 
 
-    def run(self, snapint, runlen):
+    def run(self, **kwargs):
         if not self.legacy_mode:
-            super(PyOMLegacy,self).run(snapint, runlen)
+            super(PyOMLegacy,self).run(**kwargs)
             return
 
         f = self.fortran
@@ -103,8 +103,8 @@ class PyOMLegacy(PyOM):
         ekm = self.eke_module
         tkm = self.tke_module
 
-        m.runlen = runlen
-        m.snapint = snapint
+        m.runlen = kwargs["runlen"]
+        m.snapint = kwargs["snapint"]
 
         with self.timers["setup"]:
             """
@@ -194,6 +194,7 @@ class PyOMLegacy(PyOM):
             m.taup1 = otaum1
             m.itt += 1
             print("Current iteration: {}".format(m.itt))
+            print("Time step took {}s".format(self.timers["main"].getLastTime()))
 
 
         print("Timing summary:")

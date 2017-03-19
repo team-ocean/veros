@@ -1,5 +1,6 @@
 from netCDF4 import Dataset
 from PIL import Image
+import numpy as np
 import scipy.interpolate
 import scipy.spatial
 import scipy.ndimage
@@ -15,16 +16,16 @@ class NorthAtlantic(PyOM):
     def set_parameter(self):
         """set main parameter
         """
-        self.nx, self.ny, self.nz = (150,160,45)
+        self.nx, self.ny, self.nz = (400,300,45)
         self.x_origin = -98.
         self.y_origin = -20.
         self._x_boundary = 17.2
         self._y_boundary = 72.6
 
-        self.dt_mom = 3600.0
-        self.dt_tracer = 3600.0
+        self.dt_mom = 3600.0 / 2.
+        self.dt_tracer = 3600.0 / 2.
 
-        self.runlen = 86400 * 365.0
+        self.runlen = 86400 * 365. * 10.
         self.enable_diag_snapshots = True
 
         self.coord_degree = True
@@ -41,7 +42,7 @@ class NorthAtlantic(PyOM):
         self.iso_slopec = 4./1000.0
 
         self.enable_hor_friction = True
-        self.A_h = 5e4
+        self.A_h = 5e3
         self.enable_hor_friction_cos_scaling = True
         self.hor_friction_cosPower = 3
         self.enable_tempsalt_sources = True
@@ -61,18 +62,15 @@ class NorthAtlantic(PyOM):
 
         self.eq_of_state_type = 5
 
-    @pyom_method
     def set_grid(self):
         with Dataset("forcing.cdf", "r") as forcing_file:
             self.dxt[2:-2] = (self._x_boundary - self.x_origin) / self.nx
             self.dyt[2:-2] = (self._y_boundary - self.y_origin) / self.ny
-            self.dzt[:] = forcing_file.variables["dzt"][::-1] / 100.0
+            self.dzt[...] = forcing_file.variables["dzt"][::-1] / 100.0
 
-    @pyom_method
     def set_coriolis(self):
         self.coriolis_t[:,:] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
-    @pyom_method
     def _interpolate(self, coords, var, grid=None):
         if grid is None:
              if len(coords) == 2:
@@ -96,21 +94,19 @@ class NorthAtlantic(PyOM):
                                                              method="nearest")[mask]
         return interp_values
 
-    @pyom_method
     def set_topography(self):
         with Dataset("ETOPO1_Bed_g_gmt4_NA.nc","r") as topography_file:
             topo_x, topo_y, topo_bottom_depth = (topography_file.variables[k][...].T for k in ("x","y","z"))
-            topo_mask = np.flipud(np.asarray(Image.open("topo_mask.png"))).T
-            topo_bottom_depth *= 1 - topo_mask
-            topo_bottom_depth = scipy.ndimage.gaussian_filter(topo_bottom_depth, sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny))
-            interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
-            interp_coords = np.rollaxis(np.asarray(interp_coords),0,3)
-            z_interp = scipy.interpolate.interpn((topo_x, topo_y), topo_bottom_depth, interp_coords,
-                                                  method="nearest", bounds_error=False, fill_value=0)
+        topo_mask = np.flipud(np.asarray(Image.open("topo_mask.png"))).T
+        topo_bottom_depth *= 1 - topo_mask
+        topo_bottom_depth = scipy.ndimage.gaussian_filter(topo_bottom_depth, sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny))
+        interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
+        interp_coords = np.rollaxis(np.asarray(interp_coords),0,3)
+        z_interp = scipy.interpolate.interpn((topo_x, topo_y), topo_bottom_depth, interp_coords,
+                                              method="nearest", bounds_error=False, fill_value=0)
         self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - self.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
         self.kbot *= self.kbot < self.nz
 
-    @pyom_method
     def set_initial_conditions(self):
         with Dataset("forcing.cdf", "r") as forcing_file:
             forc_coords = [forcing_file.variables[k][...].T for k in ("xt","yt","zt")]
@@ -169,22 +165,21 @@ class NorthAtlantic(PyOM):
             f = np.load("wind_energy.npy") / self.rho_0 * 0.2
             self.forc_iw_surface[2:-2,2:-2] = self._interpolate(forc_coords[:-1], f)
 
-    @pyom_method
     def _get_periodic_interval(self,currentTime,cycleLength,recSpacing,nbRec):
         """  interpolation routine taken from mitgcm
         """
         locTime = currentTime - recSpacing * 0.5 + cycleLength * (2 - round(currentTime/cycleLength))
         tmpTime = locTime % cycleLength
-        tRec1 = int(tmpTime/recSpacing)
-        tRec2 = tRec1 % int(nbRec)
+        tRec1 = 1 + int(tmpTime/recSpacing)
+        tRec2 = 1 + tRec1 % int(nbRec)
         wght2 = (tmpTime - recSpacing*(tRec1 - 1)) / recSpacing
         wght1 = 1.0 - wght2
-        return (tRec1,wght1), (tRec2,wght2)
+        return (tRec1-1, wght1), (tRec2-1, wght2)
 
-    @pyom_method
     def set_forcing(self):
         year_in_seconds = 365 * 86400.0
         (n1,f1), (n2,f2) = self._get_periodic_interval(self.itt * self.dt_tracer, year_in_seconds, year_in_seconds / 12., 12)
+        print(n1, f1, n2, f2)
 
         self.surface_taux[...] = (f1 * self._taux[:,:,n1] + f2 * self._taux[:,:,n2])
         self.surface_tauy[...] = (f1 * self._tauy[:,:,n1] + f2 * self._tauy[:,:,n2])
@@ -220,4 +215,4 @@ class NorthAtlantic(PyOM):
 
 if __name__ == "__main__":
     sim = NorthAtlantic()
-    sim.run(snapint = sim.dt_tracer)
+    sim.run(snapint = 3600. * 24.)
