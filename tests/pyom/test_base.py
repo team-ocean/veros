@@ -1,4 +1,5 @@
 import sys
+import os
 import numpy as np
 import bohrium as bh
 from collections import OrderedDict
@@ -12,8 +13,8 @@ flush = bh.flush
 class PyOMTest(object):
     legacy_modules = ("main_module", "isoneutral_module", "tke_module",
                       "eke_module", "idemix_module")
-    array_attribute_file = "array_attributes"
-    scalar_attribute_file = "scalar_attributes"
+    array_attribute_file = os.path.join(os.path.dirname(__file__), "array_attributes")
+    scalar_attribute_file = os.path.join(os.path.dirname(__file__), "scalar_attributes")
     extra_settings = None
     test_module = None
     test_routines = None

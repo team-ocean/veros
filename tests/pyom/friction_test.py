@@ -1,31 +1,27 @@
-from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-from pyomtest import PyOMTest
-from climate import Timer
-from climate.pyom.core import eke
+from test_base import PyOMTest
+from climate.pyom.core import friction
 
-class EKETest(PyOMTest):
+class FrictionTest(PyOMTest):
+    repetitions = 1
     extra_settings = {
                         "enable_cyclic_x": True,
-                        "enable_eke_leewave_dissipation": True,
-                        "enable_eke": True,
-                        "enable_TEM_friction": True,
-                        "enable_eke_isopycnal_diffusion": True,
-                        "enable_store_cabbeling_heat": True,
-                        "enable_eke_superbee_advection": True,
-                        "enable_eke_upwind_advection": True
+                        "enable_hydrostatic": True, # False
+                        "enable_conserve_energy": True,
+                        "enable_bottom_friction_var": True,
+                        "enable_hor_friction_cos_scaling": True,
+                        "enable_momentum_sources": True,
                      }
     def initialize(self):
         m = self.pyom_legacy.main_module
 
         np.random.seed(123456)
+        self.set_attribute("hor_friction_cosPower", np.random.randint(1,5))
 
-        for a in ("eke_hrms_k0_min","eke_k_max","eke_c_k","eke_crhin","eke_cross",
-                  "eke_lmin","K_gm_0","K_iso_0","c_lee0","eke_Ri0","eke_Ri1","eke_int_diss0",
-                  "kappa_EKE0","eke_r_bot","eke_c_eps","alpha_eke","dt_tracer","AB_eps"):
+        for a in ("dt_mom", "r_bot", "r_quad_bot", "A_h", "A_hbi"):
             self.set_attribute(a, np.random.rand())
 
         for a in ("dxt","dxu"):
@@ -38,16 +34,19 @@ class EKETest(PyOMTest):
             self.set_attribute(a,2*np.random.rand(self.ny+4)-1.)
 
         for a in ("dzt","dzw","zw"):
-            self.set_attribute(a,100*np.random.rand(self.nz))
+            self.set_attribute(a,np.random.rand(self.nz))
 
-        for a in ("eke_topo_hrms","eke_topo_lam","hrms_k0","coriolis_t","beta","eke_lee_flux","eke_bot_flux","L_rossby"):
+        for a in ("r_bot_var_u","r_bot_var_v"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4))
 
-        for a in ("eke_len","K_diss_h","K_diss_gm","P_diss_skew","P_diss_hmix","P_diss_iso",
-                  "kappaM","eke_diss_iw","eke_diss_tke","K_gm","flux_east","flux_north","flux_top","L_rhines"):
+        for a in ("area_u","area_v","area_t"):
+            self.set_attribute(a,np.random.rand(self.nx+4,self.ny+4))
+
+        for a in ("K_diss_v", "kappaM", "flux_north", "flux_east", "flux_top", "K_diss_bot", "K_diss_h",
+                  "du_mix", "dv_mix", "u_source", "v_source"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
-        for a in ("eke","deke","Nsqr","u","v",):
+        for a in ("u","v","w"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz,3))
 
         for a in ("maskU", "maskV", "maskW", "maskT"):
@@ -55,19 +54,19 @@ class EKETest(PyOMTest):
 
         self.set_attribute("kbot",np.random.randint(0, self.nz, size=(self.nx+4,self.ny+4)))
 
-        self.test_module = eke
+        self.test_module = friction
         pyom_args = (self.pyom_new,)
         pyom_legacy_args = dict()
-        self.test_routines = OrderedDict()
-        self.test_routines["init_eke"] = (pyom_args, pyom_legacy_args)
-        self.test_routines["set_eke_diffusivities"] = (pyom_args, pyom_legacy_args)
-        self.test_routines["integrate_eke"] = (pyom_args, pyom_legacy_args)
+        self.test_routines = {k: (pyom_args, pyom_legacy_args) for k in
+                        ("explicit_vert_friction","implicit_vert_friction","rayleigh_friction",
+                        "linear_bottom_friction","quadratic_bottom_friction","harmonic_friction",
+                        "biharmonic_friction","momentum_sources")}
+
 
     def test_passed(self,routine):
         all_passed = True
-        for f in ("flux_east","flux_north","flux_top","eke","deke","hrms_k0","L_rossby",
-                  "L_rhines","eke_len","K_gm","kappa_gm","K_iso","sqrteke","c_lee","c_Ri_diss",
-                  "eke_diss_iw","eke_diss_tke","eke_lee_flux","eke_bot_flux"):
+        for f in ("flux_east","flux_north","flux_top","u","v","w","K_diss_v",
+                  "K_diss_bot","K_diss_h","du_mix","dv_mix"):
             passed = self._check_var(f)
             if not passed:
                 all_passed = False
@@ -82,19 +81,19 @@ class EKETest(PyOMTest):
 
     def _check_var(self,var):
         v1, v2 = self.get_attribute(var)
-        if v1 is None or v2 is None:
-            raise RuntimeError(var)
         if v1.ndim > 1:
             v1 = v1[2:-2, 2:-2, ...]
         if v2.ndim > 1:
             v2 = v2[2:-2, 2:-2, ...]
+        if v1 is None or v2 is None:
+            raise RuntimeError(var)
         passed = np.allclose(*self._normalize(v1,v2))
         if not passed:
             print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
             while v1.ndim > 2:
-                v1 = v1[...,-1]
+                v1 = v1[...,1]
             while v2.ndim > 2:
-                v2 = v2[...,-1]
+                v2 = v2[...,1]
             if v1.ndim == 2:
                 fig, axes = plt.subplots(1,3)
                 axes[0].imshow(v1)
@@ -107,5 +106,6 @@ class EKETest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = EKETest(150, 120, 50, fortran=sys.argv[1])
+    test = FrictionTest(150, 120, 50, fortran=sys.argv[1])
     passed = test.run()
+    sys.exit(int(not passed))

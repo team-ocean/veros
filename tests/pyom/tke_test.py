@@ -3,30 +3,31 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-from pyomtest import PyOMTest
-from climate import Timer
-from climate.pyom.core import thermodynamics
+from test_base import PyOMTest
+from climate.pyom.core import tke
 
-class ThermodynamicsTest(PyOMTest):
+class TKETest(PyOMTest):
+    repetitions = 1
     extra_settings = {
                         "enable_cyclic_x": True,
-                        "enable_conserve_energy": True,
-                        "enable_hor_friction_cos_scaling": True,
-                        "enable_tempsalt_sources": True,
-                        "enable_hor_diffusion": True,
-                        "enable_superbee_advection": True,
+                        "enable_idemix": True,
+                        "tke_mxl_choice": 2,
                         "enable_tke": True,
-                        "enable_biharmonic_mixing": True,
-                        "enable_neutral_diffusion": True,
-                        "enable_skew_diffusion": True,
-                        "enable_TEM_friction": True,
+                        "enable_eke": True,
+                        "enable_hydrostatic": True,
+                        "enable_store_cabbeling_heat": True,
+                        "enable_store_bottom_friction_tke": False,
+                        "enable_tke_hor_diffusion": True,
+                        "enable_tke_superbee_advection": True,
+                        "enable_tke_upwind_advection": True,
                      }
     def initialize(self):
         m = self.pyom_legacy.main_module
 
-        self.set_attribute("hor_friction_cosPower", np.random.randint(1,5))
+        #np.random.seed(123456)
 
-        for a in ("iso_slopec","iso_dslope","K_iso_steep","dt_tracer","dt_mom","K_hbi","K_h","AB_eps"):
+        for a in ("mxl_min","kappaM_0","kappaH_0","dt_tke", "c_k", "kappaM_min", "kappaM_max",
+                  "K_h_tke","AB_eps","c_eps", "alpha_tke","dt_mom"):
             self.set_attribute(a, np.random.rand())
 
         for a in ("dxt","dxu"):
@@ -38,20 +39,18 @@ class ThermodynamicsTest(PyOMTest):
         for a in ("cosu","cost"):
             self.set_attribute(a,2*np.random.rand(self.ny+4)-1.)
 
-        for a in ("zt","dzt","dzw"):
-            self.set_attribute(a, np.random.rand(self.nz))
+        for a in ("dzt","dzw","zw"):
+            self.set_attribute(a,100*np.random.rand(self.nz))
 
-        for a in ("area_u", "area_v", "area_t", "forc_rho_surface", "forc_temp_surface"):
-            self.set_attribute(a, np.random.rand(self.nx+4, self.ny+4))
+        for a in ("tke_surf_corr","ht","forc_tke_surface"):
+            self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4))
 
-        for a in ("flux_east","flux_north","flux_top","dtemp_hmix","dsalt_hmix","temp_source",
-                  "salt_source","u_wgrid","v_wgrid","w_wgrid","K_iso","K_gm","kappa_gm","du_mix",
-                  "P_diss_iso","P_diss_skew","P_diss_v","P_diss_nonlin",
-                  "kappaH"):
+        for a in ("K_diss_v", "P_diss_v", "P_diss_adv", "P_diss_nonlin", "eke_diss_tke",
+                  "kappaM", "kappaH", "K_diss_bot", "eke_diss_iw", "K_diss_gm", "K_diss_h", "tke_diss",
+                  "P_diss_skew", "P_diss_hmix", "P_diss_iso","alpha_c","mxl","iw_diss", "Prandtlnumber"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
-        for a in ("Hd","dHd","temp","salt","int_drhodS","int_drhodT","dtemp","dsalt",
-                  "u","v","w","Nsqr","tke"):
+        for a in ("tke","dtke","Nsqr","E_iw"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz,3))
 
         for a in ("maskU", "maskV", "maskW", "maskT"):
@@ -59,18 +58,17 @@ class ThermodynamicsTest(PyOMTest):
 
         self.set_attribute("kbot",np.random.randint(0, self.nz, size=(self.nx+4,self.ny+4)))
 
-        self.test_module = thermodynamics
+        self.test_module = tke
         pyom_args = (self.pyom_new,)
         pyom_legacy_args = dict()
         self.test_routines = OrderedDict()
-        self.test_routines.update(thermodynamics = (pyom_args, pyom_legacy_args),)
+        self.test_routines["set_tke_diffusivities"] = (pyom_args, pyom_legacy_args)
+        self.test_routines["integrate_tke"] = (pyom_args, pyom_legacy_args)
 
     def test_passed(self,routine):
         all_passed = True
-        for f in ("flux_east","flux_north","flux_top","temp","salt",
-                  "dtemp","dsalt","P_diss_iso","Hd","dHd","Nsqr","P_diss_adv",
-                  "dtemp_iso", "dsalt_iso","dtemp_vmix","dsalt_vmix","forc_rho_surface",
-                  "P_diss_v","P_diss_nonlin","int_drhodT","int_drhodS","rho"):
+        for f in ("flux_east","flux_north","flux_top","tke","dtke","tke_surf_corr","tke_diss",
+                  "kappaH","kappaM","Prandtlnumber","mxl","sqrttke"):
             passed = self._check_var(f)
             if not passed:
                 all_passed = False
@@ -110,5 +108,6 @@ class ThermodynamicsTest(PyOMTest):
         return passed
 
 if __name__ == "__main__":
-    test = ThermodynamicsTest(70, 60, 50, fortran=sys.argv[1])
+    test = TKETest(150, 120, 50, fortran=sys.argv[1])
     passed = test.run()
+    sys.exit(int(not passed))

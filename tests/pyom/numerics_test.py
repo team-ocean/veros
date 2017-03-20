@@ -3,8 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-from pyomtest import PyOMTest
-from climate import Timer
+from test_base import PyOMTest
 from climate.pyom.core import numerics
 
 class NumericsTest(PyOMTest):
@@ -99,3 +98,4 @@ class NumericsTest(PyOMTest):
 if __name__ == "__main__":
     test = NumericsTest(150, 120, 50, fortran=sys.argv[1])
     passed = test.run()
+    sys.exit(int(not passed))

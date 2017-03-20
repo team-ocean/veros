@@ -111,10 +111,10 @@ def integrate_eke(pyom):
         """
         add bottom fluxes by lee waves and bottom friction to a_loc
         """
-        a_loc[2:-2, 2:-2] += np.sum(pyom.c_lee[2:-2,2:-2,None] * pyom.eke[2:-2,2:-2,:,pyom.tau] \
+        a_loc[2:-2, 2:-2] += np.sum((pyom.c_lee[2:-2,2:-2,None] * pyom.eke[2:-2,2:-2,:,pyom.tau] \
                                 * pyom.maskW[2:-2,2:-2,:] * pyom.dzw[None, None, :] \
-                            + 2 * pyom.eke_r_bot * pyom.eke[2:-2,2:-2,:,pyom.tau] * math.sqrt(2.0) * pyom.sqrteke[2:-2,2:-2,:] \
-                                * pyom.maskW[2:-2,2:-2,:] * full_mask, axis=-1) * boundary_mask
+                           + 2 * pyom.eke_r_bot * pyom.eke[2:-2,2:-2,:,pyom.tau] * math.sqrt(2.0) * pyom.sqrteke[2:-2,2:-2,:] \
+                                * pyom.maskW[2:-2,2:-2,:]) * full_mask, axis=-1) * boundary_mask
 
         """
         dissipation constant is vertically integrated forcing divided by
@@ -176,10 +176,12 @@ def integrate_eke(pyom):
         """
         store diagnosed flux by lee waves and bottom friction
         """
-        pyom.eke_lee_flux[2:-2, 2:-2][boundary_mask] = (pyom.c_lee[2:-2, 2:-2, None] * pyom.eke[2:-2, 2:-2, :, pyom.taup1] \
-                                                        * pyom.dzw[None, None, :])[full_mask]
-        pyom.eke_bot_flux[2:-2, 2:-2][boundary_mask] = (2 * pyom.eke_r_bot * pyom.eke[2:-2, 2:-2, :, pyom.taup1] \
-                                                        * math.sqrt(2.0) * pyom.sqrteke[2:-2, 2:-2, :])[full_mask]
+        pyom.eke_lee_flux[2:-2, 2:-2] = np.where(boundary_mask, np.sum(pyom.c_lee[2:-2, 2:-2, None] * pyom.eke[2:-2, 2:-2, :, pyom.taup1] \
+                                                        * pyom.dzw[None, None, :] * full_mask, axis=-1)
+                                                , pyom.eke_lee_flux[2:-2, 2:-2])
+        pyom.eke_bot_flux[2:-2, 2:-2] = np.where(boundary_mask, np.sum(2 * pyom.eke_r_bot * pyom.eke[2:-2, 2:-2, :, pyom.taup1] \
+                                                        * math.sqrt(2.0) * pyom.sqrteke[2:-2, 2:-2, :] * full_mask, axis=-1)
+                                                , pyom.eke_bot_flux[2:-2, 2:-2])
     else:
         pyom.eke_diss_iw = c_int * pyom.eke[:,:,:,pyom.taup1]
         pyom.eke_diss_tke[...] = 0.

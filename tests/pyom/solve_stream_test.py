@@ -3,11 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-from pyomtest import PyOMTest
-from climate import Timer
+from test_base import PyOMTest
 from climate.pyom.core import numerics, external
 
 class StreamfunctionTest(PyOMTest):
+    first = True
     repetitions = 1
     extra_settings = {
                         "enable_cyclic_x": True,
@@ -51,16 +51,16 @@ class StreamfunctionTest(PyOMTest):
             num_new(self.pyom_new)
             num_legacy()
 
-        init_new, init_legacy = self.get_routine("streamfunction_init",submodule=external)
-        init_new(self.pyom_new)
-        init_legacy()
-
+        if self.first:
+            init_new, init_legacy = self.get_routine("streamfunction_init",submodule=external)
+            init_new(self.pyom_new)
+            init_legacy()
+            self.first = False
 
         self.test_module = external
         pyom_args = (self.pyom_new,)
         pyom_legacy_args = dict()
         self.test_routines = OrderedDict()
-        #self.test_routines["streamfunction_init"] = (pyom_args, pyom_legacy_args)
         self.test_routines["solve_streamfunction"] = (pyom_args, pyom_legacy_args)
 
 
@@ -108,3 +108,4 @@ class StreamfunctionTest(PyOMTest):
 if __name__ == "__main__":
     test = StreamfunctionTest(160, 150, 50, fortran=sys.argv[1])
     passed = test.run()
+    sys.exit(int(not passed))

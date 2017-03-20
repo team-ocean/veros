@@ -3,8 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-from pyomtest import PyOMTest
-from climate import Timer
+from test_base import PyOMTest
 from climate.pyom.core import momentum, external, numerics
 
 class MomentumTest(PyOMTest):
@@ -26,6 +25,7 @@ class MomentumTest(PyOMTest):
                         "enable_momentum_sources": True,
                         "enable_streamfunction": True,
                         "congr_epsilon": 1e-12,
+                        "congr_max_iterations": 10000,
                      }
     first = True
     def initialize(self):
@@ -38,19 +38,16 @@ class MomentumTest(PyOMTest):
             self.set_attribute(a, np.random.rand())
 
         for a in ("dxt",):
-            self.set_attribute(a,100 * np.ones(self.nx+4) + np.random.rand(self.nx+4))
+            self.set_attribute(a, 0.1 * np.ones(self.nx+4) + 0.01 * np.random.rand(self.nx+4))
 
         for a in ("dyt",):
-            self.set_attribute(a,100 * np.ones(self.ny+4) + np.random.rand(self.ny+4))
+            self.set_attribute(a, 0.1 * np.ones(self.ny+4) + 0.01 * np.random.rand(self.ny+4))
 
         for a in ("dzt",):
             self.set_attribute(a,np.random.rand(self.nz))
 
         for a in ("r_bot_var_u", "r_bot_var_v", "surface_taux", "surface_tauy", "coriolis_t", "coriolis_h"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4))
-
-        for a in ("area_u", "area_v", "area_t", "hur", "hvr"):
-            self.set_attribute(a,np.random.rand(self.nx+4,self.ny+4))
 
         for a in ("K_diss_v", "kappaM", "flux_north", "flux_east", "flux_top", "K_diss_bot", "K_diss_h",
                   "du_mix", "dv_mix", "u_source", "v_source", "du_adv", "dv_adv"):
@@ -64,12 +61,13 @@ class MomentumTest(PyOMTest):
         kbot[3:-3,3:-3].flat[np.random.randint(0, (self.nx-2) * (self.ny-2), size=10)] = 0
         self.set_attribute("kbot",kbot)
 
+        numerics.calc_grid(self.pyom_new)
+        numerics.calc_topo(self.pyom_new)
+        self.pyom_legacy.fortran.calc_grid()
+        self.pyom_legacy.fortran.calc_topo()
+
         if self.first:
-            numerics.calc_grid(self.pyom_new)
-            numerics.calc_topo(self.pyom_new)
             external.streamfunction_init(self.pyom_new)
-            self.pyom_legacy.fortran.calc_grid()
-            self.pyom_legacy.fortran.calc_topo()
             self.pyom_legacy.fortran.streamfunction_init()
             self.first = False
 
@@ -127,3 +125,4 @@ class MomentumTest(PyOMTest):
 if __name__ == "__main__":
     test = MomentumTest(80, 70, 50, fortran=sys.argv[1])
     passed = test.run()
+    sys.exit(int(not passed))

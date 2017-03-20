@@ -1,6 +1,6 @@
 import logging
 
-from ...io import netcdf_tools, netcdf_threading
+from ...output import netcdf_tools, netcdf_threading
 from ... import pyom_method
 
 @pyom_method

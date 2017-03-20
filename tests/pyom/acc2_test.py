@@ -1,5 +1,5 @@
 from climate.setup.acc2 import ACC2
-from pyomtest import PyOMTest
+from test_base import PyOMTest
 
 import sys
 import numpy as np
@@ -7,12 +7,15 @@ import matplotlib.pyplot as plt
 
 class ACC2Test(PyOMTest):
     timesteps = 5
-    def __init__(self, fortran):
-        self.fortran = fortran
+    extra_settings = {"enable_diag_snapshots": False}
+
+    def __init__(self, *args, **kwargs):
+        self.fortran = kwargs["fortran"]
 
     def _check_all_objects(self):
         differing_scalars = self.check_scalar_objects()
         differing_arrays = self.check_array_objects()
+        passed = True
         if differing_scalars or differing_arrays:
             print("The following attributes do not match between old and new pyom:")
             for s, (v1, v2) in differing_scalars.items():
@@ -24,8 +27,9 @@ class ACC2Test(PyOMTest):
                 if v2 is None:
                     print(a, "", v2)
                     continue
-                self._check_var(a)
+                passed = self._check_var(a) and passed
         plt.show()
+        return passed
 
     def _normalize(self,*arrays):
         norm = np.abs(arrays[0]).max()
@@ -37,6 +41,9 @@ class ACC2Test(PyOMTest):
         if "salt" in var or var in ("B1_gm","B2_gm"): # salt and isoneutral streamfunctions aren't used by this example
             return True
         v1, v2 = self.get_attribute(var)
+        if var in ("psi", "psin"): # top row contains noise and is not part of the solution
+            v1 = v1[1:,:]
+            v2 = v2[1:,:]
         if v1.ndim > 1:
             v1 = v1[2:-2, 2:-2, ...]
         if v2.ndim > 1:
@@ -44,7 +51,7 @@ class ACC2Test(PyOMTest):
         if v1 is None or v2 is None:
             raise RuntimeError(var)
         try:
-            passed = np.allclose(*self._normalize(v1,v2),atol=1e-6)
+            passed = np.allclose(*self._normalize(v1,v2),atol=1e-5)
         except ValueError:
             print(var)
             raise
@@ -73,10 +80,11 @@ class ACC2Test(PyOMTest):
             self.pyom_new.setup()
             self.pyom_legacy.setup()
         else:
-            self.pyom_new.run(runlen = self.timesteps * 86400. / 2, snapint=1e10)
+            self.pyom_new.run(runlen = self.timesteps * 86400. / 2)
             self.pyom_legacy.run(runlen = self.timesteps * 86400. / 2, snapint=1e10)
-        self._check_all_objects()
+        return self._check_all_objects()
 
 if __name__ == "__main__":
-    test = ACC2Test(sys.argv[1])
-    test.run()
+    test = ACC2Test(fortran=sys.argv[1])
+    passed = test.run()
+    sys.exit(int(not passed))

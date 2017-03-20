@@ -2,7 +2,7 @@ from collections import namedtuple
 import json
 import logging
 
-from ...io import netcdf_tools, netcdf_threading
+from ...output import netcdf_tools, netcdf_threading
 from ... import pyom_method
 
 Running_sum = namedtuple("Running_sum", ("var", "sum"))
