@@ -5,10 +5,10 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import advection, numerics
+from climate.pyom.core import advection, numerics
 
 class AdvectionTest(PyOMTest):
-    repetitions = 100
+    repetitions = 1
 
     def initialize(self):
         m = self.pyom_legacy.main_module

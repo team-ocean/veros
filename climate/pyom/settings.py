@@ -104,27 +104,6 @@ SETTINGS = OrderedDict([
     ("congr_epsilon_non_hydro", Setting(1e-12, "convergence criteria for poisson solver")),
     ("congr_max_itts_non_hydro", Setting(1000, "max. number of iterations")),
 
-    # Diagnostics
-    ("enable_diag_ts_monitor", Setting(False, "enable time step monitor")),
-    ("enable_diag_energy", Setting(False, "enable diagnostics for energy")),
-    ("enable_diag_averages", Setting(False, "enable time averages")),
-    ("enable_diag_snapshots", Setting(False, "enable snapshots")),
-    ("enable_diag_overturning", Setting(False, "enable isopycnal overturning diagnostic")),
-    ("enable_diag_tracer_content", Setting(False, "enable tracer content and variance monitor")),
-    ("enable_diag_particles", Setting(False, "enable integration of particles")),
-    ("snap_file", Setting("snapshot.nc", "")),
-    ("diag_energy_file", Setting("energy.nc", "")),
-    ("snapint", Setting(0., "intervall between snapshots to be written in seconds")),
-    ("aveint", Setting(0., "intervall between time averages to be written in seconds")),
-    ("energint", Setting(0., "intervall between energy diag to be written in seconds")),
-    ("energfreq", Setting(0., "diagnosing every energfreq seconds")),
-    ("ts_monint", Setting(0., "intervall between time step monitor in seconds")),
-    ("avefreq", Setting(0., "averaging every ave_freq seconds")),
-    ("overint", Setting(0., "intervall between overturning averages to be written in seconds")),
-    ("overfreq", Setting(0., "averaging overturning every ave_freq seconds")),
-    ("trac_cont_int", Setting(0., "intervall between tracer content monitor in seconds")),
-    ("particles_int", Setting(0., "intervall")),
-
     # EKE default values
     ("enable_eke", Setting(False, "")),
     ("eke_lmin", Setting(100.0, "minimal length scale in m")),
@@ -151,5 +130,25 @@ SETTINGS = OrderedDict([
     ("use_io_threads", Setting(True, "")),
     ("io_timeout", Setting(None, "")),
     ("enable_netcdf_zlib_compression", Setting(True, "")),
-    ("average_filename", Setting("averages_{}.nc", "")),
+])
+
+
+class Diagnostic:
+    def __init__(self, description, sampling_frequency=None, output_frequency=None, outfile=None):
+        self.sampling_frequency = sampling_frequency
+        self.output_frequency = output_frequency
+        self.description = description
+        self.outfile = outfile
+
+    def is_active(self):
+        return self.sampling_frequency or self.output_frequency
+
+DIAGNOSTICS_SETTINGS = OrderedDict([
+    ("cfl_monitor", Diagnostic("CFL monitor")),
+    ("tracer_monitor", Diagnostic("tracer content and variance monitor")),
+    ("snapshot", Diagnostic("snapshot output", outfile="snapshot.nc")),
+    ("averages", Diagnostic("time average output", outfile="averages_{itt}.nc")),
+    ("energy", Diagnostic("energy diagnostics", outfile="energy.nc")),
+    ("overturning", Diagnostic("isopycnal overturning diagnostic", outfile="overturning.nc")),
+    ("particles", Diagnostic("particle integration", outfile="particles_{itt}.nc")),
 ])

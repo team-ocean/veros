@@ -5,13 +5,14 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import isoneutral
+from climate.pyom.core import isoneutral
 
 class IsoneutralTest(PyOMTest):
-    repetitions = 20
+    repetitions = 1
     extra_settings = {
                       "enable_neutral_diffusion": True,
-                      "enable_skew_diffusion": True
+                      "enable_skew_diffusion": True,
+                      "enable_TEM_friction": True,
                       }
     test_module = isoneutral
 
@@ -49,7 +50,7 @@ class IsoneutralTest(PyOMTest):
 
         istemp = bool(np.random.randint(0,2))
 
-        pyom_args = (self.pyom_new.temp,istemp,self.pyom_new)
+        pyom_args = (self.pyom_new,self.pyom_new.temp,istemp)
         pyom_legacy_args = dict(is_=-1, ie_=m.nx+2, js_=-1, je_=m.ny+2, nz_=m.nz, tr=m.temp, istemp=istemp)
 
         self.test_routines = OrderedDict()

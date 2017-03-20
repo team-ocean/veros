@@ -5,7 +5,7 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import eke
+from climate.pyom.core import eke
 
 class EKETest(PyOMTest):
     extra_settings = {
@@ -14,7 +14,7 @@ class EKETest(PyOMTest):
                         "enable_eke": True,
                         "enable_TEM_friction": True,
                         "enable_eke_isopycnal_diffusion": True,
-                        "enable_store_cabbeling_heat": False,
+                        "enable_store_cabbeling_heat": True,
                         "enable_eke_superbee_advection": True,
                         "enable_eke_upwind_advection": True
                      }

@@ -6,5 +6,6 @@ Reference
 
    reference/settings
    reference/variables
+   reference/diagnostics
    reference/api-setup
    reference/api-pyom

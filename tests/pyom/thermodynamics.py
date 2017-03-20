@@ -5,7 +5,7 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import thermodynamics
+from climate.pyom.core import thermodynamics
 
 class ThermodynamicsTest(PyOMTest):
     extra_settings = {
@@ -19,6 +19,7 @@ class ThermodynamicsTest(PyOMTest):
                         "enable_biharmonic_mixing": True,
                         "enable_neutral_diffusion": True,
                         "enable_skew_diffusion": True,
+                        "enable_TEM_friction": True,
                      }
     def initialize(self):
         m = self.pyom_legacy.main_module

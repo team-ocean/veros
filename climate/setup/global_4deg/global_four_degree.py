@@ -2,7 +2,7 @@ import os
 import logging
 from netCDF4 import Dataset
 
-from climate.pyom import PyOMLegacy, diagnostics, pyom_method
+from climate.pyom import PyOMLegacy, pyom_method
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = dict(

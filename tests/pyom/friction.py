@@ -5,16 +5,17 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import friction
+from climate.pyom.core import friction
 
 class FrictionTest(PyOMTest):
-    repetitions = 100
+    repetitions = 1
     extra_settings = {
                         "enable_cyclic_x": True,
                         "enable_hydrostatic": True, # False
                         "enable_conserve_energy": True,
                         "enable_bottom_friction_var": True,
                         "enable_hor_friction_cos_scaling": True,
+                        "enable_momentum_sources": True,
                      }
     def initialize(self):
         m = self.pyom_legacy.main_module
@@ -44,7 +45,7 @@ class FrictionTest(PyOMTest):
             self.set_attribute(a,np.random.rand(self.nx+4,self.ny+4))
 
         for a in ("K_diss_v", "kappaM", "flux_north", "flux_east", "flux_top", "K_diss_bot", "K_diss_h",
-                  "du_mix", "dv_mix", "dw_mix", "u_source", "v_source"):
+                  "du_mix", "dv_mix", "u_source", "v_source"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
         for a in ("u","v","w"):
@@ -67,7 +68,7 @@ class FrictionTest(PyOMTest):
     def test_passed(self,routine):
         all_passed = True
         for f in ("flux_east","flux_north","flux_top","u","v","w","K_diss_v",
-                  "K_diss_bot","K_diss_h","du_mix","dv_mix","dw_mix"):
+                  "K_diss_bot","K_diss_h","du_mix","dv_mix"):
             passed = self._check_var(f)
             if not passed:
                 all_passed = False

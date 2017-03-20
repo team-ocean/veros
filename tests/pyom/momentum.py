@@ -5,7 +5,7 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import momentum, external
+from climate.pyom.core import momentum, external, numerics
 
 class MomentumTest(PyOMTest):
     extra_settings = {
@@ -34,41 +34,42 @@ class MomentumTest(PyOMTest):
         np.random.seed(123456)
         self.set_attribute("hor_friction_cosPower", np.random.randint(1,5))
 
-        for a in ("dt_mom", "r_bot", "r_quad_bot", "A_h", "A_hbi", "AB_eps"):
+        for a in ("dt_mom", "r_bot", "r_quad_bot", "A_h", "A_hbi", "AB_eps", "x_origin", "y_origin"):
             self.set_attribute(a, np.random.rand())
 
-        for a in ("dxt","dxu"):
-            self.set_attribute(a,np.random.randint(1,100,size=self.nx+4).astype(np.float))
+        for a in ("dxt",):
+            self.set_attribute(a,100 * np.ones(self.nx+4) + np.random.rand(self.nx+4))
 
-        for a in ("dyt","dyu","tantr"):
-            self.set_attribute(a,np.random.randint(1,100,size=self.ny+4).astype(np.float))
+        for a in ("dyt",):
+            self.set_attribute(a,100 * np.ones(self.ny+4) + np.random.rand(self.ny+4))
 
-        for a in ("cosu","cost"):
-            self.set_attribute(a,2*np.random.rand(self.ny+4)-1.)
-
-        for a in ("dzt","dzw","zw"):
+        for a in ("dzt",):
             self.set_attribute(a,np.random.rand(self.nz))
 
-        for a in ("r_bot_var_u","r_bot_var_v", "surface_taux", "surface_tauy", "coriolis_t","coriolis_h"):
+        for a in ("r_bot_var_u", "r_bot_var_v", "surface_taux", "surface_tauy", "coriolis_t", "coriolis_h"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4))
 
-        for a in ("area_u","area_v","area_t", "hur", "hvr"):
+        for a in ("area_u", "area_v", "area_t", "hur", "hvr"):
             self.set_attribute(a,np.random.rand(self.nx+4,self.ny+4))
 
         for a in ("K_diss_v", "kappaM", "flux_north", "flux_east", "flux_top", "K_diss_bot", "K_diss_h",
-                  "du_mix", "dv_mix", "dw_mix", "u_source", "v_source", "du_adv", "dv_adv"):
+                  "du_mix", "dv_mix", "u_source", "v_source", "du_adv", "dv_adv"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
-        for a in ("u","v","w","du","dv","dw"):
+        for a in ("u","v","w","du","dv"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz,3))
 
-        for a in ("maskU", "maskV", "maskW", "maskT"):
-            self.set_attribute(a,np.random.randint(0,2,size=(self.nx+4,self.ny+4,self.nz)).astype(np.float))
-
-        self.set_attribute("kbot",np.random.randint(0, self.nz) * np.ones((self.nx+4,self.ny+4), dtype=np.int))
+        kbot = np.random.randint(1, self.nz, size=(self.nx+4,self.ny+4))
+        # add some islands, but avoid boundaries
+        kbot[3:-3,3:-3].flat[np.random.randint(0, (self.nx-2) * (self.ny-2), size=10)] = 0
+        self.set_attribute("kbot",kbot)
 
         if self.first:
+            numerics.calc_grid(self.pyom_new)
+            numerics.calc_topo(self.pyom_new)
             external.streamfunction_init(self.pyom_new)
+            self.pyom_legacy.fortran.calc_grid()
+            self.pyom_legacy.fortran.calc_topo()
             self.pyom_legacy.fortran.streamfunction_init()
             self.first = False
 
@@ -83,7 +84,7 @@ class MomentumTest(PyOMTest):
 
     def test_passed(self,routine):
         all_passed = True
-        for f in ("flux_east","flux_north","flux_top","u","v","w","K_diss_v","du_adv","dv_adv","du","dv","dw",
+        for f in ("flux_east","flux_north","flux_top","u","v","w","K_diss_v","du_adv","dv_adv","du","dv",
                   "K_diss_bot","K_diss_h","du_mix","dv_mix","psi","dpsi","du_cor","dv_cor"):
             passed = self._check_var(f)
             if not passed:

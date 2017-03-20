@@ -5,14 +5,14 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import diffusion
+from climate.pyom.core import diffusion, numerics
 
 class DiffusionTest(PyOMTest):
-    repetitions = 100
-    
+    repetitions = 1
+
     extra_settings = {
                         "enable_cyclic_x": True,
-                        "enable_conserve_energy": False,
+                        "enable_conserve_energy": True,
                         "enable_hor_friction_cos_scaling": True,
                         "enable_tempsalt_sources": True,
                      }
@@ -37,16 +37,18 @@ class DiffusionTest(PyOMTest):
         for a in ("dzt","dzw"):
             self.set_attribute(a,100*np.random.rand(self.nz))
 
-        for a in ("flux_east","flux_north","flux_top","dtemp_hmix","dsalt_hmix","temp_source","salt_source"):
+        for a in ("flux_east","flux_north","flux_top","dtemp_hmix","dsalt_hmix",
+                  "temp_source","salt_source"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz))
 
         for a in ("temp","salt","int_drhodS","int_drhodT"):
             self.set_attribute(a,np.random.randn(self.nx+4,self.ny+4,self.nz,3))
 
-        for a in ("maskU", "maskV", "maskW", "maskT"):
-            self.set_attribute(a,np.random.randint(0,2,size=(self.nx+4,self.ny+4,self.nz)).astype(np.float))
-
         self.set_attribute("kbot",np.random.randint(0, self.nz, size=(self.nx+4,self.ny+4)))
+        numerics.calc_topo(self.pyom_new)
+        self.pyom_legacy.fortran.calc_topo()
+
+        self.set_attribute("P_diss_hmix",np.random.randn(self.nx+4,self.ny+4,self.nz) * self.pyom_new.maskT)
 
         self.test_module = diffusion
         pyom_args = (self.pyom_new,)
@@ -60,7 +62,8 @@ class DiffusionTest(PyOMTest):
 
     def test_passed(self,routine):
         all_passed = True
-        for f in ("flux_east","flux_north","flux_top","temp","salt","P_diss_hmix","dtemp_hmix","dsalt_hmix","P_diss_sources"):
+        for f in ("flux_east","flux_north","flux_top","temp","salt","P_diss_hmix",
+                  "dtemp_hmix","dsalt_hmix","P_diss_sources"):
             passed = self._check_var(f)
             if not passed:
                 all_passed = False
@@ -75,12 +78,12 @@ class DiffusionTest(PyOMTest):
 
     def _check_var(self,var):
         v1, v2 = self.get_attribute(var)
+        if v1 is None or v2 is None:
+            raise RuntimeError(var)
         if v1.ndim > 1:
             v1 = v1[2:-2, 2:-2, ...]
         if v2.ndim > 1:
             v2 = v2[2:-2, 2:-2, ...]
-        if v1 is None or v2 is None:
-            raise RuntimeError(var)
         passed = np.allclose(*self._normalize(v1,v2))
         if not passed:
             print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))

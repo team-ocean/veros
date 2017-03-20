@@ -1,4 +1,5 @@
 from functools import wraps
+
 import climate.pyom
 
 def pyom_method(function):

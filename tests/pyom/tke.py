@@ -5,14 +5,14 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import tke
+from climate.pyom.core import tke
 
 class TKETest(PyOMTest):
-    repetitions = 100
+    repetitions = 1
     extra_settings = {
                         "enable_cyclic_x": True,
                         "enable_idemix": True,
-                        "tke_mxl_choice": 1,
+                        "tke_mxl_choice": 2,
                         "enable_tke": True,
                         "enable_eke": True,
                         "enable_hydrostatic": True,

@@ -5,20 +5,21 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import idemix
+from climate.pyom.core import idemix
 
 class IDEMIXTest(PyOMTest):
-    repetitions = 100
+    repetitions = 1
     extra_settings = {
                       "enable_idemix": True,
                       "enable_idemix_hor_diffusion": True,
                       "enable_idemix_superbee_advection": True,
                       "enable_idemix_upwind_advection": True,
-                      "enable_eke": False,
+                      "enable_eke": True,
                       "enable_store_cabbeling_heat": True,
-                      "enable_eke_diss_bottom": False,
+                      "enable_eke_diss_bottom": True,
                       "enable_eke_diss_surfbot": True,
                       "enable_store_bottom_friction_tke": True,
+                      "enable_TEM_friction": True,
                       }
     test_module = idemix
 

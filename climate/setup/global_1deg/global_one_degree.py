@@ -1,6 +1,7 @@
 import os
 
-from climate.pyom import PyOMLegacy, cyclic, pyom_method
+from climate.pyom import PyOMLegacy, pyom_method
+from climate.pyom.core import cyclic
 
 MAIN_OPTIONS = dict(
     nx = 360,

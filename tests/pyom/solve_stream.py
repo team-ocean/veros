@@ -5,10 +5,10 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import numerics, external
+from climate.pyom.core import numerics, external
 
 class StreamfunctionTest(PyOMTest):
-    repetitions = 100
+    repetitions = 1
     extra_settings = {
                         "enable_cyclic_x": True,
                         "enable_streamfunction": True,

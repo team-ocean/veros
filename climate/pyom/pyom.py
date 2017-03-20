@@ -16,10 +16,10 @@ except ImportError:
 
 BACKENDS = {"numpy": numpy, "bohrium": bohrium}
 
-from climate import Timer
-from climate.pyom import momentum, numerics, thermodynamics, eke, tke, idemix, \
-                         isoneutral, external, diagnostics, non_hydrostatic, \
-                         advection, restart, cyclic, variables, settings, cli
+from .. import Timer
+from . import restart, variables, settings, cli, diagnostics
+from .core import momentum, numerics, thermodynamics, eke, tke, idemix, \
+                  isoneutral, external, non_hydrostatic, advection, cyclic
 
 class PyOM(object):
     """Main class for PyOM.
@@ -72,6 +72,9 @@ class PyOM(object):
     def set_default_settings(self):
         for key, setting in settings.SETTINGS.items():
             setattr(self, key, setting.default)
+        self.diagnostics = {}
+        for key, setting in settings.DIAGNOSTICS_SETTINGS.items():
+            self.diagnostics[key] = setting
 
 
     def allocate(self):
@@ -110,15 +113,7 @@ class PyOM(object):
 
             print("Reading restarts:")
             restart.read_restart(self.itt)
-
-            if self.enable_diag_averages:
-                diagnostics.diag_averages_read_restart(self)
-            if self.enable_diag_energy:
-                diagnostics.diag_energy_read_restart(self)
-            if self.enable_diag_overturning:
-                diagnostics.diag_over_read_restart(self)
-            if self.enable_diag_particles:
-                diagnostics.diag_particles_read_restart(self)
+            diagnostics.read_restart(self)
 
             self.enditt = self.itt + int(self.runlen / self.dt_tracer)
             logging.info("Starting integration for {:.2e}s".format(self.runlen))
@@ -192,6 +187,9 @@ class PyOM(object):
                 self.flush()
 
                 with self.timers["diagnostics"]:
+                    diagnostics.sanity_check(self)
+                    if self.enable_neutral_diffusion and self.enable_skew_diffusion:
+                        isoneutral.isoneutral_diag_streamfunction(self)
                     diagnostics.diagnose(self)
 
                 # shift time
@@ -204,7 +202,7 @@ class PyOM(object):
                 logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
         except:
-            diagnostics.panic_snap(self)
+            diagnostics.panic_output(self)
             raise
 
         finally:
@@ -221,7 +219,7 @@ class PyOM(object):
             logging.debug("     EKE                  = {}s".format(self.timers["eke"].getTime()))
             logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
             logging.debug("     TKE                  = {}s".format(self.timers["tke"].getTime()))
-            logging.debug(" diagnostics              = {}s".format(self.timers["diagnostics"].getTime()))
+            logging.debug(" diagnostics / IO         = {}s".format(self.timers["diagnostics"].getTime()))
 
             if self.profile_mode:
                 try:

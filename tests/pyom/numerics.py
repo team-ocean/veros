@@ -5,10 +5,10 @@ import sys
 
 from pyomtest import PyOMTest
 from climate import Timer
-from climate.pyom import numerics
+from climate.pyom.core import numerics
 
 class NumericsTest(PyOMTest):
-    repetitions = 100
+    repetitions = 1
     extra_settings = {
                         "enable_cyclic_x": True,
                         "coord_degree": False,

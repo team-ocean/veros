@@ -1,6 +1,6 @@
 import imp
 
-from climate.pyom import PyOM, diagnostics
+from . import PyOM
 
 class LowercaseAttributeWrapper(object):
     """
@@ -20,7 +20,6 @@ class LowercaseAttributeWrapper(object):
 class PyOMLegacy(PyOM):
     """
     PyOM class that supports the PyOM Fortran interface
-
     """
     def __init__(self, fortran=None, *args, **kwargs):
         """
@@ -60,6 +59,24 @@ class PyOMLegacy(PyOM):
         self.ip2fy = lambda i: i+self.is_pe-self.onx
         self.jp2fy = lambda j: j+self.js_pe-self.onx
         self.get_tau = lambda: self.tau - 1 if self.legacy_mode else self.tau
+
+        diag_legacy_settings = (
+            (self.diagnostics["cfl_monitor"], "output_frequency", "ts_monint"),
+            (self.diagnostics["tracer_monitor"], "output_frequency", "trac_cont_int"),
+            (self.diagnostics["snapshot"], "output_frequency", "snapint"),
+            (self.diagnostics["averages"], "output_frequency", "aveint"),
+            (self.diagnostics["averages"], "sampling_frequency", "avefreq"),
+            (self.diagnostics["overturning"], "output_frequency", "overint"),
+            (self.diagnostics["overturning"], "sampling_frequency", "overfreq"),
+            (self.diagnostics["energy"], "output_frequency", "energint"),
+            (self.diagnostics["energy"], "sampling_frequency", "energfreq"),
+            (self.diagnostics["particles"], "output_frequency", "particles_int"),
+        )
+
+        for diag, param, attr in diag_legacy_settings:
+            if hasattr(self, attr):
+                setattr(diag, param, getattr(self, attr))
+
 
     def setup(self, *args, **kwargs):
         if self.legacy_mode:
@@ -183,9 +200,6 @@ class PyOMLegacy(PyOM):
                 # diagnose vertical velocity at taup1
                 if m.enable_hydrostatic:
                     f.vertical_velocity()
-
-            #with self.timers["diagnostics"]:
-            #    diagnostics.diagnose(self)
 
             # shift time
             otaum1 = m.taum1 * 1

@@ -3,6 +3,17 @@
 Model set-ups
 =============
 
+New set-ups
++++++++++++
+
+North Atlantic regional model
+-----------------------------
+
+.. autoclass:: climate.setup.north_atlantic.NorthAtlantic
+
+Ported from pyOM2
++++++++++++++++++
+
 ACC2
 ----
 

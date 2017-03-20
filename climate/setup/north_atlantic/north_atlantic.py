@@ -5,7 +5,8 @@ import scipy.interpolate
 import scipy.spatial
 import scipy.ndimage
 
-from climate.pyom import PyOM, pyom_method, cyclic
+from climate.pyom import PyOM, pyom_method
+from climate.pyom.core import cyclic
 
 class NorthAtlantic(PyOM):
     """ Inspired by
