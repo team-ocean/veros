@@ -19,11 +19,11 @@ def thermodynamics(pyom):
             advection.adv_flux_2nd(pyom,pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.Hd[:,:,:,pyom.tau])
 
         pyom.dHd[2:-2, 2:-2, :, pyom.tau] = pyom.maskT[2:-2, 2:-2, :] * (-(pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
-                                                                            / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
+                                                                            / (pyom.cost[np.newaxis, 2:-2, np.newaxis] * pyom.dxt[2:-2, np.newaxis, np.newaxis]) \
                                                                         - (pyom.flux_north[2:-2, 2:-2,:] - pyom.flux_north[2:-2, 1:-3, :]) \
-                                                                            / (pyom.cost[None, 2:-2, None] * pyom.dyt[None, 2:-2, None]))
+                                                                            / (pyom.cost[np.newaxis, 2:-2, np.newaxis] * pyom.dyt[np.newaxis, 2:-2, np.newaxis]))
         pyom.dHd[:,:,0,pyom.tau] += -pyom.maskT[:,:,0] * pyom.flux_top[:,:,0] / pyom.dzt[0]
-        pyom.dHd[:,:,1:,pyom.tau] += -pyom.maskT[:,:,1:] * (pyom.flux_top[:,:,1:] - pyom.flux_top[:,:,:-1]) / pyom.dzt[None, None, 1:]
+        pyom.dHd[:,:,1:,pyom.tau] += -pyom.maskT[:,:,1:] * (pyom.flux_top[:,:,1:] - pyom.flux_top[:,:,:-1]) / pyom.dzt[np.newaxis, np.newaxis, 1:]
 
         """
         changes in dyn. Enthalpy due to advection
@@ -38,10 +38,10 @@ def thermodynamics(pyom):
         """
         aloc[:, :, :-1] += -0.25 * pyom.grav / pyom.rho_0 * pyom.w[:, :, :-1, pyom.tau] \
                            * (pyom.rho[:, :, :-1, pyom.tau] + pyom.rho[:, :, 1:, pyom.tau]) \
-                           * pyom.dzw[None, None, :-1] / pyom.dzt[None, None, :-1]
+                           * pyom.dzw[np.newaxis, np.newaxis, :-1] / pyom.dzt[np.newaxis, np.newaxis, :-1]
         aloc[:, :, 1:] += -0.25 * pyom.grav / pyom.rho_0 * pyom.w[:, :, :-1, pyom.tau] \
                           * (pyom.rho[:, :, 1:, pyom.tau] + pyom.rho[:, :, :-1, pyom.tau]) \
-                          * pyom.dzw[None, None, :-1] / pyom.dzt[None, None, 1:]
+                          * pyom.dzw[np.newaxis, np.newaxis, :-1] / pyom.dzt[np.newaxis, np.newaxis, 1:]
 
     if pyom.enable_conserve_energy and pyom.enable_tke:
         """
@@ -53,12 +53,12 @@ def thermodynamics(pyom):
         """
         distribute pyom.P_diss_adv over domain, prevent draining of TKE
         """
-        fxa = np.sum(pyom.area_t[2:-2, 2:-2, None] * pyom.P_diss_adv[2:-2, 2:-2, :-1] \
-                            * pyom.dzw[None, None, :-1] * pyom.maskW[2:-2, 2:-2, :-1]) \
+        fxa = np.sum(pyom.area_t[2:-2, 2:-2, np.newaxis] * pyom.P_diss_adv[2:-2, 2:-2, :-1] \
+                            * pyom.dzw[np.newaxis, np.newaxis, :-1] * pyom.maskW[2:-2, 2:-2, :-1]) \
             + np.sum(0.5 * pyom.area_t[2:-2, 2:-2] * pyom.P_diss_adv[2:-2, 2:-2, -1] \
                             * pyom.dzw[-1] * pyom.maskW[2:-2, 2:-2, -1])
         tke_mask = pyom.tke[2:-2, 2:-2, :-1, pyom.tau] > 0.
-        fxb = np.sum(pyom.area_t[2:-2, 2:-2, None] * pyom.dzw[None, None, :-1] * pyom.maskW[2:-2, 2:-2, :-1] * tke_mask) \
+        fxb = np.sum(pyom.area_t[2:-2, 2:-2, np.newaxis] * pyom.dzw[np.newaxis, np.newaxis, :-1] * pyom.maskW[2:-2, 2:-2, :-1] * tke_mask) \
             + np.sum(0.5 * pyom.area_t[2:-2, 2:-2] * pyom.dzw[-1] * pyom.maskW[2:-2, 2:-2, -1])
         pyom.P_diss_adv[...] = 0.
         pyom.P_diss_adv[2:-2, 2:-2, :-1] = fxa / fxb * tke_mask
@@ -116,12 +116,12 @@ def thermodynamics(pyom):
         delta = np.zeros((pyom.nx, pyom.ny, pyom.nz))
 
         ks = pyom.kbot[2:-2, 2:-2] - 1
-        delta[:, :, :-1] = pyom.dt_tracer / pyom.dzw[None, None, :-1] * pyom.kappaH[2:-2, 2:-2, :-1]
+        delta[:, :, :-1] = pyom.dt_tracer / pyom.dzw[np.newaxis, np.newaxis, :-1] * pyom.kappaH[2:-2, 2:-2, :-1]
         delta[:, :, -1] = 0.
-        a_tri[:, :, 1:] = -delta[:,:,:-1] / pyom.dzt[None, None, 1:]
-        b_tri[:, :, 1:] = 1 + (delta[:, :, 1:] + delta[:, :, :-1]) / pyom.dzt[None, None, 1:]
-        b_tri_edge = 1 + delta / pyom.dzt[None, None, :]
-        c_tri[:, :, :-1] = -delta[:, :, :-1] / pyom.dzt[None, None, :-1]
+        a_tri[:, :, 1:] = -delta[:,:,:-1] / pyom.dzt[np.newaxis, np.newaxis, 1:]
+        b_tri[:, :, 1:] = 1 + (delta[:, :, 1:] + delta[:, :, :-1]) / pyom.dzt[np.newaxis, np.newaxis, 1:]
+        b_tri_edge = 1 + delta / pyom.dzt[np.newaxis, np.newaxis, :]
+        c_tri[:, :, :-1] = -delta[:, :, :-1] / pyom.dzt[np.newaxis, np.newaxis, :-1]
         d_tri[...] = pyom.temp[2:-2, 2:-2, :, pyom.taup1]
         d_tri[:, :, -1] += pyom.dt_tracer * pyom.forc_temp_surface[2:-2, 2:-2] / pyom.dzt[-1]
         sol, mask = utilities.solve_implicit(pyom, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
@@ -158,14 +158,14 @@ def thermodynamics(pyom):
             """
             diagnose dissipation of dynamic enthalpy by vertical mixing
             """
-            fxa = (-pyom.int_drhodT[2:-2, 2:-2, 1:, pyom.taup1] + pyom.int_drhodT[2:-2, 2:-2, :-1,pyom.taup1]) / pyom.dzw[None, None, :-1]
+            fxa = (-pyom.int_drhodT[2:-2, 2:-2, 1:, pyom.taup1] + pyom.int_drhodT[2:-2, 2:-2, :-1,pyom.taup1]) / pyom.dzw[np.newaxis, np.newaxis, :-1]
             pyom.P_diss_v[2:-2, 2:-2, :-1] += -pyom.grav / pyom.rho_0 * fxa * pyom.kappaH[2:-2, 2:-2, :-1] \
                                               * (pyom.temp[2:-2, 2:-2, 1:, pyom.taup1] - pyom.temp[2:-2, 2:-2, :-1,pyom.taup1]) \
-                                              / pyom.dzw[None, None, :-1] * pyom.maskW[2:-2, 2:-2, :-1]
-            fxa = (-pyom.int_drhodS[2:-2, 2:-2, 1:, pyom.taup1] + pyom.int_drhodS[2:-2, 2:-2, :-1,pyom.taup1]) / pyom.dzw[None, None, :-1]
+                                              / pyom.dzw[np.newaxis, np.newaxis, :-1] * pyom.maskW[2:-2, 2:-2, :-1]
+            fxa = (-pyom.int_drhodS[2:-2, 2:-2, 1:, pyom.taup1] + pyom.int_drhodS[2:-2, 2:-2, :-1,pyom.taup1]) / pyom.dzw[np.newaxis, np.newaxis, :-1]
             pyom.P_diss_v[2:-2, 2:-2, :-1] += -pyom.grav / pyom.rho_0 * fxa * pyom.kappaH[2:-2, 2:-2, :-1] \
                                               * (pyom.salt[2:-2, 2:-2, 1:, pyom.taup1] - pyom.salt[2:-2, 2:-2, :-1,pyom.taup1]) \
-                                              / pyom.dzw[None, None, :-1] * pyom.maskW[2:-2, 2:-2, :-1]
+                                              / pyom.dzw[np.newaxis, np.newaxis, :-1] * pyom.maskW[2:-2, 2:-2, :-1]
 
             fxa = 2 * pyom.int_drhodT[2:-2, 2:-2, -1, pyom.taup1] / pyom.dzw[-1]
             pyom.P_diss_v[2:-2, 2:-2, -1] += - pyom.grav / pyom.rho_0 * fxa * pyom.forc_temp_surface[2:-2 ,2:-2] * pyom.maskW[2:-2, 2:-2, -1]
@@ -196,9 +196,9 @@ def advect_tracer(pyom, tr, dtr):
     else:
         advection.adv_flux_2nd(pyom,pyom.flux_east,pyom.flux_north,pyom.flux_top,tr)
     dtr[2:-2, 2:-2, :] = pyom.maskT[2:-2, 2:-2, :] * (-(pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
-                                                        / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
+                                                        / (pyom.cost[np.newaxis, 2:-2, np.newaxis] * pyom.dxt[2:-2, np.newaxis, np.newaxis]) \
                                                      - (pyom.flux_north[2:-2, 2:-2, :] - pyom.flux_north[2:-2, 1:-3, :]) \
-                                                        / (pyom.cost[None, 2:-2, None] * pyom.dyt[None, 2:-2, None]))
+                                                        / (pyom.cost[np.newaxis, 2:-2, np.newaxis] * pyom.dyt[np.newaxis, 2:-2, np.newaxis]))
     dtr[:, :, 0] += -pyom.maskT[:, :, 0] * pyom.flux_top[:, :, 0] / pyom.dzt[0]
     dtr[:, :, 1:] += -pyom.maskT[:, :, 1:] * (pyom.flux_top[:, :, 1:] - pyom.flux_top[:, :, :-1]) / pyom.dzt[1:]
 
@@ -240,6 +240,6 @@ def calc_eq_of_state(pyom, n):
     """
     new stability frequency
     """
-    fxa = -pyom.grav / pyom.rho_0 / pyom.dzw[None, None, :-1] * pyom.maskW[:, :, :-1]
+    fxa = -pyom.grav / pyom.rho_0 / pyom.dzw[np.newaxis, np.newaxis, :-1] * pyom.maskW[:, :, :-1]
     pyom.Nsqr[:, :, :-1, n] = fxa * (density.get_rho(pyom, pyom.salt[:,:,1:,n], pyom.temp[:,:,1:,n], np.abs(pyom.zt[:-1])) - pyom.rho[:,:,:-1,n])
     pyom.Nsqr[:, :, -1, n] = pyom.Nsqr[:,:,-2,n]

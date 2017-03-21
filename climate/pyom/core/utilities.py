@@ -25,7 +25,7 @@ def pad_z_edges(pyom, array):
 def solve_implicit(pyom, ks, a, b, c, d, b_edge=None, d_edge=None):
     from . numerics import solve_tridiag # avoid circular import
 
-    land_mask = (ks >= 0)[:,:,None]
+    land_mask = (ks >= 0)[:,:,np.newaxis]
     if not np.sum(land_mask):
         return np.zeros_like(land_mask), np.zeros_like(land_mask)
     edge_mask = land_mask & (np.arange(a.shape[2])[np.newaxis, np.newaxis, :] == ks[:,:,np.newaxis])

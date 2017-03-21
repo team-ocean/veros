@@ -23,21 +23,21 @@ def isoneutral_diffusion_pre(pyom):
     """
     gradients at top face of T cells
     """
-    ddzt[:,:,:-1,0] = pyom.maskW[:,:,:-1] * (pyom.temp[:,:,1:,pyom.tau] - pyom.temp[:,:,:-1,pyom.tau]) / pyom.dzw[None,None,:-1]
-    ddzt[:,:,:-1,1] = pyom.maskW[:,:,:-1] * (pyom.salt[:,:,1:,pyom.tau] - pyom.salt[:,:,:-1,pyom.tau]) / pyom.dzw[None,None,:-1]
+    ddzt[:,:,:-1,0] = pyom.maskW[:,:,:-1] * (pyom.temp[:,:,1:,pyom.tau] - pyom.temp[:,:,:-1,pyom.tau]) / pyom.dzw[np.newaxis,np.newaxis,:-1]
+    ddzt[:,:,:-1,1] = pyom.maskW[:,:,:-1] * (pyom.salt[:,:,1:,pyom.tau] - pyom.salt[:,:,:-1,pyom.tau]) / pyom.dzw[np.newaxis,np.newaxis,:-1]
     ddzt[...,-1,:] = 0.
 
     """
     gradients at eastern face of T cells
     """
-    ddxt[:-1,:,:,0] = pyom.maskU[:-1,:,:] * (pyom.temp[1:,:,:,pyom.tau] - pyom.temp[:-1,:,:,pyom.tau]) / (pyom.dxu[:-1,None,None] * pyom.cost[None,:,None])
-    ddxt[:-1,:,:,1] = pyom.maskU[:-1,:,:] * (pyom.salt[1:,:,:,pyom.tau] - pyom.salt[:-1,:,:,pyom.tau]) / (pyom.dxu[:-1,None,None] * pyom.cost[None,:,None])
+    ddxt[:-1,:,:,0] = pyom.maskU[:-1,:,:] * (pyom.temp[1:,:,:,pyom.tau] - pyom.temp[:-1,:,:,pyom.tau]) / (pyom.dxu[:-1,np.newaxis,np.newaxis] * pyom.cost[np.newaxis,:,np.newaxis])
+    ddxt[:-1,:,:,1] = pyom.maskU[:-1,:,:] * (pyom.salt[1:,:,:,pyom.tau] - pyom.salt[:-1,:,:,pyom.tau]) / (pyom.dxu[:-1,np.newaxis,np.newaxis] * pyom.cost[np.newaxis,:,np.newaxis])
 
     """
     gradients at northern face of T cells
     """
-    ddyt[:,:-1,:,0] = pyom.maskV[:,:-1,:] * (pyom.temp[:,1:,:,pyom.tau] - pyom.temp[:,:-1,:,pyom.tau]) / pyom.dyu[None,:-1,None]
-    ddyt[:,:-1,:,1] = pyom.maskV[:,:-1,:] * (pyom.salt[:,1:,:,pyom.tau] - pyom.salt[:,:-1,:,pyom.tau]) / pyom.dyu[None,:-1,None]
+    ddyt[:,:-1,:,0] = pyom.maskV[:,:-1,:] * (pyom.temp[:,1:,:,pyom.tau] - pyom.temp[:,:-1,:,pyom.tau]) / pyom.dyu[np.newaxis,:-1,np.newaxis]
+    ddyt[:,:-1,:,1] = pyom.maskV[:,:-1,:] * (pyom.salt[:,1:,:,pyom.tau] - pyom.salt[:,:-1,:,pyom.tau]) / pyom.dyu[np.newaxis,:-1,np.newaxis]
 
     """
     Compute Ai_ez and K11 on center of east face of T cell.
@@ -54,9 +54,9 @@ def isoneutral_diffusion_pre(pyom):
             drodze = drdTS[1+ip:-2+ip,2:-2,ki:,0]*ddzt[1+ip:-2+ip,2:-2,:-1+kr or None,0] + drdTS[1+ip:-2+ip,2:-2,ki:,1]*ddzt[1+ip:-2+ip,2:-2,:-1+kr or None,1]
             sxe = -drodxe / (np.minimum(0.,drodze)-epsln)
             taper = dm_taper(pyom,sxe,pyom.iso_slopec,pyom.iso_dslope)
-            sumz[:,:,ki:] += pyom.dzw[None,None,:-1+kr or None] * pyom.maskU[1:-2,2:-2,ki:] * np.maximum(pyom.K_iso_steep, diffloc[1:-2,2:-2,ki:]*taper)
+            sumz[:,:,ki:] += pyom.dzw[np.newaxis,np.newaxis,:-1+kr or None] * pyom.maskU[1:-2,2:-2,ki:] * np.maximum(pyom.K_iso_steep, diffloc[1:-2,2:-2,ki:]*taper)
             pyom.Ai_ez[1:-2,2:-2,ki:,ip,kr] = taper * sxe * pyom.maskU[1:-2,2:-2,ki:]
-    pyom.K_11[1:-2,2:-2,:] = sumz / (4. * pyom.dzt[None,None,:])
+    pyom.K_11[1:-2,2:-2,:] = sumz / (4. * pyom.dzt[np.newaxis,np.newaxis,:])
 
     """
     Compute Ai_nz and K_22 on center of north face of T cell.
@@ -73,9 +73,9 @@ def isoneutral_diffusion_pre(pyom):
             drodzn = drdTS[2:-2,1+jp:-2+jp,ki:,0] * ddzt[2:-2,1+jp:-2+jp,:-1+kr or None,0] + drdTS[2:-2,1+jp:-2+jp,ki:,1] * ddzt[2:-2,1+jp:-2+jp,:-1+kr or None,1]
             syn = -drodyn / (np.minimum(0.,drodzn) - epsln)
             taper = dm_taper(pyom,syn,pyom.iso_slopec,pyom.iso_dslope)
-            sumz[:,:,ki:] += pyom.dzw[None,None,:-1+kr or None] * pyom.maskV[2:-2,1:-2,ki:] * np.maximum(pyom.K_iso_steep, diffloc[2:-2,1:-2,ki:]*taper)
+            sumz[:,:,ki:] += pyom.dzw[np.newaxis,np.newaxis,:-1+kr or None] * pyom.maskV[2:-2,1:-2,ki:] * np.maximum(pyom.K_iso_steep, diffloc[2:-2,1:-2,ki:]*taper)
             pyom.Ai_nz[2:-2,1:-2,ki:,jp,kr] = taper * syn * pyom.maskV[2:-2,1:-2,ki:]
-    pyom.K_22[2:-2,1:-2,:] = sumz / (4.*pyom.dzt[None,None,:])
+    pyom.K_22[2:-2,1:-2,:] = sumz / (4.*pyom.dzt[np.newaxis,np.newaxis,:])
 
     """
     compute Ai_bx, Ai_by and K33 on top face of T cell.
@@ -88,7 +88,7 @@ def isoneutral_diffusion_pre(pyom):
             drodzb = drdTS[2:-2,2:-2,kr:-1+kr or None,0] * ddzt[2:-2,2:-2,:-1,0] + drdTS[2:-2,2:-2,kr:-1+kr or None,1] * ddzt[2:-2,2:-2,:-1,1]
             sxb = -drodxb / (np.minimum(0.,drodzb) - epsln)
             taper = dm_taper(pyom,sxb,pyom.iso_slopec,pyom.iso_dslope)
-            sumx += pyom.dxu[1+ip:-3+ip,None,None] * pyom.K_iso[2:-2,2:-2,:-1] * taper * sxb**2 * pyom.maskW[2:-2,2:-2,:-1]
+            sumx += pyom.dxu[1+ip:-3+ip,np.newaxis,np.newaxis] * pyom.K_iso[2:-2,2:-2,:-1] * taper * sxb**2 * pyom.maskW[2:-2,2:-2,:-1]
             pyom.Ai_bx[2:-2,2:-2,:-1,ip,kr] = taper * sxb * pyom.maskW[2:-2,2:-2,:-1]
 
     # northward slopes at the top of T cells
@@ -100,10 +100,10 @@ def isoneutral_diffusion_pre(pyom):
             drodzb = drdTS[2:-2,2:-2,kr:-1+kr or None,0] * ddzt[2:-2,2:-2,:-1,0] + drdTS[2:-2,2:-2,kr:-1+kr or None,1] * ddzt[2:-2,2:-2,:-1,1]
             syb = -drodyb / (np.minimum(0.,drodzb) - epsln)
             taper = dm_taper(pyom,syb,pyom.iso_slopec,pyom.iso_dslope)
-            sumy += facty[None,:,None] * pyom.K_iso[2:-2,2:-2,:-1] * taper * syb**2 * pyom.maskW[2:-2,2:-2,:-1]
+            sumy += facty[np.newaxis,:,np.newaxis] * pyom.K_iso[2:-2,2:-2,:-1] * taper * syb**2 * pyom.maskW[2:-2,2:-2,:-1]
             pyom.Ai_by[2:-2,2:-2,:-1,jp,kr] = taper * syb * pyom.maskW[2:-2,2:-2,:-1]
 
-    pyom.K_33[2:-2,2:-2,:-1] = sumx / (4*pyom.dxt[2:-2,None,None]) + sumy / (4*pyom.dyt[None,2:-2,None] * pyom.cost[None,2:-2,None])
+    pyom.K_33[2:-2,2:-2,:-1] = sumx / (4*pyom.dxt[2:-2,np.newaxis,np.newaxis]) + sumy / (4*pyom.dyt[np.newaxis,2:-2,np.newaxis] * pyom.cost[np.newaxis,2:-2,np.newaxis])
     pyom.K_33[2:-2,2:-2,-1] = 0.
 
 
@@ -120,14 +120,14 @@ def isoneutral_diag_streamfunction(pyom):
     K_gm_pad = utilities.pad_z_edges(pyom,pyom.K_gm)
 
     diffloc = 0.25 * (K_gm_pad[1:-2, 2:-2, 1:-1] + K_gm_pad[1:-2, 2:-2, :-2] + K_gm_pad[2:-1, 2:-2, 1:-1] + K_gm_pad[2:-1, 2:-2, :-2])
-    sumz = np.sum(diffloc[..., None, None] * pyom.Ai_ez[1:-2, 2:-2, ...], axis=(3,4))
+    sumz = np.sum(diffloc[..., np.newaxis, np.newaxis] * pyom.Ai_ez[1:-2, 2:-2, ...], axis=(3,4))
     pyom.B2_gm[1:-2, 2:-2, :] = 0.25 * sumz
 
     """
     zonal component at north face of "T" cells
     """
     diffloc = 0.25 * (K_gm_pad[2:-2, 1:-2, 1:-1] + K_gm_pad[2:-2, 1:-2, :-2] + K_gm_pad[2:-2, 2:-1, 1:-1] + K_gm_pad[2:-2, 2:-1, :-2])
-    sumz = np.sum(diffloc[..., None, None] * pyom.Ai_nz[2:-2, 1:-2, ...], axis=(3,4))
+    sumz = np.sum(diffloc[..., np.newaxis, np.newaxis] * pyom.Ai_nz[2:-2, 1:-2, ...], axis=(3,4))
     pyom.B1_gm[2:-2, 1:-2, :] = -0.25 * sumz
 
 
@@ -147,8 +147,8 @@ def check_isoneutral_slope_crit(pyom):
     epsln = 1e-20
     if pyom.enable_neutral_diffusion:
         ft1 = 1.0 / (4.0 * pyom.K_iso_0 * pyom.dt_tracer + epsln)
-        delta1a = np.min(pyom.dxt[2:-2, None, None] * np.abs(pyom.cost[None, 2:-2, None]) * pyom.dzt[None, None, :] * ft1)
-        delta1b = np.min(pyom.dyt[None, 2:-2, None] * pyom.dzt[None, None, :] * ft1)
+        delta1a = np.min(pyom.dxt[2:-2, np.newaxis, np.newaxis] * np.abs(pyom.cost[np.newaxis, 2:-2, np.newaxis]) * pyom.dzt[np.newaxis, np.newaxis, :] * ft1)
+        delta1b = np.min(pyom.dyt[np.newaxis, 2:-2, np.newaxis] * pyom.dzt[np.newaxis, np.newaxis, :] * ft1)
         delta_iso1 = min(pyom.dzt[0] * ft1 * pyom.dxt[-1] * np.abs(pyom.cost[-1]), delta1a, delta1b)
 
         print("diffusion grid factor delta_iso1 = {}".format(delta_iso1))

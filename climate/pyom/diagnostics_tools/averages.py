@@ -2,8 +2,8 @@ from collections import namedtuple
 import json
 import logging
 
-from ...output import netcdf_tools, netcdf_threading
-from ... import pyom_method
+from . import io_tools
+from .. import pyom_method
 
 Running_sum = namedtuple("Running_sum", ("var", "sum"))
 
@@ -30,13 +30,13 @@ def output(pyom):
     write averages to netcdf file and zero array
     """
     filename = pyom.diagnostics["averages"].outfile.format(**vars(pyom))
-    with netcdf_threading.threaded_netcdf(pyom, filename, "w") as f:
+    with io_tools.threaded_io(pyom, filename, "w") as f:
         logging.info(" writing averages to file " + filename)
-        netcdf_tools.initialize_netcdf_file(pyom, f)
+        io_tools.initialize_file(pyom, f)
         for key, runsum in pyom._average_vars.items():
-            netcdf_tools.initialize_variable(pyom, key, runsum.var, f)
+            io_tools.initialize_variable(pyom, key, runsum.var, f)
             runsum.sum[...] /= pyom._average_nitts
-            netcdf_tools.write_variable(pyom, key, runsum.var, 0, f, var_data=runsum.sum)
+            io_tools.write_variable(pyom, key, runsum.var, 0, f, var_data=runsum.sum)
             runsum.sum[...] = 0.
     pyom._average_nitts = 0
 

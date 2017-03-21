@@ -214,7 +214,7 @@ def calc_initial_conditions(pyom):
 @pyom_method
 def ugrid_to_tgrid(pyom, a):
     b = np.zeros_like(a)
-    b[2:-2,:,:] = (pyom.dxu[2:-2, None, None] * a[2:-2, :, :] + pyom.dxu[1:-3, None, None] * a[1:-3, :, :]) / (2*pyom.dxt[2:-2, None, None])
+    b[2:-2,:,:] = (pyom.dxu[2:-2, np.newaxis, np.newaxis] * a[2:-2, :, :] + pyom.dxu[1:-3, np.newaxis, np.newaxis] * a[1:-3, :, :]) / (2*pyom.dxt[2:-2, np.newaxis, np.newaxis])
     return b
 
 @pyom_method

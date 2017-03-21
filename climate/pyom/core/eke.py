@@ -23,15 +23,15 @@ def set_eke_diffusivities(pyom):
         """
         calculate Rossby radius as minimum of mid-latitude and equatorial R. rad.
         """
-        C_rossby[...] = np.sum(np.sqrt(np.maximum(0.,pyom.Nsqr[:,:,:,pyom.tau])) * pyom.dzw[None, None, :] * pyom.maskW[:,:,:] / pyom.pi, axis=2)
+        C_rossby[...] = np.sum(np.sqrt(np.maximum(0.,pyom.Nsqr[:,:,:,pyom.tau])) * pyom.dzw[np.newaxis, np.newaxis, :] * pyom.maskW[:,:,:] / pyom.pi, axis=2)
         pyom.L_rossby[...] = np.minimum(C_rossby / np.maximum(np.abs(pyom.coriolis_t), 1e-16), \
                                           np.sqrt(C_rossby / np.maximum(2 * pyom.beta, 1e-16)))
         """
         calculate vertical viscosity and skew diffusivity
         """
         pyom.sqrteke = np.sqrt(np.maximum(0.,pyom.eke[:,:,:,pyom.tau]))
-        pyom.L_rhines[...] = np.sqrt(pyom.sqrteke / np.maximum(pyom.beta[...,None], 1e-16))
-        pyom.eke_len[...] = np.maximum(pyom.eke_lmin, np.minimum(pyom.eke_cross * pyom.L_rossby[...,None], pyom.eke_crhin * pyom.L_rhines))
+        pyom.L_rhines[...] = np.sqrt(pyom.sqrteke / np.maximum(pyom.beta[...,np.newaxis], 1e-16))
+        pyom.eke_len[...] = np.maximum(pyom.eke_lmin, np.minimum(pyom.eke_cross * pyom.L_rossby[...,np.newaxis], pyom.eke_crhin * pyom.L_rhines))
         pyom.K_gm[...] = np.minimum(pyom.eke_k_max, pyom.eke_c_k * pyom.eke_len * pyom.sqrteke)
     else:
         """
@@ -40,7 +40,7 @@ def set_eke_diffusivities(pyom):
         pyom.K_gm[...] = pyom.K_gm_0
 
     if pyom.enable_TEM_friction:
-        pyom.kappa_gm[...] = pyom.K_gm * np.minimum(0.01, pyom.coriolis_t[...,None]**2 \
+        pyom.kappa_gm[...] = pyom.K_gm * np.minimum(0.01, pyom.coriolis_t[...,np.newaxis]**2 \
                                / np.maximum(1e-9, pyom.Nsqr[...,pyom.tau])) * pyom.maskW
     if pyom.enable_eke and pyom.enable_eke_isopycnal_diffusion:
         pyom.K_iso[...] = pyom.K_gm
@@ -79,21 +79,21 @@ def integrate_eke(pyom):
         ks = pyom.kbot[2:-2, 2:-2] - 1
         ki = np.arange(pyom.nz)[np.newaxis, np.newaxis, :]
         boundary_mask = (ks >= 0) & (ks < pyom.nz-1)
-        full_mask = boundary_mask[:,:,None] & (ki == ks[:,:,None])
+        full_mask = boundary_mask[:,:,np.newaxis] & (ki == ks[:,:,np.newaxis])
         fxa = np.maximum(0, pyom.Nsqr[2:-2, 2:-2, :, pyom.tau])**0.25
-        fxa *= 1.5 * fxa / np.sqrt(np.maximum(1e-6, np.abs(pyom.coriolis_t[2:-2, 2:-2, None]))) - 2
-        pyom.c_lee[2:-2, 2:-2] += boundary_mask * np.sum((pyom.c_lee0 * pyom.hrms_k0[2:-2, 2:-2, None] * np.sqrt(pyom.sqrteke[2:-2, 2:-2, :]) \
-                                        * np.maximum(0, fxa) / pyom.dzw[None, None, :]) * full_mask, axis=-1)
+        fxa *= 1.5 * fxa / np.sqrt(np.maximum(1e-6, np.abs(pyom.coriolis_t[2:-2, 2:-2, np.newaxis]))) - 2
+        pyom.c_lee[2:-2, 2:-2] += boundary_mask * np.sum((pyom.c_lee0 * pyom.hrms_k0[2:-2, 2:-2, np.newaxis] * np.sqrt(pyom.sqrteke[2:-2, 2:-2, :]) \
+                                        * np.maximum(0, fxa) / pyom.dzw[np.newaxis, np.newaxis, :]) * full_mask, axis=-1)
 
         """
         Ri-dependent dissipation by interior loss of balance
         """
         pyom.c_Ri_diss[...] = 0
-        uz = (((pyom.u[1:,1:,1:,pyom.tau] - pyom.u[1:,1:,:-1,pyom.tau]) / pyom.dzt[None, None, :-1] * pyom.maskU[1:, 1:, :-1])**2 \
-              + ((pyom.u[:-1, 1:, 1:, pyom.tau] - pyom.u[:-1, 1:, :-1, pyom.tau]) / pyom.dzt[None, None, :-1] * pyom.maskU[:-1, 1:, :-1])**2) \
+        uz = (((pyom.u[1:,1:,1:,pyom.tau] - pyom.u[1:,1:,:-1,pyom.tau]) / pyom.dzt[np.newaxis, np.newaxis, :-1] * pyom.maskU[1:, 1:, :-1])**2 \
+              + ((pyom.u[:-1, 1:, 1:, pyom.tau] - pyom.u[:-1, 1:, :-1, pyom.tau]) / pyom.dzt[np.newaxis, np.newaxis, :-1] * pyom.maskU[:-1, 1:, :-1])**2) \
               / (pyom.maskU[1:, 1:, :-1] + pyom.maskU[:-1, 1:, :-1] + 1e-18)
-        vz = (((pyom.v[1:,1:,1:,pyom.tau] - pyom.v[1:,1:,:-1,pyom.tau]) / pyom.dzt[None, None, :-1] * pyom.maskV[1:,1:,:-1])**2 \
-                    + ((pyom.v[1:,:-1,1:,pyom.tau] - pyom.v[1:,:-1,:-1,pyom.tau]) / pyom.dzt[None, None, :-1] * pyom.maskV[1:,:-1,:-1])**2) \
+        vz = (((pyom.v[1:,1:,1:,pyom.tau] - pyom.v[1:,1:,:-1,pyom.tau]) / pyom.dzt[np.newaxis, np.newaxis, :-1] * pyom.maskV[1:,1:,:-1])**2 \
+                    + ((pyom.v[1:,:-1,1:,pyom.tau] - pyom.v[1:,:-1,:-1,pyom.tau]) / pyom.dzt[np.newaxis, np.newaxis, :-1] * pyom.maskV[1:,:-1,:-1])**2) \
                     / (pyom.maskV[1:,1:,:-1] + pyom.maskV[1:,:-1,:-1] + 1e-18)
         Ri = np.maximum(1e-8, pyom.Nsqr[1:,1:,:-1,pyom.tau]) / (uz + vz + 1e-18)
         fxa = 1 - 0.5 * (1. + np.tanh((Ri - pyom.eke_Ri0) / pyom.eke_Ri1))
@@ -111,8 +111,8 @@ def integrate_eke(pyom):
         """
         add bottom fluxes by lee waves and bottom friction to a_loc
         """
-        a_loc[2:-2, 2:-2] += np.sum((pyom.c_lee[2:-2,2:-2,None] * pyom.eke[2:-2,2:-2,:,pyom.tau] \
-                                * pyom.maskW[2:-2,2:-2,:] * pyom.dzw[None, None, :] \
+        a_loc[2:-2, 2:-2] += np.sum((pyom.c_lee[2:-2,2:-2,np.newaxis] * pyom.eke[2:-2,2:-2,:,pyom.tau] \
+                                * pyom.maskW[2:-2,2:-2,:] * pyom.dzw[np.newaxis, np.newaxis, :] \
                            + 2 * pyom.eke_r_bot * pyom.eke[2:-2,2:-2,:,pyom.tau] * math.sqrt(2.0) * pyom.sqrteke[2:-2,2:-2,:] \
                                 * pyom.maskW[2:-2,2:-2,:]) * full_mask, axis=-1) * boundary_mask
 
@@ -122,7 +122,7 @@ def integrate_eke(pyom):
         """
         mask = b_loc > 0
         a_loc[...] = np.where(mask, a_loc/(b_loc+1e-20), 0.)
-        c_int[...] = a_loc[:,:,None]
+        c_int[...] = a_loc[:,:,np.newaxis]
     else:
         """
         dissipation by local interior loss of balance with constant coefficient
@@ -134,14 +134,14 @@ def integrate_eke(pyom):
     """
     ks = pyom.kbot[2:-2, 2:-2] - 1
     delta, a_tri, b_tri, c_tri, d_tri = (np.zeros((pyom.nx, pyom.ny, pyom.nz)) for _ in range(5))
-    delta[:,:,:-1] = pyom.dt_tracer / pyom.dzt[None, None, 1:] * 0.5 \
+    delta[:,:,:-1] = pyom.dt_tracer / pyom.dzt[np.newaxis, np.newaxis, 1:] * 0.5 \
                  * (pyom.kappaM[2:-2, 2:-2, :-1] + pyom.kappaM[2:-2, 2:-2, 1:]) * pyom.alpha_eke
     a_tri[:, :, 1:-1] = -delta[:,:,:-2] / pyom.dzw[1:-1]
     a_tri[:, :, -1] = -delta[:,:,-2] / (0.5 * pyom.dzw[-1])
     b_tri[:, :, 1:-1] = 1 + (delta[:,:,1:-1] + delta[:,:,:-2]) / pyom.dzw[1:-1] + pyom.dt_tracer * c_int[2:-2, 2:-2, 1:-1]
     b_tri[:, :, -1] = 1 + delta[:,:,-2] / (0.5 * pyom.dzw[-1]) + pyom.dt_tracer * c_int[2:-2, 2:-2, -1]
-    b_tri_edge = 1 + delta / pyom.dzw[None, None, :] + pyom.dt_tracer * c_int[2:-2, 2:-2, :]
-    c_tri[:, :, :-1] = -delta[:, :, :-1] / pyom.dzw[None, None, :-1]
+    b_tri_edge = 1 + delta / pyom.dzw[np.newaxis, np.newaxis, :] + pyom.dt_tracer * c_int[2:-2, 2:-2, :]
+    c_tri[:, :, :-1] = -delta[:, :, :-1] / pyom.dzw[np.newaxis, np.newaxis, :-1]
     d_tri[:, :, :] = pyom.eke[2:-2, 2:-2, :, pyom.tau] + pyom.dt_tracer * forc[2:-2, 2:-2, :]
     sol, water_mask = utilities.solve_implicit(pyom, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
     pyom.eke[2:-2, 2:-2, :, pyom.taup1] = np.where(water_mask, sol, pyom.eke[2:-2, 2:-2, :, pyom.taup1])
@@ -156,28 +156,28 @@ def integrate_eke(pyom):
         """
         flux by lee wave generation and bottom friction
         """
-        pyom.eke_diss_iw[2:-2, 2:-2, :] += (pyom.c_lee[2:-2, 2:-2, None] * pyom.eke[2:-2, 2:-2, :, pyom.taup1] \
+        pyom.eke_diss_iw[2:-2, 2:-2, :] += (pyom.c_lee[2:-2, 2:-2, np.newaxis] * pyom.eke[2:-2, 2:-2, :, pyom.taup1] \
                                                        * pyom.maskW[2:-2, 2:-2, :]) * full_mask
         pyom.eke_diss_tke[2:-2, 2:-2, :] += (2 * pyom.eke_r_bot * pyom.eke[2:-2, 2:-2, :, pyom.taup1] * math.sqrt(2.0) \
-                                    * pyom.sqrteke[2:-2, 2:-2, :] * pyom.maskW[2:-2, 2:-2, :] / pyom.dzw[None, None, :]) * full_mask
+                                    * pyom.sqrteke[2:-2, 2:-2, :] * pyom.maskW[2:-2, 2:-2, :] / pyom.dzw[np.newaxis, np.newaxis, :]) * full_mask
 
         """
         account for sligthly incorrect integral of dissipation due to time stepping
         """
-        a_loc = np.sum((pyom.eke_diss_iw[:,:,:-1] + pyom.eke_diss_tke[:,:,:-1]) * pyom.dzw[None, None, :-1], axis=2)
-        b_loc = np.sum(c_int[:,:,:-1] * pyom.eke[:,:,:-1,pyom.taup1] * pyom.dzw[None, None, :-1], axis=2)
+        a_loc = np.sum((pyom.eke_diss_iw[:,:,:-1] + pyom.eke_diss_tke[:,:,:-1]) * pyom.dzw[np.newaxis, np.newaxis, :-1], axis=2)
+        b_loc = np.sum(c_int[:,:,:-1] * pyom.eke[:,:,:-1,pyom.taup1] * pyom.dzw[np.newaxis, np.newaxis, :-1], axis=2)
         a_loc += (pyom.eke_diss_iw[:,:,-1] + pyom.eke_diss_tke[:,:,-1]) * pyom.dzw[-1] * 0.5
         b_loc += c_int[:,:,-1] * pyom.eke[:,:,-1,pyom.taup1] * pyom.dzw[-1] * 0.5
         mask = a_loc != 0.
         b_loc[...] = np.where(mask, b_loc / (a_loc+1e-20), 0.)
-        pyom.eke_diss_iw[...] *= b_loc[:,:,None]
-        pyom.eke_diss_tke[...] *= b_loc[:,:,None]
+        pyom.eke_diss_iw[...] *= b_loc[:,:,np.newaxis]
+        pyom.eke_diss_tke[...] *= b_loc[:,:,np.newaxis]
 
         """
         store diagnosed flux by lee waves and bottom friction
         """
-        pyom.eke_lee_flux[2:-2, 2:-2] = np.where(boundary_mask, np.sum(pyom.c_lee[2:-2, 2:-2, None] * pyom.eke[2:-2, 2:-2, :, pyom.taup1] \
-                                                        * pyom.dzw[None, None, :] * full_mask, axis=-1)
+        pyom.eke_lee_flux[2:-2, 2:-2] = np.where(boundary_mask, np.sum(pyom.c_lee[2:-2, 2:-2, np.newaxis] * pyom.eke[2:-2, 2:-2, :, pyom.taup1] \
+                                                        * pyom.dzw[np.newaxis, np.newaxis, :] * full_mask, axis=-1)
                                                 , pyom.eke_lee_flux[2:-2, 2:-2])
         pyom.eke_bot_flux[2:-2, 2:-2] = np.where(boundary_mask, np.sum(2 * pyom.eke_r_bot * pyom.eke[2:-2, 2:-2, :, pyom.taup1] \
                                                         * math.sqrt(2.0) * pyom.sqrteke[2:-2, 2:-2, :] * full_mask, axis=-1)
@@ -191,17 +191,17 @@ def integrate_eke(pyom):
     """
     pyom.flux_east[:-1,:,:] = 0.5 * np.maximum(500., pyom.K_gm[:-1,:,:] + pyom.K_gm[1:,:,:]) \
                             * (pyom.eke[1:,:,:,pyom.tau] - pyom.eke[:-1,:,:,pyom.tau]) \
-                            / (pyom.cost[None,:,None] * pyom.dxu[:-1, None, None]) * pyom.maskU[:-1,:,:]
+                            / (pyom.cost[np.newaxis,:,np.newaxis] * pyom.dxu[:-1, np.newaxis, np.newaxis]) * pyom.maskU[:-1,:,:]
     pyom.flux_east[-1,:,:] = 0.
     pyom.flux_north[:,:-1,:] = 0.5 * np.maximum(500., pyom.K_gm[:,:-1,:] + pyom.K_gm[:,1:,:]) \
                              * (pyom.eke[:,1:,:,pyom.tau] - pyom.eke[:,:-1,:,pyom.tau]) \
-                             / pyom.dyu[None,:-1,None] * pyom.maskV[:,:-1,:] * pyom.cosu[None,:-1,None]
+                             / pyom.dyu[np.newaxis,:-1,np.newaxis] * pyom.maskV[:,:-1,:] * pyom.cosu[np.newaxis,:-1,np.newaxis]
     pyom.flux_north[:,-1,:] = 0.
     pyom.eke[2:-2,2:-2,:,pyom.taup1] += pyom.dt_tracer * pyom.maskW[2:-2,2:-2,:] \
                                  * ((pyom.flux_east[2:-2,2:-2,:] - pyom.flux_east[1:-3,2:-2,:]) \
-                                 / (pyom.cost[None,2:-2,None] * pyom.dxt[2:-2,None,None]) \
+                                 / (pyom.cost[np.newaxis,2:-2,np.newaxis] * pyom.dxt[2:-2,np.newaxis,np.newaxis]) \
                                  + (pyom.flux_north[2:-2,2:-2,:] - pyom.flux_north[2:-2,1:-3,:]) \
-                                 / (pyom.cost[None,2:-2,None] * pyom.dyt[None,2:-2,None]))
+                                 / (pyom.cost[np.newaxis,2:-2,np.newaxis] * pyom.dyt[np.newaxis,2:-2,np.newaxis]))
 
     """
     add tendency due to advection
@@ -212,11 +212,11 @@ def integrate_eke(pyom):
         advection.adv_flux_upwind_wgrid(pyom, pyom.flux_east, pyom.flux_north, pyom.flux_top, pyom.eke[:,:,:,pyom.tau])
     if pyom.enable_eke_superbee_advection or pyom.enable_eke_upwind_advection:
         pyom.deke[2:-2,2:-2,:,pyom.tau] = pyom.maskW[2:-2,2:-2,:] * (-(pyom.flux_east[2:-2,2:-2,:] - pyom.flux_east[1:-3,2:-2,:]) \
-                                       / (pyom.cost[None,2:-2,None] * pyom.dxt[2:-2,None,None]) \
+                                       / (pyom.cost[np.newaxis,2:-2,np.newaxis] * pyom.dxt[2:-2,np.newaxis,np.newaxis]) \
                                     - (pyom.flux_north[2:-2,2:-2,:] - pyom.flux_north[2:-2,1:-3,:]) \
-                                       / (pyom.cost[None,2:-2,None] * pyom.dyt[None,2:-2,None]))
+                                       / (pyom.cost[np.newaxis,2:-2,np.newaxis] * pyom.dyt[np.newaxis,2:-2,np.newaxis]))
         pyom.deke[:,:,0,pyom.tau] += -pyom.flux_top[:,:,0] / pyom.dzw[0]
-        pyom.deke[:,:,1:-1,pyom.tau] += -(pyom.flux_top[:,:,1:-1] - pyom.flux_top[:,:,:-2]) / pyom.dzw[None, None, 1:-1]
+        pyom.deke[:,:,1:-1,pyom.tau] += -(pyom.flux_top[:,:,1:-1] - pyom.flux_top[:,:,:-2]) / pyom.dzw[np.newaxis, np.newaxis, 1:-1]
         pyom.deke[:,:,-1,pyom.tau] += -(pyom.flux_top[:,:,-1] - pyom.flux_top[:,:,-2]) / (0.5 * pyom.dzw[-1])
         """
         Adam Bashforth time stepping

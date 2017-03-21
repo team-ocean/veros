@@ -22,29 +22,47 @@ from .core import momentum, numerics, thermodynamics, eke, tke, idemix, \
                   isoneutral, external, non_hydrostatic, advection, cyclic
 
 class PyOM(object):
-    """Main class for PyOM.
+    """Main class for PyOM, used for building a model and running it.
+
+    Note:
+        This class is meant to be subclassed. Subclasses need to implement the
+        methods :meth:`set_parameter`, :meth:`set_topography`, :meth:`set_grid`,
+        :meth:`set_coriolis`, :meth:`set_initial_conditions`, :meth:`set_forcing`,
+        and :meth:`set_diagnostics`.
 
     Args:
-        backend (bool, optional): Backend to use for array operations.
-            Possible values are `numpy` and `bohrium`. Defaults to ``None``, which
+        backend (:obj:`bool`, optional): Backend to use for array operations.
+            Possible values are ``numpy`` and ``bohrium``. Defaults to ``None``, which
             tries to read the backend from the command line (set via a flag
-            `-b`/`--backend`), and uses `numpy` if no command line argument is given.
+            ``-b``/``--backend``), and uses ``numpy`` if no command line argument is given.
         loglevel (one of {debug, info, warning, error, critical}, optional): Verbosity
             of the model. Tries to read value from command line if not given
-            (`-v`/`--loglevel`). Defaults to `info`.
+            (``-v``/``--loglevel``). Defaults to ``info``.
         logfile (path, optional): Path to a log file to write output to. Tries to
-            read value from command line if not given (`-l`/`--logfile`). Defaults
+            read value from command line if not given (``-l``/``--logfile``). Defaults
             to stdout.
+
+    Example:
+        >>> import matplotlib.pyplot as plt
+        >>> from climate.pyom import PyOM
+        >>>
+        >>> class MyModel(PyOM):
+        >>>     ...
+        >>>
+        >>> simulation = MyModel(backend="bohrium")
+        >>> simulation.run()
+        >>> plt.imshow(simulation.psi)
+        >>> plt.show()
     """
 
     # Constants
     pi = numpy.pi
-    radius = 6370.0e3 #: Earth radius in m
-    degtom = radius / 180.0 * pi #: Conversion degrees latitude to meters
-    mtodeg = 1 / degtom #: Conversion meters to degrees latitude
-    omega = pi / 43082.0 #: Earth rotation frequency in 1/s
-    rho_0 = 1024.0 #: Boussinesq reference density in :math:`kg/m^3`
-    grav = 9.81 #: Gravitational constant in :math:`m/s^2`
+    radius = 6370.0e3 # Earth radius in m
+    degtom = radius / 180.0 * pi # Conversion degrees latitude to meters
+    mtodeg = 1 / degtom # Conversion meters to degrees latitude
+    omega = pi / 43082.0 # Earth rotation frequency in 1/s
+    rho_0 = 1024.0 # Boussinesq reference density in :math:`kg/m^3`
+    grav = 9.81 # Gravitational constant in :math:`m/s^2`
 
     def __init__(self, backend=None, loglevel=None, logfile=None):
         args = cli.parse_command_line()
@@ -53,13 +71,11 @@ class PyOM(object):
                             level=getattr(logging, (loglevel or args.loglevel).upper()),
                             format="%(message)s")
         self.profile_mode = args.profile
-        self.set_default_settings()
+        self._set_default_settings()
         self.timers = {k: Timer(k) for k in ("setup","main","momentum","temperature",
                                              "eke","idemix","tke","diagnostics",
                                              "pressure","friction","isoneutral",
                                              "vmix","eq_of_state")}
-
-
 
     def _get_backend(self, backend):
         if not backend in BACKENDS.keys():
@@ -69,7 +85,7 @@ class PyOM(object):
         return BACKENDS[backend], backend
 
 
-    def set_default_settings(self):
+    def _set_default_settings(self):
         for key, setting in settings.SETTINGS.items():
             setattr(self, key, setting.default)
         self.diagnostics = {}
@@ -77,7 +93,7 @@ class PyOM(object):
             self.diagnostics[key] = setting
 
 
-    def allocate(self):
+    def _allocate(self):
         self.variables = {}
         def init_var(var_name, var):
             shape = variables.get_dimensions(self, var.dims)
@@ -94,6 +110,105 @@ class PyOM(object):
                 for var_name, var in var_dict.items():
                     init_var(var_name, var)
 
+    def _not_implemented(self):
+        raise NotImplementedError("Needs to be implemented by subclass")
+
+    def set_parameter(self):
+        """To be implemented by subclass.
+
+        First function to be called during setup.
+        Use this to modify the model settings.
+
+        Example:
+          >>> def set_parameter(self):
+          >>>     self.nx, self.ny, self.nz = (360, 120, 50)
+          >>>     self.coord_degree = True
+          >>>     self.enable_cyclic = True
+        """
+        self._not_implemented()
+
+    def set_initial_conditions(self):
+        """To be implemented by subclass.
+
+        May be used to set initial conditions.
+
+        Example:
+          >>> @pyom_method
+          >>> def set_initial_conditions(self):
+          >>>     self.u[:, :, :, self.tau] = np.random.rand(self.u.shape[:-1])
+        """
+        self._not_implemented()
+
+    def set_grid(self):
+        """To be implemented by subclass.
+
+        Has to set the grid spacings :attr:`dxt`, :attr:`dyt`, and :attr:`dzt`,
+        along with the coordinates of the grid origin, :attr:`x_origin` and
+        :attr:`y_origin`.
+
+        Example:
+          >>> @pyom_method
+          >>> def set_grid(self):
+          >>>     self.x_origin, self.y_origin = 0, 0
+          >>>     self.dxt[...] = [0.1, 0.05, 0.025, 0.025, 0.05, 0.1]
+          >>>     self.dyt[...] = 1.
+          >>>     self.dzt[...] = [10, 10, 20, 50, 100, 200]
+        """
+        self._not_implemented()
+
+    def set_coriolis(self):
+        """To be implemented by subclass.
+
+        Has to set the Coriolis parameter :attr:`coriolis_t` at T grid cells.
+
+        Example:
+          >>> @pyom_method
+          >>> def set_coriolis(self):
+          >>>     self.coriolis_t[:, :] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
+        """
+        self._not_implemented()
+
+    def set_topography(self):
+        """To be implemented by subclass.
+
+        May be used to set initial conditions.
+
+        Example:
+          >>> @pyom_method
+          >>> def set_initial_conditions(self):
+          >>>     self.u[:, :, :, self.tau] = np.random.rand(self.u.shape[:-1])
+        """
+        self._not_implemented()
+
+    def set_forcing(self):
+        """To be implemented by subclass.
+
+        Called before every time step to update the external forcing, e.g. through
+        :attr:`forc_temp_surface`, :attr:`forc_salt_surface`, :attr:`surface_taux`,
+        :attr:`surface_tauy`, :attr:`forc_tke_surface`, :attr:`temp_source`, or
+        :attr:`salt_source`. Use this method to implement time-dependent forcing.
+
+        Example:
+          >>> @pyom_method
+          >>> def set_forcing(self):
+          >>>     current_month = (self.itt * self.dt_tracer / (31 * 24 * 60 * 60)) % 12
+          >>>     self.surface_taux[:, :] = self._windstress_data[:, :, current_month]
+        """
+        self._not_implemented()
+
+    def set_diagnostics(self):
+        """To be implemented by subclass.
+
+        Called before setting up the :ref:`diagnostics <diagnostics>`. Use this method e.g. to
+        mark additional :ref:`variables <variables>` for output.
+
+        Example:
+          >>> @pyom_method
+          >>> def set_diagnostics(self):
+          >>>     for variable in ("drho", "dsalt", "dtemp"):
+          >>>         self.variables[var].output = True
+        """
+        self._not_implemented()
 
     def flush(self):
         """Flush computations if supported by the current backend.
@@ -103,15 +218,52 @@ class PyOM(object):
         except AttributeError:
             pass
 
+    def setup(self):
+        logging.info("Setting up everything")
+        self.set_parameter()
+        self._allocate()
+
+        self.set_grid()
+        numerics.calc_grid(self)
+
+        self.set_coriolis()
+        numerics.calc_beta(self)
+
+        self.set_topography()
+        numerics.calc_topo(self)
+        idemix.calc_spectral_topo(self)
+
+        self.set_initial_conditions()
+        numerics.calc_initial_conditions(self)
+
+        self.set_forcing()
+        if self.enable_streamfunction:
+            external.streamfunction_init(self)
+
+        self.set_diagnostics()
+        diagnostics.init_diagnostics(self)
+
+        eke.init_eke(self)
+
+        isoneutral.check_isoneutral_slope_crit(self)
+
+        if self.enable_tke and not self.enable_implicit_vert_friction:
+            raise RuntimeError("use TKE model only with implicit vertical friction"
+                               "(set enable_implicit_vert_fricton)")
 
     def run(self, **kwargs):
+        """Main routine of the model.
+
+        Arguments:
+            kwargs (:obj:`dict`):
+        """
         for arg, val in kwargs.items():
             setattr(self, arg, val)
 
         with self.timers["setup"]:
             self.setup()
 
-            print("Reading restarts:")
+            logging.info("Reading restarts:")
             restart.read_restart(self.itt)
             diagnostics.read_restart(self)
 
@@ -219,7 +371,7 @@ class PyOM(object):
             logging.debug("     EKE                  = {}s".format(self.timers["eke"].getTime()))
             logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
             logging.debug("     TKE                  = {}s".format(self.timers["tke"].getTime()))
-            logging.debug(" diagnostics / IO         = {}s".format(self.timers["diagnostics"].getTime()))
+            logging.debug(" diagnostics and I/O      = {}s".format(self.timers["diagnostics"].getTime()))
 
             if self.profile_mode:
                 try:
@@ -228,73 +380,3 @@ class PyOM(object):
                         f.write(profiler.output_html())
                 except UnboundLocalError: # profiler has not been started
                     pass
-
-
-    def setup(self):
-        logging.info("Setting up everything")
-        self.set_parameter()
-        self.allocate()
-
-        self.set_grid()
-        numerics.calc_grid(self)
-
-        self.set_coriolis()
-        numerics.calc_beta(self)
-
-        self.set_topography()
-        numerics.calc_topo(self)
-        idemix.calc_spectral_topo(self)
-
-        self.set_initial_conditions()
-        numerics.calc_initial_conditions(self)
-
-        self.set_forcing()
-        if self.enable_streamfunction:
-            external.streamfunction_init(self)
-
-        self.set_diagnostics()
-        diagnostics.init_diagnostics(self)
-
-        eke.init_eke(self)
-
-        isoneutral.check_isoneutral_slope_crit(self)
-
-        if self.enable_tke and not self.enable_implicit_vert_friction:
-            raise RuntimeError("ERROR: use TKE model only with implicit vertical friction\n"
-                               "\t-> switch on enable_implicit_vert_fricton in setup")
-
-
-    def _not_implemented(self):
-        raise NotImplementedError("Needs to be implemented by subclass")
-
-    def set_parameter(self):
-        """To be implemented by subclass.
-
-        First function to be called during setup,
-        should be used to modify model settings.
-
-        Example:
-          >>> def set_parameter(self):
-          >>>     self.nx, self.ny, self.nz = (360, 120, 50)
-          >>>     self.coord_degree = True
-          >>>     self.enable_cyclic = True
-        """
-        self._not_implemented()
-
-    def set_initial_conditions(self):
-        """To be implemented by subclass.
-
-        May be used to set initial conditions.
-
-        Example:
-          >>> @pyom_method
-          >>> def set_initial_conditions(self):
-          >>>     self.u[:, :, :, self.tau] = np.random.rand(self.u.shape[:-1])
-        """
-        self._not_implemented()
-
-    set_grid = _not_implemented
-    set_coriolis = _not_implemented
-    set_forcing = _not_implemented
-    set_topography = _not_implemented
-    set_diagnostics = _not_implemented

@@ -1,4 +1,4 @@
-from ... import pyom_method
+from .. import pyom_method
 
 def initialize(pyom):
     pass

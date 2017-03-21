@@ -9,19 +9,19 @@ def dissipation_on_wgrid(pyom, p_arr, int_drhodX=None, aloc=None, ks=None):
         aloc = np.zeros_like(p_arr)
         aloc[1:-1,1:-1,:] = 0.5 * pyom.grav / pyom.rho_0 * ((int_drhodX[2:,1:-1,:] - int_drhodX[1:-1,1:-1,:]) * pyom.flux_east[1:-1,1:-1,:] \
                                                            +(int_drhodX[1:-1,1:-1,:] - int_drhodX[:-2,1:-1,:]) * pyom.flux_east[:-2,1:-1,:]) \
-                                                         / (pyom.dxt[1:-1,None,None] * pyom.cost[None,1:-1,None]) \
+                                                         / (pyom.dxt[1:-1,np.newaxis,np.newaxis] * pyom.cost[np.newaxis,1:-1,np.newaxis]) \
                           + 0.5 * pyom.grav / pyom.rho_0 * ((int_drhodX[1:-1,2:,:] - int_drhodX[1:-1,1:-1,:]) * pyom.flux_north[1:-1,1:-1,:] \
                                                            +(int_drhodX[1:-1,1:-1,:] - int_drhodX[1:-1,:-2,:]) * pyom.flux_north[1:-1,:-2,:]) \
-                                                         / (pyom.dyt[None,1:-1,None] * pyom.cost[None,1:-1,None])
+                                                         / (pyom.dyt[np.newaxis,1:-1,np.newaxis] * pyom.cost[np.newaxis,1:-1,np.newaxis])
     if ks is None:
         ks = pyom.kbot[:,:] - 1
 
     land_mask = ks >= 0
-    edge_mask = land_mask[:, :, None] & (np.arange(pyom.nz-1)[np.newaxis, np.newaxis, :] == ks[:,:,np.newaxis])
-    water_mask = land_mask[:, :, None] & (np.arange(pyom.nz-1)[np.newaxis, np.newaxis, :] > ks[:,:,np.newaxis])
+    edge_mask = land_mask[:, :, np.newaxis] & (np.arange(pyom.nz-1)[np.newaxis, np.newaxis, :] == ks[:,:,np.newaxis])
+    water_mask = land_mask[:, :, np.newaxis] & (np.arange(pyom.nz-1)[np.newaxis, np.newaxis, :] > ks[:,:,np.newaxis])
 
     dzw_pad = utilities.pad_z_edges(pyom, pyom.dzw)
-    p_arr[:, :, :-1] += (0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) + 0.5 * (aloc[:, :, :-1] * dzw_pad[None, None, :-3] / pyom.dzw[None, None, :-1])) * edge_mask
+    p_arr[:, :, :-1] += (0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) + 0.5 * (aloc[:, :, :-1] * dzw_pad[np.newaxis, np.newaxis, :-3] / pyom.dzw[np.newaxis, np.newaxis, :-1])) * edge_mask
     p_arr[:, :, :-1] += 0.5 * (aloc[:,:,:-1] + aloc[:,:,1:]) * water_mask
     p_arr[:, :, -1] += aloc[:,:,-1] * land_mask
 
@@ -37,30 +37,30 @@ def tempsalt_biharmonic(pyom):
     fxa = math.sqrt(abs(pyom.K_hbi))
 
     pyom.flux_east[:-1, :, :] = -fxa * (pyom.temp[1:, :, :, pyom.tau] - pyom.temp[:-1, :, :, pyom.tau]) \
-                                / (pyom.cost[None, :, None] * pyom.dxu[:-1, None, None]) * pyom.maskU[:-1, :, :]
+                                / (pyom.cost[np.newaxis, :, np.newaxis] * pyom.dxu[:-1, np.newaxis, np.newaxis]) * pyom.maskU[:-1, :, :]
     pyom.flux_east[:, -1, :] = 0.
     pyom.flux_north[:, :-1, :] = -fxa * (pyom.temp[:, 1:, :, pyom.tau] - pyom.temp[:, :-1, :, pyom.tau]) \
-                                 / pyom.dyu[None, :-1, None] * pyom.maskV[:, :-1, :] * pyom.cosu[None, :-1, None]
+                                 / pyom.dyu[np.newaxis, :-1, np.newaxis] * pyom.maskV[:, :-1, :] * pyom.cosu[np.newaxis, :-1, np.newaxis]
     pyom.flux_north[:, -1, :] = 0.
 
     del2[1:, 1:, :] = pyom.maskT[1:, 1:, :] * (pyom.flux_east[1:, 1:, :] - pyom.flux_east[:-1, 1:, :]) \
-                      / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
+                      / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dxt[1:, np.newaxis, np.newaxis]) \
                       + (pyom.flux_north[1:, 1:, :] - pyom.flux_north[1:, :-1, :]) \
-                      / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None])
+                      / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dyt[np.newaxis, 1:, np.newaxis])
 
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(del2)
 
-    pyom.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) / (pyom.cost[None, :, None] * pyom.dxu[:-1, None, None]) * pyom.maskU[:-1, :, :]
-    pyom.flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) / pyom.dyu[None, :-1, None] * pyom.maskV[:, :-1, :] * pyom.cosu[None, :-1, None]
+    pyom.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) / (pyom.cost[np.newaxis, :, np.newaxis] * pyom.dxu[:-1, np.newaxis, np.newaxis]) * pyom.maskU[:-1, :, :]
+    pyom.flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) / pyom.dyu[np.newaxis, :-1, np.newaxis] * pyom.maskV[:, :-1, :] * pyom.cosu[np.newaxis, :-1, np.newaxis]
     pyom.flux_east[-1,:,:] = 0.
     pyom.flux_north[:,-1,:] = 0.
 
     # update tendency
     pyom.dtemp_hmix[1:, 1:, :] = pyom.maskT[1:, 1:, :] * (pyom.flux_east[1:, 1:, :] - pyom.flux_east[:-1, 1:, :]) \
-                                 / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
+                                 / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dxt[1:, np.newaxis, np.newaxis]) \
                                  + (pyom.flux_north[1:, 1:, :] - pyom.flux_north[1:, :-1, :]) \
-                                 / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None])
+                                 / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dyt[np.newaxis, 1:, np.newaxis])
     pyom.temp[:,:,:,pyom.taup1] += pyom.dt_tracer * pyom.dtemp_hmix * pyom.maskT
 
     if pyom.enable_conserve_energy:
@@ -69,32 +69,32 @@ def tempsalt_biharmonic(pyom):
         dissipation_on_wgrid(pyom, pyom.P_diss_hmix, int_drhodX=pyom.int_drhodT[..., pyom.tau])
 
     pyom.flux_east[:-1, :, :] = -fxa * (pyom.salt[1:, :, :, pyom.tau] - pyom.salt[:-1, :, :, pyom.tau]) \
-                                    / (pyom.cost[None, :, None] * pyom.dxu[:-1, None, None]) * pyom.maskU[:-1, :, :]
+                                    / (pyom.cost[np.newaxis, :, np.newaxis] * pyom.dxu[:-1, np.newaxis, np.newaxis]) * pyom.maskU[:-1, :, :]
     pyom.flux_north[:, :-1, :] = -fxa * (pyom.salt[:, 1:, :, pyom.tau] - pyom.salt[:, :-1, :, pyom.tau]) \
-                                  / pyom.dyu[None, :-1, None] * pyom.maskV[:, :-1, :] * pyom.cosu[None, :-1, None]
+                                  / pyom.dyu[np.newaxis, :-1, np.newaxis] * pyom.maskV[:, :-1, :] * pyom.cosu[np.newaxis, :-1, np.newaxis]
     pyom.flux_east[-1,:,:] = 0.
 
     pyom.flux_north[:,-1,:] = 0.
 
     del2[1:, 1:, :] = pyom.maskT[1:, 1:, :] * (pyom.flux_east[1:, 1:, :] - pyom.flux_east[:-1, 1:, :]) \
-                        / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
+                        / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dxt[1:, np.newaxis, np.newaxis]) \
                                             + (pyom.flux_north[1:, 1:, :] - pyom.flux_north[1:, :-1, :]) \
-                        / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None])
+                        / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dyt[np.newaxis, 1:, np.newaxis])
     if pyom.enable_cyclic_x:
         cyclic.setcyclic_x(del2)
 
-    pyom.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) / (pyom.cost[None, :, None] * pyom.dxu[:-1, None, None]) \
+    pyom.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) / (pyom.cost[np.newaxis, :, np.newaxis] * pyom.dxu[:-1, np.newaxis, np.newaxis]) \
                                 * pyom.maskU[:-1, :, :]
-    pyom.flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) / pyom.dyu[None, :-1, None] \
-                                * pyom.maskV[:, :-1, :] * pyom.cosu[None, :-1, None]
+    pyom.flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) / pyom.dyu[np.newaxis, :-1, np.newaxis] \
+                                * pyom.maskV[:, :-1, :] * pyom.cosu[np.newaxis, :-1, np.newaxis]
     pyom.flux_east[-1,:,:] = 0.
     pyom.flux_north[:,-1,:] = 0.
 
     # update tendency
     pyom.dsalt_hmix[1:, 1:, :] = pyom.maskT[1:, 1:, :] * (pyom.flux_east[1:, 1:, :] - pyom.flux_east[:-1, 1:, :]) \
-                                 / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
+                                 / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dxt[1:, np.newaxis, np.newaxis]) \
                                                        + (pyom.flux_north[1:, 1:, :] - pyom.flux_north[1:, :-1, :]) \
-                                 / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None])
+                                 / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dyt[np.newaxis, 1:, np.newaxis])
     pyom.salt[:,:,:,pyom.taup1] += pyom.dt_tracer * pyom.dsalt_hmix * pyom.maskT
 
     if pyom.enable_conserve_energy:
@@ -110,21 +110,21 @@ def tempsalt_diffusion(pyom):
 
     # horizontal diffusion of temperature
     pyom.flux_east[:-1, :, :] = pyom.K_h * (pyom.temp[1:, :, :, pyom.tau] - pyom.temp[:-1, :, :, pyom.tau]) \
-                                / (pyom.cost[None, :, None] * pyom.dxu[:-1, None, None]) * pyom.maskU[:-1, :, :]
+                                / (pyom.cost[np.newaxis, :, np.newaxis] * pyom.dxu[:-1, np.newaxis, np.newaxis]) * pyom.maskU[:-1, :, :]
     pyom.flux_east[-1,:,:] = 0.
 
     pyom.flux_north[:, :-1, :] = pyom.K_h * (pyom.temp[:, 1:, :, pyom.tau] - pyom.temp[:, :-1, :, pyom.tau]) \
-                                 / pyom.dyu[None, :-1, None] * pyom.maskV[:, :-1, :] * pyom.cosu[None, :-1, None]
+                                 / pyom.dyu[np.newaxis, :-1, np.newaxis] * pyom.maskV[:, :-1, :] * pyom.cosu[np.newaxis, :-1, np.newaxis]
     pyom.flux_north[:,-1,:] = 0.
 
     if pyom.enable_hor_friction_cos_scaling:
-        pyom.flux_east[...] *= pyom.cost[None, :, None] ** pyom.hor_friction_cosPower
-        pyom.flux_north[...] *= pyom.cosu[None, :, None] ** pyom.hor_friction_cosPower
+        pyom.flux_east[...] *= pyom.cost[np.newaxis, :, np.newaxis] ** pyom.hor_friction_cosPower
+        pyom.flux_north[...] *= pyom.cosu[np.newaxis, :, np.newaxis] ** pyom.hor_friction_cosPower
 
     pyom.dtemp_hmix[1:, 1:, :] = pyom.maskT[1:, 1:, :] * ((pyom.flux_east[1:, 1:, :] - pyom.flux_east[:-1, 1:, :]) \
-                                                          / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
+                                                          / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dxt[1:, np.newaxis, np.newaxis]) \
                                                         + (pyom.flux_north[1:, 1:, :] - pyom.flux_north[1:, :-1, :]) \
-                                                          / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None]))
+                                                          / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dyt[np.newaxis, 1:, np.newaxis]))
     pyom.temp[:,:,:,pyom.taup1] += pyom.dt_tracer * pyom.dtemp_hmix * pyom.maskT
 
     if pyom.enable_conserve_energy:
@@ -134,21 +134,21 @@ def tempsalt_diffusion(pyom):
 
     # horizontal diffusion of salinity
     pyom.flux_east[:-1, :, :] = pyom.K_h * (pyom.salt[1:, :, :, pyom.tau] - pyom.salt[:-1, :, :, pyom.tau]) \
-                                / (pyom.cost[None, :, None] * pyom.dxu[:-1, None, None]) * pyom.maskU[:-1, :, :]
+                                / (pyom.cost[np.newaxis, :, np.newaxis] * pyom.dxu[:-1, np.newaxis, np.newaxis]) * pyom.maskU[:-1, :, :]
     pyom.flux_east[-1,:,:] = 0.
 
     pyom.flux_north[:, :-1, :] = pyom.K_h * (pyom.salt[:, 1:, :, pyom.tau] - pyom.salt[:, :-1, :, pyom.tau]) \
-                                 / pyom.dyu[None, :-1, None] * pyom.maskV[:, :-1, :] * pyom.cosu[None, :-1, None]
+                                 / pyom.dyu[np.newaxis, :-1, np.newaxis] * pyom.maskV[:, :-1, :] * pyom.cosu[np.newaxis, :-1, np.newaxis]
     pyom.flux_north[:,-1,:] = 0.
 
     if pyom.enable_hor_friction_cos_scaling:
-        pyom.flux_east[...] *= pyom.cost[None, :, None] ** pyom.hor_friction_cosPower
-        pyom.flux_north[...] *= pyom.cosu[None, :, None] ** pyom.hor_friction_cosPower
+        pyom.flux_east[...] *= pyom.cost[np.newaxis, :, np.newaxis] ** pyom.hor_friction_cosPower
+        pyom.flux_north[...] *= pyom.cosu[np.newaxis, :, np.newaxis] ** pyom.hor_friction_cosPower
 
     pyom.dsalt_hmix[1:, 1:, :] = pyom.maskT[1:, 1:, :] * ((pyom.flux_east[1:, 1:, :] - pyom.flux_east[:-1, 1:, :]) \
-                                                            / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
+                                                            / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dxt[1:, np.newaxis, np.newaxis]) \
                                                        + (pyom.flux_north[1:, 1:, :] - pyom.flux_north[1:, :-1, :]) \
-                                                            / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None]))
+                                                            / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dyt[np.newaxis, 1:, np.newaxis]))
     pyom.salt[:,:,:,pyom.taup1] += pyom.dt_tracer * pyom.dsalt_hmix * pyom.maskT
 
     if pyom.enable_conserve_energy:

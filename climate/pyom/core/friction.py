@@ -16,7 +16,7 @@ def explicit_vert_friction(pyom):
     """
     fxa = 0.5 * (pyom.kappaM[1:-2, 1:-2, :-1] + pyom.kappaM[2:-1, 1:-2, :-1])
     pyom.flux_top[1:-2, 1:-2, :-1] = fxa * (pyom.u[1:-2, 1:-2, 1:, pyom.tau] - pyom.u[1:-2, 1:-2, :-1, pyom.tau]) \
-                                     / pyom.dzw[None, None, :-1] * pyom.maskU[1:-2, 1:-2, 1:] * pyom.maskU[1:-2, 1:-2, :-1]
+                                     / pyom.dzw[np.newaxis, np.newaxis, :-1] * pyom.maskU[1:-2, 1:-2, 1:] * pyom.maskU[1:-2, 1:-2, :-1]
     pyom.flux_top[:,:,-1] = 0.0
     pyom.du_mix[:,:,0] = pyom.flux_top[:,:,0] / pyom.dzt[0] * pyom.maskU[:,:,0]
     pyom.du_mix[:,:,1:] = (pyom.flux_top[:,:,1:] - pyom.flux_top[:,:,:-1]) / pyom.dzt[1:] * pyom.maskU[:,:,1:]
@@ -89,11 +89,11 @@ def implicit_vert_friction(pyom):
     kss = np.maximum(pyom.kbot[1:-2, 1:-2], pyom.kbot[2:-1, 1:-2]) - 1
     fxa = 0.5 * (pyom.kappaM[1:-2, 1:-2, :-1] + pyom.kappaM[2:-1, 1:-2, :-1])
     delta[:,:,:-1] = pyom.dt_mom / pyom.dzw[:-1] * fxa * pyom.maskU[1:-2,1:-2,1:] * pyom.maskU[1:-2,1:-2,:-1]
-    a_tri[:,:, 1:] = -delta[:,:,:-1] / pyom.dzt[None,None,1:]
-    b_tri[:,:, 1:] = 1 + delta[:,:,:-1] / pyom.dzt[None,None,1:]
-    b_tri[:,:, 1:-1] += delta[:,:,1:-1] / pyom.dzt[None,None,1:-1]
-    b_tri_edge = 1 + delta / pyom.dzt[None,None,:]
-    c_tri[...] = -delta / pyom.dzt[None,None,:]
+    a_tri[:,:, 1:] = -delta[:,:,:-1] / pyom.dzt[np.newaxis,np.newaxis,1:]
+    b_tri[:,:, 1:] = 1 + delta[:,:,:-1] / pyom.dzt[np.newaxis,np.newaxis,1:]
+    b_tri[:,:, 1:-1] += delta[:,:,1:-1] / pyom.dzt[np.newaxis,np.newaxis,1:-1]
+    b_tri_edge = 1 + delta / pyom.dzt[np.newaxis,np.newaxis,:]
+    c_tri[...] = -delta / pyom.dzt[np.newaxis,np.newaxis,:]
     d_tri[...] = pyom.u[1:-2,1:-2,:,pyom.tau]
     res, mask = utilities.solve_implicit(pyom, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
     pyom.u[1:-2,1:-2,:,pyom.taup1] = np.where(mask, res, pyom.u[1:-2,1:-2,:,pyom.taup1])
@@ -117,12 +117,12 @@ def implicit_vert_friction(pyom):
     """
     kss = np.maximum(pyom.kbot[1:-2, 1:-2], pyom.kbot[1:-2, 2:-1]) - 1
     fxa = 0.5 * (pyom.kappaM[1:-2, 1:-2, :-1] + pyom.kappaM[1:-2, 2:-1, :-1])
-    delta[:,:,:-1] = pyom.dt_mom / pyom.dzw[None,None,:-1] * fxa * pyom.maskV[1:-2,1:-2,1:] * pyom.maskV[1:-2,1:-2,:-1]
-    a_tri[:,:,1:] = -delta[:,:,:-1] / pyom.dzt[None,None,1:]
-    b_tri[:,:,1:] = 1 + delta[:,:,:-1] / pyom.dzt[None,None,1:]
-    b_tri[:,:,1:-1] += delta[:,:,1:-1] / pyom.dzt[None,None,1:-1]
-    b_tri_edge = 1 + delta / pyom.dzt[None,None,:]
-    c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzt[None,None,:-1]
+    delta[:,:,:-1] = pyom.dt_mom / pyom.dzw[np.newaxis,np.newaxis,:-1] * fxa * pyom.maskV[1:-2,1:-2,1:] * pyom.maskV[1:-2,1:-2,:-1]
+    a_tri[:,:,1:] = -delta[:,:,:-1] / pyom.dzt[np.newaxis,np.newaxis,1:]
+    b_tri[:,:,1:] = 1 + delta[:,:,:-1] / pyom.dzt[np.newaxis,np.newaxis,1:]
+    b_tri[:,:,1:-1] += delta[:,:,1:-1] / pyom.dzt[np.newaxis,np.newaxis,1:-1]
+    b_tri_edge = 1 + delta / pyom.dzt[np.newaxis,np.newaxis,:]
+    c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzt[np.newaxis,np.newaxis,:-1]
     c_tri[:,:,-1] = 0.
     d_tri[...] = pyom.v[1:-2,1:-2,:,pyom.tau]
     res, mask = utilities.solve_implicit(pyom, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
@@ -142,14 +142,14 @@ def implicit_vert_friction(pyom):
 
     if not pyom.enable_hydrostatic:
         kss = pyom.kbot[2:-2, 2:-2] - 1
-        delta[:-1,:-1,:-1] = pyom.dt_mom / pyom.dzt[None,None,:-1] * 0.5 * (pyom.kappaM[2:-2,2:-2,:-1] + pyom.kappaM[2:-2,2:-2,1:])
+        delta[:-1,:-1,:-1] = pyom.dt_mom / pyom.dzt[np.newaxis,np.newaxis,:-1] * 0.5 * (pyom.kappaM[2:-2,2:-2,:-1] + pyom.kappaM[2:-2,2:-2,1:])
         delta[:-1,:-1,-1] = 0.
-        a_tri[:-1,:-1,1:-1] = -delta[:-1,:-1,:-2] / pyom.dzw[None,None,1:-1]
+        a_tri[:-1,:-1,1:-1] = -delta[:-1,:-1,:-2] / pyom.dzw[np.newaxis,np.newaxis,1:-1]
         a_tri[:-1,:-1,-1] = 0.
-        b_tri_edge = 1 + delta[:-1,:-1] / pyom.dzw[None,None,:]
-        b_tri[:-1,:-1,1:] = 1 + delta[:-1,:-1,:-1] / pyom.dzw[None,None,:-1]
-        b_tri[:-1,:-1,1:-1] += delta[:-1,:-1,1:-1] / pyom.dzw[None,None,1:-1]
-        c_tri[:-1,:-1,:-1] = - delta[:-1,:-1,:-1] / pyom.dzw[None,None,:-1]
+        b_tri_edge = 1 + delta[:-1,:-1] / pyom.dzw[np.newaxis,np.newaxis,:]
+        b_tri[:-1,:-1,1:] = 1 + delta[:-1,:-1,:-1] / pyom.dzw[np.newaxis,np.newaxis,:-1]
+        b_tri[:-1,:-1,1:-1] += delta[:-1,:-1,1:-1] / pyom.dzw[np.newaxis,np.newaxis,1:-1]
+        c_tri[:-1,:-1,:-1] = - delta[:-1,:-1,:-1] / pyom.dzw[np.newaxis,np.newaxis,:-1]
         c_tri[:-1,:-1,-1] = 0.
         d_tri[:-1,:-1] = pyom.w[2:-2,2:-2,:,pyom.tau]
         res, mask = utilities.solve_implicit(pyom, kss, a_tri[:-1,:-1], b_tri[:-1,:-1], c_tri[:-1,:-1], d_tri[:-1,:-1], b_edge=b_tri_edge)
@@ -194,26 +194,26 @@ def linear_bottom_friction(pyom):
         with spatially varying coefficient
         """
         k = np.maximum(pyom.kbot[1:-2,2:-2], pyom.kbot[2:-1,2:-2]) - 1
-        mask = np.arange(pyom.nz) == k[:,:,None]
-        pyom.du_mix[1:-2,2:-2] += -(pyom.maskU[1:-2,2:-2] * pyom.r_bot_var_u[1:-2,2:-2,None]) * pyom.u[1:-2,2:-2,:,pyom.tau] * mask
+        mask = np.arange(pyom.nz) == k[:,:,np.newaxis]
+        pyom.du_mix[1:-2,2:-2] += -(pyom.maskU[1:-2,2:-2] * pyom.r_bot_var_u[1:-2,2:-2,np.newaxis]) * pyom.u[1:-2,2:-2,:,pyom.tau] * mask
         if pyom.enable_conserve_energy:
             diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
-            diss[1:-2,2:-2] = pyom.maskU[1:-2,2:-2] * pyom.r_bot_var_u[1:-2,2:-2,None] * pyom.u[1:-2,2:-2,:,pyom.tau]**2 * mask
+            diss[1:-2,2:-2] = pyom.maskU[1:-2,2:-2] * pyom.r_bot_var_u[1:-2,2:-2,np.newaxis] * pyom.u[1:-2,2:-2,:,pyom.tau]**2 * mask
             pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'U')
 
         k = np.maximum(pyom.kbot[2:-2, 2:-1], pyom.kbot[2:-2, 1:-2]) - 1
-        mask = np.arange(pyom.nz) == k[:,:,None]
-        pyom.dv_mix[2:-2,1:-2] += -(pyom.maskV[2:-2,1:-2] * pyom.r_bot_var_v[2:-2,1:-2,None]) * pyom.v[2:-2,1:-2,:,pyom.tau] * mask
+        mask = np.arange(pyom.nz) == k[:,:,np.newaxis]
+        pyom.dv_mix[2:-2,1:-2] += -(pyom.maskV[2:-2,1:-2] * pyom.r_bot_var_v[2:-2,1:-2,np.newaxis]) * pyom.v[2:-2,1:-2,:,pyom.tau] * mask
         if pyom.enable_conserve_energy:
             diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
-            diss[2:-2,1:-2] = pyom.maskV[2:-2,1:-2] * pyom.r_bot_var_v[2:-2,1:-2,None] * pyom.v[2:-2,1:-2,:,pyom.tau]**2 * mask
+            diss[2:-2,1:-2] = pyom.maskV[2:-2,1:-2] * pyom.r_bot_var_v[2:-2,1:-2,np.newaxis] * pyom.v[2:-2,1:-2,:,pyom.tau]**2 * mask
             pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'V')
     else:
         """
         with constant coefficient
         """
         k = np.maximum(pyom.kbot[1:-2,2:-2], pyom.kbot[2:-1,2:-2]) - 1
-        mask = np.arange(pyom.nz) == k[:,:,None]
+        mask = np.arange(pyom.nz) == k[:,:,np.newaxis]
         pyom.du_mix[1:-2,2:-2] += -pyom.maskU[1:-2,2:-2] * pyom.r_bot * pyom.u[1:-2,2:-2,:,pyom.tau] * mask
         if pyom.enable_conserve_energy:
             diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
@@ -221,7 +221,7 @@ def linear_bottom_friction(pyom):
             pyom.K_diss_bot[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_bot,'U')
 
         k = np.maximum(pyom.kbot[2:-2, 2:-1], pyom.kbot[2:-2, 1:-2]) - 1
-        mask = np.arange(pyom.nz) == k[:,:,None]
+        mask = np.arange(pyom.nz) == k[:,:,np.newaxis]
         pyom.dv_mix[2:-2,1:-2] += -pyom.maskV[2:-2,1:-2] * pyom.r_bot * pyom.v[2:-2,1:-2,:,pyom.tau] * mask
         if pyom.enable_conserve_energy:
             diss = np.zeros((pyom.nx+4, pyom.ny+4, pyom.nz))
@@ -282,16 +282,16 @@ def harmonic_friction(pyom):
     """
     if pyom.enable_hor_friction_cos_scaling:
         fxa = pyom.cost**pyom.hor_friction_cosPower
-        pyom.flux_east[:-1] = pyom.A_h * fxa[None,:,None] * (pyom.u[1:,:,:,pyom.tau] - pyom.u[:-1,:,:,pyom.tau]) \
-                / (pyom.cost * pyom.dxt[1:, None])[:,:,None] * pyom.maskU[1:] * pyom.maskU[:-1]
+        pyom.flux_east[:-1] = pyom.A_h * fxa[np.newaxis,:,np.newaxis] * (pyom.u[1:,:,:,pyom.tau] - pyom.u[:-1,:,:,pyom.tau]) \
+                / (pyom.cost * pyom.dxt[1:, np.newaxis])[:,:,np.newaxis] * pyom.maskU[1:] * pyom.maskU[:-1]
         fxa = pyom.cosu**pyom.hor_friction_cosPower
-        pyom.flux_north[:,:-1] = pyom.A_h * fxa[None,:-1,None] * (pyom.u[:,1:,:,pyom.tau] - pyom.u[:,:-1,:,pyom.tau]) \
-                / pyom.dyu[None,:-1,None] * pyom.maskU[:,1:] * pyom.maskU[:,:-1] * pyom.cosu[None,:-1,None]
+        pyom.flux_north[:,:-1] = pyom.A_h * fxa[np.newaxis,:-1,np.newaxis] * (pyom.u[:,1:,:,pyom.tau] - pyom.u[:,:-1,:,pyom.tau]) \
+                / pyom.dyu[np.newaxis,:-1,np.newaxis] * pyom.maskU[:,1:] * pyom.maskU[:,:-1] * pyom.cosu[np.newaxis,:-1,np.newaxis]
     else:
         pyom.flux_east[:-1,:,:] = pyom.A_h * (pyom.u[1:,:,:,pyom.tau] - pyom[:-1,:,:,pyom.tau]) \
-                / (pyom.cost * pyom.dxt[1:, None])[:,:,None] * pyom.maskU[1:] * pyom.maskU[:-1]
+                / (pyom.cost * pyom.dxt[1:, np.newaxis])[:,:,np.newaxis] * pyom.maskU[1:] * pyom.maskU[:-1]
         pyom.flux_north[:,:-1,:] = pyom.A_h * (pyom.u[:,1:,:,pyom.tau] - pyom.u[:,:-1,:,pyom.tau]) \
-                / pyom.dyu[None, :-1, None] * pyom.maskU[:,1:] * pyom.maskU[:,:-1] * pyom.cosu[None,:-1,None]
+                / pyom.dyu[np.newaxis, :-1, np.newaxis] * pyom.maskU[:,1:] * pyom.maskU[:,:-1] * pyom.cosu[np.newaxis,:-1,np.newaxis]
     pyom.flux_east[-1,:,:] = 0.
     pyom.flux_north[:,-1,:] = 0.
 
@@ -299,9 +299,9 @@ def harmonic_friction(pyom):
     update tendency
     """
     pyom.du_mix[2:-2, 2:-2, :] += pyom.maskU[2:-2,2:-2] * ((pyom.flux_east[2:-2,2:-2] - pyom.flux_east[1:-3,2:-2]) \
-                                                            / (pyom.cost[2:-2] * pyom.dxu[2:-2, None])[:,:,None] \
+                                                            / (pyom.cost[2:-2] * pyom.dxu[2:-2, np.newaxis])[:,:,np.newaxis] \
                                                         + (pyom.flux_north[2:-2,2:-2] - pyom.flux_north[2:-2,1:-3]) \
-                                                            / (pyom.cost[2:-2] * pyom.dyt[2:-2])[None, :, None])
+                                                            / (pyom.cost[2:-2] * pyom.dyt[2:-2])[np.newaxis, :, np.newaxis])
 
     if pyom.enable_conserve_energy:
         """
@@ -309,10 +309,10 @@ def harmonic_friction(pyom):
         """
         diss[1:-2, 2:-2] = 0.5*((pyom.u[2:-1,2:-2,:,pyom.tau] - pyom.u[1:-2,2:-2,:,pyom.tau]) * pyom.flux_east[1:-2,2:-2] \
                 + (pyom.u[1:-2,2:-2,:,pyom.tau] - pyom.u[:-3,2:-2,:,pyom.tau]) * pyom.flux_east[:-3,2:-2]) \
-                    / (pyom.cost[2:-2] * pyom.dxu[1:-2,None])[:,:,None]\
+                    / (pyom.cost[2:-2] * pyom.dxu[1:-2,np.newaxis])[:,:,np.newaxis]\
                 + 0.5*((pyom.u[1:-2,3:-1,:,pyom.tau] - pyom.u[1:-2,2:-2,:,pyom.tau]) * pyom.flux_north[1:-2,2:-2] \
                 + (pyom.u[1:-2,2:-2,:,pyom.tau] - pyom.u[1:-2,1:-3,:,pyom.tau]) * pyom.flux_north[1:-2,1:-3]) \
-                    / (pyom.cost[2:-2] * pyom.dyt[2:-2])[None,:,None]
+                    / (pyom.cost[2:-2] * pyom.dyt[2:-2])[np.newaxis,:,np.newaxis]
         pyom.K_diss_h[...] = 0.
         pyom.K_diss_h[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_h,'U')
 
@@ -320,17 +320,17 @@ def harmonic_friction(pyom):
     Meridional velocity
     """
     if pyom.enable_hor_friction_cos_scaling:
-        fxa = (pyom.cosu ** pyom.hor_friction_cosPower) * np.ones(pyom.nx+3)[:,None]
-        pyom.flux_east[:-1] = pyom.A_h * fxa[:, :, None] * (pyom.v[1:,:,:,pyom.tau] - pyom.v[:-1,:,:,pyom.tau]) \
-                / (pyom.cosu * pyom.dxu[:-1, None])[:,:,None] * pyom.maskV[1:] * pyom.maskV[:-1]
-        fxa = (pyom.cost[1:] ** pyom.hor_friction_cosPower) * np.ones(pyom.nx+4)[:, None]
-        pyom.flux_north[:,:-1] = pyom.A_h * fxa[:,:,None] * (pyom.v[:,1:,:,pyom.tau] - pyom.v[:,:-1,:,pyom.tau]) \
-                / pyom.dyt[None,1:,None] * pyom.cost[None,1:,None] * pyom.maskV[:,:-1] * pyom.maskV[:,1:]
+        fxa = (pyom.cosu ** pyom.hor_friction_cosPower) * np.ones(pyom.nx+3)[:,np.newaxis]
+        pyom.flux_east[:-1] = pyom.A_h * fxa[:, :, np.newaxis] * (pyom.v[1:,:,:,pyom.tau] - pyom.v[:-1,:,:,pyom.tau]) \
+                / (pyom.cosu * pyom.dxu[:-1, np.newaxis])[:,:,np.newaxis] * pyom.maskV[1:] * pyom.maskV[:-1]
+        fxa = (pyom.cost[1:] ** pyom.hor_friction_cosPower) * np.ones(pyom.nx+4)[:, np.newaxis]
+        pyom.flux_north[:,:-1] = pyom.A_h * fxa[:,:,np.newaxis] * (pyom.v[:,1:,:,pyom.tau] - pyom.v[:,:-1,:,pyom.tau]) \
+                / pyom.dyt[np.newaxis,1:,np.newaxis] * pyom.cost[np.newaxis,1:,np.newaxis] * pyom.maskV[:,:-1] * pyom.maskV[:,1:]
     else:
         pyom.flux_east[:-1] = pyom.A_h * (pyom.v[1:,:,:,pyom.tau] - pyom.v[:-1,:,:,pyom.tau]) \
-                / (pyom.cosu * pyom.dxu[:-1, None])[:,:,None] * pyom.maskV[1:] * pyom.maskV[:-1]
+                / (pyom.cosu * pyom.dxu[:-1, np.newaxis])[:,:,np.newaxis] * pyom.maskV[1:] * pyom.maskV[:-1]
         pyom.flux_north[:,:-1] = pyom.A_h * (pyom.v[:,1:,:,pyom.tau] - pyom.v[:,:-1,:,pyom.tau]) \
-                / pyom.dyt[None,1:,None] * pyom.cost[None,1:,None] * pyom.maskV[:,:-1] * pyom.maskV[:,1:]
+                / pyom.dyt[np.newaxis,1:,np.newaxis] * pyom.cost[np.newaxis,1:,np.newaxis] * pyom.maskV[:,:-1] * pyom.maskV[:,1:]
     pyom.flux_east[-1,:,:] = 0.
     pyom.flux_north[:,-1,:] = 0.
 
@@ -338,9 +338,9 @@ def harmonic_friction(pyom):
     update tendency
     """
     pyom.dv_mix[2:-2,2:-2] += pyom.maskV[2:-2,2:-2] * ((pyom.flux_east[2:-2,2:-2] - pyom.flux_east[1:-3,2:-2]) \
-                                / (pyom.cosu[2:-2] * pyom.dxt[2:-2,None])[:,:,None] \
+                                / (pyom.cosu[2:-2] * pyom.dxt[2:-2,np.newaxis])[:,:,np.newaxis] \
                             + (pyom.flux_north[2:-2,2:-2] - pyom.flux_north[2:-2,1:-3]) \
-                                / (pyom.dyu[2:-2] * pyom.cosu[2:-2])[None,:,None])
+                                / (pyom.dyu[2:-2] * pyom.cosu[2:-2])[np.newaxis,:,np.newaxis])
 
     if pyom.enable_conserve_energy:
         """
@@ -348,10 +348,10 @@ def harmonic_friction(pyom):
         """
         diss[2:-2,1:-2] = 0.5 * ((pyom.v[3:-1,1:-2,:,pyom.tau] - pyom.v[2:-2,1:-2,:,pyom.tau]) * pyom.flux_east[2:-2,1:-2]\
                 + (pyom.v[2:-2,1:-2,:,pyom.tau] - pyom.v[1:-3,1:-2,:,pyom.tau]) * pyom.flux_east[1:-3,1:-2]) \
-                / (pyom.cosu[1:-2] * pyom.dxt[2:-2,None])[:,:,None] \
+                / (pyom.cosu[1:-2] * pyom.dxt[2:-2,np.newaxis])[:,:,np.newaxis] \
                 + 0.5*((pyom.v[2:-2,2:-1,:,pyom.tau] - pyom.v[2:-2,1:-2,:,pyom.tau]) * pyom.flux_north[2:-2,1:-2] \
                 + (pyom.v[2:-2,1:-2,:,pyom.tau] - pyom.v[2:-2,:-3,:,pyom.tau]) * pyom.flux_north[2:-2,:-3]) \
-                / (pyom.cosu[1:-2] * pyom.dyu[1:-2])[None,:,None]
+                / (pyom.cosu[1:-2] * pyom.dyu[1:-2])[np.newaxis,:,np.newaxis]
         pyom.K_diss_h[...] = numerics.calc_diss(pyom,diss,pyom.K_diss_h,'V')
 
     if not pyom.enable_hydrostatic:
@@ -359,9 +359,9 @@ def harmonic_friction(pyom):
             raise NotImplementedError("scaling of lateral friction for vertical velocity not implemented")
 
         pyom.flux_east[:-1] = pyom.A_h * (pyom.w[1:,:,:,pyom.tau] - pyom.w[:-1,:,:,pyom.tau]) \
-                / (pyom.cost * pyom.dxu[:,None])[:,:,None] * pyom.maskW[1:] * pyom.maskW[:-1]
+                / (pyom.cost * pyom.dxu[:,np.newaxis])[:,:,np.newaxis] * pyom.maskW[1:] * pyom.maskW[:-1]
         pyom.flux_north[:,:-1] = pyom.A_h * (pyom.w[:,1:,:,pyom.tau] - pyom.w[:,:-1,:,pyom.tau]) \
-                / pyom.dyu[None,:-1,None] * pyom.maskW[:,1:] * pyom.maskW[:,:-1] * pyom.cosu[None,:-1,None]
+                / pyom.dyu[np.newaxis,:-1,np.newaxis] * pyom.maskW[:,1:] * pyom.maskW[:,:-1] * pyom.cosu[np.newaxis,:-1,np.newaxis]
         pyom.flux_east[-1,:,:] = 0.
         pyom.flux_north[:,-1,:] = 0.
 
@@ -369,9 +369,9 @@ def harmonic_friction(pyom):
         update tendency
         """
         pyom.dw_mix[2:-2,2:-2] += pyom.maskW[2:-2,2:-2]*((pyom.flux_east[2:-2,2:-2] - pyom.flux_east[1:-3,2:-2]) \
-                / (pyom.cost[2:-2] * pyom.dxt[2:-2,None])[:,:,None] \
+                / (pyom.cost[2:-2] * pyom.dxt[2:-2,np.newaxis])[:,:,np.newaxis] \
                 + (pyom.flux_north[2:-2,2:-2] - pyom.flux_north[2:-2,1:-3]) \
-                / (pyom.dyt[2:-2] * pyom.cost[2:-2])[None,:,None])
+                / (pyom.dyt[2:-2] * pyom.cost[2:-2])[np.newaxis,:,np.newaxis])
 
         """
         diagnose dissipation by lateral friction

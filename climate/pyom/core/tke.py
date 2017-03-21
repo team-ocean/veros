@@ -131,20 +131,20 @@ def integrate_tke(pyom):
     d_tri = np.zeros((pyom.nx,pyom.ny,pyom.nz))
     delta = np.zeros((pyom.nx,pyom.ny,pyom.nz))
 
-    delta[:,:,:-1] = pyom.dt_tke / pyom.dzt[None, None, 1:] * pyom.alpha_tke * 0.5 \
+    delta[:,:,:-1] = pyom.dt_tke / pyom.dzt[np.newaxis, np.newaxis, 1:] * pyom.alpha_tke * 0.5 \
                     * (pyom.kappaM[2:-2, 2:-2, :-1] + pyom.kappaM[2:-2, 2:-2, 1:])
 
-    a_tri[:,:,1:-1] = -delta[:,:,:-2] / pyom.dzw[None,None,1:-1]
+    a_tri[:,:,1:-1] = -delta[:,:,:-2] / pyom.dzw[np.newaxis,np.newaxis,1:-1]
     a_tri[:,:,-1] = -delta[:,:,-2] / (0.5 * pyom.dzw[-1])
 
-    b_tri[:,:,1:-1] = 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / pyom.dzw[None, None, 1:-1] \
+    b_tri[:,:,1:-1] = 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / pyom.dzw[np.newaxis, np.newaxis, 1:-1] \
                         + pyom.dt_tke * pyom.c_eps * pyom.sqrttke[2:-2, 2:-2, 1:-1] / pyom.mxl[2:-2, 2:-2, 1:-1]
     b_tri[:,:,-1] = 1 + delta[:,:,-2] / (0.5 * pyom.dzw[-1]) \
                         + pyom.dt_tke * pyom.c_eps / pyom.mxl[2:-2, 2:-2, -1] * pyom.sqrttke[2:-2, 2:-2, -1]
-    b_tri_edge = 1 + delta / pyom.dzw[None,None,:] \
+    b_tri_edge = 1 + delta / pyom.dzw[np.newaxis,np.newaxis,:] \
                         + pyom.dt_tke * pyom.c_eps / pyom.mxl[2:-2, 2:-2, :] * pyom.sqrttke[2:-2, 2:-2, :]
 
-    c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzw[None,None,:-1]
+    c_tri[:,:,:-1] = -delta[:,:,:-1] / pyom.dzw[np.newaxis,np.newaxis,:-1]
 
     d_tri[...] = pyom.tke[2:-2, 2:-2, :, pyom.tau] + pyom.dt_tke * forc[2:-2, 2:-2, :]
     d_tri[:,:,-1] += pyom.dt_tke * pyom.forc_tke_surface[2:-2, 2:-2] / (0.5 * pyom.dzw[-1])
@@ -170,16 +170,16 @@ def integrate_tke(pyom):
         add tendency due to lateral diffusion
         """
         pyom.flux_east[:-1, :, :] = pyom.K_h_tke * (pyom.tke[1:, :, :, pyom.tau] - pyom.tke[:-1, :, :, pyom.tau]) \
-                                    / (pyom.cost[None, :, None] * pyom.dxu[:-1, None, None]) * pyom.maskU[:-1, :, :]
+                                    / (pyom.cost[np.newaxis, :, np.newaxis] * pyom.dxu[:-1, np.newaxis, np.newaxis]) * pyom.maskU[:-1, :, :]
         pyom.flux_east[-5,:,:] = 0. # NOTE: probably a mistake in the fortran code, first index should be -1
         pyom.flux_north[:, :-1, :] = pyom.K_h_tke * (pyom.tke[:, 1:, :, pyom.tau] - pyom.tke[:, :-1, :, pyom.tau]) \
-                                     / pyom.dyu[None, :-1, None] * pyom.maskV[:, :-1, :] * pyom.cosu[None, :-1, None]
+                                     / pyom.dyu[np.newaxis, :-1, np.newaxis] * pyom.maskV[:, :-1, :] * pyom.cosu[np.newaxis, :-1, np.newaxis]
         pyom.flux_north[:,-1,:] = 0.
         pyom.tke[2:-2, 2:-2, :, pyom.taup1] += pyom.dt_tke * pyom.maskW[2:-2, 2:-2, :] * \
                                 ((pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
-                                   / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
+                                   / (pyom.cost[np.newaxis, 2:-2, np.newaxis] * pyom.dxt[2:-2, np.newaxis, np.newaxis]) \
                                 + (pyom.flux_north[2:-2, 2:-2, :] - pyom.flux_north[2:-2, 1:-3, :]) \
-                                   / (pyom.cost[None, 2:-2, None] * pyom.dyt[None, 2:-2, None]))
+                                   / (pyom.cost[np.newaxis, 2:-2, np.newaxis] * pyom.dyt[np.newaxis, 2:-2, np.newaxis]))
 
     """
     add tendency due to advection
@@ -190,9 +190,9 @@ def integrate_tke(pyom):
         advection.adv_flux_upwind_wgrid(pyom,pyom.flux_east,pyom.flux_north,pyom.flux_top,pyom.tke[:,:,:,pyom.tau])
     if pyom.enable_tke_superbee_advection or pyom.enable_tke_upwind_advection:
         pyom.dtke[2:-2, 2:-2, :, pyom.tau] = pyom.maskW[2:-2, 2:-2, :] * (-(pyom.flux_east[2:-2, 2:-2, :] - pyom.flux_east[1:-3, 2:-2, :]) \
-                                                                           / (pyom.cost[None, 2:-2, None] * pyom.dxt[2:-2, None, None]) \
+                                                                           / (pyom.cost[np.newaxis, 2:-2, np.newaxis] * pyom.dxt[2:-2, np.newaxis, np.newaxis]) \
                                                                          - (pyom.flux_north[2:-2, 2:-2, :] - pyom.flux_north[2:-2, 1:-3, :]) \
-                                                                           / (pyom.cost[None, 2:-2, None] * pyom.dyt[None, 2:-2, None]))
+                                                                           / (pyom.cost[np.newaxis, 2:-2, np.newaxis] * pyom.dyt[np.newaxis, 2:-2, np.newaxis]))
         pyom.dtke[:,:,0,pyom.tau] += -pyom.flux_top[:,:,0] / pyom.dzw[0]
         pyom.dtke[:,:,1:-1,pyom.tau] += -(pyom.flux_top[:,:,1:-1] - pyom.flux_top[:,:,:-2]) / pyom.dzw[1:-1]
         pyom.dtke[:,:,-1,pyom.tau] += -(pyom.flux_top[:,:,-1] - pyom.flux_top[:,:,-2]) / (0.5 * pyom.dzw[-1])

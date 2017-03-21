@@ -1,7 +1,7 @@
 import logging
 
-from ...output import netcdf_tools, netcdf_threading
-from ... import pyom_method
+from . import io_tools
+from .. import pyom_method
 
 @pyom_method
 def initialize(pyom):
@@ -10,11 +10,11 @@ def initialize(pyom):
     """
     filename = pyom.diagnostics["snapshot"].outfile.format(**vars(pyom))
     logging.info("Preparing file {}".format(filename))
-    with netcdf_threading.threaded_netcdf(pyom, filename, "w") as snap_dataset:
-        netcdf_tools.initialize_netcdf_file(pyom, snap_dataset)
+    with io_tools.threaded_io(pyom, filename, "w") as snap_dataset:
+        io_tools.initialize_file(pyom, snap_dataset)
         for key, var in pyom.variables.items():
             if var.output:
-                netcdf_tools.initialize_variable(pyom,key,var,snap_dataset)
+                io_tools.initialize_variable(pyom,key,var,snap_dataset)
 
 def diagnose(pyom):
     pass
@@ -28,9 +28,9 @@ def output(pyom):
     else:
         logging.info(" writing snapshot at {}d".format(time_in_days))
 
-    with netcdf_threading.threaded_netcdf(pyom, filename, "a") as snap_dataset:
+    with io_tools.threaded_io(pyom, filename, "a") as snap_dataset:
         snapshot_number = snap_dataset["Time"].size
         snap_dataset["Time"][snapshot_number] = time_in_days
         for key, var in pyom.variables.items():
             if var.output and var.time_dependent:
-                netcdf_tools.write_variable(pyom, key, var, snapshot_number, snap_dataset)
+                io_tools.write_variable(pyom, key, var, snapshot_number, snap_dataset)

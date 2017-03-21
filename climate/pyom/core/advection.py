@@ -28,15 +28,15 @@ def _adv_superbee(pyom, vel, var, mask, dx, axis):
     velfac = 1
     if axis == 0:
         sm1, s, sp1, sp2 = ((slice(1+n,-2+n or None),slice(2,-2),slice(None)) for n in range(-1,3))
-        dx = pyom.cost[None, 2:-2, None] * dx[1:-2, None, None]
+        dx = pyom.cost[np.newaxis, 2:-2, np.newaxis] * dx[1:-2, np.newaxis, np.newaxis]
     elif axis == 1:
         sm1, s, sp1, sp2 = ((slice(2,-2),slice(1+n,-2+n or None),slice(None)) for n in range(-1,3))
-        dx = (pyom.cost * dx)[None, 1:-2, None]
-        velfac = pyom.cosu[None, 1:-2, None]
+        dx = (pyom.cost * dx)[np.newaxis, 1:-2, np.newaxis]
+        velfac = pyom.cosu[np.newaxis, 1:-2, np.newaxis]
     elif axis == 2:
         vel, var, mask = (pad_z_edges(pyom, a) for a in (vel,var,mask))
         sm1, s, sp1, sp2 = ((slice(2,-2),slice(2,-2),slice(1+n,-2+n or None)) for n in range(-1,3))
-        dx = dx[None,None,:-1]
+        dx = dx[np.newaxis,np.newaxis,:-1]
     else:
         raise ValueError("axis must be 0, 1, or 2")
     uCFL = np.abs(velfac * vel[s] * pyom.dt_tracer / dx)
@@ -52,7 +52,7 @@ def adv_flux_2nd(pyom,adv_fe,adv_fn,adv_ft,var):
     2th order advective tracer flux
     """
     adv_fe[1:-2, 2:-2, :] = 0.5*(var[1:-2, 2:-2, :] + var[2:-1, 2:-2, :]) * pyom.u[1:-2, 2:-2, :, pyom.tau] * pyom.maskU[1:-2, 2:-2, :]
-    adv_fn[2:-2, 1:-2, :] = pyom.cosu[None,1:-2,None] * 0.5 * (var[2:-2, 1:-2, :] + var[2:-2, 2:-1, :]) \
+    adv_fn[2:-2, 1:-2, :] = pyom.cosu[np.newaxis,1:-2,np.newaxis] * 0.5 * (var[2:-2, 1:-2, :] + var[2:-2, 2:-1, :]) \
                     * pyom.v[2:-2, 1:-2, :, pyom.tau] * pyom.maskV[2:-2, 1:-2, :]
     adv_ft[2:-2, 2:-2, :-1] = 0.5 * (var[2:-2, 2:-2, :-1] + var[2:-2, 2:-2, 1:]) * pyom.w[2:-2, 2:-2, :-1, pyom.tau] * pyom.maskW[2:-2, 2:-2, :-1]
     adv_ft[:,:,-1] = 0.
@@ -86,10 +86,10 @@ def calculate_velocity_on_wgrid(pyom):
     if maskW has exactly one true value across each depth slice.
     """
     # lateral advection velocities on W grid
-    pyom.u_wgrid[:,:,:-1] = pyom.u[:,:,1:,pyom.tau] * pyom.maskU[:,:,1:] * 0.5 * pyom.dzt[None,None,1:] / pyom.dzw[None,None,:-1] \
-                          + pyom.u[:,:,:-1,pyom.tau] * pyom.maskU[:,:,:-1] * 0.5 * pyom.dzt[None,None,:-1] / pyom.dzw[None,None,:-1]
-    pyom.v_wgrid[:,:,:-1] = pyom.v[:,:,1:,pyom.tau] * pyom.maskV[:,:,1:] * 0.5 * pyom.dzt[None,None,1:] / pyom.dzw[None,None,:-1] \
-                          + pyom.v[:,:,:-1,pyom.tau] * pyom.maskV[:,:,:-1] * 0.5 * pyom.dzt[None,None,:-1] / pyom.dzw[None,None,:-1]
+    pyom.u_wgrid[:,:,:-1] = pyom.u[:,:,1:,pyom.tau] * pyom.maskU[:,:,1:] * 0.5 * pyom.dzt[np.newaxis,np.newaxis,1:] / pyom.dzw[np.newaxis,np.newaxis,:-1] \
+                          + pyom.u[:,:,:-1,pyom.tau] * pyom.maskU[:,:,:-1] * 0.5 * pyom.dzt[np.newaxis,np.newaxis,:-1] / pyom.dzw[np.newaxis,np.newaxis,:-1]
+    pyom.v_wgrid[:,:,:-1] = pyom.v[:,:,1:,pyom.tau] * pyom.maskV[:,:,1:] * 0.5 * pyom.dzt[np.newaxis,np.newaxis,1:] / pyom.dzw[np.newaxis,np.newaxis,:-1] \
+                          + pyom.v[:,:,:-1,pyom.tau] * pyom.maskV[:,:,:-1] * 0.5 * pyom.dzt[np.newaxis,np.newaxis,:-1] / pyom.dzw[np.newaxis,np.newaxis,:-1]
     pyom.u_wgrid[:,:,-1] = pyom.u[:,:,-1,pyom.tau] * pyom.maskU[:,:,-1] * 0.5 * pyom.dzt[-1:] / pyom.dzw[-1:]
     pyom.v_wgrid[:,:,-1] = pyom.v[:,:,-1,pyom.tau] * pyom.maskV[:,:,-1] * 0.5 * pyom.dzt[-1:] / pyom.dzw[-1:]
 
@@ -97,18 +97,18 @@ def calculate_velocity_on_wgrid(pyom):
     pyom.u_wgrid[:,:,0] = pyom.u_wgrid[:,:,0] + pyom.u[:,:,0,pyom.tau] * pyom.maskU[:,:,0] * 0.5 * pyom.dzt[0:1] / pyom.dzw[0:1]
     pyom.v_wgrid[:,:,0] = pyom.v_wgrid[:,:,0] + pyom.v[:,:,0,pyom.tau] * pyom.maskV[:,:,0] * 0.5 * pyom.dzt[0:1] / pyom.dzw[0:1]
     mask = pyom.maskW[:-1, :, :-1] * pyom.maskW[1:, :, :-1]
-    pyom.u_wgrid[:-1, :, 1:] += (pyom.u_wgrid[:-1, :, :-1] * pyom.dzw[None, None, :-1] / pyom.dzw[None, None, 1:]) * (1.-mask)
+    pyom.u_wgrid[:-1, :, 1:] += (pyom.u_wgrid[:-1, :, :-1] * pyom.dzw[np.newaxis, np.newaxis, :-1] / pyom.dzw[np.newaxis, np.newaxis, 1:]) * (1.-mask)
     pyom.u_wgrid[:-1, :, :-1] *= mask
     mask = pyom.maskW[:, :-1, :-1] * pyom.maskW[:, 1:, :-1]
-    pyom.v_wgrid[:, :-1, 1:] += (pyom.v_wgrid[:, :-1, :-1] * pyom.dzw[None, None, :-1] / pyom.dzw[None, None, 1:]) * (1.-mask)
+    pyom.v_wgrid[:, :-1, 1:] += (pyom.v_wgrid[:, :-1, :-1] * pyom.dzw[np.newaxis, np.newaxis, :-1] / pyom.dzw[np.newaxis, np.newaxis, 1:]) * (1.-mask)
     pyom.v_wgrid[:, :-1, :-1] *= mask
 
     # vertical advection velocity on W grid from continuity
     pyom.w_wgrid[:, :, 0] = 0.
-    pyom.w_wgrid[1:, 1:, :] = np.cumsum(-pyom.dzw[None, None, :] * \
-                              ((pyom.u_wgrid[1:, 1:, :] - pyom.u_wgrid[:-1, 1:, :]) / (pyom.cost[None, 1:, None] * pyom.dxt[1:, None, None]) \
-                               + (pyom.cosu[None, 1:, None] * pyom.v_wgrid[1:, 1:, :] - pyom.cosu[None, :-1, None] * pyom.v_wgrid[1:, :-1, :]) \
-                                     / (pyom.cost[None, 1:, None] * pyom.dyt[None, 1:, None])), axis=2)
+    pyom.w_wgrid[1:, 1:, :] = np.cumsum(-pyom.dzw[np.newaxis, np.newaxis, :] * \
+                              ((pyom.u_wgrid[1:, 1:, :] - pyom.u_wgrid[:-1, 1:, :]) / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dxt[1:, np.newaxis, np.newaxis]) \
+                               + (pyom.cosu[np.newaxis, 1:, np.newaxis] * pyom.v_wgrid[1:, 1:, :] - pyom.cosu[np.newaxis, :-1, np.newaxis] * pyom.v_wgrid[1:, :-1, :]) \
+                                     / (pyom.cost[np.newaxis, 1:, np.newaxis] * pyom.dyt[np.newaxis, 1:, np.newaxis])), axis=2)
 
 
 @pyom_method
@@ -142,9 +142,9 @@ def adv_flux_upwind_wgrid(pyom,adv_fe,adv_fn,adv_ft,var):
 
     maskVtr = pyom.maskW[2:-2, 2:-1, :] * pyom.maskW[2:-2, 1:-2, :]
     rj = (var[2:-2, 2:-1, :] - var[2:-2, 1:-2, :]) * maskVtr
-    adv_fn[2:-2, 1:-2, :] = pyom.cosu[None, 1:-2, None] * pyom.v_wgrid[2:-2, 1:-2, :] * \
+    adv_fn[2:-2, 1:-2, :] = pyom.cosu[np.newaxis, 1:-2, np.newaxis] * pyom.v_wgrid[2:-2, 1:-2, :] * \
                             (var[2:-2, 2:-1, :] + var[2:-2, 1:-2, :]) * 0.5 \
-                            - np.abs(pyom.cosu[None, 1:-2, None] * pyom.v_wgrid[2:-2, 1:-2, :]) * rj * 0.5
+                            - np.abs(pyom.cosu[np.newaxis, 1:-2, np.newaxis] * pyom.v_wgrid[2:-2, 1:-2, :]) * rj * 0.5
 
     maskWtr = pyom.maskW[2:-2, 2:-2, 1:] * pyom.maskW[2:-2, 2:-2, :-1]
     rj = (var[2:-2, 2:-2, 1:] - var[2:-2, 2:-2, :-1]) * maskWtr

@@ -1,7 +1,6 @@
 import logging
 
-from .core import diagnostics
-from . import pyom_method
+from . import pyom_method, diagnostics_tools
 
 @pyom_method
 def init_diagnostics(pyom):
@@ -12,7 +11,7 @@ def init_diagnostics(pyom):
     for name, diag in pyom.diagnostics.items():
         if diag.is_active():
             try:
-                diag_routine = getattr(diagnostics, name)
+                diag_routine = getattr(diagnostics_tools, name)
             except AttributeError:
                 raise AttributeError("unknown diagnostic {}".format(name))
             if diag.sampling_frequency:
@@ -35,7 +34,7 @@ def diagnose(pyom):
     time = pyom.itt * pyom.dt_tracer
     for name, diag in pyom.diagnostics.items():
         try:
-            diag_routine = getattr(diagnostics, name)
+            diag_routine = getattr(diagnostics_tools, name)
         except AttributeError:
             raise AttributeError("unknown diagnostic '{}'".format(name))
         if diag.sampling_frequency and time % diag.sampling_frequency < pyom.dt_tracer:
@@ -52,6 +51,6 @@ def sanity_check(pyom):
 def panic_output(pyom):
     logging.error("Writing snapshot before panic shutdown")
     if not pyom.diagnostics["snapshot"].is_active():
-        diagnostics.snapshot.initialize(pyom)
-    diagnostics.snapshot.diagnose(pyom)
-    diagnostics.snapshot.output(pyom)
+        diagnostics_tools.snapshot.initialize(pyom)
+    diagnostics_tools.snapshot.diagnose(pyom)
+    diagnostics_tools.snapshot.output(pyom)
