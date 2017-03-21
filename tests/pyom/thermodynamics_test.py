@@ -7,6 +7,7 @@ from test_base import PyOMTest
 from climate.pyom.core import thermodynamics
 
 class ThermodynamicsTest(PyOMTest):
+    nx, ny, nz = 70, 60, 50
     extra_settings = {
                         "enable_cyclic_x": True,
                         "enable_conserve_energy": True,
@@ -70,45 +71,12 @@ class ThermodynamicsTest(PyOMTest):
                   "dtemp","dsalt","P_diss_iso","Hd","dHd","Nsqr","P_diss_adv",
                   "dtemp_iso", "dsalt_iso","dtemp_vmix","dsalt_vmix","forc_rho_surface",
                   "P_diss_v","P_diss_nonlin","int_drhodT","int_drhodS","rho"):
-            passed = self._check_var(f)
+            passed = self.check_variable(f)
             if not passed:
                 all_passed = False
         plt.show()
         return all_passed
 
-    def _normalize(self,*arrays):
-        norm = np.abs(arrays[0]).max()
-        if norm == 0.:
-            return arrays
-        return (a / norm for a in arrays)
-
-    def _check_var(self,var):
-        v1, v2 = self.get_attribute(var)
-        if v1.ndim > 1:
-            v1 = v1[2:-2, 2:-2, ...]
-        if v2.ndim > 1:
-            v2 = v2[2:-2, 2:-2, ...]
-        if v1 is None or v2 is None:
-            raise RuntimeError(var)
-        passed = np.allclose(*self._normalize(v1,v2))
-        if not passed:
-            print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
-            while v1.ndim > 2:
-                v1 = v1[...,-1]
-            while v2.ndim > 2:
-                v2 = v2[...,-1]
-            if v1.ndim == 2:
-                fig, axes = plt.subplots(1,3)
-                axes[0].imshow(v1)
-                axes[0].set_title("New")
-                axes[1].imshow(v2)
-                axes[1].set_title("Legacy")
-                axes[2].imshow(v1 - v2)
-                axes[2].set_title("diff")
-                fig.suptitle(var)
-        return passed
-
 if __name__ == "__main__":
-    test = ThermodynamicsTest(70, 60, 50, fortran=sys.argv[1])
-    passed = test.run()
+    passed = ThermodynamicsTest().run()
     sys.exit(int(not passed))

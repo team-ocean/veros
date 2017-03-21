@@ -18,22 +18,26 @@ class PyOMTest(object):
     extra_settings = None
     test_module = None
     test_routines = None
-    repetitions = 1
 
-
-    def __init__(self, nx, ny, nz, fortran):
+    def __init__(self, dims=None, fortran=None):
         self.pyom_new = PyOMLegacy()
+        if not fortran:
+            try:
+                fortran = sys.argv[1]
+            except IndexError:
+                raise RuntimeError("Path to fortran library must be given via keyword argument or command line")
         self.pyom_legacy = PyOMLegacy(fortran=fortran)
 
-        self.nx, self.ny, self.nz = nx, ny, nz
-        self.set_attribute("nx", nx)
-        self.set_attribute("ny", ny)
-        self.set_attribute("nz", nz)
+        if dims:
+            self.nx, self.ny, self.nz = dims
+        self.set_attribute("nx", self.nx)
+        self.set_attribute("ny", self.ny)
+        self.set_attribute("nz", self.nz)
         if self.extra_settings:
             for attribute, value in self.extra_settings.items():
                 self.set_attribute(attribute, value)
         self.pyom_new.set_legacy_parameter()
-        self.pyom_new.allocate()
+        self.pyom_new._allocate()
         self.pyom_legacy.fortran.my_mpi_init(0)
         self.pyom_legacy.fortran.pe_decomposition()
         self.pyom_legacy.set_legacy_parameter()
@@ -120,6 +124,42 @@ class PyOMTest(object):
         raise NotImplementedError("Must be implemented by test subclass")
 
 
+    def _normalize(self,*arrays):
+        if any(a.size == 0 for a in arrays):
+            return arrays
+        norm = np.abs(arrays[0]).max()
+        if norm == 0.:
+            return arrays
+        return (a / norm for a in arrays)
+
+
+    def check_variable(self, var, atol=1e-8):
+        v1, v2 = self.get_attribute(var)
+        if v1 is None or v2 is None:
+            print("Variable {} is None".format(var))
+            return False
+        if v1.ndim > 1:
+            v1 = v1[2:-2, 2:-2, ...]
+        if v2.ndim > 1:
+            v2 = v2[2:-2, 2:-2, ...]
+        passed = np.allclose(*self._normalize(v1,v2), atol=atol)
+        if not passed:
+            print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
+            while v1.ndim > 2:
+                v1 = v1[...,-1]
+            while v2.ndim > 2:
+                v2 = v2[...,-1]
+            if v1.ndim == 2:
+                fig, axes = plt.subplots(1,3)
+                axes[0].imshow(v1)
+                axes[0].set_title("New")
+                axes[1].imshow(v2)
+                axes[1].set_title("Legacy")
+                axes[2].imshow(v1 - v2)
+                axes[2].set_title("diff")
+                fig.suptitle(var)
+        return passed
+
     def run(self):
         self.initialize()
         flush()
@@ -139,13 +179,10 @@ class PyOMTest(object):
             pyom_routine, pyom_legacy_routine = self.get_routine(routine,self.test_module)
             pyom_args, pyom_legacy_args = self.test_routines[routine]
             with pyom_timers[routine]:
-                for _ in range(self.repetitions):
-                    pyom_routine(*pyom_args)
-                    flush()
+                pyom_routine(*pyom_args)
             pyom_timers[routine].printTime()
             with pyom_legacy_timers[routine]:
-                for _ in range(self.repetitions):
-                    pyom_legacy_routine(**pyom_legacy_args)
+                pyom_legacy_routine(**pyom_legacy_args)
             pyom_legacy_timers[routine].printTime()
             passed = self.test_passed(routine)
             flush()

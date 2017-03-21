@@ -7,7 +7,7 @@ from test_base import PyOMTest
 from climate.pyom.core import idemix
 
 class IdemixTest(PyOMTest):
-    repetitions = 1
+    nx, ny, nz = 70, 60, 50
     extra_settings = {
                       "enable_idemix": True,
                       "enable_idemix_hor_diffusion": True,
@@ -69,50 +69,17 @@ class IdemixTest(PyOMTest):
         all_passed = True
         if routine == "set_idemix_parameter":
             for v in ("c0", "v0", "alpha_c",):
-                passed = self._check_var(v)
+                passed = self.check_variable(v)
                 if not passed:
                     all_passed = False
         elif routine == "integrate_idemix":
             for v in ("E_iw", "dE_iw", "iw_diss", "flux_east", "flux_north", "flux_top",):
-                passed = self._check_var(v)
+                passed = self.check_variable(v)
                 if not passed:
                     all_passed = False
         plt.show()
         return all_passed
 
-    def _normalize(self,*arrays):
-        norm = np.abs(arrays[0]).max()
-        if norm == 0.:
-            return arrays
-        return (a / norm for a in arrays)
-
-    def _check_var(self,var):
-        v1, v2 = self.get_attribute(var)
-        if v1.ndim > 1:
-            v1 = v1[2:-2, 2:-2, ...]
-        if v2.ndim > 1:
-            v2 = v2[2:-2, 2:-2, ...]
-        if v1 is None or v2 is None:
-            raise RuntimeError(var)
-        passed = np.allclose(*self._normalize(v1,v2))
-        if not passed:
-            print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
-            while v1.ndim > 2:
-                v1 = v1[...,-1]
-            while v2.ndim > 2:
-                v2 = v2[...,-1]
-            if v1.ndim == 2:
-                fig, axes = plt.subplots(1,3)
-                axes[0].imshow(v1)
-                axes[0].set_title("New")
-                axes[1].imshow(v2)
-                axes[1].set_title("Legacy")
-                axes[2].imshow(v1 - v2)
-                axes[2].set_title("diff")
-                fig.suptitle(var)
-        return passed
-
 if __name__ == "__main__":
-    test = IdemixTest(150, 120, 50, fortran=sys.argv[1])
-    passed = test.run()
+    passed = IdemixTest().run()
     sys.exit(int(not passed))

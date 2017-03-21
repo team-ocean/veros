@@ -5,6 +5,7 @@ from test_base import PyOMTest
 from climate.pyom.core import numerics
 
 class TridiagTest(PyOMTest):
+    nx, ny, nz = 100, 100, 200
     def initialize(self):
         pass
 
@@ -18,6 +19,5 @@ class TridiagTest(PyOMTest):
             return True
 
 if __name__ == "__main__":
-    test = TridiagTest(100, 100, 200, fortran=sys.argv[1])
-    passed = test.run()
+    passed = TridiagTest().run()
     sys.exit(int(not passed))
