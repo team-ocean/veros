@@ -171,12 +171,14 @@ class PyOM(object):
     def set_topography(self):
         """To be implemented by subclass.
 
-        May be used to set initial conditions.
+        Must specify the model topography by setting :attr:`kbot`.
 
         Example:
           >>> @pyom_method
-          >>> def set_initial_conditions(self):
-          >>>     self.u[:, :, :, self.tau] = np.random.rand(self.u.shape[:-1])
+          >>> def set_topography(self):
+          >>>     self.kbot[:, :] = 10
+          >>>     # add a rectangular island somewhere inside the domain
+          >>>     self.kbot[10:20, 10:20] = 0
         """
         self._not_implemented()
 
