@@ -27,7 +27,8 @@ The model grid
 
 .. figure:: c-grid.svg
    :width: 100%
-   :caption: The structure of the Arakawa C-grid.
+   
+   The structure of the Arakawa C-grid.
 
 Available parameterizations
 +++++++++++++++++++++++++++
