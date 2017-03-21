@@ -1,6 +1,14 @@
 Model variables
 ---------------
 
+Variable base class
++++++++++++++++++++
+
+.. autoclass:: climate.pyom.variables.Variable
+
+Available variables
++++++++++++++++++++
+
 .. _flag_legend:
 
 Attributes:
@@ -18,7 +26,7 @@ Attributes:
               print("=====================")
               first_condition = False
           print(condition)
-          print(len(condition) * "+")
+          print(len(condition) * "#")
       else:
           print("Main variables")
           print("==============")

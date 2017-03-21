@@ -39,6 +39,7 @@ import sphinx_fontawesome
 extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.coverage',
+    'sphinx.ext.viewcode',
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
     'sphinx_fontawesome']

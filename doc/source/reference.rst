@@ -9,3 +9,4 @@ Reference
    reference/diagnostics
    reference/api-setup
    reference/api-pyom
+   reference/api-core

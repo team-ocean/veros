@@ -1,0 +1,517 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="150.14259mm"
+   height="93.772179mm"
+   viewBox="0 0 532.00132 332.26362"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="c-grid.svg">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1.4142136"
+     inkscape:cx="260.35979"
+     inkscape:cy="213.57768"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:object-paths="true"
+     inkscape:snap-midpoints="true"
+     inkscape:object-nodes="true"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:window-width="1855"
+     inkscape:window-height="1056"
+     inkscape:window-x="65"
+     inkscape:window-y="24"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-74.562695,-111.30005)">
+    <rect
+       style="fill:#ff0000;fill-opacity:0.47058824;stroke:#000000;stroke-width:0.96899998;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       y="202.84666"
+       x="340.49976"
+       height="149.03107"
+       width="249.01579"
+       id="rect4140" />
+    <rect
+       style="fill:#ff0000;fill-opacity:0.47058824;stroke:#000000;stroke-width:0.96899998;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       y="202.84666"
+       x="90.484467"
+       height="149.03107"
+       width="249.01579"
+       id="rect4142" />
+    <rect
+       style="fill:#00d4d4;fill-opacity:0.29949239;stroke:#000000;stroke-width:0.96899998;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       y="127.84667"
+       x="215.48447"
+       height="149.03105"
+       width="249.03104"
+       id="rect4144" />
+    <rect
+       style="fill:#00d4d4;fill-opacity:0.29949239;stroke:#000000;stroke-width:0.96899998;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       y="277.84668"
+       x="215.48447"
+       height="149.03105"
+       width="249.03104"
+       id="rect4146" />
+    <rect
+       id="rect3336"
+       width="249.03104"
+       height="149.03105"
+       x="215.48447"
+       y="202.84668"
+       style="fill:#000000;fill-opacity:0.47058824;stroke:#000000;stroke-width:0.96895576;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+    <g
+       id="g5910"
+       transform="translate(-0.39762462,0)">
+      <circle
+         r="15.931925"
+         cy="426.83127"
+         cx="216.70949"
+         id="circle4152"
+         style="fill:#ff7171;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text4162"
+         y="435.2572"
+         x="208.4258"
+         style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         xml:space="preserve"><tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#000000;fill-opacity:1"
+           y="435.2572"
+           x="208.4258"
+           id="tspan4164"
+           sodipodi:role="line">U</tspan></text>
+    </g>
+    <circle
+       r="15.931925"
+       cy="202.59312"
+       cx="339.58734"
+       id="circle4150"
+       style="fill:#b7f1f1;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="332.49533"
+       y="211.5118"
+       id="text4174"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4176"
+         x="332.49533"
+         y="211.5118"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans'">V</tspan></text>
+    <circle
+       cy="277.06342"
+       cx="589.8316"
+       id="circle4154"
+       style="fill:#616161;fill-opacity:1;stroke:#000000;stroke-width:1.60098124;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       r="15.931925" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="582.78015"
+       y="286.91803"
+       id="text4158"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4160"
+         x="582.78015"
+         y="286.91803"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:27.1901741px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#ffffff;fill-opacity:1">T</tspan></text>
+    <circle
+       r="15.931925"
+       style="fill:#616161;fill-opacity:1;stroke:#000000;stroke-width:1.60098124;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="circle4185"
+       cx="339.58734"
+       cy="128.03247" />
+    <text
+       sodipodi:linespacing="125%"
+       id="text4187"
+       y="137.88707"
+       x="332.53586"
+       style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:27.1901741px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#ffffff;fill-opacity:1"
+         y="137.88707"
+         x="332.53586"
+         id="tspan4189"
+         sodipodi:role="line">T</tspan></text>
+    <circle
+       cy="426.83127"
+       cx="339.58734"
+       id="circle4193"
+       style="fill:#616161;fill-opacity:1;stroke:#000000;stroke-width:1.60098124;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       r="15.931925" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="332.53586"
+       y="436.68585"
+       id="text4195"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4197"
+         x="332.53586"
+         y="436.68585"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:27.1901741px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#ffffff;fill-opacity:1">T</tspan></text>
+    <g
+       id="g5915"
+       transform="translate(0.49369,0)">
+      <circle
+         style="fill:#ff7171;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         id="circle4222"
+         cx="463.12134"
+         cy="277.06342"
+         r="15.931925" />
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         x="454.83765"
+         y="285.48938"
+         id="text4224"
+         sodipodi:linespacing="125%"><tspan
+           sodipodi:role="line"
+           id="tspan4226"
+           x="454.83765"
+           y="285.48938"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#000000;fill-opacity:1">U</tspan></text>
+    </g>
+    <circle
+       r="15.931925"
+       style="fill:#616161;fill-opacity:1;stroke:#000000;stroke-width:1.60098124;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="circle4230"
+       cx="91.295113"
+       cy="277.06342" />
+    <text
+       sodipodi:linespacing="125%"
+       id="text4232"
+       y="286.91803"
+       x="84.243629"
+       style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:27.1901741px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#ffffff;fill-opacity:1"
+         y="286.91803"
+         x="84.243629"
+         id="tspan4234"
+         sodipodi:role="line">T</tspan></text>
+    <circle
+       cy="277.06342"
+       cx="339.58734"
+       id="circle4238"
+       style="fill:#616161;fill-opacity:1;stroke:#000000;stroke-width:1.60098124;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       r="15.931925" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="332.53586"
+       y="286.91803"
+       id="text4240"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4242"
+         x="332.53586"
+         y="286.91803"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:27.1901741px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#ffffff;fill-opacity:1">T</tspan></text>
+    <g
+       id="g5900"
+       transform="translate(-0.39762462,0)">
+      <circle
+         style="fill:#ff7171;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         id="circle4262"
+         cx="216.70949"
+         cy="128.03247"
+         r="15.931925" />
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         x="208.4258"
+         y="136.45842"
+         id="text4264"
+         sodipodi:linespacing="125%"><tspan
+           sodipodi:role="line"
+           id="tspan4266"
+           x="208.4258"
+           y="136.45842"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#000000;fill-opacity:1">U</tspan></text>
+    </g>
+    <g
+       id="g5855"
+       transform="translate(0.49369,0)">
+      <circle
+         r="15.931925"
+         cy="128.03247"
+         cx="463.12134"
+         id="circle4270"
+         style="fill:#ff7171;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text4272"
+         y="136.45842"
+         x="454.83765"
+         style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.59764236;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         xml:space="preserve"><tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#000000;fill-opacity:1;stroke-width:0.59764236;stroke-miterlimit:4;stroke-dasharray:none"
+           y="136.45842"
+           x="454.83765"
+           id="tspan4274"
+           sodipodi:role="line">U</tspan></text>
+    </g>
+    <g
+       id="g5920"
+       transform="translate(0.49369,0)">
+      <circle
+         style="fill:#ff7171;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         id="circle4278"
+         cx="463.12134"
+         cy="426.83127"
+         r="15.931925" />
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         x="454.83765"
+         y="435.2572"
+         id="text4280"
+         sodipodi:linespacing="125%"><tspan
+           sodipodi:role="line"
+           id="tspan4282"
+           x="454.83765"
+           y="435.2572"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#000000;fill-opacity:1">U</tspan></text>
+    </g>
+    <g
+       id="g5905"
+       transform="translate(-0.39762462,0)">
+      <circle
+         r="15.931925"
+         cy="277.06342"
+         cx="216.70949"
+         id="circle4286"
+         style="fill:#ff7171;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text4288"
+         y="285.48938"
+         x="208.4258"
+         style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         xml:space="preserve"><tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#000000;fill-opacity:1"
+           y="285.48938"
+           x="208.4258"
+           id="tspan4290"
+           sodipodi:role="line">U</tspan></text>
+    </g>
+    <circle
+       style="fill:#b7f1f1;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="circle4299"
+       cx="589.8316"
+       cy="351.04568"
+       r="15.931925" />
+    <text
+       sodipodi:linespacing="125%"
+       id="text4301"
+       y="359.96436"
+       x="582.73956"
+       style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans'"
+         y="359.96436"
+         x="582.73956"
+         id="tspan4303"
+         sodipodi:role="line">V</tspan></text>
+    <circle
+       r="15.931925"
+       cy="351.04568"
+       cx="91.295113"
+       id="circle4307"
+       style="fill:#b7f1f1;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="84.203087"
+       y="359.96436"
+       id="text4309"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4311"
+         x="84.203087"
+         y="359.96436"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans'">V</tspan></text>
+    <circle
+       style="fill:#b7f1f1;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="circle4315"
+       cx="91.295113"
+       cy="202.59312"
+       r="15.931925" />
+    <text
+       sodipodi:linespacing="125%"
+       id="text4317"
+       y="211.5118"
+       x="84.203087"
+       style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans'"
+         y="211.5118"
+         x="84.203087"
+         id="tspan4319"
+         sodipodi:role="line">V</tspan></text>
+    <circle
+       r="15.931925"
+       cy="202.59312"
+       cx="589.8316"
+       id="circle4323"
+       style="fill:#b7f1f1;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="582.73956"
+       y="211.5118"
+       id="text4325"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4327"
+         x="582.73956"
+         y="211.5118"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans'">V</tspan></text>
+    <circle
+       style="fill:#b7f1f1;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="circle4331"
+       cx="339.58734"
+       cy="351.04568"
+       r="15.931925" />
+    <text
+       sodipodi:linespacing="125%"
+       id="text4333"
+       y="359.96436"
+       x="332.49533"
+       style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans'"
+         y="359.96436"
+         x="332.49533"
+         id="tspan4335"
+         sodipodi:role="line">V</tspan></text>
+    <g
+       id="g5871"
+       transform="translate(-0.30947459,1.0606601)">
+      <circle
+         style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         id="circle5862"
+         cx="216.62134"
+         cy="201.53247"
+         r="15.931925" />
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.59764236;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         x="210.51442"
+         y="207.66032"
+         id="text5864"
+         sodipodi:linespacing="125%"><tspan
+           sodipodi:role="line"
+           id="tspan5866"
+           x="210.51442"
+           y="207.66032"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#000000;fill-opacity:1;stroke-width:0.59764236;stroke-miterlimit:4;stroke-dasharray:none">ζ</tspan></text>
+    </g>
+    <g
+       id="g5876"
+       transform="translate(246.99369,1.0606601)">
+      <circle
+         r="15.931925"
+         cy="201.53247"
+         cx="216.62134"
+         id="circle5878"
+         style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text5880"
+         y="207.66032"
+         x="210.51442"
+         style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.59764236;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         xml:space="preserve"><tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#000000;fill-opacity:1;stroke-width:0.59764236;stroke-miterlimit:4;stroke-dasharray:none"
+           y="207.66032"
+           x="210.51442"
+           id="tspan5882"
+           sodipodi:role="line">ζ</tspan></text>
+    </g>
+    <g
+       transform="translate(246.99369,149.51321)"
+       id="g5884">
+      <circle
+         style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         id="circle5886"
+         cx="216.62134"
+         cy="201.53247"
+         r="15.931925" />
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.59764236;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         x="210.51442"
+         y="207.66032"
+         id="text5888"
+         sodipodi:linespacing="125%"><tspan
+           sodipodi:role="line"
+           id="tspan5890"
+           x="210.51442"
+           y="207.66032"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#000000;fill-opacity:1;stroke-width:0.59764236;stroke-miterlimit:4;stroke-dasharray:none">ζ</tspan></text>
+    </g>
+    <g
+       id="g5892"
+       transform="translate(-0.30947459,149.51321)">
+      <circle
+         r="15.931925"
+         cy="201.53247"
+         cx="216.62134"
+         id="circle5894"
+         style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text5896"
+         y="207.66032"
+         x="210.51442"
+         style="font-style:normal;font-weight:normal;font-size:18.82396698px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.59764236;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         xml:space="preserve"><tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.09862328px;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';fill:#000000;fill-opacity:1;stroke-width:0.59764236;stroke-miterlimit:4;stroke-dasharray:none"
+           y="207.66032"
+           x="210.51442"
+           id="tspan5898"
+           sodipodi:role="line">ζ</tspan></text>
+    </g>
+  </g>
+</svg>

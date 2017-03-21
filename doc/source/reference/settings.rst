@@ -1,6 +1,8 @@
 Available settings
 ------------------
 
+The default settings are handled differently from variables and diagnostics.
+
 .. exec::
   from climate.pyom.settings import SETTINGS
   #headings = ["Setting", "Default value", "Description"]
@@ -13,4 +15,3 @@ Available settings
       print("")
       print("   {}".format(sett.description))
       print("")
-      #print('   "{}", "{}", "{}"'.format(key, sett.default, sett.description))
