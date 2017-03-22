@@ -149,7 +149,7 @@ def check_isoneutral_slope_crit(pyom):
         ft1 = 1.0 / (4.0 * pyom.K_iso_0 * pyom.dt_tracer + epsln)
         delta1a = np.min(pyom.dxt[2:-2, np.newaxis, np.newaxis] * np.abs(pyom.cost[np.newaxis, 2:-2, np.newaxis]) * pyom.dzt[np.newaxis, np.newaxis, :] * ft1)
         delta1b = np.min(pyom.dyt[np.newaxis, 2:-2, np.newaxis] * pyom.dzt[np.newaxis, np.newaxis, :] * ft1)
-        delta_iso1 = min(pyom.dzt[0] * ft1 * pyom.dxt[-1] * np.abs(pyom.cost[-1]), delta1a, delta1b)
+        delta_iso1 = np.minimum(pyom.dzt[0] * ft1 * pyom.dxt[-1] * np.abs(pyom.cost[-1]), np.minimum(delta1a, delta1b))
 
         print("diffusion grid factor delta_iso1 = {}".format(delta_iso1))
         if delta_iso1 < pyom.iso_slopec:
