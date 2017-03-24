@@ -17,11 +17,12 @@ class NorthAtlantic(PyOM):
     def set_parameter(self):
         """set main parameter
         """
-        self.nx, self.ny, self.nz = (250,200,45)
+        self.nx, self.ny, self.nz = 250, 200, 50
         self.x_origin = -98.
-        self.y_origin = -20.
+        self.y_origin = -19.5
         self._x_boundary = 17.2
-        self._y_boundary = 72.6
+        self._y_boundary = 72.
+        self._max_depth = 5800.
 
         self.dt_mom = 3600.0 / 4.
         self.dt_tracer = 3600.0 / 4.
@@ -63,13 +64,23 @@ class NorthAtlantic(PyOM):
 
         self.eq_of_state_type = 5
 
+    def _gaussian(self, x, mu, sig):
+        return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+
+    def _normalize_sum(self, var, sum_value, minimum_value=0.):
+        var[0] = 0.
+        var *= (sum_value - len(var) * minimum_value) / var.sum()
+        return var + minimum_value
+
     def set_grid(self):
-        with Dataset("forcing.cdf", "r") as forcing_file:
-            self.dxt[2:-2] = (self._x_boundary - self.x_origin) / self.nx
-            self.dyt[2:-2] = (self._y_boundary - self.y_origin) / self.ny
-            self.dzt[...] = forcing_file.variables["dzt"][::-1] / 100.0
+        self.dxt[2:-2] = (self._x_boundary - self.x_origin) / self.nx
+        self.dyt[2:-2] = (self._y_boundary - self.y_origin) / self.ny
+        ddzt = self._gaussian(np.arange(self.nz), 0.5 * self.nz, 0.125 * self.nz)
+        print( self._normalize_sum(np.cumsum(ddzt), self._max_depth, 10.)[::-1])
+        self.dzt[...] = self._normalize_sum(np.cumsum(ddzt), self._max_depth, 10.)[::-1]
 
     def set_coriolis(self):
+        print(self.zt)
         self.coriolis_t[:,:] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
     def _interpolate(self, coords, var, grid=None, missing_value=-1e20, method="linear"):
@@ -80,7 +91,7 @@ class NorthAtlantic(PyOM):
                  interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], self.zt, indexing="ij")
         else:
             interp_coords = np.meshgrid(*grid, indexing="ij")
-        interp_coords = np.rollaxis(np.asarray(interp_coords),0,len(coords)+1)
+        interp_coords = np.rollaxis(np.asarray(interp_coords), 0, len(coords)+1)
 
         var = np.array(var)
         invalid_mask = var == missing_value
@@ -91,7 +102,8 @@ class NorthAtlantic(PyOM):
         mask = np.isnan(interp_values)
         if np.any(mask):
             ccoords = np.meshgrid(*coords, indexing="ij")
-            interp_values[mask] = scipy.interpolate.griddata(tuple(c[~invalid_mask] for c in ccoords), var[~invalid_mask], interp_coords,
+            interp_values[mask] = scipy.interpolate.griddata(tuple(c[~invalid_mask] for c in ccoords),
+                                                             var[~invalid_mask], interp_coords,
                                                              method="nearest")[mask]
         return interp_values
 
@@ -105,7 +117,8 @@ class NorthAtlantic(PyOM):
         interp_coords = np.rollaxis(np.asarray(interp_coords),0,3)
         z_interp = scipy.interpolate.interpn((topo_x, topo_y), topo_bottom_depth, interp_coords,
                                               method="nearest", bounds_error=False, fill_value=0)
-        self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - self.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
+        self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] \
+                                                     - self.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
         self.kbot *= self.kbot < self.nz
 
     def set_initial_conditions(self):
@@ -123,8 +136,10 @@ class NorthAtlantic(PyOM):
             forc_u_coords_hor = [forcing_file.variables[k][...].T for k in ("xu","yu")]
             forc_u_coords_hor[0][...] += -360
             for k in xrange(12):
-                self._taux[2:-2, 2:-2, k] = self._interpolate(forc_u_coords_hor, forcing_file.variables["taux"][k,...].T, grid=(self.xu[2:-2], self.yt[2:-2])) / 10. / self.rho_0
-                self._tauy[2:-2, 2:-2, k] = self._interpolate(forc_u_coords_hor, forcing_file.variables["tauy"][k,...].T, grid=(self.xt[2:-2], self.yu[2:-2])) / 10. / self.rho_0
+                self._taux[2:-2, 2:-2, k] = self._interpolate(forc_u_coords_hor, forcing_file.variables["taux"][k,...].T,
+                                                              grid=(self.xu[2:-2], self.yt[2:-2])) / 10. / self.rho_0
+                self._tauy[2:-2, 2:-2, k] = self._interpolate(forc_u_coords_hor, forcing_file.variables["tauy"][k,...].T,
+                                                              grid=(self.xt[2:-2], self.yu[2:-2])) / 10. / self.rho_0
 
             for t in (self._taux, self._tauy):
                 if self.enable_cyclic_x:
