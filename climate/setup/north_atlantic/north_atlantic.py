@@ -17,17 +17,16 @@ class NorthAtlantic(PyOM):
     def set_parameter(self):
         """set main parameter
         """
-        self.nx, self.ny, self.nz = (400,300,45)
+        self.nx, self.ny, self.nz = (250,200,45)
         self.x_origin = -98.
         self.y_origin = -20.
         self._x_boundary = 17.2
         self._y_boundary = 72.6
 
-        self.dt_mom = 3600.0 / 2.
-        self.dt_tracer = 3600.0 / 2.
+        self.dt_mom = 3600.0 / 4.
+        self.dt_tracer = 3600.0 / 4.
 
         self.runlen = 86400 * 365. * 10.
-        self.enable_diag_snapshots = True
 
         self.coord_degree = True
 
@@ -45,7 +44,7 @@ class NorthAtlantic(PyOM):
         self.enable_hor_friction = True
         self.A_h = 5e3
         self.enable_hor_friction_cos_scaling = True
-        self.hor_friction_cosPower = 3
+        self.hor_friction_cosPower = 1
         self.enable_tempsalt_sources = True
 
         self.enable_implicit_vert_friction = True
@@ -58,7 +57,8 @@ class NorthAtlantic(PyOM):
 
         self.K_gm_0 = 1000.0
 
-        self.enable_idemix = True
+        self.enable_eke = False
+        self.enable_idemix = False
         self.enable_idemix_hor_diffusion = True
 
         self.eq_of_state_type = 5
@@ -72,7 +72,7 @@ class NorthAtlantic(PyOM):
     def set_coriolis(self):
         self.coriolis_t[:,:] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
-    def _interpolate(self, coords, var, grid=None):
+    def _interpolate(self, coords, var, grid=None, missing_value=-1e20, method="linear"):
         if grid is None:
              if len(coords) == 2:
                  interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
@@ -83,11 +83,11 @@ class NorthAtlantic(PyOM):
         interp_coords = np.rollaxis(np.asarray(interp_coords),0,len(coords)+1)
 
         var = np.array(var)
-        invalid_mask = var < -1e19
+        invalid_mask = var == missing_value
         if np.any(invalid_mask):
             var[invalid_mask] = np.nan
         interp_values = scipy.interpolate.interpn(coords, var, interp_coords,
-                        method="linear", bounds_error=False, fill_value=np.nan)
+                        method=method, bounds_error=False, fill_value=np.nan)
         mask = np.isnan(interp_values)
         if np.any(mask):
             ccoords = np.meshgrid(*coords, indexing="ij")
@@ -112,10 +112,10 @@ class NorthAtlantic(PyOM):
         with Dataset("forcing.cdf", "r") as forcing_file:
             forc_coords = [forcing_file.variables[k][...].T for k in ("xt","yt","zt")]
             forc_coords[0][...] += -360
-            forc_coords[2][...] = -.01 * forc_coords[2][::-1]
-            temp = self._interpolate(forc_coords, forcing_file.variables["temp_ic"][::-1, :, :].T)
+            forc_coords[2][...] = -0.01 * forc_coords[2][::-1]
+            temp = self._interpolate(forc_coords, forcing_file.variables["temp_ic"][::-1, ...].T)
             self.temp[2:-2, 2:-2, :, self.tau] = self.maskT[2:-2, 2:-2, :] * temp
-            salt = 35. + 1000 * self._interpolate(forc_coords, forcing_file.variables["salt_ic"][::-1, :, :].T)
+            salt = 35. + 1000 * self._interpolate(forc_coords, forcing_file.variables["salt_ic"][::-1, ...].T)
             self.salt[2:-2, 2:-2, :, self.tau] = self.maskT[2:-2, 2:-2, :] * salt
 
             self._taux = np.zeros((self.nx+4, self.ny+4, 12))
@@ -142,23 +142,20 @@ class NorthAtlantic(PyOM):
                 self._sss_clim[2:-2,2:-2,k] = self._interpolate(forc_coords[:-1], sss_clim[...,k]) * 1000 + 35
                 self._sst_rest[2:-2,2:-2,k] = self._interpolate(forc_coords[:-1], sst_rest[...,k]) * 41868.
                 self._sss_rest[2:-2,2:-2,k] = self._interpolate(forc_coords[:-1], sss_rest[...,k]) / 100.0
-            for d in (self._sst_clim, self._sss_clim, self._sst_rest, self._sss_rest):
-                d[...] *= d > -1e10
 
         with Dataset("restoring_zone.cdf", "r") as restoring_file:
             rest_coords = [restoring_file.variables[k][...].T for k in ("xt","yt","zt")]
             rest_coords[0][...] += -360
-            rest_coords[2][...] = -.01 * rest_coords[2][::-1]
 
             # sponge layers
             self._t_star = np.zeros((self.nx+4, self.ny+4, self.nz, 12))
             self._s_star = np.zeros((self.nx+4, self.ny+4, self.nz, 12))
             self._rest_tscl = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-            self._rest_tscl[2:-2, 2:-2, :] = self._interpolate(rest_coords, restoring_file.variables["tscl"][0, ...].T)
+            self._rest_tscl[2:-2, 2:-2, :] = self._interpolate(rest_coords, restoring_file.variables["tscl"][0, ...].T, method="nearest")
             for k in xrange(12):
-                self._t_star[2:-2, 2:-2, :, k] = self._interpolate(rest_coords, restoring_file.variables["t_star"][k,...].T)
-                self._s_star[2:-2, 2:-2, :, k] = self._interpolate(rest_coords, restoring_file.variables["s_star"][k,...].T)
+                self._t_star[2:-2, 2:-2, :, k] = self._interpolate(rest_coords, restoring_file.variables["t_star"][k,...].T, missing_value=0.)
+                self._s_star[2:-2, 2:-2, :, k] = self._interpolate(rest_coords, restoring_file.variables["s_star"][k,...].T, missing_value=0.)
 
         if self.enable_idemix:
             f = np.load("tidal_energy.npy") / self.rho_0
@@ -178,9 +175,8 @@ class NorthAtlantic(PyOM):
         return (tRec1-1, wght1), (tRec2-1, wght2)
 
     def set_forcing(self):
-        year_in_seconds = 365 * 86400.0
+        year_in_seconds = 360 * 86400.0
         (n1,f1), (n2,f2) = self._get_periodic_interval(self.itt * self.dt_tracer, year_in_seconds, year_in_seconds / 12., 12)
-        print(n1, f1, n2, f2)
 
         self.surface_taux[...] = (f1 * self._taux[:,:,n1] + f2 * self._taux[:,:,n2])
         self.surface_tauy[...] = (f1 * self._tauy[:,:,n1] + f2 * self._tauy[:,:,n2])
@@ -209,6 +205,7 @@ class NorthAtlantic(PyOM):
 
     @pyom_method
     def set_diagnostics(self):
+        self.diagnostics["snapshot"].output_frequency = 3600. #* 24 * 10
         average_vars = {"temp", "salt", "u", "v", "w", "surface_taux", "surface_tauy", "psi"}
         for var in average_vars:
             self.variables[var].average = True
@@ -216,4 +213,4 @@ class NorthAtlantic(PyOM):
 
 if __name__ == "__main__":
     sim = NorthAtlantic()
-    sim.run(snapint = 3600. * 24.)
+    sim.run()
