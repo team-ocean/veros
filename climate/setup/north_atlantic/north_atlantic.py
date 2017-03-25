@@ -19,13 +19,13 @@ class NorthAtlantic(PyOM):
         """
         self.nx, self.ny, self.nz = 250, 200, 50
         self.x_origin = -98.
-        self.y_origin = -19.5
+        self.y_origin = -18.
         self._x_boundary = 17.2
-        self._y_boundary = 72.
+        self._y_boundary = 70.
         self._max_depth = 5800.
 
-        self.dt_mom = 3600.0 / 4.
-        self.dt_tracer = 3600.0 / 4.
+        self.dt_mom = 3600. / 2.
+        self.dt_tracer = 3600. / 2.
 
         self.runlen = 86400 * 365. * 10.
 
@@ -43,7 +43,7 @@ class NorthAtlantic(PyOM):
         self.iso_slopec = 4./1000.0
 
         self.enable_hor_friction = True
-        self.A_h = 5e3
+        self.A_h = 1e3
         self.enable_hor_friction_cos_scaling = True
         self.hor_friction_cosPower = 1
         self.enable_tempsalt_sources = True
@@ -76,35 +76,81 @@ class NorthAtlantic(PyOM):
         self.dxt[2:-2] = (self._x_boundary - self.x_origin) / self.nx
         self.dyt[2:-2] = (self._y_boundary - self.y_origin) / self.ny
         ddzt = self._gaussian(np.arange(self.nz), 0.5 * self.nz, 0.125 * self.nz)
-        print( self._normalize_sum(np.cumsum(ddzt), self._max_depth, 10.)[::-1])
         self.dzt[...] = self._normalize_sum(np.cumsum(ddzt), self._max_depth, 10.)[::-1]
 
     def set_coriolis(self):
-        print(self.zt)
         self.coriolis_t[:,:] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
-    def _interpolate(self, coords, var, grid=None, missing_value=-1e20, method="linear"):
+    def _interpolate_along_axis(self, coords, arr, interp_coords, axis):
+        assert len(coords) == arr.shape[axis]
+
+        diff = coords[np.newaxis, :] - interp_coords[:, np.newaxis]
+        diff_m = np.where(diff <= 0, diff, np.inf)
+
+        i_m = np.argmin(np.abs(diff_m), axis=1)
+        i_p = np.minimum(len(coords) - 1, i_m + 1)
+
+        full_shape = [np.newaxis] * arr.ndim
+        full_shape[axis] = slice(None)
+        s = [slice(None)] * arr.ndim
+        s[axis] = i_m
+        mask = np.isnan(arr[s])
+        i_m_full = np.where(mask, i_p[full_shape], i_m[full_shape])
+        s[axis] = i_p
+        mask = np.isnan(arr[s])
+        i_p_full = np.where(mask, i_m[full_shape], i_p[full_shape])
+
+        pos = np.where(i_p_full == i_m_full, 1., ((coords[i_p] - interp_coords) \
+                        / (coords[i_p] - coords[i_m] + 1e-20))[full_shape])
+
+        indices_p, indices_m = np.indices(i_m_full.shape), np.indices(i_m_full.shape)
+        indices_p[axis] = i_p_full
+        indices_m[axis] = i_m_full
+        return arr[tuple(indices_p)] * (1-pos) + arr[tuple(indices_m)] * pos
+
+    def _fill_holes(self, data):
+        data = data.copy()
+        shape = data.shape
+        dim = data.ndim
+        flag = np.zeros(shape, dtype=bool)
+        t_ct = int(data.size/5)
+        flag[~np.isnan(data)] = True
+
+        slcs = [slice(None)] * dim
+
+        while np.any(~flag): # as long as there are any False's in flag
+            for i in range(dim): # do each axis
+                # make slices to shift view one element along the axis
+                slcs1 = slcs[:]
+                slcs2 = slcs[:]
+                slcs1[i] = slice(0, -1)
+                slcs2[i] = slice(1, None)
+
+                # replace from the right
+                repmask = np.logical_and(~flag[slcs1], flag[slcs2])
+                data[slcs1][repmask] = data[slcs2][repmask]
+                flag[slcs1][repmask] = True
+
+                # replace from the left
+                repmask = np.logical_and(~flag[slcs2], flag[slcs1])
+                data[slcs2][repmask] = data[slcs1][repmask]
+                flag[slcs2][repmask] = True
+        return data
+
+    def _interpolate(self, coords, var, grid=None, missing_value=-1e20):
         if grid is None:
-             if len(coords) == 2:
-                 interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
-             elif len(coords) == 3:
-                 interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], self.zt, indexing="ij")
-        else:
-            interp_coords = np.meshgrid(*grid, indexing="ij")
-        interp_coords = np.rollaxis(np.asarray(interp_coords), 0, len(coords)+1)
+            grid = (self.xt[2:-2], self.yt[2:-2])
+            if len(coords) == 3:
+                grid += (self.zt,)
 
         var = np.array(var)
         invalid_mask = var == missing_value
-        if np.any(invalid_mask):
-            var[invalid_mask] = np.nan
-        interp_values = scipy.interpolate.interpn(coords, var, interp_coords,
-                        method=method, bounds_error=False, fill_value=np.nan)
-        mask = np.isnan(interp_values)
-        if np.any(mask):
-            ccoords = np.meshgrid(*coords, indexing="ij")
-            interp_values[mask] = scipy.interpolate.griddata(tuple(c[~invalid_mask] for c in ccoords),
-                                                             var[~invalid_mask], interp_coords,
-                                                             method="nearest")[mask]
+        var[invalid_mask] = np.nan
+
+        interp_values = var
+        for i, (x, x_new) in enumerate(zip(coords, grid)):
+            interp_values = self._interpolate_along_axis(x, interp_values, x_new, i)
+        interp_values = self._fill_holes(interp_values)
         return interp_values
 
     def set_topography(self):
@@ -167,7 +213,7 @@ class NorthAtlantic(PyOM):
             self._s_star = np.zeros((self.nx+4, self.ny+4, self.nz, 12))
             self._rest_tscl = np.zeros((self.nx+4, self.ny+4, self.nz))
 
-            self._rest_tscl[2:-2, 2:-2, :] = self._interpolate(rest_coords, restoring_file.variables["tscl"][0, ...].T, method="nearest")
+            self._rest_tscl[2:-2, 2:-2, :] = self._interpolate(rest_coords, restoring_file.variables["tscl"][0, ...].T)
             for k in xrange(12):
                 self._t_star[2:-2, 2:-2, :, k] = self._interpolate(rest_coords, restoring_file.variables["t_star"][k,...].T, missing_value=0.)
                 self._s_star[2:-2, 2:-2, :, k] = self._interpolate(rest_coords, restoring_file.variables["s_star"][k,...].T, missing_value=0.)
@@ -189,6 +235,7 @@ class NorthAtlantic(PyOM):
         wght1 = 1.0 - wght2
         return (tRec1-1, wght1), (tRec2-1, wght2)
 
+    @pyom_method
     def set_forcing(self):
         year_in_seconds = 360 * 86400.0
         (n1,f1), (n2,f2) = self._get_periodic_interval(self.itt * self.dt_tracer, year_in_seconds, year_in_seconds / 12., 12)
@@ -218,9 +265,8 @@ class NorthAtlantic(PyOM):
             self.salt_source[...] = self.maskT * self._rest_tscl \
                                 * (f1 * self._s_star[:,:,:,n1] + f2 * self._s_star[:,:,:,n2] - self.salt[:,:,:,self.tau])
 
-    @pyom_method
     def set_diagnostics(self):
-        self.diagnostics["snapshot"].output_frequency = 3600. #* 24 * 10
+        self.diagnostics["snapshot"].output_frequency = 3600. * 24 * 10
         average_vars = {"temp", "salt", "u", "v", "w", "surface_taux", "surface_tauy", "psi"}
         for var in average_vars:
             self.variables[var].average = True
