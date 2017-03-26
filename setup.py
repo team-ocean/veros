@@ -14,4 +14,7 @@ setup(
         ],
     author = "René Løwe Jacobsen",
     author_email = "rlj@rloewe.net",
+    scripts = [
+	"climate/scripts/create_mask.py"
+	]
 )
