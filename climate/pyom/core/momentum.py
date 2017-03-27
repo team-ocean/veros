@@ -174,7 +174,8 @@ def momentum_advection(pyom):
     """
     Code from MITgcm
     """
-    utr = pyom.dzt[np.newaxis, np.newaxis, :] * pyom.dyt[np.newaxis, :, np.newaxis] * pyom.u[...,pyom.tau] * pyom.maskU
+    #NOTE: multiplying with dzt gives numpy sync, which makes no sense
+    utr = pyom.u[...,pyom.tau] * pyom.maskU * pyom.dyt[np.newaxis, :, np.newaxis] * pyom.dzt[np.newaxis, np.newaxis, :]
     vtr = pyom.dzt[np.newaxis, np.newaxis, :] * pyom.cosu[np.newaxis, :, np.newaxis] * pyom.dxt[:, np.newaxis, np.newaxis] * pyom.v[...,pyom.tau] * pyom.maskV
     wtr = pyom.w[...,pyom.tau] * pyom.maskW * pyom.area_t[:,:,np.newaxis]
 
@@ -188,8 +189,9 @@ def momentum_advection(pyom):
     pyom.du_adv[2:-2,2:-2] = -pyom.maskU[2:-2,2:-2] * (pyom.flux_east[2:-2,2:-2] - pyom.flux_east[1:-3,2:-2] \
             + pyom.flux_north[2:-2,2:-2]-pyom.flux_north[2:-2,1:-3])/(pyom.dzt[np.newaxis,np.newaxis,:]*pyom.area_u[2:-2,2:-2,np.newaxis])
 
-    pyom.du_adv[:,:,0] += -pyom.maskU[:,:,0] * pyom.flux_top[:,:,0] / (pyom.area_u[:,:] * pyom.dzt[0])
-    pyom.du_adv[:,:,1:] += -pyom.maskU[:,:,1:] * (pyom.flux_top[:,:,1:] - pyom.flux_top[:,:,:-1]) /(pyom.dzt[1:] * pyom.area_u[:,:,np.newaxis])
+    tmp = -pyom.maskU / (pyom.dzt * pyom.area_u[:,:,np.newaxis])
+    pyom.du_adv += tmp * pyom.flux_top
+    pyom.du_adv[:,:,1:] += tmp[:,:,1:] * -pyom.flux_top[:,:,:-1]
 
     """
     for meridional momentum
