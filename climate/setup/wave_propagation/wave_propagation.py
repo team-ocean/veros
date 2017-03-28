@@ -1,5 +1,7 @@
 import os
 import numpy as np
+from netCDF4 import Dataset
+from PIL import Image
 
 from climate import tools
 from climate.pyom import PyOM, pyom_method
@@ -90,15 +92,58 @@ class WavePropagation(PyOM):
     def _read_binary(self, var):
         return np.load(DATA_FILES[var])
 
+    def _interpolate(self, coords, var, grid=None, missing_value=-1e20):
+        if grid is None:
+            grid = (self.xt[2:-2], self.yt[2:-2])
+            if len(coords) == 3:
+                grid += (self.zt,)
+
+        var = np.array(var)
+        invalid_mask = var == missing_value
+        var[invalid_mask] = np.nan
+
+        interp_values = var
+        for i, (x, x_new) in enumerate(zip(coords, grid)):
+            interp_values = self._interpolate_along_axis(x, interp_values, x_new, i)
+        interp_values = self._fill_holes(interp_values)
+        return interp_values
+
     def set_grid(self):
         self.dzt[...] = tools.gaussian_spacing(self.nz, self._max_depth, min_spacing=10.)
-        self.dxt[...] = 1.0
-        self.dyt[...] = 1.0
-        self.y_origin = -79.
-        self.x_origin = 91.
+        self.dxt[...] = 360. / self.nx
+        self.dyt[...] = 160. / self.ny
+        self.y_origin = -80. + 160. / self.ny
+        self.x_origin = 90. + 360. / self.nx
 
     def set_coriolis(self):
         self.coriolis_t[...] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
+
+    @pyom_method
+    def set_topography(self):
+        bathymetry_data = self._read_binary("bathymetry")
+        salt_data = self._read_binary("salt")[:,:,::-1]
+
+        mask_salt = salt_data == 0.
+        self.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
+
+        mask_bathy = bathymetry_data == 0
+        self.kbot[2:-2, 2:-2][mask_bathy] = 0
+
+        self.kbot *= self.kbot < self.nz
+
+        # close some channels
+        i, j = np.indices((self.nx,self.ny))
+
+        mask_channel = (i >= 207) & (i < 214) & (j < 5) # i = 208,214; j = 1,5
+        self.kbot[2:-2, 2:-2][mask_channel] = 0
+
+        # Aleutian islands
+        mask_channel = (i == 104) & (j == 134) # i = 105; j = 135
+        self.kbot[2:-2, 2:-2][mask_channel] = 0
+
+        # Engl channel
+        mask_channel = (i >= 269) & (i < 271) & (j == 130) # i = 270,271; j = 131
+        self.kbot[2:-2, 2:-2][mask_channel] = 0
 
     def set_initial_conditions(self):
         self._t_star = np.zeros((self.nx+4, self.ny+4, 12))
@@ -222,33 +267,6 @@ class WavePropagation(PyOM):
         self.temp_source[..., :] = (f1 * self._qsol[..., n1, None] + f2 * self._qsol[..., n2, None]) \
                                         * self._divpen_shortwave[None, None, :] * ice[..., None] \
                                         * self.maskT[..., :] / cp_0 / self.rho_0
-
-    @pyom_method
-    def set_topography(self):
-        bathymetry_data = self._read_binary("bathymetry")
-        salt_data = self._read_binary("salt")[:,:,::-1]
-
-        mask_salt = salt_data == 0.
-        self.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
-
-        mask_bathy = bathymetry_data == 0
-        self.kbot[2:-2, 2:-2][mask_bathy] = 0
-
-        self.kbot *= self.kbot < self.nz
-
-        # close some channels
-        i, j = np.indices((self.nx,self.ny))
-
-        mask_channel = (i >= 207) & (i < 214) & (j < 5) # i = 208,214; j = 1,5
-        self.kbot[2:-2, 2:-2][mask_channel] = 0
-
-        # Aleutian islands
-        mask_channel = (i == 104) & (j == 134) # i = 105; j = 135
-        self.kbot[2:-2, 2:-2][mask_channel] = 0
-
-        # Engl channel
-        mask_channel = (i >= 269) & (i < 271) & (j == 130) # i = 270,271; j = 131
-        self.kbot[2:-2, 2:-2][mask_channel] = 0
 
     @pyom_method
     def set_diagnostics(self):
