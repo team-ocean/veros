@@ -2,26 +2,11 @@ import os
 import numpy as np
 from netCDF4 import Dataset
 from PIL import Image
+import scipy.ndimage
 
 from climate import tools
 from climate.pyom import PyOM, pyom_method
 from climate.pyom.core import cyclic
-
-BASE_PATH = os.path.dirname(os.path.realpath(__file__))
-
-DATA_FILES = dict(
-    temperature = "lev_clim_temp.npy",
-    salt = "lev_clim_salt.npy",
-    sss = "lev_sss.npy",
-    tau_x = "ECMWFBB_taux.npy",
-    tau_y = "ECMWFBB_tauy.npy",
-    q_net = "ECMWFBB_qnet.npy",
-    dqdt = "ECMWFBB_dqdt.npy",
-    swf = "ECMWFBB_swf.npy",
-    sst = "ECMWFBB_target_sst.npy",
-    tidal_energy = "tidal_energy.npy",
-)
-DATA_FILES = {key: os.path.join(BASE_PATH, val) for key, val in DATA_FILES.items()}
 
 class WavePropagation(PyOM):
     """
@@ -34,9 +19,9 @@ class WavePropagation(PyOM):
         self.nx = 360
         self.ny = 160
         self.nz = 115
-        self._max_depth = 8000
-        self.dt_mom = 3600.0
-        self.dt_tracer = 3600.0
+        self._max_depth = 5600.
+        self.dt_mom = 1800.0
+        self.dt_tracer = 1800.0
 
         self.coord_degree = True
         self.enable_cyclic_x = True
@@ -52,7 +37,7 @@ class WavePropagation(PyOM):
         self.enable_tempsalt_sources = True
         self.enable_implicit_vert_friction = True
 
-        self.eq_of_state_type = 3
+        self.eq_of_state_type = 5
 
         self.enable_neutral_diffusion = True
         self.K_iso_0 = 1000.0
@@ -89,24 +74,9 @@ class WavePropagation(PyOM):
         for key, attribute in parameters.items():
             setattr(module,key,attribute)
 
-    def _read_binary(self, var):
-        return np.load(DATA_FILES[var])
-
-    def _interpolate(self, coords, var, grid=None, missing_value=-1e20):
-        if grid is None:
-            grid = (self.xt[2:-2], self.yt[2:-2])
-            if len(coords) == 3:
-                grid += (self.zt,)
-
-        var = np.array(var)
-        invalid_mask = var == missing_value
-        var[invalid_mask] = np.nan
-
-        interp_values = var
-        for i, (x, x_new) in enumerate(zip(coords, grid)):
-            interp_values = self._interpolate_along_axis(x, interp_values, x_new, i)
-        interp_values = self._fill_holes(interp_values)
-        return interp_values
+    def _get_data(self, var):
+        with Dataset("forcing_1deg_global.nc", "r") as forcing_file:
+            return forcing_file.variables[var][...].T
 
     def set_grid(self):
         self.dzt[...] = tools.gaussian_spacing(self.nz, self._max_depth, min_spacing=10.)
@@ -118,32 +88,24 @@ class WavePropagation(PyOM):
     def set_coriolis(self):
         self.coriolis_t[...] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
-    @pyom_method
     def set_topography(self):
-        bathymetry_data = self._read_binary("bathymetry")
-        salt_data = self._read_binary("salt")[:,:,::-1]
-
-        mask_salt = salt_data == 0.
-        self.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
-
-        mask_bathy = bathymetry_data == 0
-        self.kbot[2:-2, 2:-2][mask_bathy] = 0
-
+        with Dataset("ETOPO5_Ice_g_gmt4.nc","r") as topography_file:
+            topo_x, topo_y, topo_z = (topography_file.variables[k][...].T.astype(np.float) for k in ("x","y","z"))
+        topo_x[topo_x < self.xt.min()] += 360.
+        topo_z[topo_z > 0] = 0.
+        topo_mask = np.flipud(np.asarray(Image.open("topo_mask.png"))).T / 255
+        topo_z_smoothed = scipy.ndimage.gaussian_filter(topo_z,
+                                      sigma = (0.5 * len(topo_x) / self.nx, 0.5 * len(topo_y) / self.ny))
+        topo_z_smoothed[~topo_mask.astype(np.bool) & (topo_z_smoothed >= 0)] = -100.
+        topo_masked = np.where(topo_mask, 0., topo_z_smoothed)
+        z_interp = tools.interpolate((topo_x, topo_y), topo_masked, (self.xt[2:-2], self.yt[2:-2]), kind="nearest", fill=False)
+        depth_levels = 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - self.zt[np.newaxis, np.newaxis, :]), axis=2)
+        self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., depth_levels, 0)
         self.kbot *= self.kbot < self.nz
 
-        # close some channels
-        i, j = np.indices((self.nx,self.ny))
-
-        mask_channel = (i >= 207) & (i < 214) & (j < 5) # i = 208,214; j = 1,5
-        self.kbot[2:-2, 2:-2][mask_channel] = 0
-
-        # Aleutian islands
-        mask_channel = (i == 104) & (j == 134) # i = 105; j = 135
-        self.kbot[2:-2, 2:-2][mask_channel] = 0
-
-        # Engl channel
-        mask_channel = (i >= 269) & (i < 271) & (j == 130) # i = 270,271; j = 131
-        self.kbot[2:-2, 2:-2][mask_channel] = 0
+        import matplotlib.pyplot as plt
+        plt.imshow(np.flipud(self.kbot[2:-2, 2:-2].T))
+        plt.show()
 
     def set_initial_conditions(self):
         self._t_star = np.zeros((self.nx+4, self.ny+4, 12))
@@ -159,21 +121,26 @@ class WavePropagation(PyOM):
         efold1_shortwave = 0.35
         efold2_shortwave = 23.0
 
-        # initial conditions
-        temp_data = self._read_binary("temperature")
-        self.temp[2:-2, 2:-2, :, 0] = temp_data[..., ::-1] * self.maskT[2:-2, 2:-2, :]
-        self.temp[2:-2, 2:-2, :, 1] = temp_data[..., ::-1] * self.maskT[2:-2, 2:-2, :]
+        t_grid = (self.xt[2:-2], self.yt[2:-2], self.zt)
+        xt_forc, yt_forc, zt_forc = (self._get_data(k) for k in ("xt", "yt", "zt"))
+        zt_forc = zt_forc[::-1]
 
-        salt_data = self._read_binary("salt")
-        self.salt[2:-2, 2:-2, :, 0] = salt_data[..., ::-1] * self.maskT[2:-2, 2:-2, :]
-        self.salt[2:-2, 2:-2, :, 1] = salt_data[..., ::-1] * self.maskT[2:-2, 2:-2, :]
+        # initial conditions
+        temp_data = tools.interpolate((xt_forc, yt_forc, zt_forc), self._get_data("temperature")[:,:,::-1], t_grid, missing_value=0.)
+        self.temp[2:-2, 2:-2, :, 0] = temp_data * self.maskT[2:-2, 2:-2, :]
+        self.temp[2:-2, 2:-2, :, 1] = temp_data * self.maskT[2:-2, 2:-2, :]
+
+        salt_data = tools.interpolate((xt_forc, yt_forc, zt_forc), self._get_data("salinity")[:,:,::-1], t_grid, missing_value=0.)
+        self.salt[2:-2, 2:-2, :, 0] = salt_data * self.maskT[2:-2, 2:-2, :]
+        self.salt[2:-2, 2:-2, :, 1] = salt_data * self.maskT[2:-2, 2:-2, :]
 
         # wind stress on MIT grid
-        taux_data = self._read_binary("tau_x")
+        time_grid = (self.xt[2:-2], self.yt[2:-2], np.arange(12))
+        taux_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)), self._get_data("tau_x"), time_grid, missing_value=0.)
         self._taux[2:-2, 2:-2, :] = taux_data / self.rho_0
         self._taux[self._taux < -99.9] = 0.
 
-        tauy_data = self._read_binary("tau_y")
+        tauy_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)), self._get_data("tau_y"), time_grid, missing_value=0.)
         self._tauy[2:-2, 2:-2, :] = tauy_data / self.rho_0
         self._tauy[self._tauy < -99.9] = 0.
 
@@ -182,24 +149,24 @@ class WavePropagation(PyOM):
             cyclic.setcyclic_x(self._tauy)
 
         # Qnet and dQ/dT and Qsol
-        qnet_data = self._read_binary("q_net")
+        qnet_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)), self._get_data("q_net"), time_grid, missing_value=0.)
         self._qnet[2:-2, 2:-2, :] = -qnet_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qnec_data = self._read_binary("dqdt")
+        qnec_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)), self._get_data("dqdt"), time_grid, missing_value=0.)
         self._qnec[2:-2, 2:-2, :] = qnec_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qsol_data = self._read_binary("swf")
+        qsol_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)), self._get_data("swf"), time_grid, missing_value=0.)
         self._qsol[2:-2, 2:-2, :] = -qsol_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         # SST and SSS
-        sst_data = self._read_binary("sst")
+        sst_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)), self._get_data("sst"), time_grid, missing_value=0.)
         self._t_star[2:-2, 2:-2, :] = sst_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        sss_data = self._read_binary("sss")
+        sss_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)), self._get_data("sss"), time_grid, missing_value=0.)
         self._s_star[2:-2, 2:-2, :] = sss_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         if self.enable_idemix:
-            tidal_energy_data = self._read_binary("tidal_energy")
+            tidal_energy_data = tools.interpolate((xt_forc, yt_forc), self._get_data("tidal_energy"), t_grid[:-1], missing_value=0.)
             mask_x, mask_y = (i+2 for i in np.indices((self.nx, self.ny)))
             mask_z = np.maximum(0, self.kbot[2:-2, 2:-2] - 1)
             tidal_energy_data[:, :] *= self.maskW[mask_x, mask_y, mask_z] / self.rho_0
@@ -218,24 +185,13 @@ class WavePropagation(PyOM):
         self._divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
         self._divpen_shortwave[0] = pen[0] / self.dzt[0]
 
-    def _get_periodic_interval(self,currentTime,cycleLength,recSpacing,nbRec):
-        """  interpolation routine taken from mitgcm
-        """
-        locTime = currentTime - recSpacing * 0.5 + cycleLength * (2 - round(currentTime/cycleLength))
-        tmpTime = locTime % cycleLength
-        tRec1 = 1 + int(tmpTime/recSpacing)
-        tRec2 = 1 + tRec1 % int(nbRec)
-        wght2 = (tmpTime - recSpacing*(tRec1 - 1)) / recSpacing
-        wght1 = 1.0 - wght2
-        return (tRec1-1, wght1), (tRec2-1, wght2)
-
     @pyom_method
     def set_forcing(self):
         t_rest = 30. * 86400.
         cp_0 = 3991.86795711963 # J/kg /K
-        fxa = 365 * 86400.
 
-        (n1, f1), (n2, f2) = self._get_periodic_interval((self.itt-1) * self.dt_tracer, fxa, fxa / 12., 12)
+        year_in_seconds = 360 * 86400.
+        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.itt * self.dt_tracer, year_in_seconds, year_in_seconds / 12., 12)
 
         # linearly interpolate wind stress and shift from MITgcm U/V grid to this grid
         self.surface_taux[...] = f1 * self._taux[:, :, n1] + f2 * self._taux[:, :, n2]
@@ -243,7 +199,7 @@ class WavePropagation(PyOM):
 
         if self.enable_tke:
             self.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (self.surface_taux[1:-1, 1:-1] + self.surface_taux[:-2, 1:-1])) ** 2 \
-                                                      +(0.5 * (self.surface_tauy[1:-1, 1:-1] + self.surface_tauy[1:-1, :-2])) ** 2) ** (3./2.)
+                                                      + (0.5 * (self.surface_tauy[1:-1, 1:-1] + self.surface_tauy[1:-1, :-2])) ** 2) ** (3./2.)
 
         # W/m^2 K kg/J m^3/kg = K m/s
         fxa = f1 * self._t_star[..., n1] + f2 * self._t_star[..., n2]
@@ -256,7 +212,7 @@ class WavePropagation(PyOM):
 
         # apply simple ice mask
         ice = np.ones((self.nx+4, self.ny+4), dtype=np.uint8)
-        mask1 = self.temp[:, :, -1, self.get_tau()] * self.maskT[:, :, -1] <= -1.8
+        mask1 = self.temp[:, :, -1, self.tau] * self.maskT[:, :, -1] <= -1.8
         mask2 = self.forc_temp_surface <= 0
         mask = ~(mask1 & mask2)
         self.forc_temp_surface[...] *= mask
@@ -271,7 +227,7 @@ class WavePropagation(PyOM):
     @pyom_method
     def set_diagnostics(self):
         self.diagnostics["cfl_monitor"].output_frequency = 86400.0
-        self.diagnostics["snapshots"].output_frequency = 0.5 * 86400.
+        self.diagnostics["snapshot"].output_frequency = 0.5 * 86400.
         self.diagnostics["overturning"].output_frequency = 365 * 86400
         self.diagnostics["overturning"].sampling_frequency = 365 * 86400 / 24.
         self.diagnostics["energy"].output_frequency = 365 * 86400
@@ -300,4 +256,4 @@ class WavePropagation(PyOM):
 
 
 if __name__ == "__main__":
-    WavePropagation(fortran=args.fortran).run(runlen=86400.)
+    WavePropagation().run(runlen=86400. * 10)

@@ -13,3 +13,4 @@ tidal_energy.npy filter=lfs diff=lfs merge=lfs -text
 wind_energy_ncep.npy filter=lfs diff=lfs merge=lfs -text
 ETOPO1_Bed_g_gmt4_NA.nc filter=lfs diff=lfs merge=lfs -text
 ETOPO5_Bed_g_gmt4.nc filter=lfs diff=lfs merge=lfs -text
+forcing_1deg_global.nc filter=lfs diff=lfs merge=lfs -text
