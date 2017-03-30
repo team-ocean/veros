@@ -8,4 +8,5 @@ Welcome to PyOM's documentation!
    :caption: Contents:
 
    source/quickstart
+   source/tutorial
    source/reference

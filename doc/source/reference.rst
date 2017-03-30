@@ -10,3 +10,5 @@ Reference
    reference/api-setup
    reference/api-pyom
    reference/api-core
+   reference/api-tools
+   reference/api-scripts
