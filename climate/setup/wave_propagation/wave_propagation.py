@@ -16,9 +16,9 @@ class WavePropagation(PyOM):
 
     @pyom_method
     def set_parameter(self):
-        self.nx = 360
-        self.ny = 160
-        self.nz = 115
+        self.nx = 160
+        self.ny = 120
+        self.nz = 60
         self._max_depth = 5600.
         self.dt_mom = 1800.0
         self.dt_tracer = 1800.0
@@ -79,7 +79,7 @@ class WavePropagation(PyOM):
             return forcing_file.variables[var][...].T
 
     def set_grid(self):
-        self.dzt[...] = tools.gaussian_spacing(self.nz, self._max_depth, min_spacing=10.)
+        self.dzt[...] = tools.gaussian_spacing(self.nz, self._max_depth, min_spacing=10.)[::-1]
         self.dxt[...] = 360. / self.nx
         self.dyt[...] = 160. / self.ny
         self.y_origin = -80. + 160. / self.ny
@@ -88,24 +88,32 @@ class WavePropagation(PyOM):
     def set_coriolis(self):
         self.coriolis_t[...] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
+    def _shift_longitude_array(self, lon, arr):
+        wrap_i = np.where((lon[:-1] < self.xt.min()) & (lon[1:] > self.xt.min()))[0][0]
+        new_lon = np.concatenate((lon[wrap_i:-1], lon[:wrap_i] + 360.))
+        new_arr = np.concatenate((arr[wrap_i:-1, ...], arr[:wrap_i, ...]))
+        return new_lon, new_arr
+
     def set_topography(self):
         with Dataset("ETOPO5_Ice_g_gmt4.nc","r") as topography_file:
             topo_x, topo_y, topo_z = (topography_file.variables[k][...].T.astype(np.float) for k in ("x","y","z"))
-        topo_x[topo_x < self.xt.min()] += 360.
         topo_z[topo_z > 0] = 0.
-        topo_mask = np.flipud(np.asarray(Image.open("topo_mask.png"))).T / 255
+        topo_mask = np.flipud(np.asarray(Image.open("topo_mask_1deg.png"))).T / 255
         topo_z_smoothed = scipy.ndimage.gaussian_filter(topo_z,
                                       sigma = (0.5 * len(topo_x) / self.nx, 0.5 * len(topo_y) / self.ny))
         topo_z_smoothed[~topo_mask.astype(np.bool) & (topo_z_smoothed >= 0)] = -100.
         topo_masked = np.where(topo_mask, 0., topo_z_smoothed)
-        z_interp = tools.interpolate((topo_x, topo_y), topo_masked, (self.xt[2:-2], self.yt[2:-2]), kind="nearest", fill=False)
+
+        topo_x_shifted, topo_masked_shifted = self._shift_longitude_array(topo_x, topo_masked)
+        z_interp = tools.interpolate((topo_x_shifted, topo_y), topo_masked_shifted, (self.xt[2:-2], self.yt[2:-2]), kind="nearest", fill=False)
         depth_levels = 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - self.zt[np.newaxis, np.newaxis, :]), axis=2)
         self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., depth_levels, 0)
         self.kbot *= self.kbot < self.nz
 
-        import matplotlib.pyplot as plt
-        plt.imshow(np.flipud(self.kbot[2:-2, 2:-2].T))
-        plt.show()
+        na_mask_image = np.flipud(np.asarray(Image.open("na_mask_1deg.png"))).T / 255.
+        topo_x_shifted, na_mask_shifted = self._shift_longitude_array(topo_x, na_mask_image)
+        self._na_mask = tools.interpolate((topo_x_shifted, topo_y), na_mask_shifted, (self.xt, self.yt), kind="nearest", fill=False)
+
 
     def set_initial_conditions(self):
         self._t_star = np.zeros((self.nx+4, self.ny+4, 12))

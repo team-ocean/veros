@@ -1,75 +1,84 @@
 import numpy as np
+import scipy.interpolate
 
 def _gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
 def _normalize_sum(var, sum_value, minimum_value=0.):
-    var[:2] = 0.
     var *= (sum_value - len(var) * minimum_value) / var.sum()
     return var + minimum_value
 
 def gaussian_spacing(n, sum_value, min_spacing = 0., mu = 0.5, sigma = 0.125):
+    """Create a sample where values are separated by gaussian step sizes.
+
+    This can be used to create a vertical grid that covers a fixed distance
+    (``sum_value``) and minimizes discretization errors.
+
+    .. note::
+        The first two step sizes are kept constant at ``minimum_value``.
+
+    Arguments:
+       n: Number of sample members.
+       sum_value: Target sum of the created sample.
+       min_spacing (optional): Minimum spacing between sample members. Defaults
+          to zero.
+       mu (optional): Mean of the underlying gaussian.
+       sigma (optional): Standard deviation of the underlying gaussian.
+
+    Example:
+       >>> a = gaussian_spacing(10, 100., min_spacing=2.)
+       >>> a
+       array([  2.        ,   2.        ,   2.10115551,   2.65269846,
+         4.38051667,   7.72821622,  12.25219105,  17.2265533 ,
+        22.29184721,  27.36682157])
+       >>> a.sum()
+       100.00000000000001
+
+    """
     ddx = _gaussian(np.arange(n), mu * n, sigma * n)
-    return _normalize_sum(np.cumsum(ddx[::-1]), sum_value, min_spacing)[::-1]
+    dx = np.cumsum(ddx)
+    dx[:2] = 0.
+    return _normalize_sum(np.cumsum(dx), sum_value, min_spacing)
 
 def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind="linear"):
+    """Interpolate globally defined data to a different (regular) grid.
+
+    Arguments:
+       coords: Tuple of coordinate arrays for each dimension.
+       var (:obj:`ndarray` of dim (nx1, ..., nxd)): Variable data to interpolate.
+       interp_coords: Tuple of coordinate arrays to interpolate to.
+       missing_value (optional): Value denoting cells of missing data in ``var``.
+          Is replaced by `NaN` before interpolating. Defaults to `None`, which means
+          no replacement is taking place.
+       fill (bool, optional): Whether `NaN` values should be replaced by the nearest
+          finite value after interpolating. Defaults to ``True``.
+       kind (str, optional): Order of interpolation. Supported are `nearest` and
+          `linear` (default).
+
+    Returns:
+       :obj:`ndarray` containing the interpolated values on the grid spanned by
+       ``interp_coords``.
+    """
     if len(coords) != len(interp_coords) or len(coords) != var.ndim:
         raise ValueError("Dimensions of coordinates and values do not match")
     var = np.array(var)
     if not missing_value is None:
         invalid_mask = var == missing_value
         var[invalid_mask] = np.nan
-    for i, (x, x_new) in enumerate(zip(coords, interp_coords)):
-        var = interpolate_along_axis(x, var, x_new, i, kind=kind)
+    if var.ndim > 1 and coords[0].ndim == 1:
+        interp_grid = np.rollaxis(np.array(np.meshgrid(*interp_coords, indexing="ij", copy=False)), 0, len(interp_coords)+1)
+    else:
+        interp_grid = coords
+    var = scipy.interpolate.interpn(coords, var, interp_grid, bounds_error=False, fill_value=None, method=kind)
+
     if fill:
         var = fill_holes(var)
     return var
 
-def interpolate_along_axis(coords, arr, interp_coords, axis, kind="linear"):
-    """Lightweight interpolation along a chosen axis for data on a regular grid.
-
-    """
-    if len(coords) != arr.shape[axis]:
-        raise ValueError("Length of coordinate array does not match input array shape along chosen axis")
-
-    diff = coords[np.newaxis, :] - interp_coords[:, np.newaxis]
-
-    broadcast_shape = [np.newaxis] * arr.ndim
-    broadcast_shape[axis] = slice(None)
-
-    out_shape = list(arr.shape)
-    out_shape[axis] = len(interp_coords)
-
-    if kind == "nearest":
-        i = np.argmin(np.abs(diff), axis=1)
-        full_shape = [np.newaxis] * arr.ndim
-        full_shape[axis] = slice(None)
-        i_full = i[broadcast_shape] * np.ones(out_shape)
-        indices = np.indices(i_full.shape)
-        indices[axis] = i_full
-        return arr[tuple(indices)]
-    elif kind == "linear":
-        if not np.all(np.sort(coords) == coords):
-            raise ValueError("Coordinates must be strictly ascending for linear interpolation")
-
-        diff_m = np.where(diff <= 0, diff, np.inf)
-        i_m = np.argmin(np.abs(diff_m), axis=1)
-        i_p = np.minimum(len(coords) - 1, i_m + 1)
-        i_m_full = i_m[broadcast_shape] * np.ones(out_shape)
-        i_p_full = i_p[broadcast_shape] * np.ones(out_shape)
-
-        pos = np.where(i_p_full == i_m_full, 1., ((coords[i_p] - interp_coords) \
-                        / (coords[i_p] - coords[i_m] + 1e-20))[broadcast_shape])
-
-        indices_p, indices_m = np.indices(i_m_full.shape), np.indices(i_m_full.shape)
-        indices_p[axis] = i_p_full
-        indices_m[axis] = i_m_full
-        return arr[tuple(indices_p)] * (1-pos) + arr[tuple(indices_m)] * pos
-    else:
-        raise ValueError("'kind' must be 'nearest' or 'linear'")
-
 
 def fill_holes(data):
+    """A simple helper function that replaces NaN values with the nearest finite value.
+    """
     data = data.copy()
     shape = data.shape
     dim = data.ndim
@@ -98,13 +107,38 @@ def fill_holes(data):
     return data
 
 
-def get_periodic_interval(currentTime, cycleLength, recSpacing, nbRec):
-    """  interpolation routine taken from mitgcm
+def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
+    """Used for linear interpolation between periodic time intervals.
+
+    One common application is the interpolation of external forcings that are defined
+    at discrete times (e.g. one value per month of a standard year) to the current
+    time step.
+
+    Arguments:
+       current_time (float): Time to interpolate to.
+       cycle_length (float): Total length of one periodic cycle.
+       rec_spacing (float): Time spacing between each data record.
+       n_rec (int): Total number of records available.
+
+    Returns:
+       :obj:`tuple` containing (n1, f1), (n2, f2): Indices and weights for the interpolated
+       record array.
+
+    Example:
+       The following interpolates a record array ``data`` containing 12 monthly values
+       to the current time step:
+
+       >>> year_in_seconds = 60. * 60. * 24. * 365.
+       >>> current_time = 60. * 60. * 24. * 45. # mid-february
+       >>> print(data.shape)
+       (360, 180, 12)
+       >>> (n1, f1), (n2, f2) = get_periodic_interval(current_time, year_in_seconds, year_in_seconds / 12, 12)
+       >>> data_at_current_time = f1 * data[..., n1] + f2 * data[..., n2]
     """
-    locTime = currentTime - recSpacing * 0.5 + cycleLength * (2 - round(currentTime/cycleLength))
-    tmpTime = locTime % cycleLength
-    tRec1 = 1 + int(tmpTime/recSpacing)
-    tRec2 = 1 + tRec1 % int(nbRec)
-    wght2 = (tmpTime - recSpacing*(tRec1 - 1)) / recSpacing
+    locTime = current_time - rec_spacing * 0.5 + cycle_length * (2 - round(current_time/cycle_length))
+    tmpTime = locTime % cycle_length
+    tRec1 = 1 + int(tmpTime/rec_spacing)
+    tRec2 = 1 + tRec1 % int(n_rec)
+    wght2 = (tmpTime - rec_spacing*(tRec1 - 1)) / rec_spacing
     wght1 = 1.0 - wght2
     return (tRec1-1, wght1), (tRec2-1, wght2)
