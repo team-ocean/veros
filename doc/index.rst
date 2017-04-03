@@ -10,3 +10,4 @@ Welcome to PyOM's documentation!
    source/quickstart
    source/tutorial
    source/reference
+   source/faq
