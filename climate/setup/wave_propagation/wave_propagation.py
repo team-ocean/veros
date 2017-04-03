@@ -3,6 +3,7 @@ import numpy as np
 from netCDF4 import Dataset
 from PIL import Image
 import scipy.ndimage
+import matplotlib.pyplot as plt
 
 from climate import tools
 from climate.pyom import PyOM, pyom_method
@@ -16,12 +17,12 @@ class WavePropagation(PyOM):
 
     @pyom_method
     def set_parameter(self):
-        self.nx = 160
+        self.nx = 140
         self.ny = 120
-        self.nz = 60
+        self.nz = 50
         self._max_depth = 5600.
-        self.dt_mom = 1800.0
-        self.dt_tracer = 1800.0
+        self.dt_mom = 3600.0
+        self.dt_tracer = 3600.0
 
         self.coord_degree = True
         self.enable_cyclic_x = True
@@ -75,7 +76,7 @@ class WavePropagation(PyOM):
             setattr(module,key,attribute)
 
     def _get_data(self, var):
-        with Dataset("forcing_1deg_global.nc", "r") as forcing_file:
+        with Dataset("forcing_1deg_global_smooth.nc", "r") as forcing_file:
             return forcing_file.variables[var][...].T
 
     def set_grid(self):
@@ -98,22 +99,28 @@ class WavePropagation(PyOM):
         with Dataset("ETOPO5_Ice_g_gmt4.nc","r") as topography_file:
             topo_x, topo_y, topo_z = (topography_file.variables[k][...].T.astype(np.float) for k in ("x","y","z"))
         topo_z[topo_z > 0] = 0.
-        topo_mask = np.flipud(np.asarray(Image.open("topo_mask_1deg.png"))).T / 255
+        topo_mask = np.flipud(np.asarray(Image.open("topo_mask_1deg_idealized.png"))).T / 255
         topo_z_smoothed = scipy.ndimage.gaussian_filter(topo_z,
                                       sigma = (0.5 * len(topo_x) / self.nx, 0.5 * len(topo_y) / self.ny))
-        topo_z_smoothed[~topo_mask.astype(np.bool) & (topo_z_smoothed >= 0)] = -100.
+        topo_z_smoothed[~topo_mask.astype(np.bool) & (topo_z_smoothed >= 0.)] = -100.
         topo_masked = np.where(topo_mask, 0., topo_z_smoothed)
+
+        na_mask_image = np.flipud(np.asarray(Image.open("na_mask_1deg.png"))).T / 255.
+        topo_x_shifted, na_mask_shifted = self._shift_longitude_array(topo_x, na_mask_image)
+        self._na_mask = ~tools.interpolate((topo_x_shifted, topo_y), na_mask_shifted, (self.xt[2:-2], self.yt[2:-2]), kind="nearest", fill=False).astype(np.bool)
 
         topo_x_shifted, topo_masked_shifted = self._shift_longitude_array(topo_x, topo_masked)
         z_interp = tools.interpolate((topo_x_shifted, topo_y), topo_masked_shifted, (self.xt[2:-2], self.yt[2:-2]), kind="nearest", fill=False)
+        z_interp[self._na_mask] = -4000
         depth_levels = 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - self.zt[np.newaxis, np.newaxis, :]), axis=2)
         self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., depth_levels, 0)
         self.kbot *= self.kbot < self.nz
 
-        na_mask_image = np.flipud(np.asarray(Image.open("na_mask_1deg.png"))).T / 255.
-        topo_x_shifted, na_mask_shifted = self._shift_longitude_array(topo_x, na_mask_image)
-        self._na_mask = tools.interpolate((topo_x_shifted, topo_y), na_mask_shifted, (self.xt, self.yt), kind="nearest", fill=False)
-
+    def _fix_north_atlantic(self, arr):
+        newaxes = (slice(None),slice(None)) + (np.newaxis,) * (arr.ndim - 2)
+        arr_masked = np.ma.masked_where(~self._na_mask[newaxes] * np.ones(arr.shape), arr)
+        zonal_mean_na = arr_masked.mean(axis=0)
+        return np.where(~arr_masked.mask, zonal_mean_na[np.newaxis, ...], arr)
 
     def set_initial_conditions(self):
         self._t_star = np.zeros((self.nx+4, self.ny+4, 12))
@@ -146,11 +153,9 @@ class WavePropagation(PyOM):
         time_grid = (self.xt[2:-2], self.yt[2:-2], np.arange(12))
         taux_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)), self._get_data("tau_x"), time_grid, missing_value=0.)
         self._taux[2:-2, 2:-2, :] = taux_data / self.rho_0
-        self._taux[self._taux < -99.9] = 0.
 
         tauy_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)), self._get_data("tau_y"), time_grid, missing_value=0.)
         self._tauy[2:-2, 2:-2, :] = tauy_data / self.rho_0
-        self._tauy[self._tauy < -99.9] = 0.
 
         if self.enable_cyclic_x:
             cyclic.setcyclic_x(self._taux)
@@ -172,6 +177,14 @@ class WavePropagation(PyOM):
 
         sss_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)), self._get_data("sss"), time_grid, missing_value=0.)
         self._s_star[2:-2, 2:-2, :] = sss_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
+
+        for k in (self._taux, self._tauy, self.temp, self.salt):
+            k[2:-2, 2:-2, ...] = self._fix_north_atlantic(k[2:-2, 2:-2, ...])
+
+        for k in (self._qnet, self._qnec, self._qsol, self._t_star, self._s_star):
+            plt.figure()
+            plt.imshow(k[2:-2, 2:-2, 0])
+        plt.show()
 
         if self.enable_idemix:
             tidal_energy_data = tools.interpolate((xt_forc, yt_forc), self._get_data("tidal_energy"), t_grid[:-1], missing_value=0.)
