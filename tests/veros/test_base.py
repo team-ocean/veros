@@ -62,7 +62,7 @@ class VerosTest(object):
                 setattr(module_handle, attribute, v)
                 assert np.all(value == getattr(module_handle, attribute)), attribute
                 return
-        raise AttributeError("Legacy PyOM has no attribute {}".format(attribute))
+        raise AttributeError("Legacy pyOM has no attribute {}".format(attribute))
 
 
     def get_attribute(self, attribute):

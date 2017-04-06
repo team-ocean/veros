@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# PyOM documentation build configuration file, created by
+# Veros documentation build configuration file, created by
 # sphinx-quickstart on Tue Mar  7 23:56:46 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -58,7 +58,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'PyOM'
+project = u'Veros'
 copyright = u'2017, The Veros Team'
 author = u'The Veros Team'
 
@@ -153,7 +153,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'veros', u'PyOM Documentation',
+    (master_doc, 'Veros', u'Veros Documentation',
      [author], 1)
 ]
 

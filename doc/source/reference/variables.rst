@@ -39,7 +39,7 @@ Attributes:
               flags += ":fa:`download` "
           if var.average:
               flags += ":fa:`bar-chart` "
-          print(".. py:attribute:: PyOM.{}".format(key))
+          print(".. py:attribute:: Veros.{}".format(key))
           print("")
           print("  :units: {}".format(var.units))
           print("  :dimensions: {}".format(", ".join(var.dims)))

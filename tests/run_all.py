@@ -3,14 +3,14 @@ import os
 import subprocess
 
 """
-Runs all pyOM tests back to back and compares the results with the legacy backend.
+Runs all veros tests back to back and compares the results with the legacy (pyOM2) backend.
 Expects path to the compiled Fortran library as first command line argument.
 """
 
 try:
     fortran_path = sys.argv[1]
 except IndexError:
-    raise RuntimeError("First command line argument must be path to Fortran library")
+    raise RuntimeError("First command line argument must be path to pyOM Fortran library")
 
 success, fail = "passed", "failed"
 if sys.stdout.isatty():

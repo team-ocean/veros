@@ -4,7 +4,7 @@ import logging
 
 import numpy
 if numpy.__name__ == "bohrium":
-    warnings.warn("Running pyOM with -m bohrium is discouraged (use --backend bohrium instead)")
+    warnings.warn("Running veros with 'python -m bohrium' is discouraged (use '--backend bohrium' instead)")
     import numpy_force
     numpy = numpy_force
 try:
