@@ -1,5 +1,5 @@
-A short introduction to PyOM
-============================
+A short introduction to Veros
+=============================
 
 This model is an adaptation of `pyOM2 <https://wiki.zmaw.de/ifm/TO/pyOM2>`_,
 developed by Carsten Eden at Hamburg
@@ -16,7 +16,7 @@ At a glance
 
 .. note::
   This section provides a quick overview of the capabilities and limitations of
-  PyOM. For a comprehensive description of the physics and numerics behind PyOM,
+  Veros. For a comprehensive description of the physics and numerics behind Veros,
   please refer to `the documentation of pyOM2 <https://wiki.zmaw.de/ifm/TO/pyOM2>`_.
 
 Features
@@ -27,7 +27,7 @@ The model grid
 
 .. figure:: c-grid.svg
    :width: 100%
-   
+
    The structure of the Arakawa C-grid.
 
 Available parameterizations

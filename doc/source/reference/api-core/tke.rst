@@ -1,4 +1,4 @@
 TKE module
 ==========
 
-.. automodule:: climate.pyom.core.tke
+.. automodule:: veros.core.tke

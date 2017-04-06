@@ -8,7 +8,7 @@ Reference
    reference/variables
    reference/diagnostics
    reference/api-setup
-   reference/api-pyom
+   reference/api-veros
    reference/api-core
    reference/api-tools
    reference/api-scripts

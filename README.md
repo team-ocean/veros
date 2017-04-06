@@ -1,2 +1,2 @@
-# climate-dsl
-[![Documentation Status](https://readthedocs.org/projects/pyom/badge/?version=latest)](http://pyom.readthedocs.io/en/latest/?badge=latest)
+# veros
+[![Documentation Status](https://readthedocs.org/projects/veros/badge/?version=latest)](http://veros.readthedocs.io/en/latest/?badge=latest)

@@ -1,7 +1,7 @@
 :tocdepth: 5
 
-Welcome to PyOM's documentation!
-================================
+Welcome to Veros's documentation!
+=================================
 
 .. toctree::
    :maxdepth: 2

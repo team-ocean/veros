@@ -59,8 +59,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PyOM'
-copyright = u'2017, The PyOM Team'
-author = u'The PyOM Team'
+copyright = u'2017, The Veros Team'
+author = u'The Veros Team'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -116,7 +116,7 @@ html_static_path = ['static']
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'PyOMdoc'
+htmlhelp_basename = 'veros_doc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -143,8 +143,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'PyOM.tex', u'PyOM Documentation',
-     u'The PyOM Team', 'manual'),
+    (master_doc, 'veros.tex', u'Veros Documentation',
+     u'The Veros Team', 'manual'),
 ]
 
 
@@ -153,7 +153,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'pyom', u'PyOM Documentation',
+    (master_doc, 'veros', u'PyOM Documentation',
      [author], 1)
 ]
 
@@ -164,8 +164,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'PyOM', u'PyOM Documentation',
-     author, 'PyOM', 'One line description of project.',
+    (master_doc, 'Veros', u'Veros Documentation',
+     author, 'Veros', 'One line description of project.',
      'Miscellaneous'),
 ]
 

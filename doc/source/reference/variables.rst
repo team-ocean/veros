@@ -4,7 +4,7 @@ Model variables
 Variable base class
 +++++++++++++++++++
 
-.. autoclass:: climate.pyom.variables.Variable
+.. autoclass:: veros.variables.Variable
 
 Available variables
 +++++++++++++++++++
@@ -17,7 +17,7 @@ Attributes:
   | :fa:`bar-chart`: Included in average output by default
 
 .. exec::
-  from climate.pyom.variables import MAIN_VARIABLES, CONDITIONAL_VARIABLES
+  from veros.variables import MAIN_VARIABLES, CONDITIONAL_VARIABLES
   first_condition = True
   for condition, vardict in [(None, MAIN_VARIABLES)] + CONDITIONAL_VARIABLES.items():
       if condition:

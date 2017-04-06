@@ -4,7 +4,7 @@ Available settings
 The default settings are handled differently from variables and diagnostics.
 
 .. exec::
-  from climate.pyom.settings import SETTINGS
+  from veros.settings import SETTINGS
   #headings = ["Setting", "Default value", "Description"]
   #print(".. csv-table:: Available settings")
   #print("   :header: {}".format(" ,".join(headings)))

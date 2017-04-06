@@ -4,12 +4,12 @@ Diagnostics
 Base class
 ----------
 
-.. autoclass:: climate.pyom.settings.Diagnostic
+.. autoclass:: veros.settings.Diagnostic
 
 Available diagnostics
 ---------------------
 .. exec::
-  from climate.pyom.settings import DIAGNOSTICS_SETTINGS
+  from veros.settings import DIAGNOSTICS_SETTINGS
   for key, var in DIAGNOSTICS_SETTINGS.items():
       print(".. py:data:: {}".format(key))
       print("")

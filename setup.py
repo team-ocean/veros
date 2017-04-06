@@ -3,18 +3,18 @@
 from setuptools import setup, find_packages
 
 setup(
-    name = "Climatedsl",
+    name = "veros",
     version = "0.0.1b0",
     packages = find_packages(),
     install_requires = [
-        "numpy<1.12", #NOTE: this is for testing purposes only as the original PyOM does not support numpy 1.12
+        "numpy<1.12",
         "scipy",
         "pyamg",
-        "netCDF4"
+        "netCDF4",
         ],
-    author = "René Løwe Jacobsen",
-    author_email = "rlj@rloewe.net",
+    author = "NBI Copenhagen",
+    author_email = "dion.haefner@nbi.ku.dk",
     scripts = [
-	"climate/scripts/create_mask.py"
-	]
+	   "veros/scripts/create_mask.py",
+	],
 )

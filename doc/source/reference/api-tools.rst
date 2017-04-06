@@ -1,5 +1,5 @@
 Tools & Utilities
 =================
 
-.. automodule:: climate.tools
+.. automodule:: veros.tools
    :members:
