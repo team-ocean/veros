@@ -266,7 +266,7 @@ class Veros(object):
             self.setup()
 
             logging.info("Reading restarts:")
-            restart.read_restart(self.itt)
+            restart.read_restart(self)
             diagnostics.read_restart(self)
 
             self.enditt = self.itt + int(self.runlen / self.dt_tracer)
@@ -360,6 +360,8 @@ class Veros(object):
             raise
 
         finally:
+            restart.write_restart(self)
+
             logging.debug("Timing summary:")
             logging.debug(" setup time summary       = {}s".format(self.timers["setup"].getTime()))
             logging.debug(" main loop time summary   = {}s".format(self.timers["main"].getTime()))

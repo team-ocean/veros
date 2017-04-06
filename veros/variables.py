@@ -1,8 +1,9 @@
 from collections import OrderedDict
 
 class Variable:
-    def __init__(self, name, dims, units, long_description, dtype=None, output=False,
-                 time_dependent = True, scale=1., average=False, extra_attributes=None):
+    def __init__(self, name, dims, units, long_description, dtype=None,
+                 output=False, time_dependent = True, scale=1., average=False,
+                 write_to_restart=False, extra_attributes=None):
         self.name = name
         self.dims = dims
         self.units = units
@@ -12,6 +13,7 @@ class Variable:
         self.time_dependent = time_dependent
         self.scale = scale
         self.average = average
+        self.write_to_restart = write_to_restart
         self.extra_attributes = extra_attributes or {} #: Additional attributes to be written in netCDF output
 
 
@@ -203,42 +205,47 @@ MAIN_VARIABLES = OrderedDict([
     )),
 
     ("rho", Variable(
-        "Density", T_GRID + TIMESTEPS, "kg/m^3", "Potential density", output=True
+        "Density", T_GRID + TIMESTEPS, "kg/m^3", "Potential density", output=True,
+        write_to_restart=True
     )),
     ("int_drhodT", Variable(
         "Der. of dyn. enthalpy by temperature", T_GRID + TIMESTEPS, "?",
-        "Partial derivative of dynamic enthalpy by temperature", output=True
+        "Partial derivative of dynamic enthalpy by temperature", output=True,
+        write_to_restart=True
     )),
     ("int_drhodS", Variable(
         "Der. of dyn. enthalpy by salinity", T_GRID + TIMESTEPS, "?",
-        "Partial derivative of dynamic enthalpy by salinity", output=True
+        "Partial derivative of dynamic enthalpy by salinity", output=True,
+        write_to_restart=True
     )),
     ("Nsqr", Variable(
         "Square of stability frequency", W_GRID + TIMESTEPS, "1/s^2",
-        "Square of stability frequency", output=True
+        "Square of stability frequency", output=True, write_to_restart=True
     )),
     ("Hd", Variable(
-        "Dynamic enthalpy", T_GRID + TIMESTEPS, "m^2/s^2", "Dynamic enthalpy", output=True
+        "Dynamic enthalpy", T_GRID + TIMESTEPS, "m^2/s^2", "Dynamic enthalpy",
+        output=True, write_to_restart=True
     )),
     ("dHd", Variable(
         "Change of dyn. enth. by adv.", T_GRID + TIMESTEPS, "m^2/s^3",
-        "Change of dynamic enthalpy due to advection"
+        "Change of dynamic enthalpy due to advection", write_to_restart=True
     )),
 
     ("temp", Variable(
         "Temperature", T_GRID + TIMESTEPS, "deg C",
-        "Conservative temperature", output=True
+        "Conservative temperature", output=True, write_to_restart=True
     )),
     ("dtemp", Variable(
         "Temperature tendency", T_GRID + TIMESTEPS, "deg C/s",
-        "Conservative temperature tendency",
+        "Conservative temperature tendency", write_to_restart=True
     )),
     ("salt", Variable(
-        "Salinity", T_GRID + TIMESTEPS, "g/kg", "Salinity", output=True
+        "Salinity", T_GRID + TIMESTEPS, "g/kg", "Salinity", output=True,
+        write_to_restart=True
     )),
     ("dsalt", Variable(
         "Salinity tendency", T_GRID + TIMESTEPS, "g/(kg s)",
-        "Salinity tendency",
+        "Salinity tendency", write_to_restart=True
     )),
     ("dtemp_vmix", Variable(
         "Change of temp. by vertical mixing", T_GRID, "deg C/s",
@@ -285,21 +292,24 @@ MAIN_VARIABLES = OrderedDict([
     )),
 
     ("u", Variable(
-        "Zonal velocity", U_GRID + TIMESTEPS, "m/s", "Zonal velocity", output=True
+        "Zonal velocity", U_GRID + TIMESTEPS, "m/s", "Zonal velocity",
+        output=True, write_to_restart=True
     )),
     ("v", Variable(
-        "Meridional velocity", V_GRID + TIMESTEPS, "m/s", "Meridional velocity", output=True
+        "Meridional velocity", V_GRID + TIMESTEPS, "m/s", "Meridional velocity",
+        output=True, write_to_restart=True
     )),
     ("w", Variable(
-        "Vertical velocity", W_GRID + TIMESTEPS, "m/s", "Vertical velocity", output=True
+        "Vertical velocity", W_GRID + TIMESTEPS, "m/s", "Vertical velocity",
+        output=True, write_to_restart=True
     )),
     ("du", Variable(
         "Zonal velocity tendency", U_GRID + TIMESTEPS, "m/s",
-        "Zonal velocity tendency"
+        "Zonal velocity tendency", write_to_restart=True
     )),
     ("dv", Variable(
         "Meridional velocity tendency", V_GRID + TIMESTEPS, "m/s",
-        "Meridional velocity tendency"
+        "Meridional velocity tendency", write_to_restart=True
     )),
     ("du_cor", Variable(
         "Change of u by Coriolis force", U_GRID, "m/s^2",
@@ -478,10 +488,12 @@ CONDITIONAL_VARIABLES = OrderedDict([
 
     ("enable_streamfunction", OrderedDict([
         ("psi", Variable(
-            "Streamfunction", ZETA_HOR + TIMESTEPS, "m^3/s", "Streamfunction", output=True
+            "Streamfunction", ZETA_HOR + TIMESTEPS, "m^3/s", "Streamfunction",
+            output=True, write_to_restart=True
         )),
         ("dpsi", Variable(
-            "Streamfunction tendency", ZETA_HOR + TIMESTEPS, "m^3/s^2", "Streamfunction tendency"
+            "Streamfunction tendency", ZETA_HOR + TIMESTEPS, "m^3/s^2",
+            "Streamfunction tendency", write_to_restart=True
         )),
         #("psin", Variable(
         #    "Boundary streamfunction", ZETA_HOR + ISLE, "m^3/s",
@@ -574,14 +586,14 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ("enable_tke", OrderedDict([
         ("tke", Variable(
             "Turbulent kinetic energy", W_GRID + TIMESTEPS, "m^2/s^2",
-            "Turbulent kinetic energy", output=True
+            "Turbulent kinetic energy", output=True, write_to_restart=True
         )),
         ("sqrttke", Variable(
             "Square-root of TKE", W_GRID, "m/s", "Square-root of TKE"
         )),
         ("dtke", Variable(
             "Turbulent kinetic energy tendency", W_GRID + TIMESTEPS, "m^2/s^3",
-            "Turbulent kinetic energy tendency"
+            "Turbulent kinetic energy tendency", write_to_restart=True
         )),
         ("Prandtlnumber", Variable("Prandtl number", W_GRID, "", "Prandtl number")),
         ("mxl", Variable("Mixing length", W_GRID, "m", "Mixing length")),
@@ -599,11 +611,11 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ("enable_eke", OrderedDict([
         ("eke", Variable(
             "meso-scale energy", W_GRID + TIMESTEPS, "m^2/s^2",
-            "meso-scale energy", output=True
+            "meso-scale energy", output=True, write_to_restart=True
         )),
         ("deke", Variable(
             "meso-scale energy tendency", W_GRID + TIMESTEPS, "m^2/s^3",
-            "meso-scale energy tendency"
+            "meso-scale energy tendency", write_to_restart=True
         )),
         ("sqrteke", Variable(
             "square-root of eke", W_GRID, "m/s", "square-root of eke"
@@ -647,11 +659,12 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ])),
     ("enable_idemix", OrderedDict([
         ("E_iw", Variable(
-            "Internal wave energy", W_GRID + TIMESTEPS, "m^2/s^2", "Internal wave energy", output=True
+            "Internal wave energy", W_GRID + TIMESTEPS, "m^2/s^2",
+            "Internal wave energy", output=True, write_to_restart=True
         )),
         ("dE_iw", Variable(
             "Internal wave energy tendency", W_GRID + TIMESTEPS, "m^2/s^2",
-            "Internal wave energy tendency"
+            "Internal wave energy tendency", write_to_restart=True
         )),
         ("c0", Variable(
             "Vertical IW group velocity", W_GRID, "m/s",
@@ -675,8 +688,12 @@ CONDITIONAL_VARIABLES = OrderedDict([
         )),
     ])),
     ("enable_idemix_M2", OrderedDict([
-        ("E_M2", Variable("M2 energy", T_HOR, "m^3/s^2", "M2 energy", output=True)),
-        ("dE_M2", Variable("M2 energy tendency", T_HOR, "m^3/s^3", "M2 energy tendency")),
+        ("E_M2", Variable(
+            "M2 energy", T_HOR, "m^3/s^2", "M2 energy", output=True, write_to_restart=True
+        )),
+        ("dE_M2", Variable(
+            "M2 energy tendency", T_HOR, "m^3/s^3", "M2 energy tendency", write_to_restart=True
+        )),
         ("E_struct_M2", Variable("M2 structure function", T_GRID, "", "M2 structure function")),
         ("cg_M2", Variable("M2 group velocity", T_HOR, "m/s", "M2 group velocity")),
         ("kdot_x_M2", Variable("M2 refraction", U_HOR, "1/s", "M2 refraction")),
@@ -727,11 +744,12 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ("enable_idemix_niw", OrderedDict([
         ("omega_niw", Variable("?", T_HOR, "?", "?")),
         ("E_niw", Variable(
-            "NIW energy", T_HOR + NP + TIMESTEPS, "m^3/s^2", "NIW energy", output=True
+            "NIW energy", T_HOR + NP + TIMESTEPS, "m^3/s^2", "NIW energy",
+            output=True, write_to_restart=True
         )),
         ("dE_niwp", Variable(
             "NIW energy tendency", T_HOR + NP + TIMESTEPS, "m^3/s^3",
-            "NIW energy tendency"
+            "NIW energy tendency", write_to_restart=True
         )),
         ("cg_niw", Variable("NIW group velocity", T_HOR, "m/s", "NIW group velocity")),
         ("kdot_x_niw", Variable("NIW refraction", U_HOR, "1/s", "NIW refraction")),

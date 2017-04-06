@@ -130,6 +130,7 @@ SETTINGS = OrderedDict([
     ("use_io_threads", Setting(True, "")),
     ("io_timeout", Setting(None, "")),
     ("enable_netcdf_zlib_compression", Setting(True, "")),
+    ("restart_filename", Setting("restart.h5", "File name of restart output"))
 ])
 
 

@@ -11,6 +11,7 @@ setup(
         "scipy",
         "pyamg",
         "netCDF4",
+        "h5py",
         ],
     author = "NBI Copenhagen",
     author_email = "dion.haefner@nbi.ku.dk",
