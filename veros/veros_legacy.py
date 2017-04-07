@@ -70,7 +70,6 @@ class VerosLegacy(Veros):
             (self.diagnostics["overturning"], "sampling_frequency", "overfreq"),
             (self.diagnostics["energy"], "output_frequency", "energint"),
             (self.diagnostics["energy"], "sampling_frequency", "energfreq"),
-            (self.diagnostics["particles"], "output_frequency", "particles_int"),
         )
 
         for diag, param, attr in diag_legacy_settings:

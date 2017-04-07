@@ -71,6 +71,7 @@ class Veros(object):
                             level=getattr(logging, (loglevel or args.loglevel).upper()),
                             format="%(message)s")
         self.profile_mode = args.profile
+        self.diagnostics = {name: Diagnostic() for name, Diagnostic in diagnostics.diagnostics.items()}
         self._set_default_settings()
         self.timers = {k: Timer(k) for k in ("setup","main","momentum","temperature",
                                              "eke","idemix","tke","diagnostics",
@@ -84,14 +85,9 @@ class Veros(object):
             raise ValueError("{} backend failed to import".format(backend))
         return BACKENDS[backend], backend
 
-
     def _set_default_settings(self):
         for key, setting in settings.SETTINGS.items():
             setattr(self, key, setting.default)
-        self.diagnostics = {}
-        for key, setting in settings.DIAGNOSTICS_SETTINGS.items():
-            self.diagnostics[key] = setting
-
 
     def _allocate(self):
         self.variables = {}
@@ -220,6 +216,16 @@ class Veros(object):
         except AttributeError:
             pass
 
+    def panic_output(self):
+        snapshot = self.diagnostics["snapshot"]
+        if not snapshot.is_active:
+            snapshot.initialize(self)
+        snapshot.output(self)
+
+    def sanity_check(self):
+        if self.backend.any(~self.backend.isfinite(self.u)):
+            raise RuntimeError("solver diverged at iteration {}".format(self.itt))
+
     def setup(self):
         logging.info("Setting up everything")
         self.set_parameter()
@@ -243,7 +249,8 @@ class Veros(object):
             external.streamfunction_init(self)
 
         self.set_diagnostics()
-        diagnostics.init_diagnostics(self)
+        for diagnostic in self.diagnostics.values():
+            diagnostic.initialize(self)
 
         eke.init_eke(self)
 
@@ -267,7 +274,8 @@ class Veros(object):
 
             logging.info("Reading restarts:")
             restart.read_restart(self)
-            diagnostics.read_restart(self)
+            for diagnostic in self.diagnostics.values():
+                diagnostic.read_restart(self)
 
             self.enditt = self.itt + int(self.runlen / self.dt_tracer)
             logging.info("Starting integration for {:.2e}s".format(self.runlen))
@@ -341,10 +349,17 @@ class Veros(object):
                 self.flush()
 
                 with self.timers["diagnostics"]:
-                    diagnostics.sanity_check(self)
+                    self.sanity_check()
                     if self.enable_neutral_diffusion and self.enable_skew_diffusion:
                         isoneutral.isoneutral_diag_streamfunction(self)
-                    diagnostics.diagnose(self)
+                    for diagnostic in self.diagnostics.values():
+                        if not diagnostic.is_active:
+                            continue
+                        time = self.itt * self.dt_tracer
+                        if time % diagnostic.sampling_frequency < self.dt_tracer:
+                            diagnostic.diagnose(self)
+                        if time % diagnostic.output_frequency < self.dt_tracer:
+                            diagnostic.output(self)
 
                 # shift time
                 otaum1 = self.taum1
@@ -356,7 +371,7 @@ class Veros(object):
                 logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
         except:
-            diagnostics.panic_output(self)
+            self.panic_output()
             raise
 
         finally:

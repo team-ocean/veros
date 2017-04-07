@@ -40,7 +40,7 @@ TIMESTEPS = ("timesteps",)
 TENSOR_COMP = ("tensor1", "tensor2")
 NP = ("np",)
 #
-OUTPUT_DIMENSIONS = XT + XU + YT + YU + ZT + ZW
+BASE_DIMENSIONS = XT + XU + YT + YU + ZT + ZW
 
 
 def get_dimensions(veros, grid, include_ghosts=True):
@@ -54,7 +54,7 @@ def get_dimensions(veros, grid, include_ghosts=True):
         "timesteps": 3,
         "tensor1": 2,
         "tensor2": 2,
-        "np": veros.np
+        "np": veros.np,
     }
     if include_ghosts:
         for d in ("xt","xu","yt","yu"):
