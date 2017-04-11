@@ -12,33 +12,35 @@ http://ferret.pmel.noaa.gov/Ferret/documentation/coards-netcdf-conventions
 """
 
 @veros_method
-def initialize_netcdf_file(veros, ncfile):
+def initialize_netcdf_file(veros, ncfile, create_time_dimension=True):
     """
     Define standard grid in netcdf file
     """
     if not isinstance(ncfile, Dataset):
         raise TypeError("Argument needs to be a netCDF4 Dataset")
 
-    dims = variables.BASE_DIMENSIONS
-    for dim in dims:
+    for dim in variables.BASE_DIMENSIONS:
         var = veros.variables[dim]
         dimsize = variables.get_dimensions(veros, var.dims[::-1], include_ghosts=False)[0]
         nc_dim = add_dimension(veros, dim, dimsize, ncfile)
         initialize_variable(veros, dim, var, ncfile)
-    nc_dim_time = ncfile.createDimension("Time", None)
-    nc_dim_var_time = ncfile.createVariable("Time","f8",("Time",))
-    nc_dim_var_time.long_name = "Time"
-    nc_dim_var_time.units = "days"
-    nc_dim_var_time.time_origin = "01-JAN-1900 00:00:00"
+        write_variable(veros, dim, var, getattr(veros, dim), ncfile)
+
+    if create_time_dimension:
+        nc_dim_time = ncfile.createDimension("Time", None)
+        nc_dim_var_time = ncfile.createVariable("Time","f8",("Time",))
+        nc_dim_var_time.long_name = "Time"
+        nc_dim_var_time.units = "days"
+        nc_dim_var_time.time_origin = "01-JAN-1900 00:00:00"
 
 @veros_method
 def add_dimension(veros, identifier, size, ncfile):
     return ncfile.createDimension(identifier, size)
 
 @veros_method
-def initialize_variable(veros, key, var, ncfile, var_data=None):
+def initialize_variable(veros, key, var, ncfile):
     dims = tuple(d for d in var.dims if d in ncfile.dimensions)
-    if var.time_dependent:
+    if var.time_dependent and "Time" in ncfile.dimensions:
         dims += ("Time",)
     if key in ncfile.variables:
         warnings.warn("Variable {} already initialized".format(key))
@@ -52,23 +54,29 @@ def initialize_variable(veros, key, var, ncfile, var_data=None):
     v.missing_value = variables.FILL_VALUE
     for extra_key, extra_attr in var.extra_attributes.items():
         setattr(v, extra_key, extra_attr)
-    if not var.time_dependent:
-        write_variable(veros, key, var, None, ncfile, var_data)
 
 @veros_method
-def write_variable(veros, key, var, n, ncfile, var_data=None):
-    if var_data is None:
-        var_data = getattr(veros,key)
+def get_current_timestep(veros, ncfile):
+    return len(ncfile.dimensions["Time"])
+
+@veros_method
+def advance_time(veros, time_step, time_value, ncfile):
+    ncfile.variables["Time"][time_step] = time_value
+
+@veros_method
+def write_variable(veros, key, var, var_data, ncfile, time_step=None):
     gridmask = variables.get_grid_mask(veros,var.dims)
     if not gridmask is None:
         newaxes = (slice(None),) * gridmask.ndim + (np.newaxis,) * (var_data.ndim - gridmask.ndim)
         var_data = np.where(gridmask.astype(np.bool)[newaxes], var_data, variables.FILL_VALUE)
     var_data = variables.remove_ghosts(var_data, var.dims) * var.scale
-    tmask = tuple(veros.tau if dim == variables.TIMESTEPS[0] else slice(None) for dim in var.dims)
+    tmask = tuple(veros.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
     if veros.backend_name == "bohrium":
         var_data = var_data.copy2numpy()
     if "Time" in ncfile.variables[key].dimensions:
-        ncfile.variables[key][n, ...] = var_data[tmask].T
+        if time_step is None:
+            raise ValueError("time step must be given for non-constant data")
+        ncfile.variables[key][time_step, ...] = var_data[tmask].T
     else:
         ncfile.variables[key][...] = var_data[tmask].T
 
@@ -112,7 +120,8 @@ def _wait_for_disk(veros, file_id):
 
 def _write_to_disk(ncfile, file_id):
     """
-    Sync netCDF data to disk, close file handle, and release lock
+    Sync netCDF data to disk, close file handle, and release lock.
+    May run in a separate thread.
     """
     ncfile.sync()
     ncfile.close()

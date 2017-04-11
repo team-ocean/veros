@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import logging
+import os
 
 from . import io_tools
 from .. import veros_class_method
@@ -38,29 +39,18 @@ ISONEUTRAL_VARIABLES = OrderedDict([
 class Overturning(VerosDiagnostic):
     """isopycnal overturning diagnostic
     """
-    outfile="{identifier}_overturning.nc"
+    output_path = "{identifier}_overturning.nc"
     p_ref = 2000.
 
     @veros_class_method
     def initialize(self, veros):
-        self.filename = self.outfile.format(**vars(veros))
-
         self.variables = OVERTURNING_VARIABLES
         if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
             self.variables.update(ISONEUTRAL_VARIABLES)
 
         self.nitts = 0
         self.nlevel = veros.nz * 4
-
-        self.sigma = np.zeros(self.nlevel)
-        self.trans = np.zeros((veros.ny+4, self.nlevel))
-        self.zarea = np.zeros((veros.ny+4, veros.nz))
-        self.mean_trans = np.zeros((veros.ny+4, self.nlevel))
-        self.mean_vsf_iso = np.zeros((veros.ny+4, veros.nz))
-        self.mean_vsf_depth = np.zeros((veros.ny+4, veros.nz))
-        if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
-            self.mean_bolus_iso = np.zeros((veros.ny+4, veros.nz))
-            self.mean_bolus_depth = np.zeros((veros.ny+4, veros.nz))
+        self._allocate(veros)
 
         # sigma levels
         self.sige = density.get_rho(veros, 35., -2., self.p_ref)
@@ -82,22 +72,23 @@ class Overturning(VerosDiagnostic):
                                 * veros.cosu[np.newaxis, 2:-2, np.newaxis] \
                                 * veros.maskV[2:-2, 2:-2, :]
                              , axis=0)
-        self.zarea[:, 1:] = self.zarea[:, :-1] + self.zarea[:, 1:] * veros.dzt[np.newaxis, 1:]
+        self.zarea[...] = np.cumsum(self.zarea[:, ::-1] * veros.dzt[np.newaxis, :]
+                            , axis=1)[:, ::-1]
 
-        # prepare cdf file for output
-        with io_tools.threaded_io(veros, self.filename, "w") as f:
-            io_tools.initialize_file(veros, f)
-            io_tools.add_dimension(veros, "sigma", self.nlevel, f)
-            for key, var in self.variables.items():
-                if var.time_dependent:
-                    var_data = None
-                else:
-                    var_data = getattr(self, key)
-                io_tools.initialize_variable(veros, key, var, f, var_data=var_data)
+        self.initialize_output(veros, self.variables, extra_dimensions={"sigma": self.nlevel})
+
 
     @veros_class_method
     def _allocate(self, veros):
-        pass
+        self.sigma = np.zeros(self.nlevel)
+        self.trans = np.zeros((veros.ny+4, self.nlevel))
+        self.zarea = np.zeros((veros.ny+4, veros.nz))
+        self.mean_trans = np.zeros((veros.ny+4, self.nlevel))
+        self.mean_vsf_iso = np.zeros((veros.ny+4, veros.nz))
+        self.mean_vsf_depth = np.zeros((veros.ny+4, veros.nz))
+        if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
+            self.mean_bolus_iso = np.zeros((veros.ny+4, veros.nz))
+            self.mean_bolus_depth = np.zeros((veros.ny+4, veros.nz))
 
 
     @veros_class_method
@@ -114,5 +105,14 @@ class Overturning(VerosDiagnostic):
 
     @veros_class_method
     def output(self, veros):
+        if not os.path.isfile(self.get_output_file_name(veros)):
+            self.initialize_output(veros, self.variables, extra_dimensions={"sigma": self.nlevel})
+
         import warnings
         warnings.warn("routine is not implemented yet")
+
+    def read_restart(self, veros):
+        pass
+
+    def write_restart(self, veros):
+        pass

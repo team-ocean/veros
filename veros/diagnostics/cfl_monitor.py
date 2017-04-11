@@ -43,3 +43,9 @@ class CFLMonitor(VerosDiagnostic):
 
     def output(self, veros):
         pass
+
+    def read_restart(self, veros):
+        pass
+
+    def write_restart(self, veros):
+        pass

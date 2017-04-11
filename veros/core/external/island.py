@@ -53,7 +53,7 @@ def isleperim(veros, kmt, boundary_map, iperm, jperm, iofs, nippts, imt, jmt, mn
                 queue.put((i,j))
                 expand(veros, boundary_map, label, queue, nerror,iperm, jperm, iofs, nippts, imt, jmt, mnisle, maxipp)
                 if verbose:
-                    logging.debug(" number of island perimeter points: nippts(",label-1,")=",nippts[label])
+                    logging.debug(" number of island perimeter points: nippts({})={}".format(label-1, nippts[label]))
                 label += 1
                 if label >= mnisle:
                     print "ERROR==> mnisle=",mnisle," is too small"

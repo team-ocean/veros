@@ -12,3 +12,9 @@ class Energy(VerosDiagnostic):
     def output(self,veros):
         import warnings
         warnings.warn("routine is not implemented yet")
+
+    def read_restart(self, veros):
+        pass
+
+    def write_restart(self, veros):
+        pass

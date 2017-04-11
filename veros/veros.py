@@ -16,7 +16,11 @@ except ImportError:
 
 BACKENDS = {"numpy": numpy, "bohrium": bohrium}
 
-from . import restart, variables, settings, cli, diagnostics
+# for some reason, netCDF4 has to be imported before h5py, so we do it here
+import netCDF4
+import h5py
+
+from . import restart, variables, settings, cli, diagnostics, time
 from .timer import Timer
 from .core import momentum, numerics, thermodynamics, eke, tke, idemix, \
                   isoneutral, external, non_hydrostatic, advection, cyclic
@@ -189,7 +193,7 @@ class Veros(object):
         Example:
           >>> @veros_method
           >>> def set_forcing(self):
-          >>>     current_month = (self.itt * self.dt_tracer / (31 * 24 * 60 * 60)) % 12
+          >>>     current_month = (self.time / (31 * 24 * 60 * 60)) % 12
           >>>     self.surface_taux[:, :] = self._windstress_data[:, :, current_month]
         """
         self._not_implemented()
@@ -261,7 +265,7 @@ class Veros(object):
                                "(set enable_implicit_vert_fricton)")
 
     def run(self, **kwargs):
-        """Main routine of the model.
+        """Main routine of the simulation.
 
         Arguments:
             kwargs (:obj:`dict`):
@@ -352,13 +356,14 @@ class Veros(object):
                     self.sanity_check()
                     if self.enable_neutral_diffusion and self.enable_skew_diffusion:
                         isoneutral.isoneutral_diag_streamfunction(self)
+
                     for diagnostic in self.diagnostics.values():
                         if not diagnostic.is_active:
                             continue
-                        time = self.itt * self.dt_tracer
-                        if time % diagnostic.sampling_frequency < self.dt_tracer:
+                        t = time.current_time(self, "seconds")
+                        if diagnostic.sampling_frequency and t % diagnostic.sampling_frequency < self.dt_tracer:
                             diagnostic.diagnose(self)
-                        if time % diagnostic.output_frequency < self.dt_tracer:
+                        if diagnostic.output_frequency and t % diagnostic.output_frequency < self.dt_tracer:
                             diagnostic.output(self)
 
                 # shift time
@@ -376,6 +381,8 @@ class Veros(object):
 
         finally:
             restart.write_restart(self)
+            for diagnostic in self.diagnostics.values():
+                diagnostic.write_restart(self)
 
             logging.debug("Timing summary:")
             logging.debug(" setup time summary       = {}s".format(self.timers["setup"].getTime()))

@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+
 import numpy as np
+
 try:
     import bohrium as bh
     flush = bh.flush

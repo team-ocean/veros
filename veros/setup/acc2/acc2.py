@@ -141,8 +141,7 @@ class ACC2(VerosLegacy):
    @veros_method
    def set_diagnostics(self):
        m = self.main_module
-       for var in ("salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy"):
-           m.variables[var].average = True
+       m.diagnostics["averages"].output_variables = ("salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy")
 
 
 if __name__ == "__main__":
