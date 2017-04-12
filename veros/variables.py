@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 class Variable:
     def __init__(self, name, dims, units, long_description, dtype=None,
-                 output=False, time_dependent = True, scale=1., average=False,
+                 output=False, time_dependent=True, scale=1., average=False,
                  write_to_restart=False, extra_attributes=None):
         self.name = name
         self.dims = dims
