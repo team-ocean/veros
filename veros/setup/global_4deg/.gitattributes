@@ -1,10 +1,2 @@
-bathymetry.npy filter=lfs diff=lfs merge=lfs -text
-lev_s.npy filter=lfs diff=lfs merge=lfs -text
-lev_sss.npy filter=lfs diff=lfs merge=lfs -text
-lev_sst.npy filter=lfs diff=lfs merge=lfs -text
-lev_t.npy filter=lfs diff=lfs merge=lfs -text
-ncep_qnet.npy filter=lfs diff=lfs merge=lfs -text
-tidal_energy.npy filter=lfs diff=lfs merge=lfs -text
-trenberth_taux.npy filter=lfs diff=lfs merge=lfs -text
-trenberth_tauy.npy filter=lfs diff=lfs merge=lfs -text
-wind_energy.npy filter=lfs diff=lfs merge=lfs -text
+forcing_4deg_global.nc filter=lfs diff=lfs merge=lfs -text
+ecmwf_4deg_monthly.nc filter=lfs diff=lfs merge=lfs -text

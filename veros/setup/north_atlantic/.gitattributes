@@ -6,3 +6,5 @@ ETOPO1_Bed_g_gmt4_NA.nc filter=lfs diff=lfs merge=lfs -text
 topo_mask.png filter=lfs diff=lfs merge=lfs -text
 tidal_energy.npy filter=lfs diff=lfs merge=lfs -text
 wind_energy.npy filter=lfs diff=lfs merge=lfs -text
+forcing.nc filter=lfs diff=lfs merge=lfs -text
+restoring_zone.nc filter=lfs diff=lfs merge=lfs -text

@@ -4,6 +4,9 @@
 *.h5
 *.hdf5
 
+# restart files
+restart.h5
+
 # documentation and profiler output
 *.html
 
