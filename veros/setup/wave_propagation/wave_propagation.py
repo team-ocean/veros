@@ -14,7 +14,7 @@ class WavePropagation(Veros):
     Atlantic to examine coastal wave propagation.
     """
 
-    @pyom_method
+    @veros_method
     def set_parameter(self):
         self.nx = 360
         self.ny = 160
@@ -200,7 +200,7 @@ class WavePropagation(Veros):
         self._divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
         self._divpen_shortwave[0] = pen[0] / self.dzt[0]
 
-    @pyom_method
+    @veros_method
     def set_forcing(self):
         t_rest = 30. * 86400.
         cp_0 = 3991.86795711963 # J/kg /K
@@ -236,7 +236,7 @@ class WavePropagation(Veros):
                                         * self._divpen_shortwave[None, None, :] * ice[..., None] \
                                         * self.maskT[..., :] / cp_0 / self.rho_0
 
-    @pyom_method
+    @veros_method
     def set_diagnostics(self):
         self.diagnostics["cfl_monitor"].output_frequency = 86400.0
         self.diagnostics["snapshot"].output_frequency = 0.5 * 86400.
