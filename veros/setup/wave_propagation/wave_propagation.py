@@ -5,28 +5,29 @@ from PIL import Image
 import scipy.ndimage
 import matplotlib.pyplot as plt
 
-from veros import Veros, veros_method, tools
-from veros.core import cyclic
+from climate import tools
+from climate.pyom import PyOM, pyom_method
+from climate.pyom.core import cyclic
 
-class WavePropagation(Veros):
+class WavePropagation(PyOM):
     """
     Global model with flexible resolution and idealized geometry in the
     Atlantic to examine coastal wave propagation.
     """
 
-    @veros_method
+    @pyom_method
     def set_parameter(self):
-        self.nx = 140
-        self.ny = 120
-        self.nz = 50
+        self.nx = 360
+        self.ny = 160
+        self.nz = 115
         self._max_depth = 5600.
-        self.dt_mom = 3600.0
-        self.dt_tracer = 3600.0
+        self.dt_mom = 900.
+        self.dt_tracer = 900.
 
         self.coord_degree = True
         self.enable_cyclic_x = True
 
-        self.congr_epsilon = 1e-10
+        self.congr_epsilon = 1e-6
         self.congr_max_iterations = 10000
         self.enable_streamfunction = True
 
@@ -75,7 +76,7 @@ class WavePropagation(Veros):
             setattr(module,key,attribute)
 
     def _get_data(self, var):
-        with Dataset("forcing_1deg_global_smooth.nc", "r") as forcing_file:
+        with Dataset("forcing_1deg_global.nc", "r") as forcing_file:
             return forcing_file.variables[var][...].T
 
     def set_grid(self):
@@ -89,7 +90,7 @@ class WavePropagation(Veros):
         self.coriolis_t[...] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
     def _shift_longitude_array(self, lon, arr):
-        wrap_i = np.where((lon[:-1] < self.xt.min()) & (lon[1:] > self.xt.min()))[0][0]
+        wrap_i = np.where((lon[:-1] < self.xt.min()) & (lon[1:] >= self.xt.min()))[0][0]
         new_lon = np.concatenate((lon[wrap_i:-1], lon[:wrap_i] + 360.))
         new_arr = np.concatenate((arr[wrap_i:-1, ...], arr[:wrap_i, ...]))
         return new_lon, new_arr
@@ -98,13 +99,13 @@ class WavePropagation(Veros):
         with Dataset("ETOPO5_Ice_g_gmt4.nc","r") as topography_file:
             topo_x, topo_y, topo_z = (topography_file.variables[k][...].T.astype(np.float) for k in ("x","y","z"))
         topo_z[topo_z > 0] = 0.
-        topo_mask = np.flipud(np.asarray(Image.open("topo_mask_1deg_idealized.png"))).T / 255
+        topo_mask = (np.flipud(np.asarray(Image.open("topography_idealized.png"))).T / 255).astype(np.bool)
         topo_z_smoothed = scipy.ndimage.gaussian_filter(topo_z,
                                       sigma = (0.5 * len(topo_x) / self.nx, 0.5 * len(topo_y) / self.ny))
-        topo_z_smoothed[~topo_mask.astype(np.bool) & (topo_z_smoothed >= 0.)] = -100.
+        topo_z_smoothed[~topo_mask & (topo_z_smoothed >= 0.)] = -100.
         topo_masked = np.where(topo_mask, 0., topo_z_smoothed)
 
-        na_mask_image = np.flipud(np.asarray(Image.open("na_mask_1deg.png"))).T / 255.
+        na_mask_image = np.flipud(np.asarray(Image.open("na_mask.png"))).T / 255.
         topo_x_shifted, na_mask_shifted = self._shift_longitude_array(topo_x, na_mask_image)
         self._na_mask = ~tools.interpolate((topo_x_shifted, topo_y), na_mask_shifted, (self.xt[2:-2], self.yt[2:-2]), kind="nearest", fill=False).astype(np.bool)
 
@@ -177,20 +178,15 @@ class WavePropagation(Veros):
         sss_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)), self._get_data("sss"), time_grid, missing_value=0.)
         self._s_star[2:-2, 2:-2, :] = sss_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        for k in (self._taux, self._tauy, self.temp, self.salt):
-            k[2:-2, 2:-2, ...] = self._fix_north_atlantic(k[2:-2, 2:-2, ...])
-
-        for k in (self._qnet, self._qnec, self._qsol, self._t_star, self._s_star):
-            plt.figure()
-            plt.imshow(k[2:-2, 2:-2, 0])
-        plt.show()
-
         if self.enable_idemix:
             tidal_energy_data = tools.interpolate((xt_forc, yt_forc), self._get_data("tidal_energy"), t_grid[:-1], missing_value=0.)
             mask_x, mask_y = (i+2 for i in np.indices((self.nx, self.ny)))
             mask_z = np.maximum(0, self.kbot[2:-2, 2:-2] - 1)
             tidal_energy_data[:, :] *= self.maskW[mask_x, mask_y, mask_z] / self.rho_0
             self.forc_iw_bottom[2:-2, 2:-2] = tidal_energy_data
+
+        for k in (self._taux, self._tauy, self._qnet, self._qnec, self._qsol, self._t_star, self._s_star, self.salt, self.temp, self.forc_iw_bottom):
+            k[2:-2, 2:-2, ...] = self._fix_north_atlantic(k[2:-2, 2:-2, ...])
 
         """
         Initialize penetration profile for solar radiation
@@ -205,7 +201,7 @@ class WavePropagation(Veros):
         self._divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
         self._divpen_shortwave[0] = pen[0] / self.dzt[0]
 
-    @veros_method
+    @pyom_method
     def set_forcing(self):
         t_rest = 30. * 86400.
         cp_0 = 3991.86795711963 # J/kg /K
@@ -213,7 +209,6 @@ class WavePropagation(Veros):
         year_in_seconds = 360 * 86400.
         (n1, f1), (n2, f2) = tools.get_periodic_interval(self.itt * self.dt_tracer, year_in_seconds, year_in_seconds / 12., 12)
 
-        # linearly interpolate wind stress and shift from MITgcm U/V grid to this grid
         self.surface_taux[...] = f1 * self._taux[:, :, n1] + f2 * self._taux[:, :, n2]
         self.surface_tauy[...] = f1 * self._tauy[:, :, n1] + f2 * self._tauy[:, :, n2]
 
@@ -231,20 +226,18 @@ class WavePropagation(Veros):
         self.forc_salt_surface[...] = 1. / t_rest * (fxa - self.salt[..., -1, self.tau]) * self.maskT[..., -1] * self.dzt[-1]
 
         # apply simple ice mask
-        ice = np.ones((self.nx+4, self.ny+4), dtype=np.uint8)
         mask1 = self.temp[:, :, -1, self.tau] * self.maskT[:, :, -1] <= -1.8
         mask2 = self.forc_temp_surface <= 0
-        mask = ~(mask1 & mask2)
-        self.forc_temp_surface[...] *= mask
-        self.forc_salt_surface[...] *= mask
-        ice *= mask
+        ice = ~(mask1 & mask2)
+        self.forc_temp_surface[...] *= ice
+        self.forc_salt_surface[...] *= ice
 
         # solar radiation
         self.temp_source[..., :] = (f1 * self._qsol[..., n1, None] + f2 * self._qsol[..., n2, None]) \
                                         * self._divpen_shortwave[None, None, :] * ice[..., None] \
                                         * self.maskT[..., :] / cp_0 / self.rho_0
 
-    @veros_method
+    @pyom_method
     def set_diagnostics(self):
         self.diagnostics["cfl_monitor"].output_frequency = 86400.0
         self.diagnostics["snapshot"].output_frequency = 0.5 * 86400.

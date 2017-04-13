@@ -6,18 +6,8 @@ from veros import VerosLegacy, veros_method
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = dict(
-    dz = "dz.npy",
-    temperature = "lev_t.npy",
-    salt = "lev_s.npy",
-    sss = "lev_sss.npy",
-    sst = "lev_sst.npy",
-    tau_x = "trenberth_taux.npy",
-    tau_y = "trenberth_tauy.npy",
-    q_net = "ncep_qnet.npy",
-    bathymetry = "bathymetry.npy",
-    tidal_energy = "tidal_energy.npy",
-    wind_energy = "wind_energy.npy",
-    ecmwf = "ecmwf_4deg_monthly.cdf",
+    forcing = "forcing_4deg_global.nc",
+    ecmwf = "ecmwf_4deg_monthly.nc",
 )
 DATA_FILES = {key: os.path.join(BASE_PATH, val) for key, val in DATA_FILES.items()}
 
@@ -42,17 +32,17 @@ class GlobalFourDegree(VerosLegacy):
         m.enable_streamfunction = True
 
         m.enable_diag_ts_monitor = True
-        m.ts_monint = 365*86400./24.
-        m.enable_diag_snapshots  = True
-        m.snapint  =  365*86400. /24.0
-        m.enable_diag_overturning= True
-        m.overint  =  365*86400./24.0
+        m.ts_monint = 365 * 86400. / 24.
+        m.enable_diag_snapshots = True
+        m.snapint  =  365 * 86400. / 24.
+        m.enable_diag_overturning = True
+        m.overint  =  365 * 86400. / 24.
         m.overfreq = m.dt_tracer
-        m.enable_diag_energy     = True;
-        m.energint = 365*86400./24.
+        m.enable_diag_energy = True
+        m.energint = 365 * 86400. / 24.
         m.energfreq = 86400
-        m.enable_diag_averages   = True
-        m.aveint  = 86400.*30
+        m.enable_diag_averages = True
+        m.aveint  = 86400. * 30
         m.avefreq = 86400
 
         I=self.fortran.isoneutral_module
@@ -98,8 +88,9 @@ class GlobalFourDegree(VerosLegacy):
         m.eq_of_state_type = 5
 
     @veros_method
-    def _read_binary(self, var):
-        return np.load(DATA_FILES[var])
+    def _read_forcing(self, var):
+        with Dataset(DATA_FILES["forcing"], "r") as infile:
+            return infile.variables[var][...].T
 
     @veros_method
     def set_grid(self):
@@ -119,8 +110,8 @@ class GlobalFourDegree(VerosLegacy):
     @veros_method
     def set_topography(self):
         m = self.main_module
-        bathymetry_data = self._read_binary("bathymetry")
-        salt_data = self._read_binary("salt")[:,:,::-1]
+        bathymetry_data = self._read_forcing("bathymetry")
+        salt_data = self._read_forcing("salinity")[:,:,::-1]
         for k in xrange(m.nz-1, -1, -1):
             mask_salt = salt_data[:,:,k] != 0.
             m.kbot[2:-2, 2:-2][mask_salt] = k+1
@@ -130,28 +121,26 @@ class GlobalFourDegree(VerosLegacy):
 
     @veros_method
     def set_initial_conditions(self):
-        """ setup initial conditions
-        """
         m = self.fortran.main_module
         self.taux, self.tauy, self.qnec, self.qnet, self.sss_clim, self.sst_clim = (np.zeros((m.nx+4,m.ny+4,12)) for _ in range(6))
 
         # initial conditions for T and S
-        temp_data = self._read_binary("temperature")[:,:,::-1]
+        temp_data = self._read_forcing("temperature")[:,:,::-1]
         m.temp[2:-2,2:-2,:,:2] = temp_data[:,:,:,np.newaxis] * m.maskT[2:-2,2:-2,:,np.newaxis]
 
-        salt_data = self._read_binary("salt")[:,:,::-1]
+        salt_data = self._read_forcing("salinity")[:,:,::-1]
         m.salt[2:-2,2:-2,:,:2] = salt_data[...,np.newaxis] * m.maskT[2:-2,2:-2,:,np.newaxis]
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
-        self.taux[2:-2,2:-2,:] = self._read_binary("tau_x") / m.rho_0
-        self.tauy[2:-2,2:-2,:] = self._read_binary("tau_y") / m.rho_0
+        self.taux[2:-2,2:-2,:] = self._read_forcing("tau_x") / m.rho_0
+        self.tauy[2:-2,2:-2,:] = self._read_forcing("tau_y") / m.rho_0
 
         # heat flux
         with Dataset(DATA_FILES["ecmwf"],"r") as ecmwf_data:
             self.qnec[2:-2,2:-2,:] = np.array(ecmwf_data.variables["Q3"]).transpose()
             self.qnec[self.qnec <= -1e10] = 0.0
 
-        q = self._read_binary("q_net")
+        q = self._read_forcing("q_net")
         self.qnet[2:-2,2:-2,:] = -q
         self.qnet[self.qnet <= -1e10] = 0.0
 
@@ -160,13 +149,13 @@ class GlobalFourDegree(VerosLegacy):
         self.qnet[...] = (self.qnet - fxa) * m.maskT[: ,: , -1, np.newaxis]
 
         # SST and SSS
-        self.sst_clim[2:-2,2:-2,:] = self._read_binary("sst")
-        self.sss_clim[2:-2,2:-2,:] = self._read_binary("sss")
+        self.sst_clim[2:-2,2:-2,:] = self._read_forcing("sst")
+        self.sss_clim[2:-2,2:-2,:] = self._read_forcing("sss")
 
         idm = self.fortran.idemix_module
         if idm.enable_idemix:
-            idm.forc_iw_bottom[2:-2,2:-2] = self._read_binary("tidal_energy") / m.rho_0
-            idm.forc_iw_surface[2:-2,2:-2] = self._read_binary("wind_energy") / m.rho_0 * 0.2
+            idm.forc_iw_bottom[2:-2,2:-2] = self._read_forcing("tidal_energy") / m.rho_0
+            idm.forc_iw_surface[2:-2,2:-2] = self._read_forcing("wind_energy") / m.rho_0 * 0.2
 
     def _get_periodic_interval(self,currentTime,cycleLength,recSpacing,nbRec):
         """  interpolation routine taken from mitgcm

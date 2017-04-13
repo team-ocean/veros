@@ -63,7 +63,7 @@ def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind=
         raise ValueError("Dimensions of coordinates and values do not match")
     var = np.array(var)
     if not missing_value is None:
-        invalid_mask = var == missing_value
+        invalid_mask = np.isclose(var, missing_value)
         var[invalid_mask] = np.nan
     if var.ndim > 1 and coords[0].ndim == 1:
         interp_grid = np.rollaxis(np.array(np.meshgrid(*interp_coords, indexing="ij", copy=False)), 0, len(interp_coords)+1)

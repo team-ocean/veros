@@ -2,6 +2,9 @@
 *.cdf
 *.nc
 
+# restart files
+restart.h5
+
 # documentation and profiler output
 *.html
 
