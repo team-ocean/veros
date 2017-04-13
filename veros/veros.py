@@ -376,6 +376,7 @@ class Veros(object):
                 logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
         except:
+            logging.error("writing panic output at iteration {}".format(self.itt))
             self.panic_output()
             raise
 

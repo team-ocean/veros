@@ -264,7 +264,7 @@ class WavePropagation(Veros):
             average_vars += ("eke", "K_gm", "L_rossby", "L_rhines")
 
         for var in average_vars:
-            self.variables[var].average = True
+            self.diagnostics["averages"].output_variables = average_vars
 
 
 if __name__ == "__main__":

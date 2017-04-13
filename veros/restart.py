@@ -40,6 +40,9 @@ def write_restart(veros):
     with h5py.File(filename, "w") as restart_file:
         for var_name, var in veros.variables.items():
             if var.write_to_restart:
-                restart_file[var_name] = getattr(veros, var_name)
+                var_data = getattr(veros, var_name)
+                if veros.backend_name == "bohrium":
+                    var_data = var_data.copy2numpy()
+                restart_file.create_dataset(var_name, data=var_data, compression="gzip")
         for attr in RESTART_ATTRIBUTES:
             restart_file.attrs[attr] = getattr(veros, attr)

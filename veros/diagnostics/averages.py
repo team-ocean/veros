@@ -14,6 +14,7 @@ class Averages(VerosDiagnostic):
     """Time average output
     """
     output_path = "{identifier}_averages.nc"
+    output_variables = None
 
     @veros_class_method
     def initialize(self, veros):
@@ -22,6 +23,8 @@ class Averages(VerosDiagnostic):
         """
         self.average_nitts = 0
         self.average_vars = {}
+        if not self.output_variables:
+            return
         for var in self.output_variables:
             var_array = getattr(veros, var)
             var_data = veros.variables[var]
