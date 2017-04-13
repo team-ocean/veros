@@ -5,11 +5,10 @@ from PIL import Image
 import scipy.ndimage
 import matplotlib.pyplot as plt
 
-from climate import tools
-from climate.pyom import PyOM, pyom_method
-from climate.pyom.core import cyclic
+from veros import Veros, veros_method, tools
+from veros.core import cyclic
 
-class WavePropagation(PyOM):
+class WavePropagation(Veros):
     """
     Global model with flexible resolution and idealized geometry in the
     Atlantic to examine coastal wave propagation.
