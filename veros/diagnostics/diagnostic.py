@@ -43,7 +43,7 @@ class VerosDiagnostic(object):
         with h5py.File(self.get_restart_file_name(veros), "a") as restart_file:
             for key, var_data in variables.items():
                 if veros.backend_name == "bohrium":
-                    value = value.copy2numpy()
+                    var_data = var_data.copy2numpy()
                 restart_file.create_dataset("{}/{}".format(group_name, key),
                                             data=var_data, compression="gzip")
             for key, value in attributes.items():
