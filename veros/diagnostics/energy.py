@@ -98,14 +98,14 @@ class Energy(VerosDiagnostic):
         # wind work
         wind = np.sum(veros.u[2:-2, 2:-2, -1, veros.tau] * veros.surface_taux[2:-2, 2:-2] \
                     * veros.maskU[2:-2, 2:-2, -1] * veros.area_u[2:-2, 2:-2]) \
-                    + veros.v[2:-2, 2:-2, -1, veros.tau] * veros.surface_tauy[2:-2, 2:-2] /
+                    + veros.v[2:-2, 2:-2, -1, veros.tau] * veros.surface_tauy[2:-2, 2:-2] \
                     * veros.maskV[2:-2, 2:-2, -1] * veros.area_v[2:-2, 2:-2]
 
         # internal wave energy
         if veros.enable_idemix:
             iw_m = np.sum(vol_w * veros.E_iw[2:-2, 2:-2, :, veros.tau])
             diw_m = np.sum(vol_w * (veros.E_iw[2:-2, 2:-2, :, veros.taup1] \
-                                  - veros.E_iw[2:-2, 2:-2, :, veros.tau]) /
+                                  - veros.E_iw[2:-2, 2:-2, :, veros.tau]) \
                            / veros.dt_tracer)
             iw_diss = np.sum(veros.iw_diss[2:-2, 2:-2, :])
 
