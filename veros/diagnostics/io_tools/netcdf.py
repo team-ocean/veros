@@ -69,16 +69,18 @@ def write_variable(veros, key, var, var_data, ncfile, time_step=None):
     if not gridmask is None:
         newaxes = (slice(None),) * gridmask.ndim + (np.newaxis,) * (var_data.ndim - gridmask.ndim)
         var_data = np.where(gridmask.astype(np.bool)[newaxes], var_data, variables.FILL_VALUE)
-    var_data = variables.remove_ghosts(var_data, var.dims) * var.scale
-    tmask = tuple(veros.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
-    if veros.backend_name == "bohrium":
-        var_data = var_data.copy2numpy()
+    if not np.isscalar(var_data):
+        tmask = tuple(veros.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
+        var_data = variables.remove_ghosts(var_data, var.dims)[tmask].T
+        if veros.backend_name == "bohrium":
+            var_data = var_data.copy2numpy()
+    var_data = var_data * var.scale
     if "Time" in ncfile.variables[key].dimensions:
         if time_step is None:
             raise ValueError("time step must be given for non-constant data")
-        ncfile.variables[key][time_step, ...] = var_data[tmask].T
+        ncfile.variables[key][time_step, ...] = var_data
     else:
-        ncfile.variables[key][...] = var_data[tmask].T
+        ncfile.variables[key][...] = var_data
 
 @veros_method
 @contextlib.contextmanager

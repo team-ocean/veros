@@ -26,8 +26,16 @@ class ACC2(VerosLegacy):
 
      m.enable_diag_snapshots = True
      m.enable_diag_averages = True
-     m.aveint = 10 * 86400
-     m.avefreq = 10 * 86400 / 24.
+     m.aveint = 365 * 86400.
+     m.avefreq = m.dt_tracer * 10
+     m.enable_diag_overturning = True
+     m.overint = 365 * 86400. / 48.
+     m.overfreq = m.dt_tracer
+     m.enable_diag_ts_monitor = True
+     m.ts_monint = 365 * 86400. / 12.
+     m.enable_diag_energy = True
+     m.energint = 365 * 86400. / 48
+     m.energfreq = m.dt_tracer * 10
 
      i=self.isoneutral_module
      i.enable_neutral_diffusion = 1
@@ -146,4 +154,4 @@ class ACC2(VerosLegacy):
 
 if __name__ == "__main__":
     simulation = ACC2()
-    simulation.run(snapint = 86400*1., runlen = 86400 * 100.0) #365*86400.*200)
+    simulation.run(snapint = 365*86400./12., runlen = 365 * 86400.)

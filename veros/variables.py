@@ -18,7 +18,7 @@ class Variable:
 
 
 # fill value for netCDF output (invalid data is replaced by this value)
-FILL_VALUE = 1e-33
+FILL_VALUE = -1e33
 
 #
 XT = ("xt",)

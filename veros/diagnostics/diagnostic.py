@@ -41,6 +41,7 @@ class VerosDiagnostic(object):
     def write_h5_restart(self, veros, attributes, variables):
         group_name = "diagnostics/{}".format(self.diagnostic_name)
         with h5py.File(self.get_restart_file_name(veros), "a") as restart_file:
+            restart_file.create_group(group_name)
             for key, var_data in variables.items():
                 if veros.backend_name == "bohrium":
                     var_data = var_data.copy2numpy()
