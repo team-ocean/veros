@@ -8,11 +8,11 @@ from .diagnostic import VerosDiagnostic
 from ..core import density
 from ..variables import Variable
 
+SIGMA = Variable(
+    "Sigma axis", ("sigma",), "kg/m^3", "Sigma axis", output=True,
+    time_dependent=False
+)
 OVERTURNING_VARIABLES = OrderedDict([
-    ("sigma", Variable(
-        "Sigma axis", ("sigma",), "kg/m^3", "Sigma axis", output=True,
-        time_dependent=False
-    )),
     ("trans", Variable(
         "Meridional transport", ("yu", "sigma"), "m^3/s",
         "Meridional transport", output=True
@@ -45,9 +45,12 @@ class Overturning(VerosDiagnostic):
 
     @veros_class_method
     def initialize(self, veros):
-        self.variables = OVERTURNING_VARIABLES
+        self.sigma_var = SIGMA
+        self.mean_variables = OVERTURNING_VARIABLES
         if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
-            self.variables.update(ISONEUTRAL_VARIABLES)
+            self.mean_variables.update(ISONEUTRAL_VARIABLES)
+        self.variables = self.mean_variables.copy()
+        self.variables.update({"sigma": self.sigma_var})
 
         self.nitts = 0
         self.nlevel = veros.nz * 4
@@ -81,62 +84,52 @@ class Overturning(VerosDiagnostic):
     @veros_class_method
     def _allocate(self, veros):
         self.sigma = np.zeros(self.nlevel)
-        self.trans = np.zeros((veros.ny+4, self.nlevel))
-        self.z_sig = np.zeros((veros.ny+4, self.nlevel))
         self.zarea = np.zeros((veros.ny+4, veros.nz))
-        self.bolus_trans = np.zeros((veros.ny+4, self.nlevel))
+        self.trans = np.zeros((veros.ny+4, self.nlevel))
         self.vsf_iso = np.zeros((veros.ny+4, veros.nz))
         self.vsf_depth = np.zeros((veros.ny+4, veros.nz))
         if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
             self.bolus_iso = np.zeros((veros.ny+4, veros.nz))
             self.bolus_depth = np.zeros((veros.ny+4, veros.nz))
-        self.sig_loc = np.zeros((veros.nx+4, veros.ny+4, veros.nz))
-
-        self.mean_variables = {
-            "trans": np.zeros((veros.ny+4, self.nlevel)),
-            "vsf_iso": np.zeros((veros.ny+4, veros.nz)),
-            "vsf_depth": np.zeros((veros.ny+4, veros.nz))
-        }
-        if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
-            self.mean_variables.update({
-                "bolus_iso": np.zeros((veros.ny+4, veros.nz)),
-                "bolus_depth": np.zeros((veros.ny+4, veros.nz))
-            })
 
 
     @veros_class_method
     def diagnose(self, veros):
         # sigma at p_ref
-        self.sig_loc[2:-2, 2:-1, :] = density.get_rho(veros,
+        sig_loc = np.zeros((veros.nx+4, veros.ny+4, veros.nz))
+        sig_loc[2:-2, 2:-1, :] = density.get_rho(veros,
                                   veros.salt[2:-2, 2:-1, :, veros.tau],
                                   veros.temp[2:-2, 2:-1, :, veros.tau],
                                   self.p_ref)
 
         # transports below isopycnals and area below isopycnals
-        sig_loc_face = 0.5 * (self.sig_loc[2:-2, 2:-2, :] + self.sig_loc[2:-2, 3:-1, :])
+        sig_loc_face = 0.5 * (sig_loc[2:-2, 2:-2, :] + sig_loc[2:-2, 3:-1, :])
+        z_sig = np.zeros((veros.ny+4, self.nlevel))
         for m in range(self.nlevel):
             # NOTE: vectorized version would be O(N^4) in memory
             # consider cythonizing if performance-critical
             mask = sig_loc_face > self.sigma[m]
-            self.trans[2:-2, m] = np.sum(
+            self.trans[2:-2, m] += np.sum(
                                    veros.v[2:-2, 2:-2, :, veros.tau] \
                                  * veros.dxt[2:-2, np.newaxis, np.newaxis] \
                                  * veros.cosu[np.newaxis, 2:-2, np.newaxis] \
+                                 * veros.dzt[np.newaxis, np.newaxis, :]
                                  * veros.maskV[2:-2, 2:-2, :] * mask
                                , axis=(0,2))
-            self.z_sig[2:-2, m] = np.sum(
-                                    veros.dzt[np.newaxis, np.newaxis, :] \
-                                  * veros.dxt[2:-2, np.newaxis, np.newaxis] \
-                                  * veros.cosu[np.newaxis, 2:-2, np.newaxis] \
-                                  * veros.maskV[2:-2, 2:-2, :] * mask
-                                , axis=(0,2))
+            z_sig[2:-2, m] = np.sum(
+                                veros.dzt[np.newaxis, np.newaxis, :] \
+                              * veros.dxt[2:-2, np.newaxis, np.newaxis] \
+                              * veros.cosu[np.newaxis, 2:-2, np.newaxis] \
+                              * veros.maskV[2:-2, 2:-2, :] * mask
+                            , axis=(0,2))
 
         if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
+            bolus_trans = np.zeros((veros.ny+4, self.nlevel))
             # eddy-driven transports below isopycnals
             for m in range(self.nlevel):
                 # NOTE: see above
                 mask = sig_loc_face > self.sigma[m]
-                self.bolus_trans[2:-2, m] = np.sum(
+                bolus_trans[2:-2, m] += np.sum(
                                                 (veros.B1_gm[2:-2, 2:-2, 1:] \
                                                - veros.B1_gm[2:-2, 2:-2, :-1]) \
                                               * veros.dxt[2:-2, np.newaxis, np.newaxis] \
@@ -144,7 +137,7 @@ class Overturning(VerosDiagnostic):
                                               * veros.maskV[2:-2, 2:-2, 1:] \
                                               * mask[:, :, 1:]
                                             , axis=(0,2))
-                self.bolus_trans[2:-2, m] += np.sum(
+                bolus_trans[2:-2, m] += np.sum(
                                                 veros.B1_gm[2:-2, 2:-2, 0] \
                                               * veros.dxt[2:-2, np.newaxis] \
                                               * veros.cosu[np.newaxis, 2:-2] \
@@ -153,7 +146,7 @@ class Overturning(VerosDiagnostic):
                                             , axis=0)
 
         # streamfunction on geopotentials
-        self.vsf_depth[2:-2, :] = np.cumsum(np.sum(
+        self.vsf_depth[2:-2, :] += np.cumsum(np.sum(
                                      veros.dxt[2:-2, np.newaxis, np.newaxis] \
                                    * veros.cosu[np.newaxis, 2:-2, np.newaxis] \
                                    * veros.v[2:-2, 2:-2, :, veros.tau] \
@@ -162,23 +155,20 @@ class Overturning(VerosDiagnostic):
 
         if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
             # streamfunction for eddy driven velocity on geopotentials
-            self.bolus_depth[2:-2, :] = np.sum(
+            self.bolus_depth[2:-2, :] += np.sum(
                                            veros.dxt[2:-2, np.newaxis, np.newaxis] \
                                          * veros.cosu[np.newaxis, 2:-2, np.newaxis] \
                                          * veros.B1_gm[2:-2, 2:-2, :] \
                                         , axis=0)
         # interpolate from isopycnals to depth
-        self.vsf_iso[2:-2, :] = self._interpolate_along_axis(veros,
-                                    self.z_sig[2:-2, :], self.trans[2:-2, :],
+        self.vsf_iso[2:-2, :] += self._interpolate_along_axis(veros,
+                                    z_sig[2:-2, :], self.trans[2:-2, :],
                                     self.zarea[2:-2, :], 1)
-        self.bolus_iso[2:-2, :] = self._interpolate_along_axis(veros,
-                                    self.z_sig[2:-2, :], self.bolus_trans[2:-2, :],
+        self.bolus_iso[2:-2, :] += self._interpolate_along_axis(veros,
+                                    z_sig[2:-2, :], bolus_trans[2:-2, :],
                                     self.zarea[2:-2, :], 1)
 
-        # average in time
         self.nitts += 1
-        for var, arr in self.mean_variables.items():
-            arr[...] += getattr(self, var)
 
     @veros_class_method
     def _interpolate_along_axis(self, veros, coords, arr, interp_coords, axis=0):
@@ -222,16 +212,16 @@ class Overturning(VerosDiagnostic):
                                    extra_dimensions={"sigma": self.nlevel})
 
         if self.nitts > 0:
-            for var, arr in self.mean_variables.items():
-                arr[...] *= 1. / self.nitts
+            for var in self.mean_variables.keys():
+                getattr(self, var)[...] *= 1. / self.nitts
 
-        var_metadata = {key: var for key, var in self.variables.items() if var.output}
-        var_data = {key: getattr(self, key) for key, var in self.variables.items() if var.output}
+        var_metadata = {key: var for key, var in self.mean_variables.items() if var.output and var.time_dependent}
+        var_data = {key: getattr(self, key) for key, var in self.mean_variables.items() if var.output and var.time_dependent}
         self.write_output(veros, var_metadata, var_data)
 
         self.nitts = 0
-        for var, arr in self.mean_variables.items():
-            arr[...] = 0.
+        for var in self.mean_variables.keys():
+            getattr(self, var)[...] = 0.
 
     @veros_class_method
     def read_restart(self, veros):
@@ -239,9 +229,10 @@ class Overturning(VerosDiagnostic):
         if attributes:
             self.nitts = attributes["nitts"]
         if variables:
-            for var, arr in self.mean_variables.items():
-                arr[...] = variables[var]
+            for var, arr in variables.items():
+                getattr(self, var)[...] = arr
 
     @veros_class_method
     def write_restart(self, veros):
-        self.write_h5_restart(veros, {"nitts": self.nitts}, self.mean_variables)
+        var_data = {key: getattr(self, key) for key, var in self.variables.items() if var.write_to_restart}
+        self.write_h5_restart(veros, {"nitts": self.nitts}, var_data)
