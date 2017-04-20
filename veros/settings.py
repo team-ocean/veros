@@ -132,5 +132,7 @@ SETTINGS = OrderedDict([
     ("use_io_threads", Setting(True, "")),
     ("io_timeout", Setting(20, "Timeout in seconds while waiting for IO locks to be released")),
     ("enable_netcdf_zlib_compression", Setting(True, "")),
-    ("restart_filename", Setting("restart.h5", "File name of restart output"))
+    ("restart_input_filename", Setting(None, "File name of restart output")),
+    ("restart_output_filename", Setting("{identifier}_restart_{itt:3d}.nc", "File name of restart output")),
+    ("restart_frequency", Setting(None, "Frequency (in seconds) to write restart data")),
 ])

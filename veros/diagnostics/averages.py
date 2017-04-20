@@ -59,5 +59,6 @@ class Averages(VerosDiagnostic):
 
     def write_restart(self, veros):
         attributes = {"average_nitts": self.average_nitts}
-        variables = {key: var.sum for key, var in self.average_vars.items()}
-        self.write_h5_restart(veros, attributes, variables)
+        variables = {key: runsum.sum for key, runsum in self.average_vars.items()}
+        variable_metadata = {key: runsum.var for key, runsum in self.average_vars.items()}
+        self.write_h5_restart(veros, attributes, variable_metadata, variables)

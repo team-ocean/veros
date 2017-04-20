@@ -1,9 +1,12 @@
 import logging
 import os
+import warnings
 
 from . import io_tools
 from .. import veros_class_method, time
 from .diagnostic import VerosDiagnostic
+
+RESTART_ATTRIBUTES = {"itt", "tau", "taum1", "taup1"}
 
 class Snapshot(VerosDiagnostic):
     output_path = "{identifier}_snapshot.nc"
@@ -36,7 +39,33 @@ class Snapshot(VerosDiagnostic):
         self.write_output(veros, var_meta, var_data)
 
     def read_restart(self, veros):
-        pass
+        restart_vars = {key: var for key, var in veros.variables.items() if var.write_to_restart}
+        restart_data = {key: getattr(veros, key) for key in restart_vars.keys()}
+        attributes, variables = self.read_h5_restart(veros)
+        for key, arr in restart_data.items():
+            try:
+                restart_var = variables[key]
+            except KeyError:
+                warnings.warn("not reading restart data for variable {}: "
+                              "no matching data found in restart file"
+                              .format(key))
+                continue
+            if not arr.shape == restart_var.shape:
+                warnings.warn("not reading restart data for variable {}: "
+                              "restart data dimensions do not match model "
+                              "grid".format(key))
+                continue
+            arr[...] = restart_var
+        for attr in RESTART_ATTRIBUTES:
+            try:
+                setattr(veros, attr, attributes[attr])
+            except KeyError:
+                warnings.warn("not reading restart data for attribute {}: "
+                              "attribute not found in restart file"
+                              .format(attr))
 
     def write_restart(self, veros):
-        pass
+        restart_attributes = {key: getattr(veros, key) for key in RESTART_ATTRIBUTES}
+        restart_vars = {key: var for key, var in veros.variables.items() if var.write_to_restart}
+        restart_data = {key: getattr(veros, key) for key in restart_vars.keys()}
+        self.write_h5_restart(veros, restart_attributes, restart_vars, restart_data)

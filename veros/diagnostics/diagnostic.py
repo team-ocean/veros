@@ -1,10 +1,18 @@
 from collections import OrderedDict
 import os
+import copy
 import logging
-import h5py
 
 from . import io_tools
-from .. import veros_class_method, time
+from .. import veros_class_method, veros_method, time
+from ..variables import Variable, TIMESTEPS
+
+@veros_method
+def initialize_restart_file(veros):
+    filepath = veros.restart_output_filename.format(**vars(veros))
+    with io_tools.threaded_io(veros, filepath, "w") as outfile:
+        io_tools.initialize_file(veros, outfile)
+        io_tools.add_dimension(veros, TIMESTEPS[0], 3, outfile)
 
 class VerosDiagnostic(object):
     sampling_frequency = 0.
@@ -12,51 +20,54 @@ class VerosDiagnostic(object):
     output_path = None
 
     @property
-    def is_active(self):
-        return self.sampling_frequency or self.output_frequency
-
-    @property
     def diagnostic_name(self):
         return self.__class__.__name__
 
     @veros_class_method
-    def get_restart_file_name(self, veros):
-        return veros.restart_filename.format(**vars(veros))
+    def get_restart_input_file_name(self, veros):
+        return veros.restart_input_filename.format(**vars(veros))
+
+    @veros_class_method
+    def get_restart_output_file_name(self, veros):
+        return veros.restart_output_filename.format(**vars(veros))
 
     @veros_class_method
     def read_h5_restart(self, veros):
-        restart_filename = veros.restart_filename.format(**vars(veros))
+        restart_filename = self.get_restart_input_file_name(veros)
         if not os.path.isfile(restart_filename):
-            logging.debug("no restart file {} present, not reading restart data"
-                          .format(restart_filename))
-            return None, None
-        logging.info("reading restart data from {}".format(restart_filename))
-        group_name = "diagnostics/{}".format(self.diagnostic_name)
-        with h5py.File(restart_filename, "r") as restart_file:
-            variables = {key: np.array(val) for key, val in restart_file[group_name].items()}
-            attributes = {key: val for key, val in restart_file[group_name].attrs.items()}
+            raise IOError("restart file {} not found".format(restart_filename))
+
+        logging.info("reading restart data for diagnostic {} from {}".format(self.diagnostic_name, restart_filename))
+        with io_tools.threaded_io(veros, restart_filename, "r") as infile:
+            group = infile.groups[self.diagnostic_name]
+            variables = io_tools.get_all_variables(veros, group)
+            attributes = io_tools.get_all_attributes(veros, group)
         return attributes, variables
 
     @veros_class_method
-    def write_h5_restart(self, veros, attributes, variables):
-        group_name = "diagnostics/{}".format(self.diagnostic_name)
-        with h5py.File(self.get_restart_file_name(veros), "a") as restart_file:
-            restart_file.create_group(group_name)
-            for key, var_data in variables.items():
-                if veros.backend_name == "bohrium":
-                    var_data = var_data.copy2numpy()
-                restart_file.create_dataset("{}/{}".format(group_name, key),
-                                            data=var_data, compression="gzip")
-            for key, value in attributes.items():
-                restart_file[group_name].attrs[key] = value
+    def write_h5_restart(self, veros, attributes, var_meta, var_data, extra_dimensions=None):
+        restart_filename = self.get_restart_output_file_name(veros)
+        with io_tools.threaded_io(veros, restart_filename, "a") as outfile:
+            group = io_tools.create_group(veros, self.diagnostic_name, outfile)
+            if extra_dimensions:
+                for dim_id, size in extra_dimensions.items():
+                    io_tools.add_dimension(veros, dim_id, size, group)
+            for key, var in var_meta.items():
+                var = copy.copy(var)
+                var.time_dependent = False
+                io_tools.initialize_variable(veros, key, var, outfile, group=group)
+                io_tools.write_variable(veros, key, var, var_data[key], outfile,
+                                        group=group, strip_time_steps=False, fill=False)
+            for key, val in attributes.items():
+                io_tools.write_attribute(veros, key, val, group)
 
     @veros_class_method
     def get_output_file_name(self, veros):
         return self.output_path.format(**vars(veros))
 
     @veros_class_method
-    def initialize_output(self, veros, variables, var_data=None, extra_dimensions=None):
-        with io_tools.threaded_io(veros, self.get_output_file_name(veros), "w") as outfile:
+    def initialize_output(self, veros, variables, var_data=None, extra_dimensions=None, filepath=None):
+        with io_tools.threaded_io(veros, filepath or self.get_output_file_name(veros), "w") as outfile:
             io_tools.initialize_file(veros, outfile)
             if extra_dimensions:
                 for dim_id, size in extra_dimensions.items():
@@ -69,8 +80,8 @@ class VerosDiagnostic(object):
                     io_tools.write_variable(veros, key, var, var_data[key], outfile)
 
     @veros_class_method
-    def write_output(self, veros, variables, variable_data):
-        with io_tools.threaded_io(veros, self.get_output_file_name(veros), "a") as outfile:
+    def write_output(self, veros, variables, variable_data, filepath=None):
+        with io_tools.threaded_io(veros, filepath or self.get_output_file_name(veros), "a") as outfile:
             time_step = io_tools.get_current_timestep(veros, outfile)
             io_tools.advance_time(veros, time_step, time.current_time(veros, "days"), outfile)
             for key, var in variables.items():

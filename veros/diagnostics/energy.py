@@ -286,7 +286,7 @@ class Energy(VerosDiagnostic):
     @veros_class_method
     def output(self, veros):
         output_variables = {key: val for key, val in self.variables.items() if val.output}
-        output_data = {key: getattr(self, key) / self.nitts for key in output_variables.keys()}
+        output_data = {key: getattr(self, key) * veros.rho_0 / self.nitts for key in output_variables.keys()}
         if not os.path.isfile(self.get_output_file_name(veros)):
             self.initialize_output(veros, output_variables)
         self.write_output(veros, output_variables, output_data)
@@ -306,4 +306,4 @@ class Energy(VerosDiagnostic):
     def write_restart(self, veros):
         restart_data = {key: getattr(self, key) for key, val in self.variables.items() if val.write_to_restart}
         restart_data.update({"nitts": self.nitts})
-        self.write_h5_restart(veros, restart_data, {})
+        self.write_h5_restart(veros, restart_data, {}, {})

@@ -84,6 +84,8 @@ class ACC2(VerosLegacy):
 
      m.eq_of_state_type = 3
 
+     self.restart_frequency = self.dt_tracer
+
 
    @veros_method
    def set_grid(self):
@@ -154,4 +156,5 @@ class ACC2(VerosLegacy):
 
 if __name__ == "__main__":
     simulation = ACC2()
-    simulation.run(snapint = 365*86400./12., runlen = 365 * 86400.)
+    #simulation.run(snapint = 365*86400./12., runlen = 365 * 86400.)
+    simulation.run(snapint = 86400./2., runlen = 365 * 86400.)

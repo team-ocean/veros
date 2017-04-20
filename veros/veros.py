@@ -16,11 +16,7 @@ except ImportError:
 
 BACKENDS = {"numpy": numpy, "bohrium": bohrium}
 
-# for some reason, netCDF4 has to be imported before h5py, so we do it here
-import netCDF4
-import h5py
-
-from . import restart, variables, settings, cli, diagnostics, time
+from . import variables, settings, cli, diagnostics, time
 from .timer import Timer
 from .core import momentum, numerics, thermodynamics, eke, tke, idemix, \
                   isoneutral, external, non_hydrostatic, advection, cyclic
@@ -77,6 +73,9 @@ class Veros(object):
         self.profile_mode = args.profile
         self.diagnostics = {name: Diagnostic() for name, Diagnostic in diagnostics.diagnostics.items()}
         self._set_default_settings()
+        if args.set:
+            for key, val in args.set:
+                setattr(self, key, val)
         self.timers = {k: Timer(k) for k in ("setup","main","momentum","temperature",
                                              "eke","idemix","tke","diagnostics",
                                              "pressure","friction","isoneutral",
@@ -220,12 +219,6 @@ class Veros(object):
         except AttributeError:
             pass
 
-    def panic_output(self):
-        snapshot = self.diagnostics["snapshot"]
-        if not snapshot.is_active:
-            snapshot.initialize(self)
-        snapshot.output(self)
-
     def sanity_check(self):
         if self.backend.any(~self.backend.isfinite(self.u)):
             raise RuntimeError("solver diverged at iteration {}".format(self.itt))
@@ -276,10 +269,10 @@ class Veros(object):
         with self.timers["setup"]:
             self.setup()
 
-            logging.info("Reading restarts:")
-            restart.read_restart(self)
-            for diagnostic in self.diagnostics.values():
-                diagnostic.read_restart(self)
+            if self.restart_input_filename:
+                logging.info("Reading restarts:")
+                for diagnostic in self.diagnostics.values():
+                    diagnostic.read_restart(self)
 
             self.enditt = self.itt + int(self.runlen / self.dt_tracer)
             logging.info("Starting integration for {:.2e}s".format(self.runlen))
@@ -357,10 +350,8 @@ class Veros(object):
                     if self.enable_neutral_diffusion and self.enable_skew_diffusion:
                         isoneutral.isoneutral_diag_streamfunction(self)
 
+                    t = time.current_time(self, "seconds")
                     for diagnostic in self.diagnostics.values():
-                        if not diagnostic.is_active:
-                            continue
-                        t = time.current_time(self, "seconds")
                         if diagnostic.sampling_frequency and t % diagnostic.sampling_frequency < self.dt_tracer:
                             diagnostic.diagnose(self)
                         if diagnostic.output_frequency and t % diagnostic.output_frequency < self.dt_tracer:
@@ -372,16 +363,22 @@ class Veros(object):
                 self.tau = self.taup1
                 self.taup1 = otaum1
                 self.itt += 1
+
+                t = time.current_time(self, "seconds")
+                if self.restart_frequency and t % self.restart_frequency < self.dt_tracer:
+                    diagnostics.diagnostic.initialize_restart_file(self)
+                    for diagnostic in self.diagnostics.values():
+                        diagnostic.write_restart(self)
+
                 logging.info("Current iteration: {}".format(self.itt))
                 logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
         except:
-            logging.error("writing panic output at iteration {}".format(self.itt))
-            self.panic_output()
+            logging.error("stopping integration at iteration {}".format(self.itt))
             raise
 
         finally:
-            restart.write_restart(self)
+            diagnostics.diagnostic.initialize_restart_file(self)
             for diagnostic in self.diagnostics.values():
                 diagnostic.write_restart(self)
 

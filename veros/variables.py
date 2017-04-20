@@ -1,8 +1,10 @@
 from collections import OrderedDict
 
+from . import veros_method
+
 class Variable:
     def __init__(self, name, dims, units, long_description, dtype=None,
-                 output=False, time_dependent=True, scale=1., average=False,
+                 output=False, time_dependent=True, scale=1.,
                  write_to_restart=False, extra_attributes=None):
         self.name = name
         self.dims = dims
@@ -12,7 +14,6 @@ class Variable:
         self.output = output
         self.time_dependent = time_dependent
         self.scale = scale
-        self.average = average
         self.write_to_restart = write_to_restart
         self.extra_attributes = extra_attributes or {} #: Additional attributes to be written in netCDF output
 
@@ -41,6 +42,7 @@ TENSOR_COMP = ("tensor1", "tensor2")
 NP = ("np",)
 #
 BASE_DIMENSIONS = XT + XU + YT + YU + ZT + ZW
+GHOST_DIMENSIONS = ("xt", "yt", "xu", "yu")
 
 
 def get_dimensions(veros, grid, include_ghosts=True):
@@ -57,14 +59,22 @@ def get_dimensions(veros, grid, include_ghosts=True):
         "np": veros.np,
     }
     if include_ghosts:
-        for d in ("xt","xu","yt","yu"):
+        for d in GHOST_DIMENSIONS:
             dimensions[d] += 4
     return tuple(dimensions[grid_dim] for grid_dim in grid)
 
 
 def remove_ghosts(array, dims):
-    ghost_mask = tuple(slice(2,-2) if dim in ("xt", "yt", "xu", "yu") else slice(None) for dim in dims)
+    ghost_mask = tuple(slice(2,-2) if dim in GHOST_DIMENSIONS else slice(None) for dim in dims)
     return array[ghost_mask]
+
+@veros_method
+def add_ghosts(veros, array, dims):
+    full_shape = tuple([i+4 if dim in GHOST_DIMENSIONS else i for i, dim in zip(array.shape, dims)])
+    newarr = np.zeros(full_shape)
+    ghost_mask = tuple(slice(2,-2) if dim in GHOST_DIMENSIONS else slice(None) for dim in dims)
+    newarr[ghost_mask] = array
+    return newarr
 
 
 def get_grid_mask(veros, grid):
