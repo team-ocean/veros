@@ -161,6 +161,7 @@ class Overturning(VerosDiagnostic):
                                          * veros.B1_gm[2:-2, 2:-2, :] \
                                         , axis=0)
         # interpolate from isopycnals to depth
+        print(self.zarea[3, :], z_sig[3, :])
         self.vsf_iso[2:-2, :] += self._interpolate_along_axis(veros,
                                     z_sig[2:-2, :], self.trans[2:-2, :],
                                     self.zarea[2:-2, :], 1)
@@ -190,18 +191,18 @@ class Overturning(VerosDiagnostic):
         diff_m = np.where(diff <= 0, diff, np.inf)
         i_m = np.argmin(np.abs(diff_m), axis=1)
         i_p = np.minimum(coords.shape[0] - 1, i_m + 1)
+        full_shape = (slice(None),) + (np.newaxis,) * (arr.ndim - 1)
         if coords.ndim == 1:
-            full_shape = (slice(None),) + (np.newaxis,) * (arr.ndim - 1)
             i_p_full = i_p[full_shape] * np.ones(arr.shape)
             i_m_full = i_m[full_shape] * np.ones(arr.shape)
         else:
             i_p_full = i_p
             i_m_full = i_m
-        ii = np.indices(interp_coords.shape)
-        i_p_slice = (i_p,) + tuple(ii[1:])
-        i_m_slice = (i_m,) + tuple(ii[1:])
-        pos = np.where(i_p_full == i_m_full, 1., (coords[i_p_slice] - interp_coords) \
-                        / (coords[i_p_slice] - coords[i_m_slice] + 1e-20))
+        ii = np.indices(i_p_full.shape)
+        i_p_slice = (i_p_full,) + tuple(ii[1:])
+        i_m_slice = (i_m_full,) + tuple(ii[1:])
+        diff = (coords[i_p_slice] - coords[i_m_slice])
+        pos = np.where(diff == 0., 1., (coords[i_p_slice] - interp_coords) / diff)
         return np.moveaxis(arr[i_p_slice] * (1-pos) + arr[i_m_slice] * pos, 0, axis)
 
     @veros_class_method
