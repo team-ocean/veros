@@ -250,8 +250,17 @@ class Veros(object):
             external.streamfunction_init(self)
 
         self.set_diagnostics()
-        for diagnostic in self.diagnostics.values():
+        logging.info("Initializing diagnostics")
+        for name, diagnostic in self.diagnostics.items():
             diagnostic.initialize(self)
+            if diagnostic.sampling_frequency:
+                logging.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
+                             .format(name, time.format_time(self, diagnostic.sampling_frequency),
+                                    diagnostic.sampling_frequency / self.dt_tracer))
+            if diagnostic.output_frequency:
+                logging.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
+                             .format(name, time.format_time(self, diagnostic.output_frequency),
+                                    diagnostic.output_frequency / self.dt_tracer))
 
         eke.init_eke(self)
 
@@ -285,10 +294,12 @@ class Veros(object):
         try:
             while self.itt < self.enditt:
                 logging.info("Current iteration: {}".format(self.itt))
-                t = time.current_time(self, "seconds")
-                if self.restart_frequency and t % self.restart_frequency < self.dt_tracer:
-                    for diagnostic in self.diagnostics.values():
-                        diagnostic.write_restart(self)
+
+                with self.timers["diagnostics"]:
+                    t = time.current_time(self, "seconds")
+                    if self.restart_frequency and t % self.restart_frequency < self.dt_tracer:
+                        for diagnostic in self.diagnostics.values():
+                            diagnostic.write_restart(self)
 
                 if self.itt == 3 and self.profile_mode:
                     # when using bohrium, most kernels should be pre-compiled
@@ -349,7 +360,6 @@ class Veros(object):
                         if self.enable_idemix_niw:
                             cyclic.setcyclic_x(self.E_niw[:,:,:,self.taup1])
 
-                    # diagnose vertical velocity at taup1
                     if self.enable_hydrostatic:
                         momentum.vertical_velocity(self)
 
@@ -357,6 +367,7 @@ class Veros(object):
 
                 with self.timers["diagnostics"]:
                     self.sanity_check()
+
                     if self.enable_neutral_diffusion and self.enable_skew_diffusion:
                         isoneutral.isoneutral_diag_streamfunction(self)
 

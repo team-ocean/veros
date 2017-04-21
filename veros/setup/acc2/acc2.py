@@ -15,7 +15,7 @@ class ACC2(VerosLegacy):
 
      (m.nx,m.ny,m.nz) = (30,42,15)
      m.dt_mom = 4800
-     m.dt_tracer = 86400/2.0
+     m.dt_tracer = 86400/2.
 
      m.coord_degree = 1
      m.enable_cyclic_x = 1

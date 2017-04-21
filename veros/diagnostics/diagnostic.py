@@ -62,7 +62,8 @@ class VerosDiagnostic(object):
                 for dim_id, size in extra_dimensions.items():
                     nctools.add_dimension(veros, dim_id, size, outfile)
             for key, var in variables.items():
-                nctools.initialize_variable(veros, key, var, outfile)
+                if not key in outfile.variables:
+                    nctools.initialize_variable(veros, key, var, outfile)
                 if not var.time_dependent:
                     if var_data is None or not key in var_data:
                         raise ValueError("var_data argument must be given for constant variables")

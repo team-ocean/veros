@@ -26,10 +26,8 @@ class Snapshot(VerosDiagnostic):
 
     @veros_class_method
     def output(self, veros):
-        if time.current_time(veros, "days") < 1:
-            logging.info(" writing snapshot at {}s".format(time.current_time(veros, "seconds")))
-        else:
-            logging.info(" writing snapshot at {}d".format(time.current_time(veros, "days")))
+        current_time = time.current_time(veros)
+        logging.info(" writing snapshot at {0[0]} {0[1]}".format(time.format_time(veros, current_time)))
 
         if not os.path.isfile(self.get_output_file_name(veros)):
             self.initialize(veros)
