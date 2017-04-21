@@ -3,16 +3,11 @@ import os
 import copy
 import logging
 
-from . import io_tools
+from .io_tools import netcdf as nctools
+from .io_tools import hdf5 as h5tools
 from .. import veros_class_method, veros_method, time
-from ..variables import Variable, TIMESTEPS
+from ..variables import Variable
 
-@veros_method
-def initialize_restart_file(veros):
-    filepath = veros.restart_output_filename.format(**vars(veros))
-    with io_tools.threaded_io(veros, filepath, "w") as outfile:
-        io_tools.initialize_file(veros, outfile)
-        io_tools.add_dimension(veros, TIMESTEPS[0], 3, outfile)
 
 class VerosDiagnostic(object):
     sampling_frequency = 0.
@@ -38,28 +33,22 @@ class VerosDiagnostic(object):
             raise IOError("restart file {} not found".format(restart_filename))
 
         logging.info("reading restart data for diagnostic {} from {}".format(self.diagnostic_name, restart_filename))
-        with io_tools.threaded_io(veros, restart_filename, "r") as infile:
-            group = infile.groups[self.diagnostic_name]
-            variables = io_tools.get_all_variables(veros, group)
-            attributes = io_tools.get_all_attributes(veros, group)
+        with h5tools.threaded_io(veros, restart_filename, "r") as infile:
+            variables = {key: var[...] for key, var in infile[self.diagnostic_name].items()}
+            attributes = {key: var for key, var in infile[self.diagnostic_name].attrs.items()}
         return attributes, variables
 
     @veros_class_method
-    def write_h5_restart(self, veros, attributes, var_meta, var_data, extra_dimensions=None):
+    def write_h5_restart(self, veros, attributes, var_meta, var_data):
         restart_filename = self.get_restart_output_file_name(veros)
-        with io_tools.threaded_io(veros, restart_filename, "a") as outfile:
-            group = io_tools.create_group(veros, self.diagnostic_name, outfile)
-            if extra_dimensions:
-                for dim_id, size in extra_dimensions.items():
-                    io_tools.add_dimension(veros, dim_id, size, group)
-            for key, var in var_meta.items():
-                var = copy.copy(var)
-                var.time_dependent = False
-                io_tools.initialize_variable(veros, key, var, outfile, group=group)
-                io_tools.write_variable(veros, key, var, var_data[key], outfile,
-                                        group=group, strip_time_steps=False, fill=False)
+        with h5tools.threaded_io(veros, restart_filename, "a") as outfile:
+            outfile.require_group(self.diagnostic_name)
+            for key, var in var_data.items():
+                var_name = "{}/{}".format(self.diagnostic_name, key)
+                outfile.require_dataset(var_name, var.shape, var.dtype, exact=True)
+                outfile[var_name][...] = var_data[key]
             for key, val in attributes.items():
-                io_tools.write_attribute(veros, key, val, group)
+                outfile[self.diagnostic_name].attrs[key] = val
 
     @veros_class_method
     def get_output_file_name(self, veros):
@@ -67,25 +56,25 @@ class VerosDiagnostic(object):
 
     @veros_class_method
     def initialize_output(self, veros, variables, var_data=None, extra_dimensions=None, filepath=None):
-        with io_tools.threaded_io(veros, filepath or self.get_output_file_name(veros), "w") as outfile:
-            io_tools.initialize_file(veros, outfile)
+        with nctools.threaded_io(veros, filepath or self.get_output_file_name(veros), "w") as outfile:
+            nctools.initialize_file(veros, outfile)
             if extra_dimensions:
                 for dim_id, size in extra_dimensions.items():
-                    io_tools.add_dimension(veros, dim_id, size, outfile)
+                    nctools.add_dimension(veros, dim_id, size, outfile)
             for key, var in variables.items():
-                io_tools.initialize_variable(veros, key, var, outfile)
+                nctools.initialize_variable(veros, key, var, outfile)
                 if not var.time_dependent:
                     if var_data is None or not key in var_data:
                         raise ValueError("var_data argument must be given for constant variables")
-                    io_tools.write_variable(veros, key, var, var_data[key], outfile)
+                    nctools.write_variable(veros, key, var, var_data[key], outfile)
 
     @veros_class_method
     def write_output(self, veros, variables, variable_data, filepath=None):
-        with io_tools.threaded_io(veros, filepath or self.get_output_file_name(veros), "a") as outfile:
-            time_step = io_tools.get_current_timestep(veros, outfile)
-            io_tools.advance_time(veros, time_step, time.current_time(veros, "days"), outfile)
+        with nctools.threaded_io(veros, filepath or self.get_output_file_name(veros), "r+") as outfile:
+            time_step = nctools.get_current_timestep(veros, outfile)
+            nctools.advance_time(veros, time_step, time.current_time(veros, "days"), outfile)
             for key, var in variables.items():
-                io_tools.write_variable(veros, key, var, variable_data[key],
+                nctools.write_variable(veros, key, var, variable_data[key],
                                         outfile, time_step=time_step)
 
 

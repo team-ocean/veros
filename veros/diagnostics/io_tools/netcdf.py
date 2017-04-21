@@ -38,29 +38,15 @@ def add_dimension(veros, identifier, size, ncfile):
     return ncfile.createDimension(identifier, size)
 
 @veros_method
-def create_group(veros, groupname, ncfile):
-    return ncfile.createGroup(groupname)
-
-@veros_method
-def write_attribute(veros, key, val, ncfile):
-    ncfile.setncattr(key, val)
-
-@veros_method
-def get_all_attributes(veros, ncfile):
-    return {key: ncfile.getncattr(key) for key in ncfile.ncattrs()}
-
-@veros_method
-def initialize_variable(veros, key, var, ncfile, group=None):
-    if group is None:
-        group = ncfile
-    dims = tuple(d for d in var.dims if d in ncfile.dimensions or d in group.dimensions)
+def initialize_variable(veros, key, var, ncfile):
+    dims = tuple(d for d in var.dims if d in ncfile.dimensions)
     if var.time_dependent and "Time" in ncfile.dimensions:
         dims += ("Time",)
     if key in ncfile.variables:
         warnings.warn("Variable {} already initialized".format(key))
         return
     # transpose all dimensions in netCDF output (convention in most ocean models)
-    v = group.createVariable(key, var.dtype, dims[::-1],
+    v = ncfile.createVariable(key, var.dtype, dims[::-1],
                              fill_value=variables.FILL_VALUE,
                              zlib=veros.enable_netcdf_zlib_compression)
     v.long_name = var.name
@@ -78,35 +64,23 @@ def advance_time(veros, time_step, time_value, ncfile):
     ncfile.variables["Time"][time_step] = time_value
 
 @veros_method
-def write_variable(veros, key, var, var_data, ncfile, time_step=None, group=None,
-                   strip_time_steps=True, fill=True):
-    if group is None:
-        group = ncfile
+def write_variable(veros, key, var, var_data, ncfile, time_step=None):
     gridmask = variables.get_grid_mask(veros,var.dims)
-    if fill and not gridmask is None:
+    if not gridmask is None:
         newaxes = (slice(None),) * gridmask.ndim + (np.newaxis,) * (var_data.ndim - gridmask.ndim)
         var_data = np.where(gridmask.astype(np.bool)[newaxes], var_data, variables.FILL_VALUE)
     if not np.isscalar(var_data):
-        tmask = tuple(veros.tau if dim in variables.TIMESTEPS and strip_time_steps else slice(None) for dim in var.dims)
+        tmask = tuple(veros.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
         var_data = variables.remove_ghosts(var_data, var.dims)[tmask].T
         if veros.backend_name == "bohrium":
             var_data = var_data.copy2numpy()
     var_data = var_data * var.scale
-    if "Time" in group.variables[key].dimensions:
+    if "Time" in ncfile.variables[key].dimensions:
         if time_step is None:
             raise ValueError("time step must be given for non-constant data")
-        group.variables[key][time_step, ...] = var_data
+        ncfile.variables[key][time_step, ...] = var_data
     else:
-        group.variables[key][...] = var_data
-
-@veros_method
-def get_variable(veros, key, ncfile):
-    var = ncfile.variables[key]
-    return np.array(variables.add_ghosts(veros, var[...], var.dimensions)).T
-
-@veros_method
-def get_all_variables(veros, ncfile):
-    return {key: get_variable(veros, key, ncfile) for key in ncfile.variables.keys()}
+        ncfile.variables[key][...] = var_data
 
 @veros_method
 @contextlib.contextmanager
@@ -122,10 +96,10 @@ def threaded_io(veros, filepath, mode):
         yield nc_dataset
     finally:
         if veros.use_io_threads:
-            io_thread = threading.Thread(target=_write_to_disk, args=(nc_dataset, filepath))
+            io_thread = threading.Thread(target=_write_to_disk, args=(veros, nc_dataset, filepath))
             io_thread.start()
         else:
-            _write_to_disk(nc_dataset, filepath)
+            _write_to_disk(veros, nc_dataset, filepath)
 
 _io_locks = {}
 def _add_to_locks(file_id):
@@ -146,12 +120,12 @@ def _wait_for_disk(veros, file_id):
     if not lock_released:
         raise RuntimeError("Timeout while waiting for disk IO to finish")
 
-def _write_to_disk(ncfile, file_id):
+def _write_to_disk(veros, ncfile, file_id):
     """
     Sync netCDF data to disk, close file handle, and release lock.
     May run in a separate thread.
     """
     ncfile.sync()
     ncfile.close()
-    if not file_id is None:
+    if veros.use_io_threads and not file_id is None:
         _io_locks[file_id].set()

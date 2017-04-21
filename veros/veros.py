@@ -16,6 +16,10 @@ except ImportError:
 
 BACKENDS = {"numpy": numpy, "bohrium": bohrium}
 
+# for some reason, netCDF4 has to be imported before h5py, so we do it here
+import netCDF4
+import h5py
+
 from . import variables, settings, cli, diagnostics, time
 from .timer import Timer
 from .core import momentum, numerics, thermodynamics, eke, tke, idemix, \
@@ -280,6 +284,12 @@ class Veros(object):
 
         try:
             while self.itt < self.enditt:
+                logging.info("Current iteration: {}".format(self.itt))
+                t = time.current_time(self, "seconds")
+                if self.restart_frequency and t % self.restart_frequency < self.dt_tracer:
+                    for diagnostic in self.diagnostics.values():
+                        diagnostic.write_restart(self)
+
                 if self.itt == 3 and self.profile_mode:
                     # when using bohrium, most kernels should be pre-compiled
                     # after three iterations
@@ -350,12 +360,13 @@ class Veros(object):
                     if self.enable_neutral_diffusion and self.enable_skew_diffusion:
                         isoneutral.isoneutral_diag_streamfunction(self)
 
-                    t = time.current_time(self, "seconds")
                     for diagnostic in self.diagnostics.values():
                         if diagnostic.sampling_frequency and t % diagnostic.sampling_frequency < self.dt_tracer:
                             diagnostic.diagnose(self)
                         if diagnostic.output_frequency and t % diagnostic.output_frequency < self.dt_tracer:
                             diagnostic.output(self)
+
+                logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
                 # shift time
                 otaum1 = self.taum1
@@ -364,21 +375,11 @@ class Veros(object):
                 self.taup1 = otaum1
                 self.itt += 1
 
-                t = time.current_time(self, "seconds")
-                if self.restart_frequency and t % self.restart_frequency < self.dt_tracer:
-                    diagnostics.diagnostic.initialize_restart_file(self)
-                    for diagnostic in self.diagnostics.values():
-                        diagnostic.write_restart(self)
-
-                logging.info("Current iteration: {}".format(self.itt))
-                logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
-
         except:
             logging.error("stopping integration at iteration {}".format(self.itt))
             raise
 
         finally:
-            diagnostics.diagnostic.initialize_restart_file(self)
             for diagnostic in self.diagnostics.values():
                 diagnostic.write_restart(self)
 

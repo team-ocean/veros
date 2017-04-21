@@ -242,5 +242,4 @@ class Overturning(VerosDiagnostic):
     @veros_class_method
     def write_restart(self, veros):
         var_data = {key: getattr(self, key) for key, var in self.variables.items() if var.write_to_restart}
-        var_meta = {key: var for key, var in self.variables.items() if var.write_to_restart}
-        self.write_h5_restart(veros, {"nitts": self.nitts}, var_meta, var_data, extra_dimensions={"sigma": self.nlevel})
+        self.write_h5_restart(veros, {"nitts": self.nitts}, {}, var_data)

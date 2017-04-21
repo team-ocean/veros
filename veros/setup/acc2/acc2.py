@@ -30,7 +30,7 @@ class ACC2(VerosLegacy):
      m.avefreq = m.dt_tracer * 10
      m.enable_diag_overturning = True
      m.overint = 365 * 86400. / 48.
-     m.overfreq = m.dt_tracer
+     m.overfreq = m.dt_tracer * 10
      m.enable_diag_ts_monitor = True
      m.ts_monint = 365 * 86400. / 12.
      m.enable_diag_energy = True
@@ -83,8 +83,6 @@ class ACC2(VerosLegacy):
      i.enable_idemix_superbee_advection = 1
 
      m.eq_of_state_type = 3
-
-     self.restart_frequency = self.dt_tracer
 
 
    @veros_method
@@ -156,5 +154,4 @@ class ACC2(VerosLegacy):
 
 if __name__ == "__main__":
     simulation = ACC2()
-    #simulation.run(snapint = 365*86400./12., runlen = 365 * 86400.)
-    simulation.run(snapint = 86400./2., runlen = 365 * 86400.)
+    simulation.run(snapint = 365*86400./12., runlen = 365 * 86400.)
