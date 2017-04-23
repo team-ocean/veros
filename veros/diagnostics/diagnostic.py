@@ -34,7 +34,7 @@ class VerosDiagnostic(object):
 
         logging.info("reading restart data for diagnostic {} from {}".format(self.diagnostic_name, restart_filename))
         with h5tools.threaded_io(veros, restart_filename, "r") as infile:
-            variables = {key: var[...] for key, var in infile[self.diagnostic_name].items()}
+            variables = {key: np.array(var[...]) for key, var in infile[self.diagnostic_name].items()}
             attributes = {key: var for key, var in infile[self.diagnostic_name].attrs.items()}
         return attributes, variables
 
@@ -45,8 +45,10 @@ class VerosDiagnostic(object):
             outfile.require_group(self.diagnostic_name)
             for key, var in var_data.items():
                 var_name = "{}/{}".format(self.diagnostic_name, key)
+                if veros.backend_name == "bohrium" and not np.isscalar(var):
+                    var = var.copy2numpy()
                 outfile.require_dataset(var_name, var.shape, var.dtype, exact=True)
-                outfile[var_name][...] = var_data[key]
+                outfile[var_name][...] = var
             for key, val in attributes.items():
                 outfile[self.diagnostic_name].attrs[key] = val
 

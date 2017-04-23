@@ -176,9 +176,11 @@ class NorthAtlantic(Veros):
 
     def set_diagnostics(self):
         self.diagnostics["snapshot"].output_frequency = 3600. * 24 * 10
-        average_vars = {"temp", "salt", "u", "v", "w", "surface_taux", "surface_tauy", "psi"}
-        for var in average_vars:
-            self.variables[var].average = True
+        self.diagnostics["averages"].output_frequency = 3600. * 24 * 10
+        self.diagnostics["averages"].sampling_frequency = self.dt_tracer
+        self.diagnostics["averages"].output_variables = {"temp", "salt", "u", "v", "w",
+                                                        "surface_taux", "surface_tauy", "psi"}
+        self.diagnostics["cfl_monitor"].output_frequency = self.dt_tracer * 10
 
 
 if __name__ == "__main__":

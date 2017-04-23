@@ -243,7 +243,8 @@ class GlobalOneDegree(VerosLegacy):
         cp_0 = 3991.86795711963 # J/kg /K
 
         m = self.main_module
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(time.current_time(m, "seconds"), fxa, fxa / 12., 12)
+        year_in_seconds = time.convert_time(m, 1., "years", "seconds")
+        (n1, f1), (n2, f2) = tools.get_periodic_interval(time.current_time(m, "seconds"), year_in_seconds, year_in_seconds / 12., 12)
 
         # linearly interpolate wind stress and shift from MITgcm U/V grid to this grid
         m.surface_taux[:-1, :] = f1 * self.taux[1:, :, n1] + f2 * self.taux[1:, :, n2]

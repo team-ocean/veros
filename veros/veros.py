@@ -291,6 +291,7 @@ class Veros(object):
             logging.info("Starting integration for {:.2e}s".format(self.runlen))
             logging.info(" from time step {} to {}".format(self.itt,self.enditt))
 
+        start_iteration = self.itt
         try:
             while self.itt < self.enditt:
                 logging.info("Current iteration: {}".format(self.itt))
@@ -301,7 +302,7 @@ class Veros(object):
                         for diagnostic in self.diagnostics.values():
                             diagnostic.write_restart(self)
 
-                if self.itt == 3 and self.profile_mode:
+                if self.itt - start_iteration == 3 and self.profile_mode:
                     # when using bohrium, most kernels should be pre-compiled
                     # after three iterations
                     import pyinstrument

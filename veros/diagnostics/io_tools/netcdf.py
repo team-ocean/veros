@@ -72,7 +72,7 @@ def write_variable(veros, key, var, var_data, ncfile, time_step=None):
     if not np.isscalar(var_data):
         tmask = tuple(veros.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
         var_data = variables.remove_ghosts(var_data, var.dims)[tmask].T
-        if veros.backend_name == "bohrium":
+        if veros.backend_name == "bohrium" and not np.isscalar(var_data):
             var_data = var_data.copy2numpy()
     var_data = var_data * var.scale
     if "Time" in ncfile.variables[key].dimensions:
