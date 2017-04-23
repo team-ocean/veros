@@ -10,20 +10,36 @@ from ..variables import Variable
 
 
 class VerosDiagnostic(object):
+    """Base class for diagnostics.
+
+    Any diagnostic needs to implement the five interface methods:
+    - initialize:
+    - diagnose:
+    - output:
+    - read_restart:
+    - write_restart:
+    """
     sampling_frequency = 0.
     output_frequency = 0.
     output_path = None
 
     @property
     def diagnostic_name(self):
+        """ Returns the name of the current diagnostic (name of the subclass
+        that calls this).
+        """
         return self.__class__.__name__
 
     @veros_class_method
     def get_restart_input_file_name(self, veros):
+        """ Returns the file name for input restart file.
+        """
         return veros.restart_input_filename.format(**vars(veros))
 
     @veros_class_method
     def get_restart_output_file_name(self, veros):
+        """ Returns the file name for output restart file.
+        """
         return veros.restart_output_filename.format(**vars(veros))
 
     @veros_class_method
