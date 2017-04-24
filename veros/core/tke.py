@@ -61,7 +61,8 @@ def set_tke_diffusivities(veros):
         veros.kappaM = np.minimum(veros.kappaM_max, veros.c_k * veros.mxl * veros.sqrttke)
         Rinumber = veros.Nsqr[:,:,:,veros.tau] / np.maximum(veros.K_diss_v / np.maximum(1e-12, veros.kappaM), 1e-12)
         if veros.enable_idemix:
-            Rinumber = np.minimum(Rinumber, veros.kappaM * veros.Nsqr[:,:,:,veros.tau] / np.maximum(1e-12, veros.alpha_c * veros.E_iw[:,:,:,veros.tau]**2))
+            Rinumber = np.minimum(Rinumber, veros.kappaM * veros.Nsqr[:,:,:,veros.tau] \
+                     / np.maximum(1e-12, veros.alpha_c * veros.E_iw[:,:,:,veros.tau]**2))
         veros.Prandtlnumber = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
         veros.kappaH = veros.kappaM / veros.Prandtlnumber
         veros.kappaM = np.maximum(veros.kappaM_min, veros.kappaM)
@@ -171,7 +172,10 @@ def integrate_tke(veros):
         """
         veros.flux_east[:-1, :, :] = veros.K_h_tke * (veros.tke[1:, :, :, veros.tau] - veros.tke[:-1, :, :, veros.tau]) \
                                     / (veros.cost[np.newaxis, :, np.newaxis] * veros.dxu[:-1, np.newaxis, np.newaxis]) * veros.maskU[:-1, :, :]
-        veros.flux_east[-5,:,:] = 0. # NOTE: probably a mistake in the fortran code, first index should be -1
+        if veros.pyom_compatiblity_mode:
+            veros.flux_east[-5,:,:] = 0.
+        else:
+            veros.flux_east[-1,:,:] = 0.
         veros.flux_north[:, :-1, :] = veros.K_h_tke * (veros.tke[:, 1:, :, veros.tau] - veros.tke[:, :-1, :, veros.tau]) \
                                      / veros.dyu[np.newaxis, :-1, np.newaxis] * veros.maskV[:, :-1, :] * veros.cosu[np.newaxis, :-1, np.newaxis]
         veros.flux_north[:,-1,:] = 0.

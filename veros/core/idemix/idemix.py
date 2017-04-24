@@ -6,13 +6,15 @@ def set_idemix_parameter(veros):
     """
     set main IDEMIX parameter
     """
-    bN0 = np.sum(np.sqrt(np.maximum(0., veros.Nsqr[:,:,:-1,veros.tau])) * veros.dzw[np.newaxis, np.newaxis, :-1] * veros.maskW[:,:,:-1], axis=2) \
+    bN0 = np.sum(np.sqrt(np.maximum(0., veros.Nsqr[:,:,:-1,veros.tau])) \
+        * veros.dzw[np.newaxis, np.newaxis, :-1] * veros.maskW[:,:,:-1], axis=2) \
         + np.sqrt(np.maximum(0., veros.Nsqr[:,:,-1,veros.tau])) * 0.5 * veros.dzw[-1:] * veros.maskW[:,:,-1]
     fxa = np.sqrt(np.maximum(0., veros.Nsqr[...,veros.tau])) / (1e-22 + np.abs(veros.coriolis_t[...,np.newaxis]))
     cstar = np.maximum(1e-2, bN0[:,:,np.newaxis] / (veros.pi * veros.jstar))
-    veros.c0[...] = np.maximum(0., veros.gamma * cstar * gofx2(veros,fxa) * veros.maskW)
-    veros.v0[...] = np.maximum(0., veros.gamma * cstar * hofx1(veros,fxa) * veros.maskW)
-    veros.alpha_c[...] = np.maximum(1e-4, veros.mu0 * np.arccosh(np.maximum(1.,fxa)) * np.abs(veros.coriolis_t[...,np.newaxis]) / cstar**2) * veros.maskW
+    veros.c0[...] = np.maximum(0., veros.gamma * cstar * gofx2(veros, fxa) * veros.maskW)
+    veros.v0[...] = np.maximum(0., veros.gamma * cstar * hofx1(veros, fxa) * veros.maskW)
+    veros.alpha_c[...] = np.maximum(1e-4, veros.mu0 * np.arccosh(np.maximum(1.,fxa)) \
+                        * np.abs(veros.coriolis_t[...,np.newaxis]) / cstar**2) * veros.maskW
 
 @veros_method
 def integrate_idemix(veros):
@@ -47,7 +49,8 @@ def integrate_idemix(veros):
         if veros.enable_eke_diss_bottom:
             forc[2:-2, 2:-2, :] = np.where(mask, a_loc[2:-2, 2:-2, np.newaxis] / veros.dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :])
         else:
-            forc[2:-2, 2:-2, :] = np.where(mask, veros.eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, np.newaxis] / veros.dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :])
+            forc[2:-2, 2:-2, :] = np.where(mask, veros.eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, np.newaxis] \
+                                           / veros.dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :])
             forc[2:-2, 2:-2, -1] = (1. - veros.eke_diss_surfbot_frac) * a_loc[2:-2, 2:-2] / (0.5 * veros.dzw[-1])
 
     """
@@ -96,7 +99,10 @@ def integrate_idemix(veros):
         veros.flux_east[:-1,:,:] = veros.tau_h * 0.5 * (veros.v0[1:,:,:] + veros.v0[:-1,:,:]) \
                                 * (veros.v0[1:,:,:] * veros.E_iw[1:,:,:,veros.tau] - veros.v0[:-1,:,:] * veros.E_iw[:-1,:,:,veros.tau]) \
                                 / (veros.cost[np.newaxis, :, np.newaxis] * veros.dxu[:-1, np.newaxis, np.newaxis]) * veros.maskU[:-1,:,:]
-        veros.flux_east[-5,:,:] = 0. # NOTE: probably a mistake in the fortran code, first index should be -1
+        if veros.pyom_compatiblity_mode:
+            veros.flux_east[-5,:,:] = 0.
+        else:
+            veros.flux_east[-1,:,:] = 0.
         veros.flux_north[:,:-1,:] = veros.tau_h * 0.5 * (veros.v0[:,1:,:] + veros.v0[:,:-1,:]) \
                                  * (veros.v0[:,1:,:] * veros.E_iw[:,1:,:,veros.tau] - veros.v0[:,:-1,:] * veros.E_iw[:,:-1,:,veros.tau]) \
                                  / veros.dyu[np.newaxis, :-1, np.newaxis] * veros.maskV[:,:-1,:] * veros.cosu[np.newaxis, :-1, np.newaxis]
@@ -122,21 +128,25 @@ def integrate_idemix(veros):
                                                                            - (veros.flux_north[2:-2, 2:-2, :] - veros.flux_north[2:-2, 1:-3, :]) \
                                                                                 / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dyt[np.newaxis, 2:-2, np.newaxis]))
         veros.dE_iw[:,:,0,veros.tau] += -veros.flux_top[:,:,0] / veros.dzw[0:1]
-        veros.dE_iw[:,:,1:-1,veros.tau] += -(veros.flux_top[:,:,1:-1] - veros.flux_top[:,:,:-2]) / veros.dzw[np.newaxis, np.newaxis, 1:-1]
+        veros.dE_iw[:,:,1:-1,veros.tau] += -(veros.flux_top[:,:,1:-1] - veros.flux_top[:,:,:-2]) \
+                                            / veros.dzw[np.newaxis, np.newaxis, 1:-1]
         veros.dE_iw[:,:,-1,veros.tau] += -(veros.flux_top[:,:,-1] - veros.flux_top[:,:,-2]) / (0.5 * veros.dzw[-1:])
 
         """
         Adam Bashforth time stepping
         """
         veros.E_iw[:,:,:,veros.taup1] += veros.dt_tracer * ((1.5 + veros.AB_eps) * veros.dE_iw[:,:,:,veros.tau] \
-                                                       - (0.5 + veros.AB_eps) * veros.dE_iw[:,:,:,veros.taum1])
+                                                          - (0.5 + veros.AB_eps) * veros.dE_iw[:,:,:,veros.taum1])
 
 @veros_method
 def gofx2(veros,x):
     """
     a function g(x)
     """
-    x[x < 3.] = 3. # NOTE: probably a mistake in the fortran code, should just set x locally
+    if veros.pyom_compatiblity_mode:
+        x[x < 3.] = 3.
+    else:
+        x = np.maximum(3., x)
     c = 1.-(2./veros.pi) * np.arcsin(1./x)
     return 2. / veros.pi / c * 0.9 * x**(-2./3.) * (1 - np.exp(-x/4.3))
 
@@ -145,4 +155,6 @@ def hofx1(veros,x):
     """
     a function h(x)
     """
+    if not veros.pyom_compatiblity_mode:
+        x = np.maximum(1., x)
     return (2. / veros.pi) / (1. - (2. / veros.pi) * np.arcsin(1./x)) * (x-1.) / (x+1.)

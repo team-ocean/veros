@@ -64,7 +64,8 @@ def tempsalt_biharmonic(veros):
     veros.temp[:,:,:,veros.taup1] += veros.dt_tracer * veros.dtemp_hmix * veros.maskT
 
     if veros.enable_conserve_energy:
-        fxa = veros.int_drhodT[-3, -3, -1, veros.tau] # NOTE: probably a mistake in the fortran code
+        if veros.pyom_compatiblity_mode:
+            fxa = veros.int_drhodT[-3, -3, -1, veros.tau]
         veros.P_diss_hmix[...] = 0.
         dissipation_on_wgrid(veros, veros.P_diss_hmix, int_drhodX=veros.int_drhodT[..., veros.tau])
 
@@ -128,7 +129,8 @@ def tempsalt_diffusion(veros):
     veros.temp[:,:,:,veros.taup1] += veros.dt_tracer * veros.dtemp_hmix * veros.maskT
 
     if veros.enable_conserve_energy:
-        fxa = veros.int_drhodT[-3, -3, -1, veros.tau] # NOTE: probably a mistake in the fortran code
+        if veros.pyom_compatiblity_mode:
+            fxa = veros.int_drhodT[-3, -3, -1, veros.tau]
         veros.P_diss_hmix[...] = 0.
         dissipation_on_wgrid(veros, veros.P_diss_hmix, int_drhodX=veros.int_drhodT[..., veros.tau])
 
