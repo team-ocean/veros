@@ -38,13 +38,15 @@ ISONEUTRAL_VARIABLES = OrderedDict([
 ])
 
 class Overturning(VerosDiagnostic):
-    """isopycnal overturning diagnostic
+    """Isopycnal overturning diagnostic. Computes and writes vertical streamfunctions
+    (zonally averaged).
     """
-    output_path = "{identifier}_overturning.nc"
-    p_ref = 2000.
+    output_path = "{identifier}_overturning.nc" #: File to write to. May contain format strings that are replaced with Veros attributes.
+    output_frequency = None #: Frequency (in seconds) in which output is written.
+    sampling_frequency = None #: Frequency (in seconds) in which variables are accumulated.
+    p_ref = 2000. #: Reference pressure for isopycnals
 
-    @veros_class_method
-    def initialize(self, veros):
+    def __init__(self, veros):
         self.sigma_var = SIGMA
         self.mean_variables = OVERTURNING_VARIABLES
         if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
@@ -52,6 +54,8 @@ class Overturning(VerosDiagnostic):
         self.variables = self.mean_variables.copy()
         self.variables.update({"sigma": self.sigma_var})
 
+    @veros_class_method
+    def initialize(self, veros):
         self.nitts = 0
         self.nlevel = veros.nz * 4
         self._allocate(veros)

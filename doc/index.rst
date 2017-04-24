@@ -1,13 +1,39 @@
 :tocdepth: 5
 
-Welcome to Veros's documentation!
-=================================
+Veros - Ocean Simulation in pure Python
+=======================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
+   :caption: Quick start
 
-   source/quickstart
-   source/tutorial
-   source/reference
-   source/faq
+   quickstart/about
+   quickstart/installation
+   quickstart/usage
+   quickstart/setup
+   quickstart/development
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Tutorials
+
+   tutorial/wave-propagation.ipynb
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Reference
+
+   reference/settings
+   reference/variables
+   reference/diagnostics
+   reference/api-setup
+   reference/api-veros
+   reference/api-core
+   reference/api-tools
+   reference/api-scripts
+
+.. toctree::
+   :maxdepth: 1
+   :caption: More information
+
+   faq

@@ -3,9 +3,15 @@ import logging
 from .diagnostic import VerosDiagnostic
 from .. import veros_class_method
 
-RESTART_ATTRIBUTES = ("tempm1", "vtemp1", "saltm1", "vsalt1")
-
 class TracerMonitor(VerosDiagnostic):
+    """Diagnostic monitoring global tracer contents / fluxes.
+
+    Writes output to stdout (no binary output).
+    """
+    output_frequency = None #: Frequency (in seconds) in which output is written.
+    #: internal attributes to write to restart file
+    restart_attributes = ("tempm1", "vtemp1", "saltm1", "vsalt1")
+
     def initialize(self, veros):
         self.tempm1 = 0.
         self.vtemp1 = 0.
@@ -40,9 +46,9 @@ class TracerMonitor(VerosDiagnostic):
 
     def read_restart(self, veros):
         attributes, variables = self.read_h5_restart(veros)
-        for attr in RESTART_ATTRIBUTES:
+        for attr in self.restart_attributes:
             setattr(self, attr, attributes[attr])
 
     def write_restart(self, veros):
-        attributes = {key: getattr(self, key) for key in RESTART_ATTRIBUTES}
+        attributes = {key: getattr(self, key) for key in self.restart_attributes}
         self.write_h5_restart(veros, attributes, {}, {})

@@ -4,6 +4,13 @@ from .diagnostic import VerosDiagnostic
 from .. import veros_class_method
 
 class CFLMonitor(VerosDiagnostic):
+    """Diagnostic monitoring the maximum CFL number of the solution to detect
+    instabilities.
+
+    Writes output to stdout (no binary output).
+    """
+    output_frequency = None #: Frequency (in seconds) in which output is written.
+
     def initialize(self, veros):
         pass
 

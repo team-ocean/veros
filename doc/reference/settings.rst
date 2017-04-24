@@ -1,8 +1,6 @@
 Available settings
 ------------------
 
-The default settings are handled differently from variables and diagnostics.
-
 .. exec::
   from veros.settings import SETTINGS
   #headings = ["Setting", "Default value", "Description"]

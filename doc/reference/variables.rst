@@ -1,20 +1,40 @@
+.. _variables:
+
 Model variables
 ---------------
 
-Variable base class
-+++++++++++++++++++
+The variable meta-data (i.e., all instances of :class:`veros.variables.Variable`)
+are available in a dictionary as the attribute :attr:`Veros.variables`. The actual
+data arrays are added directly as atrributes to :class:`Veros`. The following code
+snippet (as commonly used in the :ref:`diagnostics`) illustrates this behavior:
+
+::
+
+   var_meta = {key: val for key, val in veros.variables.items() if val.time_dependent and val.output}
+   var_data = {key: getattr(veros, key) for key in var_meta.keys()}
+
+In this case, ``var_meta`` is a dictionary containing all metadata for variables that
+are time dependent and should be added to the output, while ``var_data`` is a dictionary
+with the same keys containing the corresponding data arrays.
+
+Variable class
+++++++++++++++
 
 .. autoclass:: veros.variables.Variable
 
 Available variables
 +++++++++++++++++++
 
+There are two kinds of variables in Veros. Main variables are always present in a
+simulation, while conditional variables are only available if their respective
+condition is :obj:`True` at the time of variable allocation.
+
 .. _flag_legend:
 
 Attributes:
   | :fa:`clock-o`: Time-dependent
   | :fa:`download`: Included in snapshot output by default
-  | :fa:`bar-chart`: Included in average output by default
+  | :fa:`repeat`: Written to restart files by default
 
 .. exec::
   from veros.variables import MAIN_VARIABLES, CONDITIONAL_VARIABLES
@@ -37,8 +57,8 @@ Attributes:
               flags += ":fa:`clock-o` "
           if var.output:
               flags += ":fa:`download` "
-          if var.average:
-              flags += ":fa:`bar-chart` "
+          if var.write_to_restart:
+              flags += ":fa:`repeat` "
           print(".. py:attribute:: Veros.{}".format(key))
           print("")
           print("  :units: {}".format(var.units))

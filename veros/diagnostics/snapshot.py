@@ -6,19 +6,26 @@ from . import io_tools
 from .. import veros_class_method, time
 from .diagnostic import VerosDiagnostic
 
-RESTART_ATTRIBUTES = {"itt", "tau", "taum1", "taup1"}
-
 class Snapshot(VerosDiagnostic):
-    output_path = "{identifier}_snapshot.nc"
-    output_frequency = None
+    """Writes snapshots of the current solution. Also reads and writes the main restart
+    data required for restarting a Veros simulation.
+    """
+    output_path = "{identifier}_snapshot.nc" #: File to write to. May contain format strings that are replaced with Veros attributes.
+    output_frequency = None #: Frequency (in seconds) in which output is written.
+    restart_attributes = {"itt", "tau", "taum1", "taup1"} #: Attributes to be written to restart file.
+
+    def __init__(self, veros):
+        self.output_variables = {key for key, val in veros.variables.items() if val.output}
+        """Variables to be written to output. Defaults to all Veros variables that
+        have the attribute :attr:`output`."""
+        self.restart_variables = {key for key, val in veros.variables.items() if val.write_to_restart}
+        """Variables to be written to restart. Defaults to all Veros variables that
+        have the attribute :attr:`write_to_restart`."""
 
     @veros_class_method
     def initialize(self, veros):
-        """
-        initialize NetCDF snapshot file
-        """
-        var_meta = {key: val for key, val in veros.variables.items() if val.output}
-        var_data = {key: getattr(veros, key) for key, val in veros.variables.items() if val.output}
+        var_meta = {var: veros.variables[var] for var in self.output_variables}
+        var_data = {var: getattr(veros, var) for var in self.output_variables}
         self.initialize_output(veros, var_meta, var_data)
 
     def diagnose(self, veros):
@@ -32,13 +39,13 @@ class Snapshot(VerosDiagnostic):
         if not os.path.isfile(self.get_output_file_name(veros)):
             self.initialize(veros)
 
-        var_meta = {key: val for key, val in veros.variables.items() if val.time_dependent and val.output}
-        var_data = {key: getattr(veros, key) for key, val in veros.variables.items() if val.time_dependent and val.output}
+        var_meta = {var: veros.variables[var] for var in self.output_variables if veros.variables[var].time_dependent}
+        var_data = {var: getattr(veros, var) for var in var_meta.keys()}
         self.write_output(veros, var_meta, var_data)
 
     def read_restart(self, veros):
-        restart_vars = {key: var for key, var in veros.variables.items() if var.write_to_restart}
-        restart_data = {key: getattr(veros, key) for key in restart_vars.keys()}
+        restart_vars = {var: veros.variables[var] for var in self.restart_variables}
+        restart_data = {var: getattr(veros, var) for var in self.restart_variables}
         attributes, variables = self.read_h5_restart(veros)
         for key, arr in restart_data.items():
             try:
@@ -63,7 +70,7 @@ class Snapshot(VerosDiagnostic):
                               .format(attr))
 
     def write_restart(self, veros):
-        restart_attributes = {key: getattr(veros, key) for key in RESTART_ATTRIBUTES}
-        restart_vars = {key: var for key, var in veros.variables.items() if var.write_to_restart}
-        restart_data = {key: getattr(veros, key) for key in restart_vars.keys()}
+        restart_attributes = {key: getattr(veros, key) for key in self.restart_attributes}
+        restart_vars = {var: veros.variables[var] for var in self.restart_variables}
+        restart_data = {var: getattr(veros, var) for var in self.restart_variables}
         self.write_h5_restart(veros, restart_attributes, restart_vars, restart_data)

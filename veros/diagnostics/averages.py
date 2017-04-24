@@ -11,15 +11,19 @@ from ..variables import Variable
 Running_sum = namedtuple("Running_sum", ("var", "sum"))
 
 class Averages(VerosDiagnostic):
-    """Time average output
+    """Time average output diagnostic.
+
+    All registered variables are summed up when :meth:`diagnose` is called,
+    and averaged and output upon calling :meth:`output`.
     """
-    output_path = "{identifier}_averages.nc"
-    output_variables = None
+    output_path = "{identifier}_averages.nc" #: File to write to. May contain format strings that are replaced with Veros attributes.
+    output_variables = None #: Iterable containing all variables to be averaged. Changes have no effect after ``initialize`` has been called.
+    output_frequency = None #: Frequency (in seconds) in which output is written.
+    sampling_frequency = None #: Frequency (in seconds) in which variables are accumulated.
 
     @veros_class_method
     def initialize(self, veros):
-        """
-        register all variables to be averaged
+        """Register all variables to be averaged
         """
         self.average_nitts = 0
         self.average_vars = {}
@@ -38,8 +42,7 @@ class Averages(VerosDiagnostic):
             var.sum[...] += getattr(veros, key)
 
     def output(self, veros):
-        """
-        write averages to netcdf file and zero array
+        """Write averages to netcdf file and zero array
         """
         variable_metadata = {key: runsum.var for key, runsum in self.average_vars.items()}
         if not os.path.isfile(self.get_output_file_name(veros)):

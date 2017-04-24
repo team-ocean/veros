@@ -75,7 +75,6 @@ class Veros(object):
                             level=getattr(logging, (loglevel or args.loglevel).upper()),
                             format="%(message)s")
         self.profile_mode = args.profile
-        self.diagnostics = {name: Diagnostic() for name, Diagnostic in diagnostics.diagnostics.items()}
         self._set_default_settings()
         if args.set:
             for key, val in args.set:
@@ -249,8 +248,9 @@ class Veros(object):
         if self.enable_streamfunction:
             external.streamfunction_init(self)
 
-        self.set_diagnostics()
         logging.info("Initializing diagnostics")
+        self.diagnostics = {name: Diagnostic(self) for name, Diagnostic in diagnostics.diagnostics.items()}
+        self.set_diagnostics()
         for name, diagnostic in self.diagnostics.items():
             diagnostic.initialize(self)
             if diagnostic.sampling_frequency:
@@ -396,19 +396,19 @@ class Veros(object):
                 diagnostic.write_restart(self)
 
             logging.debug("Timing summary:")
-            logging.debug(" setup time summary       = {}s".format(self.timers["setup"].getTime()))
-            logging.debug(" main loop time summary   = {}s".format(self.timers["main"].getTime()))
-            logging.debug("     momentum             = {}s".format(self.timers["momentum"].getTime()))
-            logging.debug("       pressure           = {}s".format(self.timers["pressure"].getTime()))
-            logging.debug("       friction           = {}s".format(self.timers["friction"].getTime()))
-            logging.debug("     thermodynamics       = {}s".format(self.timers["temperature"].getTime()))
-            logging.debug("       lateral mixing     = {}s".format(self.timers["isoneutral"].getTime()))
-            logging.debug("       vertical mixing    = {}s".format(self.timers["vmix"].getTime()))
-            logging.debug("       equation of state  = {}s".format(self.timers["eq_of_state"].getTime()))
-            logging.debug("     EKE                  = {}s".format(self.timers["eke"].getTime()))
-            logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
-            logging.debug("     TKE                  = {}s".format(self.timers["tke"].getTime()))
-            logging.debug(" diagnostics and I/O      = {}s".format(self.timers["diagnostics"].getTime()))
+            logging.debug(" setup time summary       = {:.1f}s".format(self.timers["setup"].getTime()))
+            logging.debug(" main loop time summary   = {:.1f}s".format(self.timers["main"].getTime()))
+            logging.debug("     momentum             = {:.1f}s".format(self.timers["momentum"].getTime()))
+            logging.debug("       pressure           = {:.1f}s".format(self.timers["pressure"].getTime()))
+            logging.debug("       friction           = {:.1f}s".format(self.timers["friction"].getTime()))
+            logging.debug("     thermodynamics       = {:.1f}s".format(self.timers["temperature"].getTime()))
+            logging.debug("       lateral mixing     = {:.1f}s".format(self.timers["isoneutral"].getTime()))
+            logging.debug("       vertical mixing    = {:.1f}s".format(self.timers["vmix"].getTime()))
+            logging.debug("       equation of state  = {:.1f}s".format(self.timers["eq_of_state"].getTime()))
+            logging.debug("     EKE                  = {:.1f}s".format(self.timers["eke"].getTime()))
+            logging.debug("     IDEMIX               = {:.1f}s".format(self.timers["idemix"].getTime()))
+            logging.debug("     TKE                  = {:.1f}s".format(self.timers["tke"].getTime()))
+            logging.debug(" diagnostics and I/O      = {:.1f}s".format(self.timers["diagnostics"].getTime()))
 
             if self.profile_mode:
                 try:

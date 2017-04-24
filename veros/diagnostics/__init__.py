@@ -1,5 +1,4 @@
 from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monitor, io_tools
-from .. import veros_method
 
 diagnostics = {
     "averages": averages.Averages,

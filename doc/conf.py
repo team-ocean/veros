@@ -169,6 +169,12 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+# -- Options for autodoc --------------------------------------------------
+autodoc_member_order = "bysource"
+autodoc_default_flags = ["show-inheritance"]
+
+# -- Custom exec directive ------------------------------------------------
+
 from os.path import basename
 
 try:
