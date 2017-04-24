@@ -19,11 +19,11 @@ class LowercaseAttributeWrapper(object):
 
 class VerosLegacy(Veros):
     """
-    Veros class that supports the Veros Fortran interface
+    Veros class that supports the pyOM Fortran interface
     """
     def __init__(self, fortran=None, *args, **kwargs):
         """
-        To use the veros2 legacy interface point the fortran argument to the Veros fortran library:
+        To use the pyOM2 legacy interface point the fortran argument to the Veros fortran library:
 
         > simulation = GlobalOneDegree(fortran = "pyOM_code.so")
 
@@ -60,23 +60,6 @@ class VerosLegacy(Veros):
         self.jp2fy = lambda j: j+self.js_pe-self.onx
         self.get_tau = lambda: self.tau - 1 if self.legacy_mode else self.tau
 
-        diag_legacy_settings = (
-            (self.diagnostics["cfl_monitor"], "output_frequency", "ts_monint"),
-            (self.diagnostics["tracer_monitor"], "output_frequency", "trac_cont_int"),
-            (self.diagnostics["snapshot"], "output_frequency", "snapint"),
-            (self.diagnostics["averages"], "output_frequency", "aveint"),
-            (self.diagnostics["averages"], "sampling_frequency", "avefreq"),
-            (self.diagnostics["overturning"], "output_frequency", "overint"),
-            (self.diagnostics["overturning"], "sampling_frequency", "overfreq"),
-            (self.diagnostics["energy"], "output_frequency", "energint"),
-            (self.diagnostics["energy"], "sampling_frequency", "energfreq"),
-            (self.diagnostics["particles"], "output_frequency", "particles_int"),
-        )
-
-        for diag, param, attr in diag_legacy_settings:
-            if hasattr(self, attr):
-                setattr(diag, param, getattr(self, attr))
-
 
     def setup(self, *args, **kwargs):
         if self.legacy_mode:
@@ -107,6 +90,22 @@ class VerosLegacy(Veros):
             self.set_parameter()
             self.set_legacy_parameter()
             super(VerosLegacy,self).setup(*args,**kwargs)
+            
+            diag_legacy_settings = (
+                (self.diagnostics["cfl_monitor"], "output_frequency", "ts_monint"),
+                (self.diagnostics["tracer_monitor"], "output_frequency", "trac_cont_int"),
+                (self.diagnostics["snapshot"], "output_frequency", "snapint"),
+                (self.diagnostics["averages"], "output_frequency", "aveint"),
+                (self.diagnostics["averages"], "sampling_frequency", "avefreq"),
+                (self.diagnostics["overturning"], "output_frequency", "overint"),
+                (self.diagnostics["overturning"], "sampling_frequency", "overfreq"),
+                (self.diagnostics["energy"], "output_frequency", "energint"),
+                (self.diagnostics["energy"], "sampling_frequency", "energfreq"),
+            )
+
+            for diag, param, attr in diag_legacy_settings:
+                if hasattr(self, attr):
+                    setattr(diag, param, getattr(self, attr))
 
 
     def run(self, **kwargs):

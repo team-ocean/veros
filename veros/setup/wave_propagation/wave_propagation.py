@@ -238,7 +238,8 @@ class WavePropagation(Veros):
 
     @veros_method
     def set_diagnostics(self):
-        self.diagnostics["cfl_monitor"].output_frequency = 86400.0
+        self.diagnostics["cfl_monitor"].output_frequency = 86400.
+        self.diagnostics["tracer_monitor"].output_frequency = 86400.
         self.diagnostics["snapshot"].output_frequency = 0.5 * 86400.
         self.diagnostics["overturning"].output_frequency = 365 * 86400
         self.diagnostics["overturning"].sampling_frequency = 365 * 86400 / 24.
@@ -259,12 +260,10 @@ class WavePropagation(Veros):
                              "forc_tke_surface", "tke_surf_corr")
         if self.enable_idemix:
             average_vars += ("E_iw", "forc_iw_surface", "forc_iw_bottom", "iw_diss",
-                             "c0", "v0")
+                            "c0", "v0")
         if self.enable_eke:
             average_vars += ("eke", "K_gm", "L_rossby", "L_rhines")
-
-        for var in average_vars:
-            self.variables[var].average = True
+        self.diagnostics["averages"].output_variables = average_vars
 
 
 if __name__ == "__main__":

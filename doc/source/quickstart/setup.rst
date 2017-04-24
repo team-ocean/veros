@@ -1,2 +1,0 @@
-Setting up a model
-==================

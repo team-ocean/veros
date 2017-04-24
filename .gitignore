@@ -1,6 +1,8 @@
-# netCDF files
+# binary files
 *.cdf
 *.nc
+*.h5
+*.hdf5
 
 # restart files
 restart.h5

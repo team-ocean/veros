@@ -16,7 +16,11 @@ except ImportError:
 
 BACKENDS = {"numpy": numpy, "bohrium": bohrium}
 
-from . import restart, variables, settings, cli, diagnostics
+# for some reason, netCDF4 has to be imported before h5py, so we do it here
+import netCDF4
+import h5py
+
+from . import variables, settings, cli, diagnostics, time
 from .timer import Timer
 from .core import momentum, numerics, thermodynamics, eke, tke, idemix, \
                   isoneutral, external, non_hydrostatic, advection, cyclic
@@ -72,6 +76,9 @@ class Veros(object):
                             format="%(message)s")
         self.profile_mode = args.profile
         self._set_default_settings()
+        if args.set:
+            for key, val in args.set:
+                setattr(self, key, val)
         self.timers = {k: Timer(k) for k in ("setup","main","momentum","temperature",
                                              "eke","idemix","tke","diagnostics",
                                              "pressure","friction","isoneutral",
@@ -84,14 +91,9 @@ class Veros(object):
             raise ValueError("{} backend failed to import".format(backend))
         return BACKENDS[backend], backend
 
-
     def _set_default_settings(self):
         for key, setting in settings.SETTINGS.items():
             setattr(self, key, setting.default)
-        self.diagnostics = {}
-        for key, setting in settings.DIAGNOSTICS_SETTINGS.items():
-            self.diagnostics[key] = setting
-
 
     def _allocate(self):
         self.variables = {}
@@ -193,7 +195,7 @@ class Veros(object):
         Example:
           >>> @veros_method
           >>> def set_forcing(self):
-          >>>     current_month = (self.itt * self.dt_tracer / (31 * 24 * 60 * 60)) % 12
+          >>>     current_month = (self.time / (31 * 24 * 60 * 60)) % 12
           >>>     self.surface_taux[:, :] = self._windstress_data[:, :, current_month]
         """
         self._not_implemented()
@@ -220,6 +222,10 @@ class Veros(object):
         except AttributeError:
             pass
 
+    def sanity_check(self):
+        if self.backend.any(~self.backend.isfinite(self.u)):
+            raise RuntimeError("solver diverged at iteration {}".format(self.itt))
+
     def setup(self):
         logging.info("Setting up everything")
         self.set_parameter()
@@ -242,8 +248,19 @@ class Veros(object):
         if self.enable_streamfunction:
             external.streamfunction_init(self)
 
+        logging.info("Initializing diagnostics")
+        self.diagnostics = {name: Diagnostic(self) for name, Diagnostic in diagnostics.diagnostics.items()}
         self.set_diagnostics()
-        diagnostics.init_diagnostics(self)
+        for name, diagnostic in self.diagnostics.items():
+            diagnostic.initialize(self)
+            if diagnostic.sampling_frequency:
+                logging.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
+                             .format(name, time.format_time(self, diagnostic.sampling_frequency),
+                                    diagnostic.sampling_frequency / self.dt_tracer))
+            if diagnostic.output_frequency:
+                logging.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
+                             .format(name, time.format_time(self, diagnostic.output_frequency),
+                                    diagnostic.output_frequency / self.dt_tracer))
 
         eke.init_eke(self)
 
@@ -254,7 +271,7 @@ class Veros(object):
                                "(set enable_implicit_vert_fricton)")
 
     def run(self, **kwargs):
-        """Main routine of the model.
+        """Main routine of the simulation.
 
         Arguments:
             kwargs (:obj:`dict`):
@@ -265,17 +282,27 @@ class Veros(object):
         with self.timers["setup"]:
             self.setup()
 
-            logging.info("Reading restarts:")
-            restart.read_restart(self)
-            diagnostics.read_restart(self)
+            if self.restart_input_filename:
+                logging.info("Reading restarts:")
+                for diagnostic in self.diagnostics.values():
+                    diagnostic.read_restart(self)
 
             self.enditt = self.itt + int(self.runlen / self.dt_tracer)
             logging.info("Starting integration for {:.2e}s".format(self.runlen))
             logging.info(" from time step {} to {}".format(self.itt,self.enditt))
 
+        start_iteration = self.itt
         try:
             while self.itt < self.enditt:
-                if self.itt == 3 and self.profile_mode:
+                logging.info("Current iteration: {}".format(self.itt))
+
+                with self.timers["diagnostics"]:
+                    t = time.current_time(self, "seconds")
+                    if self.restart_frequency and t % self.restart_frequency < self.dt_tracer:
+                        for diagnostic in self.diagnostics.values():
+                            diagnostic.write_restart(self)
+
+                if self.itt - start_iteration == 3 and self.profile_mode:
                     # when using bohrium, most kernels should be pre-compiled
                     # after three iterations
                     import pyinstrument
@@ -334,17 +361,24 @@ class Veros(object):
                         if self.enable_idemix_niw:
                             cyclic.setcyclic_x(self.E_niw[:,:,:,self.taup1])
 
-                    # diagnose vertical velocity at taup1
                     if self.enable_hydrostatic:
                         momentum.vertical_velocity(self)
 
                 self.flush()
 
                 with self.timers["diagnostics"]:
-                    diagnostics.sanity_check(self)
+                    self.sanity_check()
+
                     if self.enable_neutral_diffusion and self.enable_skew_diffusion:
                         isoneutral.isoneutral_diag_streamfunction(self)
-                    diagnostics.diagnose(self)
+
+                    for diagnostic in self.diagnostics.values():
+                        if diagnostic.sampling_frequency and t % diagnostic.sampling_frequency < self.dt_tracer:
+                            diagnostic.diagnose(self)
+                        if diagnostic.output_frequency and t % diagnostic.output_frequency < self.dt_tracer:
+                            diagnostic.output(self)
+
+                logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
                 # shift time
                 otaum1 = self.taum1
@@ -352,30 +386,29 @@ class Veros(object):
                 self.tau = self.taup1
                 self.taup1 = otaum1
                 self.itt += 1
-                logging.info("Current iteration: {}".format(self.itt))
-                logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
         except:
-            diagnostics.panic_output(self)
+            logging.error("stopping integration at iteration {}".format(self.itt))
             raise
 
         finally:
-            restart.write_restart(self)
+            for diagnostic in self.diagnostics.values():
+                diagnostic.write_restart(self)
 
             logging.debug("Timing summary:")
-            logging.debug(" setup time summary       = {}s".format(self.timers["setup"].getTime()))
-            logging.debug(" main loop time summary   = {}s".format(self.timers["main"].getTime()))
-            logging.debug("     momentum             = {}s".format(self.timers["momentum"].getTime()))
-            logging.debug("       pressure           = {}s".format(self.timers["pressure"].getTime()))
-            logging.debug("       friction           = {}s".format(self.timers["friction"].getTime()))
-            logging.debug("     thermodynamics       = {}s".format(self.timers["temperature"].getTime()))
-            logging.debug("       lateral mixing     = {}s".format(self.timers["isoneutral"].getTime()))
-            logging.debug("       vertical mixing    = {}s".format(self.timers["vmix"].getTime()))
-            logging.debug("       equation of state  = {}s".format(self.timers["eq_of_state"].getTime()))
-            logging.debug("     EKE                  = {}s".format(self.timers["eke"].getTime()))
-            logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
-            logging.debug("     TKE                  = {}s".format(self.timers["tke"].getTime()))
-            logging.debug(" diagnostics and I/O      = {}s".format(self.timers["diagnostics"].getTime()))
+            logging.debug(" setup time summary       = {:.1f}s".format(self.timers["setup"].getTime()))
+            logging.debug(" main loop time summary   = {:.1f}s".format(self.timers["main"].getTime()))
+            logging.debug("     momentum             = {:.1f}s".format(self.timers["momentum"].getTime()))
+            logging.debug("       pressure           = {:.1f}s".format(self.timers["pressure"].getTime()))
+            logging.debug("       friction           = {:.1f}s".format(self.timers["friction"].getTime()))
+            logging.debug("     thermodynamics       = {:.1f}s".format(self.timers["temperature"].getTime()))
+            logging.debug("       lateral mixing     = {:.1f}s".format(self.timers["isoneutral"].getTime()))
+            logging.debug("       vertical mixing    = {:.1f}s".format(self.timers["vmix"].getTime()))
+            logging.debug("       equation of state  = {:.1f}s".format(self.timers["eq_of_state"].getTime()))
+            logging.debug("     EKE                  = {:.1f}s".format(self.timers["eke"].getTime()))
+            logging.debug("     IDEMIX               = {:.1f}s".format(self.timers["idemix"].getTime()))
+            logging.debug("     TKE                  = {:.1f}s".format(self.timers["tke"].getTime()))
+            logging.debug(" diagnostics and I/O      = {:.1f}s".format(self.timers["diagnostics"].getTime()))
 
             if self.profile_mode:
                 try:

@@ -3,6 +3,8 @@ from collections import namedtuple, OrderedDict
 Setting = namedtuple("setting", ("default", "description"))
 
 SETTINGS = OrderedDict([
+    ("identifier", Setting("UNNAMED", "Identifier of the current simulation")),
+
     # Model parameters
     ("nx", Setting(None, "Grid points in zonal (x) direction")),
     ("ny", Setting(None, "Grid points in meridional (y,j) direction")),
@@ -128,28 +130,9 @@ SETTINGS = OrderedDict([
 
     # New
     ("use_io_threads", Setting(True, "")),
-    ("io_timeout", Setting(None, "")),
+    ("io_timeout", Setting(20, "Timeout in seconds while waiting for IO locks to be released")),
     ("enable_netcdf_zlib_compression", Setting(True, "")),
-    ("restart_filename", Setting("restart.h5", "File name of restart output"))
-])
-
-
-class Diagnostic:
-    def __init__(self, description, sampling_frequency=None, output_frequency=None, outfile=None):
-        self.sampling_frequency = sampling_frequency
-        self.output_frequency = output_frequency
-        self.description = description
-        self.outfile = outfile
-
-    def is_active(self):
-        return self.sampling_frequency or self.output_frequency
-
-DIAGNOSTICS_SETTINGS = OrderedDict([
-    ("cfl_monitor", Diagnostic("CFL monitor")),
-    ("tracer_monitor", Diagnostic("tracer content and variance monitor")),
-    ("snapshot", Diagnostic("snapshot output", outfile="snapshot.nc")),
-    ("averages", Diagnostic("time average output", outfile="averages_{itt}.nc")),
-    ("energy", Diagnostic("energy diagnostics", outfile="energy.nc")),
-    ("overturning", Diagnostic("isopycnal overturning diagnostic", outfile="overturning.nc")),
-    ("particles", Diagnostic("particle integration", outfile="particles_{itt}.nc")),
+    ("restart_input_filename", Setting(None, "File name of restart output")),
+    ("restart_output_filename", Setting("{identifier}_restart_{itt:0>4d}.h5", "File name of restart output")),
+    ("restart_frequency", Setting(None, "Frequency (in seconds) to write restart data")),
 ])
