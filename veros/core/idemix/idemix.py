@@ -1,3 +1,5 @@
+import warnings
+
 from .. import advection, numerics, utilities
 from ... import veros_method
 
@@ -99,7 +101,7 @@ def integrate_idemix(veros):
         veros.flux_east[:-1,:,:] = veros.tau_h * 0.5 * (veros.v0[1:,:,:] + veros.v0[:-1,:,:]) \
                                 * (veros.v0[1:,:,:] * veros.E_iw[1:,:,:,veros.tau] - veros.v0[:-1,:,:] * veros.E_iw[:-1,:,:,veros.tau]) \
                                 / (veros.cost[np.newaxis, :, np.newaxis] * veros.dxu[:-1, np.newaxis, np.newaxis]) * veros.maskU[:-1,:,:]
-        if veros.pyom_compatiblity_mode:
+        if veros.pyom_compatibility_mode:
             veros.flux_east[-5,:,:] = 0.
         else:
             veros.flux_east[-1,:,:] = 0.
@@ -143,7 +145,7 @@ def gofx2(veros,x):
     """
     a function g(x)
     """
-    if veros.pyom_compatiblity_mode:
+    if veros.pyom_compatibility_mode:
         x[x < 3.] = 3.
     else:
         x = np.maximum(3., x)
@@ -155,6 +157,6 @@ def hofx1(veros,x):
     """
     a function h(x)
     """
-    if not veros.pyom_compatiblity_mode:
-        x = np.maximum(1., x)
+    eps = np.finfo(x.dtype).eps # prevent division by zero
+    x = np.maximum(1. + eps, x)
     return (2. / veros.pi) / (1. - (2. / veros.pi) * np.arcsin(1./x)) * (x-1.) / (x+1.)

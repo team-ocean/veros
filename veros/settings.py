@@ -135,5 +135,5 @@ SETTINGS = OrderedDict([
     ("restart_input_filename", Setting(None, "File name of restart output")),
     ("restart_output_filename", Setting("{identifier}_restart_{itt:0>4d}.h5", "File name of restart output")),
     ("restart_frequency", Setting(None, "Frequency (in seconds) to write restart data")),
-    ("pyom_compatiblity_mode", Setting(False, "Force compatibility to pyOM2 (reproducing bugs and other quirks). For testing purposes only.")),
+    ("pyom_compatibility_mode", Setting(False, "Force compatibility to pyOM2 (reproducing bugs and other quirks). For testing purposes only.")),
 ])

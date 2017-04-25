@@ -248,21 +248,21 @@ class WavePropagation(Veros):
         self.diagnostics["averages"].output_frequency = 365 * 86400
         self.diagnostics["averages"].sampling_frequency = 365 * 86400 / 24.
 
-        average_vars = ("surface_taux", "surface_tauy", "forc_temp_surface", "forc_salt_surface",
+        average_vars = ["surface_taux", "surface_tauy", "forc_temp_surface", "forc_salt_surface",
                         "psi", "temp", "salt", "u", "v", "w", "Nsqr", "Hd", "rho",
-                        "K_diss_v", "P_diss_v", "P_diss_nonlin", "P_diss_iso", "kappaH")
+                        "K_diss_v", "P_diss_v", "P_diss_nonlin", "P_diss_iso", "kappaH"]
         if self.enable_skew_diffusion:
-            average_vars += ("B1_gm", "B2_gm")
+            average_vars += ["B1_gm", "B2_gm"]
         if self.enable_TEM_friction:
-            average_vars += ("kappa_gm", "K_diss_gm")
+            average_vars += ["kappa_gm", "K_diss_gm"]
         if self.enable_tke:
-            average_vars += ("tke", "Prandtlnumber", "mxl", "tke_diss",
-                             "forc_tke_surface", "tke_surf_corr")
+            average_vars += ["tke", "Prandtlnumber", "mxl", "tke_diss",
+                             "forc_tke_surface", "tke_surf_corr"]
         if self.enable_idemix:
-            average_vars += ("E_iw", "forc_iw_surface", "forc_iw_bottom", "iw_diss",
-                            "c0", "v0")
+            average_vars += ["E_iw", "forc_iw_surface", "forc_iw_bottom", "iw_diss",
+                            "c0", "v0"]
         if self.enable_eke:
-            average_vars += ("eke", "K_gm", "L_rossby", "L_rhines")
+            average_vars += ["eke", "K_gm", "L_rossby", "L_rhines"]
         self.diagnostics["averages"].output_variables = average_vars
 
 

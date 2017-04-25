@@ -172,7 +172,7 @@ def integrate_tke(veros):
         """
         veros.flux_east[:-1, :, :] = veros.K_h_tke * (veros.tke[1:, :, :, veros.tau] - veros.tke[:-1, :, :, veros.tau]) \
                                     / (veros.cost[np.newaxis, :, np.newaxis] * veros.dxu[:-1, np.newaxis, np.newaxis]) * veros.maskU[:-1, :, :]
-        if veros.pyom_compatiblity_mode:
+        if veros.pyom_compatibility_mode:
             veros.flux_east[-5,:,:] = 0.
         else:
             veros.flux_east[-1,:,:] = 0.

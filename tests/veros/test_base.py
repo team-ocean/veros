@@ -20,7 +20,7 @@ class VerosTest(object):
 
     def __init__(self, dims=None, fortran=None):
         self.veros_new = VerosLegacy()
-        self.veros_new.pyom_compatiblity_mode = True
+        self.veros_new.pyom_compatibility_mode = True
         if not fortran:
             try:
                 fortran = sys.argv[1]
