@@ -284,27 +284,26 @@ class GlobalOneDegree(VerosLegacy):
         idm = self.idemix_module
         tkm = self.tke_module
         ekm = self.eke_module
-        average_vars = ("surface_taux", "surface_tauy", "forc_temp_surface", "forc_salt_surface",
+        average_vars = ["surface_taux", "surface_tauy", "forc_temp_surface", "forc_salt_surface",
                         "psi", "temp", "salt", "u", "v", "w", "Nsqr", "Hd", "rho",
-                        "K_diss_v", "P_diss_v", "P_diss_nonlin", "P_diss_iso", "kappaH")
+                        "K_diss_v", "P_diss_v", "P_diss_nonlin", "P_diss_iso", "kappaH"]
         if m.enable_skew_diffusion:
-            average_vars += ("B1_gm", "B2_gm")
+            average_vars += ["B1_gm", "B2_gm"]
         if m.enable_TEM_friction:
-            average_vars += ("kappa_gm", "K_diss_gm")
+            average_vars += ["kappa_gm", "K_diss_gm"]
         if tkm.enable_tke:
-            average_vars += ("tke", "Prandtlnumber", "mxl", "tke_diss",
-                             "forc_tke_surface", "tke_surf_corr")
+            average_vars += ["tke", "Prandtlnumber", "mxl", "tke_diss",
+                             "forc_tke_surface", "tke_surf_corr"]
         if idm.enable_idemix:
-            average_vars += ("E_iw", "forc_iw_surface", "forc_iw_bottom", "iw_diss",
-                             "c0", "v0")
+            average_vars += ["E_iw", "forc_iw_surface", "forc_iw_bottom", "iw_diss",
+                             "c0", "v0"]
         if ekm.enable_eke:
-            average_vars += ("eke", "K_gm", "L_rossby", "L_rhines")
+            average_vars += ["eke", "K_gm", "L_rossby", "L_rhines"]
         if idm.enable_idemix_M2:
-            average_vars += ("E_M2", "cg_M2", "tau_M2", "alpha_M2_cont")
+            average_vars += ["E_M2", "cg_M2", "tau_M2", "alpha_M2_cont"]
         if idm.enable_idemix_niw:
-            average_vars += ("E_niw", "cg_niw", "tau_niw")
-        for var in average_vars:
-            self.variables[var].average = True
+            average_vars += ["E_niw", "cg_niw", "tau_niw"]
+        self.diagnostics["averages"].output_variables = average_vars
 
 
 if __name__ == "__main__":

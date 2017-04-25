@@ -1,4 +1,6 @@
 import functools
+import signal
+import logging
 
 def veros_class_method(function):
     return _veros_method(function, True, 1)
@@ -51,3 +53,27 @@ def _veros_method(function, flush_on_exit, narg=0):
         return res
     return veros_method_wrapper
 _veros_method.methods = []
+
+def do_not_disturb(function):
+    """Decorator that catches SIGINT signals (e.g. after keyboard interrupt) and
+    makes sure that the function body is executed before exiting.
+
+    Useful for ensuring that output files are written properly.
+    """
+    @functools.wraps(function)
+    def dnd_wrapper(*args, **kwargs):
+        signal_received = {"sig": None, "frame": None}
+        def handler(sig, frame):
+            signal_received["sig"] = sig
+            signal_received["frame"] = frame
+            logging.error("interrupt received - cleaning up before exit")
+        old_handler = signal.getsignal(signal.SIGINT)
+        signal.signal(signal.SIGINT, handler)
+        try:
+            res = function(*args, **kwargs)
+        finally:
+            signal.signal(signal.SIGINT, old_handler)
+            if not signal_received["sig"] is None:
+                old_handler(signal_received["sig"], signal_received["frame"])
+        return res
+    return dnd_wrapper

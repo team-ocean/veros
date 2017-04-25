@@ -9,7 +9,8 @@ def init_eke(veros):
     Initialize EKE
     """
     if veros.enable_eke_leewave_dissipation:
-        veros.hrms_k0[...] = np.maximum(veros.eke_hrms_k0_min, 2 / veros.pi * veros.eke_topo_hrms**2 / np.maximum(1e-12, veros.eke_topo_lam)**1.5)
+        veros.hrms_k0[...] = np.maximum(veros.eke_hrms_k0_min, 2 / veros.pi * veros.eke_topo_hrms**2 \
+                                        / np.maximum(1e-12, veros.eke_topo_lam)**1.5)
 
 @veros_method
 def set_eke_diffusivities(veros):
@@ -23,7 +24,8 @@ def set_eke_diffusivities(veros):
         """
         calculate Rossby radius as minimum of mid-latitude and equatorial R. rad.
         """
-        C_rossby[...] = np.sum(np.sqrt(np.maximum(0.,veros.Nsqr[:,:,:,veros.tau])) * veros.dzw[np.newaxis, np.newaxis, :] * veros.maskW[:,:,:] / veros.pi, axis=2)
+        C_rossby[...] = np.sum(np.sqrt(np.maximum(0.,veros.Nsqr[:,:,:,veros.tau])) \
+                      * veros.dzw[np.newaxis, np.newaxis, :] * veros.maskW[:,:,:] / veros.pi, axis=2)
         veros.L_rossby[...] = np.minimum(C_rossby / np.maximum(np.abs(veros.coriolis_t), 1e-16), \
                                           np.sqrt(C_rossby / np.maximum(2 * veros.beta, 1e-16)))
         """
@@ -31,7 +33,8 @@ def set_eke_diffusivities(veros):
         """
         veros.sqrteke = np.sqrt(np.maximum(0.,veros.eke[:,:,:,veros.tau]))
         veros.L_rhines[...] = np.sqrt(veros.sqrteke / np.maximum(veros.beta[...,np.newaxis], 1e-16))
-        veros.eke_len[...] = np.maximum(veros.eke_lmin, np.minimum(veros.eke_cross * veros.L_rossby[...,np.newaxis], veros.eke_crhin * veros.L_rhines))
+        veros.eke_len[...] = np.maximum(veros.eke_lmin, np.minimum(veros.eke_cross * veros.L_rossby[...,np.newaxis]
+                                        , veros.eke_crhin * veros.L_rhines))
         veros.K_gm[...] = np.minimum(veros.eke_k_max, veros.eke_c_k * veros.eke_len * veros.sqrteke)
     else:
         """

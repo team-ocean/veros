@@ -5,9 +5,9 @@ import logging
 
 from .io_tools import netcdf as nctools
 from .io_tools import hdf5 as h5tools
-from .. import veros_class_method, veros_method, time
+from ..decorators import veros_class_method, veros_method, do_not_disturb
 from ..variables import Variable
-
+from .. import time
 
 class VerosDiagnostic(object):
     """Base class for diagnostics. Provides an interface and wrappers for common I/O.
@@ -50,6 +50,7 @@ class VerosDiagnostic(object):
     def get_output_file_name(self, veros):
         return self.output_path.format(**vars(veros))
 
+    @do_not_disturb
     @veros_class_method
     def initialize_output(self, veros, variables, var_data=None, extra_dimensions=None, filepath=None):
         with nctools.threaded_io(veros, filepath or self.get_output_file_name(veros), "w") as outfile:
@@ -65,6 +66,7 @@ class VerosDiagnostic(object):
                         raise ValueError("var_data argument must be given for constant variables")
                     nctools.write_variable(veros, key, var, var_data[key], outfile)
 
+    @do_not_disturb
     @veros_class_method
     def write_output(self, veros, variables, variable_data, filepath=None):
         with nctools.threaded_io(veros, filepath or self.get_output_file_name(veros), "r+") as outfile:
@@ -98,6 +100,7 @@ class VerosDiagnostic(object):
             attributes = {key: var for key, var in infile[self.diagnostic_name].attrs.items()}
         return attributes, variables
 
+    @do_not_disturb
     @veros_class_method
     def write_h5_restart(self, veros, attributes, var_meta, var_data):
         restart_filename = self.get_restart_output_file_name(veros)

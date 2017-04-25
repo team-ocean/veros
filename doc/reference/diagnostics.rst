@@ -14,9 +14,9 @@ the :meth:`Veros.set_diagnostics` method:
    class MyModelSetup(Veros):
        ...
        def set_diagnostics(self):
-           self.diagnostics["averages"].output_variables = {"psi","u","v"}
+           self.diagnostics["averages"].output_variables = ["psi","u","v"]
            self.diagnostics["averages"].sampling_frequency = 3600.
-           self.diagnostics["snapshot"].output_variables += {"du"}
+           self.diagnostics["snapshot"].output_variables += ["du"]
 
 The available key-value pairs of :attr:`Veros.diagnostics` are defined here:
 

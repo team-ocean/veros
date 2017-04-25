@@ -72,15 +72,19 @@ def write_variable(veros, key, var, var_data, ncfile, time_step=None):
     if not np.isscalar(var_data):
         tmask = tuple(veros.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
         var_data = variables.remove_ghosts(var_data, var.dims)[tmask].T
-        if veros.backend_name == "bohrium" and not np.isscalar(var_data):
-            var_data = var_data.copy2numpy()
     var_data = var_data * var.scale
     if "Time" in ncfile.variables[key].dimensions:
         if time_step is None:
             raise ValueError("time step must be given for non-constant data")
-        ncfile.variables[key][time_step, ...] = var_data
+        try:
+            ncfile.variables[key][time_step, ...] = var_data.copy2numpy()
+        except AttributeError:
+            ncfile.variables[key][time_step, ...] = var_data
     else:
-        ncfile.variables[key][...] = var_data
+        try:
+            ncfile.variables[key][...] = var_data.copy2numpy()
+        except AttributeError:
+            ncfile.variables[key][...] = var_data
 
 @veros_method
 @contextlib.contextmanager

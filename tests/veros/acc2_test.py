@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 
 class ACC2Test(VerosTest):
     timesteps = 5
-    extra_settings = {"enable_diag_snapshots": False}
 
     def __init__(self, *args, **kwargs):
         try:
@@ -44,6 +43,7 @@ class ACC2Test(VerosTest):
 
     def run(self):
         self.veros_new = ACC2()
+        self.veros_new.pyom_compatibility_mode = True
         self.veros_legacy = ACC2(fortran=self.fortran)
         # integrate for some time steps and compare
         if self.timesteps == 0:

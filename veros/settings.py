@@ -129,10 +129,11 @@ SETTINGS = OrderedDict([
     ("eke_hrms_k0_min", Setting(0.0, "min value for bottom roughness parameter")),
 
     # New
-    ("use_io_threads", Setting(True, "")),
+    ("use_io_threads", Setting(True, "Start extra threads for disk writes")),
     ("io_timeout", Setting(20, "Timeout in seconds while waiting for IO locks to be released")),
-    ("enable_netcdf_zlib_compression", Setting(True, "")),
+    ("enable_netcdf_zlib_compression", Setting(True, "Use netCDF4's native zlib interface")),
     ("restart_input_filename", Setting(None, "File name of restart output")),
     ("restart_output_filename", Setting("{identifier}_restart_{itt:0>4d}.h5", "File name of restart output")),
     ("restart_frequency", Setting(None, "Frequency (in seconds) to write restart data")),
+    ("pyom_compatibility_mode", Setting(False, "Force compatibility to pyOM2 (reproducing bugs and other quirks). For testing purposes only.")),
 ])

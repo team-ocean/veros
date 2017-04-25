@@ -206,9 +206,7 @@ class GlobalFourDegree(VerosLegacy):
 
     @veros_method
     def set_diagnostics(self):
-        m = self.fortran.main_module
-        for var in ("temp", "salt", "u", "v", "w", "surface_taux", "surface_tauy", "psi"):
-            m.variables[var].average = True
+        self.diagnostics["averages"].output_variables = ["temp", "salt", "u", "v", "w", "surface_taux", "surface_tauy", "psi"]
 
 if __name__ == "__main__":
     GlobalFourDegree().run(snapint= 86400.0*10, runlen = 86400.*365)
