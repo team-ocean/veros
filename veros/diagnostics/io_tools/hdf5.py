@@ -3,6 +3,7 @@ import contextlib
 import logging
 import h5py
 
+
 @contextlib.contextmanager
 def threaded_io(veros, filepath, mode):
     """
@@ -21,14 +22,18 @@ def threaded_io(veros, filepath, mode):
         else:
             _write_to_disk(veros, h5file, filepath)
 
+
 _io_locks = {}
+
+
 def _add_to_locks(file_id):
     """
     If there is no lock for file_id, create one
     """
-    if not file_id in _io_locks:
+    if file_id not in _io_locks:
         _io_locks[file_id] = threading.Event()
         _io_locks[file_id].set()
+
 
 def _wait_for_disk(veros, file_id):
     """
@@ -40,6 +45,7 @@ def _wait_for_disk(veros, file_id):
     if not lock_released:
         raise RuntimeError("Timeout while waiting for disk IO to finish")
 
+
 def _write_to_disk(veros, h5file, file_id):
     """
     Sync HDF5 data to disk, close file handle, and release lock.
@@ -47,5 +53,5 @@ def _write_to_disk(veros, h5file, file_id):
     """
     h5file.flush()
     h5file.close()
-    if veros.use_io_threads and not file_id is None:
+    if veros.use_io_threads and file_id is not None:
         _io_locks[file_id].set()

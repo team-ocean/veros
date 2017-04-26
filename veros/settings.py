@@ -1,5 +1,6 @@
 from collections import namedtuple, OrderedDict
 
+
 Setting = namedtuple("setting", ("default", "description"))
 
 SETTINGS = OrderedDict([
@@ -9,16 +10,16 @@ SETTINGS = OrderedDict([
     ("nx", Setting(None, "Grid points in zonal (x) direction")),
     ("ny", Setting(None, "Grid points in meridional (y,j) direction")),
     ("nz", Setting(None, "Grid points in vertical (z,k) direction")),
-    ("taum1", Setting(0, "pointer to last time step")),
-    ("tau", Setting(1, "pointer to current time step")),
-    ("taup1", Setting(2, "pointer to next time step")),
-    ("dt_mom", Setting(0., "time step in seconds for momentum")),
-    ("dt_tracer", Setting(0., "time step for tracer can be larger than for momentum")),
-    ("dt_tke", Setting(0., "should be time step for momentum (set in tke.f90)")),
-    ("itt", Setting(1, "time step number")),
-    ("enditt", Setting(1, "last time step of simulation")),
-    ("runlen", Setting(0., "length of simulation in seconds")),
-    ("AB_eps", Setting(0.1, "deviation from Adam-Bashforth weighting")),
+    ("taum1", Setting(0, "Pointer to last time step")),
+    ("tau", Setting(1, "Pointer to current time step")),
+    ("taup1", Setting(2, "Pointer to next time step")),
+    ("dt_mom", Setting(0., "Time step in seconds for momentum")),
+    ("dt_tracer", Setting(0., "Time step for tracer can be larger than for momentum")),
+    ("dt_tke", Setting(0., "Should be time step for momentum (set in tke.f90)")),
+    ("itt", Setting(1, "Time step number")),
+    ("enditt", Setting(1, "Last time step of simulation")),
+    ("runlen", Setting(0., "Length of simulation in seconds")),
+    ("AB_eps", Setting(0.1, "Deviation from Adam-Bashforth weighting")),
 
     # Logical switches for general model setup
     ("coord_degree", Setting(False, "either spherical (true) or cartesian False coordinates")),
@@ -44,8 +45,7 @@ SETTINGS = OrderedDict([
 
     # External mode
     ("enable_free_surface", Setting(False, "implicit free surface")),
-    ("enable_streamfunction", Setting(False, "solve for streamfct instead of surface pressure")),
-    ("enable_congrad_verbose", Setting(False, "print some info")),
+    ("enable_streamfunction", Setting(False, "solve for streamfunction instead of surface pressure")),
     ("congr_epsilon", Setting(1e-12, "convergence criteria for poisson solver")),
     ("congr_max_iterations", Setting(1000, "max. number of iterations")),
 
@@ -73,20 +73,19 @@ SETTINGS = OrderedDict([
 
     # Idemix 1.0
     ("enable_idemix", Setting(False, "")),
-    ("tau_v", Setting(1.0*86400.0, "time scale for vertical symmetrisation")),
-    ("tau_h", Setting(15.0*86400.0, "time scale for horizontal symmetrisation")),
+    ("tau_v", Setting(1.0 * 86400.0, "time scale for vertical symmetrisation")),
+    ("tau_h", Setting(15.0 * 86400.0, "time scale for horizontal symmetrisation")),
     ("gamma", Setting(1.57, "")),
     ("jstar", Setting(10.0, "spectral bandwidth in modes")),
-    ("mu0", Setting(4.0/3.0, "dissipation parameter")),
+    ("mu0", Setting(4.0 / 3.0, "dissipation parameter")),
     ("enable_idemix_hor_diffusion", Setting(False, "")),
     ("enable_eke_diss_bottom", Setting(False, "")),
     ("enable_eke_diss_surfbot", Setting(False, "")),
     ("eke_diss_surfbot_frac", Setting(1.0, "fraction which goes into bottom")),
     ("enable_idemix_superbee_advection", Setting(False, "")),
-    ("enable_idemix_upwind_advection", Setting(False, "Idemix 2.0")),
-    ("enable_idemix_M2", Setting(False, "")),
-    ("enable_idemix_niw", Setting(False, "")),
-    ("np", Setting(0, "TKE")),
+    ("enable_idemix_upwind_advection", Setting(False, "")),
+
+    # TKE
     ("enable_tke", Setting(False, "")),
     ("c_k", Setting(0.1, "")),
     ("c_eps", Setting(0.7, "")),
@@ -106,7 +105,7 @@ SETTINGS = OrderedDict([
     ("congr_epsilon_non_hydro", Setting(1e-12, "convergence criteria for poisson solver")),
     ("congr_max_itts_non_hydro", Setting(1000, "max. number of iterations")),
 
-    # EKE default values
+    # EKE
     ("enable_eke", Setting(False, "")),
     ("eke_lmin", Setting(100.0, "minimal length scale in m")),
     ("eke_c_k", Setting(1.0, "")),
@@ -123,7 +122,7 @@ SETTINGS = OrderedDict([
     ("c_lee0", Setting(1., "")),
     ("eke_Ri0", Setting(200., "")),
     ("eke_Ri1", Setting(50., "")),
-    ("eke_int_diss0", Setting(1./(20*86400.), "")),
+    ("eke_int_diss0", Setting(1. / (20 * 86400.), "")),
     ("kappa_EKE0", Setting(0.1, "")),
     ("eke_r_bot", Setting(0.0, "bottom friction coefficient")),
     ("eke_hrms_k0_min", Setting(0.0, "min value for bottom roughness parameter")),
@@ -131,9 +130,9 @@ SETTINGS = OrderedDict([
     # New
     ("use_io_threads", Setting(True, "Start extra threads for disk writes")),
     ("io_timeout", Setting(20, "Timeout in seconds while waiting for IO locks to be released")),
-    ("enable_netcdf_zlib_compression", Setting(True, "Use netCDF4's native zlib interface")),
-    ("restart_input_filename", Setting(None, "File name of restart output")),
-    ("restart_output_filename", Setting("{identifier}_restart_{itt:0>4d}.h5", "File name of restart output")),
+    ("enable_netcdf_zlib_compression", Setting(True, "Use netCDF4's native zlib interface, which leads to smaller output files (but carries some computational overhead).")),
+    ("restart_input_filename", Setting(None, "File name of restart input. If not given, no restart data will be read.")),
+    ("restart_output_filename", Setting("{identifier}_restart_{itt:0>4d}.h5", "File name of restart output. May contain Python format syntax that is substituted with Veros attributes.")),
     ("restart_frequency", Setting(None, "Frequency (in seconds) to write restart data")),
     ("pyom_compatibility_mode", Setting(False, "Force compatibility to pyOM2 (reproducing bugs and other quirks). For testing purposes only.")),
 ])

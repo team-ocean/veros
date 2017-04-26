@@ -4,7 +4,8 @@ import logging
 
 import numpy
 if numpy.__name__ == "bohrium":
-    warnings.warn("Running veros with 'python -m bohrium' is discouraged (use '--backend bohrium' instead)")
+    warnings.warn(
+        "Running veros with 'python -m bohrium' is discouraged (use '--backend bohrium' instead)")
     import numpy_force
     numpy = numpy_force
 try:
@@ -23,7 +24,8 @@ import h5py
 from . import variables, settings, cli, diagnostics, time
 from .timer import Timer
 from .core import momentum, numerics, thermodynamics, eke, tke, idemix, \
-                  isoneutral, external, non_hydrostatic, advection, cyclic
+    isoneutral, external, non_hydrostatic, advection, cyclic
+
 
 class Veros(object):
     """Main class for Veros, used for building a model and running it.
@@ -61,12 +63,12 @@ class Veros(object):
 
     # Constants
     pi = numpy.pi
-    radius = 6370.0e3 # Earth radius in m
-    degtom = radius / 180.0 * pi # Conversion degrees latitude to meters
-    mtodeg = 1 / degtom # Conversion meters to degrees latitude
-    omega = pi / 43082.0 # Earth rotation frequency in 1/s
-    rho_0 = 1024.0 # Boussinesq reference density in :math:`kg/m^3`
-    grav = 9.81 # Gravitational constant in :math:`m/s^2`
+    radius = 6370.0e3  # Earth radius in m
+    degtom = radius / 180.0 * pi  # Conversion degrees latitude to meters
+    mtodeg = 1 / degtom  # Conversion meters to degrees latitude
+    omega = pi / 43082.0  # Earth rotation frequency in 1/s
+    rho_0 = 1024.0  # Boussinesq reference density in :math:`kg/m^3`
+    grav = 9.81  # Gravitational constant in :math:`m/s^2`
 
     def __init__(self, backend=None, loglevel=None, logfile=None):
         args = cli.parse_command_line()
@@ -79,14 +81,15 @@ class Veros(object):
         if args.set:
             for key, val in args.set:
                 setattr(self, key, val)
-        self.timers = {k: Timer(k) for k in ("setup","main","momentum","temperature",
-                                             "eke","idemix","tke","diagnostics",
-                                             "pressure","friction","isoneutral",
-                                             "vmix","eq_of_state")}
+        self.timers = {k: Timer(k) for k in ("setup", "main", "momentum", "temperature",
+                                             "eke", "idemix", "tke", "diagnostics",
+                                             "pressure", "friction", "isoneutral",
+                                             "vmix", "eq_of_state")}
 
     def _get_backend(self, backend):
-        if not backend in BACKENDS.keys():
-            raise ValueError("unrecognized backend {} (must be either of: {!r})".format(backend, BACKENDS.keys()))
+        if backend not in BACKENDS.keys():
+            raise ValueError("unrecognized backend {} (must be either of: {!r})".format(
+                backend, BACKENDS.keys()))
         if BACKENDS[backend] is None:
             raise ValueError("{} backend failed to import".format(backend))
         return BACKENDS[backend], backend
@@ -97,6 +100,7 @@ class Veros(object):
 
     def _allocate(self):
         self.variables = {}
+
         def init_var(var_name, var):
             shape = variables.get_dimensions(self, var.dims)
             setattr(self, var_name, self.backend.zeros(shape, dtype=var.dtype))
@@ -239,7 +243,6 @@ class Veros(object):
 
         self.set_topography()
         numerics.calc_topo(self)
-        idemix.calc_spectral_topo(self)
 
         self.set_initial_conditions()
         numerics.calc_initial_conditions(self)
@@ -249,18 +252,19 @@ class Veros(object):
             external.streamfunction_init(self)
 
         logging.info("Initializing diagnostics")
-        self.diagnostics = {name: Diagnostic(self) for name, Diagnostic in diagnostics.diagnostics.items()}
+        self.diagnostics = {name: Diagnostic(self)
+                            for name, Diagnostic in diagnostics.diagnostics.items()}
         self.set_diagnostics()
         for name, diagnostic in self.diagnostics.items():
             diagnostic.initialize(self)
             if diagnostic.sampling_frequency:
                 logging.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
                              .format(name, time.format_time(self, diagnostic.sampling_frequency),
-                                    diagnostic.sampling_frequency / self.dt_tracer))
+                                     diagnostic.sampling_frequency / self.dt_tracer))
             if diagnostic.output_frequency:
                 logging.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
                              .format(name, time.format_time(self, diagnostic.output_frequency),
-                                    diagnostic.output_frequency / self.dt_tracer))
+                                     diagnostic.output_frequency / self.dt_tracer))
 
         eke.init_eke(self)
 
@@ -289,7 +293,7 @@ class Veros(object):
 
             self.enditt = self.itt + int(self.runlen / self.dt_tracer)
             logging.info("Starting integration for {:.2e}s".format(self.runlen))
-            logging.info(" from time step {} to {}".format(self.itt,self.enditt))
+            logging.info(" from time step {} to {}".format(self.itt, self.enditt))
 
         start_iteration = self.itt
         try:
@@ -314,8 +318,6 @@ class Veros(object):
 
                     if self.enable_idemix:
                         idemix.set_idemix_parameter(self)
-                    if self.enable_idemix_M2 or self.enable_idemix_niw:
-                        idemix.set_spectral_parameter(self)
 
                     eke.set_eke_diffusivities(self)
                     tke.set_tke_diffusivities(self)
@@ -334,32 +336,22 @@ class Veros(object):
                             eke.integrate_eke(self)
 
                     with self.timers["idemix"]:
-                        if self.enable_idemix_M2:
-                            idemix.integrate_idemix_M2(self)
-                        if self.enable_idemix_niw:
-                            idemix.integrate_idemix_niw(self)
                         if self.enable_idemix:
                             idemix.integrate_idemix(self)
-                        if self.enable_idemix_M2 or self.enable_idemix_niw:
-                            idemix.wave_interaction(self)
 
                     with self.timers["tke"]:
                         if self.enable_tke:
                             tke.integrate_tke(self)
 
                     if self.enable_cyclic_x:
-                        cyclic.setcyclic_x(self.u[:,:,:,self.taup1])
-                        cyclic.setcyclic_x(self.v[:,:,:,self.taup1])
+                        cyclic.setcyclic_x(self.u[:, :, :, self.taup1])
+                        cyclic.setcyclic_x(self.v[:, :, :, self.taup1])
                         if self.enable_tke:
-                            cyclic.setcyclic_x(self.tke[:,:,:,self.taup1])
+                            cyclic.setcyclic_x(self.tke[:, :, :, self.taup1])
                         if self.enable_eke:
-                            cyclic.setcyclic_x(self.eke[:,:,:,self.taup1])
+                            cyclic.setcyclic_x(self.eke[:, :, :, self.taup1])
                         if self.enable_idemix:
-                            cyclic.setcyclic_x(self.E_iw[:,:,:,self.taup1])
-                        if self.enable_idemix_M2:
-                            cyclic.setcyclic_x(self.E_M2[:,:,:,self.taup1])
-                        if self.enable_idemix_niw:
-                            cyclic.setcyclic_x(self.E_niw[:,:,:,self.taup1])
+                            cyclic.setcyclic_x(self.E_iw[:, :, :, self.taup1])
 
                     if self.enable_hydrostatic:
                         momentum.vertical_velocity(self)
@@ -396,24 +388,37 @@ class Veros(object):
                 diagnostic.write_restart(self)
 
             logging.debug("Timing summary:")
-            logging.debug(" setup time summary       = {:.1f}s".format(self.timers["setup"].getTime()))
-            logging.debug(" main loop time summary   = {:.1f}s".format(self.timers["main"].getTime()))
-            logging.debug("     momentum             = {:.1f}s".format(self.timers["momentum"].getTime()))
-            logging.debug("       pressure           = {:.1f}s".format(self.timers["pressure"].getTime()))
-            logging.debug("       friction           = {:.1f}s".format(self.timers["friction"].getTime()))
-            logging.debug("     thermodynamics       = {:.1f}s".format(self.timers["temperature"].getTime()))
-            logging.debug("       lateral mixing     = {:.1f}s".format(self.timers["isoneutral"].getTime()))
-            logging.debug("       vertical mixing    = {:.1f}s".format(self.timers["vmix"].getTime()))
-            logging.debug("       equation of state  = {:.1f}s".format(self.timers["eq_of_state"].getTime()))
-            logging.debug("     EKE                  = {:.1f}s".format(self.timers["eke"].getTime()))
-            logging.debug("     IDEMIX               = {:.1f}s".format(self.timers["idemix"].getTime()))
-            logging.debug("     TKE                  = {:.1f}s".format(self.timers["tke"].getTime()))
-            logging.debug(" diagnostics and I/O      = {:.1f}s".format(self.timers["diagnostics"].getTime()))
+            logging.debug(" setup time summary       = {:.1f}s".format(
+                self.timers["setup"].getTime()))
+            logging.debug(" main loop time summary   = {:.1f}s".format(
+                self.timers["main"].getTime()))
+            logging.debug("     momentum             = {:.1f}s".format(
+                self.timers["momentum"].getTime()))
+            logging.debug("       pressure           = {:.1f}s".format(
+                self.timers["pressure"].getTime()))
+            logging.debug("       friction           = {:.1f}s".format(
+                self.timers["friction"].getTime()))
+            logging.debug("     thermodynamics       = {:.1f}s".format(
+                self.timers["temperature"].getTime()))
+            logging.debug("       lateral mixing     = {:.1f}s".format(
+                self.timers["isoneutral"].getTime()))
+            logging.debug("       vertical mixing    = {:.1f}s".format(
+                self.timers["vmix"].getTime()))
+            logging.debug("       equation of state  = {:.1f}s".format(
+                self.timers["eq_of_state"].getTime()))
+            logging.debug("     EKE                  = {:.1f}s".format(
+                self.timers["eke"].getTime()))
+            logging.debug("     IDEMIX               = {:.1f}s".format(
+                self.timers["idemix"].getTime()))
+            logging.debug("     TKE                  = {:.1f}s".format(
+                self.timers["tke"].getTime()))
+            logging.debug(
+                " diagnostics and I/O      = {:.1f}s".format(self.timers["diagnostics"].getTime()))
 
             if self.profile_mode:
                 try:
                     profiler.stop()
                     with open("profile.html", "w") as f:
                         f.write(profiler.output_html())
-                except UnboundLocalError: # profiler has not been started
+                except UnboundLocalError:  # profiler has not been started
                     pass

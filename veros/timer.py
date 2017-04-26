@@ -6,9 +6,11 @@ try:
     import bohrium as bh
     flush = bh.flush
 except ImportError:
-    flush = lambda: None
+    def flush():
+        return None
 
 import time
+
 
 class Timer:
     def __init__(self, name):

@@ -2,8 +2,10 @@ import functools
 import signal
 import logging
 
+
 def veros_class_method(function):
     return _veros_method(function, True, 1)
+
 
 def veros_method(function):
     """Decorator that injects the current backend as variable ``np`` into the wrapped function.
@@ -24,12 +26,15 @@ def veros_method(function):
     """
     return _veros_method(function, True)
 
+
 def veros_inline_method(function):
     return _veros_method(function, False)
+
 
 def _veros_method(function, flush_on_exit, narg=0):
     import veros
     _veros_method.methods.append(function)
+
     @functools.wraps(function)
     def veros_method_wrapper(*args, **kwargs):
         veros_instance = args[narg]
@@ -52,7 +57,10 @@ def _veros_method(function, flush_on_exit, narg=0):
             veros_instance.flush()
         return res
     return veros_method_wrapper
+
+
 _veros_method.methods = []
+
 
 def do_not_disturb(function):
     """Decorator that catches SIGINT signals (e.g. after keyboard interrupt) and
@@ -63,6 +71,7 @@ def do_not_disturb(function):
     @functools.wraps(function)
     def dnd_wrapper(*args, **kwargs):
         signal_received = {"sig": None, "frame": None}
+
         def handler(sig, frame):
             signal_received["sig"] = sig
             signal_received["frame"] = frame

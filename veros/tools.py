@@ -1,14 +1,17 @@
 import numpy as np
 import scipy.interpolate
 
+
 def _gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+
 
 def _normalize_sum(var, sum_value, minimum_value=0.):
     var *= (sum_value - len(var) * minimum_value) / var.sum()
     return var + minimum_value
 
-def gaussian_spacing(n, sum_value, min_spacing = 0., mu = 0.5, sigma = 0.125):
+
+def gaussian_spacing(n, sum_value, min_spacing=0., mu=0.5, sigma=0.125):
     """Create a sample where values are separated by gaussian step sizes.
 
     This can be used to create a vertical grid that covers a fixed distance
@@ -40,6 +43,7 @@ def gaussian_spacing(n, sum_value, min_spacing = 0., mu = 0.5, sigma = 0.125):
     dx[:2] = 0.
     return _normalize_sum(np.cumsum(dx), sum_value, min_spacing)
 
+
 def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind="linear"):
     """Interpolate globally defined data to a different (regular) grid.
 
@@ -62,14 +66,16 @@ def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind=
     if len(coords) != len(interp_coords) or len(coords) != var.ndim:
         raise ValueError("Dimensions of coordinates and values do not match")
     var = np.array(var)
-    if not missing_value is None:
+    if missing_value is not None:
         invalid_mask = np.isclose(var, missing_value)
         var[invalid_mask] = np.nan
     if var.ndim > 1 and coords[0].ndim == 1:
-        interp_grid = np.rollaxis(np.array(np.meshgrid(*interp_coords, indexing="ij", copy=False)), 0, len(interp_coords)+1)
+        interp_grid = np.rollaxis(np.array(np.meshgrid(
+            *interp_coords, indexing="ij", copy=False)), 0, len(interp_coords) + 1)
     else:
         interp_grid = coords
-    var = scipy.interpolate.interpn(coords, var, interp_grid, bounds_error=False, fill_value=None, method=kind)
+    var = scipy.interpolate.interpn(coords, var, interp_grid,
+                                    bounds_error=False, fill_value=None, method=kind)
 
     if fill:
         var = fill_holes(var)
@@ -83,7 +89,7 @@ def fill_holes(data):
     shape = data.shape
     dim = data.ndim
     flag = np.zeros(shape, dtype=bool)
-    t_ct = int(data.size/5)
+    t_ct = int(data.size / 5)
     flag[~np.isnan(data)] = True
 
     slcs = [slice(None)] * dim
@@ -135,10 +141,11 @@ def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
        >>> (n1, f1), (n2, f2) = get_periodic_interval(current_time, year_in_seconds, year_in_seconds / 12, 12)
        >>> data_at_current_time = f1 * data[..., n1] + f2 * data[..., n2]
     """
-    locTime = current_time - rec_spacing * 0.5 + cycle_length * (2 - round(current_time/cycle_length))
+    locTime = current_time - rec_spacing * 0.5 + \
+        cycle_length * (2 - round(current_time / cycle_length))
     tmpTime = locTime % cycle_length
-    tRec1 = 1 + int(tmpTime/rec_spacing)
+    tRec1 = 1 + int(tmpTime / rec_spacing)
     tRec2 = 1 + tRec1 % int(n_rec)
-    wght2 = (tmpTime - rec_spacing*(tRec1 - 1)) / rec_spacing
+    wght2 = (tmpTime - rec_spacing * (tRec1 - 1)) / rec_spacing
     wght1 = 1.0 - wght2
-    return (tRec1-1, wght1), (tRec2-1, wght2)
+    return (tRec1 - 1, wght1), (tRec2 - 1, wght2)

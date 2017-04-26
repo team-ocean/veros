@@ -6,19 +6,22 @@ from . import io_tools
 from .. import veros_class_method, time
 from .diagnostic import VerosDiagnostic
 
+
 class Snapshot(VerosDiagnostic):
     """Writes snapshots of the current solution. Also reads and writes the main restart
     data required for restarting a Veros simulation.
     """
-    output_path = "{identifier}_snapshot.nc" #: File to write to. May contain format strings that are replaced with Veros attributes.
-    output_frequency = None #: Frequency (in seconds) in which output is written.
-    restart_attributes = ("itt", "tau", "taum1", "taup1") #: Attributes to be written to restart file.
+    output_path = "{identifier}_snapshot.nc"  # : File to write to. May contain format strings that are replaced with Veros attributes.
+    output_frequency = None  # : Frequency (in seconds) in which output is written.
+    # : Attributes to be written to restart file.
+    restart_attributes = ("itt", "tau", "taum1", "taup1")
 
     def __init__(self, veros):
         self.output_variables = [key for key, val in veros.variables.items() if val.output]
         """Variables to be written to output. Defaults to all Veros variables that
         have the attribute :attr:`output`."""
-        self.restart_variables = [key for key, val in veros.variables.items() if val.write_to_restart]
+        self.restart_variables = [key for key,
+                                  val in veros.variables.items() if val.write_to_restart]
         """Variables to be written to restart. Defaults to all Veros variables that
         have the attribute :attr:`write_to_restart`."""
 
@@ -34,12 +37,14 @@ class Snapshot(VerosDiagnostic):
     @veros_class_method
     def output(self, veros):
         current_time = time.current_time(veros)
-        logging.info(" writing snapshot at {0[0]} {0[1]}".format(time.format_time(veros, current_time)))
+        logging.info(" writing snapshot at {0[0]} {0[1]}".format(
+            time.format_time(veros, current_time)))
 
         if not os.path.isfile(self.get_output_file_name(veros)):
             self.initialize(veros)
 
-        var_meta = {var: veros.variables[var] for var in self.output_variables if veros.variables[var].time_dependent}
+        var_meta = {var: veros.variables[var]
+                    for var in self.output_variables if veros.variables[var].time_dependent}
         var_data = {var: getattr(veros, var) for var in var_meta.keys()}
         self.write_output(veros, var_meta, var_data)
 
