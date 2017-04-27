@@ -68,8 +68,8 @@ def apply_op(veros, cf, p1, res):
 @veros_method
 def absmax_sfp(veros, p1):
     s2 = 0
-    for j in xrange(veros.js_pe, veros.je_pe + 1):
-        for i in xrange(veros.is_pe, veros.ie_pe + 1):
+    for j in range(veros.js_pe, veros.je_pe + 1):
+        for i in range(veros.is_pe, veros.ie_pe + 1):
             s2 = max(abs(p1[i, j] * veros.maskT[i, j, -1]), s2)
     return s2
 
@@ -77,7 +77,7 @@ def absmax_sfp(veros, p1):
 @veros_method
 def dot_sfp(veros, p1, p2):
     s2 = 0
-    for j in xrange(veros.js_pe, veros.je_pe + 1):
-        for i in xrange(veros.is_pe, veros.ie_pe + 1):
+    for j in range(veros.js_pe, veros.je_pe + 1):
+        for i in range(veros.is_pe, veros.ie_pe + 1):
             s2 = s2 + p1[i, j] * p2[i, j] * veros.maskT[i, j, -1]
     return s2

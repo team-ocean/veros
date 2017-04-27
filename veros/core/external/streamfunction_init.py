@@ -43,7 +43,7 @@ def streamfunction_init(veros):
         veros.line_dir_east_mask = veros.line_dir_east_mask.copy2numpy()
         veros.line_dir_west_mask = veros.line_dir_west_mask.copy2numpy()
 
-    for isle in xrange(veros.nisle):
+    for isle in range(veros.nisle):
         _print_verbose(veros, " ------------------------")
         _print_verbose(veros, " processing land mass #{:d}".format(isle))
         _print_verbose(veros, " ------------------------")
@@ -59,11 +59,11 @@ def streamfunction_init(veros):
         """
         n = 0
         # avoid starting close to cyclic bondaries
-        (cont, ij, Dir, startPos) = _avoid_cyclic_boundaries(
-            veros, boundary_map, isle, n, (veros.nx / 2 + 1, veros.nx + 2))
+        cont, ij, Dir, startPos = _avoid_cyclic_boundaries(
+            veros, boundary_map, isle, n, (veros.nx // 2 + 1, veros.nx + 2))
         if not cont:
-            (cont, ij, Dir, startPos) = _avoid_cyclic_boundaries(
-                veros, boundary_map, isle, n, (veros.nx / 2, -1, -1))
+            cont, ij, Dir, startPos = _avoid_cyclic_boundaries(
+                veros, boundary_map, isle, n, (veros.nx // 2, -1, -1))
             if not cont:
                 raise RuntimeError("found no starting point for line integral")
 
@@ -171,7 +171,7 @@ def streamfunction_init(veros):
     # initialize with random noise to achieve uniform convergence
     veros.psin[...] = np.random.rand(*veros.psin.shape)
 
-    for isle in xrange(veros.nisle):
+    for isle in range(veros.nisle):
         logging.info(" solving for boundary contribution by island {:d}".format(isle))
         solve_poisson.solve(veros, forc, veros.psin[:, :, isle],
                             boundary_val=veros.boundary_mask[:, :, isle])
@@ -197,8 +197,8 @@ def streamfunction_init(veros):
 
 @veros_method
 def _avoid_cyclic_boundaries(veros, boundary_map, isle, n, x_range):
-    for i in xrange(*x_range):
-        for j in xrange(1, veros.ny + 2):
+    for i in range(*x_range):
+        for j in range(1, veros.ny + 2):
             if boundary_map[i, j] == 1 and boundary_map[i, j + 1] == -1:
                 # initial direction is eastward, we come from the west
                 cont = True
@@ -227,20 +227,20 @@ def _ascii_map(veros, boundary_map):
     iremain = imt
     istart = 0
     map_string += "\n"
-    map_string += " " * (5 + min(linewidth, imt) / 2 - 13) + "Land mass and perimeter"
+    map_string += " " * (5 + min(linewidth, imt) // 2 - 13) + "Land mass and perimeter"
     map_string += "\n"
-    for isweep in xrange(1, imt / linewidth + 2):
+    for isweep in range(1, imt // linewidth + 2):
         iline = min(iremain, linewidth)
         iremain = iremain - iline
         if iline > 0:
             map_string += "\n"
-            map_string += "".join(["{:5d}".format(istart + i + 1 - 2) for i in xrange(1, iline + 1, 5)])
+            map_string += "".join(["{:5d}".format(istart + i + 1 - 2) for i in range(1, iline + 1, 5)])
             map_string += "\n"
-            for j in xrange(veros.ny + 3, -1, -1):
+            for j in range(veros.ny + 3, -1, -1):
                 map_string += "{:3d} ".format(j) + "".join([str(int(_mod10(boundary_map[istart + i - 2, j]))) if _mod10(
-                    boundary_map[istart + i - 2, j]) >= 0 else "*" for i in xrange(2, iline + 2)])
+                    boundary_map[istart + i - 2, j]) >= 0 else "*" for i in range(2, iline + 2)])
                 map_string += "\n"
-            map_string += "".join(["{:5d}".format(istart + i + 1 - 2) for i in xrange(1, iline + 1, 5)])
+            map_string += "".join(["{:5d}".format(istart + i + 1 - 2) for i in range(1, iline + 1, 5)])
             map_string += "\n"
             istart = istart + iline
     map_string += "\n"

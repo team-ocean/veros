@@ -63,9 +63,9 @@ def isoneutral_diffusion_pre(veros):
     diffloc[1:-2, 2:-2, 0] = 0.5 * (veros.K_iso[1:-2, 2:-2, 0] + veros.K_iso[2:-1, 2:-2, 0])
 
     sumz = np.zeros((veros.nx + 1, veros.ny, veros.nz))
-    for kr in xrange(2):
+    for kr in range(2):
         ki = 0 if kr == 1 else 1
-        for ip in xrange(2):
+        for ip in range(2):
             drodxe = drdTS[1 + ip:-2 + ip, 2:-2, ki:, 0] * ddxt[1:-2, 2:-2, ki:, 0] \
                 + drdTS[1 + ip:-2 + ip, 2:-2, ki:, 1] * ddxt[1:-2, 2:-2, ki:, 1]
             drodze = drdTS[1 + ip:-2 + ip, 2:-2, ki:, 0] * ddzt[1 + ip:-2 + ip, 2:-2, :-1 + kr or None, 0] \
@@ -87,9 +87,9 @@ def isoneutral_diffusion_pre(veros):
     diffloc[2:-2, 1:-2, 0] = 0.5 * (veros.K_iso[2:-2, 1:-2, 0] + veros.K_iso[2:-2, 2:-1, 0])
 
     sumz = np.zeros((veros.nx, veros.ny + 1, veros.nz))
-    for kr in xrange(2):
+    for kr in range(2):
         ki = 0 if kr == 1 else 1
-        for jp in xrange(2):
+        for jp in range(2):
             drodyn = drdTS[2:-2, 1 + jp:-2 + jp, ki:, 0] * ddyt[2:-2, 1:-2, ki:, 0] + \
                 drdTS[2:-2, 1 + jp:-2 + jp, ki:, 1] * ddyt[2:-2, 1:-2, ki:, 1]
             drodzn = drdTS[2:-2, 1 + jp:-2 + jp, ki:, 0] * ddzt[2:-2, 1 + jp:-2 + jp, :-1 + kr or None, 0] \
@@ -107,8 +107,8 @@ def isoneutral_diffusion_pre(veros):
     """
     # eastward slopes at the top of T cells
     sumx = np.zeros((veros.nx, veros.ny, veros.nz - 1))
-    for ip in xrange(2):
-        for kr in xrange(2):
+    for ip in range(2):
+        for kr in range(2):
             drodxb = drdTS[2:-2, 2:-2, kr:-1 + kr or None, 0] * ddxt[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None, 0] \
                 + drdTS[2:-2, 2:-2, kr:-1 + kr or None, 1] * \
                 ddxt[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None, 1]
@@ -122,9 +122,9 @@ def isoneutral_diffusion_pre(veros):
 
     # northward slopes at the top of T cells
     sumy = np.zeros((veros.nx, veros.ny, veros.nz - 1))
-    for jp in xrange(2):  # jp=0,1
+    for jp in range(2):
         facty = veros.cosu[1 + jp:-3 + jp] * veros.dyu[1 + jp:-3 + jp]
-        for kr in xrange(2):  # kr=0,1
+        for kr in range(2): 
             drodyb = drdTS[2:-2, 2:-2, kr:-1 + kr or None, 0] * ddyt[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None, 0] \
                 + drdTS[2:-2, 2:-2, kr:-1 + kr or None, 1] * \
                 ddyt[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None, 1]

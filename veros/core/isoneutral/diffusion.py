@@ -20,8 +20,8 @@ def _calc_tracer_fluxes(veros, tr, K_iso, K_skew):
                                 K1[2:-1, 2:-2, 1:] + K1[2:-1, 2:-2, :-1])
     diffloc[:, :, 0] = 0.5 * (K1[1:-2, 2:-2, 0] + K1[2:-1, 2:-2, 0])
     sumz = np.zeros((veros.nx + 1, veros.ny, veros.nz))
-    for kr in xrange(2):
-        for ip in xrange(2):
+    for kr in range(2):
+        for ip in range(2):
             sumz += diffloc * veros.Ai_ez[1:-2, 2:-2, :, ip, kr] * (
                 tr_pad[1 + ip:-2 + ip, 2:-2, 1 + kr:-1 + kr or None] - tr_pad[1 + ip:-2 + ip, 2:-2, kr:-2 + kr])
     veros.flux_east[1:-2, 2:-2, :] = sumz / (4. * veros.dzt[np.newaxis, np.newaxis, :]) + (tr[2:-1, 2:-2, :, veros.tau] - tr[1:-2, 2:-2, :, veros.tau]) / (
@@ -35,8 +35,8 @@ def _calc_tracer_fluxes(veros, tr, K_iso, K_skew):
                                 K1[2:-2, 2:-1, 1:] + K1[2:-2, 2:-1, :-1])
     diffloc[:, :, 0] = 0.5 * (K1[2:-2, 1:-2, 0] + K1[2:-2, 2:-1, 0])
     sumz = np.zeros((veros.nx, veros.ny + 1, veros.nz))
-    for kr in xrange(2):
-        for jp in xrange(2):
+    for kr in range(2):
+        for jp in range(2):
             sumz += diffloc * veros.Ai_nz[2:-2, 1:-2, :, jp, kr] * (
                 tr_pad[2:-2, 1 + jp:-2 + jp, 1 + kr:-1 + kr or None] - tr_pad[2:-2, 1 + jp:-2 + jp, kr:-2 + kr])
     veros.flux_north[2:-2, 1:-2, :] = veros.cosu[np.newaxis, 1:-2, np.newaxis] * (sumz / (4. * veros.dzt[np.newaxis, np.newaxis, :]) + (
@@ -50,13 +50,13 @@ def _calc_tracer_fluxes(veros, tr, K_iso, K_skew):
     """
     diffloc = K2[2:-2, 2:-2, :-1]
     sumx = 0.
-    for ip in xrange(2):
-        for kr in xrange(2):
+    for ip in range(2):
+        for kr in range(2):
             sumx += diffloc * veros.Ai_bx[2:-2, 2:-2, :-1, ip, kr] / veros.cost[np.newaxis, 2:-2, np.newaxis] \
                 * (tr[2 + ip:-2 + ip, 2:-2, kr:-1 + kr or None, veros.tau] - tr[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None, veros.tau])
     sumy = 0.
-    for jp in xrange(2):
-        for kr in xrange(2):
+    for jp in range(2):
+        for kr in range(2):
             sumy += diffloc * veros.Ai_by[2:-2, 2:-2, :-1, jp, kr] * veros.cosu[np.newaxis, 1 + jp:-3 + jp, np.newaxis] \
                 * (tr[2:-2, 2 + jp:-2 + jp, kr:-1 + kr or None, veros.tau] - tr[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None, veros.tau])
     veros.flux_top[2:-2, 2:-2, :-1] = sumx / (4 * veros.dxt[2:-2, np.newaxis, np.newaxis]) + sumy / (

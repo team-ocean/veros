@@ -1,4 +1,7 @@
-import Queue
+try: # python 2.x
+    import Queue as queue
+except ImportError: # python 3.x
+    import queue
 import logging
 
 from .. import cyclic
@@ -35,7 +38,7 @@ def isleperim(veros, kmt, verbose=False):
     find unassigned land points and expand them to continents
     """
     imt, jmt = veros.nx + 4, veros.ny + 4
-    queue = Queue.Queue()
+    island_queue = queue.Queue()
     label = 2
     nippts = [0]
     jnorth = jmt - 1
@@ -46,11 +49,11 @@ def isleperim(veros, kmt, verbose=False):
         iwest = 0
         ieast = imt - 1
 
-    for j in xrange(jnorth, -1, -1):
-        for i in xrange(iwest, ieast):
+    for j in range(jnorth, -1, -1):
+        for i in range(iwest, ieast):
             if boundary_map[i, j] == LAND:
-                queue.put((i, j))
-                expand(veros, boundary_map, label, queue, nippts)
+                island_queue.put((i, j))
+                expand(veros, boundary_map, label, island_queue, nippts)
                 if verbose:
                     logging.debug(" found island {} with {} perimeter points"
                                   .format(label-1, nippts[-1]))
@@ -71,7 +74,7 @@ def isleperim(veros, kmt, verbose=False):
 
 
 @veros_method
-def expand(veros, boundary_map, label, queue, nippts):
+def expand(veros, boundary_map, label, island_queue, nippts):
     """
     This function uses a "flood fill" algorithm
     to expand one previously unmarked land
@@ -84,8 +87,8 @@ def expand(veros, boundary_map, label, queue, nippts):
     imt, jmt = veros.nx + 4, veros.ny + 4
 
     # main loop: pop a candidate point off the queue and process it
-    while not queue.empty():
-        (i, j) = queue.get()
+    while not island_queue.empty():
+        (i, j) = island_queue.get()
         # case: (i,j) is off the map
         if i == OFFMAP or j == OFFMAP:
             continue
@@ -98,14 +101,14 @@ def expand(veros, boundary_map, label, queue, nippts):
         # case: (i,j) is an unassigned land point
         elif boundary_map[i, j] == LAND:
             boundary_map[i, j] = label
-            queue.put((i, jn_isl(j, jmt)))
-            queue.put((ie_isl(veros, i, imt), jn_isl(j, jmt)))
-            queue.put((ie_isl(veros, i, imt), j))
-            queue.put((ie_isl(veros, i, imt), js_isl(j)))
-            queue.put((i, js_isl(j)))
-            queue.put((iw_isl(veros, i, imt), js_isl(j)))
-            queue.put((iw_isl(veros, i, imt), j))
-            queue.put((iw_isl(veros, i, imt), jn_isl(j, jmt)))
+            island_queue.put((i, jn_isl(j, jmt)))
+            island_queue.put((ie_isl(veros, i, imt), jn_isl(j, jmt)))
+            island_queue.put((ie_isl(veros, i, imt), j))
+            island_queue.put((ie_isl(veros, i, imt), js_isl(j)))
+            island_queue.put((i, js_isl(j)))
+            island_queue.put((iw_isl(veros, i, imt), js_isl(j)))
+            island_queue.put((iw_isl(veros, i, imt), j))
+            island_queue.put((iw_isl(veros, i, imt), jn_isl(j, jmt)))
             continue
         # case: (i,j) is a perimeter ocean point of another mass
         elif boundary_map[i, j] < 0:

@@ -73,9 +73,14 @@ class Veros(object):
     def __init__(self, backend=None, loglevel=None, logfile=None):
         args = cli.parse_command_line()
         self.backend, self.backend_name = self._get_backend(backend or args.backend)
-        logging.basicConfig(logfile=logfile or args.logfile, filemode="w",
-                            level=getattr(logging, (loglevel or args.loglevel).upper()),
-                            format="%(message)s")
+        try:
+            logging.basicConfig(logfile=logfile or args.logfile, filemode="w",
+                                level=getattr(logging, (loglevel or args.loglevel).upper()),
+                                format="%(message)s")
+        except ValueError:
+            logging.basicConfig(filename=logfile or args.logfile, filemode="w",
+                                level=getattr(logging, (loglevel or args.loglevel).upper()),
+                                format="%(message)s")
         self.profile_mode = args.profile
         self._set_default_settings()
         if args.set:
@@ -425,3 +430,5 @@ class Veros(object):
                         f.write(profiler.output_html())
                 except UnboundLocalError:  # profiler has not been started
                     pass
+
+            logging.shutdown()

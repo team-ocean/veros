@@ -45,10 +45,10 @@ def set_tke_diffusivities(veros):
             else:
                 mxl = veros.mxl
                 dzt = veros.dzt
-            for k in xrange(veros.nz - 2, -1, -1):
+            for k in range(veros.nz - 2, -1, -1):
                 mxl[:, :, k] = np.minimum(mxl[:, :, k], mxl[:, :, k + 1] + dzt[k + 1])
             mxl[:, :, -1] = np.minimum(mxl[:, :, -1], veros.mxl_min + dzt[-1])
-            for k in xrange(1, veros.nz):
+            for k in range(1, veros.nz):
                 mxl[:, :, k] = np.minimum(mxl[:, :, k], mxl[:, :, k - 1] + dzt[k])
             veros.mxl[...] = np.maximum(np.asarray(mxl), veros.mxl_min)
         else:

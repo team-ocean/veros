@@ -113,7 +113,7 @@ class GlobalFourDegree(VerosLegacy):
         m = self.main_module
         bathymetry_data = self._read_forcing("bathymetry")
         salt_data = self._read_forcing("salinity")[:, :, ::-1]
-        for k in xrange(m.nz - 1, -1, -1):
+        for k in range(m.nz - 1, -1, -1):
             mask_salt = salt_data[:, :, k] != 0.
             m.kbot[2:-2, 2:-2][mask_salt] = k + 1
         mask_bathy = bathymetry_data == 0

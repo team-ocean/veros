@@ -1,8 +1,5 @@
-import gsw
-import linear_eq as lq
-import nonlinear_eq1 as nq1
-import nonlinear_eq2 as nq2
-import nonlinear_eq3 as nq3
+from . import (gsw, linear_eq as lq, nonlinear_eq1 as nq1,
+               nonlinear_eq2 as nq2, nonlinear_eq3 as nq3)
 from ... import veros_method
 
 

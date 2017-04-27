@@ -13,7 +13,7 @@ def solve_non_hydrostatic(veros):
     """
     integrate forward in time
     """
-    for k in xrange(veros.nz - 1):  # k = 1,nz-1
+    for k in range(veros.nz - 1):  # k = 1,nz-1
         veros.w[:, :, k, veros.taup1] = veros.w[:, :, k, veros.tau] + veros.dt_mom * (veros.dw_mix[:, :, k]
                                                                                       + (1.5 + veros.AB_eps) * veros.dw[:, :, k, veros.tau]
                                                                                       - (0.5 + veros.AB_eps) * veros.dw[:, :, k, veros.taum1]) \
@@ -25,14 +25,14 @@ def solve_non_hydrostatic(veros):
         cyclic.setcyclic_x(veros.u[:, :, :, veros.taup1])
         cyclic.setcyclic_x(veros.v[:, :, :, veros.taup1])
         cyclic.setcyclic_x(veros.w[:, :, :, veros.taup1])
-    for j in xrange(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
-        for i in xrange(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
+    for j in range(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
+        for i in range(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
             forc[i, j, :] = (veros.u[i, j, :, veros.taup1] - veros.u[i - 1, j, :, taup1]) / (veros.cost[j] * veros.dxt[i]) \
                 + (veros.cosu[j] * veros.v[i, j, :, veros.taup1] - veros.cosu[j - 1] * veros.v[i, j - 1, :, veros.taup1]) \
                 / (veros.cost[j] * veros.dyt[j])
     k = 0
     forc[:, :, k] += veros.w[:, :, k, veros.taup1] / veros.dzt[k]
-    for k in xrange(1, veros.nz):  # k = 2,nz
+    for k in range(1, veros.nz):  # k = 2,nz
         forc[:, :, k] += (veros.w[:, :, k, veros.taup1] -
                           veros.w[:, :, k - 1, veros.taup1]) / veros.dzt[k]
     forc *= 1. / veros.dt_mom
@@ -52,15 +52,15 @@ def solve_non_hydrostatic(veros):
     """
     add non-hydrostatic pressure gradient to tendencies
     """
-    for j in xrange(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
-        for i in xrange(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
+    for j in range(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
+        for i in range(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
             veros.u[i, j, :, veros.taup1] += -veros.dt_mom * (veros.p_non_hydro[i + 1, j, :, veros.taup1]
                                                               - veros.p_non_hydro[i, j, :, veros.taup1]) \
                 / (veros.dxu[i] * veros.cost[j]) * veros.maskU[i, j, :]
             veros.v[i, j, :, veros.taup1] += -veros.dt_mom * (veros.p_non_hydro[i, j + 1, :, veros.taup1]
                                                               - veros.p_non_hydro[i, j, :, veros.taup1]) \
                 / veros.dyu[j] * veros.maskV[i, j, :]
-    for k in xrange(1, nz - 1):  # k = 1,nz-1
+    for k in range(1, nz - 1):  # k = 1,nz-1
         veros.w[:, :, k, veros.taup1] += -veros.dt_mom * (veros.p_non_hydro[:, :, k + 1, veros.taup1] - veros.p_non_hydro[:, :, k, veros.taup1]) \
             / veros.dzw[k] * veros.maskW[:, :, k]
 
@@ -76,9 +76,9 @@ def make_coeff_non_hydro(veros):
               = [ (p(i+1) - p(i))/dx - (p(i)-p(i-1))/dx ] /dx
     """
     cf = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 3, 3, 3))
-    for k in xrange(veros.nz):  # k = 1,nz
-        for j in xrange(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
-            for i in xrange(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
+    for k in range(veros.nz):  # k = 1,nz
+        for j in range(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
+            for i in range(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
                 mp = veros.maskU[i, j, k]
                 mm = veros.maskU[i - 1, j, k]
                 cf[i, j, k, 1, 1, 1] += -mp / veros.dxu[i] / veros.dxt[i] / veros.cost[j]**2
@@ -98,14 +98,14 @@ def make_coeff_non_hydro(veros):
                     veros.dyt[j] * veros.cosu[j - 1] / veros.cost[j]
 
     k = 0
-    for j in xrange(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
-        for i in xrange(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
+    for j in range(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
+        for i in range(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
             mp = veros.maskW[i, j, k]
             cf[i, j, k, 1, 1, 1] += -mp / veros.dzw[k] / veros.dzt[k]
             cf[i, j, k, 1, 1, 2] += mp / veros.dzw[k] / veros.dzt[k]
-    for k in xrange(1, veros.nz - 1):  # k = 2,nz-1
-        for j in xrange(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
-            for i in xrange(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
+    for k in range(1, veros.nz - 1):  # k = 2,nz-1
+        for j in range(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
+            for i in range(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
                 mp = veros.maskW[i, j, k]
                 mm = veros.maskW[i, j, k - 1]
                 cf[i, j, k, 1, 1, 1] += -mp / veros.dzw[k] / veros.dzt[k]
@@ -113,8 +113,8 @@ def make_coeff_non_hydro(veros):
                 cf[i, j, k, 1, 1, 1] += -mm / veros.dzw[k - 1] / veros.dzt[k]
                 cf[i, j, k, 1, 1, 0] += mm / veros.dzw[k - 1] / veros.dzt[k]
     k = veros.nz - 1
-    for j in xrange(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
-        for i in xrange(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
+    for j in range(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
+        for i in range(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
             mm = veros.maskW[i, j, k - 1]
             cf[i, j, k, 1, 1, 1] += -mm / veros.dzw[k - 1] / veros.dzt[k]
             cf[i, j, k, 1, 1, 0] += mm / veros.dzw[k - 1] / veros.dzt[k]
@@ -144,9 +144,9 @@ def congrad_non_hydro(forc, iterations, veros):
         congrad_non_hydro.first = False
 
     apply_op_3D(congrad_non_hydro.cf, veros.p_non_hydro[:, :, :, veros.taup1], res)  # res = A * psi
-    for k in xrange(veros.nz):  # k = 1,nz
-        for j in xrange(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
-            for i in xrange(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
+    for k in range(veros.nz):  # k = 1,nz
+        for j in range(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
+            for i in range(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
                 res[i, j, k] = forc[i, j, k] - res[i, j, k]
 
     p[...] = res
@@ -158,7 +158,7 @@ def congrad_non_hydro(forc, iterations, veros):
         print(" estimated error={}/{}".format(estimated_error, congr_epsilon_non_hydro))
         print(" iterations={}".format(n))
 
-    for n in xrange(veros.congr_max_itts_non_hydro):  # n = 1,congr_max_itts_non_hydro
+    for n in range(veros.congr_max_itts_non_hydro):  # n = 1,congr_max_itts_non_hydro
         """
         key algorithm
         """
@@ -210,30 +210,30 @@ def apply_op_3D(cf, p1, res, veros):
     apply operator A,  res = A *p1
     """
     res[...] = 0.
-    for kk in xrange(-1, 2):
-        for jj in xrange(-1, 2):
-            for ii in xrange(-1, 2):
-                for k in xrange(veros.nz):  # k = 1,nz
+    for kk in range(-1, 2):
+        for jj in range(-1, 2):
+            for ii in range(-1, 2):
+                for k in range(veros.nz):  # k = 1,nz
                     kpkk = min(veros.nz - 1, max(0, k + kk))
-                    for j in xrange(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
-                        for i in xrange(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
+                    for j in range(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
+                        for i in range(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
                             res[i, j, k] += cf[i, j, k, ii + 1, jj +
                                                1, kk + 1] * p1[i + ii, j + jj, kpkk]
 
 
 def absmax_3D(p1, veros):
     s2 = 0.
-    for k in xrange(veros.nz):  # k = 1,nz
-        for j in xrange(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
-            for i in xrange(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
+    for k in range(veros.nz):  # k = 1,nz
+        for j in range(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
+            for i in range(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
                 s2 = max(abs(p1[i, j, k] * veros.maskT[i, j, k]), s2)
     return s2
 
 
 def dot_3D(p1, p2, veros):
     s2 = 0.
-    for k in xrange(veros.nz):  # k = 1,nz
-        for j in xrange(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
-            for i in xrange(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
+    for k in range(veros.nz):  # k = 1,nz
+        for j in range(veros.js_pe, veros.je_pe):  # j = js_pe,je_pe
+            for i in range(veros.is_pe, veros.ie_pe):  # i = is_pe,ie_pe
                 s2 += p1[i, j, k] * p2[i, j, k] * veros.maskT[i, j, k]
     return s2

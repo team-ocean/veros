@@ -107,7 +107,7 @@ class NorthAtlantic(Veros):
             self._tauy = np.zeros((self.nx + 4, self.ny + 4, 12))
             forc_u_coords_hor = [forcing_file.variables[k][...].T for k in ("xu", "yu")]
             forc_u_coords_hor[0][...] += -360
-            for k in xrange(12):
+            for k in range(12):
                 self._taux[2:-2, 2:-2, k] = tools.interpolate(forc_u_coords_hor, forcing_file.variables["taux"][k, ...].T,
                                                               t_hor, missing_value=-1e20) / 10. / self.rho_0
                 self._tauy[2:-2, 2:-2, k] = tools.interpolate(forc_u_coords_hor, forcing_file.variables["tauy"][k, ...].T,
@@ -125,7 +125,7 @@ class NorthAtlantic(Veros):
 
             sst_clim, sss_clim, sst_rest, sss_rest = [
                 forcing_file.variables[k][...].T for k in ("sst_clim", "sss_clim", "sst_rest", "sss_rest")]
-            for k in xrange(12):
+            for k in range(12):
                 self._sst_clim[2:-2, 2:-2, k] = tools.interpolate(
                     forc_coords[:-1], sst_clim[..., k], t_hor, missing_value=-1e20)
                 self._sss_clim[2:-2, 2:-2, k] = tools.interpolate(
@@ -146,7 +146,7 @@ class NorthAtlantic(Veros):
 
             self._rest_tscl[2:-2, 2:-2, :] = tools.interpolate(
                 rest_coords, restoring_file.variables["tscl"][0, ...].T, t_grid)
-            for k in xrange(12):
+            for k in range(12):
                 self._t_star[2:-2, 2:-2, :, k] = tools.interpolate(
                     rest_coords, restoring_file.variables["t_star"][k, ...].T, t_grid, missing_value=0.)
                 self._s_star[2:-2, 2:-2, :, k] = tools.interpolate(

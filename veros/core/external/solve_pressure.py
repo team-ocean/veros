@@ -21,13 +21,13 @@ def solve_pressure(veros):
     fxa = veros.grav / veros.rho_0
     veros.p_hydro[:, :, veros.nz - 1] = 0.5 * veros.rho[:, :, veros.nz - 1,
                                                         veros.tau] * fxa * veros.dzw[veros.nz - 1] * veros.maskT[:, :, veros.nz - 1]
-    for k in xrange(veros.nz - 2, 0, -1):  # k=veros.nz-1,1,-1
+    for k in range(veros.nz - 2, 0, -1):  # k=veros.nz-1,1,-1
         veros.p_hydro[:, :, k] = veros.maskT[:, :, k] * (veros.p_hydro[:, :, k + 1] + 0.5 * (
             veros.rho[:, :, k + 1, veros.tau] + veros.rho[:, :, k, veros.tau]) * fxa * veros.dzw[k])
 
     # add hydrostatic pressure gradient to tendencies
-    for j in xrange(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
-        for i in xrange(veros.is_pe, veros.ie_pe):  # i=veros.is_pe,veros.ie_pe
+    for j in range(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
+        for i in range(veros.is_pe, veros.ie_pe):  # i=veros.is_pe,veros.ie_pe
             veros.du[i, j, :, veros.tau] -= (veros.p_hydro[i + 1, j, :] - veros.p_hydro[i, j, :]) / (
                 veros.dxu[i] * veros.cost[j]) * veros.maskU[i, j, :]
             veros.dv[i, j, :, veros.tau] -= (veros.p_hydro[i, j + 1, :] -
@@ -44,9 +44,9 @@ def solve_pressure(veros):
          - (0.5 + veros.AB_eps) * veros.dv[:, :, :, veros.taum1]) * veros.maskV
 
     # forcing for surface pressure
-    for k in xrange(veros.nz):  # k=1,veros.nz
-        for j in xrange(veros.js_pe, veros.je_pe):  # j=veros.js_pe,veros.je_pe
-            for i in xrange(veros.is_pe, veros.ie_pe):  # i=veros.is_pe,veros.ie_pe
+    for k in range(veros.nz):  # k=1,veros.nz
+        for j in range(veros.js_pe, veros.je_pe):  # j=veros.js_pe,veros.je_pe
+            for i in range(veros.is_pe, veros.ie_pe):  # i=veros.is_pe,veros.ie_pe
                 fpx[i, j] += veros.u[i, j, k, veros.taup1] * \
                     veros.maskU[i, j, k] * veros.dzt[k] / veros.dt_mom
                 fpy[i, j] += veros.v[i, j, k, veros.taup1] * \
@@ -56,13 +56,13 @@ def solve_pressure(veros):
         cyclic.setcyclic_x(fpy)
 
     # forc = 1/cos (u_x + (cos veros.v)_y )
-    for j in xrange(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
-        for i in xrange(veros.is_pe, veros.ie_pe + 1):  # i=veros.is_pe,veros.ie_pe
+    for j in range(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
+        for i in range(veros.is_pe, veros.ie_pe + 1):  # i=veros.is_pe,veros.ie_pe
             forc[i, j] = (fpx[i, j] - fpx[i - 1, j]) / (veros.cost[j] * veros.dxt[i]) + (veros.cosu[j]
                                                                                          * fpy[i, j] - veros.cosu[j - 1] * fpy[i, j - 1]) / (veros.cost[j] * veros.dyt[j])
     if veros.enable_free_surface:
-        for j in xrange(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
-            for i in xrange(veros.is_pe, veros.ie_pe + 1):  # i=veros.is_pe,veros.ie_pe
+        for j in range(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
+            for i in range(veros.is_pe, veros.ie_pe + 1):  # i=veros.is_pe,veros.ie_pe
                 forc[i, j] -= veros.psi[i, j, veros.tau] / \
                     (veros.grav * veros.dt_mom**2) * veros.maskT[i, j, veros.nz]
 
@@ -74,8 +74,8 @@ def solve_pressure(veros):
         cyclic.setcyclic_x(veros.psi[:, :, veros.taup1])
 
     # remove surface pressure gradient
-    for j in xrange(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
-        for i in xrange(veros.is_pe, veros.ie_pe + 1):  # i=veros.is_pe,veros.ie_pe
+    for j in range(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
+        for i in range(veros.is_pe, veros.ie_pe + 1):  # i=veros.is_pe,veros.ie_pe
             veros.u[i, j, :, veros.taup1] -= veros.dt_mom * (veros.psi[i + 1, j, veros.taup1] - veros.psi[i, j, veros.taup1]) / (
                 veros.dxu[i] * veros.cost[j]) * veros.maskU[i, j, :]
             veros.v[i, j, :, veros.taup1] -= veros.dt_mom * \
@@ -101,8 +101,8 @@ def make_coeff_surf_press(veros):
     """
     maskM = veros.maskT[:, :, -1]
     cf = np.zeros((veros.nx + 4, veros.ny + 4, 3, 3))
-    for j in xrange(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
-        for i in xrange(veros.is_pe, veros.ie_pe + 1):  # i=veros.is_pe,veros.ie_pe
+    for j in range(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
+        for i in range(veros.is_pe, veros.ie_pe + 1):  # i=veros.is_pe,veros.ie_pe
             mp = maskM[i, j] * maskM[i + 1, j]
             mm = maskM[i, j] * maskM[i - 1, j]
             cf[i, j, 1, 1] -= mp * veros.hu[i, j] / veros.dxu[i] / veros.dxt[i] / veros.cost[j]**2
@@ -124,8 +124,8 @@ def make_coeff_surf_press(veros):
                 veros.dyt[j] * veros.cosu[j - 1] / veros.cost[j]
 
     if veros.enable_free_surface:
-        for j in xrange(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
-            for i in xrange(veros.is_pe, veros.ie_pe + 1):  # i=veros.is_pe,veros.ie_pe
+        for j in range(veros.js_pe, veros.je_pe + 1):  # j=veros.js_pe,veros.je_pe
+            for i in range(veros.is_pe, veros.ie_pe + 1):  # i=veros.is_pe,veros.ie_pe
                 cf[i, j, 1, 1] += -1. / (veros.grav * veros.dt_mom**2) * maskM[i, j]
     return cf
 
@@ -153,8 +153,8 @@ def congrad_surf_press(veros, forc, iterations):
         congrad_surf_press.first = False
 
     apply_op(cf, veros.psi[:, :, veros.taup1], res, veros)  # res = A *veros.psi
-    for j in xrange(veros.js_pe, veros.je_pe):  # j=veros.js_pe,veros.je_pe
-        for i in xrange(veros.is_pe, veros.ie_pe):  # i=veros.is_pe,veros.ie_pe
+    for j in range(veros.js_pe, veros.je_pe):  # j=veros.js_pe,veros.je_pe
+        for i in range(veros.is_pe, veros.ie_pe):  # i=veros.is_pe,veros.ie_pe
             res[i, j] = forc[i, j] - res[i, j]
 
     p[...] = res
@@ -163,7 +163,7 @@ def congrad_surf_press(veros, forc, iterations):
         cyclic.setcyclic_x(p)
     rsold = dot_sfp(res, res, veros)
 
-    for n in xrange(1, veros.congr_max_iterations + 1):  # n=1,congr_max_iterations
+    for n in range(1, veros.congr_max_iterations + 1):  # n=1,congr_max_iterations
         """
         key algorithm
         """
@@ -219,13 +219,13 @@ congrad_surf_press.first = True
 
 def info(n, enable_congrad_verbose, estimated_error, congr_epsilon):
     if enable_congrad_verbose:
-        print ' estimated error=', estimated_error, '/', congr_epsilon
-        print ' iterations=', n
+        print(' estimated error=', estimated_error, '/', congr_epsilon)
+        print(' iterations=', n)
 
 
 def fail(n, enable_congrad_verbose, estimated_error, congr_epsilon):
-    print ' estimated error=', estimated_error, '/', congr_epsilon
-    print ' iterations=', n
+    print(' estimated error=', estimated_error, '/', congr_epsilon)
+    print(' iterations=', n)
     # check for NaN
     if np.isnan(estimated_error):
         raise RuntimeError("error is NaN, stopping integration")
