@@ -128,6 +128,7 @@ SETTINGS = OrderedDict([
     ("eke_hrms_k0_min", Setting(0.0, "min value for bottom roughness parameter")),
 
     # New
+    ("verbose_island_routines", Setting(False, "Print extra debugging output in island / boundary integral routines")),
     ("use_io_threads", Setting(True, "Start extra threads for disk writes")),
     ("io_timeout", Setting(20, "Timeout in seconds while waiting for IO locks to be released")),
     ("enable_netcdf_zlib_compression", Setting(True, "Use netCDF4's native zlib interface, which leads to smaller output files (but carries some computational overhead).")),

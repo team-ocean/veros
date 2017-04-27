@@ -77,8 +77,8 @@ def solve_streamfunction(veros):
         fpy[1:, 1:] = veros.maskV[1:, 1:, -1] \
             * (veros.dpsi[1:, 1:, veros.taup1] - veros.dpsi[:-1, 1:, veros.taup1]) \
             / (veros.cosu[np.newaxis, 1:] * veros.dxt[1:, np.newaxis]) * veros.hvr[1:, 1:]
-        line_forc[1:] += -utilities.line_integrals(veros, fpx[...,
-                                                              np.newaxis], fpy[..., np.newaxis], kind="same")[1:]
+        line_forc[1:] += -utilities.line_integrals(veros, fpx[..., np.newaxis],
+                                                   fpy[..., np.newaxis], kind="same")[1:]
 
         # solve for time dependent boundary values
         if veros.backend_name == "bohrium":

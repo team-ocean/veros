@@ -99,12 +99,15 @@ class Veros(object):
             setattr(self, key, setting.default)
 
     def _allocate(self):
+        self.nisle = 0 # to be overriden during streamfunction_init
+
         self.variables = {}
 
         def init_var(var_name, var):
             shape = variables.get_dimensions(self, var.dims)
             setattr(self, var_name, self.backend.zeros(shape, dtype=var.dtype))
             self.variables[var_name] = var
+
         for var_name, var in variables.MAIN_VARIABLES.items():
             init_var(var_name, var)
         for condition, var_dict in variables.CONDITIONAL_VARIABLES.items():

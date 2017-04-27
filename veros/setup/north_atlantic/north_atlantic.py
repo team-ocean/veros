@@ -17,7 +17,7 @@ class NorthAtlantic(Veros):
     def set_parameter(self):
         """set main parameter
         """
-        self.nx, self.ny, self.nz = 250, 200, 50
+        self.nx, self.ny, self.nz = 250, 350, 50
         self.x_origin = -98.
         self.y_origin = -18.
         self._x_boundary = 17.2
@@ -179,8 +179,7 @@ class NorthAtlantic(Veros):
                                       (f1 * self._sss_clim[:, :, n1] + f2 * self._sss_clim[:, :, n2]
                                        - self.salt[:, :, -1, self.tau]) * self.maskT[:, :, -1]
 
-        ice_mask = (self.temp[:, :, -1, self.tau] * self.maskT[:, :, -1]
-                    <= -1.8) & (self.forc_temp_surface <= 0.0)
+        ice_mask = (self.temp[:, :, -1, self.tau] * self.maskT[:, :, -1] <= -1.8) & (self.forc_temp_surface <= 0.0)
         self.forc_temp_surface[...] *= ~ice_mask
         self.forc_salt_surface[...] *= ~ice_mask
 

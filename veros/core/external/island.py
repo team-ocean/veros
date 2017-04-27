@@ -1,6 +1,7 @@
 import Queue
 import logging
 
+from .. import cyclic
 from ... import veros_method
 
 OFFMAP = -1
@@ -9,7 +10,7 @@ OCEAN = 0
 
 
 @veros_method
-def isleperim(veros, kmt):
+def isleperim(veros, kmt, verbose=False):
     """
     Island and Island Perimeter boundary mapping routines
     """
@@ -50,8 +51,9 @@ def isleperim(veros, kmt):
             if boundary_map[i, j] == LAND:
                 queue.put((i, j))
                 expand(veros, boundary_map, label, queue, nippts)
-                logging.debug(" found island {} with {} perimeter points"
-                              .format(label-1, nippts[-1]))
+                if verbose:
+                    logging.debug(" found island {} with {} perimeter points"
+                                  .format(label-1, nippts[-1]))
                 label += 1
                 nippts.append(0)
     nisle = label - 2
@@ -61,10 +63,10 @@ def isleperim(veros, kmt):
         boundary_map[0, :] = boundary_map[imt - 2, :]
         boundary_map[imt - 1, :] = boundary_map[1, :]
 
-    logging.info(" Island perimeter statistics:")
-    logging.info("  number of land masses is {}".format(nisle))
-    logging.info("  number of total island perimeter points is {}".format(sum(nippts)))
-
+    if verbose:
+        logging.info(" Island perimeter statistics:")
+        logging.info("  number of land masses is {}".format(nisle))
+        logging.info("  number of total island perimeter points is {}".format(sum(nippts)))
     return np.array(boundary_map)
 
 

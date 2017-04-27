@@ -75,7 +75,7 @@ def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind=
     else:
         interp_grid = coords
     var = scipy.interpolate.interpn(coords, var, interp_grid,
-                                    bounds_error=False, fill_value=None, method=kind)
+                                    bounds_error=False, fill_value=np.nan, method=kind)
 
     if fill:
         var = fill_holes(var)

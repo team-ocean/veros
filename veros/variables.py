@@ -40,9 +40,11 @@ V_GRID = ("xt", "yu", "zt")
 W_GRID = ("xt", "yt", "zw")
 ZETA_GRID = ("xu", "yu", "zt")
 TIMESTEPS = ("timesteps",)
+ISLE = ("isle",)
 TENSOR_COMP = ("tensor1", "tensor2")
-#
-BASE_DIMENSIONS = XT + XU + YT + YU + ZT + ZW
+
+# those are written to netCDF output by default
+BASE_DIMENSIONS = XT + XU + YT + YU + ZT + ZW + ISLE
 GHOST_DIMENSIONS = ("xt", "yt", "xu", "yu")
 
 
@@ -57,6 +59,7 @@ def get_dimensions(veros, grid, include_ghosts=True):
         "timesteps": 3,
         "tensor1": 2,
         "tensor2": 2,
+        "isle": veros.nisle,
     }
     if include_ghosts:
         for d in GHOST_DIMENSIONS:
@@ -492,10 +495,41 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "Streamfunction tendency", ZETA_HOR + TIMESTEPS, "m^3/s^2",
             "Streamfunction tendency", write_to_restart=True
         )),
-        # ("psin", Variable(
-        #     "Boundary streamfunction", ZETA_HOR + ISLE, "m^3/s",
-        #     "Boundary streamfunction"
-        # )),
+        ("isle", Variable(
+            "Island number", ISLE, "", "Island number", output=True
+        )),
+        ("psin", Variable(
+            "Boundary streamfunction", ZETA_HOR + ISLE, "m^3/s",
+            "Boundary streamfunction", output=True, time_dependent=False
+        )),
+        ("dpsin", Variable(
+            "Boundary streamfunction factor", ISLE + TIMESTEPS, "?",
+            "Boundary streamfunction factor", time_dependent=False
+        )),
+        ("line_psin", Variable(
+            "Boundary line integrals", ISLE + ISLE, "?",
+            "Boundary line integrals", time_dependent=False
+        )),
+        ("boundary_mask", Variable(
+            "Boundary mask", T_HOR + ISLE, "",
+            "Boundary mask", time_dependent=False
+        )),
+        ("line_dir_south_mask", Variable(
+            "Line integral mask", T_HOR + ISLE, "",
+            "Line integral mask", time_dependent=False
+        )),
+        ("line_dir_north_mask", Variable(
+            "Line integral mask", T_HOR + ISLE, "",
+            "Line integral mask", time_dependent=False
+        )),
+        ("line_dir_east_mask", Variable(
+            "Line integral mask", T_HOR + ISLE, "",
+            "Line integral mask", time_dependent=False
+        )),
+        ("line_dir_west_mask", Variable(
+            "Line integral mask", T_HOR + ISLE, "",
+            "Line integral mask", time_dependent=False
+        )),
     ])),
 
     ("not enable_streamfunction", OrderedDict([

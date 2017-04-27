@@ -12,35 +12,29 @@ def streamfunction_init(veros):
     """
     logging.info("Initializing streamfunction method")
 
-    kmt = np.zeros((veros.nx + 4, veros.ny + 4))
-    kmt[2:-2, 2:-2] = (veros.kbot[2:-2, 2:-2] > 0) * 5
-
-    if veros.enable_cyclic_x:
-        cyclic.setcyclic_x(kmt)
-
     """
     preprocess land map using MOMs algorithm for B-grid to determine number of islands
     """
-    logging.info(" starting MOMs algorithm for B-grid to determine number of islands")
-    allmap = island.isleperim(veros, kmt)
+    logging.info(" determining number of land masses")
+    allmap = island.isleperim(veros, veros.kbot, verbose=veros.verbose_island_routines)
     if veros.enable_cyclic_x:
         cyclic.setcyclic_x(allmap)
-    _showmap(veros, allmap)
+    logging.info(_ascii_map(veros, allmap))
 
-    # now we can set the total number of land masses in the domain
+    """
+    now that the number of islands is known we can allocate the rest of the variables
+    """
     veros.nisle = allmap.max()
-
-    """
-    allocate variables
-    """
-    veros.boundary_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle)).astype(np.bool)
-    veros.line_dir_south_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle)).astype(np.bool)
-    veros.line_dir_north_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle)).astype(np.bool)
-    veros.line_dir_east_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle)).astype(np.bool)
-    veros.line_dir_west_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle)).astype(np.bool)
+    veros.isle = np.arange(veros.nisle) + 1
     veros.psin = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle))
     veros.dpsin = np.zeros((veros.nisle, 3))
     veros.line_psin = np.zeros((veros.nisle, veros.nisle))
+    veros.boundary_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
+    veros.line_dir_south_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
+    veros.line_dir_north_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
+    veros.line_dir_east_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
+    veros.line_dir_west_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
+
 
     if veros.backend_name == "bohrium":
         veros.boundary_mask = veros.boundary_mask.copy2numpy()
@@ -50,16 +44,15 @@ def streamfunction_init(veros):
         veros.line_dir_west_mask = veros.line_dir_west_mask.copy2numpy()
 
     for isle in xrange(veros.nisle):
-        logging.debug(" ------------------------")
-        logging.debug(" processing island #{:d}".format(isle))
-        logging.debug(" ------------------------")
+        _print_verbose(veros, " ------------------------")
+        _print_verbose(veros, " processing land mass #{:d}".format(isle))
+        _print_verbose(veros, " ------------------------")
 
         """
         land map for island number isle: 1 is land, -1 is perimeter, 0 is ocean
         """
-        kmt[...] = allmap != isle + 1
-        boundary_map = island.isleperim(veros, kmt)
-        _showmap(veros, boundary_map)
+        boundary_map = island.isleperim(veros, allmap != isle + 1)
+        _print_verbose(veros, _ascii_map(veros, boundary_map))
 
         """
         find a starting point
@@ -74,8 +67,8 @@ def streamfunction_init(veros):
             if not cont:
                 raise RuntimeError("found no starting point for line integral")
 
-        logging.debug(" starting point of line integral is {!r}".format(startPos))
-        logging.debug(" starting direction is {!r}".format(Dir))
+        _print_verbose(veros, " starting point of line integral is {!r}".format(startPos))
+        _print_verbose(veros, " starting direction is {!r}".format(Dir))
 
         """
         now find connecting lines
@@ -104,27 +97,27 @@ def streamfunction_init(veros):
             4 cases are possible
             """
 
-            #logging.debug(" ")
-            #logging.debug(" position is {!r}".format(ij))
-            #logging.debug(" direction is {!r}".format(Dir))
-            #logging.debug(" map ahead is {} {}"
-            #              .format(boundary_map[ijp[0], ijp[1]], boundary_map[ijp_right[0], ijp_right[1]]))
+            _print_verbose(veros, " ")
+            _print_verbose(veros, " position is {!r}".format(ij))
+            _print_verbose(veros, " direction is {!r}".format(Dir))
+            _print_verbose(veros, " map ahead is {} {}"
+                          .format(boundary_map[ijp[0], ijp[1]], boundary_map[ijp_right[0], ijp_right[1]]))
 
             if boundary_map[ijp[0], ijp[1]] == -1 and boundary_map[ijp_right[0], ijp_right[1]] == 1:
-                pass
-                #logging.debug(" go forward")
+
+                _print_verbose(veros, " go forward")
             elif boundary_map[ijp[0], ijp[1]] == -1 and boundary_map[ijp_right[0], ijp_right[1]] == -1:
-                #logging.debug(" turn right")
+                _print_verbose(veros, " turn right")
                 Dir = [Dir[1], -Dir[0]]
             elif boundary_map[ijp[0], ijp[1]] == 1 and boundary_map[ijp_right[0], ijp_right[1]] == 1:
-                #logging.debug(" turn left")
+                _print_verbose(veros, " turn left")
                 Dir = [-Dir[1], Dir[0]]
             elif boundary_map[ijp[0], ijp[1]] == 1 and boundary_map[ijp_right[0], ijp_right[1]] == -1:
-                #logging.debug(" turn left")
+                _print_verbose(veros, " turn left")
                 Dir = [-Dir[1], Dir[0]]
             else:
-                #logging.debug(" map ahead is {} {}"
-                #             .format(boundary_map[ijp[0], ijp[1]], boundary_map[ijp_right[0], ijp_right[1]]))
+                _print_verbose(veros, " map ahead is {} {}"
+                             .format(boundary_map[ijp[0], ijp[1]], boundary_map[ijp_right[0], ijp_right[1]]))
                 raise RuntimeError("unknown situation or lost track")
 
             """
@@ -146,10 +139,10 @@ def streamfunction_init(veros):
             account for cyclic boundary conditions
             """
             if veros.enable_cyclic_x and Dir[0] == 1 and Dir[1] == 0 and ij[0] > veros.nx + 1:
-                #logging.debug(" shifting to western cyclic boundary")
+                _print_verbose(veros, " shifting to western cyclic boundary")
                 ij[0] -= veros.nx
             if veros.enable_cyclic_x and Dir[0] == -1 and Dir[1] == 0 and ij[0] < 2:
-                #logging.debug(" shifting to eastern cyclic boundary")
+                _print_verbose(veros, " shifting to eastern cyclic boundary")
                 ij[0] += veros.nx
             if startPos[0] == ij[0] and startPos[1] == ij[1]:
                 cont = False
@@ -158,10 +151,10 @@ def streamfunction_init(veros):
                 n += 1
                 veros.boundary_mask[ij[0], ij[1], isle] = 1
 
-        #logging.debug(" number of points is {:d}".format(n + 1))
-        #logging.debug(" ")
-        #logging.debug(" Positions:")
-        #logging.debug(" boundary: {!r}".format(veros.boundary_mask[..., isle]))
+        _print_verbose(veros, " number of points is {:d}".format(n + 1))
+        _print_verbose(veros, " ")
+        _print_verbose(veros, " Positions:")
+        _print_verbose(veros, " boundary: {!r}".format(veros.boundary_mask[..., isle]))
 
     if veros.backend_name == "bohrium":
         veros.boundary_mask = np.asarray(veros.boundary_mask)
@@ -175,7 +168,7 @@ def streamfunction_init(veros):
     """
     forc = np.zeros((veros.nx+4, veros.ny+4))
 
-    # initialize with noise to achieve uniform convergence
+    # initialize with random noise to achieve uniform convergence
     veros.psin[...] = np.random.rand(*veros.psin.shape)
 
     for isle in xrange(veros.nisle):
@@ -222,27 +215,36 @@ def _avoid_cyclic_boundaries(veros, boundary_map, isle, n, x_range):
                 return cont, (i - 1, j), Dir, (i, j)
     return False, None, [0, 0], [0, 0]
 
+def _print_verbose(veros, message):
+    if veros.verbose_island_routines:
+        logging.info(message)
 
 @veros_method
-def _showmap(veros, boundary_map):
+def _ascii_map(veros, boundary_map):
+    map_string = ""
     linewidth = 125
     imt = veros.nx + 4
     iremain = imt
     istart = 0
-    logging.info("")
-    logging.info(" " * (5 + min(linewidth, imt) / 2 - 13) + "Land mass and perimeter")
+    map_string += "\n"
+    map_string += " " * (5 + min(linewidth, imt) / 2 - 13) + "Land mass and perimeter"
+    map_string += "\n"
     for isweep in xrange(1, imt / linewidth + 2):
         iline = min(iremain, linewidth)
         iremain = iremain - iline
         if iline > 0:
-            logging.info(" ")
-            logging.info("".join(["{:5d}".format(istart + i + 1 - 2) for i in xrange(1, iline + 1, 5)]))
+            map_string += "\n"
+            map_string += "".join(["{:5d}".format(istart + i + 1 - 2) for i in xrange(1, iline + 1, 5)])
+            map_string += "\n"
             for j in xrange(veros.ny + 3, -1, -1):
-                logging.info("{:3d} ".format(j) + "".join([str(int(_mod10(boundary_map[istart + i - 2, j]))) if _mod10(
-                    boundary_map[istart + i - 2, j]) >= 0 else "*" for i in xrange(2, iline + 2)]))
-            logging.info("".join(["{:5d}".format(istart + i + 1 - 2) for i in xrange(1, iline + 1, 5)]))
+                map_string += "{:3d} ".format(j) + "".join([str(int(_mod10(boundary_map[istart + i - 2, j]))) if _mod10(
+                    boundary_map[istart + i - 2, j]) >= 0 else "*" for i in xrange(2, iline + 2)])
+                map_string += "\n"
+            map_string += "".join(["{:5d}".format(istart + i + 1 - 2) for i in xrange(1, iline + 1, 5)])
+            map_string += "\n"
             istart = istart + iline
-    logging.info("")
+    map_string += "\n"
+    return map_string
 
 
 def _mod10(m):
