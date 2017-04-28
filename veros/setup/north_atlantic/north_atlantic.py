@@ -33,7 +33,6 @@ class NorthAtlantic(Veros):
 
         self.congr_epsilon = 1e-10
         self.congr_max_iterations = 20000
-        self.enable_streamfunction = True
 
         self.enable_neutral_diffusion = True
         self.enable_skew_diffusion = True

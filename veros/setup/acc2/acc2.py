@@ -23,8 +23,7 @@ class ACC2(VerosLegacy):
 
         m.congr_epsilon = 1e-12
         m.congr_max_iterations = 5000
-        m.enable_streamfunction = 1
-
+        
         m.enable_diag_snapshots = True
         m.enable_diag_averages = True
         m.aveint = 365 * 86400.

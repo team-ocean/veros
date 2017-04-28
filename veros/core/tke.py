@@ -71,11 +71,6 @@ def set_tke_diffusivities(veros):
     else:
         veros.kappaM[...] = veros.kappaM_0
         veros.kappaH[...] = veros.kappaH_0
-        if veros.enable_hydrostatic:
-            """
-            simple convective adjustment
-            """
-            veros.kappaH[...] = np.where(veros.Nsqr[:, :, :, veros.tau] < 0.0, 1.0, veros.kappaH)
 
 
 @veros_method

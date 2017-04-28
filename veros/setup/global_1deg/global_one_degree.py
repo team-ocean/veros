@@ -30,7 +30,6 @@ MAIN_OPTIONS = dict(
 
     congr_epsilon=1e-10,
     congr_max_iterations=10000,
-    enable_streamfunction=True,
 
     enable_hor_friction=True,
     A_h=5e4,

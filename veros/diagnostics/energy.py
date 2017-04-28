@@ -162,15 +162,6 @@ class Energy(VerosDiagnostic):
                          + veros.v[2:-2, 2:-2, :, veros.tau] * veros.dv_adv[2:-2, 2:-2, :]
                          * vol_v * veros.maskV[2:-2, 2:-2, :])
 
-        # spurious work by surface pressure
-        if not veros.enable_streamfunction:
-            spm = np.sum(-veros.u[2:-2, 2:-2, :, veros.tau] * vol_u
-                         * (veros.psi[3:-1, 2:-2, veros.tau] - veros.psi[2:-2, 2:-2, veros.tau])
-                         / (veros.dxu[2:-2, np.newaxis, np.newaxis] * veros.cost[np.newaxis, 2:-2, np.newaxis])
-                         - veros.v[2:-2, 2:-2, :, veros.tau] * vol_v
-                         * (veros.psi[2:-2, 3:-1, veros.tau] - veros.psi[2:-2, 2:-2, veros.tau])
-                         / veros.dyu[np.newaxis, 2:-2, np.newaxis])
-
         # K*Nsqr and KE and dyn. enthalpy dissipation
         vol_w = veros.area_t[2:-2, 2:-2, np.newaxis] * veros.dzw[np.newaxis, np.newaxis, :] \
             * veros.maskW[2:-2, 2:-2, :]

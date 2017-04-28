@@ -369,6 +369,50 @@ MAIN_VARIABLES = OrderedDict([
         "Surface density flux", T_HOR, "?", "Surface potential density flux", output=True
     )),
 
+    ("psi", Variable(
+        "Streamfunction", ZETA_HOR + TIMESTEPS, "m^3/s", "Streamfunction",
+        output=True, write_to_restart=True
+    )),
+    ("dpsi", Variable(
+        "Streamfunction tendency", ZETA_HOR + TIMESTEPS, "m^3/s^2",
+        "Streamfunction tendency", write_to_restart=True
+    )),
+    ("isle", Variable(
+        "Island number", ISLE, "", "Island number", output=True
+    )),
+    ("psin", Variable(
+        "Boundary streamfunction", ZETA_HOR + ISLE, "m^3/s",
+        "Boundary streamfunction", output=True, time_dependent=False
+    )),
+    ("dpsin", Variable(
+        "Boundary streamfunction factor", ISLE + TIMESTEPS, "?",
+        "Boundary streamfunction factor", time_dependent=False
+    )),
+    ("line_psin", Variable(
+        "Boundary line integrals", ISLE + ISLE, "?",
+        "Boundary line integrals", time_dependent=False
+    )),
+    ("boundary_mask", Variable(
+        "Boundary mask", T_HOR + ISLE, "",
+        "Boundary mask", time_dependent=False
+    )),
+    ("line_dir_south_mask", Variable(
+        "Line integral mask", T_HOR + ISLE, "",
+        "Line integral mask", time_dependent=False
+    )),
+    ("line_dir_north_mask", Variable(
+        "Line integral mask", T_HOR + ISLE, "",
+        "Line integral mask", time_dependent=False
+    )),
+    ("line_dir_east_mask", Variable(
+        "Line integral mask", T_HOR + ISLE, "",
+        "Line integral mask", time_dependent=False
+    )),
+    ("line_dir_west_mask", Variable(
+        "Line integral mask", T_HOR + ISLE, "",
+        "Line integral mask", time_dependent=False
+    )),
+
     ("K_gm", Variable(
         "Skewness diffusivity", W_GRID, "m^2/s",
         "GM diffusivity, either constant or from EKE model"
@@ -486,56 +530,6 @@ CONDITIONAL_VARIABLES = OrderedDict([
         ))
     ])),
 
-    ("enable_streamfunction", OrderedDict([
-        ("psi", Variable(
-            "Streamfunction", ZETA_HOR + TIMESTEPS, "m^3/s", "Streamfunction",
-            output=True, write_to_restart=True
-        )),
-        ("dpsi", Variable(
-            "Streamfunction tendency", ZETA_HOR + TIMESTEPS, "m^3/s^2",
-            "Streamfunction tendency", write_to_restart=True
-        )),
-        ("isle", Variable(
-            "Island number", ISLE, "", "Island number", output=True
-        )),
-        ("psin", Variable(
-            "Boundary streamfunction", ZETA_HOR + ISLE, "m^3/s",
-            "Boundary streamfunction", output=True, time_dependent=False
-        )),
-        ("dpsin", Variable(
-            "Boundary streamfunction factor", ISLE + TIMESTEPS, "?",
-            "Boundary streamfunction factor", time_dependent=False
-        )),
-        ("line_psin", Variable(
-            "Boundary line integrals", ISLE + ISLE, "?",
-            "Boundary line integrals", time_dependent=False
-        )),
-        ("boundary_mask", Variable(
-            "Boundary mask", T_HOR + ISLE, "",
-            "Boundary mask", time_dependent=False
-        )),
-        ("line_dir_south_mask", Variable(
-            "Line integral mask", T_HOR + ISLE, "",
-            "Line integral mask", time_dependent=False
-        )),
-        ("line_dir_north_mask", Variable(
-            "Line integral mask", T_HOR + ISLE, "",
-            "Line integral mask", time_dependent=False
-        )),
-        ("line_dir_east_mask", Variable(
-            "Line integral mask", T_HOR + ISLE, "",
-            "Line integral mask", time_dependent=False
-        )),
-        ("line_dir_west_mask", Variable(
-            "Line integral mask", T_HOR + ISLE, "",
-            "Line integral mask", time_dependent=False
-        )),
-    ])),
-
-    ("not enable_streamfunction", OrderedDict([
-        ("surf_press", Variable("Surface pressure", T_HOR, "m^2/s^2", "Surface pressure", output=True)),
-    ])),
-
     ("enable_tempsalt_sources", OrderedDict([
         ("temp_source", Variable(
             "Source of temperature", T_GRID, "K/s",
@@ -558,28 +552,6 @@ CONDITIONAL_VARIABLES = OrderedDict([
         )),
     ])),
 
-    ("not enable_hydrostatic", OrderedDict([
-        ("p_non_hydro", Variable(
-            "Non-hydrostatic pressure", T_GRID, "m^2/s^2",
-            "Non-hydrostatic pressure", output=True
-        )),
-        ("dw", Variable(
-            "Vertical velocity tendency", W_GRID + TIMESTEPS, "m/s^2",
-            "Vertical velocity tendency"
-        )),
-        ("dw_cor", Variable(
-            "Change of w by Coriolis force", W_GRID + TIMESTEPS, "m/s^2",
-            "Change of vertical velocity due to Coriolis force"
-        )),
-        ("dw_adv", Variable(
-            "Change of w by advection", W_GRID + TIMESTEPS, "m/s^2",
-            "Change of vertical velocity due to advection"
-        )),
-        ("dw_mix", Variable(
-            "Change of w by vertical mixing", W_GRID + TIMESTEPS, "m/s^2",
-            "Change of vertical velocity due to vertical mixing"
-        )),
-    ])),
     ("enable_neutral_diffusion", OrderedDict([
         ("K_11", Variable("Isopycnal mixing coefficient", T_GRID, "?", "Isopycnal mixing tensor component")),
         ("K_13", Variable("Isopycnal mixing coefficient", T_GRID, "?", "Isopycnal mixing tensor component")),

@@ -65,6 +65,14 @@ class VerosLegacy(Veros):
         self.jp2fy = lambda j: j + self.js_pe - self.onx
         self.get_tau = lambda: self.tau - 1 if self.legacy_mode else self.tau
 
+        # force settings that are not supported by Veros
+        idm = self.fortran.idemix_module
+        m.enable_streamfunction = True
+        m.enable_hydrostatic = True
+        idm.enable_idemix_m2 = False
+        idm.enable_idemix_niw = False
+
+
     def setup(self, *args, **kwargs):
         if self.legacy_mode:
             self.fortran.my_mpi_init(0)
@@ -86,8 +94,7 @@ class VerosLegacy(Veros):
             self.set_initial_conditions()
             self.fortran.calc_initial_conditions()
             self.set_forcing()
-            if self.fortran.main_module.enable_streamfunction:
-                self.fortran.streamfunction_init()
+            self.fortran.streamfunction_init()
             self.fortran.check_isoneutral_slope_crit()
         else:
             # self.set_parameter() is called twice, but that shouldn't matter
@@ -196,8 +203,7 @@ class VerosLegacy(Veros):
                                     m.je_pe + m.onx, idm.e_iw[:, :, :, m.taup1 - 1], m.nz)
 
                 # diagnose vertical velocity at taup1
-                if m.enable_hydrostatic:
-                    f.vertical_velocity()
+                f.vertical_velocity()
 
             # shift time
             otaum1 = m.taum1 * 1

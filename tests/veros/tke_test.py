@@ -14,7 +14,6 @@ class TKETest(VerosTest):
                         "tke_mxl_choice": 2,
                         "enable_tke": True,
                         "enable_eke": True,
-                        "enable_hydrostatic": True,
                         "enable_store_cabbeling_heat": True,
                         "enable_store_bottom_friction_tke": False,
                         "enable_tke_hor_diffusion": True,

@@ -44,8 +44,6 @@ SETTINGS = OrderedDict([
     ("enable_store_cabbeling_heat", Setting(False, "transfer non-linear mixing terms to potential enthalpy, else transfer to TKE and EKE")),
 
     # External mode
-    ("enable_free_surface", Setting(False, "implicit free surface")),
-    ("enable_streamfunction", Setting(False, "solve for streamfunction instead of surface pressure")),
     ("congr_epsilon", Setting(1e-12, "convergence criteria for poisson solver")),
     ("congr_max_iterations", Setting(1000, "max. number of iterations")),
 
@@ -98,12 +96,6 @@ SETTINGS = OrderedDict([
     ("enable_tke_upwind_advection", Setting(False, "")),
     ("enable_tke_hor_diffusion", Setting(False, "")),
     ("K_h_tke", Setting(2000., "lateral diffusivity for tke")),
-
-    # Non-hydrostatic
-    ("enable_hydrostatic", Setting(True, "enable hydrostatic approximation")),
-    ("congr_itts_non_hydro", Setting(0, "number of iterations of poisson solver")),
-    ("congr_epsilon_non_hydro", Setting(1e-12, "convergence criteria for poisson solver")),
-    ("congr_max_itts_non_hydro", Setting(1000, "max. number of iterations")),
 
     # EKE
     ("enable_eke", Setting(False, "")),

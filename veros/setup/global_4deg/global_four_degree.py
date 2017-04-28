@@ -29,7 +29,6 @@ class GlobalFourDegree(VerosLegacy):
 
         m.congr_epsilon = 1e-8
         m.congr_max_iterations = 20000
-        m.enable_streamfunction = True
 
         m.enable_diag_ts_monitor = True
         m.ts_monint = 365 * 86400. / 24.

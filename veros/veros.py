@@ -24,7 +24,7 @@ import h5py
 from . import variables, settings, cli, diagnostics, time, handlers
 from .timer import Timer
 from .core import momentum, numerics, thermodynamics, eke, tke, idemix, \
-    isoneutral, external, non_hydrostatic, advection, cyclic
+    isoneutral, external, advection, cyclic
 
 
 class Veros(object):
@@ -257,8 +257,7 @@ class Veros(object):
         numerics.calc_initial_conditions(self)
 
         self.set_forcing()
-        if self.enable_streamfunction:
-            external.streamfunction_init(self)
+        external.streamfunction_init(self)
 
         logging.info("Initializing diagnostics")
         self.diagnostics = {name: Diagnostic(self)
@@ -363,8 +362,7 @@ class Veros(object):
                             if self.enable_idemix:
                                 cyclic.setcyclic_x(self.E_iw[:, :, :, self.taup1])
 
-                        if self.enable_hydrostatic:
-                            momentum.vertical_velocity(self)
+                        momentum.vertical_velocity(self)
 
                     self.flush()
 

@@ -29,7 +29,6 @@ class WavePropagation(Veros):
 
         self.congr_epsilon = 1e-6
         self.congr_max_iterations = 10000
-        self.enable_streamfunction = True
 
         self.enable_hor_friction = True
         self.A_h = 5e4

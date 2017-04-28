@@ -53,25 +53,6 @@ def explicit_vert_friction(veros):
     diss[...] = numerics.vgrid_to_tgrid(veros, diss)
     veros.K_diss_v += diss
 
-    if not veros.enable_hydrostatic:
-        """
-        vertical friction of vertical momentum
-        """
-        fxa = 0.5 * (veros.kappaM[1:-2, 1:-2, :-1] + veros.kappaM[1:-2, 1:-2, 1:])
-        veros.flux_top[1:-2, 1:-2, :-1] = fxa * (veros.w[1:-2, 1:-2, 1:, veros.tau]
-                                                 - veros.w[1:-2, 1:-2, :-1, veros.tau]) \
-            / veros.dzw[np.newaxis, np.newaxis, 1:] \
-            * veros.maskW[1:-2, 1:-2, 1:] * veros.maskW[1:-2, 1:-2, :-1]
-        veros.flux_top[:, :, -1] = 0.0
-        veros.dw_mix[:, :, 1:] = (veros.flux_top[:, :, 1:] - veros.flux_top[:, :, :-1]) \
-            / veros.dzw[np.newaxis, np.newaxis, 1:] * veros.maskW[:, :, 1:]
-        veros.dw_mix[:, :, 0] = veros.flux_top[:, :, 0] / veros.dzw[0] * veros.maskW[:, :, 0]
-
-        """
-        diagnose dissipation by vertical friction of vertical momentum
-        """
-        # to be implemented
-
 
 @veros_method
 def implicit_vert_friction(veros):
@@ -148,37 +129,6 @@ def implicit_vert_friction(veros):
     diss = numerics.vgrid_to_tgrid(veros, diss)
     veros.K_diss_v += diss
 
-    if not veros.enable_hydrostatic:
-        kss = veros.kbot[2:-2, 2:-2] - 1
-        delta[:-1, :-1, :-1] = veros.dt_mom / veros.dzt[np.newaxis, np.newaxis, :-1] * \
-            0.5 * (veros.kappaM[2:-2, 2:-2, :-1] + veros.kappaM[2:-2, 2:-2, 1:])
-        delta[:-1, :-1, -1] = 0.
-        a_tri[:-1, :-1, 1:-1] = -delta[:-1, :-1, :-2] / veros.dzw[np.newaxis, np.newaxis, 1:-1]
-        a_tri[:-1, :-1, -1] = 0.
-        b_tri_edge = 1 + delta[:-1, :-1] / veros.dzw[np.newaxis, np.newaxis, :]
-        b_tri[:-1, :-1, 1:] = 1 + delta[:-1, :-1, :-1] / veros.dzw[np.newaxis, np.newaxis, :-1]
-        b_tri[:-1, :-1, 1:-1] += delta[:-1, :-1, 1:-1] / veros.dzw[np.newaxis, np.newaxis, 1:-1]
-        c_tri[:-1, :-1, :-1] = - delta[:-1, :-1, :-1] / veros.dzw[np.newaxis, np.newaxis, :-1]
-        c_tri[:-1, :-1, -1] = 0.
-        d_tri[:-1, :-1] = veros.w[2:-2, 2:-2, :, veros.tau]
-        res, mask = utilities.solve_implicit(
-            veros, kss, a_tri[:-1, :-1], b_tri[:-1, :-1], c_tri[:-1, :-1], d_tri[:-1, :-1], b_edge=b_tri_edge)
-        veros.w[2:-2, 2:-2, :,
-                veros.taup1] = np.where(mask, res, veros.w[2:-2, 2:-2, :, veros.taup1])
-        veros.dw_mix[2:-2, 2:-2] = (veros.w[2:-2, 2:-2, :, veros.taup1] -
-                                    veros.w[2:-2, 2:-2, :, veros.tau]) / veros.dt_mom
-
-        """
-        diagnose dissipation by vertical friction of vertical momentum
-        """
-        fxa = 0.5 * (veros.kappaM[1:-2, 1:-2, :-1] + veros.kappaM[1:-2, 1:-2, 1:])
-        veros.flux_top[1:-2, 1:-2, :-1] = fxa * (veros.w[1:-2, 1:-2, 1:, veros.taup1] - veros.w[1:-2, 1:-2, :-1, veros.taup1]) \
-            / veros.dzt[1:] * veros.maskW[1:-2, 1:-2, 1:] * veros.maskW[1:-2, 1:-2, :-1]
-        diss[1:-2, 1:-2, :-1] = (veros.w[1:-2, 1:-2, 1:, veros.tau] - veros.w[1:-2,
-                                                                              1:-2, :-1, veros.tau]) * veros.flux_top[1:-2, 1:-2, :-1] / veros.dzt[1:]
-        diss[:, :, -1] = 0.0
-        veros.K_diss_v += diss
-
 
 @veros_method
 def rayleigh_friction(veros):
@@ -194,8 +144,6 @@ def rayleigh_friction(veros):
     if veros.enable_conserve_energy:
         diss = veros.maskV * veros.r_ray * veros.v[..., veros.tau]**2
         veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'V')
-    if not veros.enable_hydrostatic:
-        raise NotImplementedError("Rayleigh friction for vertical velocity not implemented")
 
 
 @veros_method
@@ -251,9 +199,6 @@ def linear_bottom_friction(veros):
                 veros.v[2:-2, 1:-2, :, veros.tau]**2 * mask
             veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'V')
 
-    if not veros.enable_hydrostatic:
-        raise NotImplementedError("bottom friction for vertical velocity not implemented")
-
 
 @veros_method
 def quadratic_bottom_friction(veros):
@@ -291,9 +236,6 @@ def quadratic_bottom_friction(veros):
         diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
         diss[2:-2, 1:-2, :] = aloc * veros.v[2:-2, 1:-2, :, veros.tau]
         veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'V')
-
-    if not veros.enable_hydrostatic:
-        raise NotImplementedError("bottom friction for vertical velocity not implemented")
 
 
 @veros_method
@@ -381,31 +323,6 @@ def harmonic_friction(veros):
             / (veros.cosu[1:-2] * veros.dyu[1:-2])[np.newaxis, :, np.newaxis]
         veros.K_diss_h[...] = numerics.calc_diss(veros, diss, veros.K_diss_h, 'V')
 
-    if not veros.enable_hydrostatic:
-        if veros.enable_hor_friction_cos_scaling:
-            raise NotImplementedError(
-                "scaling of lateral friction for vertical velocity not implemented")
-
-        veros.flux_east[:-1] = veros.A_h * (veros.w[1:, :, :, veros.tau] - veros.w[:-1, :, :, veros.tau]) \
-            / (veros.cost * veros.dxu[:, np.newaxis])[:, :, np.newaxis] * veros.maskW[1:] * veros.maskW[:-1]
-        veros.flux_north[:, :-1] = veros.A_h * (veros.w[:, 1:, :, veros.tau] - veros.w[:, :-1, :, veros.tau]) \
-            / veros.dyu[np.newaxis, :-1, np.newaxis] * veros.maskW[:, 1:] * veros.maskW[:, :-1] * veros.cosu[np.newaxis, :-1, np.newaxis]
-        veros.flux_east[-1, :, :] = 0.
-        veros.flux_north[:, -1, :] = 0.
-
-        """
-        update tendency
-        """
-        veros.dw_mix[2:-2, 2:-2] += veros.maskW[2:-2, 2:-2] * ((veros.flux_east[2:-2, 2:-2] - veros.flux_east[1:-3, 2:-2])
-                                                               / (veros.cost[2:-2] * veros.dxt[2:-2, np.newaxis])[:, :, np.newaxis]
-                                                               + (veros.flux_north[2:-2, 2:-2] - veros.flux_north[2:-2, 1:-3])
-                                                               / (veros.dyt[2:-2] * veros.cost[2:-2])[np.newaxis, :, np.newaxis])
-
-        """
-        diagnose dissipation by lateral friction
-        """
-        # to be implemented
-
 
 @veros_method
 def biharmonic_friction(veros):
@@ -413,9 +330,6 @@ def biharmonic_friction(veros):
     horizontal biharmonic friction
     dissipation is calculated and added to K_diss_h
     """
-    if not veros.enable_hydrostatic:
-        raise NotImplementedError("biharmonic mixing for non-hydrostatic case not yet implemented")
-
     fxa = math.sqrt(abs(veros.A_hbi))
 
     """

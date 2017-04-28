@@ -9,7 +9,6 @@ class FrictionTest(VerosTest):
     nx, ny, nz = 70, 60, 50
     extra_settings = {
                         "enable_cyclic_x": True,
-                        "enable_hydrostatic": True, # False
                         "enable_conserve_energy": True,
                         "enable_bottom_friction_var": True,
                         "enable_hor_friction_cos_scaling": True,
