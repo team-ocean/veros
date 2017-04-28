@@ -5,12 +5,14 @@ def setcyclic_x(array):
     array[-2:, ...] = array[2:4, ...]
     array[:2, ...] = array[-4:-2, ...]
 
+
 def setcyclic_p(array):
     """
     set cyclic boundary conditions on the third axis
     """
-    array[:,:,1] = array[:,:,-2]
-    array[:,:,-1] = array[:,:,2]
+    array[:, :, 1] = array[:, :, -2]
+    array[:, :, -1] = array[:, :, 2]
+
 
 def setcyclic_xp(array):
     """

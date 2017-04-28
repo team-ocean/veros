@@ -11,6 +11,7 @@ netCDF output is designed to follow the COARDS guidelines from
 http://ferret.pmel.noaa.gov/Ferret/documentation/coards-netcdf-conventions
 """
 
+
 @veros_method
 def initialize_file(veros, ncfile, create_time_dimension=True):
     """
@@ -28,14 +29,16 @@ def initialize_file(veros, ncfile, create_time_dimension=True):
 
     if create_time_dimension:
         nc_dim_time = ncfile.createDimension("Time", None)
-        nc_dim_var_time = ncfile.createVariable("Time","f8",("Time",))
+        nc_dim_var_time = ncfile.createVariable("Time", "f8", ("Time",))
         nc_dim_var_time.long_name = "Time"
         nc_dim_var_time.units = "days"
         nc_dim_var_time.time_origin = "01-JAN-1900 00:00:00"
 
+
 @veros_method
 def add_dimension(veros, identifier, size, ncfile):
     return ncfile.createDimension(identifier, size)
+
 
 @veros_method
 def initialize_variable(veros, key, var, ncfile):
@@ -47,26 +50,29 @@ def initialize_variable(veros, key, var, ncfile):
         return
     # transpose all dimensions in netCDF output (convention in most ocean models)
     v = ncfile.createVariable(key, var.dtype, dims[::-1],
-                             fill_value=variables.FILL_VALUE,
-                             zlib=veros.enable_netcdf_zlib_compression)
+                              fill_value=variables.FILL_VALUE,
+                              zlib=veros.enable_netcdf_zlib_compression)
     v.long_name = var.name
     v.units = var.units
     v.missing_value = variables.FILL_VALUE
     for extra_key, extra_attr in var.extra_attributes.items():
         setattr(v, extra_key, extra_attr)
 
+
 @veros_method
 def get_current_timestep(veros, ncfile):
     return len(ncfile.dimensions["Time"])
+
 
 @veros_method
 def advance_time(veros, time_step, time_value, ncfile):
     ncfile.variables["Time"][time_step] = time_value
 
+
 @veros_method
 def write_variable(veros, key, var, var_data, ncfile, time_step=None):
-    gridmask = variables.get_grid_mask(veros,var.dims)
-    if not gridmask is None:
+    gridmask = variables.get_grid_mask(veros, var.dims)
+    if gridmask is not None:
         newaxes = (slice(None),) * gridmask.ndim + (np.newaxis,) * (var_data.ndim - gridmask.ndim)
         var_data = np.where(gridmask.astype(np.bool)[newaxes], var_data, variables.FILL_VALUE)
     if not np.isscalar(var_data):
@@ -85,6 +91,7 @@ def write_variable(veros, key, var, var_data, ncfile, time_step=None):
             ncfile.variables[key][...] = var_data.copy2numpy()
         except AttributeError:
             ncfile.variables[key][...] = var_data
+
 
 @veros_method
 @contextlib.contextmanager
@@ -105,14 +112,18 @@ def threaded_io(veros, filepath, mode):
         else:
             _write_to_disk(veros, nc_dataset, filepath)
 
+
 _io_locks = {}
+
+
 def _add_to_locks(file_id):
     """
     If there is no lock for file_id, create one
     """
-    if not file_id in _io_locks:
+    if file_id not in _io_locks:
         _io_locks[file_id] = threading.Event()
         _io_locks[file_id].set()
+
 
 def _wait_for_disk(veros, file_id):
     """
@@ -124,6 +135,7 @@ def _wait_for_disk(veros, file_id):
     if not lock_released:
         raise RuntimeError("Timeout while waiting for disk IO to finish")
 
+
 def _write_to_disk(veros, ncfile, file_id):
     """
     Sync netCDF data to disk, close file handle, and release lock.
@@ -131,5 +143,5 @@ def _write_to_disk(veros, ncfile, file_id):
     """
     ncfile.sync()
     ncfile.close()
-    if veros.use_io_threads and not file_id is None:
+    if veros.use_io_threads and file_id is not None:
         _io_locks[file_id].set()

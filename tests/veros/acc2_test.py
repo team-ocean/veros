@@ -50,7 +50,7 @@ class ACC2Test(VerosTest):
             self.veros_new.setup()
             self.veros_legacy.setup()
         else:
-            self.veros_new.run(runlen = self.timesteps * 86400. / 2)
+            self.veros_new.run(runlen = self.timesteps * 86400. / 2, snapint=1e10)
             self.veros_legacy.run(runlen = self.timesteps * 86400. / 2, snapint=1e10)
         return self._check_all_objects()
 

@@ -6,9 +6,11 @@ try:
     import bohrium as bh
     flush = bh.flush
 except ImportError:
-    flush = lambda: None
+    def flush():
+        return None
 
 import time
+
 
 class Timer:
     def __init__(self, name):
@@ -25,13 +27,13 @@ class Timer:
 
     def printTime(self):
         self._check_if_active()
-        totalTime = sum([self.ends[i] - self.starts[i] for i in xrange(len(self.starts))])
-        print "[%s]:" % self.name, totalTime, "s"
+        total_time = sum([self.ends[i] - self.starts[i] for i in range(len(self.starts))])
+        print("[{}]: {}s".format(self.name, total_time))
 
     def getTime(self):
         self._check_if_active()
-        totalTime = sum([self.ends[i] - self.starts[i] for i in xrange(len(self.starts))])
-        return totalTime
+        total_time = sum([self.ends[i] - self.starts[i] for i in range(len(self.starts))])
+        return total_time
 
     def getLastTime(self):
         self._check_if_active()

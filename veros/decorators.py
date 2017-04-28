@@ -2,8 +2,10 @@ import functools
 import signal
 import logging
 
+
 def veros_class_method(function):
     return _veros_method(function, True, 1)
+
 
 def veros_method(function):
     """Decorator that injects the current backend as variable ``np`` into the wrapped function.
@@ -24,12 +26,15 @@ def veros_method(function):
     """
     return _veros_method(function, True)
 
+
 def veros_inline_method(function):
     return _veros_method(function, False)
+
 
 def _veros_method(function, flush_on_exit, narg=0):
     import veros
     _veros_method.methods.append(function)
+
     @functools.wraps(function)
     def veros_method_wrapper(*args, **kwargs):
         veros_instance = args[narg]
@@ -52,28 +57,41 @@ def _veros_method(function, flush_on_exit, narg=0):
             veros_instance.flush()
         return res
     return veros_method_wrapper
+
+
 _veros_method.methods = []
 
-def do_not_disturb(function):
-    """Decorator that catches SIGINT signals (e.g. after keyboard interrupt) and
-    makes sure that the function body is executed before exiting.
 
-    Useful for ensuring that output files are written properly.
+def do_not_disturb(function):
+    """Decorator that catches SIGINT and SIGTERM signals (e.g. after keyboard interrupt)
+    and makes sure that the function body is executed before exiting.
+
+    Useful e.g. for ensuring that output files are written properly.
     """
+    signals = (signal.SIGINT, signal.SIGTERM)
+
     @functools.wraps(function)
     def dnd_wrapper(*args, **kwargs):
         signal_received = {"sig": None, "frame": None}
+
         def handler(sig, frame):
             signal_received["sig"] = sig
             signal_received["frame"] = frame
-            logging.error("interrupt received - cleaning up before exit")
-        old_handler = signal.getsignal(signal.SIGINT)
-        signal.signal(signal.SIGINT, handler)
+            logging.error("{} received - cleaning up before exit".format(sig))
+
+        old_handlers = {s: signal.getsignal(s) for s in signals}
+        for s in signals:
+            signal.signal(s, handler)
+
         try:
             res = function(*args, **kwargs)
+
         finally:
-            signal.signal(signal.SIGINT, old_handler)
+            for s in signals:
+                signal.signal(s, old_handlers[s])
             if not signal_received["sig"] is None:
-                old_handler(signal_received["sig"], signal_received["frame"])
+                old_handlers[sig](signal_received["sig"], signal_received["frame"])
+
         return res
+
     return dnd_wrapper

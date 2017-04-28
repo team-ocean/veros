@@ -7,6 +7,7 @@ import scipy.ndimage
 from veros import Veros, veros_method, tools, time
 from veros.core import cyclic
 
+
 class NorthAtlantic(Veros):
     """ Inspired by
     http://journals.ametsoc.org/doi/10.1175/1520-0485%282000%29030%3C1532%3ANSOTNA%3E2.0.CO%3B2
@@ -16,7 +17,7 @@ class NorthAtlantic(Veros):
     def set_parameter(self):
         """set main parameter
         """
-        self.nx, self.ny, self.nz = 250, 200, 50
+        self.nx, self.ny, self.nz = 250, 350, 50
         self.x_origin = -98.
         self.y_origin = -18.
         self._x_boundary = 17.2
@@ -32,14 +33,13 @@ class NorthAtlantic(Veros):
 
         self.congr_epsilon = 1e-10
         self.congr_max_iterations = 20000
-        self.enable_streamfunction = True
 
         self.enable_neutral_diffusion = True
         self.enable_skew_diffusion = True
         self.K_iso_0 = 1000.0
         self.K_iso_steep = 200.0
-        self.iso_dslope = 1./1000.0
-        self.iso_slopec = 4./1000.0
+        self.iso_dslope = 1. / 1000.0
+        self.iso_slopec = 4. / 1000.0
 
         self.enable_hor_friction = True
         self.A_h = 1e3
@@ -69,42 +69,47 @@ class NorthAtlantic(Veros):
         self.dzt[...] = tools.gaussian_spacing(self.nz, self._max_depth, min_spacing=10.)[::-1]
 
     def set_coriolis(self):
-        self.coriolis_t[:,:] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
+        self.coriolis_t[:, :] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
     def set_topography(self):
-        with Dataset("ETOPO1_Bed_g_gmt4_NA.nc","r") as topography_file:
-            topo_x, topo_y, topo_bottom_depth = (topography_file.variables[k][...].T for k in ("x","y","z"))
+        with Dataset("ETOPO1_Bed_g_gmt4_NA.nc", "r") as topography_file:
+            topo_x, topo_y, topo_bottom_depth = (
+                topography_file.variables[k][...].T for k in ("x", "y", "z"))
         topo_mask = np.flipud(np.asarray(Image.open("topo_mask.png"))).T
         topo_bottom_depth *= 1 - topo_mask
-        topo_bottom_depth = scipy.ndimage.gaussian_filter(topo_bottom_depth, sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny))
+        topo_bottom_depth = scipy.ndimage.gaussian_filter(
+            topo_bottom_depth, sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny))
         interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
-        interp_coords = np.rollaxis(np.asarray(interp_coords),0,3)
+        interp_coords = np.rollaxis(np.asarray(interp_coords), 0, 3)
         z_interp = scipy.interpolate.interpn((topo_x, topo_y), topo_bottom_depth, interp_coords,
-                                              method="nearest", bounds_error=False, fill_value=0)
-        self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] \
-                                                     - self.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
+                                             method="nearest", bounds_error=False, fill_value=0)
+        self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis]
+                                                                             - self.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
         self.kbot *= self.kbot < self.nz
 
     def set_initial_conditions(self):
         with Dataset("forcing.nc", "r") as forcing_file:
             t_hor = (self.xt[2:-2], self.yt[2:-2])
             t_grid = (self.xt[2:-2], self.yt[2:-2], self.zt)
-            forc_coords = [forcing_file.variables[k][...].T for k in ("xt","yt","zt")]
+            forc_coords = [forcing_file.variables[k][...].T for k in ("xt", "yt", "zt")]
             forc_coords[0][...] += -360
             forc_coords[2][...] = -0.01 * forc_coords[2][::-1]
-            temp = tools.interpolate(forc_coords, forcing_file.variables["temp_ic"][::-1, ...].T, t_grid, missing_value=-1e20)
+            temp = tools.interpolate(
+                forc_coords, forcing_file.variables["temp_ic"][::-1, ...].T, t_grid, missing_value=-1e20)
             self.temp[2:-2, 2:-2, :, self.tau] = self.maskT[2:-2, 2:-2, :] * temp
-            salt = 35. + 1000 * tools.interpolate(forc_coords, forcing_file.variables["salt_ic"][::-1, ...].T, t_grid, missing_value=-1e20)
+            salt = 35. + 1000 * \
+                tools.interpolate(
+                    forc_coords, forcing_file.variables["salt_ic"][::-1, ...].T, t_grid, missing_value=-1e20)
             self.salt[2:-2, 2:-2, :, self.tau] = self.maskT[2:-2, 2:-2, :] * salt
 
-            self._taux = np.zeros((self.nx+4, self.ny+4, 12))
-            self._tauy = np.zeros((self.nx+4, self.ny+4, 12))
-            forc_u_coords_hor = [forcing_file.variables[k][...].T for k in ("xu","yu")]
+            self._taux = np.zeros((self.nx + 4, self.ny + 4, 12))
+            self._tauy = np.zeros((self.nx + 4, self.ny + 4, 12))
+            forc_u_coords_hor = [forcing_file.variables[k][...].T for k in ("xu", "yu")]
             forc_u_coords_hor[0][...] += -360
-            for k in xrange(12):
-                self._taux[2:-2, 2:-2, k] = tools.interpolate(forc_u_coords_hor, forcing_file.variables["taux"][k,...].T,
+            for k in range(12):
+                self._taux[2:-2, 2:-2, k] = tools.interpolate(forc_u_coords_hor, forcing_file.variables["taux"][k, ...].T,
                                                               t_hor, missing_value=-1e20) / 10. / self.rho_0
-                self._tauy[2:-2, 2:-2, k] = tools.interpolate(forc_u_coords_hor, forcing_file.variables["tauy"][k,...].T,
+                self._tauy[2:-2, 2:-2, k] = tools.interpolate(forc_u_coords_hor, forcing_file.variables["tauy"][k, ...].T,
                                                               t_hor, missing_value=-1e20) / 10. / self.rho_0
 
             for t in (self._taux, self._tauy):
@@ -112,74 +117,83 @@ class NorthAtlantic(Veros):
                     cyclic.setcyclic_x(t)
 
             # heat flux and salinity restoring
-            self._sst_clim = np.zeros((self.nx+4, self.ny+4, 12))
-            self._sss_clim = np.zeros((self.nx+4, self.ny+4, 12))
-            self._sst_rest = np.zeros((self.nx+4, self.ny+4, 12))
-            self._sss_rest = np.zeros((self.nx+4, self.ny+4, 12))
+            self._sst_clim = np.zeros((self.nx + 4, self.ny + 4, 12))
+            self._sss_clim = np.zeros((self.nx + 4, self.ny + 4, 12))
+            self._sst_rest = np.zeros((self.nx + 4, self.ny + 4, 12))
+            self._sss_rest = np.zeros((self.nx + 4, self.ny + 4, 12))
 
-            sst_clim, sss_clim, sst_rest, sss_rest = [forcing_file.variables[k][...].T for k in ("sst_clim","sss_clim","sst_rest","sss_rest")]
-            for k in xrange(12):
-                self._sst_clim[2:-2, 2:-2, k] = tools.interpolate(forc_coords[:-1], sst_clim[...,k], t_hor, missing_value=-1e20)
-                self._sss_clim[2:-2, 2:-2, k] = tools.interpolate(forc_coords[:-1], sss_clim[...,k], t_hor, missing_value=-1e20) * 1000 + 35
-                self._sst_rest[2:-2, 2:-2, k] = tools.interpolate(forc_coords[:-1], sst_rest[...,k], t_hor, missing_value=-1e20) * 41868.
-                self._sss_rest[2:-2, 2:-2, k] = tools.interpolate(forc_coords[:-1], sss_rest[...,k], t_hor, missing_value=-1e20) / 100.
+            sst_clim, sss_clim, sst_rest, sss_rest = [
+                forcing_file.variables[k][...].T for k in ("sst_clim", "sss_clim", "sst_rest", "sss_rest")]
+            for k in range(12):
+                self._sst_clim[2:-2, 2:-2, k] = tools.interpolate(
+                    forc_coords[:-1], sst_clim[..., k], t_hor, missing_value=-1e20)
+                self._sss_clim[2:-2, 2:-2, k] = tools.interpolate(
+                    forc_coords[:-1], sss_clim[..., k], t_hor, missing_value=-1e20) * 1000 + 35
+                self._sst_rest[2:-2, 2:-2, k] = tools.interpolate(
+                    forc_coords[:-1], sst_rest[..., k], t_hor, missing_value=-1e20) * 41868.
+                self._sss_rest[2:-2, 2:-2, k] = tools.interpolate(
+                    forc_coords[:-1], sss_rest[..., k], t_hor, missing_value=-1e20) / 100.
 
         with Dataset("restoring_zone.nc", "r") as restoring_file:
-            rest_coords = [restoring_file.variables[k][...].T for k in ("xt","yt","zt")]
+            rest_coords = [restoring_file.variables[k][...].T for k in ("xt", "yt", "zt")]
             rest_coords[0][...] += -360
 
             # sponge layers
-            self._t_star = np.zeros((self.nx+4, self.ny+4, self.nz, 12))
-            self._s_star = np.zeros((self.nx+4, self.ny+4, self.nz, 12))
-            self._rest_tscl = np.zeros((self.nx+4, self.ny+4, self.nz))
+            self._t_star = np.zeros((self.nx + 4, self.ny + 4, self.nz, 12))
+            self._s_star = np.zeros((self.nx + 4, self.ny + 4, self.nz, 12))
+            self._rest_tscl = np.zeros((self.nx + 4, self.ny + 4, self.nz))
 
-            self._rest_tscl[2:-2, 2:-2, :] = tools.interpolate(rest_coords, restoring_file.variables["tscl"][0, ...].T, t_grid)
-            for k in xrange(12):
-                self._t_star[2:-2, 2:-2, :, k] = tools.interpolate(rest_coords, restoring_file.variables["t_star"][k,...].T, t_grid, missing_value=0.)
-                self._s_star[2:-2, 2:-2, :, k] = tools.interpolate(rest_coords, restoring_file.variables["s_star"][k,...].T, t_grid, missing_value=0.)
+            self._rest_tscl[2:-2, 2:-2, :] = tools.interpolate(
+                rest_coords, restoring_file.variables["tscl"][0, ...].T, t_grid)
+            for k in range(12):
+                self._t_star[2:-2, 2:-2, :, k] = tools.interpolate(
+                    rest_coords, restoring_file.variables["t_star"][k, ...].T, t_grid, missing_value=0.)
+                self._s_star[2:-2, 2:-2, :, k] = tools.interpolate(
+                    rest_coords, restoring_file.variables["s_star"][k, ...].T, t_grid, missing_value=0.)
 
         if self.enable_idemix:
             f = np.load("tidal_energy.npy") / self.rho_0
             self.forc_iw_bottom[2:-2, 2:-2] = tools.interpolate(forc_coords[:-1], f, t_hor)
             f = np.load("wind_energy.npy") / self.rho_0 * 0.2
-            self.forc_iw_surface[2:-2,2:-2] = tools.interpolate(forc_coords[:-1], f, t_hor)
+            self.forc_iw_surface[2:-2, 2:-2] = tools.interpolate(forc_coords[:-1], f, t_hor)
 
     @veros_method
     def set_forcing(self):
         year_in_seconds = 360 * 86400.0
-        (n1,f1), (n2,f2) = tools.get_periodic_interval(time.current_time(self, "seconds"), year_in_seconds, year_in_seconds / 12., 12)
+        (n1, f1), (n2, f2) = tools.get_periodic_interval(time.current_time(
+            self, "seconds"), year_in_seconds, year_in_seconds / 12., 12)
 
-        self.surface_taux[...] = (f1 * self._taux[:,:,n1] + f2 * self._taux[:,:,n2])
-        self.surface_tauy[...] = (f1 * self._tauy[:,:,n1] + f2 * self._tauy[:,:,n2])
+        self.surface_taux[...] = (f1 * self._taux[:, :, n1] + f2 * self._taux[:, :, n2])
+        self.surface_tauy[...] = (f1 * self._tauy[:, :, n1] + f2 * self._tauy[:, :, n2])
 
         if self.enable_tke:
-            self.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (self.surface_taux[1:-1,1:-1] + self.surface_taux[:-2,1:-1]))**2 \
-                                                     + (0.5 * (self.surface_tauy[1:-1,1:-1] + self.surface_tauy[1:-1,:-2]))**2 \
-                                                     ) ** (3./2.)
+            self.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (self.surface_taux[1:-1, 1:-1] + self.surface_taux[:-2, 1:-1]))**2
+                                                        + (0.5 * (self.surface_tauy[1:-1, 1:-1] + self.surface_tauy[1:-1, :-2]))**2
+                                                        ) ** (3. / 2.)
         cp_0 = 3991.86795711963
-        self.forc_temp_surface[...] = (f1 * self._sst_rest[:,:,n1] + f2 * self._sst_rest[:,:,n2]) * \
-                                      (f1 * self._sst_clim[:,:,n1] + f2 * self._sst_clim[:,:,n2] \
-                                        - self.temp[:,:,-1,self.tau]) * self.maskT[:,:,-1] / cp_0 / self.rho_0
-        self.forc_salt_surface[...] = (f1 * self._sss_rest[:,:,n1] + f2 * self._sss_rest[:,:,n2]) * \
-                                      (f1 * self._sss_clim[:,:,n1] + f2 * self._sss_clim[:,:,n2] \
-                                        - self.salt[:,:,-1,self.tau]) * self.maskT[:,:,-1]
+        self.forc_temp_surface[...] = (f1 * self._sst_rest[:, :, n1] + f2 * self._sst_rest[:, :, n2]) * \
+                                      (f1 * self._sst_clim[:, :, n1] + f2 * self._sst_clim[:, :, n2]
+                                       - self.temp[:, :, -1, self.tau]) * self.maskT[:, :, -1] / cp_0 / self.rho_0
+        self.forc_salt_surface[...] = (f1 * self._sss_rest[:, :, n1] + f2 * self._sss_rest[:, :, n2]) * \
+                                      (f1 * self._sss_clim[:, :, n1] + f2 * self._sss_clim[:, :, n2]
+                                       - self.salt[:, :, -1, self.tau]) * self.maskT[:, :, -1]
 
-        ice_mask = (self.temp[:,:,-1,self.tau] * self.maskT[:,:,-1] <= -1.8) & (self.forc_temp_surface <= 0.0)
+        ice_mask = (self.temp[:, :, -1, self.tau] * self.maskT[:, :, -1] <= -1.8) & (self.forc_temp_surface <= 0.0)
         self.forc_temp_surface[...] *= ~ice_mask
         self.forc_salt_surface[...] *= ~ice_mask
 
         if self.enable_tempsalt_sources:
             self.temp_source[...] = self.maskT * self._rest_tscl \
-                                * (f1 * self._t_star[:,:,:,n1] + f2 * self._t_star[:,:,:,n2] - self.temp[:,:,:,self.tau])
+                * (f1 * self._t_star[:, :, :, n1] + f2 * self._t_star[:, :, :, n2] - self.temp[:, :, :, self.tau])
             self.salt_source[...] = self.maskT * self._rest_tscl \
-                                * (f1 * self._s_star[:,:,:,n1] + f2 * self._s_star[:,:,:,n2] - self.salt[:,:,:,self.tau])
+                * (f1 * self._s_star[:, :, :, n1] + f2 * self._s_star[:, :, :, n2] - self.salt[:, :, :, self.tau])
 
     def set_diagnostics(self):
         self.diagnostics["snapshot"].output_frequency = 3600. * 24 * 10
         self.diagnostics["averages"].output_frequency = 3600. * 24 * 10
         self.diagnostics["averages"].sampling_frequency = self.dt_tracer
         self.diagnostics["averages"].output_variables = ["temp", "salt", "u", "v", "w",
-                                                        "surface_taux", "surface_tauy", "psi"]
+                                                         "surface_taux", "surface_tauy", "psi"]
         self.diagnostics["cfl_monitor"].output_frequency = self.dt_tracer * 10
 
 

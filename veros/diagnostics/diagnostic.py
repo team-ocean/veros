@@ -9,6 +9,7 @@ from ..decorators import veros_class_method, veros_method, do_not_disturb
 from ..variables import Variable
 from .. import time
 
+
 class VerosDiagnostic(object):
     """Base class for diagnostics. Provides an interface and wrappers for common I/O.
 
@@ -59,10 +60,10 @@ class VerosDiagnostic(object):
                 for dim_id, size in extra_dimensions.items():
                     nctools.add_dimension(veros, dim_id, size, outfile)
             for key, var in variables.items():
-                if not key in outfile.variables:
+                if key not in outfile.variables:
                     nctools.initialize_variable(veros, key, var, outfile)
                 if not var.time_dependent:
-                    if var_data is None or not key in var_data:
+                    if var_data is None or key not in var_data:
                         raise ValueError("var_data argument must be given for constant variables")
                     nctools.write_variable(veros, key, var, var_data[key], outfile)
 
@@ -74,7 +75,7 @@ class VerosDiagnostic(object):
             nctools.advance_time(veros, time_step, time.current_time(veros, "days"), outfile)
             for key, var in variables.items():
                 nctools.write_variable(veros, key, var, variable_data[key],
-                                        outfile, time_step=time_step)
+                                       outfile, time_step=time_step)
 
     @veros_class_method
     def get_restart_input_file_name(self, veros):
@@ -94,9 +95,11 @@ class VerosDiagnostic(object):
         if not os.path.isfile(restart_filename):
             raise IOError("restart file {} not found".format(restart_filename))
 
-        logging.info("reading restart data for diagnostic {} from {}".format(self.diagnostic_name, restart_filename))
+        logging.info("reading restart data for diagnostic {} from {}".format(
+            self.diagnostic_name, restart_filename))
         with h5tools.threaded_io(veros, restart_filename, "r") as infile:
-            variables = {key: np.array(var[...]) for key, var in infile[self.diagnostic_name].items()}
+            variables = {key: np.array(var[...])
+                         for key, var in infile[self.diagnostic_name].items()}
             attributes = {key: var for key, var in infile[self.diagnostic_name].attrs.items()}
         return attributes, variables
 

@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 from . import veros_method
 
+
 class Variable:
     def __init__(self, name, dims, units, long_description, dtype=None,
                  output=False, time_dependent=True, scale=1.,
@@ -15,7 +16,8 @@ class Variable:
         self.time_dependent = time_dependent
         self.scale = scale
         self.write_to_restart = write_to_restart
-        self.extra_attributes = extra_attributes or {} #: Additional attributes to be written in netCDF output
+        # : Additional attributes to be written in netCDF output
+        self.extra_attributes = extra_attributes or {}
 
 
 # fill value for netCDF output (invalid data is replaced by this value)
@@ -28,20 +30,21 @@ YT = ("yt",)
 YU = ("yu",)
 ZT = ("zt",)
 ZW = ("zw",)
-T_HOR = ("xt","yt")
-U_HOR = ("xu","yt")
-V_HOR = ("xt","yu")
-ZETA_HOR = ("xu","yu")
-T_GRID = ("xt","yt","zt")
-U_GRID = ("xu","yt","zt")
-V_GRID = ("xt","yu","zt")
-W_GRID = ("xt","yt","zw")
-ZETA_GRID = ("xu","yu","zt")
+T_HOR = ("xt", "yt")
+U_HOR = ("xu", "yt")
+V_HOR = ("xt", "yu")
+ZETA_HOR = ("xu", "yu")
+T_GRID = ("xt", "yt", "zt")
+U_GRID = ("xu", "yt", "zt")
+V_GRID = ("xt", "yu", "zt")
+W_GRID = ("xt", "yt", "zw")
+ZETA_GRID = ("xu", "yu", "zt")
 TIMESTEPS = ("timesteps",)
+ISLE = ("isle",)
 TENSOR_COMP = ("tensor1", "tensor2")
-NP = ("np",)
-#
-BASE_DIMENSIONS = XT + XU + YT + YU + ZT + ZW
+
+# those are written to netCDF output by default
+BASE_DIMENSIONS = XT + XU + YT + YU + ZT + ZW + ISLE
 GHOST_DIMENSIONS = ("xt", "yt", "xu", "yu")
 
 
@@ -56,7 +59,7 @@ def get_dimensions(veros, grid, include_ghosts=True):
         "timesteps": 3,
         "tensor1": 2,
         "tensor2": 2,
-        "np": veros.np,
+        "isle": veros.nisle,
     }
     if include_ghosts:
         for d in GHOST_DIMENSIONS:
@@ -65,24 +68,26 @@ def get_dimensions(veros, grid, include_ghosts=True):
 
 
 def remove_ghosts(array, dims):
-    ghost_mask = tuple(slice(2,-2) if dim in GHOST_DIMENSIONS else slice(None) for dim in dims)
+    ghost_mask = tuple(slice(2, -2) if dim in GHOST_DIMENSIONS else slice(None) for dim in dims)
     return array[ghost_mask]
+
 
 @veros_method
 def add_ghosts(veros, array, dims):
-    full_shape = tuple([i+4 if dim in GHOST_DIMENSIONS else i for i, dim in zip(array.shape, dims)])
+    full_shape = tuple([i + 4 if dim in GHOST_DIMENSIONS else i for i,
+                        dim in zip(array.shape, dims)])
     newarr = np.zeros(full_shape)
-    ghost_mask = tuple(slice(2,-2) if dim in GHOST_DIMENSIONS else slice(None) for dim in dims)
+    ghost_mask = tuple(slice(2, -2) if dim in GHOST_DIMENSIONS else slice(None) for dim in dims)
     newarr[ghost_mask] = array
     return newarr
 
 
 def get_grid_mask(veros, grid):
     masks = {
-        T_HOR: veros.maskT[:,:,-1],
-        U_HOR: veros.maskU[:,:,-1],
-        V_HOR: veros.maskV[:,:,-1],
-        ZETA_HOR: veros.maskZ[:,:,-1],
+        T_HOR: veros.maskT[:, :, -1],
+        U_HOR: veros.maskU[:, :, -1],
+        V_HOR: veros.maskV[:, :, -1],
+        ZETA_HOR: veros.maskZ[:, :, -1],
         T_GRID: veros.maskT,
         U_GRID: veros.maskU,
         V_GRID: veros.maskV,
@@ -364,6 +369,50 @@ MAIN_VARIABLES = OrderedDict([
         "Surface density flux", T_HOR, "?", "Surface potential density flux", output=True
     )),
 
+    ("psi", Variable(
+        "Streamfunction", ZETA_HOR + TIMESTEPS, "m^3/s", "Streamfunction",
+        output=True, write_to_restart=True
+    )),
+    ("dpsi", Variable(
+        "Streamfunction tendency", ZETA_HOR + TIMESTEPS, "m^3/s^2",
+        "Streamfunction tendency", write_to_restart=True
+    )),
+    ("isle", Variable(
+        "Island number", ISLE, "", "Island number", output=True
+    )),
+    ("psin", Variable(
+        "Boundary streamfunction", ZETA_HOR + ISLE, "m^3/s",
+        "Boundary streamfunction", output=True, time_dependent=False
+    )),
+    ("dpsin", Variable(
+        "Boundary streamfunction factor", ISLE + TIMESTEPS, "?",
+        "Boundary streamfunction factor", time_dependent=False
+    )),
+    ("line_psin", Variable(
+        "Boundary line integrals", ISLE + ISLE, "?",
+        "Boundary line integrals", time_dependent=False
+    )),
+    ("boundary_mask", Variable(
+        "Boundary mask", T_HOR + ISLE, "",
+        "Boundary mask", time_dependent=False
+    )),
+    ("line_dir_south_mask", Variable(
+        "Line integral mask", T_HOR + ISLE, "",
+        "Line integral mask", time_dependent=False
+    )),
+    ("line_dir_north_mask", Variable(
+        "Line integral mask", T_HOR + ISLE, "",
+        "Line integral mask", time_dependent=False
+    )),
+    ("line_dir_east_mask", Variable(
+        "Line integral mask", T_HOR + ISLE, "",
+        "Line integral mask", time_dependent=False
+    )),
+    ("line_dir_west_mask", Variable(
+        "Line integral mask", T_HOR + ISLE, "",
+        "Line integral mask", time_dependent=False
+    )),
+
     ("K_gm", Variable(
         "Skewness diffusivity", W_GRID, "m^2/s",
         "GM diffusivity, either constant or from EKE model"
@@ -431,88 +480,54 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ])),
 
     ("enable_conserve_energy", OrderedDict([
-    #!---------------------------------------------------------------------------------
-    #!     variables related to dissipation
-    #!---------------------------------------------------------------------------------
-    #      real*8, allocatable, dimension(:,:,:)    :: K_diss_v          ! kinetic energy dissipation by vertical, rayleigh and bottom friction
-    #      real*8, allocatable, dimension(:,:,:)    :: K_diss_h          ! kinetic energy dissipation by horizontal friction
-    #      real*8, allocatable, dimension(:,:,:)    :: K_diss_gm         ! mean energy dissipation by GM (TRM formalism only)
-    #      real*8, allocatable, dimension(:,:,:)    :: K_diss_bot        ! mean energy dissipation by bottom and rayleigh friction
-    #      real*8, allocatable, dimension(:,:,:)    :: P_diss_v          ! potential energy dissipation by vertical diffusion
-    #      real*8, allocatable, dimension(:,:,:)    :: P_diss_nonlin     ! potential energy dissipation by nonlinear equation of state
-    #      real*8, allocatable, dimension(:,:,:)    :: P_diss_adv        ! potential energy dissipation by
-    #      real*8, allocatable, dimension(:,:,:)    :: P_diss_comp       ! potential energy dissipation by compress.
-    #      real*8, allocatable, dimension(:,:,:)    :: P_diss_hmix       ! potential energy dissipation by horizontal mixing
-    #      real*8, allocatable, dimension(:,:,:)    :: P_diss_iso        ! potential energy dissipation by isopycnal mixing
-    #      real*8, allocatable, dimension(:,:,:)    :: P_diss_skew       ! potential energy dissipation by GM (w/o TRM)
-    #      real*8, allocatable, dimension(:,:,:)    :: P_diss_sources    ! potential energy dissipation by restoring zones, etc
         ("K_diss_v", Variable(
             "Dissipation of kinetic Energy", W_GRID, "m^2/s^3",
-            "Dissipation of kinetic Energy"
+            "Kinetic energy dissipation by vertical, rayleigh and bottom friction"
         )),
         ("K_diss_bot", Variable(
             "Dissipation of kinetic Energy", W_GRID, "m^2/s^3",
-            "Dissipation of kinetic Energy"
+            "Mean energy dissipation by bottom and rayleigh friction"
         )),
         ("K_diss_h", Variable(
             "Dissipation of kinetic Energy", W_GRID, "m^2/s^3",
-            "Dissipation of kinetic Energy"
-        )),
-        ("P_diss_v", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Dissipation of potential Energy"
-        )),
-        ("P_diss_nonlin", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Dissipation of potential Energy"
-        )),
-        ("P_diss_iso", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Dissipation of potential Energy"
-        )),
-        ("P_diss_skew", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Dissipation of potential Energy"
-        )),
-        ("P_diss_hmix", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Dissipation of potential Energy"
-        )),
-        ("P_diss_adv", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Dissipation of potential Energy"
-        )),
-        ("P_diss_comp", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Dissipation of potential Energy"
-        )),
-        ("P_diss_sources", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Dissipation of potential Energy"
+            "Kinetic energy dissipation by horizontal friction"
         )),
         ("K_diss_gm", Variable(
             "Dissipation of mean energy", W_GRID, "m^2/s^3",
-            "Dissipation of mean energy"
+            "Mean energy dissipation by GM (TRM formalism only)"
+        )),
+        ("P_diss_v", Variable(
+            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+            "Potential energy dissipation by vertical diffusion"
+        )),
+        ("P_diss_nonlin", Variable(
+            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+            "Potential energy dissipation by nonlinear equation of state"
+        )),
+        ("P_diss_iso", Variable(
+            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+            "Potential energy dissipation by isopycnal mixing"
+        )),
+        ("P_diss_skew", Variable(
+            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+            "Potential energy dissipation by GM (w/o TRM)"
+        )),
+        ("P_diss_hmix", Variable(
+            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+            "Potential energy dissipation by horizontal mixing"
+        )),
+        ("P_diss_adv", Variable(
+            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+            "Potential energy dissipation by advection"
+        )),
+        ("P_diss_comp", Variable(
+            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+            "Potential energy dissipation by compression"
+        )),
+        ("P_diss_sources", Variable(
+            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+            "Potential energy dissipation by external sources (e.g. restoring zones)"
         ))
-    ])),
-
-    ("enable_streamfunction", OrderedDict([
-        ("psi", Variable(
-            "Streamfunction", ZETA_HOR + TIMESTEPS, "m^3/s", "Streamfunction",
-            output=True, write_to_restart=True
-        )),
-        ("dpsi", Variable(
-            "Streamfunction tendency", ZETA_HOR + TIMESTEPS, "m^3/s^2",
-            "Streamfunction tendency", write_to_restart=True
-        )),
-        #("psin", Variable(
-        #    "Boundary streamfunction", ZETA_HOR + ISLE, "m^3/s",
-        #    "Boundary streamfunction"
-        #)),
-    ])),
-
-    ("not enable_streamfunction", OrderedDict([
-        ("surf_press", Variable("Surface pressure", T_HOR, "m^2/s^2", "Surface pressure", output=True)),
     ])),
 
     ("enable_tempsalt_sources", OrderedDict([
@@ -537,28 +552,6 @@ CONDITIONAL_VARIABLES = OrderedDict([
         )),
     ])),
 
-    ("not enable_hydrostatic", OrderedDict([
-        ("p_non_hydro", Variable(
-            "Non-hydrostatic pressure", T_GRID, "m^2/s^2",
-            "Non-hydrostatic pressure", output=True
-        )),
-        ("dw", Variable(
-            "Vertical velocity tendency", W_GRID + TIMESTEPS, "m/s^2",
-            "Vertical velocity tendency"
-        )),
-        ("dw_cor", Variable(
-            "Change of w by Coriolis force", W_GRID + TIMESTEPS, "m/s^2",
-            "Change of vertical velocity due to Coriolis force"
-        )),
-        ("dw_adv", Variable(
-            "Change of w by advection", W_GRID + TIMESTEPS, "m/s^2",
-            "Change of vertical velocity due to advection"
-        )),
-        ("dw_mix", Variable(
-            "Change of w by vertical mixing", W_GRID + TIMESTEPS, "m/s^2",
-            "Change of vertical velocity due to vertical mixing"
-        )),
-    ])),
     ("enable_neutral_diffusion", OrderedDict([
         ("K_11", Variable("Isopycnal mixing coefficient", T_GRID, "?", "Isopycnal mixing tensor component")),
         ("K_13", Variable("Isopycnal mixing coefficient", T_GRID, "?", "Isopycnal mixing tensor component")),
@@ -695,87 +688,6 @@ CONDITIONAL_VARIABLES = OrderedDict([
         ("forc_iw_bottom", Variable(
             "IW bottom forcing", T_HOR, "m^3/s^3",
             "Internal wave bottom forcing", time_dependent=False, output=True
-        )),
-    ])),
-    ("enable_idemix_M2", OrderedDict([
-        ("E_M2", Variable(
-            "M2 energy", T_HOR, "m^3/s^2", "M2 energy", output=True, write_to_restart=True
-        )),
-        ("dE_M2", Variable(
-            "M2 energy tendency", T_HOR, "m^3/s^3", "M2 energy tendency", write_to_restart=True
-        )),
-        ("E_struct_M2", Variable("M2 structure function", T_GRID, "", "M2 structure function")),
-        ("cg_M2", Variable("M2 group velocity", T_HOR, "m/s", "M2 group velocity")),
-        ("kdot_x_M2", Variable("M2 refraction", U_HOR, "1/s", "M2 refraction")),
-        ("kdot_y_M2", Variable("M2 refraction", V_HOR, "1/s", "M2 refraction")),
-        ("tau_M2", Variable("M2 decay time scale", T_HOR, "1/s", "M2 decay time scale")),
-        ("alpha_M2_cont", Variable(
-            "M2-continuum coupling coefficient", T_HOR, "s/m^3",
-            "M2-continuum coupling coefficient"
-        )),
-        ("forc_M2", Variable("M2 forcing", T_HOR, "m^3/s^3", "M2 forcing")),
-    ])),
-            # if self.enable_idemix_M2 or self.enable_idemix_niw:
-            #     self.topo_shelf = np.zeros((self.nx+4,self.ny+4))
-            #     self.topo_hrms = np.zeros((self.nx+4,self.ny+4))
-            #     self.topo_lam = np.zeros((self.nx+4,self.ny+4))
-            #     self.phit = np.zeros(self.np)
-            #     self.dphit = np.zeros(self.np)
-            #     self.phiu = np.zeros(self.np)
-            #     self.dphiu = np.zeros(self.np)
-            #     self.maskTp = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.maskUp = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.maskVp = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.maskWp = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.cn = np.zeros((self.nx+4,self.ny+4))
-            #     self.phin = np.zeros((self.nx+4,self.ny+4,self.nz))
-            #     self.phinz = np.zeros((self.nx+4,self.ny+4,self.nz))
-            #     self.tau_M2 = np.zeros((self.nx+4,self.ny+4))
-            #     self.tau_niw = np.zeros((self.nx+4,self.ny+4))
-            #     self.alpha_M2_cont = np.zeros((self.nx+4,self.ny+4))
-            #     self.bc_south = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.bc_north = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.bc_west = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.bc_east = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.M2_psi_diss = np.zeros((self.nx+4,self.ny+4,self.np))
-            #
-            # if self.enable_idemix_M2:
-            #     self.E_M2 = np.zeros((self.nx+4,self.ny+4,self.np,3))
-            #     self.dE_M2p = np.zeros((self.nx+4,self.ny+4,self.np,3))
-            #     self.cg_M2 = np.zeros((self.nx+4,self.ny+4))
-            #     self.kdot_x_M2 = np.zeros((self.nx+4,self.ny+4))
-            #     self.kdot_y_M2 = np.zeros((self.nx+4,self.ny+4))
-            #     self.forc_M2 = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.u_M2 = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.v_M2 = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.w_M2 = np.zeros((self.nx+4,self.ny+4,self.np))
-            #     self.E_struct_M2 = np.zeros((self.nx+4,self.ny+4,self.nz))
-            #     self.E_M2_int = np.zeros((self.nx+4,self.ny+4))
-    ("enable_idemix_niw", OrderedDict([
-        ("omega_niw", Variable("?", T_HOR, "?", "?")),
-        ("E_niw", Variable(
-            "NIW energy", T_HOR + NP + TIMESTEPS, "m^3/s^2", "NIW energy",
-            output=True, write_to_restart=True
-        )),
-        ("dE_niwp", Variable(
-            "NIW energy tendency", T_HOR + NP + TIMESTEPS, "m^3/s^3",
-            "NIW energy tendency", write_to_restart=True
-        )),
-        ("cg_niw", Variable("NIW group velocity", T_HOR, "m/s", "NIW group velocity")),
-        ("kdot_x_niw", Variable("NIW refraction", U_HOR, "1/s", "NIW refraction")),
-        ("kdot_y_niw", Variable("NIW refraction", V_HOR, "1/s", "NIW refraction")),
-        ("forc_niw", Variable("NIW forcing", T_HOR, "m^3/s^3", "NIW forcing")),
-        ("u_niw", Variable("?", T_HOR + NP, "?", "?")),
-        ("v_niw", Variable("?", T_HOR + NP, "?", "?")),
-        ("w_niw", Variable("?", T_HOR + NP, "?", "?")),
-        ("E_struct_niw", Variable(
-            "NIW structure function", T_GRID, "", "NIW structure function"
-        )),
-        ("E_niw_int", Variable(
-            "?", T_HOR, "?", "?"
-        )),
-        ("tau_niw", Variable(
-            "NIW decay time scale", T_HOR, "1/s", "NIW decay time scale"
         )),
     ])),
 ])

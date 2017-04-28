@@ -1,26 +1,31 @@
 import imp
+import logging
 
 from . import Veros
+
 
 class LowercaseAttributeWrapper(object):
     """
     A simple wrapper class that converts attributes to lower case (needed for Fortran interface)
     """
-    def __init__(self,wrapped_object):
-        object.__setattr__(self,"_w",wrapped_object)
+
+    def __init__(self, wrapped_object):
+        object.__setattr__(self, "_w", wrapped_object)
 
     def __getattr__(self, key):
         if key == "_w":
-            return object.__getattribute__(self,"_w")
-        return getattr(object.__getattribute__(self,"_w"),key.lower())
+            return object.__getattribute__(self, "_w")
+        return getattr(object.__getattribute__(self, "_w"), key.lower())
 
     def __setattr__(self, key, value):
-        setattr(self._w,key.lower(),value)
+        setattr(self._w, key.lower(), value)
+
 
 class VerosLegacy(Veros):
     """
     Veros class that supports the pyOM Fortran interface
     """
+
     def __init__(self, fortran=None, *args, **kwargs):
         """
         To use the pyOM2 legacy interface point the fortran argument to the Veros fortran library:
@@ -45,20 +50,27 @@ class VerosLegacy(Veros):
             self.tke_module = self
             self.eke_module = self
 
-        super(VerosLegacy,self).__init__(*args, **kwargs)
+        super(VerosLegacy, self).__init__(*args, **kwargs)
 
     def set_legacy_parameter(self, *args, **kwargs):
         m = self.fortran.main_module
         self.onx = 2
         self.is_pe = 2
-        self.ie_pe = m.nx+2
+        self.ie_pe = m.nx + 2
         self.js_pe = 2
-        self.je_pe = m.ny+2
-        self.if2py = lambda i: i+self.onx-self.is_pe
-        self.jf2py = lambda j: j+self.onx-self.js_pe
-        self.ip2fy = lambda i: i+self.is_pe-self.onx
-        self.jp2fy = lambda j: j+self.js_pe-self.onx
+        self.je_pe = m.ny + 2
+        self.if2py = lambda i: i + self.onx - self.is_pe
+        self.jf2py = lambda j: j + self.onx - self.js_pe
+        self.ip2fy = lambda i: i + self.is_pe - self.onx
+        self.jp2fy = lambda j: j + self.js_pe - self.onx
         self.get_tau = lambda: self.tau - 1 if self.legacy_mode else self.tau
+
+        # force settings that are not supported by Veros
+        idm = self.fortran.idemix_module
+        m.enable_streamfunction = True
+        m.enable_hydrostatic = True
+        idm.enable_idemix_m2 = False
+        idm.enable_idemix_niw = False
 
 
     def setup(self, *args, **kwargs):
@@ -82,15 +94,14 @@ class VerosLegacy(Veros):
             self.set_initial_conditions()
             self.fortran.calc_initial_conditions()
             self.set_forcing()
-            if self.fortran.main_module.enable_streamfunction:
-                self.fortran.streamfunction_init()
+            self.fortran.streamfunction_init()
             self.fortran.check_isoneutral_slope_crit()
         else:
             # self.set_parameter() is called twice, but that shouldn't matter
             self.set_parameter()
             self.set_legacy_parameter()
-            super(VerosLegacy,self).setup(*args,**kwargs)
-            
+            super(VerosLegacy, self).setup(*args, **kwargs)
+
             diag_legacy_settings = (
                 (self.diagnostics["cfl_monitor"], "output_frequency", "ts_monint"),
                 (self.diagnostics["tracer_monitor"], "output_frequency", "trac_cont_int"),
@@ -107,10 +118,9 @@ class VerosLegacy(Veros):
                 if hasattr(self, attr):
                     setattr(diag, param, getattr(self, attr))
 
-
     def run(self, **kwargs):
         if not self.legacy_mode:
-            super(VerosLegacy,self).run(**kwargs)
+            super(VerosLegacy, self).run(**kwargs)
             return
 
         f = self.fortran
@@ -129,8 +139,8 @@ class VerosLegacy(Veros):
             self.setup()
 
             m.enditt = m.itt + int(m.runlen / m.dt_tracer)
-            print("Starting integration for {:.2e}s".format(float(m.runlen)))
-            print(" from time step {} to {}".format(m.itt,m.enditt))
+            logging.info("Starting integration for {:.2e}s".format(float(m.runlen)))
+            logging.info(" from time step {} to {}".format(m.itt, m.enditt))
 
         while m.itt < m.enditt:
             with self.timers["main"]:
@@ -138,8 +148,6 @@ class VerosLegacy(Veros):
 
                 if idm.enable_idemix:
                     f.set_idemix_parameter()
-                if idm.enable_idemix_M2 or idm.enable_idemix_niw:
-                    f.set_spectral_parameter()
 
                 f.set_eke_diffusivities()
                 f.set_tke_diffusivities()
@@ -158,14 +166,8 @@ class VerosLegacy(Veros):
                         f.integrate_eke()
 
                 with self.timers["idemix"]:
-                    if idm.enable_idemix_M2:
-                        f.integrate_idemix_M2()
-                    if idm.enable_idemix_niw:
-                        f.integrate_idemix_niw()
                     if idm.enable_idemix:
                         f.integrate_idemix()
-                    if idm.enable_idemix_M2 or idm.enable_idemix_niw:
-                        f.wave_interaction()
 
                 with self.timers["tke"]:
                     if tkm.enable_tke:
@@ -175,30 +177,33 @@ class VerosLegacy(Veros):
                 Main boundary exchange
                 for density, temp and salt this is done in integrate_tempsalt.f90
                 """
-                f.border_exchg_xyz(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,m.u[:,:,:,m.taup1-1],m.nz)
-                f.setcyclic_xyz   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,m.u[:,:,:,m.taup1-1],m.nz)
-                f.border_exchg_xyz(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,m.v[:,:,:,m.taup1-1],m.nz)
-                f.setcyclic_xyz   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,m.v[:,:,:,m.taup1-1],m.nz)
+                f.border_exchg_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe -
+                                   m.onx, m.je_pe + m.onx, m.u[:, :, :, m.taup1 - 1], m.nz)
+                f.setcyclic_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx,
+                                m.je_pe + m.onx, m.u[:, :, :, m.taup1 - 1], m.nz)
+                f.border_exchg_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe -
+                                   m.onx, m.je_pe + m.onx, m.v[:, :, :, m.taup1 - 1], m.nz)
+                f.setcyclic_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx,
+                                m.je_pe + m.onx, m.v[:, :, :, m.taup1 - 1], m.nz)
 
                 if tkm.enable_tke:
-                    f.border_exchg_xyz(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,tkm.tke[:,:,:,m.taup1-1],m.nz)
-                    f.setcyclic_xyz   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,tkm.tke[:,:,:,m.taup1-1],m.nz)
+                    f.border_exchg_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe -
+                                       m.onx, m.je_pe + m.onx, tkm.tke[:, :, :, m.taup1 - 1], m.nz)
+                    f.setcyclic_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx,
+                                    m.je_pe + m.onx, tkm.tke[:, :, :, m.taup1 - 1], m.nz)
                 if ekm.enable_eke:
-                    f.border_exchg_xyz(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,ekm.eke[:,:,:,m.taup1-1],m.nz)
-                    f.setcyclic_xyz   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,ekm.eke[:,:,:,m.taup1-1],m.nz)
+                    f.border_exchg_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe -
+                                       m.onx, m.je_pe + m.onx, ekm.eke[:, :, :, m.taup1 - 1], m.nz)
+                    f.setcyclic_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx,
+                                    m.je_pe + m.onx, ekm.eke[:, :, :, m.taup1 - 1], m.nz)
                 if idm.enable_idemix:
-                    f.border_exchg_xyz(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_iw[:,:,:,m.taup1-1],m.nz)
-                    f.setcyclic_xyz   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_iw[:,:,:,m.taup1-1],m.nz)
-                if idm.enable_idemix_m2:
-                    f.border_exchg_xyp(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_m2[:,:,:,m.taup1-1],idm.np)
-                    f.setcyclic_xyp   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_m2[:,:,:,m.taup1-1],idm.np)
-                if idm.enable_idemix_niw:
-                    f.border_exchg_xyp(m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_niw[:,:,:,m.taup1-1],idm.np)
-                    f.setcyclic_xyp   (m.is_pe-m.onx,m.ie_pe+m.onx,m.js_pe-m.onx,m.je_pe+m.onx,idm.e_niw[:,:,:,m.taup1-1],idm.np)
+                    f.border_exchg_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe -
+                                       m.onx, m.je_pe + m.onx, idm.e_iw[:, :, :, m.taup1 - 1], m.nz)
+                    f.setcyclic_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx,
+                                    m.je_pe + m.onx, idm.e_iw[:, :, :, m.taup1 - 1], m.nz)
 
                 # diagnose vertical velocity at taup1
-                if m.enable_hydrostatic:
-                    f.vertical_velocity()
+                f.vertical_velocity()
 
             # shift time
             otaum1 = m.taum1 * 1
@@ -206,15 +211,14 @@ class VerosLegacy(Veros):
             m.tau = m.taup1
             m.taup1 = otaum1
             m.itt += 1
-            print("Current iteration: {}".format(m.itt))
-            print("Time step took {}s".format(self.timers["main"].getLastTime()))
+            logging.info("Current iteration: {}".format(m.itt))
+            logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
-
-        print("Timing summary:")
-        print(" setup time summary       = {}s".format(self.timers["setup"].getTime()))
-        print(" main loop time summary   = {}s".format(self.timers["main"].getTime()))
-        print("     momentum             = {}s".format(self.timers["momentum"].getTime()))
-        print("     thermodynamics       = {}s".format(self.timers["temperature"].getTime()))
-        print("     EKE                  = {}s".format(self.timers["eke"].getTime()))
-        print("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
-        print("     TKE                  = {}s".format(self.timers["tke"].getTime()))
+        logging.debug("Timing summary:")
+        logging.debug(" setup time summary       = {}s".format(self.timers["setup"].getTime()))
+        logging.debug(" main loop time summary   = {}s".format(self.timers["main"].getTime()))
+        logging.debug("     momentum             = {}s".format(self.timers["momentum"].getTime()))
+        logging.debug("     thermodynamics       = {}s".format(self.timers["temperature"].getTime()))
+        logging.debug("     EKE                  = {}s".format(self.timers["eke"].getTime()))
+        logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
+        logging.debug("     TKE                  = {}s".format(self.timers["tke"].getTime()))

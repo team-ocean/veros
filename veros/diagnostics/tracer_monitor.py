@@ -3,12 +3,13 @@ import logging
 from .diagnostic import VerosDiagnostic
 from .. import veros_class_method
 
+
 class TracerMonitor(VerosDiagnostic):
     """Diagnostic monitoring global tracer contents / fluxes.
 
     Writes output to stdout (no binary output).
     """
-    output_frequency = None #: Frequency (in seconds) in which output is written.
+    output_frequency = None  # : Frequency (in seconds) in which output is written.
     #: internal attributes to write to restart file
     restart_attributes = ("tempm1", "vtemp1", "saltm1", "vsalt1")
 
@@ -27,17 +28,21 @@ class TracerMonitor(VerosDiagnostic):
         Diagnose tracer content
         """
         cell_volume = veros.area_t[2:-2, 2:-2, np.newaxis] * veros.dzt[np.newaxis, np.newaxis, :] \
-                      * veros.maskT[2:-2, 2:-2, :]
+            * veros.maskT[2:-2, 2:-2, :]
         volm = np.sum(cell_volume)
         tempm = np.sum(cell_volume * veros.temp[2:-2, 2:-2, :, veros.tau])
         saltm = np.sum(cell_volume * veros.salt[2:-2, 2:-2, :, veros.tau])
         vtemp = np.sum(cell_volume * veros.temp[2:-2, 2:-2, :, veros.tau]**2)
         vsalt = np.sum(cell_volume * veros.salt[2:-2, 2:-2, :, veros.tau]**2)
 
-        logging.warning(" mean temperature {} change to last {}".format(tempm/volm, (tempm-self.tempm1)/volm))
-        logging.warning(" mean salinity    {} change to last {}".format(saltm/volm, (saltm-self.saltm1)/volm))
-        logging.warning(" temperature var. {} change to last {}".format(vtemp/volm, (vtemp-self.vtemp1)/volm))
-        logging.warning(" salinity var.    {} change to last {}".format(vsalt/volm, (vsalt-self.vsalt1)/volm))
+        logging.warning(" mean temperature {} change to last {}"
+                        .format(tempm / volm, (tempm - self.tempm1) / volm))
+        logging.warning(" mean salinity    {} change to last {}"
+                        .format(saltm / volm, (saltm - self.saltm1) / volm))
+        logging.warning(" temperature var. {} change to last {}"
+                        .format(vtemp / volm, (vtemp - self.vtemp1) / volm))
+        logging.warning(" salinity var.    {} change to last {}"
+                        .format(vsalt / volm, (vsalt - self.vsalt1) / volm))
 
         self.tempm1 = tempm
         self.vtemp1 = vtemp

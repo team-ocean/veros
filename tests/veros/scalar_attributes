@@ -31,10 +31,6 @@ enable_superbee_advection
 enable_conserve_energy
 enable_store_bottom_friction_tke
 enable_store_cabbeling_heat
-enable_free_surface
-enable_streamfunction
-enable_congrad_verbose
-congr_itts
 congr_epsilon
 congr_max_iterations
 A_h
@@ -81,10 +77,6 @@ enable_tke_superbee_advection
 enable_tke_upwind_advection
 enable_tke_hor_diffusion
 K_h_tke
-enable_hydrostatic
-congr_itts_non_hydro
-congr_epsilon_non_hydro
-congr_max_itts_non_hydro
 enable_diag_ts_monitor
 enable_diag_ts_monitor
 enable_diag_energy

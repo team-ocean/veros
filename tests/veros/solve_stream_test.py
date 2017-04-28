@@ -11,7 +11,6 @@ class StreamfunctionTest(VerosTest):
     first = True
     extra_settings = {
                         "enable_cyclic_x": True,
-                        "enable_streamfunction": True,
                         "enable_congrad_verbose": False,
                         "congr_epsilon": 1e-12,
                         "congr_max_iterations": 10000,

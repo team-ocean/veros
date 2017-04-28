@@ -170,7 +170,12 @@ class VerosTest(object):
             for s, (v1, v2) in differing_scalars.items():
                 print("{}, {}, {}".format(s,v1,v2))
             for a, (v1, v2) in differing_arrays.items():
-                print("{}, {}, {}".format(a,repr(np.asarray(v1).max()),repr(np.asarray(v2).max())))
+                if np.asarray(v1).size == 0:
+                    print("{}, {!r}, {!r}".format(a, None, np.max(v2)))
+                elif np.asarray(v2).size == 0:
+                    print("{}, {!r}, {!r}".format(a, np.max(v1), None))
+                else:
+                    print("{}, {!r}, {!r}".format(a,np.max(v1),np.max(v2)))
 
         veros_timers = {k: Timer("veros " + k) for k in self.test_routines}
         veros_legacy_timers = {k: Timer("veros legacy " + k) for k in self.test_routines}

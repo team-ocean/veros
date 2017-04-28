@@ -11,7 +11,6 @@ class MomentumTest(VerosTest):
     extra_settings = {
                         "coord_degree": True,
                         "enable_cyclic_x": True,
-                        "enable_hydrostatic": True,
                         "enable_conserve_energy": True,
                         "enable_bottom_friction_var": True,
                         "enable_hor_friction_cos_scaling": True,
@@ -24,7 +23,6 @@ class MomentumTest(VerosTest):
                         "enable_bottom_friction": True,
                         "enable_quadratic_bottom_friction": True,
                         "enable_momentum_sources": True,
-                        "enable_streamfunction": True,
                         "congr_epsilon": 1e-12,
                         "congr_max_iterations": 10000,
                      }
