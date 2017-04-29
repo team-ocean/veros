@@ -199,4 +199,5 @@ class NorthAtlantic(Veros):
 
 if __name__ == "__main__":
     sim = NorthAtlantic()
+    sim.setup()
     sim.run()

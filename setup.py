@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 # coding=utf-8
+
 from setuptools import setup, find_packages
+import os
+
+
+def find_scripts(scriptdir):
+    return [os.path.join(scriptdir, s) for s in os.listdir(scriptdir)]
 
 setup(
     name = "veros",
@@ -15,7 +21,5 @@ setup(
         ],
     author = "NBI Copenhagen",
     author_email = "dion.haefner@nbi.ku.dk",
-    scripts = [
-	   "veros/scripts/create_mask.py",
-	],
+    scripts = find_scripts("bin")
 )

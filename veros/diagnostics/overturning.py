@@ -221,8 +221,8 @@ class Overturning(VerosDiagnostic):
 
         var_metadata = {key: var for key, var in self.mean_variables.items()
                         if var.output and var.time_dependent}
-        var_data = {key: getattr(self, key) for key, var in self.mean_variables.items(
-        ) if var.output and var.time_dependent}
+        var_data = {key: getattr(self, key) for key, var in self.mean_variables.items()
+                    if var.output and var.time_dependent}
         self.write_output(veros, var_metadata, var_data)
 
         self.nitts = 0

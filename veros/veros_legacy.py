@@ -74,49 +74,50 @@ class VerosLegacy(Veros):
 
 
     def setup(self, *args, **kwargs):
-        if self.legacy_mode:
-            self.fortran.my_mpi_init(0)
-            self.set_parameter()
-            self.set_legacy_parameter()
-            self.fortran.pe_decomposition()
-            self.fortran.allocate_main_module()
-            self.fortran.allocate_isoneutral_module()
-            self.fortran.allocate_tke_module()
-            self.fortran.allocate_eke_module()
-            self.fortran.allocate_idemix_module()
-            self.set_grid()
-            self.fortran.calc_grid()
-            self.set_coriolis()
-            self.fortran.calc_beta()
-            self.set_topography()
-            self.fortran.calc_topo()
-            self.fortran.calc_spectral_topo()
-            self.set_initial_conditions()
-            self.fortran.calc_initial_conditions()
-            self.set_forcing()
-            self.fortran.streamfunction_init()
-            self.fortran.check_isoneutral_slope_crit()
-        else:
-            # self.set_parameter() is called twice, but that shouldn't matter
-            self.set_parameter()
-            self.set_legacy_parameter()
-            super(VerosLegacy, self).setup(*args, **kwargs)
+        with self.timers["setup"]:
+            if self.legacy_mode:
+                self.fortran.my_mpi_init(0)
+                self.set_parameter()
+                self.set_legacy_parameter()
+                self.fortran.pe_decomposition()
+                self.fortran.allocate_main_module()
+                self.fortran.allocate_isoneutral_module()
+                self.fortran.allocate_tke_module()
+                self.fortran.allocate_eke_module()
+                self.fortran.allocate_idemix_module()
+                self.set_grid()
+                self.fortran.calc_grid()
+                self.set_coriolis()
+                self.fortran.calc_beta()
+                self.set_topography()
+                self.fortran.calc_topo()
+                self.fortran.calc_spectral_topo()
+                self.set_initial_conditions()
+                self.fortran.calc_initial_conditions()
+                self.set_forcing()
+                self.fortran.streamfunction_init()
+                self.fortran.check_isoneutral_slope_crit()
+            else:
+                # self.set_parameter() is called twice, but that shouldn't matter
+                self.set_parameter()
+                self.set_legacy_parameter()
+                super(VerosLegacy, self).setup(*args, **kwargs)
 
-            diag_legacy_settings = (
-                (self.diagnostics["cfl_monitor"], "output_frequency", "ts_monint"),
-                (self.diagnostics["tracer_monitor"], "output_frequency", "trac_cont_int"),
-                (self.diagnostics["snapshot"], "output_frequency", "snapint"),
-                (self.diagnostics["averages"], "output_frequency", "aveint"),
-                (self.diagnostics["averages"], "sampling_frequency", "avefreq"),
-                (self.diagnostics["overturning"], "output_frequency", "overint"),
-                (self.diagnostics["overturning"], "sampling_frequency", "overfreq"),
-                (self.diagnostics["energy"], "output_frequency", "energint"),
-                (self.diagnostics["energy"], "sampling_frequency", "energfreq"),
-            )
+                diag_legacy_settings = (
+                    (self.diagnostics["cfl_monitor"], "output_frequency", "ts_monint"),
+                    (self.diagnostics["tracer_monitor"], "output_frequency", "trac_cont_int"),
+                    (self.diagnostics["snapshot"], "output_frequency", "snapint"),
+                    (self.diagnostics["averages"], "output_frequency", "aveint"),
+                    (self.diagnostics["averages"], "sampling_frequency", "avefreq"),
+                    (self.diagnostics["overturning"], "output_frequency", "overint"),
+                    (self.diagnostics["overturning"], "sampling_frequency", "overfreq"),
+                    (self.diagnostics["energy"], "output_frequency", "energint"),
+                    (self.diagnostics["energy"], "sampling_frequency", "energfreq"),
+                )
 
-            for diag, param, attr in diag_legacy_settings:
-                if hasattr(self, attr):
-                    setattr(diag, param, getattr(self, attr))
+                for diag, param, attr in diag_legacy_settings:
+                    if hasattr(self, attr):
+                        setattr(diag, param, getattr(self, attr))
 
     def run(self, **kwargs):
         if not self.legacy_mode:
@@ -129,18 +130,9 @@ class VerosLegacy(Veros):
         ekm = self.eke_module
         tkm = self.tke_module
 
-        m.runlen = kwargs["runlen"]
-        m.snapint = kwargs["snapint"]
-
-        with self.timers["setup"]:
-            """
-            Initialize model
-            """
-            self.setup()
-
-            m.enditt = m.itt + int(m.runlen / m.dt_tracer)
-            logging.info("Starting integration for {:.2e}s".format(float(m.runlen)))
-            logging.info(" from time step {} to {}".format(m.itt, m.enditt))
+        m.enditt = m.itt + int(m.runlen / m.dt_tracer)
+        logging.info("Starting integration for {:.2e}s".format(float(m.runlen)))
+        logging.info(" from time step {} to {}".format(m.itt, m.enditt))
 
         while m.itt < m.enditt:
             with self.timers["main"]:

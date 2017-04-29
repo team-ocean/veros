@@ -1,9 +1,13 @@
-from veros.setup.acc2 import ACC2
-from test_base import VerosTest
-
 import sys
+import os
 import numpy as np
 import matplotlib.pyplot as plt
+
+current_folder = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(current_folder, "../../setup/acc2/"))
+
+from acc2 import ACC2
+from test_base import VerosTest
 
 class ACC2Test(VerosTest):
     timesteps = 5
@@ -43,15 +47,20 @@ class ACC2Test(VerosTest):
 
     def run(self):
         self.veros_new = ACC2()
+        def remove_diagnostics():
+            self.veros_new.diagnostics = {}
+        self.veros_new.set_diagnostics = remove_diagnostics
+        self.veros_new.setup()
         self.veros_new.pyom_compatibility_mode = True
         self.veros_legacy = ACC2(fortran=self.fortran)
+        self.veros_legacy.diagnostics = {}
+        self.veros_legacy.setup()
         # integrate for some time steps and compare
-        if self.timesteps == 0:
-            self.veros_new.setup()
-            self.veros_legacy.setup()
-        else:
-            self.veros_new.run(runlen = self.timesteps * 86400. / 2, snapint=1e10)
-            self.veros_legacy.run(runlen = self.timesteps * 86400. / 2, snapint=1e10)
+        if self.timesteps > 0:
+            self.veros_new.runlen = self.timesteps * 86400. / 2
+            self.veros_new.run()
+            self.veros_legacy.fortran.main_module.runlen = self.timesteps * 86400. / 2
+            self.veros_legacy.run()
         return self._check_all_objects()
 
 if __name__ == "__main__":

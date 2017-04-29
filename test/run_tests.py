@@ -17,12 +17,12 @@ if sys.stdout.isatty():
     success = "\x1b[{}m{}\x1b[0m".format("32",success)
     fail = "\x1b[{}m{}\x1b[0m".format("31",fail)
 
-for f in os.listdir("./veros"):
+for f in os.listdir("./tests"):
     if f.endswith("_test.py"):
         sys.stdout.write("Running test {} ... ".format(f))
         sys.stdout.flush()
         try: # must run each test in its own Python subprocess to reload the Fortran library
-	        output = subprocess.check_output(["python", os.path.join("./veros", f), fortran_path],
+	        output = subprocess.check_output(["python", os.path.join("./tests", f), fortran_path],
                                               stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             sys.stdout.write(fail + "\n\n")

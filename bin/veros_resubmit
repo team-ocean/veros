@@ -1,0 +1,25 @@
+#!/bin/bash
+
+if [[ $# -lt 3 ]]
+then
+  echo "Usage: veros_resubmit N_SUBMITS LENGTH_PER_RUN VEROS_CMD"
+  exit 1
+fi
+
+N=$1
+RUNLEN=$2
+CMD=$3
+
+$CMD -s restart_output_filename "{identifier}_restart_0.h5" -s runlen $RUNLEN
+
+i=1
+while [[ $i -le $N ]]
+do
+  $CMD -s restart_output_filename "{identifier}_restart_$i.h5" -s runlen $RUNLEN -s restart_input_filename "{identifier}_restart_$(( i - 1 )).h5"
+  rc=$?
+  if [[ $rc -ne 0 ]]
+  then
+    exit $rc
+  fi
+  i=$(( $i + 1 ))
+done

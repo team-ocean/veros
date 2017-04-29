@@ -285,4 +285,6 @@ class WavePropagation(Veros):
 
 
 if __name__ == "__main__":
-    WavePropagation().run(runlen=86400. * 10)
+    simulation = WavePropagation()
+    simulation.setup()
+    simulation.run()

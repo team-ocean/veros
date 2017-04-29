@@ -89,7 +89,8 @@ def do_not_disturb(function):
         finally:
             for s in signals:
                 signal.signal(s, old_handlers[s])
-            if not signal_received["sig"] is None:
+            sig = signal_received["sig"]
+            if not sig is None:
                 old_handlers[sig](signal_received["sig"], signal_received["frame"])
 
         return res

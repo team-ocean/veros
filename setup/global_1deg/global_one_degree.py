@@ -310,4 +310,5 @@ if __name__ == "__main__":
     parser.add_argument("--fortran", "-f", default=None, help="Path to fortran library")
     args, _ = parser.parse_known_args()
     simulation = GlobalOneDegree(fortran=args.fortran)
-    simulation.run(runlen=86400., snapint=86400. / 2.)
+    simulation.setup()
+    simulation.run()

@@ -223,4 +223,6 @@ class GlobalFourDegree(VerosLegacy):
 
 
 if __name__ == "__main__":
-    GlobalFourDegree().run(snapint=86400.0 * 10, runlen=86400. * 365)
+    simulation = GlobalFourDegree()
+    simulation.setup()
+    simulation.run()

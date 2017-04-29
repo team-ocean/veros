@@ -12,19 +12,23 @@ class ACC2(VerosLegacy):
     """
     @veros_method
     def set_parameter(self):
+        self.identifier = "acc2"
+
         m = self.main_module
 
         (m.nx, m.ny, m.nz) = (30, 42, 15)
         m.dt_mom = 4800
         m.dt_tracer = 86400 / 2.
+        m.runlen = 86400 * 365
 
         m.coord_degree = 1
         m.enable_cyclic_x = 1
 
         m.congr_epsilon = 1e-12
         m.congr_max_iterations = 5000
-        
+
         m.enable_diag_snapshots = True
+        m.snapint = 86400 * 10
         m.enable_diag_averages = True
         m.aveint = 365 * 86400.
         m.avefreq = m.dt_tracer * 10
@@ -155,11 +159,12 @@ class ACC2(VerosLegacy):
 
     @veros_method
     def set_diagnostics(self):
-        m = self.main_module
-        m.diagnostics["averages"].output_variables = (
+        self.diagnostics["averages"].output_variables = (
             "salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy")
+        self.diagnostics["snapshot"].output_path = "{identifier}_{itt:0>4}.snapshot.nc"
 
 
 if __name__ == "__main__":
     simulation = ACC2()
-    simulation.run(snapint=365 * 86400. / 12., runlen=365 * 86400.)
+    simulation.setup()
+    simulation.run()
