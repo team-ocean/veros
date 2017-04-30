@@ -32,6 +32,7 @@ def isleperim(veros, kmt, verbose=False):
     """
     boundary_map = np.where(kmt > 0, OCEAN, LAND)
     if veros.backend_name == "bohrium":
+        veros.flush()
         boundary_map = boundary_map.copy2numpy()
 
     """
@@ -70,7 +71,7 @@ def isleperim(veros, kmt, verbose=False):
         logging.info(" Island perimeter statistics:")
         logging.info("  number of land masses is {}".format(nisle))
         logging.info("  number of total island perimeter points is {}".format(sum(nippts)))
-    return np.array(boundary_map)
+    return np.asarray(boundary_map)
 
 
 @veros_method

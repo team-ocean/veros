@@ -42,7 +42,7 @@ class Overturning(VerosDiagnostic):
     """Isopycnal overturning diagnostic. Computes and writes vertical streamfunctions
     (zonally averaged).
     """
-    output_path = "{identifier}_overturning.nc"  # : File to write to. May contain format strings that are replaced with Veros attributes.
+    output_path = "{identifier}.overturning.nc"  # : File to write to. May contain format strings that are replaced with Veros attributes.
     output_frequency = None  # : Frequency (in seconds) in which output is written.
     sampling_frequency = None  # : Frequency (in seconds) in which variables are accumulated.
     p_ref = 2000.  # : Reference pressure for isopycnals

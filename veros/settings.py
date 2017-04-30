@@ -125,7 +125,7 @@ SETTINGS = OrderedDict([
     ("io_timeout", Setting(20, float, "Timeout in seconds while waiting for IO locks to be released")),
     ("enable_netcdf_zlib_compression", Setting(True, bool, "Use netCDF4's native zlib interface, which leads to smaller output files (but carries some computational overhead).")),
     ("restart_input_filename", Setting("", str, "File name of restart input. If not given, no restart data will be read.")),
-    ("restart_output_filename", Setting("{identifier}_restart_{itt:0>4d}.h5", str, "File name of restart output. May contain Python format syntax that is substituted with Veros attributes.")),
+    ("restart_output_filename", Setting("{identifier}_{itt:0>4d}.restart.h5", str, "File name of restart output. May contain Python format syntax that is substituted with Veros attributes.")),
     ("restart_frequency", Setting(float("inf"), float, "Frequency (in seconds) to write restart data")),
     ("pyom_compatibility_mode", Setting(False, bool, "Force compatibility to pyOM2 (reproducing bugs and other quirks). For testing purposes only.")),
 ])

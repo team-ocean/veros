@@ -29,3 +29,14 @@ for f in os.listdir("./tests"):
             print(e.output)
             continue
         sys.stdout.write(success + "\n")
+
+        sys.stdout.write("Running test {} with Bohrium ... ".format(f))
+        sys.stdout.flush()
+        try: # must run each test in its own Python subprocess to reload the Fortran library
+	        output = subprocess.check_output(["python", os.path.join("./tests", f), fortran_path, "-b", "bohrium"],
+                                              stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            sys.stdout.write(fail + "\n\n")
+            print(e.output)
+            continue
+        sys.stdout.write(success + "\n")
