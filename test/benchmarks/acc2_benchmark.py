@@ -1,4 +1,8 @@
-from veros import VerosLegacy, veros_method
+import sys
+import os
+import numpy as np
+
+from veros import VerosLegacy, veros_method, tools
 
 yt_start = -39.0
 yt_end = 43
@@ -12,14 +16,12 @@ class ACC2(VerosLegacy):
     """
     @veros_method
     def set_parameter(self):
-        self.identifier = "acc2"
+        self.identifier = "acc2_benchmark"
+        self.diskless_mode = True
 
         m = self.main_module
-
-        (m.nx, m.ny, m.nz) = (30, 42, 15)
         m.dt_mom = 4800
         m.dt_tracer = 86400 / 2.
-        m.runlen = 86400 * 365
 
         m.coord_degree = 1
         m.enable_cyclic_x = 1
@@ -44,9 +46,9 @@ class ACC2(VerosLegacy):
         i = self.isoneutral_module
         i.enable_neutral_diffusion = 1
         i.K_iso_0 = 1000.0
-        i.K_iso_steep = 500.0
-        i.iso_dslope = 0.005
-        i.iso_slopec = 0.01
+        i.K_iso_steep = 200.0
+        i.iso_dslope = 1e-3
+        i.iso_slopec = 4e-3
         i.enable_skew_diffusion = 1
 
         m.enable_hor_friction = 1
@@ -86,19 +88,18 @@ class ACC2(VerosLegacy):
         i.eke_diss_surfbot_frac = 0.2
         i.enable_idemix_superbee_advection = 1
 
-        m.eq_of_state_type = 3
+        m.eq_of_state_type = 5
 
     @veros_method
     def set_grid(self):
         m = self.main_module
-        ddz = [50., 70., 100., 140., 190., 240., 290., 340.,
-               390., 440., 490., 540., 590., 640., 690.]
+        ddz = tools.gaussian_spacing(m.nz, 5000., min_spacing=20.)
+        print(ddz)
         m.dxt[:] = 2.0
         m.dyt[:] = 2.0
         m.x_origin = 0.0
         m.y_origin = -40.0
         m.dzt[:] = ddz[::-1]
-        m.dzt[:] *= 1 / 2.5
 
     @veros_method
     def set_coriolis(self):
@@ -136,9 +137,11 @@ class ACC2(VerosLegacy):
         m.surface_taux[:, 2:m.ny + 3] = taux * m.maskU[:, 2:m.ny + 3, -1]
 
         # surface heatflux forcing
-        self.t_star = 15 * np.invert((m.yt < -20) | (m.yt > 20)) \
-            + 15 * (m.yt - yt_start) / (-20 - yt_start) * (m.yt < -20) \
-            + 15 * (1 - (m.yt - 20) / (yt_end - 20)) * (m.yt > 20.)
+        self.t_rest = np.zeros(m.u[:, :, 1, 0].shape)
+        self.t_star = np.zeros(m.u[:, :, 1, 0].shape)
+        self.t_star[:, 2:-2] = 15 * np.invert((m.yt[2:-2] < -20) | (m.yt[2:-2] > 20)) \
+            + 15 * (m.yt[2:-2] - yt_start) / (-20 - yt_start) * (m.yt[2:-2] < -20) \
+            + 15 * (1 - (m.yt[2:-2] - 20) / (yt_end - 20)) * (m.yt[2:-2] > 20.)
         self.t_rest = m.dzt[None, -1] / (30. * 86400.) * m.maskT[:, :, -1]
 
         t = self.tke_module
@@ -167,3 +170,10 @@ if __name__ == "__main__":
     simulation = ACC2()
     simulation.setup()
     simulation.run()
+
+
+if __name__ == "__main__":
+    sim = ACC2()
+    sim.setup()
+    sim.runlen = 10 * sim.dt_tracer
+    sim.run()

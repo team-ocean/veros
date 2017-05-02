@@ -1,6 +1,7 @@
 import sys
 import os
 import numpy as np
+import bohrium as bh
 import matplotlib.pyplot as plt
 
 current_folder = os.path.dirname(os.path.realpath(__file__))
@@ -39,22 +40,22 @@ class ACC2Test(VerosTest):
                 if "salt" in a or a in ("B1_gm","B2_gm"): # salt and isoneutral streamfunctions aren't used by this example
                     continue
                 if a in ("psi", "psin"): # top row contains noise and is not part of the solution
-                    v1[1:,:] = 0.
-                    v2[1:,:] = 0.
-                passed = self.check_variable(a,atol=1e-5) and passed
+                    v1[2,:] = 0.
+                    v2[2,:] = 0.
+                passed = self.check_variable(a,atol=1e-5,data=(v1,v2)) and passed
         plt.show()
         return passed
 
     def run(self):
         self.veros_new = ACC2()
-        def remove_diagnostics():
-            self.veros_new.diagnostics = {}
-        self.veros_new.set_diagnostics = remove_diagnostics
-        self.veros_new.setup()
+        self.veros_new.diskless_mode = True
         self.veros_new.pyom_compatibility_mode = True
+        self.veros_new.setup()
+
         self.veros_legacy = ACC2(fortran=self.fortran)
-        self.veros_legacy.diagnostics = {}
+        self.veros_legacy.diskless_mode = True
         self.veros_legacy.setup()
+
         # integrate for some time steps and compare
         if self.timesteps > 0:
             self.veros_new.runlen = self.timesteps * 86400. / 2

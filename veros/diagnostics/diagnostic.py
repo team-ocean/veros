@@ -54,6 +54,8 @@ class VerosDiagnostic(object):
     @do_not_disturb
     @veros_class_method
     def initialize_output(self, veros, variables, var_data=None, extra_dimensions=None, filepath=None):
+        if veros.diskless_mode:
+            return
         with nctools.threaded_io(veros, filepath or self.get_output_file_name(veros), "w") as outfile:
             nctools.initialize_file(veros, outfile)
             if extra_dimensions:
@@ -70,6 +72,8 @@ class VerosDiagnostic(object):
     @do_not_disturb
     @veros_class_method
     def write_output(self, veros, variables, variable_data, filepath=None):
+        if veros.diskless_mode:
+            return
         with nctools.threaded_io(veros, filepath or self.get_output_file_name(veros), "r+") as outfile:
             time_step = nctools.get_current_timestep(veros, outfile)
             nctools.advance_time(veros, time_step, time.current_time(veros, "days"), outfile)
@@ -106,6 +110,8 @@ class VerosDiagnostic(object):
     @do_not_disturb
     @veros_class_method
     def write_h5_restart(self, veros, attributes, var_meta, var_data):
+        if veros.diskless_mode:
+            return
         restart_filename = self.get_restart_output_file_name(veros)
         with h5tools.threaded_io(veros, restart_filename, "a") as outfile:
             outfile.require_group(self.diagnostic_name)

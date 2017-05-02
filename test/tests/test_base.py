@@ -1,5 +1,6 @@
 import sys
 import os
+import matplotlib.pyplot as plt
 import numpy as np
 import bohrium as bh
 from collections import OrderedDict
@@ -133,8 +134,11 @@ class VerosTest(object):
         return (a / norm for a in arrays)
 
 
-    def check_variable(self, var, atol=1e-8):
-        v1, v2 = self.get_attribute(var)
+    def check_variable(self, var, atol=1e-8, data=None):
+        if data is None:
+            v1, v2 = self.get_attribute(var)
+        else:
+            v1, v2 = data
         if v1 is None or v2 is None:
             print("Variable {} is None".format(var))
             return False
