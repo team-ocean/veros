@@ -20,8 +20,8 @@ benchmark_commands = {
     "numpy": "{python} {filename} -b numpy -s nx {nx} -s ny {ny} -s nz {nz}",
     "bohrium": "BH_STACK=openmp {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz}",
     "bohrium-opencl": "BH_STACK=opencl {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz}",
-    "fortran": "{python} {filename} -f {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz}",
-    "fortran-mpi": "mpirun -n {nproc} -- {python} {filename} -f {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz}"
+    "fortran": "{python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz}",
+    "fortran-mpi": "mpiexec -n {nproc} -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz}"
 }
 outfile = "benchmark_{}.log".format(time.time())
 
@@ -29,15 +29,24 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Veros benchmarks")
     parser.add_argument("-f", "--fortran-library", type=str)
     parser.add_argument("-s", "--max-size", type=float, required=True)
-    parser.add_argument("-c", "--component", nargs="*", choices=benchmark_commands.keys(), default=["numpy"])
+    parser.add_argument("-c", "--components", nargs="*", choices=benchmark_commands.keys(), default=["numpy"])
     args = parser.parse_args()
 
     if args.fortran_library:
-        imp.load_dynamic("pyOM_code_MPI", args.fortran_library)
+        try:
+            imp.load_dynamic("pyOM_code", args.fortran_library)
+            has_fortran_mpi = False
+        except ImportError:
+            imp.load_dynamic("pyOM_code_MPI", args.fortran_library)
+            has_fortran_mpi = True
+
+    if not has_fortran_mpi and "fortran-mpi" in args.components:
+        raise RuntimeError("Fortran library must be compiled with MPI support for fortran-mpi component")
 
     sizes = [10 ** n for n in range(3,int(math.log10(args.max_size)),1)]
 
     with open(outfile, "w") as log:
+        log.write("Size, Component, Time")
         for f in os.listdir("./benchmarks"):
             if f.endswith("_benchmark.py"):
                 print("Running test {} ... ".format(f))
@@ -67,4 +76,4 @@ if __name__ == "__main__":
                         end = time.time()
                         elapsed = end - start
                         print(" finished after {}s".format(elapsed))
-                        log.write("{}".format(elapsed))
+                        log.write("{}, {}, {}".format(nx * ny * nz, comp, elapsed))

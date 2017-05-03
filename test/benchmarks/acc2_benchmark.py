@@ -10,7 +10,7 @@ yu_start = -40.0
 yu_end = 42
 
 
-class ACC2(VerosLegacy):
+class ACC2Benchmark(VerosLegacy):
     """
     A simple global model with a Southern Ocean and Atlantic part
     """
@@ -21,27 +21,13 @@ class ACC2(VerosLegacy):
 
         m = self.main_module
         m.dt_mom = 4800
-        m.dt_tracer = 86400 / 2.
+        m.dt_tracer = 4800
 
         m.coord_degree = 1
         m.enable_cyclic_x = 1
 
         m.congr_epsilon = 1e-12
-        m.congr_max_iterations = 5000
-
-        m.enable_diag_snapshots = True
-        m.snapint = 86400 * 10
-        m.enable_diag_averages = True
-        m.aveint = 365 * 86400.
-        m.avefreq = m.dt_tracer * 10
-        m.enable_diag_overturning = True
-        m.overint = 365 * 86400. / 48.
-        m.overfreq = m.dt_tracer * 10
-        m.enable_diag_ts_monitor = True
-        m.ts_monint = 365 * 86400. / 12.
-        m.enable_diag_energy = True
-        m.energint = 365 * 86400. / 48
-        m.energfreq = m.dt_tracer * 10
+        m.congr_max_iterations = 10000
 
         i = self.isoneutral_module
         i.enable_neutral_diffusion = 1
@@ -52,7 +38,7 @@ class ACC2(VerosLegacy):
         i.enable_skew_diffusion = 1
 
         m.enable_hor_friction = 1
-        m.A_h = (2 * m.degtom)**3 * 2e-11
+        m.A_h = 1e4
         m.enable_hor_friction_cos_scaling = 1
         m.hor_friction_cosPower = 1
 
@@ -93,13 +79,11 @@ class ACC2(VerosLegacy):
     @veros_method
     def set_grid(self):
         m = self.main_module
-        ddz = tools.gaussian_spacing(m.nz, 5000., min_spacing=20.)
-        print(ddz)
-        m.dxt[:] = 2.0
-        m.dyt[:] = 2.0
+        m.dxt[:] = 80.0 / m.nx
+        m.dyt[:] = 80.0 / m.ny
         m.x_origin = 0.0
         m.y_origin = -40.0
-        m.dzt[:] = ddz[::-1]
+        m.dzt[:] = 5000. / m.nz
 
     @veros_method
     def set_coriolis(self):
@@ -165,15 +149,14 @@ class ACC2(VerosLegacy):
             "salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy")
         self.diagnostics["snapshot"].output_path = "{identifier}_{itt:0>4}.snapshot.nc"
 
-
 if __name__ == "__main__":
-    simulation = ACC2()
-    simulation.setup()
-    simulation.run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fortran-lib")
+    args, _ = parser.parse_known_args()
 
-
-if __name__ == "__main__":
-    sim = ACC2()
+    fortran = args.fortran_lib or None
+    sim = ACC2Benchmark(fortran)
     sim.setup()
-    sim.runlen = 10 * sim.dt_tracer
+    sim.main_module.runlen = 100 * sim.main_module.dt_tracer
     sim.run()

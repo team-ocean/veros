@@ -1,7 +1,7 @@
 import imp
 import logging
 
-from . import Veros
+from . import Veros, settings
 
 
 class LowercaseAttributeWrapper(object):
@@ -35,7 +35,14 @@ class VerosLegacy(Veros):
         """
         if fortran:
             self.legacy_mode = True
-            self.fortran = LowercaseAttributeWrapper(imp.load_dynamic("pyOM_code", fortran))
+            try:
+                self.fortran = LowercaseAttributeWrapper(imp.load_dynamic("pyOM_code", fortran))
+                self.usi_mpi = False
+            except ImportError:
+                self.fortran = LowercaseAttributeWrapper(imp.load_dynamic("pyOM_code_MPI", fortran))
+                self.use_mpi = True
+                from mpi4py import MPI
+                self.mpi_comm = MPI.COMM_WORLD
             self.main_module = LowercaseAttributeWrapper(self.fortran.main_module)
             self.isoneutral_module = LowercaseAttributeWrapper(self.fortran.isoneutral_module)
             self.idemix_module = LowercaseAttributeWrapper(self.fortran.idemix_module)
@@ -49,16 +56,22 @@ class VerosLegacy(Veros):
             self.idemix_module = self
             self.tke_module = self
             self.eke_module = self
+        self.modules = (self.main_module, self.isoneutral_module, self.idemix_module,
+                        self.tke_module, self.eke_module)
 
         super(VerosLegacy, self).__init__(*args, **kwargs)
 
     def set_legacy_parameter(self, *args, **kwargs):
         m = self.fortran.main_module
         self.onx = 2
-        self.is_pe = 2
-        self.ie_pe = m.nx + 2
-        self.js_pe = 2
-        self.je_pe = m.ny + 2
+        if not self.use_mpi:
+            self.is_pe = 2
+            self.ie_pe = m.nx + 2
+            self.js_pe = 2
+            self.je_pe = m.ny + 2
+        else:
+            m.n_pes_i = m.n_pes / 2
+            m.n_pes_j = m.n_pes / 2
         self.if2py = lambda i: i + self.onx - self.is_pe
         self.jf2py = lambda j: j + self.onx - self.js_pe
         self.ip2fy = lambda i: i + self.is_pe - self.onx
@@ -72,13 +85,22 @@ class VerosLegacy(Veros):
         idm.enable_idemix_m2 = False
         idm.enable_idemix_niw = False
 
+    def _set_commandline_settings(self):
+        for key, val in self._command_line_settings:
+            for m in self.modules:
+                if hasattr(m, key):
+                    setattr(m, key, settings.SETTINGS[key].type(val))
 
     def setup(self, *args, **kwargs):
         with self.timers["setup"]:
             if self.legacy_mode:
-                self.fortran.my_mpi_init(0)
+                if self.use_mpi:
+                    self.fortran.my_mpi_init(self.mpi_comm.py2f())
+                else:
+                    self.fortran.my_mpi_init(0)
                 self.set_parameter()
                 self.set_legacy_parameter()
+                self._set_commandline_settings()
                 self.fortran.pe_decomposition()
                 self.fortran.allocate_main_module()
                 self.fortran.allocate_isoneutral_module()
