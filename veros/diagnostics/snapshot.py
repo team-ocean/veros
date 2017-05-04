@@ -19,8 +19,9 @@ class Snapshot(VerosDiagnostic):
         If this path is constant between iterations (default), data will be appended to
         the snapshot file. However, upon starting a run, this file will be overwritten.
         This also applies when doing a restart.
-        
+
     """
+    name = "snapshot"
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     #: Attributes to be written to restart file.
     restart_attributes = ("itt", "tau", "taum1", "taup1")

@@ -10,6 +10,7 @@ class CFLMonitor(VerosDiagnostic):
 
     Writes output to stdout (no binary output).
     """
+    name = "cfl_monitor"
     output_frequency = None  # : Frequency (in seconds) in which output is written.
 
     def initialize(self, veros):

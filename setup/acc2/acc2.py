@@ -164,6 +164,6 @@ class ACC2(VerosLegacy):
 
 
 if __name__ == "__main__":
-    simulation = ACC2()
+    simulation = ACC2("/home/dion/software/pyOM/py_src/pyOM_code_MPI.so")
     simulation.setup()
     simulation.run()

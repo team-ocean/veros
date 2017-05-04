@@ -10,6 +10,9 @@ restart.h5
 # documentation and profiler output
 *.html
 
+# benchmark output
+test/benchmark_*.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

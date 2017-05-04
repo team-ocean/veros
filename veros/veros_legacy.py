@@ -1,5 +1,6 @@
 import imp
 import logging
+import math
 
 from . import Veros, settings
 
@@ -50,6 +51,7 @@ class VerosLegacy(Veros):
             self.eke_module = LowercaseAttributeWrapper(self.fortran.eke_module)
         else:
             self.legacy_mode = False
+            self.use_mpi = False
             self.fortran = self
             self.main_module = self
             self.isoneutral_module = self
@@ -63,20 +65,15 @@ class VerosLegacy(Veros):
 
     def set_legacy_parameter(self, *args, **kwargs):
         m = self.fortran.main_module
-        self.onx = 2
-        if not self.use_mpi:
-            self.is_pe = 2
-            self.ie_pe = m.nx + 2
-            self.js_pe = 2
-            self.je_pe = m.ny + 2
-        else:
-            m.n_pes_i = m.n_pes / 2
-            m.n_pes_j = m.n_pes / 2
-        self.if2py = lambda i: i + self.onx - self.is_pe
-        self.jf2py = lambda j: j + self.onx - self.js_pe
-        self.ip2fy = lambda i: i + self.is_pe - self.onx
-        self.jp2fy = lambda j: j + self.js_pe - self.onx
-        self.get_tau = lambda: self.tau - 1 if self.legacy_mode else self.tau
+        if self.use_mpi:
+            n_sqrt = int(math.sqrt(m.n_pes))
+            m.n_pes_i = n_sqrt
+            m.n_pes_j = m.n_pes / n_sqrt
+        self.if2py = lambda i: i + m.onx - m.is_pe
+        self.jf2py = lambda j: j + m.onx - m.js_pe
+        self.ip2fy = lambda i: i + m.is_pe - m.onx
+        self.jp2fy = lambda j: j + m.js_pe - m.onx
+        self.get_tau = lambda: m.tau - 1 if self.legacy_mode else m.tau
 
         # force settings that are not supported by Veros
         idm = self.fortran.idemix_module

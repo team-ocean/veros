@@ -13,8 +13,9 @@ from .. import time
 class VerosDiagnostic(object):
     """Base class for diagnostics. Provides an interface and wrappers for common I/O.
 
-    Any diagnostic needs to implement the five interface methods.
+    Any diagnostic needs to implement the five interface methods and set some attributes.
     """
+    name = None #: Name that identifies the current diagnostic
     sampling_frequency = 0.
     output_frequency = 0.
     output_path = None
@@ -40,23 +41,16 @@ class VerosDiagnostic(object):
     read_restart = _not_implemented
     """Responsible for reading restart files."""
 
-    @property
-    def diagnostic_name(self):
-        """ Returns the name of the current diagnostic (name of the subclass
-        that calls this).
-        """
-        return self.__class__.__name__
-
     @veros_class_method
     def get_output_file_name(self, veros):
         return self.output_path.format(**vars(veros))
 
     @do_not_disturb
     @veros_class_method
-    def initialize_output(self, veros, variables, var_data=None, extra_dimensions=None, filepath=None):
+    def initialize_output(self, veros, variables, var_data=None, extra_dimensions=None):
         if veros.diskless_mode:
             return
-        with nctools.threaded_io(veros, filepath or self.get_output_file_name(veros), "w") as outfile:
+        with nctools.threaded_io(veros, self.get_output_file_name(veros), "w") as outfile:
             nctools.initialize_file(veros, outfile)
             if extra_dimensions:
                 for dim_id, size in extra_dimensions.items():
@@ -71,10 +65,10 @@ class VerosDiagnostic(object):
 
     @do_not_disturb
     @veros_class_method
-    def write_output(self, veros, variables, variable_data, filepath=None):
+    def write_output(self, veros, variables, variable_data):
         if veros.diskless_mode:
             return
-        with nctools.threaded_io(veros, filepath or self.get_output_file_name(veros), "r+") as outfile:
+        with nctools.threaded_io(veros, self.get_output_file_name(veros), "r+") as outfile:
             time_step = nctools.get_current_timestep(veros, outfile)
             nctools.advance_time(veros, time_step, time.current_time(veros, "days"), outfile)
             for key, var in variables.items():
@@ -100,11 +94,11 @@ class VerosDiagnostic(object):
             raise IOError("restart file {} not found".format(restart_filename))
 
         logging.info("reading restart data for diagnostic {} from {}".format(
-            self.diagnostic_name, restart_filename))
+            self.name, restart_filename))
         with h5tools.threaded_io(veros, restart_filename, "r") as infile:
             variables = {key: np.array(var[...])
-                         for key, var in infile[self.diagnostic_name].items()}
-            attributes = {key: var for key, var in infile[self.diagnostic_name].attrs.items()}
+                         for key, var in infile[self.name].items()}
+            attributes = {key: var for key, var in infile[self.name].attrs.items()}
         return attributes, variables
 
     @do_not_disturb
@@ -114,12 +108,12 @@ class VerosDiagnostic(object):
             return
         restart_filename = self.get_restart_output_file_name(veros)
         with h5tools.threaded_io(veros, restart_filename, "a") as outfile:
-            outfile.require_group(self.diagnostic_name)
+            outfile.require_group(self.name)
             for key, var in var_data.items():
-                var_name = "{}/{}".format(self.diagnostic_name, key)
+                var_name = "{}/{}".format(self.name, key)
                 if veros.backend_name == "bohrium" and not np.isscalar(var):
                     var = var.copy2numpy()
                 outfile.require_dataset(var_name, var.shape, var.dtype, exact=True)
                 outfile[var_name][...] = var
             for key, val in attributes.items():
-                outfile[self.diagnostic_name].attrs[key] = val
+                outfile[self.name].attrs[key] = val

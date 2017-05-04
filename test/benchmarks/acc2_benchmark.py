@@ -1,6 +1,5 @@
 import sys
 import os
-import numpy as np
 
 from veros import VerosLegacy, veros_method, tools
 
@@ -20,8 +19,8 @@ class ACC2Benchmark(VerosLegacy):
         self.diskless_mode = True
 
         m = self.main_module
-        m.dt_mom = 4800
-        m.dt_tracer = 4800
+        m.dt_mom = 480
+        m.dt_tracer = 480
 
         m.coord_degree = 1
         m.enable_cyclic_x = 1
@@ -53,7 +52,7 @@ class ACC2Benchmark(VerosLegacy):
         t.alpha_tke = 30.0
         t.mxl_min = 1e-8
         t.tke_mxl_choice = 2
-        # t.enable_tke_superbee_advection = 1
+        t.enable_tke_superbee_advection = 1
 
         i.K_gm_0 = 1000.0
         e = self.eke_module
@@ -81,9 +80,9 @@ class ACC2Benchmark(VerosLegacy):
         m = self.main_module
         m.dxt[:] = 80.0 / m.nx
         m.dyt[:] = 80.0 / m.ny
+        m.dzt[:] = 5000. / m.nz
         m.x_origin = 0.0
         m.y_origin = -40.0
-        m.dzt[:] = 5000. / m.nz
 
     @veros_method
     def set_coriolis(self):
@@ -145,9 +144,7 @@ class ACC2Benchmark(VerosLegacy):
 
     @veros_method
     def set_diagnostics(self):
-        self.diagnostics["averages"].output_variables = (
-            "salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy")
-        self.diagnostics["snapshot"].output_path = "{identifier}_{itt:0>4}.snapshot.nc"
+        pass
 
 if __name__ == "__main__":
     import argparse
