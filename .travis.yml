@@ -1,6 +1,8 @@
 services:
   - docker
 
+language: python
+
 git:
   lfs_skip_smudge: true
 
@@ -16,9 +18,9 @@ env:
     - PYTHON_EXEC=python3 PYOM_LIB=pyOM_code_py3.so PYOM_MPI_LIB=pyOM_code_MPI_py3.so
 
 script:
-- docker run -t veros -c "$PYTHON_EXEC /veros/test/run_tests.py /pyOM/py_src/$PYOM_LIB"
-- docker run -t veros -c "$PYTHON_EXEC /veros/test/run_benchmarks.py --max-size 1e6
-                                      -c numpy fortran fortran-mpi bohrium bohrium-opencl
-                                      -f /pyOM/py_src/$PYOM_MPI_LIB"
+- docker run -t veros $PYTHON_EXEC /veros/test/run_tests.py /pyOM/py_src/$PYOM_LIB
+- docker run -t veros $PYTHON_EXEC /veros/test/run_benchmarks.py --max-size 1e6 \
+                                   -c numpy fortran fortran-mpi bohrium bohrium-opencl \
+                                   -f /pyOM/py_src/$PYOM_MPI_LIB
 notifications:
   email: false
