@@ -8,8 +8,8 @@ ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
 # Install dependencies
-RUN apt-get update > /dev/null && apt-get install -y /
-  python-pip python3-pip /
+RUN apt-get update > /dev/null && apt-get install -y \
+  python-pip python3-pip \
   git curl libopenmpi-dev > /dev/null
 
 # Build bohrium
@@ -18,6 +18,10 @@ RUN mkdir -p /bohrium/bohrium-master/build
 WORKDIR /bohrium/bohrium-master/build
 RUN cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DEXT_VISUALIZER=OFF
 RUN make > /dev/null && make install > /dev/null
+RUN ln -s /usr/lib/python2.7/site-packages/bohrium /usr/lib/python2.7/dist-packages/ && \
+    python2.7 -c "import bohrium"
+RUN ln -s /usr/lib/python3.5/site-packages/bohrium /usr/lib/python3/dist-packages/ && \
+    python3.5 -c "import bohrium"
 
 # Build pyOM2 with Python 2 and Python 3 support
 RUN mkdir /pyOM2
