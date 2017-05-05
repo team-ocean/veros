@@ -5,7 +5,7 @@ with Dirichlet boundary conditions
 used for streamfunction
 """
 
-from . import solve_pressure, island, utilities, solve_poisson
+from . import island, utilities, solve_poisson
 from .. import cyclic
 from ... import veros_method
 
