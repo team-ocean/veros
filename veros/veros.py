@@ -243,7 +243,7 @@ class Veros(object):
     def setup(self):
         with self.timers["setup"]:
             logging.info("Setting up everything")
-            
+
             self.set_parameter()
             self._set_commandline_settings()
             self._allocate()
@@ -391,31 +391,31 @@ class Veros(object):
                     diagnostic.write_restart(self)
 
                 logging.debug("Timing summary:")
-                logging.debug(" setup time               = {:.1f}s"
+                logging.debug(" setup time               = {:.2f}s"
                               .format(self.timers["setup"].getTime()))
-                logging.debug(" main loop time           = {:.1f}s"
+                logging.debug(" main loop time           = {:.2f}s"
                               .format(self.timers["main"].getTime()))
-                logging.debug("     momentum             = {:.1f}s"
+                logging.debug("     momentum             = {:.2f}s"
                               .format(self.timers["momentum"].getTime()))
-                logging.debug("       pressure           = {:.1f}s"
+                logging.debug("       pressure           = {:.2f}s"
                               .format(self.timers["pressure"].getTime()))
-                logging.debug("       friction           = {:.1f}s"
+                logging.debug("       friction           = {:.2f}s"
                               .format(self.timers["friction"].getTime()))
-                logging.debug("     thermodynamics       = {:.1f}s"
+                logging.debug("     thermodynamics       = {:.2f}s"
                               .format(self.timers["temperature"].getTime()))
-                logging.debug("       lateral mixing     = {:.1f}s"
+                logging.debug("       lateral mixing     = {:.2f}s"
                               .format(self.timers["isoneutral"].getTime()))
-                logging.debug("       vertical mixing    = {:.1f}s"
+                logging.debug("       vertical mixing    = {:.2f}s"
                               .format(self.timers["vmix"].getTime()))
-                logging.debug("       equation of state  = {:.1f}s"
+                logging.debug("       equation of state  = {:.2f}s"
                               .format(self.timers["eq_of_state"].getTime()))
-                logging.debug("     EKE                  = {:.1f}s"
+                logging.debug("     EKE                  = {:.2f}s"
                               .format(self.timers["eke"].getTime()))
-                logging.debug("     IDEMIX               = {:.1f}s"
+                logging.debug("     IDEMIX               = {:.2f}s"
                               .format(self.timers["idemix"].getTime()))
-                logging.debug("     TKE                  = {:.1f}s"
+                logging.debug("     TKE                  = {:.2f}s"
                               .format(self.timers["tke"].getTime()))
-                logging.debug(" diagnostics and I/O      = {:.1f}s"
+                logging.debug(" diagnostics and I/O      = {:.2f}s"
                               .format(self.timers["diagnostics"].getTime()))
 
                 if self.profile_mode:

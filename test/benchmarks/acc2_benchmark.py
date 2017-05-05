@@ -100,12 +100,6 @@ class ACC2Benchmark(VerosLegacy):
     @veros_method
     def set_initial_conditions(self):
         m = self.main_module
-        XT, YT = np.meshgrid(m.xt, m.yt)
-        XT = XT.transpose()
-        YT = YT.transpose()
-        XU, YU = np.meshgrid(m.xu, m.yu)
-        XU = XU.transpose()
-        YU = YU.transpose()
 
         # initial conditions
         m.temp[:, :, :, 0:2] = ((1 - m.zt[None, None, :] / m.zw[0]) * 15 * m.maskT)[..., None]
@@ -140,7 +134,7 @@ class ACC2Benchmark(VerosLegacy):
     @veros_method
     def set_forcing(self):
         m = self.main_module
-        m.forc_temp_surface[:] = self.t_rest * (self.t_star - m.temp[:, :, -1, 1])
+        m.forc_temp_surface[:] = self.t_rest * (self.t_star - m.temp[:, :, -1, self.get_tau()])
 
     @veros_method
     def set_diagnostics(self):

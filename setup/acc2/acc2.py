@@ -1,4 +1,4 @@
-from veros import VerosLegacy, veros_method
+from veros import Veros, veros_method
 
 yt_start = -39.0
 yt_end = 43
@@ -6,7 +6,7 @@ yu_start = -40.0
 yu_end = 42
 
 
-class ACC2(VerosLegacy):
+class ACC2(Veros):
     """
     A simple global model with a Southern Ocean and Atlantic part
     """
@@ -14,156 +14,125 @@ class ACC2(VerosLegacy):
     def set_parameter(self):
         self.identifier = "acc2"
 
-        m = self.main_module
+        self.nx, self.ny, self.nz = 30, 42, 15
+        self.dt_mom = 4800
+        self.dt_tracer = 86400 / 2.
+        self.runlen = 86400 * 365
 
-        (m.nx, m.ny, m.nz) = (30, 42, 15)
-        m.dt_mom = 4800
-        m.dt_tracer = 86400 / 2.
-        m.runlen = 86400 * 365
+        self.coord_degree = True
+        self.enable_cyclic_x = True
 
-        m.coord_degree = 1
-        m.enable_cyclic_x = 1
+        self.congr_epsilon = 1e-12
+        self.congr_max_iterations = 5000
 
-        m.congr_epsilon = 1e-12
-        m.congr_max_iterations = 5000
+        self.enable_neutral_diffusion = True
+        self.K_iso_0 = 1000.0
+        self.K_iso_steep = 500.0
+        self.iso_dslope = 0.005
+        self.iso_slopec = 0.01
+        self.enable_skew_diffusion = True
 
-        m.enable_diag_snapshots = True
-        m.snapint = 86400 * 10
-        m.enable_diag_averages = True
-        m.aveint = 365 * 86400.
-        m.avefreq = m.dt_tracer * 10
-        m.enable_diag_overturning = True
-        m.overint = 365 * 86400. / 48.
-        m.overfreq = m.dt_tracer * 10
-        m.enable_diag_ts_monitor = True
-        m.ts_monint = 365 * 86400. / 12.
-        m.enable_diag_energy = True
-        m.energint = 365 * 86400. / 48
-        m.energfreq = m.dt_tracer * 10
+        self.enable_hor_friction = True
+        self.A_h = (2 * self.degtom)**3 * 2e-11
+        self.enable_hor_friction_cos_scaling = True
+        self.hor_friction_cosPower = 1
 
-        i = self.isoneutral_module
-        i.enable_neutral_diffusion = 1
-        i.K_iso_0 = 1000.0
-        i.K_iso_steep = 500.0
-        i.iso_dslope = 0.005
-        i.iso_slopec = 0.01
-        i.enable_skew_diffusion = 1
+        self.enable_bottom_friction = True
+        self.r_bot = 1e-5
 
-        m.enable_hor_friction = 1
-        m.A_h = (2 * m.degtom)**3 * 2e-11
-        m.enable_hor_friction_cos_scaling = 1
-        m.hor_friction_cosPower = 1
+        self.enable_implicit_vert_friction = True
 
-        m.enable_bottom_friction = 1
-        m.r_bot = 1e-5
+        self.enable_tke = True
+        self.c_k = 0.1
+        self.c_eps = 0.7
+        self.alpha_tke = 30.0
+        self.mxl_min = 1e-8
+        self.tke_mxl_choice = 2
+        # self.enable_tke_superbee_advection = True
 
-        m.enable_implicit_vert_friction = 1
-        t = self.tke_module
-        t.enable_tke = 1
-        t.c_k = 0.1
-        t.c_eps = 0.7
-        t.alpha_tke = 30.0
-        t.mxl_min = 1e-8
-        t.tke_mxl_choice = 2
-        # t.enable_tke_superbee_advection = 1
+        self.K_gm_0 = 1000.0
+        self.enable_eke = True
+        self.eke_k_max = 1e4
+        self.eke_c_k = 0.4
+        self.eke_c_eps = 0.5
+        self.eke_cross = 2.
+        self.eke_crhin = 1.0
+        self.eke_lmin = 100.0
+        self.enable_eke_superbee_advection = True
+        self.enable_eke_isopycnal_diffusion = True
 
-        i.K_gm_0 = 1000.0
-        e = self.eke_module
-        e.enable_eke = 1
-        e.eke_k_max = 1e4
-        e.eke_c_k = 0.4
-        e.eke_c_eps = 0.5
-        e.eke_cross = 2.
-        e.eke_crhin = 1.0
-        e.eke_lmin = 100.0
-        e.enable_eke_superbee_advection = 1
-        e.enable_eke_isopycnal_diffusion = 1
+        self.enable_idemix = True
+        self.enable_idemix_hor_diffusion = True
+        self.enable_eke_diss_surfbot = True
+        self.eke_diss_surfbot_frac = 0.2
+        self.enable_idemix_superbee_advection = True
 
-        i = self.idemix_module
-        i.enable_idemix = 1
-        i.enable_idemix_hor_diffusion = 1
-        i.enable_eke_diss_surfbot = 1
-        i.eke_diss_surfbot_frac = 0.2
-        i.enable_idemix_superbee_advection = 1
-
-        m.eq_of_state_type = 3
+        self.eq_of_state_type = 3
 
     @veros_method
     def set_grid(self):
-        m = self.main_module
-        ddz = [50., 70., 100., 140., 190., 240., 290., 340.,
-               390., 440., 490., 540., 590., 640., 690.]
-        m.dxt[:] = 2.0
-        m.dyt[:] = 2.0
-        m.x_origin = 0.0
-        m.y_origin = -40.0
-        m.dzt[:] = ddz[::-1]
-        m.dzt[:] *= 1 / 2.5
+        ddz = np.array([50., 70., 100., 140., 190., 240., 290., 340.,
+                        390., 440., 490., 540., 590., 640., 690.])
+        self.dxt[...] = 2.0
+        self.dyt[...] = 2.0
+        self.x_origin = 0.0
+        self.y_origin = -40.0
+        self.dzt[...] = ddz[::-1] / 2.5
 
     @veros_method
     def set_coriolis(self):
-        m = self.main_module
-        m.coriolis_t[:, :] = 2 * m.omega * np.sin(m.yt[None, :] / 180. * np.pi)
+        self.coriolis_t[:, :] = 2 * self.omega * np.sin(self.yt[None, :] / 180. * self.pi)
 
     @veros_method
     def set_topography(self):
-        m = self.main_module
-        (X, Y) = np.meshgrid(m.xt, m.yt)
-        X = X.transpose()
-        Y = Y.transpose()
-        m.kbot[...] = (X > 1.0) | (Y < -20)
+        x, y = np.meshgrid(self.xt, self.yt, indexing="ij")
+        self.kbot[...] = np.logical_or(x > 1.0, y < -20)
 
     @veros_method
     def set_initial_conditions(self):
-        m = self.main_module
-        XT, YT = np.meshgrid(m.xt, m.yt)
-        XT = XT.transpose()
-        YT = YT.transpose()
-        XU, YU = np.meshgrid(m.xu, m.yu)
-        XU = XU.transpose()
-        YU = YU.transpose()
-
         # initial conditions
-        m.temp[:, :, :, 0:2] = ((1 - m.zt[None, None, :] / m.zw[0]) * 15 * m.maskT)[..., None]
-        m.salt[:, :, :, 0:2] = 35.0 * m.maskT[..., None]
+        self.temp[:, :, :, 0:2] = ((1 - self.zt[None, None, :] / self.zw[0]) * 15 * self.maskT)[..., None]
+        self.salt[:, :, :, 0:2] = 35.0 * self.maskT[..., None]
 
         # wind stress forcing
-        taux = np.zeros(m.ny + 1)
-        yt = m.yt[2:m.ny + 3]
-        taux = (.1e-3 * np.sin(np.pi * (m.yu[2:m.ny + 3] - yu_start) / (-20.0 - yt_start))) * (yt < -20) \
-            + (.1e-3 * (1 - np.cos(2 * np.pi *
-                                   (m.yu[2:m.ny + 3] - 10.0) / (yu_end - 10.0)))) * (yt > 10)
-        m.surface_taux[:, 2:m.ny + 3] = taux * m.maskU[:, 2:m.ny + 3, -1]
+        taux = np.zeros(self.ny + 4)
+        taux[self.yt < -20] = 1e-4 * np.sin(self.pi * (self.yu[self.yt < -20] - yu_start) / (-20.0 - yt_start))
+        taux[self.yt > 10] = 1e-4 * (1 - np.cos(2 * self.pi * (self.yu[self.yt > 10] - 10.0) / (yu_end - 10.0)))
+        self.surface_taux[:, :] = taux * self.maskU[:, :, -1]
 
         # surface heatflux forcing
-        self.t_star = 15 * np.invert((m.yt < -20) | (m.yt > 20)) \
-            + 15 * (m.yt - yt_start) / (-20 - yt_start) * (m.yt < -20) \
-            + 15 * (1 - (m.yt - 20) / (yt_end - 20)) * (m.yt > 20.)
-        self.t_rest = m.dzt[None, -1] / (30. * 86400.) * m.maskT[:, :, -1]
+        self._t_star = 15 * np.ones(self.ny + 4)
+        self._t_star[self.yt < -20] = 15 * (self.yt[self.yt < -20] - yt_start) / (-20 - yt_start)
+        self._t_star[self.yt > 20] = 15 * (1 - (self.yt[self.yt > 20] - 20) / (yt_end - 20))
+        self._t_rest = self.dzt[None, -1] / (30. * 86400.) * self.maskT[:, :, -1]
 
-        t = self.tke_module
-        if t.enable_tke:
-            t.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (m.surface_taux[2:-2, 2:-2] + m.surface_taux[1:-3, 2:-2]))**2
-                                                     + (0.5 * (m.surface_tauy[2:-2, 2:-2] + m.surface_tauy[2:-2, 1:-3]))**2)**(1.5)
+        if self.enable_tke:
+            self.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (self.surface_taux[2:-2, 2:-2] + self.surface_taux[1:-3, 2:-2]))**2
+                                                      + (0.5 * (self.surface_tauy[2:-2, 2:-2] + self.surface_tauy[2:-2, 1:-3]))**2)**(1.5)
 
-        i = self.idemix_module
-        if i.enable_idemix:
-            i.forc_iw_bottom[:] = 1.0e-6 * m.maskW[:, :, -1]
-            i.forc_iw_surface[:] = 0.1e-6 * m.maskW[:, :, -1]
+        if self.enable_idemix:
+            self.forc_iw_bottom[...] = 1e-6 * self.maskW[:, :, -1]
+            self.forc_iw_surface[...] = 1e-7 * self.maskW[:, :, -1]
 
     @veros_method
     def set_forcing(self):
-        m = self.main_module
-        m.forc_temp_surface[:] = self.t_rest * (self.t_star - m.temp[:, :, -1, 1])
+        self.forc_temp_surface[...] = self._t_rest * (self._t_star - self.temp[:, :, -1, self.tau])
 
     @veros_method
     def set_diagnostics(self):
+        self.diagnostics["snapshot"].output_frequency = 86400 * 10
         self.diagnostics["averages"].output_variables = (
             "salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy")
-        self.diagnostics["snapshot"].output_path = "{identifier}_{itt:0>4}.snapshot.nc"
+        self.diagnostics["averages"].output_frequency = 365 * 86400.
+        self.diagnostics["averages"].sampling_frequency = self.dt_tracer * 10
+        self.diagnostics["overturning"].output_frequency = 365 * 86400. / 48.
+        self.diagnostics["overturning"].sampling_frequency = self.dt_tracer * 10
+        self.diagnostics["tracer_monitor"].output_frequency = 365 * 86400. / 12.
+        self.diagnostics["energy"].output_frequency = 365 * 86400. / 48
+        self.diagnostics["energy"].sampling_frequency = self.dt_tracer * 10
 
 
 if __name__ == "__main__":
-    simulation = ACC2("/home/dion/software/pyOM/py_src/pyOM_code_MPI.so")
+    simulation = ACC2()
     simulation.setup()
     simulation.run()

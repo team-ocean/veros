@@ -1,5 +1,7 @@
 FROM bohrium/ubuntu:16.04
+
 MAINTAINER Dion Häfner <mail@dionhaefner.de>
+
 
 # Set the locale
 RUN locale-gen en_US.UTF-8
