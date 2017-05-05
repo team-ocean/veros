@@ -24,7 +24,12 @@ class LowercaseAttributeWrapper(object):
 
 class VerosLegacy(Veros):
     """
-    Veros class that supports the pyOM Fortran interface
+    An alternative Veros class that supports the pyOM Fortran interface as backend
+
+    .. warning::
+
+       Do not use this class for new setups!
+
     """
 
     def __init__(self, fortran=None, *args, **kwargs):
@@ -38,7 +43,7 @@ class VerosLegacy(Veros):
             self.legacy_mode = True
             try:
                 self.fortran = LowercaseAttributeWrapper(imp.load_dynamic("pyOM_code", fortran))
-                self.usi_mpi = False
+                self.use_mpi = False
             except ImportError:
                 self.fortran = LowercaseAttributeWrapper(imp.load_dynamic("pyOM_code_MPI", fortran))
                 self.use_mpi = True

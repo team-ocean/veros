@@ -14,7 +14,7 @@ import json
 """
 Runs all Veros benchmarks back to back and writes timing results to JSON outfile.
 """
-
+testdir = os.path.join(os.path.dirname(__file__), os.path.relpath("benchmarks"))
 nproc = multiprocessing.cpu_count()
 benchmark_commands = {
     "numpy": "{python} {filename} -b numpy -s nx {nx} -s ny {ny} -s nz {nz}",
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     sizes = [10 ** n for n in range(3,int(math.log10(args.max_size)))]
     out_data = {}
     try:
-        for f in os.listdir("./benchmarks"):
+        for f in os.listdir(testdir):
             if not f.endswith("_benchmark.py"):
                 continue
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
                 print(" current size: {}".format(nx * ny * nz))
                 cmd_args = {
                             "python": sys.executable,
-                            "filename": os.path.realpath(os.path.join("./benchmarks", f)),
+                            "filename": os.path.realpath(os.path.join(testdir, f)),
                             "nproc": nproc,
                             "fortran_lib": args.fortran_library,
                             "nx": nx, "ny": ny, "nz": nz
