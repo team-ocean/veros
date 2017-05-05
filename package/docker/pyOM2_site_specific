@@ -1,0 +1,14 @@
+# fortran front end
+F90 = mpif90
+CDFFLAGS = $(shell nf-config --fflags --flibs)
+MPIFLAGS =
+F90FLAGS = -llapack -lblas -fconvert=big-endian -O3 -Wall #-check bounds
+
+# python front end
+F2PYFLAGS = -llapack -lblas
+F2PY_MPIFLAGS = -I/usr/lib/openmpi/include -L/usr/lib/openmpi/lib -lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi
+
+
+
+
+
