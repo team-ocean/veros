@@ -21,7 +21,7 @@ benchmark_commands = {
     "bohrium": "BH_STACK=openmp BH_OPENMP_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz}",
     "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz}",
     "fortran": "{python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz}",
-    "fortran-mpi": "mpiexec -n {nproc} -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz}"
+    "fortran-mpi": "mpiexec -n {nproc} --allow-run-as-root -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz}"
 }
 outfile = "benchmark_{}.json".format(time.time())
 
@@ -58,6 +58,7 @@ if __name__ == "__main__":
 
     sizes = [10 ** n for n in range(3,int(math.log10(args.max_size)))]
     out_data = {}
+    all_passed = True
     try:
         for f in os.listdir(testdir):
             if not f.endswith("_benchmark.py"):
@@ -68,7 +69,7 @@ if __name__ == "__main__":
             for size in sizes:
                 n = int(size ** (1./3.)) + 1
                 nx = ny = int(2. ** 0.5 * n)
-                nz = n / 2
+                nz = n // 2
                 print(" current size: {}".format(nx * ny * nz))
                 cmd_args = {
                             "python": sys.executable,
@@ -90,6 +91,7 @@ if __name__ == "__main__":
                     except subprocess.CalledProcessError as e:
                         print("failed")
                         print(e.output)
+                        all_passed = False
                         continue
                     end = time.time()
                     elapsed = end - start
@@ -114,3 +116,4 @@ if __name__ == "__main__":
     finally:
         with open(outfile, "w") as f:
             json.dump(out_data, f)
+        sys.exit(int(not all_passed))

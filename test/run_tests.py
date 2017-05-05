@@ -22,6 +22,7 @@ if __name__ == "__main__":
         success = "\x1b[{}m{}\x1b[0m".format("32",success)
         fail = "\x1b[{}m{}\x1b[0m".format("31",fail)
 
+    all_passed = True
     for f in os.listdir(testdir):
         if f.endswith("_test.py"):
             sys.stdout.write("Running test {} ... ".format(f))
@@ -32,6 +33,7 @@ if __name__ == "__main__":
             except subprocess.CalledProcessError as e:
                 sys.stdout.write(fail + "\n\n")
                 print(e.output)
+                all_passed = False
                 continue
             sys.stdout.write(success + "\n")
 
@@ -43,5 +45,7 @@ if __name__ == "__main__":
             except subprocess.CalledProcessError as e:
                 sys.stdout.write(fail + "\n\n")
                 print(e.output)
+                all_passed = False
                 continue
             sys.stdout.write(success + "\n")
+    sys.exit(int(not all_passed))
