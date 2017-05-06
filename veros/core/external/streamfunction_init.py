@@ -35,7 +35,6 @@ def streamfunction_init(veros):
     veros.line_dir_east_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
     veros.line_dir_west_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
 
-
     if veros.backend_name == "bohrium":
         veros.boundary_mask = veros.boundary_mask.copy2numpy()
         veros.line_dir_south_mask = veros.line_dir_south_mask.copy2numpy()

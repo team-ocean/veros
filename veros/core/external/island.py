@@ -18,9 +18,10 @@ def isleperim(veros, kmt, verbose=False):
     Island and Island Perimeter boundary mapping routines
     """
 
-    logging.info(" Finding perimeters of all land masses")
-    if veros.enable_cyclic_x:
-        logging.info(" using cyclic boundary conditions")
+    if verbose:
+        logging.info(" Finding perimeters of all land masses")
+        if veros.enable_cyclic_x:
+            logging.info(" using cyclic boundary conditions")
 
     """
     copy kmt to map changing notation

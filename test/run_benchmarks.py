@@ -33,6 +33,8 @@ def parse_cli():
     return parser.parse_args()
 
 def check_fortran_library(path):
+    if not path:
+        return None
     flib = None
     try:
         imp.load_dynamic("pyOM_code", args.fortran_library)
@@ -50,7 +52,7 @@ if __name__ == "__main__":
     args = parse_cli()
     fortran_version = check_fortran_library(args.fortran_library)
 
-    if fortran_version is None and ("fortran" in args.components or "fortran-mpi" in args.components):
+    if not fortran_version and ("fortran" in args.components or "fortran-mpi" in args.components):
         raise RuntimeError("Path to fortran library must be giving when running fortran components")
 
     if fortran_version != "parallel" and "fortran-mpi" in args.components:

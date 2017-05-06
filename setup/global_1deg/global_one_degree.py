@@ -98,7 +98,7 @@ class GlobalOneDegree(VerosLegacy):
     @veros_method
     def _read_forcing(self, var):
         with Dataset(FORCING_FILE, "r") as infile:
-            return infile.variables[var][...].T
+            return np.array(infile.variables[var][...]).T
 
     @veros_method
     def set_grid(self):
@@ -188,11 +188,10 @@ class GlobalOneDegree(VerosLegacy):
         sss_data = self._read_forcing("sss")
         self.s_star[2:-2, 2:-2, :] = sss_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        idm = self.idemix_module
-        if idself.enable_idemix:
+        if self.enable_idemix:
             tidal_energy_data = self._read_forcing("tidal_energy")
             mask = np.maximum(0, self.kbot[2:-2, 2:-2] - 1)[:, :, np.newaxis] == np.arange(self.nz)[np.newaxis, np.newaxis, :]
-            tidal_energy_data[:, :] *= self.maskW[mask] / self.rho_0
+            tidal_energy_data[:, :] *= self.maskW[2:-2, 2:-2, :][mask].reshape(self.nx, self.ny) / self.rho_0
             self.forc_iw_bottom[2:-2, 2:-2] = tidal_energy_data
 
             wind_energy_data = self._read_forcing("wind_energy")
@@ -217,7 +216,7 @@ class GlobalOneDegree(VerosLegacy):
         t_rest = 30. * 86400.
         cp_0 = 3991.86795711963  # J/kg /K
 
-        year_in_seconds = time.convert_time(m, 1., "years", "seconds")
+        year_in_seconds = time.convert_time(self, 1., "years", "seconds")
         (n1, f1), (n2, f2) = tools.get_periodic_interval(time.current_time(
             self, "seconds"), year_in_seconds, year_in_seconds / 12., 12)
 
@@ -262,13 +261,13 @@ class GlobalOneDegree(VerosLegacy):
             average_vars += ["B1_gm", "B2_gm"]
         if self.enable_TEM_friction:
             average_vars += ["kappa_gm", "K_diss_gm"]
-        if tkself.enable_tke:
+        if self.enable_tke:
             average_vars += ["tke", "Prandtlnumber", "mxl", "tke_diss",
                              "forc_tke_surface", "tke_surf_corr"]
-        if idself.enable_idemix:
+        if self.enable_idemix:
             average_vars += ["E_iw", "forc_iw_surface", "forc_iw_bottom", "iw_diss",
                              "c0", "v0"]
-        if ekself.enable_eke:
+        if self.enable_eke:
             average_vars += ["eke", "K_gm", "L_rossby", "L_rhines"]
 
         self.diagnostics["averages"].output_variables = average_vars
@@ -279,7 +278,7 @@ class GlobalOneDegree(VerosLegacy):
         self.diagnostics["energy"].output_frequency = 365 * 86400
         self.diagnostics["energy"].sampling_frequency = 365 * 86400 / 24.
         self.diagnostics["averages"].output_frequency = 365 * 86400
-        self.diagnostics["averages"].sampling_frequency = 365 * 86400 / 24.,
+        self.diagnostics["averages"].sampling_frequency = 365 * 86400 / 24.
 
 
 if __name__ == "__main__":
