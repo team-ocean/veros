@@ -16,11 +16,13 @@ env:
   global:
     - PYOM_DIR=/pyOM2/py_src
     - TEST_DIR=/veros/test
-
   matrix:
     - PYTHON_EXEC=python2 PYOM_LIB=pyOM_code_py2.so PYOM_MPI_LIB=pyOM_code_MPI_py2.so
-    allow_failures:
-      - PYTHON_EXEC=python3 PYOM_LIB=pyOM_code_py3.so PYOM_MPI_LIB=pyOM_code_MPI_py3.so
+    - PYTHON_EXEC=python3 PYOM_LIB=pyOM_code_py3.so PYOM_MPI_LIB=pyOM_code_MPI_py3.so
+
+matrix:
+  allow_failures:
+    - env: PYTHON_EXEC=python3 PYOM_LIB=pyOM_code_py3.so PYOM_MPI_LIB=pyOM_code_MPI_py3.so
 
 script:
 - docker run -t veros $PYTHON_EXEC $TEST_DIR/run_tests.py /pyOM2/py_src/$PYOM_LIB
