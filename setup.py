@@ -6,7 +6,7 @@ import os
 
 
 def find_scripts(scriptdir):
-    return [os.path.join(scriptdir, s) for s in os.listdir(scriptdir)]
+    return [os.path.join(scriptdir, s) for s in os.listdir(scriptdir) if not s.endswith(".pyc")]
 
 setup(
     name = "veros",
@@ -18,6 +18,7 @@ setup(
         "pyamg",
         "netCDF4",
         "h5py",
+        "pillow"
         ],
     author = "NBI Copenhagen",
     author_email = "dion.haefner@nbi.ku.dk",
