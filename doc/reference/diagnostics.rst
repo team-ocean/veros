@@ -6,8 +6,8 @@ Diagnostics
 Diagnostics are separate objects (instances of subclasses of :class:`VerosDiagnostic`)
 responsible for handling I/O, restart mechanics, and monitoring of the numerical
 solution. All available diagnostics are instantiated and added to a dictionary
-attribute :attr:`Veros.diagnostics`. Options for diagnostics may be set during
-the :meth:`Veros.set_diagnostics` method:
+attribute :attr:`Veros.diagnostics` (with a key determined by their `name` attribute).
+Options for diagnostics may be set during the :meth:`Veros.set_diagnostics` method:
 
 ::
 
@@ -18,11 +18,6 @@ the :meth:`Veros.set_diagnostics` method:
            self.diagnostics["averages"].sampling_frequency = 3600.
            self.diagnostics["snapshot"].output_variables += ["du"]
 
-The available key-value pairs of :attr:`Veros.diagnostics` are defined here:
-
-.. literalinclude:: /../veros/diagnostics/__init__.py
-   :lines: 3-
-
 Base class
 ----------
 
@@ -31,7 +26,7 @@ to write your own diagnostics: Just derive from this class, and implement the
 virtual functions.
 
 .. autoclass:: veros.diagnostics.diagnostic.VerosDiagnostic
-   :members: initialize, diagnose, output, read_restart, write_restart
+   :members: name, initialize, diagnose, output, read_restart, write_restart
 
 Available diagnostics
 ---------------------
@@ -43,34 +38,34 @@ Snapshot
 ++++++++
 
 .. autoclass:: veros.diagnostics.snapshot.Snapshot
-   :members: output_variables, restart_variables, sampling_frequency, output_frequency, output_path
+   :members: name, output_variables, restart_variables, sampling_frequency, output_frequency, output_path
 
 Averages
 ++++++++
 
 .. autoclass:: veros.diagnostics.averages.Averages
-   :members: output_variables, sampling_frequency, output_frequency, output_path
+   :members: name, output_variables, sampling_frequency, output_frequency, output_path
 
 CFL monitor
 +++++++++++
 
 .. autoclass:: veros.diagnostics.cfl_monitor.CFLMonitor
-   :members: sampling_frequency, output_frequency
+   :members: name, sampling_frequency, output_frequency
 
 Tracer monitor
 ++++++++++++++
 
 .. autoclass:: veros.diagnostics.tracer_monitor.TracerMonitor
-   :members: sampling_frequency, output_frequency
+   :members: name, sampling_frequency, output_frequency
 
 Energy
 ++++++
 
 .. autoclass:: veros.diagnostics.energy.Energy
-   :members: sampling_frequency, output_frequency, output_path
+   :members: name, sampling_frequency, output_frequency, output_path
 
 Overturning
 +++++++++++
 
 .. autoclass:: veros.diagnostics.overturning.Overturning
-   :members: p_ref, sampling_frequency, output_frequency, output_path
+   :members: name, p_ref, sampling_frequency, output_frequency, output_path

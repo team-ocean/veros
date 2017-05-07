@@ -21,6 +21,11 @@ import sys
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('3rdparty'))
 
+setupdir = os.path.abspath('../setup')
+for setup in os.listdir(setupdir):
+    if os.path.isdir(os.path.join(setupdir, setup)):
+        sys.path.insert(0, os.path.abspath(os.path.join(setupdir, setup)))
+
 # Mock packages with C dependencies
 import mock
 MOCK_MODULES = ['pyamg', 'netCDF4', 'h5py']
