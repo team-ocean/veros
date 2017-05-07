@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from netCDF4 import Dataset
 from PIL import Image
 import numpy as np

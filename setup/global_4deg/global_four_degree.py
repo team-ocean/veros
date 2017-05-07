@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 import logging
 from netCDF4 import Dataset

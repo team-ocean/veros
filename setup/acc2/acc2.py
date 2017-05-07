@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from veros import Veros, veros_method
 
 yt_start = -39.0
