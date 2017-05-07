@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 import numpy as np
 from netCDF4 import Dataset
@@ -175,12 +177,12 @@ class WavePropagation(Veros):
             12)), self._get_data("q_net"), time_grid, missing_value=0.)
         self._qnet[2:-2, 2:-2, :] = -qnet_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qnec_data = tools.interpolate((xt_forc, yt_forc, np.arange(
-            12)), self._get_data("dqdt"), time_grid, missing_value=0.)
+        qnec_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+                                       self._get_data("dqdt"), time_grid, missing_value=0.)
         self._qnec[2:-2, 2:-2, :] = qnec_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qsol_data = tools.interpolate((xt_forc, yt_forc, np.arange(
-            12)), self._get_data("swf"), time_grid, missing_value=0.)
+        qsol_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+                                       self._get_data("swf"), time_grid, missing_value=0.)
         self._qsol[2:-2, 2:-2, :] = -qsol_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         # SST and SSS
@@ -222,8 +224,8 @@ class WavePropagation(Veros):
         cp_0 = 3991.86795711963  # J/kg /K
 
         year_in_seconds = 360 * 86400.
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.itt *
-                                                         self.dt_tracer, year_in_seconds, year_in_seconds / 12., 12)
+        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.itt * self.dt_tracer, year_in_seconds,
+                                                         year_in_seconds / 12., 12)
 
         self.surface_taux[...] = f1 * self._taux[:, :, n1] + f2 * self._taux[:, :, n2]
         self.surface_tauy[...] = f1 * self._tauy[:, :, n1] + f2 * self._tauy[:, :, n2]
@@ -285,4 +287,6 @@ class WavePropagation(Veros):
 
 
 if __name__ == "__main__":
-    WavePropagation().run(runlen=86400. * 10)
+    simulation = WavePropagation()
+    simulation.setup()
+    simulation.run()

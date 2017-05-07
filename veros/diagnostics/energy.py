@@ -97,9 +97,10 @@ ENERGY_VARIABLES = dict(
 class Energy(VerosDiagnostic):
     """Diagnose globally averaged energy cycle. Also averages energy in time.
     """
-    output_path = "{identifier}_energy.nc"  # : File to write to. May contain format strings that are replaced with Veros attributes.
-    output_frequency = None  # : Frequency (in seconds) in which output is written.
-    sampling_frequency = None  # : Frequency (in seconds) in which variables are accumulated.
+    name = "energy" #:
+    output_path = "{identifier}.energy.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
+    output_frequency = None  #: Frequency (in seconds) in which output is written.
+    sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
     variables = ENERGY_VARIABLES
 
     @veros_class_method

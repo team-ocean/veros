@@ -73,19 +73,17 @@ class Veros(object):
     def __init__(self, backend=None, loglevel=None, logfile=None):
         args = cli.parse_command_line()
         self.backend, self.backend_name = self._get_backend(backend or args.backend)
-        try:
+        try: # python 2
             logging.basicConfig(logfile=logfile or args.logfile, filemode="w",
                                 level=getattr(logging, (loglevel or args.loglevel).upper()),
                                 format="%(message)s")
-        except ValueError:
+        except ValueError: # python 3
             logging.basicConfig(filename=logfile or args.logfile, filemode="w",
                                 level=getattr(logging, (loglevel or args.loglevel).upper()),
                                 format="%(message)s")
         self.profile_mode = args.profile
         self._set_default_settings()
-        if args.set:
-            for key, val in args.set:
-                setattr(self, key, val)
+        self._command_line_settings = args.set or {}
         self.timers = {k: Timer(k) for k in ("setup", "main", "momentum", "temperature",
                                              "eke", "idemix", "tke", "diagnostics",
                                              "pressure", "friction", "isoneutral",
@@ -101,7 +99,11 @@ class Veros(object):
 
     def _set_default_settings(self):
         for key, setting in settings.SETTINGS.items():
-            setattr(self, key, setting.default)
+            setattr(self, key, setting.type(setting.default))
+
+    def _set_commandline_settings(self):
+        for key, val in self._command_line_settings:
+            setattr(self, key, settings.SETTINGS[key].type(val))
 
     def _allocate(self):
         self.nisle = 0 # to be overriden during streamfunction_init
@@ -221,8 +223,7 @@ class Veros(object):
         Example:
           >>> @veros_method
           >>> def set_diagnostics(self):
-          >>>     for variable in ("drho", "dsalt", "dtemp"):
-          >>>         self.variables[var].output = True
+          >>>     self.diagnostics["snapshot"].output_vars += ["drho", "dsalt", "dtemp"]
         """
         self._not_implemented()
 
@@ -240,73 +241,68 @@ class Veros(object):
         return self.backend.all(self.backend.isfinite(self.u))
 
     def setup(self):
-        logging.info("Setting up everything")
-        self.set_parameter()
-        self._allocate()
-
-        self.set_grid()
-        numerics.calc_grid(self)
-
-        self.set_coriolis()
-        numerics.calc_beta(self)
-
-        self.set_topography()
-        numerics.calc_topo(self)
-
-        self.set_initial_conditions()
-        numerics.calc_initial_conditions(self)
-
-        self.set_forcing()
-        external.streamfunction_init(self)
-
-        logging.info("Initializing diagnostics")
-        self.diagnostics = {name: Diagnostic(self)
-                            for name, Diagnostic in diagnostics.diagnostics.items()}
-        self.set_diagnostics()
-        for name, diagnostic in self.diagnostics.items():
-            diagnostic.initialize(self)
-            if diagnostic.sampling_frequency:
-                logging.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
-                             .format(name, time.format_time(self, diagnostic.sampling_frequency),
-                                     diagnostic.sampling_frequency / self.dt_tracer))
-            if diagnostic.output_frequency:
-                logging.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
-                             .format(name, time.format_time(self, diagnostic.output_frequency),
-                                     diagnostic.output_frequency / self.dt_tracer))
-
-        eke.init_eke(self)
-
-        isoneutral.check_isoneutral_slope_crit(self)
-
-        if self.enable_tke and not self.enable_implicit_vert_friction:
-            raise RuntimeError("use TKE model only with implicit vertical friction"
-                               "(set enable_implicit_vert_fricton)")
-
-    def run(self, **kwargs):
-        """Main routine of the simulation.
-
-        Arguments:
-            kwargs (:obj:`dict`):
-        """
-        for arg, val in kwargs.items():
-            setattr(self, arg, val)
-
         with self.timers["setup"]:
-            self.setup()
+            logging.info("Setting up everything")
+
+            self.set_parameter()
+            self._set_commandline_settings()
+            self._allocate()
+
+            self.set_grid()
+            numerics.calc_grid(self)
+
+            self.set_coriolis()
+            numerics.calc_beta(self)
+
+            self.set_topography()
+            numerics.calc_topo(self)
+
+            self.set_initial_conditions()
+            numerics.calc_initial_conditions(self)
+
+            self.set_forcing()
+            external.streamfunction_init(self)
+
+            logging.info("Initializing diagnostics")
+            self.diagnostics = {name: Diagnostic(self)
+                                for name, Diagnostic in diagnostics.diagnostics.items()}
+            self.set_diagnostics()
+            for name, diagnostic in self.diagnostics.items():
+                diagnostic.initialize(self)
+                if diagnostic.sampling_frequency:
+                    logging.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
+                                 .format(name, time.format_time(self, diagnostic.sampling_frequency),
+                                         diagnostic.sampling_frequency / self.dt_tracer))
+                if diagnostic.output_frequency:
+                    logging.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
+                                 .format(name, time.format_time(self, diagnostic.output_frequency),
+                                         diagnostic.output_frequency / self.dt_tracer))
+
+            eke.init_eke(self)
+
+            isoneutral.check_isoneutral_slope_crit(self)
+
+            if self.enable_tke and not self.enable_implicit_vert_friction:
+                raise RuntimeError("use TKE model only with implicit vertical friction"
+                                   "(set enable_implicit_vert_fricton)")
 
             if self.restart_input_filename:
                 logging.info("Reading restarts:")
                 for diagnostic in self.diagnostics.values():
                     diagnostic.read_restart(self)
 
-            self.enditt = self.itt + int(self.runlen / self.dt_tracer)
-            logging.info("Starting integration for {:.2e}s".format(self.runlen))
-            logging.info(" from time step {} to {}".format(self.itt, self.enditt))
+
+    def run(self):
+        """Main routine of the simulation.
+        """
+        self.enditt = self.itt + int(self.runlen / self.dt_tracer) - 1
+        logging.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(self, self.runlen)))
+        logging.info(" from time step {} to {}".format(self.itt, self.enditt))
 
         start_iteration = self.itt
         with handlers.signals_to_exception():
             try:
-                while self.itt < self.enditt:
+                while self.itt <= self.enditt:
                     logging.info("Current iteration: {}".format(self.itt))
 
                     with self.timers["diagnostics"]:
@@ -365,6 +361,7 @@ class Veros(object):
                         momentum.vertical_velocity(self)
 
                     self.flush()
+                    self.itt += 1
 
                     with self.timers["diagnostics"]:
                         if not self.sanity_check():
@@ -381,12 +378,9 @@ class Veros(object):
 
                     logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
-                    # shift time
-                    otaum1 = self.taum1
-                    self.taum1 = self.tau
-                    self.tau = self.taup1
-                    self.taup1 = otaum1
-                    self.itt += 1
+                    # permutate time indices
+                    self.taum1, self.tau, self.taup1 = self.tau, self.taup1, self.taum1
+
 
             except:
                 logging.critical("stopping integration at iteration {}".format(self.itt))
@@ -397,31 +391,31 @@ class Veros(object):
                     diagnostic.write_restart(self)
 
                 logging.debug("Timing summary:")
-                logging.debug(" setup time               = {:.1f}s"
+                logging.debug(" setup time               = {:.2f}s"
                               .format(self.timers["setup"].getTime()))
-                logging.debug(" main loop time           = {:.1f}s"
+                logging.debug(" main loop time           = {:.2f}s"
                               .format(self.timers["main"].getTime()))
-                logging.debug("     momentum             = {:.1f}s"
+                logging.debug("     momentum             = {:.2f}s"
                               .format(self.timers["momentum"].getTime()))
-                logging.debug("       pressure           = {:.1f}s"
+                logging.debug("       pressure           = {:.2f}s"
                               .format(self.timers["pressure"].getTime()))
-                logging.debug("       friction           = {:.1f}s"
+                logging.debug("       friction           = {:.2f}s"
                               .format(self.timers["friction"].getTime()))
-                logging.debug("     thermodynamics       = {:.1f}s"
+                logging.debug("     thermodynamics       = {:.2f}s"
                               .format(self.timers["temperature"].getTime()))
-                logging.debug("       lateral mixing     = {:.1f}s"
+                logging.debug("       lateral mixing     = {:.2f}s"
                               .format(self.timers["isoneutral"].getTime()))
-                logging.debug("       vertical mixing    = {:.1f}s"
+                logging.debug("       vertical mixing    = {:.2f}s"
                               .format(self.timers["vmix"].getTime()))
-                logging.debug("       equation of state  = {:.1f}s"
+                logging.debug("       equation of state  = {:.2f}s"
                               .format(self.timers["eq_of_state"].getTime()))
-                logging.debug("     EKE                  = {:.1f}s"
+                logging.debug("     EKE                  = {:.2f}s"
                               .format(self.timers["eke"].getTime()))
-                logging.debug("     IDEMIX               = {:.1f}s"
+                logging.debug("     IDEMIX               = {:.2f}s"
                               .format(self.timers["idemix"].getTime()))
-                logging.debug("     TKE                  = {:.1f}s"
+                logging.debug("     TKE                  = {:.2f}s"
                               .format(self.timers["tke"].getTime()))
-                logging.debug(" diagnostics and I/O      = {:.1f}s"
+                logging.debug(" diagnostics and I/O      = {:.2f}s"
                               .format(self.timers["diagnostics"].getTime()))
 
                 if self.profile_mode:

@@ -1,4 +1,7 @@
-from veros import VerosLegacy, veros_method
+import sys
+import os
+
+from veros import VerosLegacy, veros_method, tools
 
 yt_start = -39.0
 yt_end = 43
@@ -6,47 +9,35 @@ yu_start = -40.0
 yu_end = 42
 
 
-class ACC2(VerosLegacy):
+class ACC2Benchmark(VerosLegacy):
     """
     A simple global model with a Southern Ocean and Atlantic part
     """
     @veros_method
     def set_parameter(self):
-        m = self.main_module
+        self.identifier = "acc2_benchmark"
+        self.diskless_mode = True
 
-        (m.nx, m.ny, m.nz) = (30, 42, 15)
-        m.dt_mom = 4800
-        m.dt_tracer = 86400 / 2.
+        m = self.main_module
+        m.dt_mom = 480
+        m.dt_tracer = 480
 
         m.coord_degree = 1
         m.enable_cyclic_x = 1
 
         m.congr_epsilon = 1e-12
-        m.congr_max_iterations = 5000
-        
-        m.enable_diag_snapshots = True
-        m.enable_diag_averages = True
-        m.aveint = 365 * 86400.
-        m.avefreq = m.dt_tracer * 10
-        m.enable_diag_overturning = True
-        m.overint = 365 * 86400. / 48.
-        m.overfreq = m.dt_tracer * 10
-        m.enable_diag_ts_monitor = True
-        m.ts_monint = 365 * 86400. / 12.
-        m.enable_diag_energy = True
-        m.energint = 365 * 86400. / 48
-        m.energfreq = m.dt_tracer * 10
+        m.congr_max_iterations = 10000
 
         i = self.isoneutral_module
         i.enable_neutral_diffusion = 1
         i.K_iso_0 = 1000.0
-        i.K_iso_steep = 500.0
-        i.iso_dslope = 0.005
-        i.iso_slopec = 0.01
+        i.K_iso_steep = 200.0
+        i.iso_dslope = 1e-3
+        i.iso_slopec = 4e-3
         i.enable_skew_diffusion = 1
 
         m.enable_hor_friction = 1
-        m.A_h = (2 * m.degtom)**3 * 2e-11
+        m.A_h = 1e4
         m.enable_hor_friction_cos_scaling = 1
         m.hor_friction_cosPower = 1
 
@@ -61,7 +52,7 @@ class ACC2(VerosLegacy):
         t.alpha_tke = 30.0
         t.mxl_min = 1e-8
         t.tke_mxl_choice = 2
-        # t.enable_tke_superbee_advection = 1
+        t.enable_tke_superbee_advection = 1
 
         i.K_gm_0 = 1000.0
         e = self.eke_module
@@ -82,18 +73,16 @@ class ACC2(VerosLegacy):
         i.eke_diss_surfbot_frac = 0.2
         i.enable_idemix_superbee_advection = 1
 
-        m.eq_of_state_type = 3
+        m.eq_of_state_type = 5
 
     @veros_method
     def set_grid(self):
         m = self.main_module
-        ddz = np.array([50., 70., 100., 140., 190., 240., 290., 340.,
-                        390., 440., 490., 540., 590., 640., 690.])
-        m.dxt[:] = 2.0
-        m.dyt[:] = 2.0
+        m.dxt[:] = 80.0 / m.nx
+        m.dyt[:] = 80.0 / m.ny
+        m.dzt[:] = 5000. / m.nz
         m.x_origin = 0.0
         m.y_origin = -40.0
-        m.dzt[:] = ddz[::-1] / 2.5
 
     @veros_method
     def set_coriolis(self):
@@ -111,12 +100,6 @@ class ACC2(VerosLegacy):
     @veros_method
     def set_initial_conditions(self):
         m = self.main_module
-        XT, YT = np.meshgrid(m.xt, m.yt)
-        XT = XT.transpose()
-        YT = YT.transpose()
-        XU, YU = np.meshgrid(m.xu, m.yu)
-        XU = XU.transpose()
-        YU = YU.transpose()
 
         # initial conditions
         m.temp[:, :, :, 0:2] = ((1 - m.zt[None, None, :] / m.zw[0]) * 15 * m.maskT)[..., None]
@@ -151,15 +134,20 @@ class ACC2(VerosLegacy):
     @veros_method
     def set_forcing(self):
         m = self.main_module
-        m.forc_temp_surface[:] = self.t_rest * (self.t_star - m.temp[:, :, -1, 1])
+        m.forc_temp_surface[:] = self.t_rest * (self.t_star - m.temp[:, :, -1, self.get_tau()])
 
     @veros_method
     def set_diagnostics(self):
-        m = self.main_module
-        m.diagnostics["averages"].output_variables = (
-            "salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy")
-
+        pass
 
 if __name__ == "__main__":
-    simulation = ACC2()
-    simulation.run(snapint=365 * 86400. / 12., runlen=365 * 86400.)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fortran-lib")
+    args, _ = parser.parse_known_args()
+
+    fortran = args.fortran_lib or None
+    sim = ACC2Benchmark(fortran)
+    sim.setup()
+    sim.main_module.runlen = 100 * sim.main_module.dt_tracer
+    sim.run()

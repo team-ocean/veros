@@ -1,0 +1,33 @@
+services:
+  - docker
+
+language: python
+
+git:
+  lfs_skip_smudge: true
+
+before_install:
+  - docker pull veros/ubuntu:16.04
+
+install:
+  - docker build -t veros -f package/docker/testing.dockerfile .
+
+env:
+  global:
+    - PYOM_DIR=/pyOM2/py_src
+    - TEST_DIR=/veros/test
+  matrix:
+    - PYTHON_EXEC=python2 PYOM_LIB=pyOM_code_py2.so PYOM_MPI_LIB=pyOM_code_MPI_py2.so
+    - PYTHON_EXEC=python3 PYOM_LIB=pyOM_code_py3.so PYOM_MPI_LIB=pyOM_code_MPI_py3.so
+
+matrix:
+  allow_failures:
+    - env: PYTHON_EXEC=python3 PYOM_LIB=pyOM_code_py3.so PYOM_MPI_LIB=pyOM_code_MPI_py3.so
+
+script:
+- docker run -e "BH_STACK=openmp" -t veros $PYTHON_EXEC $TEST_DIR/run_tests.py /pyOM2/py_src/$PYOM_LIB
+- docker run -e "BH_STACK=opencl" -t veros $PYTHON_EXEC $TEST_DIR/run_tests.py /pyOM2/py_src/$PYOM_LIB
+- docker run -t veros $PYTHON_EXEC $TEST_DIR/run_benchmarks.py -s 1e5 -c numpy fortran fortran-mpi bohrium bohrium-opencl -f $PYOM_DIR/$PYOM_MPI_LIB
+
+notifications:
+  email: false

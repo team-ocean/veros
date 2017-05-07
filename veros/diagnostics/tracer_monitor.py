@@ -9,7 +9,8 @@ class TracerMonitor(VerosDiagnostic):
 
     Writes output to stdout (no binary output).
     """
-    output_frequency = None  # : Frequency (in seconds) in which output is written.
+    name = "tracer_monitor" #:
+    output_frequency = None  #: Frequency (in seconds) in which output is written.
     #: internal attributes to write to restart file
     restart_attributes = ("tempm1", "vtemp1", "saltm1", "vsalt1")
 

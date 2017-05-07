@@ -11,9 +11,19 @@ class Snapshot(VerosDiagnostic):
     """Writes snapshots of the current solution. Also reads and writes the main restart
     data required for restarting a Veros simulation.
     """
-    output_path = "{identifier}_snapshot.nc"  # : File to write to. May contain format strings that are replaced with Veros attributes.
-    output_frequency = None  # : Frequency (in seconds) in which output is written.
-    # : Attributes to be written to restart file.
+    output_path = "{identifier}.snapshot.nc"
+    """File to write to. May contain format strings that are replaced with Veros attributes.
+
+    .. warning::
+
+        If this path is constant between iterations (default), data will be appended to
+        the snapshot file. However, upon starting a run, this file will be overwritten.
+        This also applies when doing a restart.
+
+    """
+    name = "snapshot" #:
+    output_frequency = None  #: Frequency (in seconds) in which output is written.
+    #: Attributes to be written to restart file.
     restart_attributes = ("itt", "tau", "taum1", "taup1")
 
     def __init__(self, veros):
@@ -66,7 +76,7 @@ class Snapshot(VerosDiagnostic):
                               "grid".format(key))
                 continue
             arr[...] = restart_var
-        for attr in RESTART_ATTRIBUTES:
+        for attr in self.restart_attributes:
             try:
                 setattr(veros, attr, attributes[attr])
             except KeyError:

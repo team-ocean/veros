@@ -42,10 +42,11 @@ class Overturning(VerosDiagnostic):
     """Isopycnal overturning diagnostic. Computes and writes vertical streamfunctions
     (zonally averaged).
     """
-    output_path = "{identifier}_overturning.nc"  # : File to write to. May contain format strings that are replaced with Veros attributes.
-    output_frequency = None  # : Frequency (in seconds) in which output is written.
-    sampling_frequency = None  # : Frequency (in seconds) in which variables are accumulated.
-    p_ref = 2000.  # : Reference pressure for isopycnals
+    name = "overturning" #:
+    output_path = "{identifier}.overturning.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
+    output_frequency = None  #: Frequency (in seconds) in which output is written.
+    sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
+    p_ref = 2000.  #: Reference pressure for isopycnals
 
     def __init__(self, veros):
         self.sigma_var = SIGMA
@@ -221,8 +222,8 @@ class Overturning(VerosDiagnostic):
 
         var_metadata = {key: var for key, var in self.mean_variables.items()
                         if var.output and var.time_dependent}
-        var_data = {key: getattr(self, key) for key, var in self.mean_variables.items(
-        ) if var.output and var.time_dependent}
+        var_data = {key: getattr(self, key) for key, var in self.mean_variables.items()
+                    if var.output and var.time_dependent}
         self.write_output(veros, var_metadata, var_data)
 
         self.nitts = 0

@@ -24,7 +24,7 @@ def streamfunction_init(veros):
     """
     now that the number of islands is known we can allocate the rest of the variables
     """
-    veros.nisle = allmap.max()
+    veros.nisle = int(allmap.max())
     veros.isle = np.arange(veros.nisle) + 1
     veros.psin = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle))
     veros.dpsin = np.zeros((veros.nisle, 3))
@@ -34,7 +34,6 @@ def streamfunction_init(veros):
     veros.line_dir_north_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
     veros.line_dir_east_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
     veros.line_dir_west_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
-
 
     if veros.backend_name == "bohrium":
         veros.boundary_mask = veros.boundary_mask.copy2numpy()
@@ -52,6 +51,8 @@ def streamfunction_init(veros):
         land map for island number isle: 1 is land, -1 is perimeter, 0 is ocean
         """
         boundary_map = island.isleperim(veros, allmap != isle + 1)
+        if veros.backend_name == "bohrium":
+            boundary_map = boundary_map.copy2numpy()
         _print_verbose(veros, _ascii_map(veros, boundary_map))
 
         """
@@ -104,7 +105,6 @@ def streamfunction_init(veros):
                           .format(boundary_map[ijp[0], ijp[1]], boundary_map[ijp_right[0], ijp_right[1]]))
 
             if boundary_map[ijp[0], ijp[1]] == -1 and boundary_map[ijp_right[0], ijp_right[1]] == 1:
-
                 _print_verbose(veros, " go forward")
             elif boundary_map[ijp[0], ijp[1]] == -1 and boundary_map[ijp_right[0], ijp_right[1]] == -1:
                 _print_verbose(veros, " turn right")
