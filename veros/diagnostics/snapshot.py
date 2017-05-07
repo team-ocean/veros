@@ -21,7 +21,7 @@ class Snapshot(VerosDiagnostic):
         This also applies when doing a restart.
 
     """
-    name = "snapshot"
+    name = "snapshot" #:
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     #: Attributes to be written to restart file.
     restart_attributes = ("itt", "tau", "taum1", "taup1")
