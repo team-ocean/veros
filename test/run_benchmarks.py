@@ -27,9 +27,11 @@ outfile = "benchmark_{}.json".format(time.time())
 
 def parse_cli():
     parser = argparse.ArgumentParser(description="Run Veros benchmarks")
-    parser.add_argument("-f", "--fortran-library", type=str)
-    parser.add_argument("-s", "--max-size", type=float, required=True)
-    parser.add_argument("-c", "--components", nargs="*", choices=benchmark_commands.keys(), default=["numpy"])
+    parser.add_argument("-f", "--fortran-library", type=str, help="Path to pyOM2 fortran library")
+    parser.add_argument("-s", "--sizes", nargs="*", type=float, required=True,
+                        help="Problem sizes to test (total number of elements)")
+    parser.add_argument("-c", "--components", nargs="*", choices=benchmark_commands.keys(),
+                        default=["numpy"], help="Backend components to benchmark")
     return parser.parse_args()
 
 def check_fortran_library(path):
@@ -53,12 +55,11 @@ if __name__ == "__main__":
     fortran_version = check_fortran_library(args.fortran_library)
 
     if not fortran_version and ("fortran" in args.components or "fortran-mpi" in args.components):
-        raise RuntimeError("Path to fortran library must be giving when running fortran components")
+        raise RuntimeError("Path to fortran library must be given when running fortran components")
 
     if fortran_version != "parallel" and "fortran-mpi" in args.components:
         raise RuntimeError("Fortran library must be compiled with MPI support for fortran-mpi component")
 
-    sizes = [10 ** n for n in range(3,int(math.log10(args.max_size)))]
     out_data = {}
     all_passed = True
     try:
@@ -68,11 +69,12 @@ if __name__ == "__main__":
 
             out_data[f] = []
             print("running benchmark {} ".format(f))
-            for size in sizes:
+            for size in args.sizes:
                 n = int(size ** (1./3.)) + 1
                 nx = ny = int(2. ** 0.5 * n)
                 nz = n // 2
-                print(" current size: {}".format(nx * ny * nz))
+                real_size = nx * ny * nz
+                print(" current size: {}".format(real_size))
                 cmd_args = {
                             "python": sys.executable,
                             "filename": os.path.realpath(os.path.join(testdir, f)),
@@ -111,7 +113,7 @@ if __name__ == "__main__":
                                     detailed_stats[stat] = float(match.group(1))
 
                     out_data[f].append({"component": comp,
-                                        "size": nx * ny * nz,
+                                        "size": real_size,
                                         "wall_time": elapsed,
                                         "detailed_stats": detailed_stats})
 
