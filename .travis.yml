@@ -5,6 +5,10 @@ language: python
 
 git:
   lfs_skip_smudge: true
+  
+branches:
+  only:
+    - master
 
 before_install:
   - docker pull veros/ubuntu:16.04
