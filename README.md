@@ -23,12 +23,14 @@ As soon as you have a working environment, installing Veros is simple:
 1. Clone the repository to your hard-drive:
 
        git clone https://github.com/dionhaefner/veros.git
+       
+   Note that you need to have [Git LFS](https://git-lfs.github.com/) installed if you want to download the forcing files required for running the larger models.
 
 2. Install it, preferably with
 
        pip install -e veros
 
-   (if you use the `-e` flag, any changes you make to the model code are immediately reflected without having to re-install)
+   If you use the `-e` flag, any changes you make to the model code are immediately reflected without having to re-install.
 
 In case you want to use the Bohrium backend, you will have to install [Bohrium](https://github.com/bh107/bohrium), e.g. through `conda` or `apt-get`, or by building it from source.
 
