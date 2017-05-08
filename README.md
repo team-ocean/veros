@@ -1,4 +1,4 @@
-![Veros](doc/veros-logo.png?raw=true)
+![Veros](doc/veros-logo-400px.png?raw=true)
 
 [![Documentation Status](https://readthedocs.org/projects/veros/badge/?version=latest)](http://veros.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/dionhaefner/veros.svg?branch=master)](https://travis-ci.org/dionhaefner/veros)
 
