@@ -6,6 +6,7 @@ import os
 
 
 def find_scripts(scriptdir):
+    """scrape all available scripts from 'bin' folder"""
     return [os.path.join(scriptdir, s) for s in os.listdir(scriptdir) if not s.endswith(".pyc")]
 
 setup(

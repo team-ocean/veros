@@ -1,4 +1,5 @@
-# Veros
+![Veros](doc/veros-logo.png?raw=true)
+
 [![Documentation Status](https://readthedocs.org/projects/veros/badge/?version=latest)](http://veros.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/dionhaefner/veros.svg?branch=master)](https://travis-ci.org/dionhaefner/veros)
 
 Veros, the *versatile ocean simulator*, is just that: A powerful tool that makes high-performance ocean modelling approachable and fun. Since it is a pure Python module, the days of struggling with complicated model setup workflows, ancient programming environments, and obscure legacy code are finally over.
@@ -8,12 +9,15 @@ Veros supports both a NumPy backend for small-scale problems and a fully paralle
 ## Installation
 
 ### Dependencies
-Veros only has two library dependencies, namely `HDF5` and `netCDF`. Installation of those libraries varies between platforms. Probably the easiest way to install Veros and its dependencies (includung Bohrium) is [Anaconda Python](https://www.continuum.io/downloads) that ships with a package manager (``conda``).
+
+Currently, the only officially supported Python version for Veros is Python 2.7 (64-bit), which should be the standard Python interpreter on most systems.
+
+Veros only has two external library dependencies, namely `HDF5` and `netCDF`. The installation procedure of those libraries varies between platforms. Probably the easiest way to install Veros and its dependencies (includung Bohrium) is [Anaconda Python](https://www.continuum.io/downloads) that ships with a package manager (``conda``).
 
 If you do not want to use Anaconda, the most convenient way is probably to use your operating system's package manager. On Debian / Ubuntu, you can e.g. use
 
     sudo apt-get install libhdf5-dev libnetcdf-dev
-    
+
 Similar package managers on OSX are [Homebrew](https://brew.sh/) or [MacPorts](https://www.macports.org/) that both provide the required dependencies as pre-compiled binaries.
 
 ### Installing Veros
@@ -23,7 +27,7 @@ As soon as you have a working environment, installing Veros is simple:
 1. Clone the repository to your hard-drive:
 
        git clone https://github.com/dionhaefner/veros.git
-       
+
    Note that you need to have [Git LFS](https://git-lfs.github.com/) installed if you want to download the forcing files required for running the larger models.
 
 2. Install it, preferably with

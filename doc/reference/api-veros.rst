@@ -1,5 +1,5 @@
-Python API Reference
-====================
+The Veros interface
+===================
 
 Veros main class
 ----------------
@@ -13,3 +13,9 @@ veros_method decorator
 .. autofunction:: veros.veros_method
 
 .. autofunction:: veros.veros_inline_method
+
+Tools & utilities
+-------------------
+
+.. automodule:: veros.tools
+   :members:
