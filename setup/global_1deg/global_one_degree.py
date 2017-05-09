@@ -3,7 +3,7 @@
 import os
 from netCDF4 import Dataset
 
-from veros import VerosLegacy, veros_method, time, tools
+from veros import Veros, veros_method, time, tools
 
 MAIN_OPTIONS = dict(
     nx=360,
@@ -71,7 +71,7 @@ BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 FORCING_FILE = os.path.join(BASE_PATH, "forcing_1deg_global.nc")
 
 
-class GlobalOneDegree(VerosLegacy):
+class GlobalOneDegree(Veros):
     """Global 1 degree model with 115 vertical levels.
 
     Adapted from pyOM2:
@@ -86,16 +86,16 @@ class GlobalOneDegree(VerosLegacy):
         if not os.path.isfile(FORCING_FILE):
             raise RuntimeError("{} data file {} not found".format(name, filepath))
 
-        self._set_parameters(self.main_module, MAIN_OPTIONS)
-        self._set_parameters(self.isoneutral_module, ISONEUTRAL_OPTIONS)
-        self._set_parameters(self.tke_module, TKE_OPTIONS)
-        self._set_parameters(self.eke_module, EKE_OPTIONS)
-        self._set_parameters(self.idemix_module, IDEMIX_OPTIONS)
+        self._set_parameters(MAIN_OPTIONS)
+        self._set_parameters(ISONEUTRAL_OPTIONS)
+        self._set_parameters(TKE_OPTIONS)
+        self._set_parameters(EKE_OPTIONS)
+        self._set_parameters(IDEMIX_OPTIONS)
 
     @veros_method
-    def _set_parameters(self, module, parameters):
+    def _set_parameters(self, parameters):
         for key, attribute in parameters.items():
-            setattr(module, key, attribute)
+            setattr(self, key, attribute)
 
     @veros_method
     def _read_forcing(self, var):
