@@ -1,5 +1,3 @@
-.. _api-setup:
-
 Available set-ups
 =================
 

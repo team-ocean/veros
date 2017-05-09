@@ -64,8 +64,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Veros'
-copyright = u'2017, The Veros Team'
-author = u'The Veros Team'
+copyright = u'2017, The Veros Team, NBI Copenhagen'
+author = u'The Veros Team, NBI Copenhagen'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -170,7 +170,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'Veros', u'Veros Documentation',
-     author, 'Veros', 'One line description of project.',
+     author, 'Veros', 'The versatile ocean simulator in pure Python',
      'Miscellaneous'),
 ]
 
