@@ -21,7 +21,7 @@ setup(
         "h5py",
         "pillow"
         ],
-    author = "NBI Copenhagen",
+    author = "Dion Häfner (NBI Copenhagen)",
     author_email = "dion.haefner@nbi.ku.dk",
     scripts = find_scripts("bin")
 )
