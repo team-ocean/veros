@@ -4,7 +4,7 @@
 
 Veros, the *versatile ocean simulator*, is just that: A powerful tool that makes high-performance ocean modeling approachable and fun. Since it is a pure Python module, the days of struggling with complicated model setup workflows, ancient programming environments, and obscure legacy code are finally over.
 
-Veros supports both a NumPy backend for small-scale problems and a fully parallelized high-performance backend [powered by Bohrium](https://github.com/bh107/bohrium). The underlying numerics are based on [pyOM2](https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2), an ocean model developed by Carsten Eden (Institut für Meereskunde, Hamburg University).
+Veros supports both a NumPy backend for small-scale problems and a fully parallelized high-performance backend [powered by Bohrium](https://github.com/bh107/bohrium) using either OpenMP (CPU) or OpenCL (GPU). The underlying numerics are based on [pyOM2](https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2), an ocean model developed by Carsten Eden (Institut für Meereskunde, Hamburg University).
 
 Veros is currently being developed at Niels Bohr Institute, Copenhagen University.
 
@@ -12,7 +12,13 @@ Veros is currently being developed at Niels Bohr Institute, Copenhagen Universit
 
 Veros provides
 
--
+- a fully staggered 3-D grid geometry (*C-grid*)
+- support for both idealized and realistic configurations in cartesian or pseudo-spherical coordinates
+- several friction and advection schemes to choose from
+- isoneutral mixing, eddy-kinetic energy, turbulent kinetic energy, and internal wave energy parameterizations
+- several pre-implemented diagnostics such as energy fluxes, variable time averages, and a vertical overturning stream function (written to netCDF output)
+- pre-configured idealized and realistic set-ups that are ready to run and easy to adapt
+- accessibility, readability, and extensibility - thanks to the power of Python!
 
 ## Installation
 

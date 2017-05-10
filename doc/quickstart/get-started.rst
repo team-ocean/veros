@@ -56,9 +56,25 @@ Using apt-get (Ubuntu / Debian)
 Setting up a model
 ------------------
 
-To run Veros, you need to set up a model - i.e., specify which settings and model domain you want to use. This is done by subclassing the :class:`Veros base class <veros.Veros>` in a *setup script* that is written in Python. You should have a look at the pre-implemented model setups in the repository's :file:`setup` folder, or use the :command:`veros copy-setup` command to copy one into your current folder. A good place to start is the :class:`ACC2 model <acc2.ACC2>`.
+To run Veros, you need to set up a model - i.e., specify which settings and model domain you want to use. This is done by subclassing the :class:`Veros base class <veros.Veros>` in a *setup script* that is written in Python. You should have a look at the pre-implemented model setups in the repository's :file:`setup` folder, or use the :command:`veros copy-setup` command to copy one into your current folder. A good place to start is the :class:`ACC2 model <acc2.ACC2>`. By working through the existing models, you should quickly be able to figure out how to write your own simulation. Just keep in mind this genral advice:
 
+- You can (and should) use any (external) Python tools you want in your model setup. Before implementing a certain functionality, you should check whether it is already provided by a common library. Especially `the SciPy module family <https://www.scipy.org/>`_ provides countless implementations of common scientific functions (and SciPy is installed along with Veros).
 
+- If you decorate your methods with :func:`@veros_method <veros.veros_method>`, the variable :obj:`np` inside that function will point to the currently used backend (i.e., NumPy or Bohrium). Thus, if you want your setup to be able to dynamically switch between backends, you should write your methods like this: ::
+
+      from veros import Veros, veros_method
+
+      class MyVerosSetup(Veros):
+          ...
+          @veros_method
+          def my_function(self):
+              arr = np.array([1,2,3,4]) # "np" uses either NumPy or Bohrium
+
+- If you are curious about the general procedure in which a model is set up and ran, you should read the source code of :class:`veros.Veros` (especially the :meth:`setup` and :meth:`run` methods). This is also the best way to find out about the order in which methods and routines are called.
+
+- Out of all functions that need to be imlpemented by your subclass of :class:`veros.Veros`, the only one that is called in every time step is :meth:`set_forcing` (at the beginning of each iteration). This implies that, to achive optimal performance, you should consider moving calculations that are constant in time to other functions.
+
+If you want to learn more about setting up advanced configurations, you should :doc:`check out our tutorial </tutorial/wave-propagation>` that walks you through the creation of a realistic configuration with an idealized Atlantic.
 
 Running Veros
 -------------
@@ -83,7 +99,7 @@ All Veros setups accept additional options via the command line when called as a
 Reading Veros output
 ++++++++++++++++++++
 
-All output is handled by :doc:`the available diagnostics <reference/diagnostics>`. The most basic diagnostic, snapshot, writes :doc:`some model variables <reference/variables>` to netCDF files in regular intervals (and puts them into your current working directory).
+All output is handled by :doc:`the available diagnostics </reference/diagnostics>`. The most basic diagnostic, snapshot, writes :doc:`some model variables </reference/variables>` to netCDF files in regular intervals (and puts them into your current working directory).
 
 NetCDF is a binary format that is widely adopted in the geophysical modeling community. There are various packages for reading, visualizing and processing netCDF files (such as `ncview <http://meteora.ucsd.edu/~pierce/ncview_home_page.html>`_ and `ferret <http://ferret.pmel.noaa.gov/Ferret/>`_), and bindings for many programming languages (such as C, Fortran, MATLAB, and Python).
 
@@ -125,14 +141,14 @@ Restart data (in HDF5 format) is written at the end of each simulation or after 
 
    $ python my_setup.py -s restart_input_filename /path/to/restart_file.h5
 
-Enhancing the model
--------------------
+Enhancing Veros
+---------------
 
 Veros was written with extensibility in mind. If you already know some Python and have worked with NumPy, you are pretty much ready to write your own extension. The model code is located in the :file:`veros` subfolder, while all of the numerical routines are located in :file:`veros/core`.
 
 We believe that the best way to learn how Veros works is to read its source code. Starting from the :py:class:`Veros base class <veros.Veros>`, you should be able to work your way through the flow of the program, and figure out where to add your modifications. If you installed Veros through :command:`pip -e` or :command:`setup.py develop`, all changes you make will immediately be reflected when running the code.
 
-In case you want to add additional output capabilities or compute additional quantities without changing the main solution of the simulation, you should consider :doc:`adding a custom diagnostic <reference/diagnostics>`.
+In case you want to add additional output capabilities or compute additional quantities without changing the main solution of the simulation, you should consider :doc:`adding a custom diagnostic </reference/diagnostics>`.
 
 Running tests and benchmarks
 ++++++++++++++++++++++++++++
@@ -154,3 +170,21 @@ Automated benchmarks are provided in a similar fashion. The benchmarks run some 
    $ python run_benchmarks.py --help
 
 from the :file:`test` folder. Timings are written in JSON format.
+
+Performance tweaks
+++++++++++++++++++
+
+If your changes to Veros turn out to have a negative effect on the runtime of the model, there several ways to investigate and solve performance problems:
+
+- Run your model with the :option:`-v debug` option to get additional debugging output (such as timings for each time step, and a timing summary after the run has finished).
+- Run your model with the :option:`-p` option to profile Veros with pyinstrument. You may have to run :command:`pip install pyinstrument` before being able to do so. After completion of the run, a file :file:`profile.html` will be written that can be opened with a web browser and contains timings for the entire call stack.
+- You should try and avoid explict loops over arrays at all cost (even more so when using Bohrium). You should always try to work on the whole array at once.
+- When using Bohrium, it is sometimes beneficial to copy an array to NumPy before passing it to an external module or performing an operation that cannot be vectorized efficiently. Just don't forget to copy it back to Bohrium after you are finished, e.g. like so: ::
+
+      if veros.backend_name == "bohrium":
+          u_np = veros.u.copy2numpy()
+      else:
+          u_np = veros.y
+      veros.u[...] = np.asarray(external_function(u_np))
+
+- If you are still having trouble, don't hesitate to ask for help (e.g. `on GitHub <https://github.com/dionhaefner/veros/issues>`_).

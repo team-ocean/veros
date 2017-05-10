@@ -10,10 +10,10 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   height="164.8755pt"
+   height="164.87552pt"
    version="1.1"
-   viewBox="0 0 418.35556 164.8755"
-   width="418.35556pt"
+   viewBox="0 0 433.35559 164.87552"
+   width="433.35559pt"
    id="svg3112"
    sodipodi:docname="veros-logo.svg"
    inkscape:version="0.92.1 r15371"
@@ -49,9 +49,9 @@
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     inkscape:zoom="1.5438243"
-     inkscape:cx="272.94376"
-     inkscape:cy="77.934065"
+     inkscape:zoom="1.0916486"
+     inkscape:cx="439.66148"
+     inkscape:cy="147.85148"
      inkscape:window-x="65"
      inkscape:window-y="24"
      inkscape:window-maximized="1"
@@ -73,12 +73,12 @@
      id="text4227"><tspan
        sodipodi:role="line"
        id="tspan4225"
-       style="font-style:normal;font-variant:normal;font-weight:200;font-stretch:normal;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans Ultra-Light';stroke-width:0.75px;stroke-linecap:butt;stroke-linejoin:round;fill:#0f0f0f;"
+       style="font-style:normal;font-variant:normal;font-weight:200;font-stretch:normal;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans Ultra-Light';fill:#0f0f0f;stroke-width:0.75px;stroke-linecap:butt;stroke-linejoin:round"
        x="-3.4560001"
        y="119.94975">Ver</tspan></text>
   <g
      id="g2377"
-     transform="matrix(1.0855808,0,0,1.0855808,-27.911319,-0.63127177)"
+     transform="matrix(1.0855808,0,0,1.0855808,-21.911319,-0.63127177)"
      style="stroke-linecap:butt;stroke-linejoin:round">
     <g
        transform="matrix(0.66374109,0,0,0.66374109,166.32954,-10.954178)"
@@ -3078,12 +3078,12 @@
   <text
      xml:space="preserve"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:144px;line-height:125%;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.75px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-     x="360.32358"
+     x="375.32358"
      y="119.94975"
      id="text2381"><tspan
        sodipodi:role="line"
        id="tspan2379"
-       style="font-style:normal;font-variant:normal;font-weight:200;font-stretch:normal;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans Ultra-Light';stroke-width:0.75px;stroke-linecap:butt;stroke-linejoin:round;fill:#0f0f0f;"
-       x="360.32358"
+       style="font-style:normal;font-variant:normal;font-weight:200;font-stretch:normal;font-family:'Fira Sans';-inkscape-font-specification:'Fira Sans Ultra-Light';fill:#0f0f0f;stroke-width:0.75px;stroke-linecap:butt;stroke-linejoin:round"
+       x="375.32358"
        y="119.94975">s</tspan></text>
 </svg>
