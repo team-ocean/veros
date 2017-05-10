@@ -8,7 +8,7 @@ import shutil
 
 WORKDIR = os.getcwd()
 SCRIPTDIR = os.path.realpath(os.path.dirname(__file__))
-SETUPDIR = os.path.join(SCRIPTDIR, os.path.relpath("../setup"))
+SETUPDIR = os.path.realpath(os.path.join(SCRIPTDIR, "../setup"))
 SETUPS = [setup for setup in os.listdir(SETUPDIR) if os.path.isdir(os.path.join(SETUPDIR, setup))]
 
 if __name__ == "__main__":
