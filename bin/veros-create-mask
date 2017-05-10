@@ -26,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--file", help="Input file holding topography information",
                         required=True)
     parser.add_argument("-v,", help="Variable holding topography data (defaults to 'z')",
-                        default="z", require=False)
+                        default="z", required=False)
     parser.add_argument("-o", "--out", help="", default="topography", required=False)
     parser.add_argument("-s", "--scale", nargs=2, type=int, required=False, default=None)
     args = parser.parse_args()
