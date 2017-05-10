@@ -1,7 +1,5 @@
-.. _api-setup:
-
-Model set-ups
-=============
+Available set-ups
+=================
 
 New set-ups
 +++++++++++
