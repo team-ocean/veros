@@ -21,8 +21,6 @@ def save_image(data, path):
 
 
 if __name__ == "__main__":
-    from netCDF4 import Dataset
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("-f", "--file", help="Input file holding topography information",
                         required=True)
@@ -32,6 +30,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--scale", nargs=2, type=int, required=False, default=None)
     args = parser.parse_args()
 
+    from netCDF4 import Dataset
     with Dataset(args.file, "r") as topo:
         z = topo.variables[args.v][...]
     if args.scale is not None:
