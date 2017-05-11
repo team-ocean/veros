@@ -691,3 +691,24 @@ CONDITIONAL_VARIABLES = OrderedDict([
         )),
     ])),
 ])
+
+@veros_method
+def allocate_variables(veros):
+    veros.variables = {}
+
+    def init_var(var_name, var):
+        shape = get_dimensions(veros, var.dims)
+        setattr(veros, var_name, np.zeros(shape, dtype=var.dtype))
+        veros.variables[var_name] = var
+
+    for var_name, var in MAIN_VARIABLES.items():
+        init_var(var_name, var)
+
+    for condition, var_dict in CONDITIONAL_VARIABLES.items():
+        if condition.startswith("not "):
+            eval_condition = not bool(getattr(veros, condition[4:]))
+        else:
+            eval_condition = bool(getattr(veros, condition))
+        if eval_condition:
+            for var_name, var in var_dict.items():
+                init_var(var_name, var)

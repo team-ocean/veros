@@ -84,8 +84,8 @@ class Snapshot(VerosDiagnostic):
                               "attribute not found in restart file"
                               .format(attr))
 
-    def write_restart(self, veros):
+    def write_restart(self, veros, outfile):
         restart_attributes = {key: getattr(veros, key) for key in self.restart_attributes}
         restart_vars = {var: veros.variables[var] for var in self.restart_variables}
         restart_data = {var: getattr(veros, var) for var in self.restart_variables}
-        self.write_h5_restart(veros, restart_attributes, restart_vars, restart_data)
+        self.write_h5_restart(veros, restart_attributes, restart_vars, restart_data, outfile)

@@ -1,6 +1,5 @@
 from collections import namedtuple, OrderedDict
 
-
 Setting = namedtuple("setting", ("default", "type", "description"))
 
 SETTINGS = OrderedDict([
@@ -10,9 +9,6 @@ SETTINGS = OrderedDict([
     ("nx", Setting(0, int, "Grid points in zonal (x) direction")),
     ("ny", Setting(0, int, "Grid points in meridional (y,j) direction")),
     ("nz", Setting(0, int, "Grid points in vertical (z,k) direction")),
-    ("taum1", Setting(0, int, "Pointer to last time step (read-only)")),
-    ("tau", Setting(1, int, "Pointer to current time step (read-only)")),
-    ("taup1", Setting(2, int, "Pointer to next time step (read-only)")),
     ("dt_mom", Setting(0., float, "Time step in seconds for momentum")),
     ("dt_tracer", Setting(0., float, "Time step for tracers, can be larger than dt_mom")),
     ("dt_tke", Setting(0., float, "Time step for TKE module, currently set to dt_mom (unused)")),
@@ -124,9 +120,19 @@ SETTINGS = OrderedDict([
     ("use_io_threads", Setting(True, bool, "Start extra threads for disk writes")),
     ("io_timeout", Setting(20, float, "Timeout in seconds while waiting for IO locks to be released")),
     ("enable_netcdf_zlib_compression", Setting(True, bool, "Use netCDF4's native zlib interface, which leads to smaller output files (but carries some computational overhead).")),
+    ("enable_hdf5_gzip_compression", Setting(True, bool, "Use h5py's native gzip interface, which leads to smaller restart files (but carries some computational overhead).")),
     ("restart_input_filename", Setting("", str, "File name of restart input. If not given, no restart data will be read.")),
     ("restart_output_filename", Setting("{identifier}_{itt:0>4d}.restart.h5", str, "File name of restart output. May contain Python format syntax that is substituted with Veros attributes.")),
-    ("restart_frequency", Setting(float("inf"), float, "Frequency (in seconds) to write restart data")),
+    ("restart_frequency", Setting(0, float, "Frequency (in seconds) to write restart data")),
     ("pyom_compatibility_mode", Setting(False, bool, "Force compatibility to pyOM2 (reproducing bugs and other quirks). For testing purposes only.")),
     ("diskless_mode", Setting(False, bool, "Suppress all output to disk. Mainly used for testing purposes."))
 ])
+
+def set_default_settings(veros):
+    for key, setting in SETTINGS.items():
+        setattr(veros, key, setting.type(setting.default))
+
+def check_setting_conflicts(veros):
+    if veros.enable_tke and not veros.enable_implicit_vert_friction:
+        raise RuntimeError("use TKE model only with implicit vertical friction"
+                           "(set enable_implicit_vert_fricton)")

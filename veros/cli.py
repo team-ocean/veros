@@ -1,6 +1,7 @@
 import argparse
-from .veros import BACKENDS
 
+from .backend import BACKENDS
+from .settings import SETTINGS
 
 def parse_command_line():
     parser = argparse.ArgumentParser(description="Veros command line interface")
@@ -17,3 +18,13 @@ def parse_command_line():
                         help="Override default setting. May be specified multiple times.")
     args, _ = parser.parse_known_args()
     return args
+
+def set_commandline_settings(veros):
+    for key, val in veros.command_line_settings:
+        setting = SETTINGS[key]
+        if setting.type is bool:
+            val = str_to_bool(val)
+        setattr(veros, key, setting.type(val))
+
+def str_to_bool(string):
+    return string.lower() in ("1", "true", "on")
