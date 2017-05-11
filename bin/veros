@@ -50,7 +50,8 @@ if __name__ == "__main__":
         print_usage()
         sys.exit(1)
 
+    cmdpath = os.path.join(os.path.dirname(__file__), COMMANDS[cmd])
     if len(sys.argv) > 2:
-        sys.exit(subprocess.call([COMMANDS[cmd]] + sys.argv[2:]))
+        sys.exit(subprocess.call([sys.executable, cmdpath] + sys.argv[2:]))
     else:
-        sys.exit(subprocess.call(COMMANDS[cmd]))
+        sys.exit(subprocess.call([sys.executable, cmdpath]))
