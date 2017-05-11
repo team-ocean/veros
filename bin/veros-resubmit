@@ -16,7 +16,7 @@ def parse_cli():
     return parser.parse_args()
 
 def call_veros(cmd, n, runlen):
-    args = "-s restart_output_filename \"{{identifier}}_restart_{n}.h5\" -s {runlen}".format(n=n, runlen=runlen)
+    args = "-s restart_output_filename \"{{identifier}}_restart_{n}.h5\" -s runlen {runlen}".format(n=n, runlen=runlen)
     if n:
         args += "-s restart_input_filename \"{{identifier}}_restart_{n_prev}.h5\"".format(n_prev=n-1)
     print(" > " + cmd + args)
