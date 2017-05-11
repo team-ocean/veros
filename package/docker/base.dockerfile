@@ -28,8 +28,7 @@ RUN ln -s /usr/lib/python3.5/site-packages/bohrium /usr/lib/python3/dist-package
 # Build pyOM2 with Python 2 and Python 3 support
 RUN mkdir /pyOM2
 WORKDIR /pyOM2
-RUN curl -L -o pyOM2.1.0.tar.gz "https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2?action=AttachFile&do=get&target=pyOM2.1.0.tar.gz" > /dev/null
-RUN tar xzf pyOM2.1.0.tar.gz
+ADD pyOM2.1.0.tar.gz .
 ADD pyOM2_site_specific site_specific.mk_
 WORKDIR /pyOM2/py_src
 
