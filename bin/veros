@@ -9,16 +9,16 @@ import textwrap
 from collections import OrderedDict
 
 COMMANDS = OrderedDict([
-    ("copy-setup", "veros-copy-setup"),
-    ("create-mask", "veros-create-mask"),
-    ("resubmit", "veros-resubmit"),
+    ("copy-setup", "veros-copy-setup.py"),
+    ("create-mask", "veros-create-mask.py"),
+    ("resubmit", "veros-resubmit.py"),
 ])
 
-for mod in COMMANDS.values():
-    path = os.path.join(os.path.dirname(__file__),mod)
-    py_compile.compile(path, path + ".pyc")
+#for mod in COMMANDS.values():
+#    path = os.path.join(os.path.dirname(__file__),mod)
+#    py_compile.compile(path, path + ".pyc")
 
-DOCSTRINGS = OrderedDict([(cmd, imp.load_compiled(module, os.path.join(os.path.dirname(__file__), module + ".pyc")).__doc__) for cmd, module in COMMANDS.items()])
+DOCSTRINGS = OrderedDict([(cmd, imp.load_source(cmd, os.path.join(os.path.dirname(__file__),module)).__doc__) for cmd, module in COMMANDS.items()])
 
 
 def assemble_usage():
