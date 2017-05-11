@@ -17,8 +17,8 @@ class NorthAtlantic(Veros):
 
     @veros_method
     def set_parameter(self):
-        """set main parameter
-        """
+        self.identifier = "na"
+
         self.nx, self.ny, self.nz = 250, 350, 50
         self.x_origin = -98.
         self.y_origin = -18.
@@ -28,6 +28,7 @@ class NorthAtlantic(Veros):
 
         self.dt_mom = 3600. / 2.
         self.dt_tracer = 3600. / 2.
+        self.runlen = 0.
 
         self.runlen = 86400 * 365. * 10.
 
@@ -162,8 +163,8 @@ class NorthAtlantic(Veros):
     @veros_method
     def set_forcing(self):
         year_in_seconds = 360 * 86400.0
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(time.current_time(
-            self, "seconds"), year_in_seconds, year_in_seconds / 12., 12)
+        (n1, f1), (n2, f2) = tools.get_periodic_interval(time.current_time(self, "seconds"),
+                                                        year_in_seconds, year_in_seconds / 12., 12)
 
         self.surface_taux[...] = (f1 * self._taux[:, :, n1] + f2 * self._taux[:, :, n2])
         self.surface_tauy[...] = (f1 * self._tauy[:, :, n1] + f2 * self._tauy[:, :, n2])

@@ -5,68 +5,6 @@ from netCDF4 import Dataset
 
 from veros import Veros, veros_method, time, tools
 
-MAIN_OPTIONS = dict(
-    nx=360,
-    ny=160,
-    nz=115,
-    dt_mom=1800.0,
-    dt_tracer=1800.0,
-
-    coord_degree=True,
-    enable_cyclic_x=True,
-
-    congr_epsilon=1e-10,
-    congr_max_iterations=10000,
-
-    enable_hor_friction=True,
-    A_h=5e4,
-    enable_hor_friction_cos_scaling=True,
-    hor_friction_cosPower=1,
-    enable_tempsalt_sources=True,
-    enable_implicit_vert_friction=True,
-
-    eq_of_state_type=5,
-)
-
-ISONEUTRAL_OPTIONS = dict(
-    enable_neutral_diffusion=True,
-    K_iso_0=1000.0,
-    K_iso_steep=50.0,
-    iso_dslope=0.005,
-    iso_slopec=0.005,
-    enable_skew_diffusion=True,
-)
-
-TKE_OPTIONS = dict(
-    enable_tke=True,
-    c_k=0.1,
-    c_eps=0.7,
-    alpha_tke=30.0,
-    mxl_min=1e-8,
-    tke_mxl_choice=2,
-    enable_tke_superbee_advection=True,
-)
-
-EKE_OPTIONS = dict(
-    enable_eke=True,
-    eke_k_max=1e4,
-    eke_c_k=0.4,
-    eke_c_eps=0.5,
-    eke_cross=2.,
-    eke_crhin=1.0,
-    eke_lmin=100.0,
-    enable_eke_superbee_advection=True,
-    enable_eke_isopycnal_diffusion=True,
-)
-
-IDEMIX_OPTIONS = dict(
-    enable_idemix=True,
-    enable_eke_diss_surfbot=True,
-    eke_diss_surfbot_frac=0.2,
-    enable_idemix_superbee_advection=True,
-    enable_idemix_hor_diffusion=True,
-)
-
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 FORCING_FILE = os.path.join(BASE_PATH, "forcing_1deg_global.nc")
 
@@ -86,11 +24,62 @@ class GlobalOneDegree(Veros):
         if not os.path.isfile(FORCING_FILE):
             raise RuntimeError("{} data file {} not found".format(name, filepath))
 
-        self._set_parameters(MAIN_OPTIONS)
-        self._set_parameters(ISONEUTRAL_OPTIONS)
-        self._set_parameters(TKE_OPTIONS)
-        self._set_parameters(EKE_OPTIONS)
-        self._set_parameters(IDEMIX_OPTIONS)
+        self.nx = 360
+        self.ny = 160
+        self.nz = 115
+        self.dt_mom = 1800.0
+        self.dt_tracer = 1800.0
+        self.runlen = 0.
+
+        self.coord_degree = True
+        self.enable_cyclic_x = True
+
+        self.congr_epsilon = 1e-10
+        self.congr_max_iterations = 10000
+
+        self.enable_hor_friction = True
+        self.A_h = 5e4
+        self.enable_hor_friction_cos_scaling = True
+        self.hor_friction_cosPower = 1
+        self.enable_tempsalt_sources = True
+        self.enable_implicit_vert_friction = True
+
+        self.eq_of_state_type = 5
+
+        # isoneutral
+        self.enable_neutral_diffusion = True
+        self.K_iso_0 = 1000.0
+        self.K_iso_steep = 50.0
+        self.iso_dslope = 0.005
+        self.iso_slopec = 0.005
+        self.enable_skew_diffusion = True
+
+        # tke
+        self.enable_tke = True
+        self.c_k = 0.1
+        self.c_eps = 0.7
+        self.alpha_tke = 30.0
+        self.mxl_min = 1e-8
+        self.tke_mxl_choice = 2
+        self.enable_tke_superbee_advection = True
+
+        # eke
+        self.enable_eke = True
+        self.eke_k_max = 1e4
+        self.eke_c_k = 0.4
+        self.eke_c_eps = 0.5
+        self.eke_cross = 2.
+        self.eke_crhin = 1.0
+        self.eke_lmin = 100.0
+        self.enable_eke_superbee_advection = True
+        self.enable_eke_isopycnal_diffusion = True
+
+        # idemix
+        self.enable_idemix = True
+        self.enable_eke_diss_surfbot = True
+        self.eke_diss_surfbot_frac = 0.2
+        self.enable_idemix_superbee_advection = True
+        self.enable_idemix_hor_diffusion = True
 
     @veros_method
     def _set_parameters(self, parameters):
