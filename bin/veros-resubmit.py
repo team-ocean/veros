@@ -9,15 +9,30 @@ import argparse
 import subprocess
 import shlex
 import sys
+import os
+
+LAST_N_FILENAME = "current_run.veros"
 
 def parse_cli():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("IDENTIFIER", help="base identifier of the simulation")
-    parser.add_argument("N_SUBMITS", type=int, help="total number of resubmits")
+    parser.add_argument("N_RUNS", type=int, help="total number of runs")
     parser.add_argument("LENGTH_PER_RUN", type=float, help="length (in seconds) of each run")
     parser.add_argument("VEROS_CMD", type=shlex.split, help="the command that is used to call veros (in quotes)")
-    parser.add_argument("-n", "--start-n", metavar="N", type=int, default=0, help="re-start from resubmit run with number N")
+    parser.add_argument("--callback", metavar="CMD", type=shlex.split,
+                        default=[sys.executable, __file__] + sys.argv[1:],
+                        help="command to call after each run has finished (defaults to this script)")
     return parser.parse_args()
+
+def get_current_n():
+    if not os.path.isfile(LAST_N_FILENAME):
+        return 0
+    with open(LAST_N_FILENAME, "r") as f:
+        return int(f.read())
+
+def write_next_n(n):
+    with open(LAST_N_FILENAME, "w") as f:
+        f.write(str(n))
 
 def call_veros(cmd, name, n, runlen):
     identifier = "{name}.{n:0>4}".format(name=name, n=n)
@@ -34,5 +49,18 @@ def call_veros(cmd, name, n, runlen):
 
 if __name__ == "__main__":
     args = parse_cli()
-    for n in range(args.N_SUBMITS):
-        call_veros(args.VEROS_CMD, args.IDENTIFIER, n + args.start_n, args.LENGTH_PER_RUN)
+
+    current_n = get_current_n()
+    if current_n >= args.N_RUNS:
+        sys.exit(0)
+
+    call_veros(args.VEROS_CMD, args.IDENTIFIER, current_n, args.LENGTH_PER_RUN)
+    write_next_n(current_n + 1)
+
+    if current_n >= args.N_RUNS:
+        sys.exit(0)
+
+    if args.callback:
+        subprocess.Popen(args.callback)
+    else:
+        subprocess.Popen()
