@@ -76,8 +76,12 @@ class Averages(VerosDiagnostic):
         if attributes:
             self.average_nitts = attributes["average_nitts"]
         if variables:
-            self.average_vars = {key: Running_sum(veros.variables[key], var)
+            self.average_vars = {key: Running_sum(copy.copy(veros.variables[key]), var)
                                 for key, var in variables.items()}
+        for key, runsum in self.average_vars.items():
+            runsum.var.time_dependent = True
+            if self._cut_timestep(veros, key):
+                runsum.var.dims = runsum.var.dims[:-1]
 
     def write_restart(self, veros, outfile):
         attributes = {"average_nitts": self.average_nitts}
