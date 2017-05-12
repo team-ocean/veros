@@ -11,7 +11,7 @@ import shlex
 import sys
 import os
 
-LAST_N_FILENAME = "current_run.veros"
+LAST_N_FILENAME = "{identifier}.current_run"
 
 def parse_cli():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -21,17 +21,17 @@ def parse_cli():
     parser.add_argument("VEROS_CMD", type=shlex.split, help="the command that is used to call veros (in quotes)")
     parser.add_argument("--callback", metavar="CMD", type=shlex.split,
                         default=[sys.executable, __file__] + sys.argv[1:],
-                        help="command to call after each run has finished (defaults to this script)")
+                        help="command to call after each run has finished (defaults to calling itself)")
     return parser.parse_args()
 
-def get_current_n():
-    if not os.path.isfile(LAST_N_FILENAME):
+def get_current_n(filename):
+    if not os.path.isfile(filename):
         return 0
-    with open(LAST_N_FILENAME, "r") as f:
+    with open(filename, "r") as f:
         return int(f.read())
 
-def write_next_n(n):
-    with open(LAST_N_FILENAME, "w") as f:
+def write_next_n(n, filename):
+    with open(filename, "w") as f:
         f.write(str(n))
 
 def call_veros(cmd, name, n, runlen):
@@ -49,13 +49,14 @@ def call_veros(cmd, name, n, runlen):
 
 if __name__ == "__main__":
     args = parse_cli()
+    last_n_filename = LAST_N_FILENAME.format(identifier=args.IDENTIFIER)
 
-    current_n = get_current_n()
+    current_n = get_current_n(last_n_filename)
     if current_n >= args.N_RUNS:
         sys.exit(0)
 
     call_veros(args.VEROS_CMD, args.IDENTIFIER, current_n, args.LENGTH_PER_RUN)
-    write_next_n(current_n + 1)
+    write_next_n(current_n + 1, last_n_filename)
 
     if current_n >= args.N_RUNS:
         sys.exit(0)
