@@ -73,7 +73,7 @@ class ACC2Benchmark(VerosLegacy):
         i.eke_diss_surfbot_frac = 0.2
         i.enable_idemix_superbee_advection = 1
 
-        m.eq_of_state_type = 5
+        m.eq_of_state_type = 3
 
     @veros_method
     def set_grid(self):
