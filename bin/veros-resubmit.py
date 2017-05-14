@@ -10,6 +10,7 @@ import subprocess
 import shlex
 import sys
 import os
+import time
 
 LAST_N_FILENAME = "{identifier}.current_run"
 
@@ -61,7 +62,5 @@ if __name__ == "__main__":
     if current_n >= args.N_RUNS:
         sys.exit(0)
 
-    if args.callback:
-        subprocess.Popen(args.callback)
-    else:
-        subprocess.Popen()
+    subprocess.Popen(args.callback)
+    time.sleep(10) # make sure next process is properly spawned before exiting
