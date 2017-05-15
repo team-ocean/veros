@@ -81,7 +81,7 @@ class Veros(object):
 
         self.nisle = 0 # to be overriden during streamfunction_init
         self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
-        self.time, self.itt = 0., 0 # current time and iteration
+        self.time, self.itt = 0., 1 # current time and iteration
 
     def _not_implemented(self):
         raise NotImplementedError("Needs to be implemented by subclass")
@@ -238,7 +238,7 @@ class Veros(object):
         start_time, start_iteration = self.time, self.itt
         with handlers.signals_to_exception():
             try:
-                while self.time - start_time <= self.runlen:
+                while self.time - start_time < self.runlen:
                     logging.info("Current iteration: {}".format(self.itt))
 
                     with self.timers["diagnostics"]:
