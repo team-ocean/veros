@@ -11,8 +11,18 @@ from veros.core import cyclic
 
 
 class NorthAtlantic(Veros):
-    """ Inspired by
-    http://journals.ametsoc.org/doi/10.1175/1520-0485%282000%29030%3C1532%3ANSOTNA%3E2.0.CO%3B2
+    """ A regional model of the North Atlantic, inspired by `Smith et al., 2000`_.
+
+    Forcing and initial conditions are taken from the FLAME PyOM2 setup. Bathymetry
+    data from ETOPO1 (resolution of 1 arcmin).
+
+    Boundary forcings are implemented via sponge layers in the Greenland Sea, by the
+    Strait of Gibraltar, and in the South Atlantic. This setup runs with arbitrary resolution;
+    upon changing the number of grid cells, all forcing files will be interpolated to
+    the new grid. Default resolution corresponds roughly to :math:`0.5 \\times 0.25` degrees.
+
+    .. _Smith et al., 2000:
+       http://journals.ametsoc.org/doi/10.1175/1520-0485%282000%29030%3C1532%3ANSOTNA%3E2.0.CO%3B2
     """
 
     @veros_method
@@ -80,14 +90,14 @@ class NorthAtlantic(Veros):
                 topography_file.variables[k][...].T for k in ("x", "y", "z"))
         topo_mask = np.flipud(np.asarray(Image.open("topo_mask.png"))).T
         topo_bottom_depth *= 1 - topo_mask
-        topo_bottom_depth = scipy.ndimage.gaussian_filter(
-            topo_bottom_depth, sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny))
+        topo_bottom_depth = scipy.ndimage.gaussian_filter(topo_bottom_depth,
+                                sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny))
         interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
         interp_coords = np.rollaxis(np.asarray(interp_coords), 0, 3)
         z_interp = scipy.interpolate.interpn((topo_x, topo_y), topo_bottom_depth, interp_coords,
                                              method="nearest", bounds_error=False, fill_value=0)
         self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis]
-                                                                             - self.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
+                                - self.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
         self.kbot *= self.kbot < self.nz
 
     def set_initial_conditions(self):
@@ -100,9 +110,9 @@ class NorthAtlantic(Veros):
             temp = tools.interpolate(
                 forc_coords, forcing_file.variables["temp_ic"][::-1, ...].T, t_grid, missing_value=-1e20)
             self.temp[2:-2, 2:-2, :, self.tau] = self.maskT[2:-2, 2:-2, :] * temp
-            salt = 35. + 1000 * \
-                tools.interpolate(
-                    forc_coords, forcing_file.variables["salt_ic"][::-1, ...].T, t_grid, missing_value=-1e20)
+            salt = 35. + 1000 * tools.interpolate(forc_coords,
+                                                  forcing_file.variables["salt_ic"][::-1, ...].T,
+                                                  t_grid, missing_value=-1e20)
             self.salt[2:-2, 2:-2, :, self.tau] = self.maskT[2:-2, 2:-2, :] * salt
 
             self._taux = np.zeros((self.nx + 4, self.ny + 4, 12))
@@ -115,10 +125,6 @@ class NorthAtlantic(Veros):
                 self._tauy[2:-2, 2:-2, k] = tools.interpolate(forc_u_coords_hor, forcing_file.variables["tauy"][k, ...].T,
                                                               t_hor, missing_value=-1e20) / 10. / self.rho_0
 
-            for t in (self._taux, self._tauy):
-                if self.enable_cyclic_x:
-                    cyclic.setcyclic_x(t)
-
             # heat flux and salinity restoring
             self._sst_clim = np.zeros((self.nx + 4, self.ny + 4, 12))
             self._sss_clim = np.zeros((self.nx + 4, self.ny + 4, 12))
@@ -126,7 +132,8 @@ class NorthAtlantic(Veros):
             self._sss_rest = np.zeros((self.nx + 4, self.ny + 4, 12))
 
             sst_clim, sss_clim, sst_rest, sss_rest = [
-                forcing_file.variables[k][...].T for k in ("sst_clim", "sss_clim", "sst_rest", "sss_rest")]
+                forcing_file.variables[k][...].T for k in ("sst_clim", "sss_clim", "sst_rest", "sss_rest")
+            ]
             for k in range(12):
                 self._sst_clim[2:-2, 2:-2, k] = tools.interpolate(
                     forc_coords[:-1], sst_clim[..., k], t_hor, missing_value=-1e20)
@@ -150,9 +157,11 @@ class NorthAtlantic(Veros):
                 rest_coords, restoring_file.variables["tscl"][0, ...].T, t_grid)
             for k in range(12):
                 self._t_star[2:-2, 2:-2, :, k] = tools.interpolate(
-                    rest_coords, restoring_file.variables["t_star"][k, ...].T, t_grid, missing_value=0.)
+                    rest_coords, restoring_file.variables["t_star"][k, ...].T, t_grid, missing_value=0.
+                )
                 self._s_star[2:-2, 2:-2, :, k] = tools.interpolate(
-                    rest_coords, restoring_file.variables["s_star"][k, ...].T, t_grid, missing_value=0.)
+                    rest_coords, restoring_file.variables["s_star"][k, ...].T, t_grid, missing_value=0.
+                )
 
         if self.enable_idemix:
             f = np.load("tidal_energy.npy") / self.rho_0
