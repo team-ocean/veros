@@ -27,8 +27,7 @@ def read_restart(veros):
 def write_restart(veros, force=False):
     if veros.diskless_mode:
         return
-    t = time.current_time(veros, "seconds")
-    if force or veros.restart_frequency and t % veros.restart_frequency < veros.dt_tracer:
+    if force or veros.restart_frequency and veros.time % veros.restart_frequency < veros.dt_tracer:
         with h5tools.threaded_io(veros, veros.restart_output_filename.format(**vars(veros)), "w") as outfile:
             for diagnostic in veros.diagnostics.values():
                 diagnostic.write_restart(veros, outfile)
@@ -48,16 +47,14 @@ def initialize(veros):
 
 @veros_method
 def diagnose(veros):
-    t = time.current_time(veros, "seconds")
     for diagnostic in veros.diagnostics.values():
-        if diagnostic.sampling_frequency and t % diagnostic.sampling_frequency < veros.dt_tracer:
+        if diagnostic.sampling_frequency and veros.time % diagnostic.sampling_frequency < veros.dt_tracer:
             diagnostic.diagnose(veros)
 
 @veros_method
 def output(veros):
-    t = time.current_time(veros, "seconds")
     for diagnostic in veros.diagnostics.values():
-        if diagnostic.output_frequency and t % diagnostic.output_frequency < veros.dt_tracer:
+        if diagnostic.output_frequency and veros.time % diagnostic.output_frequency < veros.dt_tracer:
             diagnostic.output(veros)
 
 def start_profiler():

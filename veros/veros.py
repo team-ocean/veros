@@ -48,11 +48,11 @@ class Veros(object):
 
     # Constants
     pi = math.pi
-    radius = 6370.0e3  # Earth radius in m
-    degtom = radius / 180.0 * pi  # Conversion degrees latitude to meters
-    mtodeg = 1 / degtom  # Conversion meters to degrees latitude
-    omega = pi / 43082.0  # Earth rotation frequency in 1/s
-    rho_0 = 1024.0  # Boussinesq reference density in :math:`kg/m^3`
+    radius = 6370e3  # Earth radius in m
+    degtom = radius / 180. * pi  # Conversion degrees latitude to meters
+    mtodeg = 1. / degtom  # Conversion meters to degrees latitude
+    omega = pi / 43082.  # Earth rotation frequency in 1/s
+    rho_0 = 1024.  # Boussinesq reference density in :math:`kg/m^3`
     grav = 9.81  # Gravitational constant in :math:`m/s^2`
 
     def __init__(self, backend=None, loglevel=None, logfile=None):
@@ -80,7 +80,8 @@ class Veros(object):
             )}
 
         self.nisle = 0 # to be overriden during streamfunction_init
-        self.taum1, self.tau, self.taup1 = 0, 1, 2
+        self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
+        self.time, self.itt = 0., 0 # current time and iteration
 
     def _not_implemented(self):
         raise NotImplementedError("Needs to be implemented by subclass")
@@ -230,15 +231,14 @@ class Veros(object):
     def run(self):
         """Main routine of the simulation.
         """
-        self.enditt = self.itt + int(self.runlen / self.dt_tracer) - 1
-
+        enditt = self.itt + int(self.runlen / self.dt_tracer) - 1
         logging.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(self, self.runlen)))
-        logging.info(" from time step {} to {}".format(self.itt, self.enditt))
+        logging.info(" from time step {} to {}".format(self.itt, enditt))
 
-        start_iteration = self.itt
+        start_time, start_iteration = self.time, self.itt
         with handlers.signals_to_exception():
             try:
-                while self.itt <= self.enditt:
+                while self.time - start_time <= self.runlen:
                     logging.info("Current iteration: {}".format(self.itt))
 
                     with self.timers["diagnostics"]:
@@ -290,8 +290,8 @@ class Veros(object):
 
                         momentum.vertical_velocity(self)
 
-                    self.flush()
                     self.itt += 1
+                    self.time += self.dt_tracer
 
                     with self.timers["diagnostics"]:
                         if not diagnostics.sanity_check(self):

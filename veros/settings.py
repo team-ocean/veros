@@ -12,8 +12,6 @@ SETTINGS = OrderedDict([
     ("dt_mom", Setting(0., float, "Time step in seconds for momentum")),
     ("dt_tracer", Setting(0., float, "Time step for tracers, can be larger than dt_mom")),
     ("dt_tke", Setting(0., float, "Time step for TKE module, currently set to dt_mom (unused)")),
-    ("itt", Setting(1, int, "Current time step number")),
-    ("enditt", Setting(1, int, "Last time step of simulation")),
     ("runlen", Setting(0., float, "Length of simulation in seconds")),
     ("AB_eps", Setting(0.1, float, "Deviation from Adam-Bashforth weighting")),
 
