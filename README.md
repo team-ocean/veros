@@ -12,13 +12,13 @@ Veros is currently being developed at Niels Bohr Institute, Copenhagen Universit
 
 Veros provides
 
-- a fully staggered 3-D grid geometry (*C-grid*)
-- support for both idealized and realistic configurations in cartesian or pseudo-spherical coordinates
-- several friction and advection schemes to choose from
-- isoneutral mixing, eddy-kinetic energy, turbulent kinetic energy, and internal wave energy parameterizations
-- several pre-implemented diagnostics such as energy fluxes, variable time averages, and a vertical overturning stream function (written to netCDF output)
-- pre-configured idealized and realistic set-ups that are ready to run and easy to adapt
-- accessibility, readability, and extensibility - thanks to the power of Python!
+- a fully staggered **3-D grid geometry** (*C-grid*)
+- support for both **idealized and realistic configurations** in Cartesian or pseudo-spherical coordinates
+- several **friction and advection schemes** to choose from
+- isoneutral mixing, eddy-kinetic energy, turbulent kinetic energy, and internal wave energy **parameterizations**
+- several **pre-implemented diagnostics** such as energy fluxes, variable time averages, and a vertical overturning stream function (written to netCDF output)
+- **pre-configured idealized and realistic set-ups** that are ready to run and easy to adapt
+- **accessibility, readability, and extensibility** - thanks to the power of Python!
 
 ## Installation
 
