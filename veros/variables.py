@@ -421,6 +421,55 @@ MAIN_VARIABLES = OrderedDict([
         "Isopycnal diffusivity", W_GRID, "m^2/s", "Along-isopycnal diffusivity"
     )),
 
+    ("K_diss_v", Variable(
+        "Dissipation of kinetic Energy", W_GRID, "m^2/s^3",
+        "Kinetic energy dissipation by vertical, rayleigh and bottom friction"
+    )),
+    ("K_diss_bot", Variable(
+        "Dissipation of kinetic Energy", W_GRID, "m^2/s^3",
+        "Mean energy dissipation by bottom and rayleigh friction"
+    )),
+    ("K_diss_h", Variable(
+        "Dissipation of kinetic Energy", W_GRID, "m^2/s^3",
+        "Kinetic energy dissipation by horizontal friction"
+    )),
+    ("K_diss_gm", Variable(
+        "Dissipation of mean energy", W_GRID, "m^2/s^3",
+        "Mean energy dissipation by GM (TRM formalism only)"
+    )),
+    ("P_diss_v", Variable(
+        "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+        "Potential energy dissipation by vertical diffusion"
+    )),
+    ("P_diss_nonlin", Variable(
+        "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+        "Potential energy dissipation by nonlinear equation of state"
+    )),
+    ("P_diss_iso", Variable(
+        "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+        "Potential energy dissipation by isopycnal mixing"
+    )),
+    ("P_diss_skew", Variable(
+        "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+        "Potential energy dissipation by GM (w/o TRM)"
+    )),
+    ("P_diss_hmix", Variable(
+        "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+        "Potential energy dissipation by horizontal mixing"
+    )),
+    ("P_diss_adv", Variable(
+        "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+        "Potential energy dissipation by advection"
+    )),
+    ("P_diss_comp", Variable(
+        "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+        "Potential energy dissipation by compression"
+    )),
+    ("P_diss_sources", Variable(
+        "Dissipation of potential Energy", W_GRID, "m^2/s^3",
+        "Potential energy dissipation by external sources (e.g. restoring zones)"
+    )),
+
     ("u_wgrid", Variable(
         "U on W grid", W_GRID, "m/s", "Zonal velocity interpolated to W grid points"
     )),
@@ -477,57 +526,6 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "Meridional (y) coordinate of U-grid point",
             output=True, scale=1e-3, time_dependent=False
         )),
-    ])),
-
-    ("enable_conserve_energy", OrderedDict([
-        ("K_diss_v", Variable(
-            "Dissipation of kinetic Energy", W_GRID, "m^2/s^3",
-            "Kinetic energy dissipation by vertical, rayleigh and bottom friction"
-        )),
-        ("K_diss_bot", Variable(
-            "Dissipation of kinetic Energy", W_GRID, "m^2/s^3",
-            "Mean energy dissipation by bottom and rayleigh friction"
-        )),
-        ("K_diss_h", Variable(
-            "Dissipation of kinetic Energy", W_GRID, "m^2/s^3",
-            "Kinetic energy dissipation by horizontal friction"
-        )),
-        ("K_diss_gm", Variable(
-            "Dissipation of mean energy", W_GRID, "m^2/s^3",
-            "Mean energy dissipation by GM (TRM formalism only)"
-        )),
-        ("P_diss_v", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Potential energy dissipation by vertical diffusion"
-        )),
-        ("P_diss_nonlin", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Potential energy dissipation by nonlinear equation of state"
-        )),
-        ("P_diss_iso", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Potential energy dissipation by isopycnal mixing"
-        )),
-        ("P_diss_skew", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Potential energy dissipation by GM (w/o TRM)"
-        )),
-        ("P_diss_hmix", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Potential energy dissipation by horizontal mixing"
-        )),
-        ("P_diss_adv", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Potential energy dissipation by advection"
-        )),
-        ("P_diss_comp", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Potential energy dissipation by compression"
-        )),
-        ("P_diss_sources", Variable(
-            "Dissipation of potential Energy", W_GRID, "m^2/s^3",
-            "Potential energy dissipation by external sources (e.g. restoring zones)"
-        ))
     ])),
 
     ("enable_tempsalt_sources", OrderedDict([
