@@ -257,7 +257,7 @@ def harmonic_friction(veros):
         veros.flux_north[:, :-1] = veros.A_h * fxa[np.newaxis, :-1, np.newaxis] * (veros.u[:, 1:, :, veros.tau] - veros.u[:, :-1, :, veros.tau]) \
             / veros.dyu[np.newaxis, :-1, np.newaxis] * veros.maskU[:, 1:] * veros.maskU[:, :-1] * veros.cosu[np.newaxis, :-1, np.newaxis]
     else:
-        veros.flux_east[:-1, :, :] = veros.A_h * (veros.u[1:, :, :, veros.tau] - veros[:-1, :, :, veros.tau]) \
+        veros.flux_east[:-1, :, :] = veros.A_h * (veros.u[1:, :, :, veros.tau] - veros.u[:-1, :, :, veros.tau]) \
             / (veros.cost * veros.dxt[1:, np.newaxis])[:, :, np.newaxis] * veros.maskU[1:] * veros.maskU[:-1]
         veros.flux_north[:, :-1, :] = veros.A_h * (veros.u[:, 1:, :, veros.tau] - veros.u[:, :-1, :, veros.tau]) \
             / veros.dyu[np.newaxis, :-1, np.newaxis] * veros.maskU[:, 1:] * veros.maskU[:, :-1] * veros.cosu[np.newaxis, :-1, np.newaxis]
