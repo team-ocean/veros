@@ -3,13 +3,16 @@
 from veros import Veros, veros_method
 
 
-class ACC2(Veros):
-    """
-    A simple global model with a Southern Ocean and Atlantic part
+class ACC(Veros):
+    """A model using spherical coordinates with a partially closed domain representing the Atlantic and ACC.
+
+    Wind forcing over the channel part and buoyancy relaxation drive a large-scale meridional overturning circulation.
+
+    Adapted `from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/ACC%202>`_.
     """
     @veros_method
     def set_parameter(self):
-        self.identifier = "acc2"
+        self.identifier = "acc"
 
         self.nx, self.ny, self.nz = 30, 42, 15
         self.dt_mom = 4800
@@ -131,6 +134,6 @@ class ACC2(Veros):
 
 
 if __name__ == "__main__":
-    simulation = ACC2()
+    simulation = ACC()
     simulation.setup()
     simulation.run()
