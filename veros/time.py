@@ -12,15 +12,8 @@ SECONDS_TO_X = {key: 1. / val for key, val in X_TO_SECONDS.items()}
 
 
 @veros_method
-def current_time(veros, unit="seconds"):
-    time_in_seconds = (veros.itt - 1) * veros.dt_tracer
-    return convert_time(veros, time_in_seconds, "seconds", unit)
-
-
-@veros_method
 def convert_time(veros, time_value, in_unit, out_unit):
     return time_value * X_TO_SECONDS[in_unit] * SECONDS_TO_X[out_unit]
-
 
 @veros_method
 def format_time(veros, time_value, in_unit="seconds"):

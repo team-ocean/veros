@@ -1,30 +1,15 @@
 import math
-import warnings
 import logging
-
-import numpy
-if numpy.__name__ == "bohrium":
-    warnings.warn(
-        "Running veros with 'python -m bohrium' is discouraged (use '--backend bohrium' instead)")
-    import numpy_force
-    numpy = numpy_force
-try:
-    import bohrium
-    import bohrium.lapack
-except ImportError:
-    warnings.warn("Could not import Bohrium")
-    bohrium = None
-
-BACKENDS = {"numpy": numpy, "bohrium": bohrium}
 
 # for some reason, netCDF4 has to be imported before h5py, so we do it here
 import netCDF4
 import h5py
 
 from . import variables, settings, cli, diagnostics, time, handlers
+from . import backend as _backend
 from .timer import Timer
 from .core import momentum, numerics, thermodynamics, eke, tke, idemix, \
-    isoneutral, external, advection, cyclic
+                  isoneutral, external, advection, cyclic
 
 
 class Veros(object):
@@ -62,17 +47,20 @@ class Veros(object):
     """
 
     # Constants
-    pi = numpy.pi
-    radius = 6370.0e3  # Earth radius in m
-    degtom = radius / 180.0 * pi  # Conversion degrees latitude to meters
-    mtodeg = 1 / degtom  # Conversion meters to degrees latitude
-    omega = pi / 43082.0  # Earth rotation frequency in 1/s
-    rho_0 = 1024.0  # Boussinesq reference density in :math:`kg/m^3`
+    pi = math.pi
+    radius = 6370e3  # Earth radius in m
+    degtom = radius / 180. * pi  # Conversion degrees latitude to meters
+    mtodeg = 1. / degtom  # Conversion meters to degrees latitude
+    omega = pi / 43082.  # Earth rotation frequency in 1/s
+    rho_0 = 1024.  # Boussinesq reference density in :math:`kg/m^3`
     grav = 9.81  # Gravitational constant in :math:`m/s^2`
 
     def __init__(self, backend=None, loglevel=None, logfile=None):
         args = cli.parse_command_line()
-        self.backend, self.backend_name = self._get_backend(backend or args.backend)
+        self.command_line_settings = args.set or {}
+        self.profile_mode = args.profile
+        self.backend, self.backend_name = _backend.get_backend(backend or args.backend)
+
         try: # python 2
             logging.basicConfig(logfile=logfile or args.logfile, filemode="w",
                                 level=getattr(logging, (loglevel or args.loglevel).upper()),
@@ -81,50 +69,19 @@ class Veros(object):
             logging.basicConfig(filename=logfile or args.logfile, filemode="w",
                                 level=getattr(logging, (loglevel or args.loglevel).upper()),
                                 format="%(message)s")
-        self.profile_mode = args.profile
-        self._set_default_settings()
-        self._command_line_settings = args.set or {}
-        self.timers = {k: Timer(k) for k in ("setup", "main", "momentum", "temperature",
-                                             "eke", "idemix", "tke", "diagnostics",
-                                             "pressure", "friction", "isoneutral",
-                                             "vmix", "eq_of_state")}
 
-    def _get_backend(self, backend):
-        if backend not in BACKENDS.keys():
-            raise ValueError("unrecognized backend {} (must be either of: {!r})".format(
-                backend, BACKENDS.keys()))
-        if BACKENDS[backend] is None:
-            raise ValueError("{} backend failed to import".format(backend))
-        return BACKENDS[backend], backend
+        settings.set_default_settings(self)
 
-    def _set_default_settings(self):
-        for key, setting in settings.SETTINGS.items():
-            setattr(self, key, setting.type(setting.default))
+        self.timers = {k: Timer(k) for k in
+            (
+                "setup", "main", "momentum", "temperature", "eke", "idemix",
+                "tke", "diagnostics", "pressure", "friction", "isoneutral",
+                "vmix", "eq_of_state"
+            )}
 
-    def _set_commandline_settings(self):
-        for key, val in self._command_line_settings:
-            setattr(self, key, settings.SETTINGS[key].type(val))
-
-    def _allocate(self):
         self.nisle = 0 # to be overriden during streamfunction_init
-
-        self.variables = {}
-
-        def init_var(var_name, var):
-            shape = variables.get_dimensions(self, var.dims)
-            setattr(self, var_name, self.backend.zeros(shape, dtype=var.dtype))
-            self.variables[var_name] = var
-
-        for var_name, var in variables.MAIN_VARIABLES.items():
-            init_var(var_name, var)
-        for condition, var_dict in variables.CONDITIONAL_VARIABLES.items():
-            if condition.startswith("not "):
-                eval_condition = not bool(getattr(self, condition[4:]))
-            else:
-                eval_condition = bool(getattr(self, condition))
-            if eval_condition:
-                for var_name, var in var_dict.items():
-                    init_var(var_name, var)
+        self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
+        self.time, self.itt = 0., 1 # current time and iteration
 
     def _not_implemented(self):
         raise NotImplementedError("Needs to be implemented by subclass")
@@ -235,18 +192,14 @@ class Veros(object):
         except AttributeError:
             pass
 
-    def sanity_check(self):
-        """Checks for solver convergence
-        """
-        return self.backend.all(self.backend.isfinite(self.u))
-
     def setup(self):
         with self.timers["setup"]:
             logging.info("Setting up everything")
 
             self.set_parameter()
-            self._set_commandline_settings()
-            self._allocate()
+            cli.set_commandline_settings(self)
+            settings.check_setting_conflicts(self)
+            variables.allocate_variables(self)
 
             self.set_grid()
             numerics.calc_grid(self)
@@ -264,59 +217,36 @@ class Veros(object):
             external.streamfunction_init(self)
 
             logging.info("Initializing diagnostics")
-            self.diagnostics = {name: Diagnostic(self)
-                                for name, Diagnostic in diagnostics.diagnostics.items()}
+            self.diagnostics = diagnostics.create_diagnostics(self)
             self.set_diagnostics()
-            for name, diagnostic in self.diagnostics.items():
-                diagnostic.initialize(self)
-                if diagnostic.sampling_frequency:
-                    logging.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
-                                 .format(name, time.format_time(self, diagnostic.sampling_frequency),
-                                         diagnostic.sampling_frequency / self.dt_tracer))
-                if diagnostic.output_frequency:
-                    logging.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
-                                 .format(name, time.format_time(self, diagnostic.output_frequency),
-                                         diagnostic.output_frequency / self.dt_tracer))
+            diagnostics.initialize(self)
 
             eke.init_eke(self)
 
             isoneutral.check_isoneutral_slope_crit(self)
 
-            if self.enable_tke and not self.enable_implicit_vert_friction:
-                raise RuntimeError("use TKE model only with implicit vertical friction"
-                                   "(set enable_implicit_vert_fricton)")
-
-            if self.restart_input_filename:
-                logging.info("Reading restarts:")
-                for diagnostic in self.diagnostics.values():
-                    diagnostic.read_restart(self)
+            diagnostics.read_restart(self)
 
 
     def run(self):
         """Main routine of the simulation.
         """
-        self.enditt = self.itt + int(self.runlen / self.dt_tracer) - 1
+        enditt = self.itt + int(self.runlen / self.dt_tracer) - 1
         logging.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(self, self.runlen)))
-        logging.info(" from time step {} to {}".format(self.itt, self.enditt))
+        logging.info(" from time step {} to {}".format(self.itt, enditt))
 
-        start_iteration = self.itt
+        start_time, start_iteration = self.time, self.itt
         with handlers.signals_to_exception():
             try:
-                while self.itt <= self.enditt:
+                while self.time - start_time < self.runlen:
                     logging.info("Current iteration: {}".format(self.itt))
 
                     with self.timers["diagnostics"]:
-                        t = time.current_time(self, "seconds")
-                        if self.restart_frequency and t % self.restart_frequency < self.dt_tracer:
-                            for diagnostic in self.diagnostics.values():
-                                diagnostic.write_restart(self)
+                        diagnostics.write_restart(self)
 
                     if self.itt - start_iteration == 3 and self.profile_mode:
-                        # when using bohrium, most kernels should be pre-compiled
-                        # after three iterations
-                        import pyinstrument
-                        profiler = pyinstrument.Profiler()
-                        profiler.start()
+                        # when using bohrium, most kernels should be pre-compiled by now
+                        profiler = diagnostics.start_profiler()
 
                     with self.timers["main"]:
                         self.set_forcing()
@@ -360,70 +290,46 @@ class Veros(object):
 
                         momentum.vertical_velocity(self)
 
-                    self.flush()
                     self.itt += 1
+                    self.time += self.dt_tracer
 
                     with self.timers["diagnostics"]:
-                        if not self.sanity_check():
+                        if not diagnostics.sanity_check(self):
                             raise RuntimeError("solver diverged at iteration {}".format(self.itt))
 
                         if self.enable_neutral_diffusion and self.enable_skew_diffusion:
                             isoneutral.isoneutral_diag_streamfunction(self)
 
-                        for diagnostic in self.diagnostics.values():
-                            if diagnostic.sampling_frequency and t % diagnostic.sampling_frequency < self.dt_tracer:
-                                diagnostic.diagnose(self)
-                            if diagnostic.output_frequency and t % diagnostic.output_frequency < self.dt_tracer:
-                                diagnostic.output(self)
+                        diagnostics.diagnose(self)
+                        diagnostics.output(self)
 
                     logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
                     # permutate time indices
                     self.taum1, self.tau, self.taup1 = self.tau, self.taup1, self.taum1
 
-
             except:
                 logging.critical("stopping integration at iteration {}".format(self.itt))
                 raise
 
             finally:
-                for diagnostic in self.diagnostics.values():
-                    diagnostic.write_restart(self)
-
-                logging.debug("Timing summary:")
-                logging.debug(" setup time               = {:.2f}s"
-                              .format(self.timers["setup"].getTime()))
-                logging.debug(" main loop time           = {:.2f}s"
-                              .format(self.timers["main"].getTime()))
-                logging.debug("     momentum             = {:.2f}s"
-                              .format(self.timers["momentum"].getTime()))
-                logging.debug("       pressure           = {:.2f}s"
-                              .format(self.timers["pressure"].getTime()))
-                logging.debug("       friction           = {:.2f}s"
-                              .format(self.timers["friction"].getTime()))
-                logging.debug("     thermodynamics       = {:.2f}s"
-                              .format(self.timers["temperature"].getTime()))
-                logging.debug("       lateral mixing     = {:.2f}s"
-                              .format(self.timers["isoneutral"].getTime()))
-                logging.debug("       vertical mixing    = {:.2f}s"
-                              .format(self.timers["vmix"].getTime()))
-                logging.debug("       equation of state  = {:.2f}s"
-                              .format(self.timers["eq_of_state"].getTime()))
-                logging.debug("     EKE                  = {:.2f}s"
-                              .format(self.timers["eke"].getTime()))
-                logging.debug("     IDEMIX               = {:.2f}s"
-                              .format(self.timers["idemix"].getTime()))
-                logging.debug("     TKE                  = {:.2f}s"
-                              .format(self.timers["tke"].getTime()))
-                logging.debug(" diagnostics and I/O      = {:.2f}s"
-                              .format(self.timers["diagnostics"].getTime()))
-
+                diagnostics.write_restart(self, force=True)
+                logging.debug("\n".join([
+                    "Timing summary:",
+                    " setup time               = {:.2f}s".format(self.timers["setup"].getTime()),
+                    " main loop time           = {:.2f}s".format(self.timers["main"].getTime()),
+                    "     momentum             = {:.2f}s".format(self.timers["momentum"].getTime()),
+                    "       pressure           = {:.2f}s".format(self.timers["pressure"].getTime()),
+                    "       friction           = {:.2f}s".format(self.timers["friction"].getTime()),
+                    "     thermodynamics       = {:.2f}s".format(self.timers["temperature"].getTime()),
+                    "       lateral mixing     = {:.2f}s".format(self.timers["isoneutral"].getTime()),
+                    "       vertical mixing    = {:.2f}s".format(self.timers["vmix"].getTime()),
+                    "       equation of state  = {:.2f}s".format(self.timers["eq_of_state"].getTime()),
+                    "     EKE                  = {:.2f}s".format(self.timers["eke"].getTime()),
+                    "     IDEMIX               = {:.2f}s".format(self.timers["idemix"].getTime()),
+                    "     TKE                  = {:.2f}s".format(self.timers["tke"].getTime()),
+                    " diagnostics and I/O      = {:.2f}s".format(self.timers["diagnostics"].getTime()),
+                ]))
                 if self.profile_mode:
-                    try:
-                        profiler.stop()
-                        with open("profile.html", "w") as f:
-                            f.write(profiler.output_html())
-                    except UnboundLocalError:  # profiler has not been started
-                        pass
-
+                    diagnostics.stop_profiler(profiler)
                 logging.shutdown()

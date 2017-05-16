@@ -5,7 +5,7 @@ import numpy as np
 import bohrium as bh
 from collections import OrderedDict
 
-from veros import VerosLegacy
+from veros import VerosLegacy, variables
 from veros.timer import Timer
 
 flush = bh.flush
@@ -38,7 +38,7 @@ class VerosTest(object):
             for attribute, value in self.extra_settings.items():
                 self.set_attribute(attribute, value)
         self.veros_new.set_legacy_parameter()
-        self.veros_new._allocate()
+        variables.allocate_variables(self.veros_new)
         self.veros_legacy.fortran.my_mpi_init(0)
         self.veros_legacy.fortran.pe_decomposition()
         self.veros_legacy.set_legacy_parameter()

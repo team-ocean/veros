@@ -2,11 +2,12 @@ from collections import namedtuple
 import json
 import logging
 import os
+import copy
 
 from .diagnostic import VerosDiagnostic
 from . import io_tools
 from .. import veros_class_method
-from ..variables import Variable
+from ..variables import Variable, TIMESTEPS
 
 Running_sum = namedtuple("Running_sum", ("var", "sum"))
 
@@ -20,7 +21,7 @@ class Averages(VerosDiagnostic):
     name = "averages" #:
     output_path = "{identifier}.averages.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
     #: Iterable containing all variables to be averaged. Changes have no effect after ``initialize`` has been called.
-    output_variables = None
+    output_variables = None #:
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
 
@@ -30,20 +31,32 @@ class Averages(VerosDiagnostic):
         """
         self.average_nitts = 0
         self.average_vars = {}
+
         if not self.output_variables:
             return
         for var in self.output_variables:
-            var_array = getattr(veros, var)
-            var_data = veros.variables[var]
+            var_data = copy.copy(veros.variables[var])
             var_data.time_dependent = True
-            self.average_vars[var] = Running_sum(var_data, np.zeros_like(var_array))
+            if self._cut_timestep(veros, var):
+                var_data.dims = var_data.dims[:-1]
+                var_sum = np.zeros_like(getattr(veros, var)[..., veros.tau])
+            else:
+                var_sum = np.zeros_like(getattr(veros, var))
+            self.average_vars[var] = Running_sum(var_data, var_sum)
         self.initialize_output(veros, {key: runsum.var for key,
                                        runsum in self.average_vars.items()})
+
+    @staticmethod
+    def _cut_timestep(veros, var):
+        return veros.variables[var].dims[-1] == TIMESTEPS[0]
 
     def diagnose(self, veros):
         self.average_nitts += 1
         for key, var in self.average_vars.items():
-            var.sum[...] += getattr(veros, key)
+            if self._cut_timestep(veros, key):
+                var.sum[...] += getattr(veros, key)[..., veros.tau]
+            else:
+                var.sum[...] += getattr(veros, key)
 
     def output(self, veros):
         """Write averages to netcdf file and zero array
@@ -63,11 +76,15 @@ class Averages(VerosDiagnostic):
         if attributes:
             self.average_nitts = attributes["average_nitts"]
         if variables:
-            self.average_vars = {key: Running_sum(
-                veros.variables[key], var) for key, var in variables.items()}
+            self.average_vars = {key: Running_sum(copy.copy(veros.variables[key]), var)
+                                for key, var in variables.items()}
+        for key, runsum in self.average_vars.items():
+            runsum.var.time_dependent = True
+            if self._cut_timestep(veros, key):
+                runsum.var.dims = runsum.var.dims[:-1]
 
-    def write_restart(self, veros):
+    def write_restart(self, veros, outfile):
         attributes = {"average_nitts": self.average_nitts}
         variables = {key: runsum.sum for key, runsum in self.average_vars.items()}
         variable_metadata = {key: runsum.var for key, runsum in self.average_vars.items()}
-        self.write_h5_restart(veros, attributes, variable_metadata, variables)
+        self.write_h5_restart(veros, attributes, variable_metadata, variables, outfile)

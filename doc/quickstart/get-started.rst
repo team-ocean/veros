@@ -12,7 +12,7 @@ Using Anaconda (multi-platform)
 
 2. Install some dependencies: ::
 
-       $ conda install libhdf5 libnetcdf
+       $ conda install hdf5 libnetcdf
        $ conda install -c conda-forge git-lfs
 
    and optionally::
@@ -25,7 +25,7 @@ Using Anaconda (multi-platform)
 
 4. Install Veros via::
 
-       $ conda develop ./veros
+       $ pip install -e ./veros
 
 
 Using apt-get (Ubuntu / Debian)

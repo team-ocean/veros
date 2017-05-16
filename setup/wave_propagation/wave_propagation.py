@@ -19,12 +19,15 @@ class WavePropagation(Veros):
 
     @veros_method
     def set_parameter(self):
+        self.identifier = "wp"
+
         self.nx = 360
         self.ny = 160
         self.nz = 115
         self._max_depth = 5600.
         self.dt_mom = 900.
         self.dt_tracer = 900.
+        self.runlen = 0.
 
         self.coord_degree = True
         self.enable_cyclic_x = True

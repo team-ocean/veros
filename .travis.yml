@@ -31,7 +31,6 @@ matrix:
 script:
 - docker run -e "BH_STACK=openmp" -t veros $PYTHON_EXEC $TEST_DIR/run_tests.py /pyOM2/py_src/$PYOM_LIB
 - docker run -e "BH_STACK=opencl" -t veros $PYTHON_EXEC $TEST_DIR/run_tests.py /pyOM2/py_src/$PYOM_LIB
-- docker run -t veros $PYTHON_EXEC $TEST_DIR/run_benchmarks.py -s 1e5 -c numpy fortran fortran-mpi bohrium bohrium-opencl -f $PYOM_DIR/$PYOM_MPI_LIB
 
 notifications:
   email: false

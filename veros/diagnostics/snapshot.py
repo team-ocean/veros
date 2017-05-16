@@ -24,7 +24,7 @@ class Snapshot(VerosDiagnostic):
     name = "snapshot" #:
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     #: Attributes to be written to restart file.
-    restart_attributes = ("itt", "tau", "taum1", "taup1")
+    restart_attributes = ("itt", "time", "tau", "taum1", "taup1")
 
     def __init__(self, veros):
         self.output_variables = [key for key, val in veros.variables.items() if val.output]
@@ -46,9 +46,8 @@ class Snapshot(VerosDiagnostic):
 
     @veros_class_method
     def output(self, veros):
-        current_time = time.current_time(veros)
-        logging.info(" writing snapshot at {0[0]} {0[1]}".format(
-            time.format_time(veros, current_time)))
+        logging.info(" writing snapshot at {0[0]:.2f} {0[1]}".format(
+            time.format_time(veros, veros.time)))
 
         if not os.path.isfile(self.get_output_file_name(veros)):
             self.initialize(veros)
@@ -84,8 +83,8 @@ class Snapshot(VerosDiagnostic):
                               "attribute not found in restart file"
                               .format(attr))
 
-    def write_restart(self, veros):
+    def write_restart(self, veros, outfile):
         restart_attributes = {key: getattr(veros, key) for key in self.restart_attributes}
         restart_vars = {var: veros.variables[var] for var in self.restart_variables}
         restart_data = {var: getattr(veros, var) for var in self.restart_variables}
-        self.write_h5_restart(veros, restart_attributes, restart_vars, restart_data)
+        self.write_h5_restart(veros, restart_attributes, restart_vars, restart_data, outfile)

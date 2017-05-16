@@ -55,6 +55,6 @@ class TracerMonitor(VerosDiagnostic):
         for attr in self.restart_attributes:
             setattr(self, attr, attributes[attr])
 
-    def write_restart(self, veros):
+    def write_restart(self, veros, outfile):
         attributes = {key: getattr(self, key) for key in self.restart_attributes}
-        self.write_h5_restart(veros, attributes, {}, {})
+        self.write_h5_restart(veros, attributes, {}, {}, outfile)

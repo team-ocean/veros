@@ -1,6 +1,6 @@
 ![Veros](doc/_images/veros-logo-400px.png?raw=true)
 
-[![Documentation Status](https://readthedocs.org/projects/veros/badge/?version=latest)](http://veros.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/dionhaefner/veros.svg?branch=master)](https://travis-ci.org/dionhaefner/veros)
+[![Documentation Status](https://readthedocs.org/projects/veros/badge/?version=latest)](http://veros.readthedocs.io/?badge=latest) [![Build Status](https://travis-ci.org/dionhaefner/veros.svg?branch=master)](https://travis-ci.org/dionhaefner/veros)
 
 Veros, the *versatile ocean simulator*, is just that: A powerful tool that makes high-performance ocean modeling approachable and fun. Since it is a pure Python module, the days of struggling with complicated model setup workflows, ancient programming environments, and obscure legacy code are finally over.
 
@@ -12,13 +12,13 @@ Veros is currently being developed at Niels Bohr Institute, Copenhagen Universit
 
 Veros provides
 
-- a fully staggered 3-D grid geometry (*C-grid*)
-- support for both idealized and realistic configurations in cartesian or pseudo-spherical coordinates
-- several friction and advection schemes to choose from
-- isoneutral mixing, eddy-kinetic energy, turbulent kinetic energy, and internal wave energy parameterizations
-- several pre-implemented diagnostics such as energy fluxes, variable time averages, and a vertical overturning stream function (written to netCDF output)
-- pre-configured idealized and realistic set-ups that are ready to run and easy to adapt
-- accessibility, readability, and extensibility - thanks to the power of Python!
+- a fully staggered **3-D grid geometry** (*C-grid*)
+- support for both **idealized and realistic configurations** in Cartesian or pseudo-spherical coordinates
+- several **friction and advection schemes** to choose from
+- isoneutral mixing, eddy-kinetic energy, turbulent kinetic energy, and internal wave energy **parameterizations**
+- several **pre-implemented diagnostics** such as energy fluxes, variable time averages, and a vertical overturning stream function (written to netCDF output)
+- **pre-configured idealized and realistic set-ups** that are ready to run and easy to adapt
+- **accessibility, readability, and extensibility** - thanks to the power of Python!
 
 ## Installation
 
@@ -60,4 +60,4 @@ After setting up your model, all you need to do is call the ``setup`` and ``run`
 
     $ python acc2.py
 
-For more information on using Veros, have a look at [our documentation](http://veros.readthedocs.io/en/latest/).
+For more information on using Veros, have a look at [our documentation](http://veros.readthedocs.io).

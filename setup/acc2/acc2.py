@@ -2,11 +2,6 @@
 
 from veros import Veros, veros_method
 
-yt_start = -39.0
-yt_end = 43
-yu_start = -40.0
-yu_end = 42
-
 
 class ACC2(Veros):
     """
@@ -88,7 +83,7 @@ class ACC2(Veros):
     @veros_method
     def set_topography(self):
         x, y = np.meshgrid(self.xt, self.yt, indexing="ij")
-        self.kbot[...] = np.logical_or(x > 1.0, y < -20)
+        self.kbot[...] = np.logical_or(x > 1.0, y < -20).astype(np.int)
 
     @veros_method
     def set_initial_conditions(self):
@@ -98,14 +93,14 @@ class ACC2(Veros):
 
         # wind stress forcing
         taux = np.zeros(self.ny + 4)
-        taux[self.yt < -20] = 1e-4 * np.sin(self.pi * (self.yu[self.yt < -20] - yu_start) / (-20.0 - yt_start))
-        taux[self.yt > 10] = 1e-4 * (1 - np.cos(2 * self.pi * (self.yu[self.yt > 10] - 10.0) / (yu_end - 10.0)))
+        taux[self.yt < -20] = 1e-4 * np.sin(self.pi * (self.yu[self.yt < -20] - self.yu.min()) / (-20.0 - self.yt.min()))
+        taux[self.yt > 10] = 1e-4 * (1 - np.cos(2 * self.pi * (self.yu[self.yt > 10] - 10.0) / (self.yu.max() - 10.0)))
         self.surface_taux[:, :] = taux * self.maskU[:, :, -1]
 
         # surface heatflux forcing
         self._t_star = 15 * np.ones(self.ny + 4)
-        self._t_star[self.yt < -20] = 15 * (self.yt[self.yt < -20] - yt_start) / (-20 - yt_start)
-        self._t_star[self.yt > 20] = 15 * (1 - (self.yt[self.yt > 20] - 20) / (yt_end - 20))
+        self._t_star[self.yt < -20] = 15 * (self.yt[self.yt < -20] - self.yt.min()) / (-20 - self.yt.min())
+        self._t_star[self.yt > 20] = 15 * (1 - (self.yt[self.yt > 20] - 20) / (self.yt.max() - 20))
         self._t_rest = self.dzt[None, -1] / (30. * 86400.) * self.maskT[:, :, -1]
 
         if self.enable_tke:
@@ -124,7 +119,8 @@ class ACC2(Veros):
     def set_diagnostics(self):
         self.diagnostics["snapshot"].output_frequency = 86400 * 10
         self.diagnostics["averages"].output_variables = (
-            "salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy")
+            "salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy"
+        )
         self.diagnostics["averages"].output_frequency = 365 * 86400.
         self.diagnostics["averages"].sampling_frequency = self.dt_tracer * 10
         self.diagnostics["overturning"].output_frequency = 365 * 86400. / 48.

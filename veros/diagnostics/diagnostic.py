@@ -2,6 +2,7 @@ from collections import OrderedDict
 import os
 import copy
 import logging
+import warnings
 
 from .io_tools import netcdf as nctools
 from .io_tools import hdf5 as h5tools
@@ -70,7 +71,8 @@ class VerosDiagnostic(object):
             return
         with nctools.threaded_io(veros, self.get_output_file_name(veros), "r+") as outfile:
             time_step = nctools.get_current_timestep(veros, outfile)
-            nctools.advance_time(veros, time_step, time.current_time(veros, "days"), outfile)
+            current_days = time.convert_time(veros, veros.time, "seconds", "days")
+            nctools.advance_time(veros, time_step, current_days, outfile)
             for key, var in variables.items():
                 nctools.write_variable(veros, key, var, variable_data[key],
                                        outfile, time_step=time_step)
@@ -93,8 +95,8 @@ class VerosDiagnostic(object):
         if not os.path.isfile(restart_filename):
             raise IOError("restart file {} not found".format(restart_filename))
 
-        logging.info("reading restart data for diagnostic {} from {}".format(
-            self.name, restart_filename))
+        logging.info(" reading restart data for diagnostic {} from {}"
+                     .format(self.name, restart_filename))
         with h5tools.threaded_io(veros, restart_filename, "r") as infile:
             variables = {key: np.array(var[...])
                          for key, var in infile[self.name].items()}
@@ -103,17 +105,13 @@ class VerosDiagnostic(object):
 
     @do_not_disturb
     @veros_class_method
-    def write_h5_restart(self, veros, attributes, var_meta, var_data):
-        if veros.diskless_mode:
-            return
-        restart_filename = self.get_restart_output_file_name(veros)
-        with h5tools.threaded_io(veros, restart_filename, "a") as outfile:
-            outfile.require_group(self.name)
-            for key, var in var_data.items():
-                var_name = "{}/{}".format(self.name, key)
-                if veros.backend_name == "bohrium" and not np.isscalar(var):
-                    var = var.copy2numpy()
-                outfile.require_dataset(var_name, var.shape, var.dtype, exact=True)
-                outfile[var_name][...] = var
-            for key, val in attributes.items():
-                outfile[self.name].attrs[key] = val
+    def write_h5_restart(self, veros, attributes, var_meta, var_data, outfile):
+        group = outfile.require_group(self.name)
+        for key, var in var_data.items():
+            if veros.backend_name == "bohrium" and not np.isscalar(var):
+                var = var.copy2numpy()
+            kwargs = {"compression": "gzip", "compression_opts": 9} if veros.enable_hdf5_gzip_compression else {}
+            group.require_dataset(key, var.shape, var.dtype, exact=True, **kwargs)
+            group[key][...] = var
+        for key, val in attributes.items():
+            group.attrs[key] = val

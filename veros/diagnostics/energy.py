@@ -308,8 +308,8 @@ class Energy(VerosDiagnostic):
                 setattr(self, key, val)
 
     @veros_class_method
-    def write_restart(self, veros):
+    def write_restart(self, veros, outfile):
         restart_data = {key: getattr(self, key)
                         for key, val in self.variables.items() if val.write_to_restart}
         restart_data.update({"nitts": self.nitts})
-        self.write_h5_restart(veros, restart_data, {}, {})
+        self.write_h5_restart(veros, restart_data, {}, {}, outfile)

@@ -2,22 +2,21 @@
 
 """Creates a mask image from a given netCDF file"""
 
-from netCDF4 import Dataset
-from PIL import Image
-import numpy as np
 import argparse
-from scipy import ndimage
 
 
 def get_mask_data(depth):
+    import numpy as np
     return np.where(depth > 0, 255, 0).astype(np.uint8)
 
 
 def smooth_image(data, sigma):
+    from scipy import ndimage
     return ndimage.gaussian_filter(data, sigma=sigma)
 
 
 def save_image(data, path):
+    from PIL import Image
     Image.fromarray(np.flipud(data)).convert("1").save(path + ".png")
 
 
@@ -31,6 +30,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--scale", nargs=2, type=int, required=False, default=None)
     args = parser.parse_args()
 
+    from netCDF4 import Dataset
     with Dataset(args.file, "r") as topo:
         z = topo.variables[args.v][...]
     if args.scale is not None:

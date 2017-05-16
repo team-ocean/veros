@@ -26,6 +26,7 @@ class GlobalFourDegree(Veros):
         self.nx, self.ny, self.nz = 90, 40, 15
         self.dt_mom = 1800.0
         self.dt_tracer = 86400.0
+        self.runlen = 0.
 
         self.coord_degree = True
         self.enable_cyclic_x = True

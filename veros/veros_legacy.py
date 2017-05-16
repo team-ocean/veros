@@ -88,7 +88,7 @@ class VerosLegacy(Veros):
         idm.enable_idemix_niw = False
 
     def _set_commandline_settings(self):
-        for key, val in self._command_line_settings:
+        for key, val in self.command_line_settings:
             for m in self.modules:
                 if hasattr(m, key):
                     setattr(m, key, settings.SETTINGS[key].type(val))

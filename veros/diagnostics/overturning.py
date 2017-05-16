@@ -240,7 +240,7 @@ class Overturning(VerosDiagnostic):
                 getattr(self, var)[...] = arr
 
     @veros_class_method
-    def write_restart(self, veros):
+    def write_restart(self, veros, outfile):
         var_data = {key: getattr(self, key)
                     for key, var in self.variables.items() if var.write_to_restart}
-        self.write_h5_restart(veros, {"nitts": self.nitts}, {}, var_data)
+        self.write_h5_restart(veros, {"nitts": self.nitts}, {}, var_data, outfile)
