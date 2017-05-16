@@ -1,48 +1,71 @@
-Available set-ups
-=================
+Set-up gallery
+==============
 
-New set-ups
-+++++++++++
+Idealized configurations
+------------------------
 
-Wave propagation study
-----------------------
++-------------------------------------------+-------------------------------------------+
+| |acc|                                     | |eady|                                    |
+|                                           |                                           |
+| :doc:`/reference/setups/acc`              | :doc:`/reference/setups/eady`             |
++-------------------------------------------+-------------------------------------------+
+| |jets|                                                                                |
+|                                                                                       |
+| :doc:`/reference/setups/jets`                                                         |
++-------------------------------------------+-------------------------------------------+
 
-.. autoclass:: wave_propagation.WavePropagation
+.. |acc| image:: /_images/acc.png
+  :width: 100%
+  :align: middle
+  :target: setups/acc.html
+  :alt: Steady-state stream function
 
-North Atlantic regional model
------------------------------
+.. |eady| image:: /_images/acc.png
 
-.. autoclass:: north_atlantic.NorthAtlantic
+.. |jets| image:: /_images/acc.png
 
-.. figure:: /_images/north-atlantic.png
-   :align: center
+.. toctree::
+   :hidden:
 
-   Resulting average surface speed
+   setups/acc
+   setups/eady
+   setups/jets
 
-Ported from pyOM2
-+++++++++++++++++
 
-ACC2
-----
+Realistic configurations
+------------------------
 
-.. autoclass:: acc2.ACC2
++-------------------------------------------+-------------------------------------------+
+| |wavepropagation|                         | |northatlantic|                           |
+|                                           |                                           |
+| :doc:`/reference/setups/wave-propagation` | :doc:`/reference/setups/north-atlantic`   |
++-------------------------------------------+-------------------------------------------+
+| |4deg|                                    | |1deg|                                    |
+|                                           |                                           |
+| :doc:`/reference/setups/4deg`             | :doc:`/reference/setups/1deg`             |
++-------------------------------------------+-------------------------------------------+
 
-.. figure:: /_images/acc2.png
-   :align: center
+.. |4deg| image:: /_images/4deg.png
+   :width: 100%
+   :align: middle
+   :target: setups/4deg.html
+   :alt: Stream function after 50 years
 
-   ACC2 steady-state stream function
+.. |northatlantic| image:: /_images/north-atlantic.png
+   :width: 100%
+   :align: middle
+   :target: setups/northatlantic.html
+   :alt: Resulting average surface speed
 
-Global four degree
-------------------
+.. |1deg| image:: /_images/acc.png
 
-.. autoclass:: global_four_degree.GlobalFourDegree
+.. |wavepropagation| image:: /_images/acc.png
 
-.. figure:: /_images/4deg.png
-   :align: center
+.. toctree::
+   :hidden:
 
-   Stream function after 50y
-
-Global one degree
------------------
-
-.. autoclass:: global_one_degree.GlobalOneDegree
+   setups/wave-propagation
+   setups/north-atlantic
+   setups/4deg
+   setups/1deg
+  

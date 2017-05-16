@@ -1,0 +1,2 @@
+Global one degree
+=================

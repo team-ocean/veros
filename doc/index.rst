@@ -1,14 +1,12 @@
 :tocdepth: 5
 
 
-.. figure:: /_images/veros-logo-400px.png
+.. image:: /_images/veros-logo-400px.png
 
 Versatile Ocean Simulation in Pure Python
 =========================================
 
-Veros, *the versatile ocean simulator*, aims to be the swiss army knife of ocean modeling.
-It is a full-fledged :abbr:`GCM (global circulation model)` that supports anything between highly idealized configurations and realistic set-ups, targeting
-students and seasoned researchers alike. Thanks to its seamless interplay with `Bohrium <https://github.com/bh107/bohrium>`_, Veros runs efficiently on your laptop, gaming PC (with experimental GPU support through OpenCL), and small cluster.
+Veros, *the versatile ocean simulator*, aims to be the swiss army knife of ocean modeling. It is a full-fledged :abbr:`GCM (global circulation model)` that supports anything between highly idealized configurations and realistic set-ups, targeting students and seasoned researchers alike. Thanks to its seamless interplay with `Bohrium <https://github.com/bh107/bohrium>`_, Veros runs efficiently on your laptop, gaming PC (with experimental GPU support through OpenCL), and small cluster.
 
 If you want to learn more about the background and capabilities of Veros, you should check out :doc:`quickstart/introduction`. If you are already convinced, you can jump right into action, and :doc:`learn how to get started <quickstart/get-started>` instead!
 
@@ -31,11 +29,11 @@ If you want to learn more about the background and capabilities of Veros, you sh
    :caption: Reference
 
    reference/setup
-   reference/public-api
    reference/settings
    reference/variables
    reference/diagnostics
    reference/cli
+   reference/public-api
 
 .. toctree::
    :maxdepth: 2
