@@ -1,2 +1,2 @@
-Jets
-====
+Zonal jet model
+===============

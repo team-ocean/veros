@@ -5,13 +5,13 @@ Idealized configurations
 ------------------------
 
 +-------------------------------------------+-------------------------------------------+
-| |acc|                                     | |eady|                                    |
-|                                           |                                           |
 | :doc:`/reference/setups/acc`              | :doc:`/reference/setups/eady`             |
+|                                           |                                           |
+| |acc|                                     | |eady|                                    |
 +-------------------------------------------+-------------------------------------------+
-| |jets|                                                                                |
-|                                                                                       |
-| :doc:`/reference/setups/jets`                                                         |
+| :doc:`/reference/setups/jets`             |                                           |
+|                                           |                                           |
+| |jets|                                    |                                           |
 +-------------------------------------------+-------------------------------------------+
 
 .. |acc| image:: /_images/acc.png
@@ -21,8 +21,14 @@ Idealized configurations
   :alt: Steady-state stream function
 
 .. |eady| image:: /_images/acc.png
+   :width: 100%
+   :align: middle
+   :target: setups/eady.html
 
 .. |jets| image:: /_images/acc.png
+   :width: 100%
+   :align: middle
+   :target: setups/jets.html
 
 .. toctree::
    :hidden:
@@ -35,15 +41,28 @@ Idealized configurations
 Realistic configurations
 ------------------------
 
-+-------------------------------------------+-------------------------------------------+
-| |wavepropagation|                         | |northatlantic|                           |
-|                                           |                                           |
-| :doc:`/reference/setups/wave-propagation` | :doc:`/reference/setups/north-atlantic`   |
-+-------------------------------------------+-------------------------------------------+
-| |4deg|                                    | |1deg|                                    |
-|                                           |                                           |
-| :doc:`/reference/setups/4deg`             | :doc:`/reference/setups/1deg`             |
-+-------------------------------------------+-------------------------------------------+
++--------------------------------------------+-------------------------------------------+
+| :doc:`/reference/setups/wave-propagation`  | :doc:`/reference/setups/north-atlantic`   |
+|                                            |                                           |
+| |wave-propagation|                         | |northatlantic|                           |
++--------------------------------------------+-------------------------------------------+
+| :doc:`/reference/setups/4deg`              | :doc:`/reference/setups/1deg`             |
+|                                            |                                           |
+| |4deg|                                     | |1deg|                                    |
++--------------------------------------------+-------------------------------------------+
+
+.. |wave-propagation| image:: /_images/wave-propagation.png
+   :width: 100%
+   :align: middle
+   :target: setups/wave-propagation.html
+   :alt: Stream function
+
+.. |northatlantic| image:: /_images/north-atlantic.png
+   :width: 100%
+   :align: middle
+   :target: setups/north-atlantic.html
+   :alt: Resulting average surface speed
+
 
 .. |4deg| image:: /_images/4deg.png
    :width: 100%
@@ -51,15 +70,13 @@ Realistic configurations
    :target: setups/4deg.html
    :alt: Stream function after 50 years
 
-.. |northatlantic| image:: /_images/north-atlantic.png
+.. |1deg| image:: /_images/1deg.png
    :width: 100%
    :align: middle
-   :target: setups/northatlantic.html
-   :alt: Resulting average surface speed
+   :target: setups/1deg.html
+   :alt: Stream function
 
-.. |1deg| image:: /_images/acc.png
 
-.. |wavepropagation| image:: /_images/acc.png
 
 .. toctree::
    :hidden:
@@ -68,4 +85,3 @@ Realistic configurations
    setups/north-atlantic
    setups/4deg
    setups/1deg
-  
