@@ -3,10 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-from test_base import VerosTest
+from test_base import VerosUnitTest
 from veros.core import numerics, external
 
-class StreamfunctionTest(VerosTest):
+class StreamfunctionTest(VerosUnitTest):
     nx, ny, nz = 70, 60, 50
     first = True
     extra_settings = {
