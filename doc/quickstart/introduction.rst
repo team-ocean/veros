@@ -26,47 +26,91 @@ The model domain
 
 The numerical solution is calculated using finite differences on an *Arakawa C-grid*, which is staggered in every dimension. *Tracers* (like temperature and salinity) are calculated at different positions than zonal, meridional, and vertical *fluxes* (like the velocities u, v, and w). The following figure shows the relative positions of the so-called T, U, V, and ζ grid points (W not shown):
 
-.. figure:: /_images/c-grid.svg
+.. figure:: /_images/introduction/c-grid.svg
    :width: 80%
    :align: center
 
    The structure of the Arakawa C-grid.
 
-Veros supports both Cartesian and pseudo-spherical (i.e., including additional metric terms) coordinate systems. Islands or holes in the domain are fully supported by the streamfunction solver. Zonal boundaries can either be cyclic or regraded as walls.
+Veros supports both Cartesian and pseudo-spherical (i.e., including additional metric terms) coordinate systems. Islands or holes in the domain are fully supported by the streamfunction solver. Zonal boundaries can either be cyclic or regraded as walls (with free-slip boundary conditions).
 
 Available parameterizations
 +++++++++++++++++++++++++++
 
 At its core, Veros currently offers the following solvers, numerical schemes, parameterizations, and closures:
 
-- **Surface pressure**:
-- **Equation of state**:
-- **Friction**:
-- **Advection**:
-- **Diffusion**:
-- **Isoneutral mixing**: (optional)
-- **:abbr:`IW (internal waves)`**: IDEMIX by (optional)
-- **:abbr:`EKE (eddy kinetic energy)`**: (optional)
-- **:abbr:`TKE (turbulent kinetic energy)`**: (optional)
+**Surface pressure**:
+ - a streamfunction solver with MOM's island algorithm and an iterative Poisson solver
+
+**Equation of state**:
+ - the full 48-term TEOS equation of state
+ - various linear and nonlinear model equations from [Vallis2006]_
+
+**Friction**:
+ - harmonic or biharmonic lateral friction
+ - linear or quadratic bottom friction
+ - interior Rayleigh friction
+ - explicit or fully implicit harmonic vertical friction
+
+**Advection**:
+ - a classical second-order central difference scheme
+ - a second-order scheme with a superbee flux-limiter
+
+**Diffusion**:
+ - harmonic or biharmonic lateral diffusion
+ - explicit or implicit harmonic vertical diffusion
+
+**Isoneutral mixing**:
+ - lateral mixing of tracers along neutral surfaces following [Griffies1998]_ (optional)
+
+**Internal wave breaking**:
+ - IDEMIX as in [OlbersEden2013]_ (optional)
+
+**EKE model** (eddy kinetic energy):
+ - meso-scale eddy mixing closure after [Gent1995]_, either with constant coefficients or calculated using the prognostic EKE closure by [EdenGreatbatch2008]_ (optional)
+
+**TKE model** (turbulent kinetic energy):
+ - prognostic TKE model for vertical mixing as introduced in [Gaspar1990]_ (optional)
+
 
 Diagnostics
 +++++++++++
 
-Diagnostics are reposible for
+Diagnostics are reponsible for handling all model output, runtime checks of the solution, and restart file handling. They are implemented in a modular fashion, so additional diagnostics can be implemented easily. Already implemented diagnostics handle snapshot output, time-averaging of variables, monitoring of energy fluxes, and calculation of the overturning streamfunction.
 
-:doc:`/reference/diagnostics`
+For more information, see :doc:`/reference/diagnostics`.
 
 
 Pre-configured model setups
 +++++++++++++++++++++++++++
 
-:doc:`/reference/setup`
+Veros supports a wide range of model configurations. Several setups are already implemented that highlight some of the capabilities of Veros, and that serve as a basis for users to set up their own configuration: :doc:`/reference/setup`.
 
 Current limitations
 +++++++++++++++++++
 
-Veros is
+Veros is still in early development. There are several open issues that we would like to fix later on:
 
-- It does not yet implement any of the more recent pyOM2.2 features such as the ROSSMIX parameterization, IDEMIX v2.0 and v3.0, open boundary conditions, or cyclic meridional boundaries.
-- Since the grid
-- Ice sheet model
+**Physics**:
+ - Veros does not yet implement any of the more recent pyOM2.2 features such as the ROSSMIX parameterization, IDEMIX v3.0, open boundary conditions, or cyclic meridional boundaries. It neither implements all of pyOM2.1's features - missing are e.g. the non-hydrostatic solver, IDEMIX v2.0, and the surface pressure solver.
+ - Since the grid is required to be rectilinear, there is currently no natural way to handle the singularity at the North Pole. The northern and southern boundaries of the domain are thus always "walls".
+ - There is currently no ice sheet model in Veros. Some realistic setups employ a simple ice mask that cut off atmospheric forcing for water that gets too cold instead.
+
+**Technical issues**:
+ - The GPU backend is experimental, and there is still some work required on both Veros and Bohrium to make it run efficiently.
+ - Python 3.x is not yet fully supported due to some issues with Bohrium.
+
+References
+++++++++++
+
+.. [EdenGreatbatch2008] Eden, Carsten, and Richard J. Greatbatch. "Towards a mesoscale eddy closure." Ocean Modelling 20.3 (2008): 223-239.
+
+.. [OlbersEden2013] Olbers, Dirk, and Carsten Eden. "A global model for the diapycnal diffusivity induced by internal gravity waves." Journal of Physical Oceanography 43.8 (2013): 1759-1779.
+
+.. [Gent1995] Gent, Peter R., et al. "Parameterizing eddy-induced tracer transports in ocean circulation models." Journal of Physical Oceanography 25.4 (1995): 463-474.
+
+.. [Griffies1998] Griffies, Stephen M. "The Gent–McWilliams skew flux." Journal of Physical Oceanography 28.5 (1998): 831-841.
+
+.. [Vallis2006] Vallis, Geoffrey K. Atmospheric and oceanic fluid dynamics: fundamentals and large-scale circulation. Cambridge University Press, 2006.
+
+.. [Gaspar1990] Gaspar, Philippe, Yves Grégoris, and Jean‐Michel Lefevre. "A simple eddy kinetic energy model for simulations of the oceanic vertical mixing: Tests at station Papa and Long‐Term Upper Ocean Study site." Journal of Geophysical Research: Oceans 95.C9 (1990): 16179-16193.
