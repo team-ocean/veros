@@ -16,7 +16,6 @@ setup(
     install_requires = [
         "numpy<1.12",
         "scipy",
-        "pyamg",
         "netCDF4",
         "h5py",
         "pillow"
