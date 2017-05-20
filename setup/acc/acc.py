@@ -3,13 +3,13 @@
 from veros import Veros, veros_method
 
 
-class ACC2(Veros):
+class ACC(Veros):
     """
     A simple global model with a Southern Ocean and Atlantic part
     """
     @veros_method
     def set_parameter(self):
-        self.identifier = "acc2"
+        self.identifier = "acc"
 
         self.nx, self.ny, self.nz = 30, 42, 15
         self.dt_mom = 4800
@@ -131,6 +131,6 @@ class ACC2(Veros):
 
 
 if __name__ == "__main__":
-    simulation = ACC2()
+    simulation = ACC()
     simulation.setup()
     simulation.run()

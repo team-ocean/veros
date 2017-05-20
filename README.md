@@ -54,10 +54,10 @@ In case you want to use the Bohrium backend, you will have to install [Bohrium](
 
 ## Basic usage
 
-To run Veros, you need to set up a model - i.e., specify which settings and model domain you want to use. This is done by subclassing the ``Veros`` base class in a *setup script* that is written in Python. You should have a look at the pre-implemented model setups in the repository's ``setup`` folder, or use the ``veros copy-setup`` command to copy one into your current folder. A good place to start is the [``ACC2`` model](https://github.com/dionhaefner/veros/blob/master/setup/acc2/acc2.py).
+To run Veros, you need to set up a model - i.e., specify which settings and model domain you want to use. This is done by subclassing the ``Veros`` base class in a *setup script* that is written in Python. You should have a look at the pre-implemented model setups in the repository's ``setup`` folder, or use the ``veros copy-setup`` command to copy one into your current folder. A good place to start is the [``ACC`` model](https://github.com/dionhaefner/veros/blob/master/setup/acc/acc.py).
 
 After setting up your model, all you need to do is call the ``setup`` and ``run`` methods on your setup class. The pre-implemented setups can all be executed as scripts, e.g. through
 
-    $ python acc2.py
+    $ python acc.py
 
 For more information on using Veros, have a look at [our documentation](http://veros.readthedocs.io).

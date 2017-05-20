@@ -5,7 +5,6 @@ import numpy as np
 from netCDF4 import Dataset
 from PIL import Image
 import scipy.ndimage
-import matplotlib.pyplot as plt
 
 from veros import Veros, veros_method, tools
 from veros.core import cyclic
