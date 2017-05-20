@@ -4,15 +4,12 @@ Set-up gallery
 Idealized configurations
 ------------------------
 
-+-------------------------------------------+-------------------------------------------+
-| :doc:`/reference/setups/acc`              | :doc:`/reference/setups/eady`             |
-|                                           |                                           |
-| |acc|                                     | |eady|                                    |
-+-------------------------------------------+-------------------------------------------+
-| :doc:`/reference/setups/jets`             |                                           |
-|                                           |                                           |
-| |jets|                                    |                                           |
-+-------------------------------------------+-------------------------------------------+
++-------------------------------------------+
+| :doc:`/reference/setups/acc`              |
+|                                           |
+| |acc|                                     |
++-------------------------------------------+
+
 
 .. |acc| image:: /_images/acc.png
   :width: 100%
@@ -20,22 +17,10 @@ Idealized configurations
   :target: setups/acc.html
   :alt: Steady-state stream function
 
-.. |eady| image:: /_images/acc.png
-   :width: 100%
-   :align: middle
-   :target: setups/eady.html
-
-.. |jets| image:: /_images/acc.png
-   :width: 100%
-   :align: middle
-   :target: setups/jets.html
-
 .. toctree::
    :hidden:
 
    setups/acc
-   setups/eady
-   setups/jets
 
 
 Realistic configurations
