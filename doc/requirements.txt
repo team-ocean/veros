@@ -5,6 +5,4 @@ numpy
 scipy
 mock
 pillow
-nbsphinx
-ipykernel
 sphinxcontrib-programoutput
