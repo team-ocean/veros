@@ -1,9 +1,8 @@
 import sys
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 
-from test_base import VerosTest
+from test_base import VerosRunTest
 from veros import VerosLegacy, veros_method
 
 yt_start = -39.0
@@ -19,6 +18,8 @@ class ACC2(VerosLegacy):
     @veros_method
     def set_parameter(self):
         self.identifier = "acc2_test"
+        self.diskless_mode = True
+        self.pyom_compatibility_mode = True
 
         m = self.main_module
 
@@ -161,60 +162,9 @@ class ACC2(VerosLegacy):
         self.diagnostics["averages"].output_variables = (
             "salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy")
 
-
-class ACC2Test(VerosTest):
+class ACC2Test(VerosRunTest):
+    Testclass = ACC2
     timesteps = 5
-
-    def __init__(self, *args, **kwargs):
-        try:
-            self.fortran = kwargs["fortran"]
-        except KeyError:
-            try:
-                self.fortran = sys.argv[1]
-            except IndexError:
-                raise RuntimeError("Path to fortran library must be given via keyword argument or command line")
-
-    def _check_all_objects(self):
-        differing_scalars = self.check_scalar_objects()
-        differing_arrays = self.check_array_objects()
-        passed = True
-        if differing_scalars or differing_arrays:
-            print("The following attributes do not match between old and new veros:")
-            for s, (v1, v2) in differing_scalars.items():
-                print("{}, {}, {}".format(s,v1,v2))
-            for a, (v1, v2) in differing_arrays.items():
-                if v1 is None:
-                    print(a, v1, "")
-                    continue
-                if v2 is None:
-                    print(a, "", v2)
-                    continue
-                if "salt" in a or a in ("B1_gm","B2_gm"): # salt and isoneutral streamfunctions aren't used by this example
-                    continue
-                if a in ("psi", "psin"): # top row contains noise and is not part of the solution
-                    v1[2,:] = 0.
-                    v2[2,:] = 0.
-                passed = self.check_variable(a,atol=1e-5,data=(v1,v2)) and passed
-        plt.show()
-        return passed
-
-    def run(self):
-        self.veros_new = ACC2()
-        self.veros_new.diskless_mode = True
-        self.veros_new.pyom_compatibility_mode = True
-        self.veros_new.setup()
-
-        self.veros_legacy = ACC2(fortran=self.fortran)
-        self.veros_legacy.diskless_mode = True
-        self.veros_legacy.setup()
-
-        # integrate for some time steps and compare
-        if self.timesteps > 0:
-            self.veros_new.runlen = self.timesteps * 86400. / 2
-            self.veros_new.run()
-            self.veros_legacy.fortran.main_module.runlen = self.timesteps * 86400. / 2
-            self.veros_legacy.run()
-        return self._check_all_objects()
 
 if __name__ == "__main__":
     passed = ACC2Test().run()

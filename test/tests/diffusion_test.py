@@ -3,10 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-from test_base import VerosTest
+from test_base import VerosUnitTest
 from veros.core import diffusion, numerics
 
-class DiffusionTest(VerosTest):
+class DiffusionTest(VerosUnitTest):
     nx, ny, nz = 70, 60, 50
     extra_settings = {
                         "enable_cyclic_x": True,

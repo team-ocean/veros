@@ -2,10 +2,10 @@ import numpy as np
 import bohrium as bh
 import sys
 
-from test_base import VerosTest
+from test_base import VerosUnitTest
 from veros.core import numerics
 
-class TridiagTest(VerosTest):
+class TridiagTest(VerosUnitTest):
     nx, ny, nz = 100, 100, 200
     def initialize(self):
         pass
