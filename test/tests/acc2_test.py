@@ -1,7 +1,6 @@
 import sys
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 
 from test_base import VerosRunTest
 from veros import VerosLegacy, veros_method
@@ -163,7 +162,10 @@ class ACC2(VerosLegacy):
         self.diagnostics["averages"].output_variables = (
             "salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy")
 
+class ACC2Test(VerosRunTest):
+    Testclass = ACC2
+    timesteps = 5
 
 if __name__ == "__main__":
-    passed = VerosRunTest(ACC2, 5).run()
+    passed = ACC2Test().run()
     sys.exit(int(not passed))

@@ -202,8 +202,12 @@ class VerosUnitTest(object):
             flush()
         return all_passed
 
-class VerosRunTest(object):
-    def __init__(self, Testclass, timesteps, **kwargs):
+class VerosRunTest(VerosUnitTest):
+    Testclass = None
+    timesteps = None
+    extra_settings = None
+
+    def __init__(self, **kwargs):
         try:
             self.fortran = kwargs["fortran"]
         except KeyError:
@@ -211,8 +215,9 @@ class VerosRunTest(object):
                 self.fortran = sys.argv[1]
             except IndexError:
                 raise RuntimeError("Path to fortran library must be given via keyword argument or command line")
-        self.timesteps = timesteps
-        self.Testclass = Testclass
+        for attr in ("Testclass", "timesteps"):
+            if getattr(self, attr) is None:
+                raise AttributeError("attribute '{}' must be set".format(attr))
 
     def _check_all_objects(self):
         differing_scalars = self.check_scalar_objects()
@@ -235,7 +240,7 @@ class VerosRunTest(object):
                     v1[2,:] = 0.
                     v2[2,:] = 0.
                 passed = self.check_variable(a,atol=1e-5,data=(v1,v2)) and passed
-        plt.show()
+        # plt.show()
         return passed
 
     def run(self):
@@ -244,6 +249,10 @@ class VerosRunTest(object):
 
         self.veros_legacy = self.Testclass(fortran=self.fortran)
         self.veros_legacy.setup()
+
+        if self.extra_settings:
+            for key, val in self.extra_settings.items():
+                self.set_attribute(key, val)
 
         # integrate for some time steps and compare
         if self.timesteps > 0:
