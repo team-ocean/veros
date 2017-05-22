@@ -8,7 +8,12 @@ class ACC(Veros):
 
     Wind forcing over the channel part and buoyancy relaxation drive a large-scale meridional overturning circulation.
 
-    Adapted `from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/ACC%202>`_.
+    This setup demonstrates:
+     - setting up an idealized geometry
+     - updating surface forcings
+     - basic usage of diagnostics
+
+    `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/ACC%202>`_.
     """
     @veros_method
     def set_parameter(self):

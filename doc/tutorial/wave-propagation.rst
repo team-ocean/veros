@@ -8,30 +8,35 @@ Creating an advanced model setup
 This is a step-by-step guide that illustrates how even complicated
 setups can be created with relative ease (thanks to the tools provided
 by the scientific Python community). As an example, we will re-create
-the :doc:`wave propagation setup </reference/setups/wave-propagation>`
-, which is a global ocean model with an idealized Atlantic.
+the :doc:`wave propagation setup </reference/setups/wave-propagation>`,
+which is a global ocean model with an idealized Atlantic.
+
+.. figure:: /_images/gallery/wave-propagation.png
+   :align: center
+   :scale: 75%
+
+   The resulting stream function after about 1 year of integration.
 
 The vision
 ----------
 
 The purpose of this model is to examine wave propagation along the
 eastern boundary of the North Atlantic. Since it is difficult to track
-propagating waves
-
-Since the presence of the Pacific in the model is crucial to achieve a
-realistic ocean circulation,
+propagating waves along ragged geometry or through uneven forcing fields,
+we will idealize the representation of the North Atlantic; and as
+the presence of the Pacific in the model is crucial to achieve a
+realistic ocean circulation, we want to use a global model.
 
 This leaves us with the following requirements for the final wave
 propagation model:
 
--  Global model with a resolution of around 1 degree.
--  Idealized geometry in the Atlantic, so analytically derived wave
-   properties hold.
--  A refined grid resolution at the eastern boundary of the Atlantic.
--  Zonally averaged wind stresses in the Atlantic to fill gaps in wind
-   stress data.
--  A somehow interpolated initial state and forcings for cells that have
-   been converted from land to ocean.
+ #. a global model with a resolution of around 1 degree
+ #. convert the eastern boundary of the Atlantic to a straight line, so analytically
+    derived wave properties hold
+ #. a refined grid resolution at the eastern boundary of the Atlantic
+ #. zonally averaged forcings in the Atlantic
+ #. a somehow interpolated initial state for cells that have been converted from
+    land to ocean
 
 Step 1: The model skeleton
 --------------------------

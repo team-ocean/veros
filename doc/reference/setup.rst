@@ -5,19 +5,15 @@ This page gives an overview of the available model setups. To copy the setup fil
 
    veros copy-setup acc
 
-A list of the available setups is printed when running ::
-
-   veros copy-setup --help
-
 
 Idealized configurations
 ------------------------
 
-+-------------------------------------------+
-| :doc:`/reference/setups/acc`              |
-|                                           |
-| |acc|                                     |
-+-------------------------------------------+
++-------------------------------------------+-------------------------------------------+
+| :doc:`/reference/setups/acc`              | :doc:`/reference/setups/eady`             |
+|                                           |                                           |
+| |acc|                                     | |eady|                                    |
++-------------------------------------------+-------------------------------------------+
 
 
 .. |acc| image:: /_images/gallery/acc.png
@@ -26,10 +22,17 @@ Idealized configurations
   :target: setups/acc.html
   :alt: Steady-state stream function
 
+.. |eady| image:: /_images/gallery/eady.png
+  :width: 100%
+  :align: middle
+  :target: setups/eady.html
+  :alt: Baroclinic instabilities (in temperature)
+
 .. toctree::
    :hidden:
 
    setups/acc
+   setups/eady
 
 
 Realistic configurations

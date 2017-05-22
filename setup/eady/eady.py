@@ -9,6 +9,12 @@ class Eady(Veros):
     the effect of the background stratification on the perturbation temperature is implemented in
     the configuration routine set_forcing.
 
+    This setup demonstrates:
+     - setting up a highly idealized configuration
+     - adding additional variables to the model
+     - adding additional variables to snapshot output
+     - calling core routines from the setup
+
     `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/Eady%201>`_.
     """
     @veros_method
@@ -107,7 +113,8 @@ class Eady(Veros):
         # add total temperature to output
         self.diagnostics["snapshot"].output_variables += ["t_tot"]
         self.variables["t_tot"] = variables.Variable("Total temperature", ("xt","yt","zt"), "deg C",
-                                                     "Total temperature", output=True, time_dependent=True)
+                                                     "Total temperature", output=True, time_dependent=True,
+                                                     write_to_restart=True)
 
 if __name__ == "__main__":
     simulation = Eady()
