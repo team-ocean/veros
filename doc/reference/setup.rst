@@ -1,48 +1,81 @@
-Available set-ups
-=================
+Setup gallery
+=============
 
-New set-ups
-+++++++++++
+This page gives an overview of the available model setups. To copy the setup file and additional input files (if applicable) to the current working directory, you can make use of the :command:`veros copy-setup` command, e.g.: ::
 
-Wave propagation study
-----------------------
+   veros copy-setup acc
 
-.. autoclass:: wave_propagation.WavePropagation
+A list of the available setups is printed when running ::
 
-North Atlantic regional model
------------------------------
+   veros copy-setup --help
 
-.. autoclass:: north_atlantic.NorthAtlantic
 
-.. figure:: /_images/north-atlantic.png
-   :align: center
+Idealized configurations
+------------------------
 
-   Resulting average surface speed
++-------------------------------------------+
+| :doc:`/reference/setups/acc`              |
+|                                           |
+| |acc|                                     |
++-------------------------------------------+
 
-Ported from pyOM2
-+++++++++++++++++
 
-ACC2
-----
+.. |acc| image:: /_images/gallery/acc.png
+  :width: 100%
+  :align: middle
+  :target: setups/acc.html
+  :alt: Steady-state stream function
 
-.. autoclass:: acc2.ACC2
+.. toctree::
+   :hidden:
 
-.. figure:: /_images/acc2.png
-   :align: center
+   setups/acc
 
-   ACC2 steady-state stream function
 
-Global four degree
-------------------
+Realistic configurations
+------------------------
 
-.. autoclass:: global_four_degree.GlobalFourDegree
++--------------------------------------------+-------------------------------------------+
+| :doc:`/reference/setups/wave-propagation`  | :doc:`/reference/setups/north-atlantic`   |
+|                                            |                                           |
+| |wave-propagation|                         | |northatlantic|                           |
++--------------------------------------------+-------------------------------------------+
+| :doc:`/reference/setups/4deg`              | :doc:`/reference/setups/1deg`             |
+|                                            |                                           |
+| |4deg|                                     | |1deg|                                    |
++--------------------------------------------+-------------------------------------------+
 
-.. figure:: /_images/4deg.png
-   :align: center
+.. |wave-propagation| image:: /_images/gallery/wave-propagation.png
+   :width: 100%
+   :align: middle
+   :target: setups/wave-propagation.html
+   :alt: Stream function
 
-   Stream function after 50y
+.. |northatlantic| image:: /_images/gallery/north-atlantic.png
+   :width: 100%
+   :align: middle
+   :target: setups/north-atlantic.html
+   :alt: Resulting average surface speed
 
-Global one degree
------------------
 
-.. autoclass:: global_one_degree.GlobalOneDegree
+.. |4deg| image:: /_images/gallery/4deg.png
+   :width: 100%
+   :align: middle
+   :target: setups/4deg.html
+   :alt: Stream function after 50 years
+
+.. |1deg| image:: /_images/gallery/1deg.png
+   :width: 100%
+   :align: middle
+   :target: setups/1deg.html
+   :alt: Stream function
+
+
+
+.. toctree::
+   :hidden:
+
+   setups/wave-propagation
+   setups/north-atlantic
+   setups/4deg
+   setups/1deg
