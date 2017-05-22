@@ -42,7 +42,7 @@ if __name__ == "__main__":
         if args.no_bohrium:
             continue
 
-        sys.stdout.write("Running test {} with Bohrium ... ".format(f))
+        sys.stdout.write("Running test {} with Bohrium ... ".format(testscript))
         sys.stdout.flush()
         try: # must run each test in its own Python subprocess to reload the Fortran library
 	        output = subprocess.check_output([sys.executable, os.path.join(testdir, testscript), args.pyomlib, "-b", "bohrium"],
