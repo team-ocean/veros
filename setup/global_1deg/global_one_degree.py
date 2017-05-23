@@ -12,8 +12,7 @@ FORCING_FILE = os.path.join(BASE_PATH, "forcing_1deg_global.nc")
 class GlobalOneDegree(Veros):
     """Global 1 degree model with 115 vertical levels.
 
-    Adapted from pyOM2:
-    https://wiki.zmaw.de/ifm/TO/pyOM2/1x1%20global%20model
+    `Adapted from pyOM2 <https://wiki.zmaw.de/ifm/TO/pyOM2/1x1%20global%20model>`_.
     """
 
     @veros_method
