@@ -12,7 +12,7 @@ def set_tke_diffusivities(veros):
     Rinumber = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
 
     if veros.enable_tke:
-        veros.sqrttke = np.sqrt(np.maximum(0., veros.tke[:, :, :, veros.tau]))
+        veros.sqrttke[...] = np.sqrt(np.maximum(0., veros.tke[:, :, :, veros.tau]))
         """
         calculate buoyancy length scale
         """
