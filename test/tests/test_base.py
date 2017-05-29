@@ -219,30 +219,6 @@ class VerosRunTest(VerosUnitTest):
             if getattr(self, attr) is None:
                 raise AttributeError("attribute '{}' must be set".format(attr))
 
-    def _check_all_objects(self):
-        differing_scalars = self.check_scalar_objects()
-        differing_arrays = self.check_array_objects()
-        passed = True
-        if differing_scalars or differing_arrays:
-            print("The following attributes do not match between old and new veros:")
-            for s, (v1, v2) in differing_scalars.items():
-                print("{}, {}, {}".format(s,v1,v2))
-            for a, (v1, v2) in differing_arrays.items():
-                if v1 is None:
-                    print(a, v1, "")
-                    continue
-                if v2 is None:
-                    print(a, "", v2)
-                    continue
-                if "salt" in a or a in ("B1_gm","B2_gm"): # salt and isoneutral streamfunctions aren't used by this example
-                    continue
-                if a in ("psi", "psin"): # top row contains noise and is not part of the solution
-                    v1[2,:] = 0.
-                    v2[2,:] = 0.
-                passed = self.check_variable(a,atol=1e-5,data=(v1,v2)) and passed
-        # plt.show()
-        return passed
-
     def run(self):
         self.veros_new = self.Testclass()
         self.veros_new.setup()
@@ -260,4 +236,4 @@ class VerosRunTest(VerosUnitTest):
             self.veros_new.run()
             self.veros_legacy.fortran.main_module.runlen = self.timesteps * self.veros_new.dt_tracer
             self.veros_legacy.run()
-        return self._check_all_objects()
+        return self.test_passed()
