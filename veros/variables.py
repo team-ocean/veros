@@ -386,7 +386,7 @@ MAIN_VARIABLES = OrderedDict([
     )),
     ("dpsin", Variable(
         "Boundary streamfunction factor", ISLE + TIMESTEPS, "?",
-        "Boundary streamfunction factor", time_dependent=False
+        "Boundary streamfunction factor", write_to_restart=True
     )),
     ("line_psin", Variable(
         "Boundary line integrals", ISLE + ISLE, "?",
@@ -423,7 +423,8 @@ MAIN_VARIABLES = OrderedDict([
 
     ("K_diss_v", Variable(
         "Dissipation of kinetic Energy", W_GRID, "m^2/s^3",
-        "Kinetic energy dissipation by vertical, rayleigh and bottom friction"
+        "Kinetic energy dissipation by vertical, rayleigh and bottom friction",
+        write_to_restart=True
     )),
     ("K_diss_bot", Variable(
         "Dissipation of kinetic Energy", W_GRID, "m^2/s^3",
