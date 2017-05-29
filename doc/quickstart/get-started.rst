@@ -56,7 +56,11 @@ Using apt-get (Ubuntu / Debian)
 Setting up a model
 ------------------
 
-To run Veros, you need to set up a model - i.e., specify which settings and model domain you want to use. This is done by subclassing the :class:`Veros base class <veros.Veros>` in a *setup script* that is written in Python. You should have a look at the pre-implemented model setups in the repository's :file:`setup` folder, or use the :command:`veros copy-setup` command to copy one into your current folder. A good place to start is the :class:`ACC model <acc.ACC>`. By working through the existing models, you should quickly be able to figure out how to write your own simulation. Just keep in mind this genral advice:
+To run Veros, you need to set up a model - i.e., specify which settings and model domain you want to use. This is done by subclassing the :class:`Veros base class <veros.Veros>` in a *setup script* that is written in Python. You should have a look at the pre-implemented model setups in the repository's :file:`setup` folder, or use the :command:`veros copy-setup` command to copy one into your current folder. A good place to start is the :class:`ACC model <acc.ACC>`: ::
+
+    veros copy-setup acc
+
+By working through the existing models, you should quickly be able to figure out how to write your own simulation. Just keep in mind this genral advice:
 
 - You can (and should) use any (external) Python tools you want in your model setup. Before implementing a certain functionality, you should check whether it is already provided by a common library. Especially `the SciPy module family <https://www.scipy.org/>`_ provides countless implementations of common scientific functions (and SciPy is installed along with Veros).
 
