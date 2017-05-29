@@ -17,7 +17,13 @@ DATA_FILES = {key: os.path.join(BASE_PATH, val) for key, val in DATA_FILES.items
 class GlobalFourDegree(Veros):
     """Global 4 degree model with 15 vertical levels.
 
-    Adapted from pyOM2.
+    This setup demonstrates:
+     - setting up a realistical model
+     - reading input data from external files
+     - implementing surface forcings
+     - applying a simple ice mask
+
+    `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/4x4%20global%20model>`_.
     """
     @veros_method
     def set_parameter(self):
