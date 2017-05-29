@@ -19,6 +19,8 @@ def sanity_check(veros):
 def read_restart(veros):
     if not veros.restart_input_filename:
         return
+    if veros.force_overwrite:
+        raise RuntimeError("to prevent data loss, force_overwrite cannot be used in restart runs")
     logging.info("Reading restarts")
     for diagnostic in veros.diagnostics.values():
         diagnostic.read_restart(veros)

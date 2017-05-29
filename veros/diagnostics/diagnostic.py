@@ -49,9 +49,14 @@ class VerosDiagnostic(object):
     @do_not_disturb
     @veros_class_method
     def initialize_output(self, veros, variables, var_data=None, extra_dimensions=None):
-        if veros.diskless_mode:
+        if veros.diskless_mode or (not self.output_frequency and not self.sampling_frequency):
             return
-        with nctools.threaded_io(veros, self.get_output_file_name(veros), "w") as outfile:
+        output_path = self.get_output_file_name(veros)
+        if os.path.isfile(output_path) and not veros.force_overwrite:
+            raise IOError("output file {} for diagnostic '{}' exists "
+                          "(change output path or enable force_overwrite setting)"
+                          .format(output_path, self.name))
+        with nctools.threaded_io(veros, output_path, "w") as outfile:
             nctools.initialize_file(veros, outfile)
             if extra_dimensions:
                 for dim_id, size in extra_dimensions.items():
