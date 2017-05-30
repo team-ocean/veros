@@ -7,14 +7,14 @@ def pad_z_edges(veros, array):
     Pads the z-axis of an array by repeating its edge values
     """
     if array.ndim == 1:
-        newarray = np.zeros(array.shape[0] + 2)
+        newarray = np.zeros(array.shape[0] + 2, dtype=array.dtype)
         newarray[1:-1] = array
         newarray[0] = array[0]
         newarray[-1] = array[-1]
     elif array.ndim >= 3:
         a = list(array.shape)
         a[2] += 2
-        newarray = np.zeros(a)
+        newarray = np.zeros(a, dtype=array.dtype)
         newarray[:, :, 1:-1, ...] = array
         newarray[:, :, 0, ...] = array[:, :, 0, ...]
         newarray[:, :, -1, ...] = array[:, :, -1, ...]

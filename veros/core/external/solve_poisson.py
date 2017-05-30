@@ -71,9 +71,9 @@ def _get_scipy_solver(veros):
 def _get_amg_solver(veros):
     matrix = _assemble_poisson_matrix(veros)
     if veros.backend_name == "bohrium":
-        near_null_space = np.ones(matrix.shape[0], bohrium=False)
+        near_null_space = np.ones(matrix.shape[0], bohrium=False, dtype=veros.default_float_type)
     else:
-        near_null_space = np.ones(matrix.shape[0])
+        near_null_space = np.ones(matrix.shape[0], dtype=veros.default_float_type)
     ml = pyamg.smoothed_aggregation_solver(matrix, near_null_space[:, np.newaxis])
 
     def amg_solver(rhs, x0):
@@ -97,7 +97,7 @@ def _jacobi_preconditioner(veros, matrix):
     """
     Construct a simple Jacobi preconditioner
     """
-    Z = np.ones((veros.nx + 4, veros.ny + 4))
+    Z = np.ones((veros.nx + 4, veros.ny + 4), dtype=veros.default_float_type)
     Y = matrix.diagonal().copy().reshape(veros.nx + 4, veros.ny + 4)[2:-2, 2:-2]
     Z[2:-2, 2:-2] = np.where(Y != 0., 1. / Y, 1.)
     return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
@@ -109,9 +109,9 @@ def _assemble_poisson_matrix(veros):
     Construct a sparse matrix based on the stencil for the 2D Poisson equation.
     """
     # assemble diagonals
-    main_diag = np.ones((veros.nx + 4, veros.ny + 4))
+    main_diag = np.ones((veros.nx + 4, veros.ny + 4), dtype=veros.default_float_type)
     east_diag, west_diag, north_diag, south_diag = (
-        np.zeros((veros.nx + 4, veros.ny + 4)) for _ in range(4))
+        np.zeros((veros.nx + 4, veros.ny + 4), dtype=veros.default_float_type) for _ in range(4))
     main_diag[2:-2, 2:-2] = -veros.hvr[3:-1, 2:-2] / veros.dxu[2:-2, np.newaxis] / veros.dxt[3:-1, np.newaxis] / veros.cosu[np.newaxis, 2:-2]**2 \
         - veros.hvr[2:-2, 2:-2] / veros.dxu[2:-2, np.newaxis] / veros.dxt[2:-2, np.newaxis] / veros.cosu[np.newaxis, 2:-2]**2 \
         - veros.hur[2:-2, 2:-2] / veros.dyu[np.newaxis, 2:-2] / veros.dyt[np.newaxis, 2:-2] * veros.cost[np.newaxis, 2:-2] / veros.cosu[np.newaxis, 2:-2] \
@@ -127,7 +127,7 @@ def _assemble_poisson_matrix(veros):
     z = np.prod(np.invert(veros.boundary_mask), axis=2)  # used to enforce boundary conditions
     if veros.enable_cyclic_x:
         # couple edges of the domain
-        wrap_diag_east, wrap_diag_west = (np.zeros((veros.nx + 4, veros.ny + 4)) for _ in range(2))
+        wrap_diag_east, wrap_diag_west = (np.zeros((veros.nx + 4, veros.ny + 4), dtype=veros.default_float_type) for _ in range(2))
         wrap_diag_east[2, 2:-2] = west_diag[2, 2:-2] * z[2, 2:-2]
         wrap_diag_west[-3, 2:-2] = east_diag[-3, 2:-2] * z[-3, 2:-2]
         west_diag[2, 2:-2] = 0.

@@ -132,14 +132,14 @@ class WavePropagation(Veros):
         return np.where(~arr_masked.mask, zonal_mean_na[np.newaxis, ...], arr)
 
     def set_initial_conditions(self):
-        self._t_star = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self._s_star = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self._qnec = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self._qnet = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self._qsol = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self._divpen_shortwave = np.zeros(self.nz)
-        self._taux = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self._tauy = np.zeros((self.nx + 4, self.ny + 4, 12))
+        self._t_star = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self._s_star = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self._qnec = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self._qnet = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self._qsol = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self._divpen_shortwave = np.zeros(self.nz, dtype=self.default_float_type)
+        self._taux = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self._tauy = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
 
         rpart_shortwave = 0.58
         efold1_shortwave = 0.35

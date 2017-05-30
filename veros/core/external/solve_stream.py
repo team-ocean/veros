@@ -17,8 +17,8 @@ def solve_streamfunction(veros):
     """
     solve for barotropic streamfunction
     """
-    line_forc = np.zeros(veros.nisle)
-    aloc = np.zeros((veros.nisle, veros.nisle))
+    line_forc = np.zeros(veros.nisle, dtype=veros.default_float_type)
+    aloc = np.zeros((veros.nisle, veros.nisle), dtype=veros.default_float_type)
 
     # hydrostatic pressure
     fxa = veros.grav / veros.rho_0
@@ -49,7 +49,7 @@ def solve_streamfunction(veros):
         cyclic.setcyclic_x(fpx)
         cyclic.setcyclic_x(fpy)
 
-    forc = np.zeros((veros.nx + 4, veros.ny + 4))
+    forc = np.zeros((veros.nx + 4, veros.ny + 4), dtype=veros.default_float_type)
     forc[2:-2, 2:-2] = (fpy[3:-1, 2:-2] - fpy[2:-2, 2:-2]) \
         / (veros.cosu[2:-2] * veros.dxu[2:-2, np.newaxis]) \
         - (veros.cost[3:-1] * fpx[2:-2, 3:-1] - veros.cost[2:-2] * fpx[2:-2, 2:-2]) \

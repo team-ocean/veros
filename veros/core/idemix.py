@@ -27,9 +27,9 @@ def integrate_idemix(veros):
     """
     integrate idemix on W grid
     """
-    a_tri, b_tri, c_tri, d_tri, delta = (np.zeros((veros.nx, veros.ny, veros.nz)) for _ in range(5))
-    forc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
-    maxE_iw = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    a_tri, b_tri, c_tri, d_tri, delta = (np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type) for _ in range(5))
+    forc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
+    maxE_iw = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
 
     """
     forcing by EKE dissipation
@@ -60,8 +60,8 @@ def integrate_idemix(veros):
         else:
             forc[2:-2, 2:-2, :] = np.where(mask, veros.eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, np.newaxis]
                                            / veros.dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :])
-            forc[2:-2, 2:-2, -1] = (1. - veros.eke_diss_surfbot_frac) * \
-                a_loc[2:-2, 2:-2] / (0.5 * veros.dzw[-1])
+            forc[2:-2, 2:-2, -1] = (1. - veros.eke_diss_surfbot_frac) \
+                                    * a_loc[2:-2, 2:-2] / (0.5 * veros.dzw[-1])
 
     """
     forcing by bottom friction
@@ -157,9 +157,6 @@ def integrate_idemix(veros):
 
 @veros_method
 def gofx2(veros, x):
-    """
-    a function g(x)
-    """
     if veros.pyom_compatibility_mode:
         x[x < 3.] = 3.
     else:
@@ -170,9 +167,6 @@ def gofx2(veros, x):
 
 @veros_method
 def hofx1(veros, x):
-    """
-    a function h(x)
-    """
     eps = np.finfo(x.dtype).eps  # prevent division by zero
     x = np.maximum(1. + eps, x)
     return (2. / veros.pi) / (1. - (2. / veros.pi) * np.arcsin(1. / x)) * (x - 1.) / (x + 1.)

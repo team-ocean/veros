@@ -63,7 +63,7 @@ Attributes:
           print("")
           print("  :units: {}".format(var.units))
           print("  :dimensions: {}".format(", ".join(var.dims)))
-          print("  :type: :py:class:`{}`".format(var.dtype))
+          print("  :type: :py:class:`{}`".format(var.dtype or "float"))
           print("  :attributes: {}".format(flags))
           print("")
           print("  {}".format(var.long_description))

@@ -26,9 +26,9 @@ def streamfunction_init(veros):
     """
     veros.nisle = int(allmap.max())
     veros.isle = np.arange(veros.nisle) + 1
-    veros.psin = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle))
-    veros.dpsin = np.zeros((veros.nisle, 3))
-    veros.line_psin = np.zeros((veros.nisle, veros.nisle))
+    veros.psin = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=veros.default_float_type)
+    veros.dpsin = np.zeros((veros.nisle, 3), dtype=veros.default_float_type)
+    veros.line_psin = np.zeros((veros.nisle, veros.nisle), dtype=veros.default_float_type)
     veros.boundary_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
     veros.line_dir_south_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
     veros.line_dir_north_mask = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=np.bool)
@@ -166,7 +166,7 @@ def streamfunction_init(veros):
     """
     precalculate time independent boundary components of streamfunction
     """
-    forc = np.zeros((veros.nx+4, veros.ny+4))
+    forc = np.zeros((veros.nx+4, veros.ny+4), dtype=veros.default_float_type)
 
     # initialize with random noise to achieve uniform convergence
     veros.psin[...] = np.random.rand(*veros.psin.shape)
@@ -182,8 +182,8 @@ def streamfunction_init(veros):
     """
     precalculate time independent island integrals
     """
-    fpx = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle))
-    fpy = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle))
+    fpx = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=veros.default_float_type)
+    fpy = np.zeros((veros.nx + 4, veros.ny + 4, veros.nisle), dtype=veros.default_float_type)
 
     fpx[1:, 1:, :] = -veros.maskU[1:, 1:, -1, np.newaxis] \
         * (veros.psin[1:, 1:, :] - veros.psin[1:, :-1, :]) \

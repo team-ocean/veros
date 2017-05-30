@@ -132,14 +132,14 @@ class GlobalOneDegree(Veros):
 
     @veros_method
     def set_initial_conditions(self):
-        self.t_star = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self.s_star = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self.qnec = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self.qnet = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self.qsol = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self.divpen_shortwave = np.zeros(self.nz)
-        self.taux = np.zeros((self.nx + 4, self.ny + 4, 12))
-        self.tauy = np.zeros((self.nx + 4, self.ny + 4, 12))
+        self.t_star = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self.s_star = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self.qnec = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self.qnet = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self.qsol = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self.divpen_shortwave = np.zeros(self.nz, dtype=self.default_float_type)
+        self.taux = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+        self.tauy = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
 
         rpart_shortwave = 0.58
         efold1_shortwave = 0.35
@@ -197,7 +197,7 @@ class GlobalOneDegree(Veros):
         swarg1 = self.zw / efold1_shortwave
         swarg2 = self.zw / efold2_shortwave
         pen = rpart_shortwave * np.exp(swarg1) + (1.0 - rpart_shortwave) * np.exp(swarg2)
-        self.divpen_shortwave = np.zeros(self.nz)
+        self.divpen_shortwave = np.zeros(self.nz, dtype=self.default_float_type)
         self.divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
         self.divpen_shortwave[0] = pen[0] / self.dzt[0]
 

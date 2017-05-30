@@ -88,14 +88,14 @@ class Overturning(VerosDiagnostic):
 
     @veros_class_method
     def _allocate(self, veros):
-        self.sigma = np.zeros(self.nlevel)
-        self.zarea = np.zeros((veros.ny + 4, veros.nz))
-        self.trans = np.zeros((veros.ny + 4, self.nlevel))
-        self.vsf_iso = np.zeros((veros.ny + 4, veros.nz))
-        self.vsf_depth = np.zeros((veros.ny + 4, veros.nz))
+        self.sigma = np.zeros(self.nlevel, dtype=veros.default_float_type)
+        self.zarea = np.zeros((veros.ny + 4, veros.nz), dtype=veros.default_float_type)
+        self.trans = np.zeros((veros.ny + 4, self.nlevel), dtype=veros.default_float_type)
+        self.vsf_iso = np.zeros((veros.ny + 4, veros.nz), dtype=veros.default_float_type)
+        self.vsf_depth = np.zeros((veros.ny + 4, veros.nz), dtype=veros.default_float_type)
         if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
-            self.bolus_iso = np.zeros((veros.ny + 4, veros.nz))
-            self.bolus_depth = np.zeros((veros.ny + 4, veros.nz))
+            self.bolus_iso = np.zeros((veros.ny + 4, veros.nz), dtype=veros.default_float_type)
+            self.bolus_depth = np.zeros((veros.ny + 4, veros.nz), dtype=veros.default_float_type)
 
     @veros_class_method
     def diagnose(self, veros):
@@ -108,8 +108,8 @@ class Overturning(VerosDiagnostic):
 
         # transports below isopycnals and area below isopycnals
         sig_loc_face = 0.5 * (sig_loc[2:-2, 2:-2, :] + sig_loc[2:-2, 3:-1, :])
-        trans = np.zeros((veros.ny + 4, self.nlevel))
-        z_sig = np.zeros((veros.ny + 4, self.nlevel))
+        trans = np.zeros((veros.ny + 4, self.nlevel), dtype=veros.default_float_type)
+        z_sig = np.zeros((veros.ny + 4, self.nlevel), dtype=veros.default_float_type)
         for m in range(self.nlevel):
             # NOTE: vectorized version would be O(N^4) in memory
             # consider cythonizing if performance-critical
@@ -128,7 +128,7 @@ class Overturning(VerosDiagnostic):
         self.trans += trans
 
         if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
-            bolus_trans = np.zeros((veros.ny + 4, self.nlevel))
+            bolus_trans = np.zeros((veros.ny + 4, self.nlevel), dtype=veros.default_float_type)
             # eddy-driven transports below isopycnals
             for m in range(self.nlevel):
                 # NOTE: see above

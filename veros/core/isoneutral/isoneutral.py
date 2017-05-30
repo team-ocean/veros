@@ -11,11 +11,11 @@ def isoneutral_diffusion_pre(veros):
     following functional formulation by Griffies et al
     Code adopted from MOM2.1
     """
-    drdTS = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 2))
-    ddzt = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 2))
-    ddxt = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 2))
-    ddyt = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 2))
-    epsln = 1.e-20  # for double precision
+    drdTS = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 2), dtype=veros.default_float_type)
+    ddzt = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 2), dtype=veros.default_float_type)
+    ddxt = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 2), dtype=veros.default_float_type)
+    ddyt = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 2), dtype=veros.default_float_type)
+    epsln = np.finfo(veros.default_float_type).eps
 
     """
     drho_dt and drho_ds at centers of T cells
@@ -57,12 +57,12 @@ def isoneutral_diffusion_pre(veros):
     """
     Compute Ai_ez and K11 on center of east face of T cell.
     """
-    diffloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    diffloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
     diffloc[1:-2, 2:-2, 1:] = 0.25 * (veros.K_iso[1:-2, 2:-2, 1:] + veros.K_iso[1:-2, 2:-2, :-1]
                                       + veros.K_iso[2:-1, 2:-2, 1:] + veros.K_iso[2:-1, 2:-2, :-1])
     diffloc[1:-2, 2:-2, 0] = 0.5 * (veros.K_iso[1:-2, 2:-2, 0] + veros.K_iso[2:-1, 2:-2, 0])
 
-    sumz = np.zeros((veros.nx + 1, veros.ny, veros.nz))
+    sumz = np.zeros((veros.nx + 1, veros.ny, veros.nz), dtype=veros.default_float_type)
     for kr in range(2):
         ki = 0 if kr == 1 else 1
         for ip in range(2):
@@ -81,12 +81,12 @@ def isoneutral_diffusion_pre(veros):
     """
     Compute Ai_nz and K_22 on center of north face of T cell.
     """
-    diffloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    diffloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
     diffloc[2:-2, 1:-2, 1:] = 0.25 * (veros.K_iso[2:-2, 1:-2, 1:] + veros.K_iso[2:-2, 1:-2, :-1]
                                       + veros.K_iso[2:-2, 2:-1, 1:] + veros.K_iso[2:-2, 2:-1, :-1])
     diffloc[2:-2, 1:-2, 0] = 0.5 * (veros.K_iso[2:-2, 1:-2, 0] + veros.K_iso[2:-2, 2:-1, 0])
 
-    sumz = np.zeros((veros.nx, veros.ny + 1, veros.nz))
+    sumz = np.zeros((veros.nx, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
     for kr in range(2):
         ki = 0 if kr == 1 else 1
         for jp in range(2):
@@ -106,7 +106,7 @@ def isoneutral_diffusion_pre(veros):
     compute Ai_bx, Ai_by and K33 on top face of T cell.
     """
     # eastward slopes at the top of T cells
-    sumx = np.zeros((veros.nx, veros.ny, veros.nz - 1))
+    sumx = np.zeros((veros.nx, veros.ny, veros.nz - 1), dtype=veros.default_float_type)
     for ip in range(2):
         for kr in range(2):
             drodxb = drdTS[2:-2, 2:-2, kr:-1 + kr or None, 0] * ddxt[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None, 0] \
@@ -121,10 +121,10 @@ def isoneutral_diffusion_pre(veros):
             veros.Ai_bx[2:-2, 2:-2, :-1, ip, kr] = taper * sxb * veros.maskW[2:-2, 2:-2, :-1]
 
     # northward slopes at the top of T cells
-    sumy = np.zeros((veros.nx, veros.ny, veros.nz - 1))
+    sumy = np.zeros((veros.nx, veros.ny, veros.nz - 1), dtype=veros.default_float_type)
     for jp in range(2):
         facty = veros.cosu[1 + jp:-3 + jp] * veros.dyu[1 + jp:-3 + jp]
-        for kr in range(2): 
+        for kr in range(2):
             drodyb = drdTS[2:-2, 2:-2, kr:-1 + kr or None, 0] * ddyt[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None, 0] \
                 + drdTS[2:-2, 2:-2, kr:-1 + kr or None, 1] * \
                 ddyt[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None, 1]
@@ -180,7 +180,7 @@ def check_isoneutral_slope_crit(veros):
     """
     check linear stability criterion from Griffies et al
     """
-    epsln = 1e-20
+    epsln = np.finfo(veros.default_float_type).eps
     if veros.enable_neutral_diffusion:
         ft1 = 1.0 / (4.0 * veros.K_iso_0 * veros.dt_tracer + epsln)
         delta1a = np.min(veros.dxt[2:-2, np.newaxis, np.newaxis] * np.abs(

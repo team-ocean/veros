@@ -24,15 +24,15 @@ def calc_grid(veros):
     """
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
     """
-    aloc = np.zeros((veros.nx, veros.ny))
-    dxt_gl = np.zeros(veros.nx + 4)
-    dxu_gl = np.zeros(veros.nx + 4)
-    xt_gl = np.zeros(veros.nx + 4)
-    xu_gl = np.zeros(veros.nx + 4)
-    dyt_gl = np.zeros(veros.ny + 4)
-    dyu_gl = np.zeros(veros.ny + 4)
-    yt_gl = np.zeros(veros.ny + 4)
-    yu_gl = np.zeros(veros.ny + 4)
+    aloc = np.zeros((veros.nx, veros.ny), dtype=veros.default_float_type)
+    dxt_gl = np.zeros(veros.nx + 4, dtype=veros.default_float_type)
+    dxu_gl = np.zeros(veros.nx + 4, dtype=veros.default_float_type)
+    xt_gl = np.zeros(veros.nx + 4, dtype=veros.default_float_type)
+    xu_gl = np.zeros(veros.nx + 4, dtype=veros.default_float_type)
+    dyt_gl = np.zeros(veros.ny + 4, dtype=veros.default_float_type)
+    dyu_gl = np.zeros(veros.ny + 4, dtype=veros.default_float_type)
+    yt_gl = np.zeros(veros.ny + 4, dtype=veros.default_float_type)
+    yu_gl = np.zeros(veros.ny + 4, dtype=veros.default_float_type)
 
     """
     transfer from locally defined variables to global ones

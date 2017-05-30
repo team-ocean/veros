@@ -9,7 +9,7 @@ def _calc_cr(veros, rjp, rj, rjm, vel):
     """
     Calculates cr value used in superbee advection scheme
     """
-    eps = 1e-20  # prevent division by 0
+    eps = np.finfo(rj.dtype).eps  # prevent division by 0
     mask_rj = rj == 0.
     mask_vel = vel > 0
     veros.flush()  # prevent precision problems

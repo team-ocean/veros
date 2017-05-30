@@ -129,7 +129,7 @@ class ACC2(VerosLegacy):
         m.salt[:, :, :, 0:2] = 35.0 * m.maskT[..., None]
 
         # wind stress forcing
-        taux = np.zeros(m.ny + 1)
+        taux = np.zeros(m.ny + 1, dtype=self.default_float_type)
         yt = m.yt[2:m.ny + 3]
         taux = (.1e-3 * np.sin(np.pi * (m.yu[2:m.ny + 3] - yu_start) / (-20.0 - yt_start))) * (yt < -20) \
             + (.1e-3 * (1 - np.cos(2 * np.pi *

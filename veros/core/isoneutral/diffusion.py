@@ -4,7 +4,7 @@ from .. import numerics, utilities, diffusion
 
 @veros_method
 def _calc_tracer_fluxes(veros, tr, K_iso, K_skew):
-    tr_pad = np.empty((veros.nx + 4, veros.ny + 4, veros.nz + 2))
+    tr_pad = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz + 2), dtype=veros.default_float_type)
     tr_pad[:, :, 1:-1] = tr[..., veros.tau]
     tr_pad[:, :, 0] = tr[:, :, 1, veros.tau]
     tr_pad[:, :, -1] = tr[:, :, -2, veros.tau]
@@ -15,11 +15,11 @@ def _calc_tracer_fluxes(veros, tr, K_iso, K_skew):
     """
     construct total isoneutral tracer flux at east face of "T" cells
     """
-    diffloc = np.empty((veros.nx + 1, veros.ny, veros.nz))
+    diffloc = np.zeros((veros.nx + 1, veros.ny, veros.nz), dtype=veros.default_float_type)
     diffloc[:, :, 1:] = 0.25 * (K1[1:-2, 2:-2, 1:] + K1[1:-2, 2:-2, :-1] +
                                 K1[2:-1, 2:-2, 1:] + K1[2:-1, 2:-2, :-1])
     diffloc[:, :, 0] = 0.5 * (K1[1:-2, 2:-2, 0] + K1[2:-1, 2:-2, 0])
-    sumz = np.zeros((veros.nx + 1, veros.ny, veros.nz))
+    sumz = np.zeros((veros.nx + 1, veros.ny, veros.nz), dtype=veros.default_float_type)
     for kr in range(2):
         for ip in range(2):
             sumz += diffloc * veros.Ai_ez[1:-2, 2:-2, :, ip, kr] * (
@@ -30,11 +30,11 @@ def _calc_tracer_fluxes(veros, tr, K_iso, K_skew):
     """
     construct total isoneutral tracer flux at north face of "T" cells
     """
-    diffloc = np.empty((veros.nx, veros.ny + 1, veros.nz))
+    diffloc = np.zeros((veros.nx, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
     diffloc[:, :, 1:] = 0.25 * (K1[2:-2, 1:-2, 1:] + K1[2:-2, 1:-2, :-1] +
                                 K1[2:-2, 2:-1, 1:] + K1[2:-2, 2:-1, :-1])
     diffloc[:, :, 0] = 0.5 * (K1[2:-2, 1:-2, 0] + K1[2:-2, 2:-1, 0])
-    sumz = np.zeros((veros.nx, veros.ny + 1, veros.nz))
+    sumz = np.zeros((veros.nx, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
     for kr in range(2):
         for jp in range(2):
             sumz += diffloc * veros.Ai_nz[2:-2, 1:-2, :, jp, kr] * (
@@ -66,7 +66,7 @@ def _calc_tracer_fluxes(veros, tr, K_iso, K_skew):
 
 @veros_method
 def _calc_explicit_part(veros):
-    aloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    aloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
     aloc[2:-2, 2:-2, :] = veros.maskT[2:-2, 2:-2, :] * ((veros.flux_east[2:-2, 2:-2, :] - veros.flux_east[1:-3, 2:-2, :]) / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dxt[2:-2, np.newaxis, np.newaxis])
                                                         + (veros.flux_north[2:-2, 2:-2, :] - veros.flux_north[2:-2, 1:-3, :]) / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dyt[np.newaxis, 2:-2, np.newaxis]))
     aloc[:, :, 0] += veros.maskT[:, :, 0] * veros.flux_top[:, :, 0] / veros.dzt[0]
@@ -80,10 +80,10 @@ def _calc_explicit_part(veros):
 def _calc_implicit_part(veros, tr):
     ks = veros.kbot[2:-2, 2:-2] - 1
 
-    a_tri = np.zeros((veros.nx, veros.ny, veros.nz))
-    b_tri = np.zeros((veros.nx, veros.ny, veros.nz))
-    c_tri = np.zeros((veros.nx, veros.ny, veros.nz))
-    delta = np.zeros((veros.nx, veros.ny, veros.nz))
+    a_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+    b_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+    c_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+    delta = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
 
     delta[:, :, :-1] = veros.dt_tracer / veros.dzw[np.newaxis,
                                                    np.newaxis, :-1] * veros.K_33[2:-2, 2:-2, :-1]

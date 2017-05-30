@@ -76,7 +76,7 @@ def remove_ghosts(array, dims):
 def add_ghosts(veros, array, dims):
     full_shape = tuple([i + 4 if dim in GHOST_DIMENSIONS else i for i,
                         dim in zip(array.shape, dims)])
-    newarr = np.zeros(full_shape)
+    newarr = np.zeros(full_shape, dtype=array.dtype)
     ghost_mask = tuple(slice(2, -2) if dim in GHOST_DIMENSIONS else slice(None) for dim in dims)
     newarr[ghost_mask] = array
     return newarr
