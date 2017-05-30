@@ -236,6 +236,7 @@ class Veros(object):
         logging.info(" from time step {} to {}".format(self.itt, enditt))
 
         start_time, start_iteration = self.time, self.itt
+        profiler = None
         with handlers.signals_to_exception():
             try:
                 while self.time - start_time < self.runlen:
@@ -330,6 +331,6 @@ class Veros(object):
                     "     TKE                  = {:.2f}s".format(self.timers["tke"].getTime()),
                     " diagnostics and I/O      = {:.2f}s".format(self.timers["diagnostics"].getTime()),
                 ]))
-                if self.profile_mode:
+                if profiler is not None:
                     diagnostics.stop_profiler(profiler)
                 logging.shutdown()
