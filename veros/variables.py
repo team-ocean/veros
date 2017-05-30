@@ -11,7 +11,7 @@ class Variable:
         self.dims = dims
         self.units = units
         self.long_description = long_description
-        self.dtype = dtype if dtype else "float"
+        self.dtype = dtype
         self.output = output
         self.time_dependent = time_dependent
         self.scale = scale
@@ -697,7 +697,7 @@ def allocate_variables(veros):
 
     def init_var(var_name, var):
         shape = get_dimensions(veros, var.dims)
-        setattr(veros, var_name, np.zeros(shape, dtype=var.dtype))
+        setattr(veros, var_name, np.zeros(shape, dtype=var.dtype or veros.default_float_type))
         veros.variables[var_name] = var
 
     for var_name, var in MAIN_VARIABLES.items():

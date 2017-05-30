@@ -123,8 +123,9 @@ SETTINGS = OrderedDict([
     ("restart_output_filename", Setting("{identifier}_{itt:0>4d}.restart.h5", str, "File name of restart output. May contain Python format syntax that is substituted with Veros attributes.")),
     ("restart_frequency", Setting(0, float, "Frequency (in seconds) to write restart data")),
     ("force_overwrite", Setting(False, bool, "Overwrite existing output files")),
-    ("pyom_compatibility_mode", Setting(False, bool, "Force compatibility to pyOM2 (reproducing bugs and other quirks). For testing purposes only.")),
-    ("diskless_mode", Setting(False, bool, "Suppress all output to disk. Mainly used for testing purposes."))
+    ("pyom_compatibility_mode", Setting(False, bool, "Force compatibility to pyOM2 (even reproducing bugs and other quirks). For testing purposes only.")),
+    ("diskless_mode", Setting(False, bool, "Suppress all output to disk. Mainly used for testing purposes.")),
+    ("default_float_type", Setting("float", str, "Default type to use for floating point arrays (e.g. 'float32' or 'float64')."))
 ])
 
 def set_default_settings(veros):
