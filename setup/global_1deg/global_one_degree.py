@@ -207,7 +207,7 @@ class GlobalOneDegree(Veros):
         cp_0 = 3991.86795711963  # J/kg /K
 
         year_in_seconds = time.convert_time(self, 1., "years", "seconds")
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(veros.time, year_in_seconds,
+        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.time, year_in_seconds,
                                                          year_in_seconds / 12., 12)
 
         # linearly interpolate wind stress and shift from MITgcm U/V grid to this grid
