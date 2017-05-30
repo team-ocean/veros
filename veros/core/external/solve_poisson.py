@@ -1,12 +1,12 @@
 import warnings
 import scipy.sparse
 
+import scipy.sparse.linalg as spalg
 try:
     import pyamg
     has_pyamg = True
 except ImportError:
     warnings.warn("pyamg was not found, falling back to SciPy CG solver")
-    import scipy.sparse.linalg as spalg
     has_pyamg = False
 
 from .. import cyclic
@@ -27,10 +27,7 @@ def solve(veros, rhs, sol, boundary_val=None):
     veros.flush()
     # only initialize solver if parent object changes
     if not solve.veros or solve.veros != id(veros):
-        if has_pyamg:
-            solve.linear_solver = _get_amg_solver(veros)
-        else:
-            solve.linear_solver = _get_scipy_solver(veros)
+        solve.linear_solver = _get_solver(veros)
         solve.veros = id(veros)
 
     if veros.enable_cyclic_x:
@@ -50,17 +47,19 @@ solve.veros = None
 
 
 @veros_method
-def _get_scipy_solver(veros):
+def _get_solver(veros):
     matrix = _assemble_poisson_matrix(veros)
-    preconditioner = _jacobi_preconditioner(veros, matrix)
-    preconditioner.diagonal()[...] *= np.prod(~veros.boundary_mask, axis=2).astype(np.int).flatten()
-    matrix = preconditioner * matrix
+    if has_pyamg:
+        preconditioner = _amg_preconditioner(veros, matrix)
+    else:
+        preconditioner = _jacobi_preconditioner(veros, matrix)
+        # preconditioner.diagonal()[...] *= np.prod(~veros.boundary_mask, axis=2).astype(np.int).flatten()
 
     def scipy_solver(rhs, x0):
-        rhs = rhs.flatten() * preconditioner.diagonal()
-        solution, info = spalg.bicgstab(matrix, rhs,
-                                        x0=x0.flatten(), tol=veros.congr_epsilon,
-                                        maxiter=veros.congr_max_iterations)
+        solution, info = spalg.bicgstab(matrix, rhs.flatten(),
+                                        x0=x0.flatten(), tol=veros.congr_epsilon * 1e-8,
+                                        maxiter=veros.congr_max_iterations,
+                                        M=preconditioner)
         if info > 0:
             warnings.warn("Streamfunction solver did not converge after {} iterations".format(info))
         return solution
@@ -68,28 +67,13 @@ def _get_scipy_solver(veros):
 
 
 @veros_method
-def _get_amg_solver(veros):
-    matrix = _assemble_poisson_matrix(veros)
+def _amg_preconditioner(veros, matrix):
     if veros.backend_name == "bohrium":
-        near_null_space = np.ones(matrix.shape[0], bohrium=False, dtype=veros.default_float_type)
+        near_null_space = np.ones((matrix.shape[0], 1), bohrium=False, dtype=veros.default_float_type)
     else:
-        near_null_space = np.ones(matrix.shape[0], dtype=veros.default_float_type)
-    ml = pyamg.smoothed_aggregation_solver(matrix, near_null_space[:, np.newaxis])
-
-    def amg_solver(rhs, x0):
-        if veros.backend_name == "bohrium":
-            rhs = rhs.copy2numpy()
-            x0 = x0.copy2numpy()
-        residuals = []
-        tolerance = veros.congr_epsilon * 1e-8  # to achieve the same precision as the preconditioned scipy solver
-        solution = ml.solve(b=rhs.flatten(), x0=x0.flatten(), tol=tolerance,
-                            residuals=residuals, accel="bicgstab")
-        rel_res = residuals[-1] / residuals[0]
-        if rel_res > tolerance:
-            warnings.warn(
-                "Streamfunction solver did not converge - residual: {:.2e}".format(rel_res))
-        return np.asarray(solution)
-    return amg_solver
+        near_null_space = np.ones((matrix.shape[0], 1), dtype=veros.default_float_type)
+    ml = pyamg.smoothed_aggregation_solver(matrix, near_null_space, np.copy(near_null_space), symmetry="nonsymmetric")
+    return ml.aspreconditioner()
 
 
 @veros_method
