@@ -49,7 +49,7 @@ def initialize_variable(veros, key, var, ncfile):
         warnings.warn("Variable {} already initialized".format(key))
         return
     # transpose all dimensions in netCDF output (convention in most ocean models)
-    v = ncfile.createVariable(key, var.dtype, dims[::-1],
+    v = ncfile.createVariable(key, var.dtype or veros.default_float_type, dims[::-1],
                               fill_value=variables.FILL_VALUE,
                               zlib=veros.enable_netcdf_zlib_compression)
     v.long_name = var.name
