@@ -195,6 +195,32 @@ class Energy(VerosDiagnostic):
                       + veros.v[2:-2, 2:-2, -1, veros.tau] * veros.surface_tauy[2:-2, 2:-2]
                       * veros.maskV[2:-2, 2:-2, -1] * veros.area_v[2:-2, 2:-2])
 
+        # meso-scale energy
+        if veros.enable_eke:
+            eke_m = mean_w(veros.eke[..., veros.tau])
+            deke_m = np.sum(vol_w * (veros.eke[2:-2, 2:-2, :, veros.taup1]
+                                     - veros.eke[2:-2, 2:-2, :, veros.tau])
+                            / veros.dt_tracer)
+            eke_diss = mean_w(veros.eke_diss_iw)
+            eke_diss_tke = mean_w(veros.eke_diss_tke)
+        else:
+            eke_m = deke_m = eke_diss_tke = 0.
+            eke_diss = mdiss_gm + mdiss_h + mdiss_skew
+            if not veros.enable_store_cabbeling_heat:
+                eke_diss += -mdiss_hmix - mdiss_iso
+
+        # small-scale energy
+        if veros.enable_tke:
+            tke_m = mean_w(veros.tke[..., veros.tau])
+            dtke_m = mean_w((veros.tke[..., veros.taup1]
+                             - veros.tke[..., veros.tau])
+                            / veros.dt_tke)
+            tke_diss = mean_w(veros.tke_diss)
+            tke_forc = np.sum(veros.area_t[2:-2, 2:-2] * veros.maskW[2:-2, 2:-2, -1]
+                              * (veros.forc_tke_surface[2:-2, 2:-2] + veros.tke_surf_corr[2:-2, 2:-2]))
+        else:
+            tke_m = dtke_m = tke_diss = tke_forc = 0.
+
         # internal wave energy
         if veros.enable_idemix:
             iw_m = mean_w(veros.E_iw[..., veros.tau])
@@ -209,34 +235,8 @@ class Energy(VerosDiagnostic):
                             * (veros.forc_iw_surface[2:-2, 2:-2] * veros.maskW[2:-2, 2:-2, -1]
                                + np.sum(mask * veros.forc_iw_bottom[2:-2, 2:-2, np.newaxis]
                                         * veros.maskW[2:-2, 2:-2, :], axis=2)))
-
-        # meso-scale energy
-        if veros.enable_eke:
-            eke_m = mean_w(veros.eke[..., veros.tau])
-            deke_m = np.sum(vol_w * (veros.eke[2:-2, 2:-2, :, veros.taup1]
-                                     - veros.eke[2:-2, 2:-2, :, veros.tau])
-                            / veros.dt_tracer)
-            eke_diss = mean_w(veros.eke_diss_iw)
-            eke_diss_tke = mean_w(veros.eke_diss_tke)
-
-        # small-scale energy
-        if veros.enable_tke:
-            tke_m = mean_w(veros.tke[..., veros.tau])
-            dtke_m = mean_w((veros.tke[..., veros.taup1]
-                             - veros.tke[..., veros.tau])
-                            / veros.dt_tke)
-            tke_diss = mean_w(veros.tke_diss)
-            tke_forc = np.sum(veros.area_t[2:-2, 2:-2] * veros.maskW[2:-2, 2:-2, -1]
-                              * (veros.forc_tke_surface[2:-2, 2:-2] + veros.tke_surf_corr[2:-2, 2:-2]))
-
-        # shortcut for EKE model
-        if not veros.enable_eke:
-            eke_diss = mdiss_gm + mdiss_h + mdiss_skew
-            if not veros.enable_store_cabbeling_heat:
-                eke_diss += -mdiss_hmix - mdiss_iso
-
-        # shortcut for IW model
-        if not veros.enable_idemix:
+        else:
+            iw_m = diw_m = iwforc = 0.
             iw_diss = eke_diss
 
         # store results

@@ -164,9 +164,10 @@ class Overturning(VerosDiagnostic):
         self.vsf_iso[2:-2, :] += self._interpolate_along_axis(veros,
                                                               z_sig[2:-2, :], trans[2:-2, :],
                                                               self.zarea[2:-2, :], 1)
-        self.bolus_iso[2:-2, :] += self._interpolate_along_axis(veros,
-                                                                z_sig[2:-2, :], bolus_trans[2:-2, :],
-                                                                self.zarea[2:-2, :], 1)
+        if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
+            self.bolus_iso[2:-2, :] += self._interpolate_along_axis(veros,
+                                                                    z_sig[2:-2, :], bolus_trans[2:-2, :],
+                                                                    self.zarea[2:-2, :], 1)
 
         self.nitts += 1
 
