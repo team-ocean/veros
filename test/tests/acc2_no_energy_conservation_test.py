@@ -3,7 +3,7 @@ import sys
 from test_base import VerosRunTest
 from acc2_test import ACC2
 
-class ACC2NoEngConvTest(VerosRunTest):
+class ACC2NoEnergyConservationTest(VerosRunTest):
     Testclass = ACC2
     timesteps = 5
     extra_settings = {"enable_conserve_energy": False}
@@ -29,10 +29,9 @@ class ACC2NoEngConvTest(VerosRunTest):
                     v1[2,:] = 0.
                     v2[2,:] = 0.
                 passed = self.check_variable(a,atol=1e-5,data=(v1,v2)) and passed
-        # plt.show()
         return passed
 
 if __name__ == "__main__":
-    test = ACC2NoEngConvTest()
+    test = ACC2NoEnergyConservationTest()
     passed = test.run()
     sys.exit(int(not passed))

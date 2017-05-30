@@ -166,6 +166,14 @@ class RestartTest(object):
                 print(setting, s_1, s_2)
         for var in sorted(self.acc_no_restart.variables.keys()):
             arr_1, arr_2 = (getattr(obj, var) for obj in (self.acc_no_restart, self.acc_restart))
+            try:
+                arr_1 = arr_1.copy2numpy()
+            except AttributeError:
+                pass
+            try:
+                arr_2 = arr_2.copy2numpy()
+            except AttributeError:
+                pass
             if "psi" in var:
                 arr_1 = arr_1[3:-2, 2:-2]
                 arr_2 = arr_2[3:-2, 2:-2]

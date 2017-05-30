@@ -24,6 +24,7 @@ benchmark_commands = {
     "fortran-mpi": "mpiexec -n {nproc} --allow-run-as-root -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz}"
 }
 outfile = "benchmark_{}.json".format(time.time())
+available_benchmarks = [f for f in os.listdir(testdir) if f.endswith("_benchmark.py")]
 
 def parse_cli():
     parser = argparse.ArgumentParser(description="Run Veros benchmarks")
@@ -32,6 +33,8 @@ def parse_cli():
                         help="Problem sizes to test (total number of elements)")
     parser.add_argument("-c", "--components", nargs="*", choices=benchmark_commands.keys(),
                         default=["numpy"], help="Backend components to benchmark")
+    parser.add_argument("--only", nargs="*", default=available_benchmarks, help="Run only these benchmarks",
+                        choices=available_benchmarks, required=False)
     return parser.parse_args()
 
 def check_fortran_library(path):
@@ -63,10 +66,7 @@ if __name__ == "__main__":
     out_data = {}
     all_passed = True
     try:
-        for f in os.listdir(testdir):
-            if not f.endswith("_benchmark.py"):
-                continue
-
+        for f in args.only:
             out_data[f] = []
             print("running benchmark {} ".format(f))
             for size in args.sizes:
@@ -119,5 +119,5 @@ if __name__ == "__main__":
 
     finally:
         with open(outfile, "w") as f:
-            json.dump(out_data, f)
+            json.dump(out_data, f, indent=4)
         sys.exit(int(not all_passed))
