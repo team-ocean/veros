@@ -15,7 +15,7 @@ def isoneutral_diffusion_pre(veros):
     ddzt = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 2), dtype=veros.default_float_type)
     ddxt = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 2), dtype=veros.default_float_type)
     ddyt = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz, 2), dtype=veros.default_float_type)
-    epsln = np.finfo(veros.default_float_type).eps
+    epsln = 1e-20
 
     """
     drho_dt and drho_ds at centers of T cells
@@ -180,7 +180,7 @@ def check_isoneutral_slope_crit(veros):
     """
     check linear stability criterion from Griffies et al
     """
-    epsln = np.finfo(veros.default_float_type).eps
+    epsln = 1e-20
     if veros.enable_neutral_diffusion:
         ft1 = 1.0 / (4.0 * veros.K_iso_0 * veros.dt_tracer + epsln)
         delta1a = np.min(veros.dxt[2:-2, np.newaxis, np.newaxis] * np.abs(
