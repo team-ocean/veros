@@ -147,7 +147,7 @@ class RestartTest(object):
         self.acc_no_restart.run()
 
         self.acc_restart.setup()
-        self.acc_restart.runlen = (self.timesteps - 0) * self.acc_no_restart.dt_tracer
+        self.acc_restart.runlen = (self.timesteps - 1) * self.acc_no_restart.dt_tracer
         self.acc_restart.run()
 
         self.acc_restart.restart_input_filename = self.restart_file
@@ -160,7 +160,6 @@ class RestartTest(object):
 
     def test_passed(self):
         passed = True
-        import matplotlib.pyplot as plt
         for setting in settings.SETTINGS:
             s_1, s_2 = (getattr(obj, setting) for obj in (self.acc_no_restart, self.acc_restart))
             if s_1 != s_2:
@@ -178,17 +177,9 @@ class RestartTest(object):
             if "psi" in var:
                 arr_1 = arr_1[3:-2, 2:-2]
                 arr_2 = arr_2[3:-2, 2:-2]
-            if var == "psi":
-                plt.figure()
-                plt.imshow((arr_1 -  arr_2)[..., self.acc_no_restart.taum1])
-                plt.figure()
-                plt.imshow((arr_1 -  arr_2)[..., self.acc_no_restart.tau])
-                plt.figure()
-                plt.imshow((arr_1 -  arr_2)[..., self.acc_no_restart.taup1])
             if not np.allclose(arr_1, arr_2):
                 print(var, arr_1.max(), arr_2.max(), np.abs(arr_1 - arr_2).max())
                 passed = False
-        plt.show()
         return passed
 
 
