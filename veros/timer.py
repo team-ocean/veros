@@ -15,30 +15,22 @@ import time
 class Timer:
     def __init__(self, name):
         self.name = name
-        self.starts = []
-        self.ends = []
+        self.total_time = 0
+        self.last_time = 0
 
     def __enter__(self):
-        self.starts.append(time.time())
+        self.start_time = time.time()
 
     def __exit__(self, type, value, traceback):
         flush()
-        self.ends.append(time.time())
+        self.last_time = time.time() - self.start_time
+        self.total_time += self.last_time
 
     def printTime(self):
-        self._check_if_active()
-        total_time = sum([self.ends[i] - self.starts[i] for i in range(len(self.starts))])
-        print("[{}]: {}s".format(self.name, total_time))
+        print("[{}]: {}s".format(self.name, self.getTime()))
 
     def getTime(self):
-        self._check_if_active()
-        total_time = sum([self.ends[i] - self.starts[i] for i in range(len(self.starts))])
-        return total_time
+        return self.total_time
 
     def getLastTime(self):
-        self._check_if_active()
-        return self.ends[-1] - self.starts[-1]
-
-    def _check_if_active(self):
-        if len(self.ends) != len(self.starts):
-            raise RuntimeError("must be called after Timer context ends")
+        return self.last_time

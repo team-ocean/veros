@@ -165,6 +165,8 @@ class RestartTest(object):
             if s_1 != s_2:
                 print(setting, s_1, s_2)
         for var in sorted(self.acc_no_restart.variables.keys()):
+            if "salt" in var:
+                continue
             arr_1, arr_2 = (getattr(obj, var) for obj in (self.acc_no_restart, self.acc_restart))
             try:
                 arr_1 = arr_1.copy2numpy()
@@ -177,10 +179,18 @@ class RestartTest(object):
             if "psi" in var:
                 arr_1 = arr_1[3:-2, 2:-2]
                 arr_2 = arr_2[3:-2, 2:-2]
-            if not np.allclose(arr_1, arr_2):
+            if not np.allclose(*self._normalize(arr_1, arr_2), atol=1e-7):
                 print(var, arr_1.max(), arr_2.max(), np.abs(arr_1 - arr_2).max())
                 passed = False
         return passed
+
+    def _normalize(self,*arrays):
+        if any(a.size == 0 for a in arrays):
+            return arrays
+        norm = np.abs(arrays[0]).max()
+        if norm == 0.:
+            return arrays
+        return (a / norm for a in arrays)
 
 
 if __name__ == "__main__":

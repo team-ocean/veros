@@ -62,12 +62,12 @@ class StreamfunctionBenchmark(VerosLegacy):
         for _ in range(self.repetitions):
             if self.legacy_mode:
                 m = self.fortran.main_module
-                rhs = np.zeros((m.nx+4, m.ny+4), order="f")
-                rhs[2:-2, 2:-2] = np.random.randn(m.nx, m.ny)
+                rhs = np.zeros((m.ie_pe-m.is_pe+5, m.je_pe-m.js_pe+5), order="f")
+                rhs[2:-2, 2:-2] = np.random.randn(m.ie_pe-m.is_pe+1, m.je_pe-m.js_pe+1)
                 sol = np.zeros_like(rhs)
                 self.fortran.congrad_streamfunction(is_=m.is_pe-m.onx, ie_=m.ie_pe+m.onx, js_=m.js_pe-m.onx, je_=m.je_pe+m.onx, forc=rhs, iterations=m.congr_itts, sol=sol, converged=False)
             else:
-                rhs = np.zeros((self.nx+4, self.ny+4), order="f")
+                rhs = np.zeros((self.nx+4, self.ny+4))
                 rhs[2:-2, 2:-2] = np.random.randn(self.nx, self.ny)
                 sol = np.zeros_like(rhs)
                 core.external.solve_poisson.solve(self, rhs, sol)
