@@ -6,7 +6,7 @@ try:
     import pyamg
     has_pyamg = True
 except ImportError:
-    warnings.warn("pyamg was not found, falling back to SciPy CG solver")
+    warnings.warn("pyamg was not found, falling back to un-preconditioned CG solver")
     has_pyamg = False
 
 from .. import cyclic

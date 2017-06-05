@@ -9,7 +9,7 @@ def set_tke_diffusivities(veros):
     """
     set vertical diffusivities based on TKE model
     """
-    Rinumber = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    Rinumber = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
 
     if veros.enable_tke:
         veros.sqrttke[...] = np.sqrt(np.maximum(0., veros.tke[:, :, :, veros.tau]))
@@ -53,15 +53,15 @@ def set_tke_diffusivities(veros):
         """
         if veros.enable_cyclic_x:
             cyclic.setcyclic_x(veros.K_diss_v)
-        veros.kappaM = np.minimum(veros.kappaM_max, veros.c_k * veros.mxl * veros.sqrttke)
-        Rinumber = veros.Nsqr[:, :, :, veros.tau] / \
+        veros.kappaM[...] = np.minimum(veros.kappaM_max, veros.c_k * veros.mxl * veros.sqrttke)
+        Rinumber[...] = veros.Nsqr[:, :, :, veros.tau] / \
             np.maximum(veros.K_diss_v / np.maximum(1e-12, veros.kappaM), 1e-12)
         if veros.enable_idemix:
-            Rinumber = np.minimum(Rinumber, veros.kappaM * veros.Nsqr[:, :, :, veros.tau]
+            Rinumber[...] = np.minimum(Rinumber, veros.kappaM * veros.Nsqr[:, :, :, veros.tau]
                                   / np.maximum(1e-12, veros.alpha_c * veros.E_iw[:, :, :, veros.tau]**2))
-        veros.Prandtlnumber = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
-        veros.kappaH = veros.kappaM / veros.Prandtlnumber
-        veros.kappaM = np.maximum(veros.kappaM_min, veros.kappaM)
+        veros.Prandtlnumber[...] = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
+        veros.kappaH[...] = veros.kappaM / veros.Prandtlnumber
+        veros.kappaM[...] = np.maximum(veros.kappaM_min, veros.kappaM)
     else:
         veros.kappaM[...] = veros.kappaM_0
         veros.kappaH[...] = veros.kappaH_0
@@ -118,11 +118,11 @@ def integrate_tke(veros):
     """
     ks = veros.kbot[2:-2, 2:-2] - 1
 
-    a_tri = np.zeros((veros.nx, veros.ny, veros.nz))
-    b_tri = np.zeros((veros.nx, veros.ny, veros.nz))
-    c_tri = np.zeros((veros.nx, veros.ny, veros.nz))
-    d_tri = np.zeros((veros.nx, veros.ny, veros.nz))
-    delta = np.zeros((veros.nx, veros.ny, veros.nz))
+    a_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+    b_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+    c_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+    d_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+    delta = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
 
     delta[:, :, :-1] = veros.dt_tke / veros.dzt[np.newaxis, np.newaxis, 1:] * veros.alpha_tke * 0.5 \
         * (veros.kappaM[2:-2, 2:-2, :-1] + veros.kappaM[2:-2, 2:-2, 1:])

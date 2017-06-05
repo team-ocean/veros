@@ -34,7 +34,7 @@ def thermodynamics(veros):
         """
         changes in dyn. Enthalpy due to advection
         """
-        aloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+        aloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
         aloc[2:-2, 2:-2, :] = veros.grav / veros.rho_0 * (-veros.int_drhodT[2:-2, 2:-2, :, veros.tau] * veros.dtemp[2:-2, 2:-2, :, veros.tau]
                                                           - veros.int_drhodS[2:-2, 2:-2, :, veros.tau] * veros.dsalt[2:-2, 2:-2, :, veros.tau]) \
             - veros.dHd[2:-2, 2:-2, :, veros.tau]
@@ -117,11 +117,11 @@ def thermodynamics(veros):
         veros.dtemp_vmix[...] = veros.temp[:, :, :, veros.taup1]
         veros.dsalt_vmix[...] = veros.salt[:, :, :, veros.taup1]
 
-        a_tri = np.zeros((veros.nx, veros.ny, veros.nz))
-        b_tri = np.zeros((veros.nx, veros.ny, veros.nz))
-        c_tri = np.zeros((veros.nx, veros.ny, veros.nz))
-        d_tri = np.zeros((veros.nx, veros.ny, veros.nz))
-        delta = np.zeros((veros.nx, veros.ny, veros.nz))
+        a_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+        b_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+        c_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+        d_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+        delta = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
 
         ks = veros.kbot[2:-2, 2:-2] - 1
         delta[:, :, :-1] = veros.dt_tracer / veros.dzw[np.newaxis, np.newaxis, :-1] \

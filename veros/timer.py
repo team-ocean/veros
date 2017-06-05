@@ -7,7 +7,7 @@ try:
     flush = bh.flush
 except ImportError:
     def flush():
-        return None
+        pass
 
 import time
 

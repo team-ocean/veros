@@ -7,8 +7,8 @@ def isoneutral_friction(veros):
     """
     vertical friction using TEM formalism for eddy driven velocity
     """
-    diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
-    aloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
+    aloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
 
     if veros.enable_implicit_vert_friction:
         aloc[...] = veros.u[:, :, :, veros.taup1]
@@ -19,7 +19,8 @@ def isoneutral_friction(veros):
     ks = np.maximum(veros.kbot[1:-2, 1:-2], veros.kbot[2:-1, 1:-2]) - 1
     fxa = 0.5 * (veros.kappa_gm[1:-2, 1:-2, :] + veros.kappa_gm[2:-1, 1:-2, :])
     delta, a_tri, b_tri, c_tri = (
-        np.zeros((veros.nx + 1, veros.ny + 1, veros.nz)) for _ in range(4))
+            np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
+        for _ in range(4))
     delta[:, :, :-1] = veros.dt_mom / veros.dzw[np.newaxis, np.newaxis, :-1] * \
         fxa[:, :, :-1] * veros.maskU[1:-2, 1:-2, 1:] * veros.maskU[1:-2, 1:-2, :-1]
     delta[-1] = 0.
@@ -56,7 +57,7 @@ def isoneutral_friction(veros):
     ks = np.maximum(veros.kbot[1:-2, 1:-2], veros.kbot[1:-2, 2:-1]) - 1
     fxa = 0.5 * (veros.kappa_gm[1:-2, 1:-2, :] + veros.kappa_gm[1:-2, 2:-1, :])
     delta, a_tri, b_tri, c_tri = (
-        np.zeros((veros.nx + 1, veros.ny + 1, veros.nz)) for _ in range(4))
+        np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type) for _ in range(4))
     delta[:, :, :-1] = veros.dt_mom / veros.dzw[np.newaxis, np.newaxis, :-1] * \
         fxa[:, :, :-1] * veros.maskV[1:-2, 1:-2, 1:] * veros.maskV[1:-2, 1:-2, :-1]
     delta[-1] = 0.

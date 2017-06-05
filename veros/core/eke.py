@@ -20,7 +20,7 @@ def set_eke_diffusivities(veros):
     set skew diffusivity K_gm and isopycnal diffusivity K_iso
     set also vertical viscosity if TEM formalism is chosen
     """
-    C_rossby = np.zeros((veros.nx + 4, veros.ny + 4))
+    C_rossby = np.zeros((veros.nx + 4, veros.ny + 4), dtype=veros.default_float_type)
 
     if veros.enable_eke:
         """
@@ -59,7 +59,7 @@ def integrate_eke(veros):
     """
     integrate EKE equation on W grid
     """
-    c_int = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    c_int = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
 
     """
     forcing by dissipation by lateral friction and GM using TRM formalism or skew diffusion
@@ -145,7 +145,7 @@ def integrate_eke(veros):
     vertical diffusion of EKE,forcing and dissipation
     """
     ks = veros.kbot[2:-2, 2:-2] - 1
-    delta, a_tri, b_tri, c_tri, d_tri = (np.zeros((veros.nx, veros.ny, veros.nz)) for _ in range(5))
+    delta, a_tri, b_tri, c_tri, d_tri = (np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type) for _ in range(5))
     delta[:, :, :-1] = veros.dt_tracer / veros.dzt[np.newaxis, np.newaxis, 1:] * 0.5 \
         * (veros.kappaM[2:-2, 2:-2, :-1] + veros.kappaM[2:-2, 2:-2, 1:]) * veros.alpha_eke
     a_tri[:, :, 1:-1] = -delta[:, :, :-2] / veros.dzw[1:-1]

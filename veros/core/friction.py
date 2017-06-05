@@ -10,7 +10,7 @@ def explicit_vert_friction(veros):
     explicit vertical friction
     dissipation is calculated and added to K_diss_v
     """
-    diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
 
     """
     vertical friction of zonal momentum
@@ -60,12 +60,12 @@ def implicit_vert_friction(veros):
     vertical friction
     dissipation is calculated and added to K_diss_v
     """
-    a_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz))
-    b_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz))
-    c_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz))
-    d_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz))
-    delta = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz))
-    diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    a_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
+    b_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
+    c_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
+    d_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
+    delta = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
+    diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
 
     """
     implicit vertical friction of zonal momentum
@@ -161,7 +161,7 @@ def linear_bottom_friction(veros):
         veros.du_mix[1:-2, 2:-2] += -(veros.maskU[1:-2, 2:-2] * veros.r_bot_var_u[1:-2,
                                                                                   2:-2, np.newaxis]) * veros.u[1:-2, 2:-2, :, veros.tau] * mask
         if veros.enable_conserve_energy:
-            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
             diss[1:-2, 2:-2] = veros.maskU[1:-2, 2:-2] * veros.r_bot_var_u[1:-2,
                                                                            2:-2, np.newaxis] * veros.u[1:-2, 2:-2, :, veros.tau]**2 * mask
             veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'U')
@@ -171,7 +171,7 @@ def linear_bottom_friction(veros):
         veros.dv_mix[2:-2, 1:-2] += -(veros.maskV[2:-2, 1:-2] * veros.r_bot_var_v[2:-2,
                                                                                   1:-2, np.newaxis]) * veros.v[2:-2, 1:-2, :, veros.tau] * mask
         if veros.enable_conserve_energy:
-            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
             diss[2:-2, 1:-2] = veros.maskV[2:-2, 1:-2] * veros.r_bot_var_v[2:-2,
                                                                            1:-2, np.newaxis] * veros.v[2:-2, 1:-2, :, veros.tau]**2 * mask
             veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'V')
@@ -184,7 +184,7 @@ def linear_bottom_friction(veros):
         veros.du_mix[1:-2, 2:-2] += -veros.maskU[1:-2, 2:-2] * \
             veros.r_bot * veros.u[1:-2, 2:-2, :, veros.tau] * mask
         if veros.enable_conserve_energy:
-            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
             diss[1:-2, 2:-2] = veros.maskU[1:-2, 2:-2] * veros.r_bot * \
                 veros.u[1:-2, 2:-2, :, veros.tau]**2 * mask
             veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'U')
@@ -194,7 +194,7 @@ def linear_bottom_friction(veros):
         veros.dv_mix[2:-2, 1:-2] += -veros.maskV[2:-2, 1:-2] * \
             veros.r_bot * veros.v[2:-2, 1:-2, :, veros.tau] * mask
         if veros.enable_conserve_energy:
-            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
             diss[2:-2, 1:-2] = veros.maskV[2:-2, 1:-2] * veros.r_bot * \
                 veros.v[2:-2, 1:-2, :, veros.tau]**2 * mask
             veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'V')
@@ -218,7 +218,7 @@ def quadratic_bottom_friction(veros):
     veros.du_mix[1:-2, 2:-2, :] += -aloc
 
     if veros.enable_conserve_energy:
-        diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+        diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
         diss[1:-2, 2:-2, :] = aloc * veros.u[1:-2, 2:-2, :, veros.tau]
         veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'U')
 
@@ -233,7 +233,7 @@ def quadratic_bottom_friction(veros):
     veros.dv_mix[2:-2, 1:-2, :] += -aloc
 
     if veros.enable_conserve_energy:
-        diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+        diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
         diss[2:-2, 1:-2, :] = aloc * veros.v[2:-2, 1:-2, :, veros.tau]
         veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'V')
 
@@ -244,7 +244,7 @@ def harmonic_friction(veros):
     horizontal harmonic friction
     dissipation is calculated and added to K_diss_h
     """
-    diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
 
     """
     Zonal velocity
@@ -289,10 +289,10 @@ def harmonic_friction(veros):
     Meridional velocity
     """
     if veros.enable_hor_friction_cos_scaling:
-        fxa = (veros.cosu ** veros.hor_friction_cosPower) * np.ones(veros.nx + 3)[:, np.newaxis]
+        fxa = (veros.cosu ** veros.hor_friction_cosPower) * np.ones((veros.nx + 3, 1), dtype=veros.default_float_type)
         veros.flux_east[:-1] = veros.A_h * fxa[:, :, np.newaxis] * (veros.v[1:, :, :, veros.tau] - veros.v[:-1, :, :, veros.tau]) \
             / (veros.cosu * veros.dxu[:-1, np.newaxis])[:, :, np.newaxis] * veros.maskV[1:] * veros.maskV[:-1]
-        fxa = (veros.cost[1:] ** veros.hor_friction_cosPower) * np.ones(veros.nx + 4)[:, np.newaxis]
+        fxa = (veros.cost[1:] ** veros.hor_friction_cosPower) * np.ones((veros.nx + 4, 1), dtype=veros.default_float_type)
         veros.flux_north[:, :-1] = veros.A_h * fxa[:, :, np.newaxis] * (veros.v[:, 1:, :, veros.tau] - veros.v[:, :-1, :, veros.tau]) \
             / veros.dyt[np.newaxis, 1:, np.newaxis] * veros.cost[np.newaxis, 1:, np.newaxis] * veros.maskV[:, :-1] * veros.maskV[:, 1:]
     else:
@@ -344,7 +344,7 @@ def biharmonic_friction(veros):
     veros.flux_east[-1, :, :] = 0.
     veros.flux_north[:, -1, :] = 0.
 
-    del2 = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    del2 = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
     del2[1:, 1:, :] = (veros.flux_east[1:, 1:, :] - veros.flux_east[:-1, 1:, :]) \
         / (veros.cost[np.newaxis, 1:, np.newaxis] * veros.dxu[1:, np.newaxis, np.newaxis]) \
         + (veros.flux_north[1:, 1:, :] - veros.flux_north[1:, :-1, :]) \
@@ -373,7 +373,7 @@ def biharmonic_friction(veros):
         if veros.enable_cyclic_x:
             cyclic.setcyclic_x(veros.flux_east)
             cyclic.setcyclic_x(veros.flux_north)
-        diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+        diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
         diss[1:-2, 2:-2, :] = -0.5 * ((veros.u[2:-1, 2:-2, :, veros.tau] - veros.u[1:-2, 2:-2, :, veros.tau]) * veros.flux_east[1:-2, 2:-2, :]
                                       + (veros.u[1:-2, 2:-2, :, veros.tau] - veros.u[:-3, 2:-2, :, veros.tau]) * veros.flux_east[:-3, 2:-2, :]) \
             / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dxu[1:-2, np.newaxis, np.newaxis])  \

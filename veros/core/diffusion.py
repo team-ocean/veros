@@ -38,8 +38,8 @@ def tempsalt_biharmonic(veros):
     biharmonic mixing of veros.temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
-    aloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
-    del2 = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    aloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
+    del2 = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
 
     fxa = math.sqrt(abs(veros.K_hbi))
 
@@ -121,7 +121,7 @@ def tempsalt_diffusion(veros):
     Diffusion of veros.temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
-    aloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
+    aloc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
 
     # horizontal diffusion of temperature
     veros.flux_east[:-1, :, :] = veros.K_h * (veros.temp[1:, :, :, veros.tau] - veros.temp[:-1, :, :, veros.tau]) \

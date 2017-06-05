@@ -122,7 +122,7 @@ def vertical_velocity(veros):
            \int_0^z w_z dz = w(z)-w(0) = - \int dz (u_x + v_y)
            w(z) = -int dz u_x + v_y
     """
-    fxa = np.empty((veros.nx + 3, veros.ny + 3, veros.nz))
+    fxa = np.zeros((veros.nx + 3, veros.ny + 3, veros.nz), dtype=veros.default_float_type)
     # integrate from bottom to surface to see error in w
     fxa[:, :, 0] = -veros.maskW[1:, 1:, 0] * veros.dzt[0] * \
         ((veros.u[1:, 1:, 0, veros.taup1] - veros.u[:-1, 1:, 0, veros.taup1])

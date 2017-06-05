@@ -10,18 +10,7 @@ def _calc_cr(veros, rjp, rj, rjm, vel):
     Calculates cr value used in superbee advection scheme
     """
     eps = 1e-20  # prevent division by 0
-    mask_rj = rj == 0.
-    mask_vel = vel > 0
-    veros.flush()  # prevent precision problems
-    mask1 = ~mask_rj & mask_vel
-    cr = np.where(mask1, rjm / (rj + eps), np.zeros_like(rj))
-    mask2 = ~mask_rj & ~mask_vel
-    cr[...] = np.where(mask2, rjp / (rj + eps), cr)
-    mask3 = mask_rj & mask_vel
-    cr[...] = np.where(mask3, rjm * 1e20, cr)
-    mask4 = mask_rj & ~mask_vel
-    cr[...] = np.where(mask4, rjp * 1e20, cr)
-    return cr
+    return np.where(vel > 0., rjm, rjp) / np.where(np.abs(rj) < eps, eps, rj)
 
 
 @veros_method

@@ -101,7 +101,7 @@ class ACC2(Veros):
         self.salt[:, :, :, 0:2] = 35.0 * self.maskT[..., None]
 
         # wind stress forcing
-        taux = np.zeros(self.ny + 1)
+        taux = np.zeros(self.ny + 1, dtype=self.default_float_type)
         yt = self.yt[2:self.ny + 3]
         taux = (.1e-3 * np.sin(np.pi * (self.yu[2:self.ny + 3] - yu_start) / (-20.0 - yt_start))) * (yt < -20) \
              + (.1e-3 * (1 - np.cos(2 * np.pi * (self.yu[2:self.ny + 3] - 10.0) / (yu_end - 10.0)))) * (yt > 10)
@@ -155,7 +155,7 @@ class RestartTest(object):
         self.acc_restart.runlen = self.acc_no_restart.time - self.acc_restart.time
         self.acc_restart.run()
 
-        os.remove(self.restart_file)
+        #os.remove(self.restart_file)
         return self.test_passed()
 
     def test_passed(self):

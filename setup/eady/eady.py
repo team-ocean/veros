@@ -82,9 +82,9 @@ class Eady(Veros):
 
      t0 = -n_0 ** 2 * self.zt[np.newaxis, :] / self.grav / alpha * self.rho_0 * self.maskT[:, 2, :]
      uz = u_0 / self.ht[:, 2:-2, np.newaxis]
-     self.t0 = np.zeros((self.nx+4, self.ny+4, self.nz))
+     self.t0 = np.zeros((self.nx+4, self.ny+4, self.nz), dtype=self.default_float_type)
      self.t0[:, 3:-1, :] = t0[:, np.newaxis, :] + np.cumsum(self.dyt[np.newaxis, 2:-2, np.newaxis] * uz * f / self.grav / alpha * self.rho_0 * self.maskT[:, 2:-2, :], axis=1)
-     self.dt0 = np.zeros((self.nx+4, self.ny+4, self.nz, 3))
+     self.dt0 = np.zeros((self.nx+4, self.ny+4, self.nz, 3), dtype=self.default_float_type)
 
      # perturbation buoyancy
      phiz = A / d * np.sinh(self.zt / d) + np.cosh(self.zt / d) / d
@@ -93,7 +93,7 @@ class Eady(Veros):
                                     * np.abs(phiz) * self.maskT * self.rho_0 / self.grav / alpha
      self.temp[..., self.taum1] = self.temp[..., self.tau]
 
-     self.t_tot = np.zeros((self.nx+4, self.ny+4, self.nz))
+     self.t_tot = np.zeros((self.nx+4, self.ny+4, self.nz), dtype=self.default_float_type)
 
     @veros_method
     def set_forcing(self):

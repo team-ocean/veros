@@ -115,8 +115,8 @@ class NorthAtlantic(Veros):
                                                   t_grid, missing_value=-1e20)
             self.salt[2:-2, 2:-2, :, self.tau] = self.maskT[2:-2, 2:-2, :] * salt
 
-            self._taux = np.zeros((self.nx + 4, self.ny + 4, 12))
-            self._tauy = np.zeros((self.nx + 4, self.ny + 4, 12))
+            self._taux = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+            self._tauy = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
             forc_u_coords_hor = [forcing_file.variables[k][...].T for k in ("xu", "yu")]
             forc_u_coords_hor[0][...] += -360
             for k in range(12):
@@ -126,10 +126,10 @@ class NorthAtlantic(Veros):
                                                               t_hor, missing_value=-1e20) / 10. / self.rho_0
 
             # heat flux and salinity restoring
-            self._sst_clim = np.zeros((self.nx + 4, self.ny + 4, 12))
-            self._sss_clim = np.zeros((self.nx + 4, self.ny + 4, 12))
-            self._sst_rest = np.zeros((self.nx + 4, self.ny + 4, 12))
-            self._sss_rest = np.zeros((self.nx + 4, self.ny + 4, 12))
+            self._sst_clim = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+            self._sss_clim = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+            self._sst_rest = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
+            self._sss_rest = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
 
             sst_clim, sss_clim, sst_rest, sss_rest = [
                 forcing_file.variables[k][...].T for k in ("sst_clim", "sss_clim", "sst_rest", "sss_rest")
@@ -149,9 +149,9 @@ class NorthAtlantic(Veros):
             rest_coords[0][...] += -360
 
             # sponge layers
-            self._t_star = np.zeros((self.nx + 4, self.ny + 4, self.nz, 12))
-            self._s_star = np.zeros((self.nx + 4, self.ny + 4, self.nz, 12))
-            self._rest_tscl = np.zeros((self.nx + 4, self.ny + 4, self.nz))
+            self._t_star = np.zeros((self.nx + 4, self.ny + 4, self.nz, 12), dtype=self.default_float_type)
+            self._s_star = np.zeros((self.nx + 4, self.ny + 4, self.nz, 12), dtype=self.default_float_type)
+            self._rest_tscl = np.zeros((self.nx + 4, self.ny + 4, self.nz), dtype=self.default_float_type)
 
             self._rest_tscl[2:-2, 2:-2, :] = tools.interpolate(
                 rest_coords, restoring_file.variables["tscl"][0, ...].T, t_grid)

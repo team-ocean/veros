@@ -100,13 +100,13 @@ class ACC(Veros):
         self.salt[:, :, :, 0:2] = 35.0 * self.maskT[..., None]
 
         # wind stress forcing
-        taux = np.zeros(self.ny + 4)
+        taux = np.zeros(self.ny + 4, dtype=self.default_float_type)
         taux[self.yt < -20] = 1e-4 * np.sin(self.pi * (self.yu[self.yt < -20] - self.yu.min()) / (-20.0 - self.yt.min()))
         taux[self.yt > 10] = 1e-4 * (1 - np.cos(2 * self.pi * (self.yu[self.yt > 10] - 10.0) / (self.yu.max() - 10.0)))
         self.surface_taux[:, :] = taux * self.maskU[:, :, -1]
 
         # surface heatflux forcing
-        self._t_star = 15 * np.ones(self.ny + 4)
+        self._t_star = 15 * np.ones(self.ny + 4, dtype=self.default_float_type)
         self._t_star[self.yt < -20] = 15 * (self.yt[self.yt < -20] - self.yt.min()) / (-20 - self.yt.min())
         self._t_star[self.yt > 20] = 15 * (1 - (self.yt[self.yt > 20] - 20) / (self.yt.max() - 20))
         self._t_rest = self.dzt[None, -1] / (30. * 86400.) * self.maskT[:, :, -1]

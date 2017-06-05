@@ -110,7 +110,7 @@ class GlobalFourDegree(Veros):
     @veros_method
     def set_initial_conditions(self):
         self.taux, self.tauy, self.qnec, self.qnet, self.sss_clim, self.sst_clim = (
-            np.zeros((self.nx + 4, self.ny + 4, 12)) for _ in range(6))
+            np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type) for _ in range(6))
 
         # initial conditions for T and S
         temp_data = self._read_forcing("temperature")[:, :, ::-1]
