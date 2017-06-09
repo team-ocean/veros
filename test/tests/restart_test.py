@@ -137,6 +137,7 @@ class RestartTest(object):
         self.restart_file = tempfile.NamedTemporaryFile(suffix=".h5", delete=False).name
 
         self.acc_no_restart = ACC2()
+        self.acc_no_restart.diskless_mode = True
         self.acc_restart = ACC2()
         self.acc_restart.restart_output_filename = self.restart_file
 
@@ -155,7 +156,7 @@ class RestartTest(object):
         self.acc_restart.runlen = self.acc_no_restart.time - self.acc_restart.time
         self.acc_restart.run()
 
-        #os.remove(self.restart_file)
+        os.remove(self.restart_file)
         return self.test_passed()
 
     def test_passed(self):
