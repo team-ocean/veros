@@ -120,6 +120,7 @@ class VerosLegacy(Veros):
                 self.fortran.calc_initial_conditions()
                 self.set_forcing()
                 self.fortran.streamfunction_init()
+                self.set_diagnostics()
                 self.fortran.check_isoneutral_slope_crit()
             else:
                 # self.set_parameter() is called twice, but that shouldn't matter
@@ -142,6 +143,7 @@ class VerosLegacy(Veros):
                 for diag, param, attr in diag_legacy_settings:
                     if hasattr(self, attr):
                         setattr(diag, param, getattr(self, attr))
+
 
     def run(self, **kwargs):
         if not self.legacy_mode:
@@ -222,11 +224,16 @@ class VerosLegacy(Veros):
                 f.vertical_velocity()
 
             # shift time
+            m.itt += 1
+            self.time += m.dt_tracer
+            
+            self.after_timestep()
+
             otaum1 = m.taum1 * 1
             m.taum1 = m.tau
             m.tau = m.taup1
             m.taup1 = otaum1
-            m.itt += 1
+
             logging.info("Current iteration: {}".format(m.itt))
             logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 

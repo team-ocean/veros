@@ -184,6 +184,12 @@ class Veros(object):
         """
         self._not_implemented()
 
+    def after_timestep(self):
+        """Called at the end of each time step. Can be used to define custom, setup-specific
+        events.
+        """
+        pass
+
     def flush(self):
         """Flush computations if supported by the current backend.
         """
@@ -255,8 +261,11 @@ class Veros(object):
                         if self.enable_idemix:
                             idemix.set_idemix_parameter(self)
 
-                        eke.set_eke_diffusivities(self)
-                        tke.set_tke_diffusivities(self)
+                        with self.timers["eke"]:
+                            eke.set_eke_diffusivities(self)
+
+                        with self.timers["tke"]:
+                            tke.set_tke_diffusivities(self)
 
                         with self.timers["momentum"]:
                             momentum.momentum(self)
@@ -293,6 +302,8 @@ class Veros(object):
 
                     self.itt += 1
                     self.time += self.dt_tracer
+
+                    self.after_timestep()
 
                     with self.timers["diagnostics"]:
                         if not diagnostics.sanity_check(self):
