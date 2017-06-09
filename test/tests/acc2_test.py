@@ -159,8 +159,7 @@ class ACC2(VerosLegacy):
 
     @veros_method
     def set_diagnostics(self):
-        self.diagnostics["averages"].output_variables = (
-            "salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy")
+        pass
 
 class ACC2Test(VerosRunTest):
     Testclass = ACC2
