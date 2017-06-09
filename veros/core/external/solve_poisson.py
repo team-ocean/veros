@@ -36,7 +36,7 @@ def solve(veros, rhs, sol, boundary_val=None):
     if boundary_val is None:
         boundary_val = sol
 
-    z = np.prod(~veros.boundary_mask, axis=2).astype(np.bool)
+    z = np.logical_and.reduce(~veros.boundary_mask, axis=2)
     rhs[...] = np.where(z, rhs, boundary_val) # set right hand side on boundaries
     linear_solution = solve.linear_solver(rhs, sol)
     sol[...] = boundary_val
