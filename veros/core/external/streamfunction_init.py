@@ -163,13 +163,15 @@ def streamfunction_init(veros):
         veros.line_dir_east_mask = np.asarray(veros.line_dir_east_mask)
         veros.line_dir_west_mask = np.asarray(veros.line_dir_west_mask)
 
+    solve_poisson.initialize_solver(veros)
+
     """
     precalculate time independent boundary components of streamfunction
     """
     forc = np.zeros((veros.nx+4, veros.ny+4), dtype=veros.default_float_type)
 
     # initialize with random noise to achieve uniform convergence
-    veros.psin[...] = np.random.rand(*veros.psin.shape)
+    veros.psin[...] = np.random.rand(*veros.psin.shape) * veros.maskZ[..., -1, np.newaxis]
 
     for isle in range(veros.nisle):
         logging.info(" solving for boundary contribution by island {:d}".format(isle))

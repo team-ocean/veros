@@ -56,8 +56,7 @@ def solve_streamfunction(veros):
         / (veros.cosu[2:-2] * veros.dyu[2:-2])
 
     # solve for interior streamfunction
-    veros.dpsi[:, :, veros.taup1] = 2 * veros.dpsi[:, :, veros.tau] - \
-        veros.dpsi[:, :, veros.taum1]  # first guess, we need three time levels here
+    veros.dpsi[:, :, veros.taup1] = 2 * veros.dpsi[:, :, veros.tau] - veros.dpsi[:, :, veros.taum1]
     solve_poisson.solve(veros, forc, veros.dpsi[:, :, veros.taup1])
 
     if veros.enable_cyclic_x:

@@ -182,9 +182,9 @@ class ACC2Test(VerosRunTest):
                     continue
                 if "salt" in a or a in ("B1_gm","B2_gm"): # salt and isoneutral streamfunctions aren't used by this example
                     continue
-                if a in ("psi", "psin"): # top row contains noise and is not part of the solution
-                    v1[2,:] = 0.
-                    v2[2,:] = 0.
+                #if a in ("psi", "psin"): # top row contains noise and is not part of the solution
+                #    v1[2,:] = 0.
+                #    v2[2,:] = 0.
                 passed = self.check_variable(a,atol=1e-5,data=(v1,v2)) and passed
         # plt.show()
         return passed

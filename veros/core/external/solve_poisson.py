@@ -6,11 +6,37 @@ try:
     import pyamg
     has_pyamg = True
 except ImportError:
-    warnings.warn("pyamg was not found, falling back to un-preconditioned CG solver")
     has_pyamg = False
 
 from .. import cyclic
 from ... import veros_method
+
+
+@veros_method
+def initialize_solver(veros):
+    matrix = _assemble_poisson_matrix(veros)
+    preconditioner = _jacobi_preconditioner(veros, matrix)
+    matrix = preconditioner * matrix
+    extra_args = {}
+
+    if veros.use_amg_preconditioner:
+        if has_pyamg:
+            ml = pyamg.smoothed_aggregation_solver(matrix)
+            extra_args["M"] = ml.aspreconditioner()
+        else:
+            warnings.warn("pyamg was not found, falling back to un-preconditioned CG solver")
+
+    def scipy_solver(rhs, x0):
+        rhs = rhs.flatten() * preconditioner.diagonal()
+        solution, info = spalg.bicgstab(matrix, rhs,
+                                        x0=x0.flatten(), tol=veros.congr_epsilon,
+                                        maxiter=veros.congr_max_iterations,
+                                        **extra_args)
+        if info > 0:
+            warnings.warn("Streamfunction solver did not converge after {} iterations".format(info))
+        return solution
+
+    veros.poisson_solver = scipy_solver
 
 
 @veros_method
@@ -25,56 +51,18 @@ def solve(veros, rhs, sol, boundary_val=None):
         boundary_val: Array containing values to set on boundary elements. Defaults to `sol`.
     """
     veros.flush()
-    # only initialize solver if parent object changes
-    if not solve.veros or solve.veros != id(veros):
-        solve.linear_solver = _get_scipy_solver(veros)
-        solve.veros = id(veros)
-
-    if veros.enable_cyclic_x:
-        cyclic.setcyclic_x(sol)
 
     if boundary_val is None:
         boundary_val = sol
 
-    z = np.logical_and.reduce(~veros.boundary_mask, axis=2)
-    rhs[...] = np.where(z, rhs, boundary_val) # set right hand side on boundaries
-    linear_solution = solve.linear_solver(rhs, sol)
+    if veros.enable_cyclic_x:
+        cyclic.setcyclic_x(sol)
+
+    boundary_mask = np.logical_and.reduce(~veros.boundary_mask, axis=2)
+    rhs[...] = np.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
+    linear_solution = veros.poisson_solver(rhs, sol)
     sol[...] = boundary_val
     sol[2:-2, 2:-2] = linear_solution.reshape(veros.nx + 4, veros.ny + 4)[2:-2, 2:-2]
-
-
-solve.veros = None
-
-
-@veros_method
-def _get_scipy_solver(veros):
-    matrix = _assemble_poisson_matrix(veros)
-    preconditioner = _jacobi_preconditioner(veros, matrix)
-    preconditioner.diagonal()[...] *= np.prod(~veros.boundary_mask, axis=2).astype(np.int).flatten()
-    matrix = preconditioner * matrix
-    extra_args = {}
-
-    if has_pyamg:
-        if veros.backend_name == "bohrium":
-            near_null_space = np.ones(matrix.shape[0], bohrium=False)
-        else:
-            near_null_space = np.ones(matrix.shape[0])
-        ml = pyamg.smoothed_aggregation_solver(matrix, near_null_space[:, np.newaxis])
-        extra_args["M"] = ml.aspreconditioner()
-
-    def scipy_solver(rhs, x0):
-        #if veros.backend_name == "bohrium":
-        #    rhs = rhs.copy2numpy()
-        #    x0 = x0.copy2numpy()
-        rhs = rhs.flatten() * preconditioner.diagonal()
-        solution, info = spalg.bicgstab(matrix, rhs,
-                                        x0=x0.flatten(), tol=veros.congr_epsilon,
-                                        maxiter=veros.congr_max_iterations,
-                                        **extra_args)
-        if info > 0:
-            warnings.warn("Streamfunction solver did not converge after {} iterations".format(info))
-        return solution
-    return scipy_solver
 
 
 @veros_method
@@ -93,6 +81,8 @@ def _assemble_poisson_matrix(veros):
     """
     Construct a sparse matrix based on the stencil for the 2D Poisson equation.
     """
+    boundary_mask = np.logical_and.reduce(~veros.boundary_mask, axis=2)
+
     # assemble diagonals
     main_diag = np.ones((veros.nx + 4, veros.ny + 4))
     east_diag, west_diag, north_diag, south_diag = (
@@ -109,18 +99,20 @@ def _assemble_poisson_matrix(veros):
         veros.dyt[np.newaxis, 3:-1] * veros.cost[np.newaxis, 3:-1] / veros.cosu[np.newaxis, 2:-2]
     south_diag[2:-2, 2:-2] = veros.hur[2:-2, 2:-2] / veros.dyu[np.newaxis, 2:-2] / \
         veros.dyt[np.newaxis, 2:-2] * veros.cost[np.newaxis, 2:-2] / veros.cosu[np.newaxis, 2:-2]
-    z = np.prod(np.invert(veros.boundary_mask), axis=2)  # used to enforce boundary conditions
     if veros.enable_cyclic_x:
         # couple edges of the domain
         wrap_diag_east, wrap_diag_west = (np.zeros((veros.nx + 4, veros.ny + 4)) for _ in range(2))
-        wrap_diag_east[2, 2:-2] = west_diag[2, 2:-2] * z[2, 2:-2]
-        wrap_diag_west[-3, 2:-2] = east_diag[-3, 2:-2] * z[-3, 2:-2]
+        wrap_diag_east[2, 2:-2] = west_diag[2, 2:-2] * boundary_mask[2, 2:-2]
+        wrap_diag_west[-3, 2:-2] = east_diag[-3, 2:-2] * boundary_mask[-3, 2:-2]
         west_diag[2, 2:-2] = 0.
         east_diag[-3, 2:-2] = 0.
 
     # construct sparse matrix
-    cf = tuple(diag.flatten() for diag in (z * main_diag + (1 - z), z *
-                                           east_diag, z * west_diag, z * north_diag, z * south_diag))
+    cf = tuple(diag.flatten() for diag in (boundary_mask * main_diag + (1 - boundary_mask),
+                                           boundary_mask * east_diag,
+                                           boundary_mask * west_diag,
+                                           boundary_mask * north_diag,
+                                           boundary_mask * south_diag))
     offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1)
 
     if veros.enable_cyclic_x:

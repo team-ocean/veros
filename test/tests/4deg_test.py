@@ -207,7 +207,7 @@ class GlobalFourDegree(VerosLegacy):
 
 class FourDegreeTest(VerosRunTest):
     Testclass = GlobalFourDegree
-    timesteps = 2
+    timesteps = 100
 
     def test_passed(self):
         differing_scalars = self.check_scalar_objects()
@@ -226,10 +226,7 @@ class FourDegreeTest(VerosRunTest):
                 if v2 is None:
                     print(a, "", v2)
                     continue
-                if "psi" in a:
-                    v1 *= self.veros_new.maskZ[..., -1, np.newaxis]
-                    v2 *= self.veros_new.maskZ[..., -1, np.newaxis]
-                this_passed = self.check_variable(a,atol=1e-5,data=(v1,v2))
+                this_passed = self.check_variable(a,atol=1e-4,data=(v1,v2))
                 passed = this_passed and passed
         return passed
 

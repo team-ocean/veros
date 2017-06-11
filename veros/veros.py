@@ -79,6 +79,7 @@ class Veros(object):
                 "vmix", "eq_of_state"
             )}
 
+        self.poisson_solver = None
         self.nisle = 0 # to be overriden during streamfunction_init
         self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
         self.time, self.itt = 0., 1 # current time and iteration

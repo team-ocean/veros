@@ -125,7 +125,8 @@ SETTINGS = OrderedDict([
     ("force_overwrite", Setting(False, bool, "Overwrite existing output files")),
     ("pyom_compatibility_mode", Setting(False, bool, "Force compatibility to pyOM2 (even reproducing bugs and other quirks). For testing purposes only.")),
     ("diskless_mode", Setting(False, bool, "Suppress all output to disk. Mainly used for testing purposes.")),
-    ("default_float_type", Setting("float64", str, "Default type to use for floating point arrays (e.g. ``float32`` or ``float64``)."))
+    ("default_float_type", Setting("float64", str, "Default type to use for floating point arrays (e.g. ``float32`` or ``float64``).")),
+    ("use_amg_preconditioner", Setting(True, bool, "Use AMG preconditioner in Poisson solver if pyamg is installed."))
 ])
 
 def set_default_settings(veros):
