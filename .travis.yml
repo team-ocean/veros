@@ -2,8 +2,6 @@ services:
   - docker
 
 language: python
-
-sudo: required
   
 branches:
   only:
@@ -12,7 +10,7 @@ branches:
 before_install:
   - wget https://github.com/git-lfs/git-lfs/releases/download/v2.1.1/git-lfs-linux-amd64-2.1.1.tar.gz
   - tar xvzf git-lfs-linux-amd64-2.1.1.tar.gz
-  - sudo ./git-lfs-2.1.1/install.sh
+  - PREFIX=$HOME/git-lfs ./git-lfs-2.1.1/install.sh
   - git-lfs install && git-lfs init && git-lfs pull
   - docker pull veros/ubuntu:16.04
 
