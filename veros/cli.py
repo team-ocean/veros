@@ -19,12 +19,12 @@ def parse_command_line():
     args, _ = parser.parse_known_args()
     return args
 
-def set_commandline_settings(veros):
-    for key, val in veros.command_line_settings:
+def set_commandline_settings(vs):
+    for key, val in vs.command_line_settings:
         setting = SETTINGS[key]
         if setting.type is bool:
             val = str_to_bool(val)
-        setattr(veros, key, setting.type(val))
+        setattr(vs, key, setting.type(val))
 
 def str_to_bool(string):
     return string.lower() in ("1", "true", "on")

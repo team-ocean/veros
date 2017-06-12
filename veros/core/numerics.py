@@ -4,7 +4,7 @@ from scipy.linalg import lapack
 
 
 @veros_method
-def u_centered_grid(veros, dyt, dyu, yt, yu):
+def u_centered_grid(vs, dyt, dyu, yt, yu):
     yu[0] = 0
     yu[1:] = np.cumsum(dyt[1:])
 
@@ -20,124 +20,122 @@ def u_centered_grid(veros, dyt, dyu, yt, yu):
 
 
 @veros_method
-def calc_grid(veros):
+def calc_grid(vs):
     """
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
     """
-    aloc = np.zeros((veros.nx, veros.ny), dtype=veros.default_float_type)
-    dxt_gl = np.zeros(veros.nx + 4, dtype=veros.default_float_type)
-    dxu_gl = np.zeros(veros.nx + 4, dtype=veros.default_float_type)
-    xt_gl = np.zeros(veros.nx + 4, dtype=veros.default_float_type)
-    xu_gl = np.zeros(veros.nx + 4, dtype=veros.default_float_type)
-    dyt_gl = np.zeros(veros.ny + 4, dtype=veros.default_float_type)
-    dyu_gl = np.zeros(veros.ny + 4, dtype=veros.default_float_type)
-    yt_gl = np.zeros(veros.ny + 4, dtype=veros.default_float_type)
-    yu_gl = np.zeros(veros.ny + 4, dtype=veros.default_float_type)
+    aloc = np.zeros((vs.nx, vs.ny), dtype=vs.default_float_type)
+    dxt_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
+    dxu_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
+    xt_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
+    xu_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
+    dyt_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
+    dyu_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
+    yt_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
+    yu_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
 
     """
     transfer from locally defined variables to global ones
     """
-    aloc[:, 0] = veros.dxt[2:-2]
+    aloc[:, 0] = vs.dxt[2:-2]
 
     dxt_gl[2:-2] = aloc[:, 0]
 
-    if veros.enable_cyclic_x:
-        dxt_gl[veros.nx + 2:veros.nx + 4] = dxt_gl[2:4]
-        dxt_gl[:2] = dxt_gl[veros.nx:-2]
+    if vs.enable_cyclic_x:
+        dxt_gl[vs.nx + 2:vs.nx + 4] = dxt_gl[2:4]
+        dxt_gl[:2] = dxt_gl[vs.nx:-2]
     else:
-        dxt_gl[veros.nx + 2:veros.nx + 4] = dxt_gl[veros.nx + 1]
+        dxt_gl[vs.nx + 2:vs.nx + 4] = dxt_gl[vs.nx + 1]
         dxt_gl[:2] = dxt_gl[2]
 
-    aloc[0, :] = veros.dyt[2:-2]
+    aloc[0, :] = vs.dyt[2:-2]
     dyt_gl[2:-2] = aloc[0, :]
 
-    dyt_gl[veros.ny + 2:veros.ny + 4] = dyt_gl[veros.ny + 1]
+    dyt_gl[vs.ny + 2:vs.ny + 4] = dyt_gl[vs.ny + 1]
     dyt_gl[:2] = dyt_gl[2]
 
     """
     grid in east/west direction
     """
-    u_centered_grid(veros, dxt_gl, dxu_gl, xt_gl, xu_gl)
-    xt_gl += veros.x_origin - xu_gl[2]
-    xu_gl += veros.x_origin - xu_gl[2]
+    u_centered_grid(vs, dxt_gl, dxu_gl, xt_gl, xu_gl)
+    xt_gl += vs.x_origin - xu_gl[2]
+    xu_gl += vs.x_origin - xu_gl[2]
 
-    if veros.enable_cyclic_x:
-        xt_gl[veros.nx + 2:veros.nx + 4] = xt_gl[2:4]
-        xt_gl[:2] = xt_gl[veros.nx:-2]
-        xu_gl[veros.nx + 2:veros.nx + 4] = xt_gl[2:4]
-        xu_gl[:2] = xu_gl[veros.nx:-2]
-        dxu_gl[veros.nx + 2:veros.nx + 4] = dxu_gl[2:4]
-        dxu_gl[:2] = dxu_gl[veros.nx:-2]
+    if vs.enable_cyclic_x:
+        xt_gl[vs.nx + 2:vs.nx + 4] = xt_gl[2:4]
+        xt_gl[:2] = xt_gl[vs.nx:-2]
+        xu_gl[vs.nx + 2:vs.nx + 4] = xt_gl[2:4]
+        xu_gl[:2] = xu_gl[vs.nx:-2]
+        dxu_gl[vs.nx + 2:vs.nx + 4] = dxu_gl[2:4]
+        dxu_gl[:2] = dxu_gl[vs.nx:-2]
 
     """
     grid in north/south direction
     """
-    u_centered_grid(veros, dyt_gl, dyu_gl, yt_gl, yu_gl)
-    yt_gl += veros.y_origin - yu_gl[2]
-    yu_gl += veros.y_origin - yu_gl[2]
+    u_centered_grid(vs, dyt_gl, dyu_gl, yt_gl, yu_gl)
+    yt_gl += vs.y_origin - yu_gl[2]
+    yu_gl += vs.y_origin - yu_gl[2]
 
-    if veros.coord_degree:
+    if vs.coord_degree:
         """
         convert from degrees to pseudo cartesian grid
         """
-        dxt_gl *= veros.degtom
-        dxu_gl *= veros.degtom
-        dyt_gl *= veros.degtom
-        dyu_gl *= veros.degtom
+        dxt_gl *= vs.degtom
+        dxu_gl *= vs.degtom
+        dyt_gl *= vs.degtom
+        dyu_gl *= vs.degtom
 
     """
     transfer to locally defined variables
     """
-    veros.xt[:] = xt_gl[:]
-    veros.xu[:] = xu_gl[:]
-    veros.dxu[:] = dxu_gl[:]
-    veros.dxt[:] = dxt_gl[:]
+    vs.xt[:] = xt_gl[:]
+    vs.xu[:] = xu_gl[:]
+    vs.dxu[:] = dxu_gl[:]
+    vs.dxt[:] = dxt_gl[:]
 
-    veros.yt[:] = yt_gl[:]
-    veros.yu[:] = yu_gl[:]
-    veros.dyu[:] = dyu_gl[:]
-    veros.dyt[:] = dyt_gl[:]
+    vs.yt[:] = yt_gl[:]
+    vs.yu[:] = yu_gl[:]
+    vs.dyu[:] = dyu_gl[:]
+    vs.dyt[:] = dyt_gl[:]
 
     """
     grid in vertical direction
     """
-    u_centered_grid(veros, veros.dzt, veros.dzw, veros.zt, veros.zw)
-    veros.zt -= veros.zw[-1]
-    veros.zw -= veros.zw[-1]  # zero at zw(nz)
+    u_centered_grid(vs, vs.dzt, vs.dzw, vs.zt, vs.zw)
+    vs.zt -= vs.zw[-1]
+    vs.zw -= vs.zw[-1]  # zero at zw(nz)
 
     """
     metric factors
     """
-    if veros.coord_degree:
-        veros.cost[...] = np.cos(veros.yt * veros.pi / 180.)
-        veros.cosu[...] = np.cos(veros.yu * veros.pi / 180.)
-        veros.tantr[...] = np.tan(veros.yt * veros.pi / 180.) / veros.radius
+    if vs.coord_degree:
+        vs.cost[...] = np.cos(vs.yt * vs.pi / 180.)
+        vs.cosu[...] = np.cos(vs.yu * vs.pi / 180.)
+        vs.tantr[...] = np.tan(vs.yt * vs.pi / 180.) / vs.radius
     else:
-        veros.cost[...] = 1.0
-        veros.cosu[...] = 1.0
-        veros.tantr[...] = 0.0
+        vs.cost[...] = 1.0
+        vs.cosu[...] = 1.0
+        vs.tantr[...] = 0.0
 
     """
     precalculate area of boxes
     """
-    veros.area_t[...] = veros.cost * veros.dyt * veros.dxt[:, np.newaxis]
-    veros.area_u[...] = veros.cost * veros.dyt * veros.dxu[:, np.newaxis]
-    veros.area_v[...] = veros.cosu * veros.dyu * veros.dxt[:, np.newaxis]
+    vs.area_t[...] = vs.cost * vs.dyt * vs.dxt[:, np.newaxis]
+    vs.area_u[...] = vs.cost * vs.dyt * vs.dxu[:, np.newaxis]
+    vs.area_v[...] = vs.cosu * vs.dyu * vs.dxt[:, np.newaxis]
 
 
 @veros_method
-def calc_beta(veros):
+def calc_beta(vs):
     """
     calculate beta = df/dy
     """
-    veros.beta[:, 2:-2] = 0.5 * ((veros.coriolis_t[:, 3:-1] - veros.coriolis_t[:, 2:-2])
-                                 / veros.dyu[2:-2]
-                                 + (veros.coriolis_t[:, 2:-2] - veros.coriolis_t[:, 1:-3])
-                                 / veros.dyu[1:-3])
+    vs.beta[:, 2:-2] = 0.5 * ((vs.coriolis_t[:, 3:-1] - vs.coriolis_t[:, 2:-2]) / vs.dyu[2:-2] \
+                            + (vs.coriolis_t[:, 2:-2] - vs.coriolis_t[:, 1:-3]) / vs.dyu[1:-3])
 
 
 @veros_method
-def calc_topo(veros):
+def calc_topo(vs):
     """
     calulate masks, total depth etc
     """
@@ -145,102 +143,98 @@ def calc_topo(veros):
     """
     close domain
     """
-    veros.kbot[:, :2] = 0
-    veros.kbot[:, -2:] = 0
-    if veros.enable_cyclic_x:
-        cyclic.setcyclic_x(veros.kbot)
+    vs.kbot[:, :2] = 0
+    vs.kbot[:, -2:] = 0
+    if vs.enable_cyclic_x:
+        cyclic.setcyclic_x(vs.kbot)
     else:
-        veros.kbot[:2, :] = 0
-        veros.kbot[-2:, :] = 0
+        vs.kbot[:2, :] = 0
+        vs.kbot[-2:, :] = 0
 
     """
     Land masks
     """
-    veros.maskT[...] = 0.0
-    land_mask = veros.kbot > 0
-    ks = np.arange(veros.maskT.shape[2])[np.newaxis, np.newaxis, :]
-    veros.maskT[...] = land_mask[..., np.newaxis] & (veros.kbot[..., np.newaxis] - 1 <= ks)
+    vs.maskT[...] = 0.0
+    land_mask = vs.kbot > 0
+    ks = np.arange(vs.maskT.shape[2])[np.newaxis, np.newaxis, :]
+    vs.maskT[...] = land_mask[..., np.newaxis] & (vs.kbot[..., np.newaxis] - 1 <= ks)
 
-    if veros.enable_cyclic_x:
-        cyclic.setcyclic_x(veros.maskT)
-    veros.maskU[...] = veros.maskT
-    veros.maskU[:veros.nx + 3, :,
-                :] = np.minimum(veros.maskT[:veros.nx + 3, :, :], veros.maskT[1:veros.nx + 4, :, :])
-    if veros.enable_cyclic_x:
-        cyclic.setcyclic_x(veros.maskU)
-    veros.maskV[...] = veros.maskT
-    veros.maskV[:, :-1] = np.minimum(veros.maskT[:, :-1], veros.maskT[:, 1:veros.ny + 4])
-    if veros.enable_cyclic_x:
-        cyclic.setcyclic_x(veros.maskV)
-    veros.maskZ[...] = veros.maskT
-    veros.maskZ[:veros.nx + 3, :-1] = np.minimum(np.minimum(veros.maskT[:veros.nx + 3, :-1],
-                                                            veros.maskT[:veros.nx + 3, 1:veros.ny + 4]),
-                                                 veros.maskT[1:veros.nx + 4, :-1])
-    if veros.enable_cyclic_x:
-        cyclic.setcyclic_x(veros.maskZ)
-    veros.maskW[...] = veros.maskT
-    veros.maskW[:, :, :veros.nz -
-                1] = np.minimum(veros.maskT[:, :, :veros.nz - 1], veros.maskT[:, :, 1:veros.nz])
+    if vs.enable_cyclic_x:
+        cyclic.setcyclic_x(vs.maskT)
+    vs.maskU[...] = vs.maskT
+    vs.maskU[:vs.nx + 3, :, :] = np.minimum(vs.maskT[:vs.nx + 3, :, :], vs.maskT[1:vs.nx + 4, :, :])
+    if vs.enable_cyclic_x:
+        cyclic.setcyclic_x(vs.maskU)
+    vs.maskV[...] = vs.maskT
+    vs.maskV[:, :-1] = np.minimum(vs.maskT[:, :-1], vs.maskT[:, 1:vs.ny + 4])
+    if vs.enable_cyclic_x:
+        cyclic.setcyclic_x(vs.maskV)
+    vs.maskZ[...] = vs.maskT
+    vs.maskZ[:vs.nx + 3, :-1] = np.minimum(np.minimum(vs.maskT[:vs.nx + 3, :-1],
+                                                      vs.maskT[:vs.nx + 3, 1:vs.ny + 4]),
+                                                 vs.maskT[1:vs.nx + 4, :-1])
+    if vs.enable_cyclic_x:
+        cyclic.setcyclic_x(vs.maskZ)
+    vs.maskW[...] = vs.maskT
+    vs.maskW[:, :, :vs.nz - 1] = np.minimum(vs.maskT[:, :, :vs.nz - 1], vs.maskT[:, :, 1:vs.nz])
 
     """
     total depth
     """
-    veros.ht[...] = np.sum(veros.maskT * veros.dzt[np.newaxis, np.newaxis, :], axis=2)
-    veros.hu[...] = np.sum(veros.maskU * veros.dzt[np.newaxis, np.newaxis, :], axis=2)
-    veros.hv[...] = np.sum(veros.maskV * veros.dzt[np.newaxis, np.newaxis, :], axis=2)
+    vs.ht[...] = np.sum(vs.maskT * vs.dzt[np.newaxis, np.newaxis, :], axis=2)
+    vs.hu[...] = np.sum(vs.maskU * vs.dzt[np.newaxis, np.newaxis, :], axis=2)
+    vs.hv[...] = np.sum(vs.maskV * vs.dzt[np.newaxis, np.newaxis, :], axis=2)
 
-    mask = (veros.hu == 0).astype(np.float)
-    veros.hur[...] = 1. / (veros.hu + mask) * (1 - mask)
-    mask = (veros.hv == 0).astype(np.float)
-    veros.hvr[...] = 1. / (veros.hv + mask) * (1 - mask)
+    mask = (vs.hu == 0).astype(np.float)
+    vs.hur[...] = 1. / (vs.hu + mask) * (1 - mask)
+    mask = (vs.hv == 0).astype(np.float)
+    vs.hvr[...] = 1. / (vs.hv + mask) * (1 - mask)
 
 
 @veros_method
-def calc_initial_conditions(veros):
+def calc_initial_conditions(vs):
     """
     calculate dyn. enthalp, etc
     """
-    if np.sum(veros.salt < 0.0):
+    if np.sum(vs.salt < 0.0):
         raise RuntimeError("encountered negative salinity")
 
-    if veros.enable_cyclic_x:
-        cyclic.setcyclic_x(veros.temp)
-        cyclic.setcyclic_x(veros.salt)
+    if vs.enable_cyclic_x:
+        cyclic.setcyclic_x(vs.temp)
+        cyclic.setcyclic_x(vs.salt)
 
-    veros.rho[...] = density.get_rho(veros, veros.salt, veros.temp, np.abs(veros.zt)[
-                                     :, np.newaxis]) * veros.maskT[..., np.newaxis]
-    veros.Hd[...] = density.get_dyn_enthalpy(veros, veros.salt, veros.temp, np.abs(veros.zt)[
-                                             :, np.newaxis]) * veros.maskT[..., np.newaxis]
-    veros.int_drhodT[...] = density.get_int_drhodT(
-        veros, veros.salt, veros.temp, np.abs(veros.zt)[:, np.newaxis])
-    veros.int_drhodS[...] = density.get_int_drhodS(
-        veros, veros.salt, veros.temp, np.abs(veros.zt)[:, np.newaxis])
+    vs.rho[...] = density.get_rho(vs, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis]) \
+                  * vs.maskT[..., np.newaxis]
+    vs.Hd[...] = density.get_dyn_enthalpy(vs, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis]) \
+                 * vs.maskT[..., np.newaxis]
+    vs.int_drhodT[...] = density.get_int_drhodT(vs, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis])
+    vs.int_drhodS[...] = density.get_int_drhodS(vs, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis])
 
-    fxa = -veros.grav / veros.rho_0 / veros.dzw[np.newaxis, np.newaxis, :] * veros.maskW
-    veros.Nsqr[:, :, :-1, :] = fxa[:, :, :-1, np.newaxis] * \
-        (density.get_rho(veros, veros.salt[:, :, 1:, :], veros.temp[:, :, 1:, :], np.abs(veros.zt)[:-1, np.newaxis])
-         - veros.rho[:, :, :-1, :])
-    veros.Nsqr[:, :, -1, :] = veros.Nsqr[:, :, -2, :]
+    fxa = -vs.grav / vs.rho_0 / vs.dzw[np.newaxis, np.newaxis, :] * vs.maskW
+    vs.Nsqr[:, :, :-1, :] = fxa[:, :, :-1, np.newaxis] \
+        * (density.get_rho(vs, vs.salt[:, :, 1:, :], vs.temp[:, :, 1:, :], np.abs(vs.zt)[:-1, np.newaxis]) \
+         - vs.rho[:, :, :-1, :])
+    vs.Nsqr[:, :, -1, :] = vs.Nsqr[:, :, -2, :]
 
 
 @veros_method
-def ugrid_to_tgrid(veros, a):
+def ugrid_to_tgrid(vs, a):
     b = np.zeros_like(a)
-    b[2:-2, :, :] = (veros.dxu[2:-2, np.newaxis, np.newaxis] * a[2:-2, :, :] + veros.dxu[1:-3, np.newaxis, np.newaxis] * a[1:-3, :, :]) \
-        / (2 * veros.dxt[2:-2, np.newaxis, np.newaxis])
+    b[2:-2, :, :] = (vs.dxu[2:-2, np.newaxis, np.newaxis] * a[2:-2, :, :] + vs.dxu[1:-3, np.newaxis, np.newaxis] * a[1:-3, :, :]) \
+        / (2 * vs.dxt[2:-2, np.newaxis, np.newaxis])
     return b
 
 
 @veros_method
-def vgrid_to_tgrid(veros, a):
+def vgrid_to_tgrid(vs, a):
     b = np.zeros_like(a)
-    b[:, 2:-2, :] = (veros.area_v[:, 2:-2, np.newaxis] * a[:, 2:-2, :] + veros.area_v[:, 1:-3, np.newaxis] * a[:, 1:-3, :]) \
-        / (2 * veros.area_t[:, 2:-2, np.newaxis])
+    b[:, 2:-2, :] = (vs.area_v[:, 2:-2, np.newaxis] * a[:, 2:-2, :] + vs.area_v[:, 1:-3, np.newaxis] * a[:, 1:-3, :]) \
+        / (2 * vs.area_t[:, 2:-2, np.newaxis])
     return b
 
 
 @veros_method
-def solve_tridiag(veros, a, b, c, d):
+def solve_tridiag(vs, a, b, c, d):
     """
     Solves a tridiagonal matrix system with diagonals a, b, c and RHS vector d.
     Uses LAPACK when running with NumPy, and otherwise the Thomas algorithm iterating over the
@@ -254,16 +248,16 @@ def solve_tridiag(veros, a, b, c, d):
 
 
 @veros_method
-def calc_diss(veros, diss, K_diss, tag):
+def calc_diss(vs, diss, K_diss, tag):
     diss_u = np.zeros_like(diss)
-    ks = np.zeros_like(veros.kbot)
+    ks = np.zeros_like(vs.kbot)
     if tag == 'U':
-        ks[1:-2, 2:-2] = np.maximum(veros.kbot[1:-2, 2:-2], veros.kbot[2:-1, 2:-2]) - 1
+        ks[1:-2, 2:-2] = np.maximum(vs.kbot[1:-2, 2:-2], vs.kbot[2:-1, 2:-2]) - 1
         interpolator = ugrid_to_tgrid
     elif tag == 'V':
-        ks[2:-2, 1:-2] = np.maximum(veros.kbot[2:-2, 1:-2], veros.kbot[2:-2, 2:-1]) - 1
+        ks[2:-2, 1:-2] = np.maximum(vs.kbot[2:-2, 1:-2], vs.kbot[2:-2, 2:-1]) - 1
         interpolator = vgrid_to_tgrid
     else:
         raise ValueError("unknown tag {} (must be 'U' or 'V')".format(tag))
-    diffusion.dissipation_on_wgrid(veros, diss_u, aloc=diss, ks=ks)
-    return K_diss + interpolator(veros, diss_u)
+    diffusion.dissipation_on_wgrid(vs, diss_u, aloc=diss, ks=ks)
+    return K_diss + interpolator(vs, diss_u)

@@ -166,7 +166,7 @@ from Veros's :file:`test` folder.
 
 If you deliberately introduced breaking changes, you can disable them during testing by prefixing them with::
 
-   if not veros.pyom_compatibility_mode:
+   if not vs.pyom_compatibility_mode:
        # your changes
 
 Automated benchmarks are provided in a similar fashion. The benchmarks run some dummy problems with varying problem sizes and all available computational backends: ``numpy``, ``bohrium-openmp``, ``bohrium-opencl``, ``fortran`` (pyOM2), and ``fortran-mpi`` (parallel pyOM2). For options and further information run::
@@ -185,10 +185,10 @@ If your changes to Veros turn out to have a negative effect on the runtime of th
 - You should try and avoid explict loops over arrays at all cost (even more so when using Bohrium). You should always try to work on the whole array at once.
 - When using Bohrium, it is sometimes beneficial to copy an array to NumPy before passing it to an external module or performing an operation that cannot be vectorized efficiently. Just don't forget to copy it back to Bohrium after you are finished, e.g. like so: ::
 
-      if veros.backend_name == "bohrium":
-          u_np = veros.u.copy2numpy()
+      if vs.backend_name == "bohrium":
+          u_np = vs.u.copy2numpy()
       else:
-          u_np = veros.y
-      veros.u[...] = np.asarray(external_function(u_np))
+          u_np = vs.y
+      vs.u[...] = np.asarray(external_function(u_np))
 
 - If you are still having trouble, don't hesitate to ask for help (e.g. `on GitHub <https://github.com/dionhaefner/veros/issues>`_).

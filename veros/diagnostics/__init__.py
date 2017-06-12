@@ -6,58 +6,58 @@ from .io_tools import hdf5 as h5tools
 
 
 @veros_method
-def create_diagnostics(veros):
-    return {Diag.name: Diag(veros) for Diag in (averages.Averages, cfl_monitor.CFLMonitor,
+def create_diagnostics(vs):
+    return {Diag.name: Diag(vs) for Diag in (averages.Averages, cfl_monitor.CFLMonitor,
                                                 energy.Energy, overturning.Overturning,
                                                 snapshot.Snapshot, tracer_monitor.TracerMonitor)}
 
 @veros_method
-def sanity_check(veros):
-    return np.all(np.isfinite(veros.u))
+def sanity_check(vs):
+    return np.all(np.isfinite(vs.u))
 
 @veros_method
-def read_restart(veros):
-    if not veros.restart_input_filename:
+def read_restart(vs):
+    if not vs.restart_input_filename:
         return
-    if veros.force_overwrite:
+    if vs.force_overwrite:
         raise RuntimeError("to prevent data loss, force_overwrite cannot be used in restart runs")
     logging.info("Reading restarts")
-    for diagnostic in veros.diagnostics.values():
-        diagnostic.read_restart(veros)
+    for diagnostic in vs.diagnostics.values():
+        diagnostic.read_restart(vs)
 
 @veros_method
-def write_restart(veros, force=False):
-    if veros.diskless_mode:
+def write_restart(vs, force=False):
+    if vs.diskless_mode:
         return
-    if force or veros.restart_frequency and veros.time % veros.restart_frequency < veros.dt_tracer:
-        with h5tools.threaded_io(veros, veros.restart_output_filename.format(**vars(veros)), "w") as outfile:
-            for diagnostic in veros.diagnostics.values():
-                diagnostic.write_restart(veros, outfile)
+    if force or vs.restart_frequency and vs.time % vs.restart_frequency < vs.dt_tracer:
+        with h5tools.threaded_io(vs, vs.restart_output_filename.format(**vars(vs)), "w") as outfile:
+            for diagnostic in vs.diagnostics.values():
+                diagnostic.write_restart(vs, outfile)
 
 @veros_method
-def initialize(veros):
-    for name, diagnostic in veros.diagnostics.items():
-        diagnostic.initialize(veros)
+def initialize(vs):
+    for name, diagnostic in vs.diagnostics.items():
+        diagnostic.initialize(vs)
         if diagnostic.sampling_frequency:
             logging.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
-                         .format(name, time.format_time(veros, diagnostic.sampling_frequency),
-                                 diagnostic.sampling_frequency / veros.dt_tracer))
+                         .format(name, time.format_time(vs, diagnostic.sampling_frequency),
+                                 diagnostic.sampling_frequency / vs.dt_tracer))
         if diagnostic.output_frequency:
             logging.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
-                         .format(name, time.format_time(veros, diagnostic.output_frequency),
-                                 diagnostic.output_frequency / veros.dt_tracer))
+                         .format(name, time.format_time(vs, diagnostic.output_frequency),
+                                 diagnostic.output_frequency / vs.dt_tracer))
 
 @veros_method
-def diagnose(veros):
-    for diagnostic in veros.diagnostics.values():
-        if diagnostic.sampling_frequency and veros.time % diagnostic.sampling_frequency < veros.dt_tracer:
-            diagnostic.diagnose(veros)
+def diagnose(vs):
+    for diagnostic in vs.diagnostics.values():
+        if diagnostic.sampling_frequency and vs.time % diagnostic.sampling_frequency < vs.dt_tracer:
+            diagnostic.diagnose(vs)
 
 @veros_method
-def output(veros):
-    for diagnostic in veros.diagnostics.values():
-        if diagnostic.output_frequency and veros.time % diagnostic.output_frequency < veros.dt_tracer:
-            diagnostic.output(veros)
+def output(vs):
+    for diagnostic in vs.diagnostics.values():
+        if diagnostic.output_frequency and vs.time % diagnostic.output_frequency < vs.dt_tracer:
+            diagnostic.output(vs)
 
 def start_profiler():
     import pyinstrument

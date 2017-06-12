@@ -60,7 +60,7 @@ rho0 = 1024.0
 
 
 @veros_method
-def gsw_rho(veros, sa, ct, p):
+def gsw_rho(vs, sa, ct, p):
     """
      density as a function of T, S, and p
      sa     : Absolute Salinity                               [g/kg]
@@ -85,7 +85,7 @@ def gsw_rho(veros, sa, ct, p):
 
 
 @veros_method
-def gsw_drhodT(veros, sa, ct, p):
+def gsw_drhodT(vs, sa, ct, p):
     """
     d/dT of density
     sa     : Absolute Salinity                               [g/kg]
@@ -151,7 +151,7 @@ def gsw_drhodT(veros, sa, ct, p):
 
 
 @veros_method
-def gsw_drhodS(veros, sa, ct, p):
+def gsw_drhodS(vs, sa, ct, p):
     """
      d/dS of density
      sa     : Absolute Salinity                               [g/kg]
@@ -209,7 +209,7 @@ def gsw_drhodS(veros, sa, ct, p):
 
 
 @veros_method
-def gsw_drhodP(veros, sa, ct, p):
+def gsw_drhodP(vs, sa, ct, p):
     """
      d/dp of density
      sa     : Absolute Salinity                               [g/kg]
@@ -264,7 +264,7 @@ def gsw_drhodP(veros, sa, ct, p):
 
 
 @veros_method
-def gsw_dyn_enthalpy(veros, sa, ct, p):
+def gsw_dyn_enthalpy(vs, sa, ct, p):
     """
      Calculates dynamic enthalpy of seawater using the computationally
      efficient 48-term expression for density in terms of SA, CT and p
@@ -304,7 +304,7 @@ def gsw_dyn_enthalpy(veros, sa, ct, p):
 
 
 @veros_method
-def gsw_dHdT1(veros, sa, ct, p):
+def gsw_dHdT1(vs, sa, ct, p):
     """
      d/dT of dynamic enthalpy, numerical derivative
      sa     : Absolute Salinity                               [g/kg]
@@ -318,7 +318,7 @@ def gsw_dHdT1(veros, sa, ct, p):
 
 
 @veros_method
-def gsw_dHdS1(veros, sa, ct, p):
+def gsw_dHdS1(vs, sa, ct, p):
     """
      d/dS of dynamic enthalpy, numerical derivative
      sa     : Absolute Salinity                               [g/kg]
@@ -332,7 +332,7 @@ def gsw_dHdS1(veros, sa, ct, p):
 
 
 @veros_method
-def gsw_dHdT(veros, sa_in, ct_in, p):
+def gsw_dHdT(vs, sa_in, ct_in, p):
     """
     Code should not look like this, but I am not 100% sure what this does.
 
@@ -452,7 +452,7 @@ def gsw_dHdT(veros, sa_in, ct_in, p):
 
 
 @veros_method
-def gsw_dHdS(veros, sa_in, ct_in, p):
+def gsw_dHdS(vs, sa_in, ct_in, p):
     """
     d/dS of dynamic enthalpy, analytical derivative
     sa     : Absolute Salinity                               [g/kg]

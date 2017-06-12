@@ -5,444 +5,440 @@ from . import numerics, utilities, cyclic
 
 
 @veros_method
-def explicit_vert_friction(veros):
+def explicit_vert_friction(vs):
     """
     explicit vertical friction
     dissipation is calculated and added to K_diss_v
     """
-    diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
+    diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
 
     """
     vertical friction of zonal momentum
     """
-    fxa = 0.5 * (veros.kappaM[1:-2, 1:-2, :-1] + veros.kappaM[2:-1, 1:-2, :-1])
-    veros.flux_top[1:-2, 1:-2, :-1] = fxa * (veros.u[1:-2, 1:-2, 1:, veros.tau] - veros.u[1:-2, 1:-2, :-1, veros.tau]) \
-        / veros.dzw[np.newaxis, np.newaxis, :-1] * veros.maskU[1:-2, 1:-2, 1:] * veros.maskU[1:-2, 1:-2, :-1]
-    veros.flux_top[:, :, -1] = 0.0
-    veros.du_mix[:, :, 0] = veros.flux_top[:, :, 0] / veros.dzt[0] * veros.maskU[:, :, 0]
-    veros.du_mix[:, :, 1:] = (veros.flux_top[:, :, 1:] - veros.flux_top[:,
-                                                                        :, :-1]) / veros.dzt[1:] * veros.maskU[:, :, 1:]
+    fxa = 0.5 * (vs.kappaM[1:-2, 1:-2, :-1] + vs.kappaM[2:-1, 1:-2, :-1])
+    vs.flux_top[1:-2, 1:-2, :-1] = fxa * (vs.u[1:-2, 1:-2, 1:, vs.tau] - vs.u[1:-2, 1:-2, :-1, vs.tau]) \
+        / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskU[1:-2, 1:-2, 1:] * vs.maskU[1:-2, 1:-2, :-1]
+    vs.flux_top[:, :, -1] = 0.0
+    vs.du_mix[:, :, 0] = vs.flux_top[:, :, 0] / vs.dzt[0] * vs.maskU[:, :, 0]
+    vs.du_mix[:, :, 1:] = (vs.flux_top[:, :, 1:] - vs.flux_top[:, :, :-1]) / vs.dzt[1:] * vs.maskU[:, :, 1:]
 
     """
     diagnose dissipation by vertical friction of zonal momentum
     """
-    diss[1:-2, 1:-2, :-1] = (veros.u[1:-2, 1:-2, 1:, veros.tau] - veros.u[1:-2, 1:-2, :-1, veros.tau]) \
-        * veros.flux_top[1:-2, 1:-2, :-1] / veros.dzw[np.newaxis, np.newaxis, :-1]
-    diss[:, :, veros.nz - 1] = 0.0
-    diss[...] = numerics.ugrid_to_tgrid(veros, diss)
-    veros.K_diss_v += diss
+    diss[1:-2, 1:-2, :-1] = (vs.u[1:-2, 1:-2, 1:, vs.tau] - vs.u[1:-2, 1:-2, :-1, vs.tau]) \
+        * vs.flux_top[1:-2, 1:-2, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1]
+    diss[:, :, vs.nz - 1] = 0.0
+    diss[...] = numerics.ugrid_to_tgrid(vs, diss)
+    vs.K_diss_v += diss
 
     """
     vertical friction of meridional momentum
     """
-    fxa = 0.5 * (veros.kappaM[1:-2, 1:-2, :-1] + veros.kappaM[1:-2, 2:-1, :-1])
-    veros.flux_top[1:-2, 1:-2, :-1] = fxa * (veros.v[1:-2, 1:-2, 1:, veros.tau] - veros.v[1:-2, 1:-2, :-1, veros.tau]) \
-        / veros.dzw[np.newaxis, np.newaxis, :-1] * veros.maskV[1:-2, 1:-2, 1:] \
-        * veros.maskV[1:-2, 1:-2, :-1]
-    veros.flux_top[:, :, -1] = 0.0
-    veros.dv_mix[:, :, 1:] = (veros.flux_top[:, :, 1:] - veros.flux_top[:, :, :-1]) \
-        / veros.dzt[np.newaxis, np.newaxis, 1:] * veros.maskV[:, :, 1:]
-    veros.dv_mix[:, :, 0] = veros.flux_top[:, :, 0] / veros.dzt[0] * veros.maskV[:, :, 0]
+    fxa = 0.5 * (vs.kappaM[1:-2, 1:-2, :-1] + vs.kappaM[1:-2, 2:-1, :-1])
+    vs.flux_top[1:-2, 1:-2, :-1] = fxa * (vs.v[1:-2, 1:-2, 1:, vs.tau] - vs.v[1:-2, 1:-2, :-1, vs.tau]) \
+        / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskV[1:-2, 1:-2, 1:] \
+        * vs.maskV[1:-2, 1:-2, :-1]
+    vs.flux_top[:, :, -1] = 0.0
+    vs.dv_mix[:, :, 1:] = (vs.flux_top[:, :, 1:] - vs.flux_top[:, :, :-1]) \
+        / vs.dzt[np.newaxis, np.newaxis, 1:] * vs.maskV[:, :, 1:]
+    vs.dv_mix[:, :, 0] = vs.flux_top[:, :, 0] / vs.dzt[0] * vs.maskV[:, :, 0]
 
     """
     diagnose dissipation by vertical friction of meridional momentum
     """
-    diss[1:-2, 1:-2, :-1] = (veros.v[1:-2, 1:-2, 1:, veros.tau] - veros.v[1:-2, 1:-2, :-1, veros.tau]) \
-        * veros.flux_top[1:-2, 1:-2, :-1] / veros.dzw[np.newaxis, np.newaxis, :-1]
+    diss[1:-2, 1:-2, :-1] = (vs.v[1:-2, 1:-2, 1:, vs.tau] - vs.v[1:-2, 1:-2, :-1, vs.tau]) \
+        * vs.flux_top[1:-2, 1:-2, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1]
     diss[:, :, -1] = 0.0
-    diss[...] = numerics.vgrid_to_tgrid(veros, diss)
-    veros.K_diss_v += diss
+    diss[...] = numerics.vgrid_to_tgrid(vs, diss)
+    vs.K_diss_v += diss
 
 
 @veros_method
-def implicit_vert_friction(veros):
+def implicit_vert_friction(vs):
     """
     vertical friction
     dissipation is calculated and added to K_diss_v
     """
-    a_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
-    b_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
-    c_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
-    d_tri = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
-    delta = np.zeros((veros.nx + 1, veros.ny + 1, veros.nz), dtype=veros.default_float_type)
-    diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
+    a_tri = np.zeros((vs.nx + 1, vs.ny + 1, vs.nz), dtype=vs.default_float_type)
+    b_tri = np.zeros((vs.nx + 1, vs.ny + 1, vs.nz), dtype=vs.default_float_type)
+    c_tri = np.zeros((vs.nx + 1, vs.ny + 1, vs.nz), dtype=vs.default_float_type)
+    d_tri = np.zeros((vs.nx + 1, vs.ny + 1, vs.nz), dtype=vs.default_float_type)
+    delta = np.zeros((vs.nx + 1, vs.ny + 1, vs.nz), dtype=vs.default_float_type)
+    diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
 
     """
     implicit vertical friction of zonal momentum
     """
-    kss = np.maximum(veros.kbot[1:-2, 1:-2], veros.kbot[2:-1, 1:-2]) - 1
-    fxa = 0.5 * (veros.kappaM[1:-2, 1:-2, :-1] + veros.kappaM[2:-1, 1:-2, :-1])
-    delta[:, :, :-1] = veros.dt_mom / veros.dzw[:-1] * fxa * \
-        veros.maskU[1:-2, 1:-2, 1:] * veros.maskU[1:-2, 1:-2, :-1]
-    a_tri[:, :, 1:] = -delta[:, :, :-1] / veros.dzt[np.newaxis, np.newaxis, 1:]
-    b_tri[:, :, 1:] = 1 + delta[:, :, :-1] / veros.dzt[np.newaxis, np.newaxis, 1:]
-    b_tri[:, :, 1:-1] += delta[:, :, 1:-1] / veros.dzt[np.newaxis, np.newaxis, 1:-1]
-    b_tri_edge = 1 + delta / veros.dzt[np.newaxis, np.newaxis, :]
-    c_tri[...] = -delta / veros.dzt[np.newaxis, np.newaxis, :]
-    d_tri[...] = veros.u[1:-2, 1:-2, :, veros.tau]
-    res, mask = utilities.solve_implicit(veros, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    veros.u[1:-2, 1:-2, :, veros.taup1] = np.where(mask, res, veros.u[1:-2, 1:-2, :, veros.taup1])
+    kss = np.maximum(vs.kbot[1:-2, 1:-2], vs.kbot[2:-1, 1:-2]) - 1
+    fxa = 0.5 * (vs.kappaM[1:-2, 1:-2, :-1] + vs.kappaM[2:-1, 1:-2, :-1])
+    delta[:, :, :-1] = vs.dt_mom / vs.dzw[:-1] * fxa * \
+        vs.maskU[1:-2, 1:-2, 1:] * vs.maskU[1:-2, 1:-2, :-1]
+    a_tri[:, :, 1:] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
+    b_tri[:, :, 1:] = 1 + delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
+    b_tri[:, :, 1:-1] += delta[:, :, 1:-1] / vs.dzt[np.newaxis, np.newaxis, 1:-1]
+    b_tri_edge = 1 + delta / vs.dzt[np.newaxis, np.newaxis, :]
+    c_tri[...] = -delta / vs.dzt[np.newaxis, np.newaxis, :]
+    d_tri[...] = vs.u[1:-2, 1:-2, :, vs.tau]
+    res, mask = utilities.solve_implicit(vs, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    vs.u[1:-2, 1:-2, :, vs.taup1] = np.where(mask, res, vs.u[1:-2, 1:-2, :, vs.taup1])
 
-    veros.du_mix[1:-2, 1:-2] = (veros.u[1:-2, 1:-2, :, veros.taup1] -
-                                veros.u[1:-2, 1:-2, :, veros.tau]) / veros.dt_mom
+    vs.du_mix[1:-2, 1:-2] = (vs.u[1:-2, 1:-2, :, vs.taup1] -
+                                vs.u[1:-2, 1:-2, :, vs.tau]) / vs.dt_mom
 
     """
     diagnose dissipation by vertical friction of zonal momentum
     """
-    fxa = 0.5 * (veros.kappaM[1:-2, 1:-2, :-1] + veros.kappaM[2:-1, 1:-2, :-1])
-    veros.flux_top[1:-2, 1:-2, :-1] = fxa * (veros.u[1:-2, 1:-2, 1:, veros.taup1] - veros.u[1:-2, 1:-2, :-1, veros.taup1]) \
-        / veros.dzw[:-1] * veros.maskU[1:-2, 1:-2, 1:] * veros.maskU[1:-2, 1:-2, :-1]
-    diss[1:-2, 1:-2, :-1] = (veros.u[1:-2, 1:-2, 1:, veros.tau] - veros.u[1:-2, 1:-2, :-1, veros.tau]) \
-        * veros.flux_top[1:-2, 1:-2, :-1] / veros.dzw[:-1]
+    fxa = 0.5 * (vs.kappaM[1:-2, 1:-2, :-1] + vs.kappaM[2:-1, 1:-2, :-1])
+    vs.flux_top[1:-2, 1:-2, :-1] = fxa * (vs.u[1:-2, 1:-2, 1:, vs.taup1] - vs.u[1:-2, 1:-2, :-1, vs.taup1]) \
+        / vs.dzw[:-1] * vs.maskU[1:-2, 1:-2, 1:] * vs.maskU[1:-2, 1:-2, :-1]
+    diss[1:-2, 1:-2, :-1] = (vs.u[1:-2, 1:-2, 1:, vs.tau] - vs.u[1:-2, 1:-2, :-1, vs.tau]) \
+        * vs.flux_top[1:-2, 1:-2, :-1] / vs.dzw[:-1]
     diss[:, :, -1] = 0.0
-    diss[...] = numerics.ugrid_to_tgrid(veros, diss)
-    veros.K_diss_v += diss
+    diss[...] = numerics.ugrid_to_tgrid(vs, diss)
+    vs.K_diss_v += diss
 
     """
     implicit vertical friction of meridional momentum
     """
-    kss = np.maximum(veros.kbot[1:-2, 1:-2], veros.kbot[1:-2, 2:-1]) - 1
-    fxa = 0.5 * (veros.kappaM[1:-2, 1:-2, :-1] + veros.kappaM[1:-2, 2:-1, :-1])
-    delta[:, :, :-1] = veros.dt_mom / veros.dzw[np.newaxis, np.newaxis, :-1] * \
-        fxa * veros.maskV[1:-2, 1:-2, 1:] * veros.maskV[1:-2, 1:-2, :-1]
-    a_tri[:, :, 1:] = -delta[:, :, :-1] / veros.dzt[np.newaxis, np.newaxis, 1:]
-    b_tri[:, :, 1:] = 1 + delta[:, :, :-1] / veros.dzt[np.newaxis, np.newaxis, 1:]
-    b_tri[:, :, 1:-1] += delta[:, :, 1:-1] / veros.dzt[np.newaxis, np.newaxis, 1:-1]
-    b_tri_edge = 1 + delta / veros.dzt[np.newaxis, np.newaxis, :]
-    c_tri[:, :, :-1] = -delta[:, :, :-1] / veros.dzt[np.newaxis, np.newaxis, :-1]
+    kss = np.maximum(vs.kbot[1:-2, 1:-2], vs.kbot[1:-2, 2:-1]) - 1
+    fxa = 0.5 * (vs.kappaM[1:-2, 1:-2, :-1] + vs.kappaM[1:-2, 2:-1, :-1])
+    delta[:, :, :-1] = vs.dt_mom / vs.dzw[np.newaxis, np.newaxis, :-1] * \
+        fxa * vs.maskV[1:-2, 1:-2, 1:] * vs.maskV[1:-2, 1:-2, :-1]
+    a_tri[:, :, 1:] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
+    b_tri[:, :, 1:] = 1 + delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
+    b_tri[:, :, 1:-1] += delta[:, :, 1:-1] / vs.dzt[np.newaxis, np.newaxis, 1:-1]
+    b_tri_edge = 1 + delta / vs.dzt[np.newaxis, np.newaxis, :]
+    c_tri[:, :, :-1] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, :-1]
     c_tri[:, :, -1] = 0.
-    d_tri[...] = veros.v[1:-2, 1:-2, :, veros.tau]
-    res, mask = utilities.solve_implicit(veros, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    veros.v[1:-2, 1:-2, :, veros.taup1] = np.where(mask, res, veros.v[1:-2, 1:-2, :, veros.taup1])
-    veros.dv_mix[1:-2, 1:-2] = (veros.v[1:-2, 1:-2, :, veros.taup1] -
-                                veros.v[1:-2, 1:-2, :, veros.tau]) / veros.dt_mom
+    d_tri[...] = vs.v[1:-2, 1:-2, :, vs.tau]
+    res, mask = utilities.solve_implicit(vs, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    vs.v[1:-2, 1:-2, :, vs.taup1] = np.where(mask, res, vs.v[1:-2, 1:-2, :, vs.taup1])
+    vs.dv_mix[1:-2, 1:-2] = (vs.v[1:-2, 1:-2, :, vs.taup1] - vs.v[1:-2, 1:-2, :, vs.tau]) / vs.dt_mom
 
     """
     diagnose dissipation by vertical friction of meridional momentum
     """
-    fxa = 0.5 * (veros.kappaM[1:-2, 1:-2, :-1] + veros.kappaM[1:-2, 2:-1, :-1])
-    veros.flux_top[1:-2, 1:-2, :-1] = fxa * (veros.v[1:-2, 1:-2, 1:, veros.taup1] - veros.v[1:-2, 1:-2, :-1, veros.taup1]) \
-        / veros.dzw[:-1] * veros.maskV[1:-2, 1:-2, 1:] * veros.maskV[1:-2, 1:-2, :-1]
-    diss[1:-2, 1:-2, :-1] = (veros.v[1:-2, 1:-2, 1:, veros.tau] - veros.v[1:-2,
-                                                                          1:-2, :-1, veros.tau]) * veros.flux_top[1:-2, 1:-2, :-1] / veros.dzw[:-1]
+    fxa = 0.5 * (vs.kappaM[1:-2, 1:-2, :-1] + vs.kappaM[1:-2, 2:-1, :-1])
+    vs.flux_top[1:-2, 1:-2, :-1] = fxa * (vs.v[1:-2, 1:-2, 1:, vs.taup1] - vs.v[1:-2, 1:-2, :-1, vs.taup1]) \
+        / vs.dzw[:-1] * vs.maskV[1:-2, 1:-2, 1:] * vs.maskV[1:-2, 1:-2, :-1]
+    diss[1:-2, 1:-2, :-1] = (vs.v[1:-2, 1:-2, 1:, vs.tau] - vs.v[1:-2, 1:-2, :-1, vs.tau]) \
+                             * vs.flux_top[1:-2, 1:-2, :-1] / vs.dzw[:-1]
     diss[:, :, -1] = 0.0
-    diss = numerics.vgrid_to_tgrid(veros, diss)
-    veros.K_diss_v += diss
+    diss = numerics.vgrid_to_tgrid(vs, diss)
+    vs.K_diss_v += diss
 
 
 @veros_method
-def rayleigh_friction(veros):
+def rayleigh_friction(vs):
     """
     interior Rayleigh friction
     dissipation is calculated and added to K_diss_bot
     """
-    veros.du_mix[...] += -veros.maskU * veros.r_ray * veros.u[..., veros.tau]
-    if veros.enable_conserve_energy:
-        diss = veros.maskU * veros.r_ray * veros.u[..., veros.tau]**2
-        veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'U')
-    veros.dv_mix[...] += -veros.maskV * veros.r_ray * veros.v[..., veros.tau]
-    if veros.enable_conserve_energy:
-        diss = veros.maskV * veros.r_ray * veros.v[..., veros.tau]**2
-        veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'V')
+    vs.du_mix[...] += -vs.maskU * vs.r_ray * vs.u[..., vs.tau]
+    if vs.enable_conserve_energy:
+        diss = vs.maskU * vs.r_ray * vs.u[..., vs.tau]**2
+        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'U')
+    vs.dv_mix[...] += -vs.maskV * vs.r_ray * vs.v[..., vs.tau]
+    if vs.enable_conserve_energy:
+        diss = vs.maskV * vs.r_ray * vs.v[..., vs.tau]**2
+        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'V')
 
 
 @veros_method
-def linear_bottom_friction(veros):
+def linear_bottom_friction(vs):
     """
     linear bottom friction
     dissipation is calculated and added to K_diss_bot
     """
-    if veros.enable_bottom_friction_var:
+    if vs.enable_bottom_friction_var:
         """
         with spatially varying coefficient
         """
-        k = np.maximum(veros.kbot[1:-2, 2:-2], veros.kbot[2:-1, 2:-2]) - 1
-        mask = np.arange(veros.nz) == k[:, :, np.newaxis]
-        veros.du_mix[1:-2, 2:-2] += -(veros.maskU[1:-2, 2:-2] * veros.r_bot_var_u[1:-2,
-                                                                                  2:-2, np.newaxis]) * veros.u[1:-2, 2:-2, :, veros.tau] * mask
-        if veros.enable_conserve_energy:
-            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-            diss[1:-2, 2:-2] = veros.maskU[1:-2, 2:-2] * veros.r_bot_var_u[1:-2,
-                                                                           2:-2, np.newaxis] * veros.u[1:-2, 2:-2, :, veros.tau]**2 * mask
-            veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'U')
+        k = np.maximum(vs.kbot[1:-2, 2:-2], vs.kbot[2:-1, 2:-2]) - 1
+        mask = np.arange(vs.nz) == k[:, :, np.newaxis]
+        vs.du_mix[1:-2, 2:-2] += -(vs.maskU[1:-2, 2:-2] * vs.r_bot_var_u[1:-2, 2:-2, np.newaxis]) \
+                                 * vs.u[1:-2, 2:-2, :, vs.tau] * mask
+        if vs.enable_conserve_energy:
+            diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+            diss[1:-2, 2:-2] = vs.maskU[1:-2, 2:-2] * vs.r_bot_var_u[1:-2, 2:-2, np.newaxis] \
+                               * vs.u[1:-2, 2:-2, :, vs.tau]**2 * mask
+            vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'U')
 
-        k = np.maximum(veros.kbot[2:-2, 2:-1], veros.kbot[2:-2, 1:-2]) - 1
-        mask = np.arange(veros.nz) == k[:, :, np.newaxis]
-        veros.dv_mix[2:-2, 1:-2] += -(veros.maskV[2:-2, 1:-2] * veros.r_bot_var_v[2:-2,
-                                                                                  1:-2, np.newaxis]) * veros.v[2:-2, 1:-2, :, veros.tau] * mask
-        if veros.enable_conserve_energy:
-            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-            diss[2:-2, 1:-2] = veros.maskV[2:-2, 1:-2] * veros.r_bot_var_v[2:-2,
-                                                                           1:-2, np.newaxis] * veros.v[2:-2, 1:-2, :, veros.tau]**2 * mask
-            veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'V')
+        k = np.maximum(vs.kbot[2:-2, 2:-1], vs.kbot[2:-2, 1:-2]) - 1
+        mask = np.arange(vs.nz) == k[:, :, np.newaxis]
+        vs.dv_mix[2:-2, 1:-2] += -(vs.maskV[2:-2, 1:-2] * vs.r_bot_var_v[2:-2, 1:-2, np.newaxis]) \
+                                 * vs.v[2:-2, 1:-2, :, vs.tau] * mask
+        if vs.enable_conserve_energy:
+            diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+            diss[2:-2, 1:-2] = vs.maskV[2:-2, 1:-2] * vs.r_bot_var_v[2:-2, 1:-2, np.newaxis] \
+                               * vs.v[2:-2, 1:-2, :, vs.tau]**2 * mask
+            vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'V')
     else:
         """
         with constant coefficient
         """
-        k = np.maximum(veros.kbot[1:-2, 2:-2], veros.kbot[2:-1, 2:-2]) - 1
-        mask = np.arange(veros.nz) == k[:, :, np.newaxis]
-        veros.du_mix[1:-2, 2:-2] += -veros.maskU[1:-2, 2:-2] * \
-            veros.r_bot * veros.u[1:-2, 2:-2, :, veros.tau] * mask
-        if veros.enable_conserve_energy:
-            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-            diss[1:-2, 2:-2] = veros.maskU[1:-2, 2:-2] * veros.r_bot * \
-                veros.u[1:-2, 2:-2, :, veros.tau]**2 * mask
-            veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'U')
+        k = np.maximum(vs.kbot[1:-2, 2:-2], vs.kbot[2:-1, 2:-2]) - 1
+        mask = np.arange(vs.nz) == k[:, :, np.newaxis]
+        vs.du_mix[1:-2, 2:-2] += -vs.maskU[1:-2, 2:-2] * vs.r_bot * vs.u[1:-2, 2:-2, :, vs.tau] * mask
+        if vs.enable_conserve_energy:
+            diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+            diss[1:-2, 2:-2] = vs.maskU[1:-2, 2:-2] * vs.r_bot * vs.u[1:-2, 2:-2, :, vs.tau]**2 * mask
+            vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'U')
 
-        k = np.maximum(veros.kbot[2:-2, 2:-1], veros.kbot[2:-2, 1:-2]) - 1
-        mask = np.arange(veros.nz) == k[:, :, np.newaxis]
-        veros.dv_mix[2:-2, 1:-2] += -veros.maskV[2:-2, 1:-2] * \
-            veros.r_bot * veros.v[2:-2, 1:-2, :, veros.tau] * mask
-        if veros.enable_conserve_energy:
-            diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-            diss[2:-2, 1:-2] = veros.maskV[2:-2, 1:-2] * veros.r_bot * \
-                veros.v[2:-2, 1:-2, :, veros.tau]**2 * mask
-            veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'V')
+        k = np.maximum(vs.kbot[2:-2, 2:-1], vs.kbot[2:-2, 1:-2]) - 1
+        mask = np.arange(vs.nz) == k[:, :, np.newaxis]
+        vs.dv_mix[2:-2, 1:-2] += -vs.maskV[2:-2, 1:-2] * vs.r_bot * vs.v[2:-2, 1:-2, :, vs.tau] * mask
+        if vs.enable_conserve_energy:
+            diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+            diss[2:-2, 1:-2] = vs.maskV[2:-2, 1:-2] * vs.r_bot * vs.v[2:-2, 1:-2, :, vs.tau]**2 * mask
+            vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'V')
 
 
 @veros_method
-def quadratic_bottom_friction(veros):
+def quadratic_bottom_friction(vs):
     """
     quadratic bottom friction
     dissipation is calculated and added to K_diss_bot
     """
     # we might want to account for EKE in the drag, also a tidal residual
-    k = np.maximum(veros.kbot[1:-2, 2:-2], veros.kbot[2:-1, 2:-2]) - 1
-    mask = k[..., np.newaxis] == np.arange(veros.nz)[np.newaxis, np.newaxis, :]
-    fxa = veros.maskV[1:-2, 2:-2, :] * veros.v[1:-2, 2:-2, :, veros.tau]**2 + veros.maskV[1:-2, 1:-3, :] * veros.v[1:-2, 1:-3, :, veros.tau]**2 \
-        + veros.maskV[2:-1, 2:-2, :] * veros.v[2:-1, 2:-2, :, veros.tau]**2 + \
-        veros.maskV[2:-1, 1:-3, :] * veros.v[2:-1, 1:-3, :, veros.tau]**2
-    fxa = np.sqrt(veros.u[1:-2, 2:-2, :, veros.tau]**2 + 0.25 * fxa)
-    aloc = veros.maskU[1:-2, 2:-2, :] * veros.r_quad_bot * veros.u[1:-2, 2:-2, :, veros.tau] \
-        * fxa / veros.dzt[np.newaxis, np.newaxis, :] * mask
-    veros.du_mix[1:-2, 2:-2, :] += -aloc
+    k = np.maximum(vs.kbot[1:-2, 2:-2], vs.kbot[2:-1, 2:-2]) - 1
+    mask = k[..., np.newaxis] == np.arange(vs.nz)[np.newaxis, np.newaxis, :]
+    fxa = vs.maskV[1:-2, 2:-2, :] * vs.v[1:-2, 2:-2, :, vs.tau]**2 \
+        + vs.maskV[1:-2, 1:-3, :] * vs.v[1:-2, 1:-3, :, vs.tau]**2 \
+        + vs.maskV[2:-1, 2:-2, :] * vs.v[2:-1, 2:-2, :, vs.tau]**2 \
+        + vs.maskV[2:-1, 1:-3, :] * vs.v[2:-1, 1:-3, :, vs.tau]**2
+    fxa = np.sqrt(vs.u[1:-2, 2:-2, :, vs.tau]**2 + 0.25 * fxa)
+    aloc = vs.maskU[1:-2, 2:-2, :] * vs.r_quad_bot * vs.u[1:-2, 2:-2, :, vs.tau] \
+        * fxa / vs.dzt[np.newaxis, np.newaxis, :] * mask
+    vs.du_mix[1:-2, 2:-2, :] += -aloc
 
-    if veros.enable_conserve_energy:
-        diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-        diss[1:-2, 2:-2, :] = aloc * veros.u[1:-2, 2:-2, :, veros.tau]
-        veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'U')
+    if vs.enable_conserve_energy:
+        diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+        diss[1:-2, 2:-2, :] = aloc * vs.u[1:-2, 2:-2, :, vs.tau]
+        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'U')
 
-    k = np.maximum(veros.kbot[2:-2, 1:-2], veros.kbot[2:-2, 2:-1]) - 1
-    mask = k[..., np.newaxis] == np.arange(veros.nz)[np.newaxis, np.newaxis, :]
-    fxa = veros.maskU[2:-2, 1:-2, :] * veros.u[2:-2, 1:-2, :, veros.tau]**2 + veros.maskU[1:-3, 1:-2, :] * veros.u[1:-3, 1:-2, :, veros.tau]**2 \
-        + veros.maskU[2:-2, 2:-1, :] * veros.u[2:-2, 2:-1, :, veros.tau]**2 + \
-        veros.maskU[1:-3, 2:-1, :] * veros.u[1:-3, 2:-1, :, veros.tau]**2
-    fxa = np.sqrt(veros.v[2:-2, 1:-2, :, veros.tau]**2 + 0.25 * fxa)
-    aloc = veros.maskV[2:-2, 1:-2, :] * veros.r_quad_bot * veros.v[2:-2, 1:-2, :, veros.tau] \
-        * fxa / veros.dzt[np.newaxis, np.newaxis, :] * mask
-    veros.dv_mix[2:-2, 1:-2, :] += -aloc
+    k = np.maximum(vs.kbot[2:-2, 1:-2], vs.kbot[2:-2, 2:-1]) - 1
+    mask = k[..., np.newaxis] == np.arange(vs.nz)[np.newaxis, np.newaxis, :]
+    fxa = vs.maskU[2:-2, 1:-2, :] * vs.u[2:-2, 1:-2, :, vs.tau]**2 \
+        + vs.maskU[1:-3, 1:-2, :] * vs.u[1:-3, 1:-2, :, vs.tau]**2 \
+        + vs.maskU[2:-2, 2:-1, :] * vs.u[2:-2, 2:-1, :, vs.tau]**2 \
+        + vs.maskU[1:-3, 2:-1, :] * vs.u[1:-3, 2:-1, :, vs.tau]**2
+    fxa = np.sqrt(vs.v[2:-2, 1:-2, :, vs.tau]**2 + 0.25 * fxa)
+    aloc = vs.maskV[2:-2, 1:-2, :] * vs.r_quad_bot * vs.v[2:-2, 1:-2, :, vs.tau] \
+        * fxa / vs.dzt[np.newaxis, np.newaxis, :] * mask
+    vs.dv_mix[2:-2, 1:-2, :] += -aloc
 
-    if veros.enable_conserve_energy:
-        diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-        diss[2:-2, 1:-2, :] = aloc * veros.v[2:-2, 1:-2, :, veros.tau]
-        veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'V')
+    if vs.enable_conserve_energy:
+        diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+        diss[2:-2, 1:-2, :] = aloc * vs.v[2:-2, 1:-2, :, vs.tau]
+        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'V')
 
 
 @veros_method
-def harmonic_friction(veros):
+def harmonic_friction(vs):
     """
     horizontal harmonic friction
     dissipation is calculated and added to K_diss_h
     """
-    diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
+    diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
 
     """
     Zonal velocity
     """
-    if veros.enable_hor_friction_cos_scaling:
-        fxa = veros.cost**veros.hor_friction_cosPower
-        veros.flux_east[:-1] = veros.A_h * fxa[np.newaxis, :, np.newaxis] * (veros.u[1:, :, :, veros.tau] - veros.u[:-1, :, :, veros.tau]) \
-            / (veros.cost * veros.dxt[1:, np.newaxis])[:, :, np.newaxis] * veros.maskU[1:] * veros.maskU[:-1]
-        fxa = veros.cosu**veros.hor_friction_cosPower
-        veros.flux_north[:, :-1] = veros.A_h * fxa[np.newaxis, :-1, np.newaxis] * (veros.u[:, 1:, :, veros.tau] - veros.u[:, :-1, :, veros.tau]) \
-            / veros.dyu[np.newaxis, :-1, np.newaxis] * veros.maskU[:, 1:] * veros.maskU[:, :-1] * veros.cosu[np.newaxis, :-1, np.newaxis]
+    if vs.enable_hor_friction_cos_scaling:
+        fxa = vs.cost**vs.hor_friction_cosPower
+        vs.flux_east[:-1] = vs.A_h * fxa[np.newaxis, :, np.newaxis] * (vs.u[1:, :, :, vs.tau] - vs.u[:-1, :, :, vs.tau]) \
+            / (vs.cost * vs.dxt[1:, np.newaxis])[:, :, np.newaxis] * vs.maskU[1:] * vs.maskU[:-1]
+        fxa = vs.cosu**vs.hor_friction_cosPower
+        vs.flux_north[:, :-1] = vs.A_h * fxa[np.newaxis, :-1, np.newaxis] * (vs.u[:, 1:, :, vs.tau] - vs.u[:, :-1, :, vs.tau]) \
+            / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskU[:, 1:] * vs.maskU[:, :-1] * vs.cosu[np.newaxis, :-1, np.newaxis]
     else:
-        veros.flux_east[:-1, :, :] = veros.A_h * (veros.u[1:, :, :, veros.tau] - veros.u[:-1, :, :, veros.tau]) \
-            / (veros.cost * veros.dxt[1:, np.newaxis])[:, :, np.newaxis] * veros.maskU[1:] * veros.maskU[:-1]
-        veros.flux_north[:, :-1, :] = veros.A_h * (veros.u[:, 1:, :, veros.tau] - veros.u[:, :-1, :, veros.tau]) \
-            / veros.dyu[np.newaxis, :-1, np.newaxis] * veros.maskU[:, 1:] * veros.maskU[:, :-1] * veros.cosu[np.newaxis, :-1, np.newaxis]
-    veros.flux_east[-1, :, :] = 0.
-    veros.flux_north[:, -1, :] = 0.
+        vs.flux_east[:-1, :, :] = vs.A_h * (vs.u[1:, :, :, vs.tau] - vs.u[:-1, :, :, vs.tau]) \
+            / (vs.cost * vs.dxt[1:, np.newaxis])[:, :, np.newaxis] * vs.maskU[1:] * vs.maskU[:-1]
+        vs.flux_north[:, :-1, :] = vs.A_h * (vs.u[:, 1:, :, vs.tau] - vs.u[:, :-1, :, vs.tau]) \
+            / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskU[:, 1:] * vs.maskU[:, :-1] * vs.cosu[np.newaxis, :-1, np.newaxis]
+    vs.flux_east[-1, :, :] = 0.
+    vs.flux_north[:, -1, :] = 0.
 
     """
     update tendency
     """
-    veros.du_mix[2:-2, 2:-2, :] += veros.maskU[2:-2, 2:-2] * ((veros.flux_east[2:-2, 2:-2] - veros.flux_east[1:-3, 2:-2])
-                                                              / (veros.cost[2:-2] * veros.dxu[2:-2, np.newaxis])[:, :, np.newaxis]
-                                                              + (veros.flux_north[2:-2, 2:-2] - veros.flux_north[2:-2, 1:-3])
-                                                              / (veros.cost[2:-2] * veros.dyt[2:-2])[np.newaxis, :, np.newaxis])
+    vs.du_mix[2:-2, 2:-2, :] += vs.maskU[2:-2, 2:-2] * ((vs.flux_east[2:-2, 2:-2] - vs.flux_east[1:-3, 2:-2])
+                                                              / (vs.cost[2:-2] * vs.dxu[2:-2, np.newaxis])[:, :, np.newaxis]
+                                                              + (vs.flux_north[2:-2, 2:-2] - vs.flux_north[2:-2, 1:-3])
+                                                              / (vs.cost[2:-2] * vs.dyt[2:-2])[np.newaxis, :, np.newaxis])
 
-    if veros.enable_conserve_energy:
+    if vs.enable_conserve_energy:
         """
         diagnose dissipation by lateral friction
         """
-        diss[1:-2, 2:-2] = 0.5 * ((veros.u[2:-1, 2:-2, :, veros.tau] - veros.u[1:-2, 2:-2, :, veros.tau]) * veros.flux_east[1:-2, 2:-2]
-                                  + (veros.u[1:-2, 2:-2, :, veros.tau] - veros.u[:-3, 2:-2, :, veros.tau]) * veros.flux_east[:-3, 2:-2]) \
-            / (veros.cost[2:-2] * veros.dxu[1:-2, np.newaxis])[:, :, np.newaxis]\
-            + 0.5 * ((veros.u[1:-2, 3:-1, :, veros.tau] - veros.u[1:-2, 2:-2, :, veros.tau]) * veros.flux_north[1:-2, 2:-2]
-                     + (veros.u[1:-2, 2:-2, :, veros.tau] - veros.u[1:-2, 1:-3, :, veros.tau]) * veros.flux_north[1:-2, 1:-3]) \
-            / (veros.cost[2:-2] * veros.dyt[2:-2])[np.newaxis, :, np.newaxis]
-        veros.K_diss_h[...] = 0.
-        veros.K_diss_h[...] = numerics.calc_diss(veros, diss, veros.K_diss_h, 'U')
+        diss[1:-2, 2:-2] = 0.5 * ((vs.u[2:-1, 2:-2, :, vs.tau] - vs.u[1:-2, 2:-2, :, vs.tau]) * vs.flux_east[1:-2, 2:-2]
+                                + (vs.u[1:-2, 2:-2, :, vs.tau] - vs.u[:-3, 2:-2, :, vs.tau]) * vs.flux_east[:-3, 2:-2]) \
+            / (vs.cost[2:-2] * vs.dxu[1:-2, np.newaxis])[:, :, np.newaxis]\
+            + 0.5 * ((vs.u[1:-2, 3:-1, :, vs.tau] - vs.u[1:-2, 2:-2, :, vs.tau]) * vs.flux_north[1:-2, 2:-2]
+                   + (vs.u[1:-2, 2:-2, :, vs.tau] - vs.u[1:-2, 1:-3, :, vs.tau]) * vs.flux_north[1:-2, 1:-3]) \
+            / (vs.cost[2:-2] * vs.dyt[2:-2])[np.newaxis, :, np.newaxis]
+        vs.K_diss_h[...] = 0.
+        vs.K_diss_h[...] = numerics.calc_diss(vs, diss, vs.K_diss_h, 'U')
 
     """
     Meridional velocity
     """
-    if veros.enable_hor_friction_cos_scaling:
-        fxa = (veros.cosu ** veros.hor_friction_cosPower) * np.ones((veros.nx + 3, 1), dtype=veros.default_float_type)
-        veros.flux_east[:-1] = veros.A_h * fxa[:, :, np.newaxis] * (veros.v[1:, :, :, veros.tau] - veros.v[:-1, :, :, veros.tau]) \
-            / (veros.cosu * veros.dxu[:-1, np.newaxis])[:, :, np.newaxis] * veros.maskV[1:] * veros.maskV[:-1]
-        fxa = (veros.cost[1:] ** veros.hor_friction_cosPower) * np.ones((veros.nx + 4, 1), dtype=veros.default_float_type)
-        veros.flux_north[:, :-1] = veros.A_h * fxa[:, :, np.newaxis] * (veros.v[:, 1:, :, veros.tau] - veros.v[:, :-1, :, veros.tau]) \
-            / veros.dyt[np.newaxis, 1:, np.newaxis] * veros.cost[np.newaxis, 1:, np.newaxis] * veros.maskV[:, :-1] * veros.maskV[:, 1:]
+    if vs.enable_hor_friction_cos_scaling:
+        fxa = (vs.cosu ** vs.hor_friction_cosPower) * np.ones((vs.nx + 3, 1), dtype=vs.default_float_type)
+        vs.flux_east[:-1] = vs.A_h * fxa[:, :, np.newaxis] * (vs.v[1:, :, :, vs.tau] - vs.v[:-1, :, :, vs.tau]) \
+            / (vs.cosu * vs.dxu[:-1, np.newaxis])[:, :, np.newaxis] * vs.maskV[1:] * vs.maskV[:-1]
+        fxa = (vs.cost[1:] ** vs.hor_friction_cosPower) * np.ones((vs.nx + 4, 1), dtype=vs.default_float_type)
+        vs.flux_north[:, :-1] = vs.A_h * fxa[:, :, np.newaxis] * (vs.v[:, 1:, :, vs.tau] - vs.v[:, :-1, :, vs.tau]) \
+            / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.cost[np.newaxis, 1:, np.newaxis] * vs.maskV[:, :-1] * vs.maskV[:, 1:]
     else:
-        veros.flux_east[:-1] = veros.A_h * (veros.v[1:, :, :, veros.tau] - veros.v[:-1, :, :, veros.tau]) \
-            / (veros.cosu * veros.dxu[:-1, np.newaxis])[:, :, np.newaxis] * veros.maskV[1:] * veros.maskV[:-1]
-        veros.flux_north[:, :-1] = veros.A_h * (veros.v[:, 1:, :, veros.tau] - veros.v[:, :-1, :, veros.tau]) \
-            / veros.dyt[np.newaxis, 1:, np.newaxis] * veros.cost[np.newaxis, 1:, np.newaxis] * veros.maskV[:, :-1] * veros.maskV[:, 1:]
-    veros.flux_east[-1, :, :] = 0.
-    veros.flux_north[:, -1, :] = 0.
+        vs.flux_east[:-1] = vs.A_h * (vs.v[1:, :, :, vs.tau] - vs.v[:-1, :, :, vs.tau]) \
+            / (vs.cosu * vs.dxu[:-1, np.newaxis])[:, :, np.newaxis] * vs.maskV[1:] * vs.maskV[:-1]
+        vs.flux_north[:, :-1] = vs.A_h * (vs.v[:, 1:, :, vs.tau] - vs.v[:, :-1, :, vs.tau]) \
+            / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.cost[np.newaxis, 1:, np.newaxis] * vs.maskV[:, :-1] * vs.maskV[:, 1:]
+    vs.flux_east[-1, :, :] = 0.
+    vs.flux_north[:, -1, :] = 0.
 
     """
     update tendency
     """
-    veros.dv_mix[2:-2, 2:-2] += veros.maskV[2:-2, 2:-2] * ((veros.flux_east[2:-2, 2:-2] - veros.flux_east[1:-3, 2:-2])
-                                                           / (veros.cosu[2:-2] * veros.dxt[2:-2, np.newaxis])[:, :, np.newaxis]
-                                                           + (veros.flux_north[2:-2, 2:-2] - veros.flux_north[2:-2, 1:-3])
-                                                           / (veros.dyu[2:-2] * veros.cosu[2:-2])[np.newaxis, :, np.newaxis])
+    vs.dv_mix[2:-2, 2:-2] += vs.maskV[2:-2, 2:-2] * ((vs.flux_east[2:-2, 2:-2] - vs.flux_east[1:-3, 2:-2])
+                                                   / (vs.cosu[2:-2] * vs.dxt[2:-2, np.newaxis])[:, :, np.newaxis]
+                                                   + (vs.flux_north[2:-2, 2:-2] - vs.flux_north[2:-2, 1:-3])
+                                                   / (vs.dyu[2:-2] * vs.cosu[2:-2])[np.newaxis, :, np.newaxis])
 
-    if veros.enable_conserve_energy:
+    if vs.enable_conserve_energy:
         """
         diagnose dissipation by lateral friction
         """
-        diss[2:-2, 1:-2] = 0.5 * ((veros.v[3:-1, 1:-2, :, veros.tau] - veros.v[2:-2, 1:-2, :, veros.tau]) * veros.flux_east[2:-2, 1:-2]
-                                  + (veros.v[2:-2, 1:-2, :, veros.tau] - veros.v[1:-3, 1:-2, :, veros.tau]) * veros.flux_east[1:-3, 1:-2]) \
-            / (veros.cosu[1:-2] * veros.dxt[2:-2, np.newaxis])[:, :, np.newaxis] \
-            + 0.5 * ((veros.v[2:-2, 2:-1, :, veros.tau] - veros.v[2:-2, 1:-2, :, veros.tau]) * veros.flux_north[2:-2, 1:-2]
-                     + (veros.v[2:-2, 1:-2, :, veros.tau] - veros.v[2:-2, :-3, :, veros.tau]) * veros.flux_north[2:-2, :-3]) \
-            / (veros.cosu[1:-2] * veros.dyu[1:-2])[np.newaxis, :, np.newaxis]
-        veros.K_diss_h[...] = numerics.calc_diss(veros, diss, veros.K_diss_h, 'V')
+        diss[2:-2, 1:-2] = 0.5 * ((vs.v[3:-1, 1:-2, :, vs.tau] - vs.v[2:-2, 1:-2, :, vs.tau]) * vs.flux_east[2:-2, 1:-2]
+                                + (vs.v[2:-2, 1:-2, :, vs.tau] - vs.v[1:-3, 1:-2, :, vs.tau]) * vs.flux_east[1:-3, 1:-2]) \
+            / (vs.cosu[1:-2] * vs.dxt[2:-2, np.newaxis])[:, :, np.newaxis] \
+            + 0.5 * ((vs.v[2:-2, 2:-1, :, vs.tau] - vs.v[2:-2, 1:-2, :, vs.tau]) * vs.flux_north[2:-2, 1:-2]
+                   + (vs.v[2:-2, 1:-2, :, vs.tau] - vs.v[2:-2, :-3, :, vs.tau]) * vs.flux_north[2:-2, :-3]) \
+            / (vs.cosu[1:-2] * vs.dyu[1:-2])[np.newaxis, :, np.newaxis]
+        vs.K_diss_h[...] = numerics.calc_diss(vs, diss, vs.K_diss_h, 'V')
 
 
 @veros_method
-def biharmonic_friction(veros):
+def biharmonic_friction(vs):
     """
     horizontal biharmonic friction
     dissipation is calculated and added to K_diss_h
     """
-    fxa = math.sqrt(abs(veros.A_hbi))
+    fxa = math.sqrt(abs(vs.A_hbi))
 
     """
     Zonal velocity
     """
-    veros.flux_east[:-1, :, :] = fxa * (veros.u[1:, :, :, veros.tau] - veros.u[:-1, :, :, veros.tau]) \
-        / (veros.cost[np.newaxis, :, np.newaxis] * veros.dxt[1:, np.newaxis, np.newaxis]) \
-        * veros.maskU[1:, :, :] * veros.maskU[:-1, :, :]
-    veros.flux_north[:, :-1, :] = fxa * (veros.u[:, 1:, :, veros.tau] - veros.u[:, :-1, :, veros.tau]) \
-        / veros.dyu[np.newaxis, :-1, np.newaxis] * veros.maskU[:, 1:, :] \
-        * veros.maskU[:, :-1, :] * veros.cosu[np.newaxis, :-1, np.newaxis]
-    veros.flux_east[-1, :, :] = 0.
-    veros.flux_north[:, -1, :] = 0.
+    vs.flux_east[:-1, :, :] = fxa * (vs.u[1:, :, :, vs.tau] - vs.u[:-1, :, :, vs.tau]) \
+        / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
+        * vs.maskU[1:, :, :] * vs.maskU[:-1, :, :]
+    vs.flux_north[:, :-1, :] = fxa * (vs.u[:, 1:, :, vs.tau] - vs.u[:, :-1, :, vs.tau]) \
+        / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskU[:, 1:, :] \
+        * vs.maskU[:, :-1, :] * vs.cosu[np.newaxis, :-1, np.newaxis]
+    vs.flux_east[-1, :, :] = 0.
+    vs.flux_north[:, -1, :] = 0.
 
-    del2 = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-    del2[1:, 1:, :] = (veros.flux_east[1:, 1:, :] - veros.flux_east[:-1, 1:, :]) \
-        / (veros.cost[np.newaxis, 1:, np.newaxis] * veros.dxu[1:, np.newaxis, np.newaxis]) \
-        + (veros.flux_north[1:, 1:, :] - veros.flux_north[1:, :-1, :]) \
-        / (veros.cost[np.newaxis, 1:, np.newaxis] * veros.dyt[np.newaxis, 1:, np.newaxis])
+    del2 = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+    del2[1:, 1:, :] = (vs.flux_east[1:, 1:, :] - vs.flux_east[:-1, 1:, :]) \
+        / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxu[1:, np.newaxis, np.newaxis]) \
+        + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
+        / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
 
-    veros.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
-        / (veros.cost[np.newaxis, :, np.newaxis] * veros.dxt[1:, np.newaxis, np.newaxis]) \
-        * veros.maskU[1:, :, :] * veros.maskU[:-1, :, :]
-    veros.flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) \
-        / veros.dyu[np.newaxis, :-1, np.newaxis] * veros.maskU[:, 1:, :] \
-        * veros.maskU[:, :-1, :] * veros.cosu[np.newaxis, :-1, np.newaxis]
-    veros.flux_east[-1, :, :] = 0.
-    veros.flux_north[:, -1, :] = 0.
+    vs.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
+        / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
+        * vs.maskU[1:, :, :] * vs.maskU[:-1, :, :]
+    vs.flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) \
+        / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskU[:, 1:, :] \
+        * vs.maskU[:, :-1, :] * vs.cosu[np.newaxis, :-1, np.newaxis]
+    vs.flux_east[-1, :, :] = 0.
+    vs.flux_north[:, -1, :] = 0.
 
     """
     update tendency
     """
-    veros.du_mix[2:-2, 2:-2, :] += -veros.maskU[2:-2, 2:-2, :] * ((veros.flux_east[2:-2, 2:-2, :] - veros.flux_east[1:-3, 2:-2, :])
-                                                                  / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dxu[2:-2, np.newaxis, np.newaxis])
-                                                                  + (veros.flux_north[2:-2, 2:-2, :] - veros.flux_north[2:-2, 1:-3, :])
-                                                                  / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dyt[np.newaxis, 2:-2, np.newaxis]))
-    if veros.enable_conserve_energy:
+    vs.du_mix[2:-2, 2:-2, :] += -vs.maskU[2:-2, 2:-2, :] * ((vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :])
+                                                          / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxu[2:-2, np.newaxis, np.newaxis])
+                                                          + (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])
+                                                          / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis]))
+    if vs.enable_conserve_energy:
         """
         diagnose dissipation by lateral friction
         """
-        if veros.enable_cyclic_x:
-            cyclic.setcyclic_x(veros.flux_east)
-            cyclic.setcyclic_x(veros.flux_north)
-        diss = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-        diss[1:-2, 2:-2, :] = -0.5 * ((veros.u[2:-1, 2:-2, :, veros.tau] - veros.u[1:-2, 2:-2, :, veros.tau]) * veros.flux_east[1:-2, 2:-2, :]
-                                      + (veros.u[1:-2, 2:-2, :, veros.tau] - veros.u[:-3, 2:-2, :, veros.tau]) * veros.flux_east[:-3, 2:-2, :]) \
-            / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dxu[1:-2, np.newaxis, np.newaxis])  \
-            - 0.5 * ((veros.u[1:-2, 3:-1, :, veros.tau] - veros.u[1:-2, 2:-2, :, veros.tau]) * veros.flux_north[1:-2, 2:-2, :]
-                     + (veros.u[1:-2, 2:-2, :, veros.tau] - veros.u[1:-2, 1:-3, :, veros.tau]) * veros.flux_north[1:-2, 1:-3, :]) \
-            / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dyt[np.newaxis, 2:-2, np.newaxis])
-        veros.K_diss_h[...] = 0.
-        veros.K_diss_h[...] = numerics.calc_diss(veros, diss, veros.K_diss_h, 'U')
+        if vs.enable_cyclic_x:
+            cyclic.setcyclic_x(vs.flux_east)
+            cyclic.setcyclic_x(vs.flux_north)
+        diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+        diss[1:-2, 2:-2, :] = -0.5 * ((vs.u[2:-1, 2:-2, :, vs.tau] - vs.u[1:-2, 2:-2, :, vs.tau]) * vs.flux_east[1:-2, 2:-2, :]
+                                    + (vs.u[1:-2, 2:-2, :, vs.tau] - vs.u[:-3, 2:-2, :, vs.tau]) * vs.flux_east[:-3, 2:-2, :]) \
+            / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxu[1:-2, np.newaxis, np.newaxis])  \
+            - 0.5 * ((vs.u[1:-2, 3:-1, :, vs.tau] - vs.u[1:-2, 2:-2, :, vs.tau]) * vs.flux_north[1:-2, 2:-2, :]
+                     + (vs.u[1:-2, 2:-2, :, vs.tau] - vs.u[1:-2, 1:-3, :, vs.tau]) * vs.flux_north[1:-2, 1:-3, :]) \
+            / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis])
+        vs.K_diss_h[...] = 0.
+        vs.K_diss_h[...] = numerics.calc_diss(vs, diss, vs.K_diss_h, 'U')
 
     """
     Meridional velocity
     """
-    veros.flux_east[:-1, :, :] = fxa * (veros.v[1:, :, :, veros.tau] - veros.v[:-1, :, :, veros.tau]) \
-        / (veros.cosu[np.newaxis, :, np.newaxis] * veros.dxu[:-1, np.newaxis, np.newaxis]) \
-        * veros.maskV[1:, :, :] * veros.maskV[:-1, :, :]
-    veros.flux_north[:, :-1, :] = fxa * (veros.v[:, 1:, :, veros.tau] - veros.v[:, :-1, :, veros.tau]) \
-        / veros.dyt[np.newaxis, 1:, np.newaxis] * veros.cost[np.newaxis, 1:, np.newaxis] \
-        * veros.maskV[:, :-1, :] * veros.maskV[:, 1:, :]
-    veros.flux_east[-1, :, :] = 0.
-    veros.flux_north[:, -1, :] = 0.
+    vs.flux_east[:-1, :, :] = fxa * (vs.v[1:, :, :, vs.tau] - vs.v[:-1, :, :, vs.tau]) \
+        / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+        * vs.maskV[1:, :, :] * vs.maskV[:-1, :, :]
+    vs.flux_north[:, :-1, :] = fxa * (vs.v[:, 1:, :, vs.tau] - vs.v[:, :-1, :, vs.tau]) \
+        / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.cost[np.newaxis, 1:, np.newaxis] \
+        * vs.maskV[:, :-1, :] * vs.maskV[:, 1:, :]
+    vs.flux_east[-1, :, :] = 0.
+    vs.flux_north[:, -1, :] = 0.
 
-    del2[1:, 1:, :] = (veros.flux_east[1:, 1:, :] - veros.flux_east[:-1, 1:, :]) \
-        / (veros.cosu[np.newaxis, 1:, np.newaxis] * veros.dxt[1:, np.newaxis, np.newaxis])  \
-        + (veros.flux_north[1:, 1:, :] - veros.flux_north[1:, :-1, :]) \
-        / (veros.dyu[np.newaxis, 1:, np.newaxis] * veros.cosu[np.newaxis, 1:, np.newaxis])
-    veros.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
-        / (veros.cosu[np.newaxis, :, np.newaxis] * veros.dxu[:-1, np.newaxis, np.newaxis]) \
-        * veros.maskV[1:, :, :] * veros.maskV[:-1, :, :]
-    veros.flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) \
-        / veros.dyt[np.newaxis, 1:, np.newaxis] * veros.cost[np.newaxis, 1:, np.newaxis] \
-        * veros.maskV[:, :-1, :] * veros.maskV[:, 1:, :]
-    veros.flux_east[-1, :, :] = 0.
-    veros.flux_north[:, -1, :] = 0.
+    del2[1:, 1:, :] = (vs.flux_east[1:, 1:, :] - vs.flux_east[:-1, 1:, :]) \
+        / (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])  \
+        + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
+        / (vs.dyu[np.newaxis, 1:, np.newaxis] * vs.cosu[np.newaxis, 1:, np.newaxis])
+    vs.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
+        / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+        * vs.maskV[1:, :, :] * vs.maskV[:-1, :, :]
+    vs.flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) \
+        / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.cost[np.newaxis, 1:, np.newaxis] \
+        * vs.maskV[:, :-1, :] * vs.maskV[:, 1:, :]
+    vs.flux_east[-1, :, :] = 0.
+    vs.flux_north[:, -1, :] = 0.
 
     """
     update tendency
     """
-    veros.dv_mix[2:-2, 2:-2, :] += -veros.maskV[2:-2, 2:-2, :] * ((veros.flux_east[2:-2, 2:-2, :] - veros.flux_east[1:-3, 2:-2, :])
-                                                                  / (veros.cosu[np.newaxis, 2:-2, np.newaxis] * veros.dxt[2:-2, np.newaxis, np.newaxis])
-                                                                  + (veros.flux_north[2:-2, 2:-2, :] - veros.flux_north[2:-2, 1:-3, :])
-                                                                  / (veros.dyu[np.newaxis, 2:-2, np.newaxis] * veros.cosu[np.newaxis, 2:-2, np.newaxis]))
+    vs.dv_mix[2:-2, 2:-2, :] += -vs.maskV[2:-2, 2:-2, :] * ((vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :])
+                                                                  / (vs.cosu[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
+                                                                  + (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])
+                                                                  / (vs.dyu[np.newaxis, 2:-2, np.newaxis] * vs.cosu[np.newaxis, 2:-2, np.newaxis]))
 
-    if veros.enable_conserve_energy:
+    if vs.enable_conserve_energy:
         """
         diagnose dissipation by lateral friction
         """
-        if veros.enable_cyclic_x:
-            cyclic.setcyclic_x(veros.flux_east)
-            cyclic.setcyclic_x(veros.flux_north)
-        diss[2:-2, 1:-2, :] = -0.5 * ((veros.v[3:-1, 1:-2, :, veros.tau] - veros.v[2:-2, 1:-2, :, veros.tau]) * veros.flux_east[2:-2, 1:-2, :]
-                                      + (veros.v[2:-2, 1:-2, :, veros.tau] - veros.v[1:-3, 1:-2, :, veros.tau]) * veros.flux_east[1:-3, 1:-2, :]) \
-            / (veros.cosu[np.newaxis, 1:-2, np.newaxis] * veros.dxt[2:-2, np.newaxis, np.newaxis]) \
-            - 0.5 * ((veros.v[2:-2, 2:-1, :, veros.tau] - veros.v[2:-2, 1:-2, :, veros.tau]) * veros.flux_north[2:-2, 1:-2, :]
-                     + (veros.v[2:-2, 1:-2, :, veros.tau] - veros.v[2:-2, :-3, :, veros.tau]) * veros.flux_north[2:-2, :-3, :]) \
-            / (veros.cosu[np.newaxis, 1:-2, np.newaxis] * veros.dyu[np.newaxis, 1:-2, np.newaxis])
-        veros.K_diss_h[...] = numerics.calc_diss(veros, diss, veros.K_diss_h, 'V')
+        if vs.enable_cyclic_x:
+            cyclic.setcyclic_x(vs.flux_east)
+            cyclic.setcyclic_x(vs.flux_north)
+        diss[2:-2, 1:-2, :] = -0.5 * ((vs.v[3:-1, 1:-2, :, vs.tau] - vs.v[2:-2, 1:-2, :, vs.tau]) * vs.flux_east[2:-2, 1:-2, :]
+                                    + (vs.v[2:-2, 1:-2, :, vs.tau] - vs.v[1:-3, 1:-2, :, vs.tau]) * vs.flux_east[1:-3, 1:-2, :]) \
+            / (vs.cosu[np.newaxis, 1:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis]) \
+            - 0.5 * ((vs.v[2:-2, 2:-1, :, vs.tau] - vs.v[2:-2, 1:-2, :, vs.tau]) * vs.flux_north[2:-2, 1:-2, :]
+                   + (vs.v[2:-2, 1:-2, :, vs.tau] - vs.v[2:-2, :-3, :, vs.tau]) * vs.flux_north[2:-2, :-3, :]) \
+            / (vs.cosu[np.newaxis, 1:-2, np.newaxis] * vs.dyu[np.newaxis, 1:-2, np.newaxis])
+        vs.K_diss_h[...] = numerics.calc_diss(vs, diss, vs.K_diss_h, 'V')
 
 
 @veros_method
-def momentum_sources(veros):
+def momentum_sources(vs):
     """
     other momentum sources
     dissipation is calculated and added to K_diss_bot
     """
-    veros.du_mix[...] += veros.maskU * veros.u_source
-    if veros.enable_conserve_energy:
-        diss = -veros.maskU * veros.u[..., veros.tau] * veros.u_source
-        veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'U')
-    veros.dv_mix[...] += veros.maskV * veros.v_source
-    if veros.enable_conserve_energy:
-        diss = -veros.maskV * veros.v[..., veros.tau] * veros.v_source
-        veros.K_diss_bot[...] = numerics.calc_diss(veros, diss, veros.K_diss_bot, 'V')
+    vs.du_mix[...] += vs.maskU * vs.u_source
+    if vs.enable_conserve_energy:
+        diss = -vs.maskU * vs.u[..., vs.tau] * vs.u_source
+        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'U')
+    vs.dv_mix[...] += vs.maskV * vs.v_source
+    if vs.enable_conserve_energy:
+        diss = -vs.maskV * vs.v[..., vs.tau] * vs.v_source
+        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'V')

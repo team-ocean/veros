@@ -48,131 +48,131 @@ class Overturning(VerosDiagnostic):
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
     p_ref = 2000.  #: Reference pressure for isopycnals
 
-    def __init__(self, veros):
+    def __init__(self, vs):
         self.sigma_var = SIGMA
         self.mean_variables = OVERTURNING_VARIABLES
-        if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
+        if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
             self.mean_variables.update(ISONEUTRAL_VARIABLES)
         self.variables = self.mean_variables.copy()
         self.variables.update({"sigma": self.sigma_var})
 
     @veros_class_method
-    def initialize(self, veros):
+    def initialize(self, vs):
         self.nitts = 0
-        self.nlevel = veros.nz * 4
-        self._allocate(veros)
+        self.nlevel = vs.nz * 4
+        self._allocate(vs)
 
         # sigma levels
-        self.sige = density.get_rho(veros, 35., -2., self.p_ref)
-        self.sigs = density.get_rho(veros, 35., 30., self.p_ref)
+        self.sige = density.get_rho(vs, 35., -2., self.p_ref)
+        self.sigs = density.get_rho(vs, 35., 30., self.p_ref)
         self.dsig = (self.sige - self.sigs) / (self.nlevel - 1)
 
         logging.debug(" sigma ranges for overturning diagnostic:")
         logging.debug(" start sigma0 = {:.1f}".format(self.sigs))
         logging.debug(" end sigma0 = {:.1f}".format(self.sige))
         logging.debug(" Delta sigma0 = {:.1e}".format(self.dsig))
-        if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
+        if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
             logging.debug(" also calculating overturning by eddy-driven velocities")
 
         self.sigma[...] = self.sigs + self.dsig * np.arange(self.nlevel)
 
         # precalculate area below z levels
         self.zarea[2:-2, :] = np.cumsum(np.sum(
-            veros.dxt[2:-2, np.newaxis, np.newaxis]
-            * veros.cosu[np.newaxis, 2:-2, np.newaxis]
-            * veros.maskV[2:-2, 2:-2, :], axis=0) * veros.dzt[np.newaxis, :], axis=1)
+            vs.dxt[2:-2, np.newaxis, np.newaxis]
+            * vs.cosu[np.newaxis, 2:-2, np.newaxis]
+            * vs.maskV[2:-2, 2:-2, :], axis=0) * vs.dzt[np.newaxis, :], axis=1)
 
-        self.initialize_output(veros, self.variables,
+        self.initialize_output(vs, self.variables,
                                var_data={"sigma": self.sigma},
                                extra_dimensions={"sigma": self.nlevel})
 
     @veros_class_method
-    def _allocate(self, veros):
-        self.sigma = np.zeros(self.nlevel, dtype=veros.default_float_type)
-        self.zarea = np.zeros((veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-        self.trans = np.zeros((veros.ny + 4, self.nlevel), dtype=veros.default_float_type)
-        self.vsf_iso = np.zeros((veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-        self.vsf_depth = np.zeros((veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-        if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
-            self.bolus_iso = np.zeros((veros.ny + 4, veros.nz), dtype=veros.default_float_type)
-            self.bolus_depth = np.zeros((veros.ny + 4, veros.nz), dtype=veros.default_float_type)
+    def _allocate(self, vs):
+        self.sigma = np.zeros(self.nlevel, dtype=vs.default_float_type)
+        self.zarea = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+        self.trans = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
+        self.vsf_iso = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+        self.vsf_depth = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+        if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
+            self.bolus_iso = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+            self.bolus_depth = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
 
     @veros_class_method
-    def diagnose(self, veros):
+    def diagnose(self, vs):
         # sigma at p_ref
-        sig_loc = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz))
-        sig_loc[2:-2, 2:-1, :] = density.get_rho(veros,
-                                                 veros.salt[2:-2, 2:-1, :, veros.tau],
-                                                 veros.temp[2:-2, 2:-1, :, veros.tau],
+        sig_loc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz))
+        sig_loc[2:-2, 2:-1, :] = density.get_rho(vs,
+                                                 vs.salt[2:-2, 2:-1, :, vs.tau],
+                                                 vs.temp[2:-2, 2:-1, :, vs.tau],
                                                  self.p_ref)
 
         # transports below isopycnals and area below isopycnals
         sig_loc_face = 0.5 * (sig_loc[2:-2, 2:-2, :] + sig_loc[2:-2, 3:-1, :])
-        trans = np.zeros((veros.ny + 4, self.nlevel), dtype=veros.default_float_type)
-        z_sig = np.zeros((veros.ny + 4, self.nlevel), dtype=veros.default_float_type)
+        trans = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
+        z_sig = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
         for m in range(self.nlevel):
             # NOTE: vectorized version would be O(N^4) in memory
             # consider cythonizing if performance-critical
             mask = sig_loc_face > self.sigma[m]
             trans[2:-2, m] = np.sum(
-                veros.v[2:-2, 2:-2, :, veros.tau]
-                * veros.dxt[2:-2, np.newaxis, np.newaxis]
-                * veros.cosu[np.newaxis, 2:-2, np.newaxis]
-                * veros.dzt[np.newaxis, np.newaxis, :]
-                * veros.maskV[2:-2, 2:-2, :] * mask, axis=(0, 2))
+                vs.v[2:-2, 2:-2, :, vs.tau]
+                * vs.dxt[2:-2, np.newaxis, np.newaxis]
+                * vs.cosu[np.newaxis, 2:-2, np.newaxis]
+                * vs.dzt[np.newaxis, np.newaxis, :]
+                * vs.maskV[2:-2, 2:-2, :] * mask, axis=(0, 2))
             z_sig[2:-2, m] = np.sum(
-                veros.dzt[np.newaxis, np.newaxis, :]
-                * veros.dxt[2:-2, np.newaxis, np.newaxis]
-                * veros.cosu[np.newaxis, 2:-2, np.newaxis]
-                * veros.maskV[2:-2, 2:-2, :] * mask, axis=(0, 2))
+                vs.dzt[np.newaxis, np.newaxis, :]
+                * vs.dxt[2:-2, np.newaxis, np.newaxis]
+                * vs.cosu[np.newaxis, 2:-2, np.newaxis]
+                * vs.maskV[2:-2, 2:-2, :] * mask, axis=(0, 2))
         self.trans += trans
 
-        if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
-            bolus_trans = np.zeros((veros.ny + 4, self.nlevel), dtype=veros.default_float_type)
+        if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
+            bolus_trans = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
             # eddy-driven transports below isopycnals
             for m in range(self.nlevel):
                 # NOTE: see above
                 mask = sig_loc_face > self.sigma[m]
                 bolus_trans[2:-2, m] = np.sum(
-                    (veros.B1_gm[2:-2, 2:-2, 1:]
-                     - veros.B1_gm[2:-2, 2:-2, :-1])
-                    * veros.dxt[2:-2, np.newaxis, np.newaxis]
-                    * veros.cosu[np.newaxis, 2:-2, np.newaxis]
-                    * veros.maskV[2:-2, 2:-2, 1:]
+                    (vs.B1_gm[2:-2, 2:-2, 1:]
+                     - vs.B1_gm[2:-2, 2:-2, :-1])
+                    * vs.dxt[2:-2, np.newaxis, np.newaxis]
+                    * vs.cosu[np.newaxis, 2:-2, np.newaxis]
+                    * vs.maskV[2:-2, 2:-2, 1:]
                     * mask[:, :, 1:], axis=(0, 2)) \
                     + np.sum(
-                    veros.B1_gm[2:-2, 2:-2, 0]
-                    * veros.dxt[2:-2, np.newaxis]
-                    * veros.cosu[np.newaxis, 2:-2]
-                    * veros.maskV[2:-2, 2:-2, 0]
+                    vs.B1_gm[2:-2, 2:-2, 0]
+                    * vs.dxt[2:-2, np.newaxis]
+                    * vs.cosu[np.newaxis, 2:-2]
+                    * vs.maskV[2:-2, 2:-2, 0]
                     * mask[:, :, 0], axis=0)
 
         # streamfunction on geopotentials
         self.vsf_depth[2:-2, :] += np.cumsum(np.sum(
-            veros.dxt[2:-2, np.newaxis, np.newaxis]
-            * veros.cosu[np.newaxis, 2:-2, np.newaxis]
-            * veros.v[2:-2, 2:-2, :, veros.tau]
-            * veros.maskV[2:-2, 2:-2, :], axis=0) * veros.dzt[np.newaxis, :], axis=1)
+            vs.dxt[2:-2, np.newaxis, np.newaxis]
+            * vs.cosu[np.newaxis, 2:-2, np.newaxis]
+            * vs.v[2:-2, 2:-2, :, vs.tau]
+            * vs.maskV[2:-2, 2:-2, :], axis=0) * vs.dzt[np.newaxis, :], axis=1)
 
-        if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
+        if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
             # streamfunction for eddy driven velocity on geopotentials
             self.bolus_depth[2:-2, :] += np.sum(
-                veros.dxt[2:-2, np.newaxis, np.newaxis]
-                * veros.cosu[np.newaxis, 2:-2, np.newaxis]
-                * veros.B1_gm[2:-2, 2:-2, :], axis=0)
+                vs.dxt[2:-2, np.newaxis, np.newaxis]
+                * vs.cosu[np.newaxis, 2:-2, np.newaxis]
+                * vs.B1_gm[2:-2, 2:-2, :], axis=0)
         # interpolate from isopycnals to depth
-        self.vsf_iso[2:-2, :] += self._interpolate_along_axis(veros,
+        self.vsf_iso[2:-2, :] += self._interpolate_along_axis(vs,
                                                               z_sig[2:-2, :], trans[2:-2, :],
                                                               self.zarea[2:-2, :], 1)
-        if veros.enable_neutral_diffusion and veros.enable_skew_diffusion:
-            self.bolus_iso[2:-2, :] += self._interpolate_along_axis(veros,
+        if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
+            self.bolus_iso[2:-2, :] += self._interpolate_along_axis(vs,
                                                                     z_sig[2:-2, :], bolus_trans[2:-2, :],
                                                                     self.zarea[2:-2, :], 1)
 
         self.nitts += 1
 
     @veros_class_method
-    def _interpolate_along_axis(self, veros, coords, arr, interp_coords, axis=0):
+    def _interpolate_along_axis(self, vs, coords, arr, interp_coords, axis=0):
         if coords.ndim == 1:
             if len(coords) != arr.shape[axis]:
                 raise ValueError("Coordinate shape must match array shape along axis")
@@ -211,9 +211,9 @@ class Overturning(VerosDiagnostic):
         return np.moveaxis(arr[i_p_slice] * (1. - pos) + arr[i_m_slice] * pos, 0, axis)
 
     @veros_class_method
-    def output(self, veros):
-        if not os.path.isfile(self.get_output_file_name(veros)):
-            self.initialize_output(veros, self.variables,
+    def output(self, vs):
+        if not os.path.isfile(self.get_output_file_name(vs)):
+            self.initialize_output(vs, self.variables,
                                    var_data={"sigma": self.sigma},
                                    extra_dimensions={"sigma": self.nlevel})
 
@@ -225,15 +225,15 @@ class Overturning(VerosDiagnostic):
                         if var.output and var.time_dependent}
         var_data = {key: getattr(self, key) for key, var in self.mean_variables.items()
                     if var.output and var.time_dependent}
-        self.write_output(veros, var_metadata, var_data)
+        self.write_output(vs, var_metadata, var_data)
 
         self.nitts = 0
         for var in self.mean_variables.keys():
             getattr(self, var)[...] = 0.
 
     @veros_class_method
-    def read_restart(self, veros):
-        attributes, variables = self.read_h5_restart(veros)
+    def read_restart(self, vs):
+        attributes, variables = self.read_h5_restart(vs)
         if attributes:
             self.nitts = attributes["nitts"]
         if variables:
@@ -241,7 +241,7 @@ class Overturning(VerosDiagnostic):
                 getattr(self, var)[...] = arr
 
     @veros_class_method
-    def write_restart(self, veros, outfile):
+    def write_restart(self, vs, outfile):
         var_data = {key: getattr(self, key)
                     for key, var in self.variables.items() if var.write_to_restart}
-        self.write_h5_restart(veros, {"nitts": self.nitts}, {}, var_data, outfile)
+        self.write_h5_restart(vs, {"nitts": self.nitts}, {}, var_data, outfile)

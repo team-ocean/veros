@@ -13,14 +13,14 @@ OCEAN = 0
 
 
 @veros_method
-def isleperim(veros, kmt, verbose=False):
+def isleperim(vs, kmt, verbose=False):
     """
     Island and Island Perimeter boundary mapping routines
     """
 
     if verbose:
         logging.info(" Finding perimeters of all land masses")
-        if veros.enable_cyclic_x:
+        if vs.enable_cyclic_x:
             logging.info(" using cyclic boundary conditions")
 
     """
@@ -32,19 +32,19 @@ def isleperim(veros, kmt, verbose=False):
     reduced by 1 and their perimeter ocean points relabelled accordingly
     """
     boundary_map = np.where(kmt > 0, OCEAN, LAND)
-    if veros.backend_name == "bohrium":
-        veros.flush()
+    if vs.backend_name == "bohrium":
+        vs.flush()
         boundary_map = boundary_map.copy2numpy()
 
     """
     find unassigned land points and expand them to continents
     """
-    imt, jmt = veros.nx + 4, veros.ny + 4
+    imt, jmt = vs.nx + 4, vs.ny + 4
     island_queue = queue.Queue()
     label = 2
     nippts = [0]
     jnorth = jmt - 1
-    if veros.enable_cyclic_x:
+    if vs.enable_cyclic_x:
         iwest = 1
         ieast = imt - 2
     else:
@@ -55,7 +55,7 @@ def isleperim(veros, kmt, verbose=False):
         for i in range(iwest, ieast):
             if boundary_map[i, j] == LAND:
                 island_queue.put((i, j))
-                expand(veros, boundary_map, label, island_queue, nippts)
+                expand(vs, boundary_map, label, island_queue, nippts)
                 if verbose:
                     logging.debug(" found island {} with {} perimeter points"
                                   .format(label-1, nippts[-1]))
@@ -64,7 +64,7 @@ def isleperim(veros, kmt, verbose=False):
     nisle = label - 2
 
     boundary_map[iwest:ieast + 1, :jnorth + 1] += -np.sign(boundary_map[iwest:ieast + 1, :jnorth + 1])
-    if veros.enable_cyclic_x:
+    if vs.enable_cyclic_x:
         boundary_map[0, :] = boundary_map[imt - 2, :]
         boundary_map[imt - 1, :] = boundary_map[1, :]
 
@@ -76,7 +76,7 @@ def isleperim(veros, kmt, verbose=False):
 
 
 @veros_method
-def expand(veros, boundary_map, label, island_queue, nippts):
+def expand(vs, boundary_map, label, island_queue, nippts):
     """
     This function uses a "flood fill" algorithm
     to expand one previously unmarked land
@@ -86,7 +86,7 @@ def expand(veros, boundary_map, label, island_queue, nippts):
     ocean points that are adjacent to two unconnected
     land masses) are detected and error messages generated.
     """
-    imt, jmt = veros.nx + 4, veros.ny + 4
+    imt, jmt = vs.nx + 4, vs.ny + 4
 
     # main loop: pop a candidate point off the queue and process it
     while not island_queue.empty():
@@ -104,13 +104,13 @@ def expand(veros, boundary_map, label, island_queue, nippts):
         elif boundary_map[i, j] == LAND:
             boundary_map[i, j] = label
             island_queue.put((i, jn_isl(j, jmt)))
-            island_queue.put((ie_isl(veros, i, imt), jn_isl(j, jmt)))
-            island_queue.put((ie_isl(veros, i, imt), j))
-            island_queue.put((ie_isl(veros, i, imt), js_isl(j)))
+            island_queue.put((ie_isl(vs, i, imt), jn_isl(j, jmt)))
+            island_queue.put((ie_isl(vs, i, imt), j))
+            island_queue.put((ie_isl(vs, i, imt), js_isl(j)))
             island_queue.put((i, js_isl(j)))
-            island_queue.put((iw_isl(veros, i, imt), js_isl(j)))
-            island_queue.put((iw_isl(veros, i, imt), j))
-            island_queue.put((iw_isl(veros, i, imt), jn_isl(j, jmt)))
+            island_queue.put((iw_isl(vs, i, imt), js_isl(j)))
+            island_queue.put((iw_isl(vs, i, imt), j))
+            island_queue.put((iw_isl(vs, i, imt), jn_isl(j, jmt)))
             continue
         # case: (i,j) is a perimeter ocean point of another mass
         elif boundary_map[i, j] < 0:
@@ -134,15 +134,15 @@ def js_isl(j):
     return j - 1 if j > 0 else OFFMAP
 
 
-def ie_isl(veros, i, imt):
-    if veros.enable_cyclic_x:
+def ie_isl(vs, i, imt):
+    if vs.enable_cyclic_x:
         return i + 1 if i < imt - 2 else i + 1 - imt + 2
     else:
         return i + 1 if i < imt - 1 else OFFMAP
 
 
-def iw_isl(veros, i, imt):
-    if veros.enable_cyclic_x:
+def iw_isl(vs, i, imt):
+    if vs.enable_cyclic_x:
         return i - 1 if i > 1 else i - 1 + imt - 2
     else:
         return i - 1 if i > 0 else OFFMAP

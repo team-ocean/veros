@@ -2,7 +2,7 @@ from ... import veros_method
 
 
 @veros_method
-def line_integrals(veros, uloc, vloc, kind="same"):
+def line_integrals(vs, uloc, vloc, kind="same"):
     """
     calculate line integrals along all islands
 
@@ -18,29 +18,29 @@ def line_integrals(veros, uloc, vloc, kind="same"):
     else:
         raise ValueError("kind must be 'same' or 'full'")
 
-    east = vloc[1:-2, 1:-2, :] * veros.dyu[np.newaxis, 1:-2, np.newaxis] \
+    east = vloc[1:-2, 1:-2, :] * vs.dyu[np.newaxis, 1:-2, np.newaxis] \
         + uloc[1:-2, 2:-1, :] \
-        * veros.dxu[1:-2, np.newaxis, np.newaxis] \
-        * veros.cost[np.newaxis, 2:-1, np.newaxis]
-    west = -vloc[2:-1, 1:-2, :] * veros.dyu[np.newaxis, 1:-2, np.newaxis] \
+        * vs.dxu[1:-2, np.newaxis, np.newaxis] \
+        * vs.cost[np.newaxis, 2:-1, np.newaxis]
+    west = -vloc[2:-1, 1:-2, :] * vs.dyu[np.newaxis, 1:-2, np.newaxis] \
         - uloc[1:-2, 1:-2, :] \
-        * veros.dxu[1:-2, np.newaxis, np.newaxis] \
-        * veros.cost[np.newaxis, 1:-2, np.newaxis]
-    north = vloc[1:-2, 1:-2, :] * veros.dyu[np.newaxis, 1:-2, np.newaxis] \
+        * vs.dxu[1:-2, np.newaxis, np.newaxis] \
+        * vs.cost[np.newaxis, 1:-2, np.newaxis]
+    north = vloc[1:-2, 1:-2, :] * vs.dyu[np.newaxis, 1:-2, np.newaxis] \
         - uloc[1:-2, 1:-2, :] \
-        * veros.dxu[1:-2, np.newaxis, np.newaxis] \
-        * veros.cost[np.newaxis, 1:-2, np.newaxis]
-    south = -vloc[2:-1, 1:-2, :] * veros.dyu[np.newaxis, 1:-2, np.newaxis] \
+        * vs.dxu[1:-2, np.newaxis, np.newaxis] \
+        * vs.cost[np.newaxis, 1:-2, np.newaxis]
+    south = -vloc[2:-1, 1:-2, :] * vs.dyu[np.newaxis, 1:-2, np.newaxis] \
         + uloc[1:-2, 2:-1, :] \
-        * veros.dxu[1:-2, np.newaxis, np.newaxis] \
-        * veros.cost[np.newaxis, 2:-1, np.newaxis]
-    east = np.sum(east[s1] * (veros.line_dir_east_mask[1:-2, 1:-2] &
-                              veros.boundary_mask[1:-2, 1:-2])[s2], axis=(0, 1))
-    west = np.sum(west[s1] * (veros.line_dir_west_mask[1:-2, 1:-2] &
-                              veros.boundary_mask[1:-2, 1:-2])[s2], axis=(0, 1))
-    north = np.sum(north[s1] * (veros.line_dir_north_mask[1:-2, 1:-2]
-                                & veros.boundary_mask[1:-2, 1:-2])[s2], axis=(0, 1))
-    south = np.sum(south[s1] * (veros.line_dir_south_mask[1:-2, 1:-2]
-                                & veros.boundary_mask[1:-2, 1:-2])[s2], axis=(0, 1))
+        * vs.dxu[1:-2, np.newaxis, np.newaxis] \
+        * vs.cost[np.newaxis, 2:-1, np.newaxis]
+    east = np.sum(east[s1] * (vs.line_dir_east_mask[1:-2, 1:-2] &
+                              vs.boundary_mask[1:-2, 1:-2])[s2], axis=(0, 1))
+    west = np.sum(west[s1] * (vs.line_dir_west_mask[1:-2, 1:-2] &
+                              vs.boundary_mask[1:-2, 1:-2])[s2], axis=(0, 1))
+    north = np.sum(north[s1] * (vs.line_dir_north_mask[1:-2, 1:-2]
+                                & vs.boundary_mask[1:-2, 1:-2])[s2], axis=(0, 1))
+    south = np.sum(south[s1] * (vs.line_dir_south_mask[1:-2, 1:-2]
+                                & vs.boundary_mask[1:-2, 1:-2])[s2], axis=(0, 1))
 
     return east + west + north + south
