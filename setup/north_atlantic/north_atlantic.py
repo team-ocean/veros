@@ -172,7 +172,7 @@ class NorthAtlantic(Veros):
     @veros_method
     def set_forcing(self):
         year_in_seconds = 360 * 86400.0
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(veros.time, year_in_seconds,
+        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.time, year_in_seconds,
                                                          year_in_seconds / 12., 12)
 
         self.surface_taux[...] = (f1 * self._taux[:, :, n1] + f2 * self._taux[:, :, n2])
