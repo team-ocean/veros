@@ -103,18 +103,18 @@ class WavePropagation(Veros):
             topo_x, topo_y, topo_z = (topography_file.variables[k][...].T.astype(
                 np.float) for k in ("x", "y", "z"))
         topo_z[topo_z > 0] = 0.
-        topo_mask = (np.flipud(np.asarray(Image.open("topography_idealized.png"))).T /
+        topo_mask = (np.flipud(Image.open("topography_idealized.png")).T /
                      255).astype(np.bool)
         topo_z_smoothed = scipy.ndimage.gaussian_filter(topo_z,
                                                         sigma=(0.5 * len(topo_x) / self.nx, 0.5 * len(topo_y) / self.ny))
         topo_z_smoothed[~topo_mask & (topo_z_smoothed >= 0.)] = -100.
         topo_masked = np.where(topo_mask, 0., topo_z_smoothed)
 
-        na_mask_image = np.flipud(np.asarray(Image.open("na_mask.png"))).T / 255.
+        na_mask_image = np.flipud(Image.open("na_mask.png")).T / 255.
         topo_x_shifted, na_mask_shifted = self._shift_longitude_array(topo_x, na_mask_image)
         self._na_mask = ~tools.interpolate((topo_x_shifted, topo_y), na_mask_shifted, (
             self.xt[2:-2], self.yt[2:-2]), kind="nearest", fill=False).astype(np.bool)
-
+        
         topo_x_shifted, topo_masked_shifted = self._shift_longitude_array(topo_x, topo_masked)
         z_interp = tools.interpolate((topo_x_shifted, topo_y), topo_masked_shifted,
                                      (self.xt[2:-2], self.yt[2:-2]), kind="nearest", fill=False)
@@ -123,7 +123,7 @@ class WavePropagation(Veros):
             np.argmin(np.abs(z_interp[:, :, np.newaxis] -
                              self.zt[np.newaxis, np.newaxis, :]), axis=2)
         self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., depth_levels, 0)
-        self.kbot *= self.kbot < self.nz
+        self.kbot = np.minimum(self.kbot, np.full_like(self.kbot, self.nz))
 
     def _fix_north_atlantic(self, arr):
         newaxes = (slice(None), slice(None)) + (np.newaxis,) * (arr.ndim - 2)
