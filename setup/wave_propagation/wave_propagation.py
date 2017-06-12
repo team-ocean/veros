@@ -123,7 +123,7 @@ class WavePropagation(Veros):
             np.argmin(np.abs(z_interp[:, :, np.newaxis] -
                              self.zt[np.newaxis, np.newaxis, :]), axis=2)
         self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., depth_levels, 0)
-        self.kbot = np.minimum(self.kbot, np.full_like(self.kbot, self.nz))
+        self.kbot *= self.kbot < self.nz
 
     def _fix_north_atlantic(self, arr):
         newaxes = (slice(None), slice(None)) + (np.newaxis,) * (arr.ndim - 2)
