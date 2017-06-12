@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 
 from veros import VerosLegacy, veros_method, core
 
@@ -77,9 +78,14 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--fortran-lib")
+    parser.add_argument("--timesteps", type=int)
     args, _ = parser.parse_known_args()
 
     fortran = args.fortran_lib or None
     sim = StreamfunctionBenchmark(fortran)
+    sim.repetitions = args.timesteps
     sim.setup()
+    start = time.time()
     sim.run()
+    end = time.time()
+    print("Veros benchmark took {}s".format(end - start))
