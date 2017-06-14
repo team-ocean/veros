@@ -8,10 +8,6 @@ branches:
     - master
 
 before_install:
-  - wget https://github.com/git-lfs/git-lfs/releases/download/v2.1.1/git-lfs-linux-amd64-2.1.1.tar.gz
-  - tar xvzf git-lfs-linux-amd64-2.1.1.tar.gz
-  - PREFIX=$HOME/.local ./git-lfs-2.1.1/install.sh
-  - git-lfs install && git-lfs pull
   - docker pull veros/ubuntu:16.04
 
 install:

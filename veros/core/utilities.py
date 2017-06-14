@@ -2,7 +2,7 @@ from .. import veros_method, veros_inline_method
 
 
 @veros_inline_method
-def pad_z_edges(veros, array):
+def pad_z_edges(vs, array):
     """
     Pads the z-axis of an array by repeating its edge values
     """
@@ -24,7 +24,7 @@ def pad_z_edges(veros, array):
 
 
 @veros_method
-def solve_implicit(veros, ks, a, b, c, d, b_edge=None, d_edge=None):
+def solve_implicit(vs, ks, a, b, c, d, b_edge=None, d_edge=None):
     from .numerics import solve_tridiag  # avoid circular import
 
     land_mask = (ks >= 0)[:, :, np.newaxis]
@@ -43,4 +43,4 @@ def solve_implicit(veros, ks, a, b, c, d, b_edge=None, d_edge=None):
     d_tri = np.where(water_mask, d, 0.)
     if not (d_edge is None):
         d_tri = np.where(edge_mask, d_edge, d_tri)
-    return solve_tridiag(veros, a_tri, b_tri, c_tri, d_tri), water_mask
+    return solve_tridiag(vs, a_tri, b_tri, c_tri, d_tri), water_mask

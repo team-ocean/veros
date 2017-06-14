@@ -104,137 +104,137 @@ class Energy(VerosDiagnostic):
     variables = ENERGY_VARIABLES
 
     @veros_class_method
-    def initialize(self, veros):
+    def initialize(self, vs):
         self.nitts = 0
         for var in self.variables.keys():
             setattr(self, var, 0.)
 
         output_variables = {key: val for key, val in self.variables.items() if val.output}
-        self.initialize_output(veros, output_variables)
+        self.initialize_output(vs, output_variables)
 
     @veros_class_method
-    def diagnose(self, veros):
+    def diagnose(self, vs):
         # changes of dynamic enthalpy
-        vol_t = veros.area_t[2:-2, 2:-2, np.newaxis] \
-            * veros.dzt[np.newaxis, np.newaxis, :] \
-            * veros.maskT[2:-2, 2:-2, :]
-        dP_iso = np.sum(vol_t * veros.grav / veros.rho_0
-                        * (-veros.int_drhodT[2:-2, 2:-2, :, veros.tau]
-                           * veros.dtemp_iso[2:-2, 2:-2, :]
-                           - veros.int_drhodS[2:-2, 2:-2, :, veros.tau]
-                           * veros.dsalt_iso[2:-2, 2:-2, :]))
-        dP_hmix = np.sum(vol_t * veros.grav / veros.rho_0
-                         * (-veros.int_drhodT[2:-2, 2:-2, :, veros.tau]
-                            * veros.dtemp_hmix[2:-2, 2:-2, :]
-                            - veros.int_drhodS[2:-2, 2:-2, :, veros.tau]
-                            * veros.dsalt_hmix[2:-2, 2:-2, :]))
-        dP_vmix = np.sum(vol_t * veros.grav / veros.rho_0
-                         * (-veros.int_drhodT[2:-2, 2:-2, :, veros.tau]
-                            * veros.dtemp_vmix[2:-2, 2:-2, :]
-                            - veros.int_drhodS[2:-2, 2:-2, :, veros.tau]
-                            * veros.dsalt_vmix[2:-2, 2:-2, :]))
-        dP_m = np.sum(vol_t * veros.grav / veros.rho_0
-                      * (-veros.int_drhodT[2:-2, 2:-2, :, veros.tau]
-                          * veros.dtemp[2:-2, 2:-2, :, veros.tau]
-                          - veros.int_drhodS[2:-2, 2:-2, :, veros.tau]
-                          * veros.dsalt[2:-2, 2:-2, :, veros.tau]))
+        vol_t = vs.area_t[2:-2, 2:-2, np.newaxis] \
+            * vs.dzt[np.newaxis, np.newaxis, :] \
+            * vs.maskT[2:-2, 2:-2, :]
+        dP_iso = np.sum(vol_t * vs.grav / vs.rho_0
+                        * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
+                           * vs.dtemp_iso[2:-2, 2:-2, :]
+                           - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
+                           * vs.dsalt_iso[2:-2, 2:-2, :]))
+        dP_hmix = np.sum(vol_t * vs.grav / vs.rho_0
+                         * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
+                            * vs.dtemp_hmix[2:-2, 2:-2, :]
+                            - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
+                            * vs.dsalt_hmix[2:-2, 2:-2, :]))
+        dP_vmix = np.sum(vol_t * vs.grav / vs.rho_0
+                         * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
+                            * vs.dtemp_vmix[2:-2, 2:-2, :]
+                            - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
+                            * vs.dsalt_vmix[2:-2, 2:-2, :]))
+        dP_m = np.sum(vol_t * vs.grav / vs.rho_0
+                      * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
+                          * vs.dtemp[2:-2, 2:-2, :, vs.tau]
+                          - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
+                          * vs.dsalt[2:-2, 2:-2, :, vs.tau]))
         dP_m_all = dP_m + dP_vmix + dP_hmix + dP_iso
 
         # changes of kinetic energy
-        vol_u = veros.area_u[2:-2, 2:-2, np.newaxis] \
-            * veros.dzt[np.newaxis, np.newaxis, :]
-        vol_v = veros.area_v[2:-2, 2:-2, np.newaxis] \
-            * veros.dzt[np.newaxis, np.newaxis, :]
-        k_m = np.sum(vol_t * 0.5 * (0.5 * (veros.u[2:-2, 2:-2, :, veros.tau] ** 2
-                                           + veros.u[1:-3, 2:-2, :, veros.tau] ** 2)
-                                    + 0.5 * (veros.v[2:-2, 2:-2, :, veros.tau] ** 2)
-                                    + veros.v[2:-2, 1:-3, :, veros.tau] ** 2))
-        p_m = np.sum(vol_t * veros.Hd[2:-2, 2:-2, :, veros.tau])
-        dk_m = np.sum(veros.u[2:-2, 2:-2, :, veros.tau] * veros.du[2:-2, 2:-2, :, veros.tau] * vol_u
-                      + veros.v[2:-2, 2:-2, :, veros.tau]
-                      * veros.dv[2:-2, 2:-2, :, veros.tau] * vol_v
-                      + veros.u[2:-2, 2:-2, :, veros.tau] * veros.du_mix[2:-2, 2:-2, :] * vol_u
-                      + veros.v[2:-2, 2:-2, :, veros.tau] * veros.dv_mix[2:-2, 2:-2, :] * vol_v)
+        vol_u = vs.area_u[2:-2, 2:-2, np.newaxis] \
+            * vs.dzt[np.newaxis, np.newaxis, :]
+        vol_v = vs.area_v[2:-2, 2:-2, np.newaxis] \
+            * vs.dzt[np.newaxis, np.newaxis, :]
+        k_m = np.sum(vol_t * 0.5 * (0.5 * (vs.u[2:-2, 2:-2, :, vs.tau] ** 2
+                                           + vs.u[1:-3, 2:-2, :, vs.tau] ** 2)
+                                    + 0.5 * (vs.v[2:-2, 2:-2, :, vs.tau] ** 2)
+                                    + vs.v[2:-2, 1:-3, :, vs.tau] ** 2))
+        p_m = np.sum(vol_t * vs.Hd[2:-2, 2:-2, :, vs.tau])
+        dk_m = np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du[2:-2, 2:-2, :, vs.tau] * vol_u
+                      + vs.v[2:-2, 2:-2, :, vs.tau]
+                      * vs.dv[2:-2, 2:-2, :, vs.tau] * vol_v
+                      + vs.u[2:-2, 2:-2, :, vs.tau] * vs.du_mix[2:-2, 2:-2, :] * vol_u
+                      + vs.v[2:-2, 2:-2, :, vs.tau] * vs.dv_mix[2:-2, 2:-2, :] * vol_v)
 
-        corm = np.sum(veros.u[2:-2, 2:-2, :, veros.tau] * veros.du_cor[2:-2, 2:-2, :] * vol_u
-                      + veros.v[2:-2, 2:-2, :, veros.tau] * veros.dv_cor[2:-2, 2:-2, :] * vol_v)
-        k_e_adv = np.sum(veros.u[2:-2, 2:-2, :, veros.tau] * veros.du_adv[2:-2, 2:-2, :]
-                         * vol_u * veros.maskU[2:-2, 2:-2, :]
-                         + veros.v[2:-2, 2:-2, :, veros.tau] * veros.dv_adv[2:-2, 2:-2, :]
-                         * vol_v * veros.maskV[2:-2, 2:-2, :])
+        corm = np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du_cor[2:-2, 2:-2, :] * vol_u
+                      + vs.v[2:-2, 2:-2, :, vs.tau] * vs.dv_cor[2:-2, 2:-2, :] * vol_v)
+        k_e_adv = np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du_adv[2:-2, 2:-2, :]
+                         * vol_u * vs.maskU[2:-2, 2:-2, :]
+                         + vs.v[2:-2, 2:-2, :, vs.tau] * vs.dv_adv[2:-2, 2:-2, :]
+                         * vol_v * vs.maskV[2:-2, 2:-2, :])
 
         # K*Nsqr and KE and dyn. enthalpy dissipation
-        vol_w = veros.area_t[2:-2, 2:-2, np.newaxis] * veros.dzw[np.newaxis, np.newaxis, :] \
-            * veros.maskW[2:-2, 2:-2, :]
+        vol_w = vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzw[np.newaxis, np.newaxis, :] \
+            * vs.maskW[2:-2, 2:-2, :]
         vol_w[:, :, -1] *= 0.5
 
         def mean_w(var):
             return np.sum(var[2:-2, 2:-2, :] * vol_w)
 
-        mdiss_vmix = mean_w(veros.P_diss_v)
-        mdiss_nonlin = mean_w(veros.P_diss_nonlin)
-        mdiss_adv = mean_w(veros.P_diss_adv)
-        mdiss_hmix = mean_w(veros.P_diss_hmix)
-        mdiss_comp = mean_w(veros.P_diss_comp)
-        mdiss_iso = mean_w(veros.P_diss_iso)
-        mdiss_skew = mean_w(veros.P_diss_skew)
-        mdiss_sources = mean_w(veros.P_diss_sources)
+        mdiss_vmix = mean_w(vs.P_diss_v)
+        mdiss_nonlin = mean_w(vs.P_diss_nonlin)
+        mdiss_adv = mean_w(vs.P_diss_adv)
+        mdiss_hmix = mean_w(vs.P_diss_hmix)
+        mdiss_comp = mean_w(vs.P_diss_comp)
+        mdiss_iso = mean_w(vs.P_diss_iso)
+        mdiss_skew = mean_w(vs.P_diss_skew)
+        mdiss_sources = mean_w(vs.P_diss_sources)
 
-        mdiss_h = mean_w(veros.K_diss_h)
-        mdiss_v = mean_w(veros.K_diss_v)
-        mdiss_gm = mean_w(veros.K_diss_gm)
-        mdiss_bot = mean_w(veros.K_diss_bot)
+        mdiss_h = mean_w(vs.K_diss_h)
+        mdiss_v = mean_w(vs.K_diss_v)
+        mdiss_gm = mean_w(vs.K_diss_gm)
+        mdiss_bot = mean_w(vs.K_diss_bot)
 
-        wrhom = np.sum(-veros.area_t[2:-2, 2:-2, np.newaxis] * veros.maskW[2:-2, 2:-2, :-1]
-                       * (veros.p_hydro[2:-2, 2:-2, 1:] - veros.p_hydro[2:-2, 2:-2, :-1])
-                       * veros.w[2:-2, 2:-2, :-1, veros.tau])
+        wrhom = np.sum(-vs.area_t[2:-2, 2:-2, np.newaxis] * vs.maskW[2:-2, 2:-2, :-1]
+                       * (vs.p_hydro[2:-2, 2:-2, 1:] - vs.p_hydro[2:-2, 2:-2, :-1])
+                       * vs.w[2:-2, 2:-2, :-1, vs.tau])
 
         # wind work
-        wind = np.sum(veros.u[2:-2, 2:-2, -1, veros.tau] * veros.surface_taux[2:-2, 2:-2]
-                      * veros.maskU[2:-2, 2:-2, -1] * veros.area_u[2:-2, 2:-2]
-                      + veros.v[2:-2, 2:-2, -1, veros.tau] * veros.surface_tauy[2:-2, 2:-2]
-                      * veros.maskV[2:-2, 2:-2, -1] * veros.area_v[2:-2, 2:-2])
+        wind = np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2]
+                      * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
+                      + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2]
+                      * vs.maskV[2:-2, 2:-2, -1] * vs.area_v[2:-2, 2:-2])
 
         # meso-scale energy
-        if veros.enable_eke:
-            eke_m = mean_w(veros.eke[..., veros.tau])
-            deke_m = np.sum(vol_w * (veros.eke[2:-2, 2:-2, :, veros.taup1]
-                                     - veros.eke[2:-2, 2:-2, :, veros.tau])
-                            / veros.dt_tracer)
-            eke_diss = mean_w(veros.eke_diss_iw)
-            eke_diss_tke = mean_w(veros.eke_diss_tke)
+        if vs.enable_eke:
+            eke_m = mean_w(vs.eke[..., vs.tau])
+            deke_m = np.sum(vol_w * (vs.eke[2:-2, 2:-2, :, vs.taup1]
+                                     - vs.eke[2:-2, 2:-2, :, vs.tau])
+                            / vs.dt_tracer)
+            eke_diss = mean_w(vs.eke_diss_iw)
+            eke_diss_tke = mean_w(vs.eke_diss_tke)
         else:
             eke_m = deke_m = eke_diss_tke = 0.
             eke_diss = mdiss_gm + mdiss_h + mdiss_skew
-            if not veros.enable_store_cabbeling_heat:
+            if not vs.enable_store_cabbeling_heat:
                 eke_diss += -mdiss_hmix - mdiss_iso
 
         # small-scale energy
-        if veros.enable_tke:
-            tke_m = mean_w(veros.tke[..., veros.tau])
-            dtke_m = mean_w((veros.tke[..., veros.taup1]
-                             - veros.tke[..., veros.tau])
-                            / veros.dt_tke)
-            tke_diss = mean_w(veros.tke_diss)
-            tke_forc = np.sum(veros.area_t[2:-2, 2:-2] * veros.maskW[2:-2, 2:-2, -1]
-                              * (veros.forc_tke_surface[2:-2, 2:-2] + veros.tke_surf_corr[2:-2, 2:-2]))
+        if vs.enable_tke:
+            tke_m = mean_w(vs.tke[..., vs.tau])
+            dtke_m = mean_w((vs.tke[..., vs.taup1]
+                             - vs.tke[..., vs.tau])
+                            / vs.dt_tke)
+            tke_diss = mean_w(vs.tke_diss)
+            tke_forc = np.sum(vs.area_t[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
+                              * (vs.forc_tke_surface[2:-2, 2:-2] + vs.tke_surf_corr[2:-2, 2:-2]))
         else:
             tke_m = dtke_m = tke_diss = tke_forc = 0.
 
         # internal wave energy
-        if veros.enable_idemix:
-            iw_m = mean_w(veros.E_iw[..., veros.tau])
-            diw_m = np.sum(vol_w * (veros.E_iw[2:-2, 2:-2, :, veros.taup1]
-                                    - veros.E_iw[2:-2, 2:-2, :, veros.tau])
-                           / veros.dt_tracer)
-            iw_diss = mean_w(veros.iw_diss)
+        if vs.enable_idemix:
+            iw_m = mean_w(vs.E_iw[..., vs.tau])
+            diw_m = np.sum(vol_w * (vs.E_iw[2:-2, 2:-2, :, vs.taup1]
+                                    - vs.E_iw[2:-2, 2:-2, :, vs.tau])
+                           / vs.dt_tracer)
+            iw_diss = mean_w(vs.iw_diss)
 
-            k = np.maximum(1, veros.kbot[2:-2, 2:-2]) - 1
-            mask = k[:, :, np.newaxis] == np.arange(veros.nz)[np.newaxis, np.newaxis, :]
-            iwforc = np.sum(veros.area_t[2:-2, 2:-2]
-                            * (veros.forc_iw_surface[2:-2, 2:-2] * veros.maskW[2:-2, 2:-2, -1]
-                               + np.sum(mask * veros.forc_iw_bottom[2:-2, 2:-2, np.newaxis]
-                                        * veros.maskW[2:-2, 2:-2, :], axis=2)))
+            k = np.maximum(1, vs.kbot[2:-2, 2:-2]) - 1
+            mask = k[:, :, np.newaxis] == np.arange(vs.nz)[np.newaxis, np.newaxis, :]
+            iwforc = np.sum(vs.area_t[2:-2, 2:-2]
+                            * (vs.forc_iw_surface[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
+                               + np.sum(mask * vs.forc_iw_bottom[2:-2, 2:-2, np.newaxis]
+                                        * vs.maskW[2:-2, 2:-2, :], axis=2)))
         else:
             iw_m = diw_m = iwforc = 0.
             iw_diss = eke_diss
@@ -271,13 +271,13 @@ class Energy(VerosDiagnostic):
         self.hd_eke_m += -mdiss_skew
         self.ke_tke_m += mdiss_v
         self.tke_hd_m += -mdiss_vmix - mdiss_adv
-        if veros.enable_store_bottom_friction_tke:
+        if vs.enable_store_bottom_friction_tke:
             self.ke_tke_m += mdiss_bot
         else:
             self.ke_iw_m += mdiss_bot
         self.eke_tke_m += eke_diss_tke
         self.eke_iw_m += eke_diss
-        if not veros.enable_store_cabbeling_heat:
+        if not vs.enable_store_cabbeling_heat:
             self.hd_eke_m += -mdiss_hmix - mdiss_iso
             self.tke_hd_m += -mdiss_nonlin
 
@@ -287,29 +287,29 @@ class Energy(VerosDiagnostic):
         self.nitts += 1
 
     @veros_class_method
-    def output(self, veros):
+    def output(self, vs):
         self.nitts = float(self.nitts or 1)
         output_variables = {key: val for key, val in self.variables.items() if val.output}
-        output_data = {key: getattr(self, key) * veros.rho_0 /
+        output_data = {key: getattr(self, key) * vs.rho_0 /
                        self.nitts for key in output_variables.keys()}
-        if not os.path.isfile(self.get_output_file_name(veros)):
-            self.initialize_output(veros, output_variables)
-        self.write_output(veros, output_variables, output_data)
+        if not os.path.isfile(self.get_output_file_name(vs)):
+            self.initialize_output(vs, output_variables)
+        self.write_output(vs, output_variables, output_data)
 
         for key in output_variables.keys():
             setattr(self, key, 0.)
         self.nitts = 0
 
     @veros_class_method
-    def read_restart(self, veros):
-        attributes, variables = self.read_h5_restart(veros)
+    def read_restart(self, vs):
+        attributes, variables = self.read_h5_restart(vs)
         if attributes:
             for key, val in attributes.items():
                 setattr(self, key, val)
 
     @veros_class_method
-    def write_restart(self, veros, outfile):
+    def write_restart(self, vs, outfile):
         restart_data = {key: getattr(self, key)
                         for key, val in self.variables.items() if val.write_to_restart}
         restart_data.update({"nitts": self.nitts})
-        self.write_h5_restart(veros, restart_data, {}, {}, outfile)
+        self.write_h5_restart(vs, restart_data, {}, {}, outfile)

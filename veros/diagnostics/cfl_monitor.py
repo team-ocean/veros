@@ -13,48 +13,48 @@ class CFLMonitor(VerosDiagnostic):
     name = "cfl_monitor" #:
     output_frequency = None  # :Frequency (in seconds) in which output is written.
 
-    def initialize(self, veros):
+    def initialize(self, vs):
         pass
 
-    def diagnose(self, veros):
+    def diagnose(self, vs):
         pass
 
     @veros_class_method
-    def output(self, veros):
+    def output(self, vs):
         """
         check for CFL violation
         """
         cfl = max(
-            np.max(np.abs(veros.u[2:-2, 2:-2, :, veros.tau]) * veros.maskU[2:-2, 2:-2, :]
-                   / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dxt[2:-2, np.newaxis, np.newaxis])
-                   * veros.dt_tracer),
-            np.max(np.abs(veros.v[2:-2, 2:-2, :, veros.tau]) * veros.maskV[2:-2, 2:-2, :]
-                   / veros.dyt[np.newaxis, 2:-2, np.newaxis] * veros.dt_tracer)
+            np.max(np.abs(vs.u[2:-2, 2:-2, :, vs.tau]) * vs.maskU[2:-2, 2:-2, :]
+                   / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
+                   * vs.dt_tracer),
+            np.max(np.abs(vs.v[2:-2, 2:-2, :, vs.tau]) * vs.maskV[2:-2, 2:-2, :]
+                   / vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.dt_tracer)
         )
-        wcfl = np.max(np.abs(veros.w[2:-2, 2:-2, :, veros.tau]) * veros.maskW[2:-2, 2:-2, :]
-                      / veros.dzt[np.newaxis, np.newaxis, :] * veros.dt_tracer)
+        wcfl = np.max(np.abs(vs.w[2:-2, 2:-2, :, vs.tau]) * vs.maskW[2:-2, 2:-2, :]
+                      / vs.dzt[np.newaxis, np.newaxis, :] * vs.dt_tracer)
 
         if np.isnan(cfl) or np.isnan(wcfl):
-            raise RuntimeError("CFL number is NaN at iteration {}".format(veros.itt))
+            raise RuntimeError("CFL number is NaN at iteration {}".format(vs.itt))
 
         logging.warning(" maximal hor. CFL number = {}".format(cfl))
         logging.warning(" maximal ver. CFL number = {}".format(wcfl))
 
-        if veros.enable_eke or veros.enable_tke or veros.enable_idemix:
+        if vs.enable_eke or vs.enable_tke or vs.enable_idemix:
             cfl = max(
-                np.max(np.abs(veros.u_wgrid[2:-2, 2:-2, :]) * veros.maskU[2:-2, 2:-2, :]
-                       / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dxt[2:-2, np.newaxis, np.newaxis])
-                       * veros.dt_tracer),
-                np.max(np.abs(veros.v_wgrid[2:-2, 2:-2, :]) * veros.maskV[2:-2, 2:-2, :]
-                       / veros.dyt[np.newaxis, 2:-2, np.newaxis] * veros.dt_tracer)
+                np.max(np.abs(vs.u_wgrid[2:-2, 2:-2, :]) * vs.maskU[2:-2, 2:-2, :]
+                       / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
+                       * vs.dt_tracer),
+                np.max(np.abs(vs.v_wgrid[2:-2, 2:-2, :]) * vs.maskV[2:-2, 2:-2, :]
+                       / vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.dt_tracer)
             )
-            wcfl = np.max(np.abs(veros.w_wgrid[2:-2, 2:-2, :]) * veros.maskW[2:-2, 2:-2, :]
-                          / veros.dzt[np.newaxis, np.newaxis, :] * veros.dt_tracer)
+            wcfl = np.max(np.abs(vs.w_wgrid[2:-2, 2:-2, :]) * vs.maskW[2:-2, 2:-2, :]
+                          / vs.dzt[np.newaxis, np.newaxis, :] * vs.dt_tracer)
             logging.warning(" maximal hor. CFL number on w grid = {}".format(cfl))
             logging.warning(" maximal ver. CFL number on w grid = {}".format(wcfl))
 
-    def read_restart(self, veros):
+    def read_restart(self, vs):
         pass
 
-    def write_restart(self, veros, outfile):
+    def write_restart(self, vs, outfile):
         pass

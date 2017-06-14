@@ -1,2 +1,0 @@
-forcing_4deg_global.nc filter=lfs diff=lfs merge=lfs -text
-ecmwf_4deg_monthly.nc filter=lfs diff=lfs merge=lfs -text

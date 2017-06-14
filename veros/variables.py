@@ -48,18 +48,18 @@ BASE_DIMENSIONS = XT + XU + YT + YU + ZT + ZW + ISLE
 GHOST_DIMENSIONS = ("xt", "yt", "xu", "yu")
 
 
-def get_dimensions(veros, grid, include_ghosts=True):
+def get_dimensions(vs, grid, include_ghosts=True):
     dimensions = {
-        "xt": veros.nx,
-        "xu": veros.nx,
-        "yt": veros.ny,
-        "yu": veros.ny,
-        "zt": veros.nz,
-        "zw": veros.nz,
+        "xt": vs.nx,
+        "xu": vs.nx,
+        "yt": vs.ny,
+        "yu": vs.ny,
+        "zt": vs.nz,
+        "zw": vs.nz,
         "timesteps": 3,
         "tensor1": 2,
         "tensor2": 2,
-        "isle": veros.nisle,
+        "isle": vs.nisle,
     }
     if include_ghosts:
         for d in GHOST_DIMENSIONS:
@@ -73,7 +73,7 @@ def remove_ghosts(array, dims):
 
 
 @veros_method
-def add_ghosts(veros, array, dims):
+def add_ghosts(vs, array, dims):
     full_shape = tuple([i + 4 if dim in GHOST_DIMENSIONS else i for i,
                         dim in zip(array.shape, dims)])
     newarr = np.zeros(full_shape, dtype=array.dtype)
@@ -82,17 +82,17 @@ def add_ghosts(veros, array, dims):
     return newarr
 
 
-def get_grid_mask(veros, grid):
+def get_grid_mask(vs, grid):
     masks = {
-        T_HOR: veros.maskT[:, :, -1],
-        U_HOR: veros.maskU[:, :, -1],
-        V_HOR: veros.maskV[:, :, -1],
-        ZETA_HOR: veros.maskZ[:, :, -1],
-        T_GRID: veros.maskT,
-        U_GRID: veros.maskU,
-        V_GRID: veros.maskV,
-        W_GRID: veros.maskW,
-        ZETA_GRID: veros.maskZ
+        T_HOR: vs.maskT[:, :, -1],
+        U_HOR: vs.maskU[:, :, -1],
+        V_HOR: vs.maskV[:, :, -1],
+        ZETA_HOR: vs.maskZ[:, :, -1],
+        T_GRID: vs.maskT,
+        U_GRID: vs.maskU,
+        V_GRID: vs.maskV,
+        W_GRID: vs.maskW,
+        ZETA_GRID: vs.maskZ
     }
     if len(grid) > 2:
         if grid[:3] in masks.keys():
@@ -692,22 +692,22 @@ CONDITIONAL_VARIABLES = OrderedDict([
 ])
 
 @veros_method
-def allocate_variables(veros):
-    veros.variables = {}
+def allocate_variables(vs):
+    vs.variables = {}
 
     def init_var(var_name, var):
-        shape = get_dimensions(veros, var.dims)
-        setattr(veros, var_name, np.zeros(shape, dtype=var.dtype or veros.default_float_type))
-        veros.variables[var_name] = var
+        shape = get_dimensions(vs, var.dims)
+        setattr(vs, var_name, np.zeros(shape, dtype=var.dtype or vs.default_float_type))
+        vs.variables[var_name] = var
 
     for var_name, var in MAIN_VARIABLES.items():
         init_var(var_name, var)
 
     for condition, var_dict in CONDITIONAL_VARIABLES.items():
         if condition.startswith("not "):
-            eval_condition = not bool(getattr(veros, condition[4:]))
+            eval_condition = not bool(getattr(vs, condition[4:]))
         else:
-            eval_condition = bool(getattr(veros, condition))
+            eval_condition = bool(getattr(vs, condition))
         if eval_condition:
             for var_name, var in var_dict.items():
                 init_var(var_name, var)

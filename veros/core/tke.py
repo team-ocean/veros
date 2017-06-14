@@ -5,202 +5,203 @@ from . import cyclic, advection, utilities, numerics
 
 
 @veros_method
-def set_tke_diffusivities(veros):
+def set_tke_diffusivities(vs):
     """
     set vertical diffusivities based on TKE model
     """
-    Rinumber = np.zeros((veros.nx + 4, veros.ny + 4, veros.nz), dtype=veros.default_float_type)
+    Rinumber = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
 
-    if veros.enable_tke:
-        veros.sqrttke[...] = np.sqrt(np.maximum(0., veros.tke[:, :, :, veros.tau]))
+    if vs.enable_tke:
+        vs.sqrttke[...] = np.sqrt(np.maximum(0., vs.tke[:, :, :, vs.tau]))
         """
         calculate buoyancy length scale
         """
-        veros.mxl[...] = math.sqrt(2) * veros.sqrttke \
-            / np.sqrt(np.maximum(1e-12, veros.Nsqr[:, :, :, veros.tau])) * veros.maskW
+        vs.mxl[...] = math.sqrt(2) * vs.sqrttke \
+            / np.sqrt(np.maximum(1e-12, vs.Nsqr[:, :, :, vs.tau])) * vs.maskW
 
         """
         apply limits for mixing length
         """
-        if veros.tke_mxl_choice == 1:
+        if vs.tke_mxl_choice == 1:
             """
             bounded by the distance to surface/bottom
             """
-            veros.mxl[...] = np.minimum(
-                np.minimum(veros.mxl, -veros.zw[np.newaxis, np.newaxis, :]
-                           + veros.dzw[np.newaxis, np.newaxis, :] * 0.5
-                           ), veros.ht[:, :, np.newaxis] + veros.zw[np.newaxis, np.newaxis, :]
+            vs.mxl[...] = np.minimum(
+                np.minimum(vs.mxl, -vs.zw[np.newaxis, np.newaxis, :]
+                           + vs.dzw[np.newaxis, np.newaxis, :] * 0.5
+                           ), vs.ht[:, :, np.newaxis] + vs.zw[np.newaxis, np.newaxis, :]
             )
-            veros.mxl[...] = np.maximum(veros.mxl, veros.mxl_min)
-        elif veros.tke_mxl_choice == 2:
+            vs.mxl[...] = np.maximum(vs.mxl, vs.mxl_min)
+        elif vs.tke_mxl_choice == 2:
             """
             bound length scale as in mitgcm/OPA code
 
             Note that the following code doesn't vectorize. If critical for performance,
             consider re-implementing it in Cython.
             """
-            for k in range(veros.nz - 2, -1, -1):
-                veros.mxl[:, :, k] = np.minimum(veros.mxl[:, :, k], veros.mxl[:, :, k + 1] + veros.dzt[k + 1])
-            veros.mxl[:, :, -1] = np.minimum(veros.mxl[:, :, -1], veros.mxl_min + veros.dzt[-1])
-            for k in range(1, veros.nz):
-                veros.mxl[:, :, k] = np.minimum(veros.mxl[:, :, k], veros.mxl[:, :, k - 1] + veros.dzt[k])
-            veros.mxl[...] = np.maximum(veros.mxl, veros.mxl_min)
+            for k in range(vs.nz - 2, -1, -1):
+                vs.mxl[:, :, k] = np.minimum(vs.mxl[:, :, k], vs.mxl[:, :, k + 1] + vs.dzt[k + 1])
+            vs.mxl[:, :, -1] = np.minimum(vs.mxl[:, :, -1], vs.mxl_min + vs.dzt[-1])
+            for k in range(1, vs.nz):
+                vs.mxl[:, :, k] = np.minimum(vs.mxl[:, :, k], vs.mxl[:, :, k - 1] + vs.dzt[k])
+            vs.mxl[...] = np.maximum(vs.mxl, vs.mxl_min)
         else:
             raise ValueError("unknown mixing length choice in tke_mxl_choice")
 
         """
         calculate viscosity and diffusivity based on Prandtl number
         """
-        if veros.enable_cyclic_x:
-            cyclic.setcyclic_x(veros.K_diss_v)
-        veros.kappaM[...] = np.minimum(veros.kappaM_max, veros.c_k * veros.mxl * veros.sqrttke)
-        Rinumber[...] = veros.Nsqr[:, :, :, veros.tau] / \
-            np.maximum(veros.K_diss_v / np.maximum(1e-12, veros.kappaM), 1e-12)
-        if veros.enable_idemix:
-            Rinumber[...] = np.minimum(Rinumber, veros.kappaM * veros.Nsqr[:, :, :, veros.tau]
-                                  / np.maximum(1e-12, veros.alpha_c * veros.E_iw[:, :, :, veros.tau]**2))
-        veros.Prandtlnumber[...] = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
-        veros.kappaH[...] = veros.kappaM / veros.Prandtlnumber
-        veros.kappaM[...] = np.maximum(veros.kappaM_min, veros.kappaM)
+        if vs.enable_cyclic_x:
+            cyclic.setcyclic_x(vs.K_diss_v)
+        vs.kappaM[...] = np.minimum(vs.kappaM_max, vs.c_k * vs.mxl * vs.sqrttke)
+        Rinumber[...] = vs.Nsqr[:, :, :, vs.tau] / \
+            np.maximum(vs.K_diss_v / np.maximum(1e-12, vs.kappaM), 1e-12)
+        if vs.enable_idemix:
+            Rinumber[...] = np.minimum(Rinumber, vs.kappaM * vs.Nsqr[:, :, :, vs.tau]
+                                  / np.maximum(1e-12, vs.alpha_c * vs.E_iw[:, :, :, vs.tau]**2))
+        vs.Prandtlnumber[...] = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
+        vs.kappaH[...] = vs.kappaM / vs.Prandtlnumber
+        vs.kappaM[...] = np.maximum(vs.kappaM_min, vs.kappaM)
     else:
-        veros.kappaM[...] = veros.kappaM_0
-        veros.kappaH[...] = veros.kappaH_0
+        vs.kappaM[...] = vs.kappaM_0
+        vs.kappaH[...] = vs.kappaH_0
 
 
 @veros_method
-def integrate_tke(veros):
+def integrate_tke(vs):
     """
     integrate Tke equation on W grid with surface flux boundary condition
     """
-    veros.dt_tke = veros.dt_mom  # use momentum time step to prevent spurious oscillations
+    vs.dt_tke = vs.dt_mom  # use momentum time step to prevent spurious oscillations
 
     """
     Sources and sinks by vertical friction, vertical mixing, and non-conservative advection
     """
-    forc = veros.K_diss_v - veros.P_diss_v - veros.P_diss_adv
+    forc = vs.K_diss_v - vs.P_diss_v - vs.P_diss_adv
 
     """
     store transfer due to vertical mixing from dyn. enthalpy by non-linear eq.of
     state either to TKE or to heat
     """
-    if not veros.enable_store_cabbeling_heat:
-        forc[...] += -veros.P_diss_nonlin
+    if not vs.enable_store_cabbeling_heat:
+        forc[...] += -vs.P_diss_nonlin
 
     """
     transfer part of dissipation of EKE to TKE
     """
-    if veros.enable_eke:
-        forc[...] += veros.eke_diss_tke
+    if vs.enable_eke:
+        forc[...] += vs.eke_diss_tke
 
-    if veros.enable_idemix:
+    if vs.enable_idemix:
         """
         transfer dissipation of internal waves to TKE
         """
-        forc[...] += veros.iw_diss
+        forc[...] += vs.iw_diss
         """
         store bottom friction either in TKE or internal waves
         """
-        if veros.enable_store_bottom_friction_tke:
-            forc[...] += veros.K_diss_bot
+        if vs.enable_store_bottom_friction_tke:
+            forc[...] += vs.K_diss_bot
     else:  # short-cut without idemix
-        if veros.enable_eke:
-            forc[...] += veros.eke_diss_iw
+        if vs.enable_eke:
+            forc[...] += vs.eke_diss_iw
         else:  # and without EKE model
-            if veros.enable_store_cabbeling_heat:
-                forc[...] += veros.K_diss_gm + veros.K_diss_h - veros.P_diss_skew \
-                    - veros.P_diss_hmix - veros.P_diss_iso
+            if vs.enable_store_cabbeling_heat:
+                forc[...] += vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew \
+                    - vs.P_diss_hmix - vs.P_diss_iso
             else:
-                forc[...] += veros.K_diss_gm + veros.K_diss_h - veros.P_diss_skew
-        forc[...] += veros.K_diss_bot
+                forc[...] += vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew
+        forc[...] += vs.K_diss_bot
 
     """
     vertical mixing and dissipation of TKE
     """
-    ks = veros.kbot[2:-2, 2:-2] - 1
+    ks = vs.kbot[2:-2, 2:-2] - 1
 
-    a_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
-    b_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
-    c_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
-    d_tri = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
-    delta = np.zeros((veros.nx, veros.ny, veros.nz), dtype=veros.default_float_type)
+    a_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+    b_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+    c_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+    d_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+    delta = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
 
-    delta[:, :, :-1] = veros.dt_tke / veros.dzt[np.newaxis, np.newaxis, 1:] * veros.alpha_tke * 0.5 \
-        * (veros.kappaM[2:-2, 2:-2, :-1] + veros.kappaM[2:-2, 2:-2, 1:])
+    delta[:, :, :-1] = vs.dt_tke / vs.dzt[np.newaxis, np.newaxis, 1:] * vs.alpha_tke * 0.5 \
+        * (vs.kappaM[2:-2, 2:-2, :-1] + vs.kappaM[2:-2, 2:-2, 1:])
 
-    a_tri[:, :, 1:-1] = -delta[:, :, :-2] / veros.dzw[np.newaxis, np.newaxis, 1:-1]
-    a_tri[:, :, -1] = -delta[:, :, -2] / (0.5 * veros.dzw[-1])
+    a_tri[:, :, 1:-1] = -delta[:, :, :-2] / vs.dzw[np.newaxis, np.newaxis, 1:-1]
+    a_tri[:, :, -1] = -delta[:, :, -2] / (0.5 * vs.dzw[-1])
 
-    b_tri[:, :, 1:-1] = 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / veros.dzw[np.newaxis, np.newaxis, 1:-1] \
-        + veros.dt_tke * veros.c_eps \
-        * veros.sqrttke[2:-2, 2:-2, 1:-1] / veros.mxl[2:-2, 2:-2, 1:-1]
-    b_tri[:, :, -1] = 1 + delta[:, :, -2] / (0.5 * veros.dzw[-1]) \
-        + veros.dt_tke * veros.c_eps / veros.mxl[2:-2, 2:-2, -1] * veros.sqrttke[2:-2, 2:-2, -1]
-    b_tri_edge = 1 + delta / veros.dzw[np.newaxis, np.newaxis, :] \
-        + veros.dt_tke * veros.c_eps / veros.mxl[2:-2, 2:-2, :] * veros.sqrttke[2:-2, 2:-2, :]
+    b_tri[:, :, 1:-1] = 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / vs.dzw[np.newaxis, np.newaxis, 1:-1] \
+        + vs.dt_tke * vs.c_eps \
+        * vs.sqrttke[2:-2, 2:-2, 1:-1] / vs.mxl[2:-2, 2:-2, 1:-1]
+    b_tri[:, :, -1] = 1 + delta[:, :, -2] / (0.5 * vs.dzw[-1]) \
+        + vs.dt_tke * vs.c_eps / vs.mxl[2:-2, 2:-2, -1] * vs.sqrttke[2:-2, 2:-2, -1]
+    b_tri_edge = 1 + delta / vs.dzw[np.newaxis, np.newaxis, :] \
+        + vs.dt_tke * vs.c_eps / vs.mxl[2:-2, 2:-2, :] * vs.sqrttke[2:-2, 2:-2, :]
 
-    c_tri[:, :, :-1] = -delta[:, :, :-1] / veros.dzw[np.newaxis, np.newaxis, :-1]
+    c_tri[:, :, :-1] = -delta[:, :, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1]
 
-    d_tri[...] = veros.tke[2:-2, 2:-2, :, veros.tau] + veros.dt_tke * forc[2:-2, 2:-2, :]
-    d_tri[:, :, -1] += veros.dt_tke * veros.forc_tke_surface[2:-2, 2:-2] / (0.5 * veros.dzw[-1])
+    d_tri[...] = vs.tke[2:-2, 2:-2, :, vs.tau] + vs.dt_tke * forc[2:-2, 2:-2, :]
+    d_tri[:, :, -1] += vs.dt_tke * vs.forc_tke_surface[2:-2, 2:-2] / (0.5 * vs.dzw[-1])
 
-    sol, water_mask = utilities.solve_implicit(veros, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    veros.tke[2:-2, 2:-2, :, veros.taup1] = np.where(water_mask, sol, veros.tke[2:-2, 2:-2, :, veros.taup1])
+    sol, water_mask = utilities.solve_implicit(vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    vs.tke[2:-2, 2:-2, :, vs.taup1] = np.where(water_mask, sol, vs.tke[2:-2, 2:-2, :, vs.taup1])
 
     """
     store tke dissipation for diagnostics
     """
-    veros.tke_diss[...] = veros.c_eps / veros.mxl * veros.sqrttke * veros.tke[:, :, :, veros.taup1]
+    vs.tke_diss[...] = vs.c_eps / vs.mxl * vs.sqrttke * vs.tke[:, :, :, vs.taup1]
 
     """
     Add TKE if surface density flux drains TKE in uppermost box
     """
-    mask = veros.tke[2:-2, 2:-2, -1, veros.taup1] < 0.0
-    veros.tke_surf_corr[...] = 0.
-    veros.tke_surf_corr[2:-2, 2:-2] = np.where(mask,
-                                               -veros.tke[2:-2, 2:-2, -1, veros.taup1] * 0.5
-                                               * veros.dzw[-1] / veros.dt_tke, 0.)
-    veros.tke[2:-2, 2:-2, -1, veros.taup1] = np.maximum(0., veros.tke[2:-2, 2:-2, -1, veros.taup1])
+    mask = vs.tke[2:-2, 2:-2, -1, vs.taup1] < 0.0
+    vs.tke_surf_corr[...] = 0.
+    vs.tke_surf_corr[2:-2, 2:-2] = np.where(mask,
+                                            -vs.tke[2:-2, 2:-2, -1, vs.taup1] * 0.5
+                                               * vs.dzw[-1] / vs.dt_tke,
+                                            0.)
+    vs.tke[2:-2, 2:-2, -1, vs.taup1] = np.maximum(0., vs.tke[2:-2, 2:-2, -1, vs.taup1])
 
-    if veros.enable_tke_hor_diffusion:
+    if vs.enable_tke_hor_diffusion:
         """
         add tendency due to lateral diffusion
         """
-        veros.flux_east[:-1, :, :] = veros.K_h_tke * (veros.tke[1:, :, :, veros.tau] - veros.tke[:-1, :, :, veros.tau]) \
-            / (veros.cost[np.newaxis, :, np.newaxis] * veros.dxu[:-1, np.newaxis, np.newaxis]) * veros.maskU[:-1, :, :]
-        if veros.pyom_compatibility_mode:
-            veros.flux_east[-5, :, :] = 0.
+        vs.flux_east[:-1, :, :] = vs.K_h_tke * (vs.tke[1:, :, :, vs.tau] - vs.tke[:-1, :, :, vs.tau]) \
+            / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) * vs.maskU[:-1, :, :]
+        if vs.pyom_compatibility_mode:
+            vs.flux_east[-5, :, :] = 0.
         else:
-            veros.flux_east[-1, :, :] = 0.
-        veros.flux_north[:, :-1, :] = veros.K_h_tke * (veros.tke[:, 1:, :, veros.tau] - veros.tke[:, :-1, :, veros.tau]) \
-            / veros.dyu[np.newaxis, :-1, np.newaxis] * veros.maskV[:, :-1, :] * veros.cosu[np.newaxis, :-1, np.newaxis]
-        veros.flux_north[:, -1, :] = 0.
-        veros.tke[2:-2, 2:-2, :, veros.taup1] += veros.dt_tke * veros.maskW[2:-2, 2:-2, :] * \
-            ((veros.flux_east[2:-2, 2:-2, :] - veros.flux_east[1:-3, 2:-2, :])
-             / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dxt[2:-2, np.newaxis, np.newaxis])
-             + (veros.flux_north[2:-2, 2:-2, :] - veros.flux_north[2:-2, 1:-3, :])
-             / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dyt[np.newaxis, 2:-2, np.newaxis]))
+            vs.flux_east[-1, :, :] = 0.
+        vs.flux_north[:, :-1, :] = vs.K_h_tke * (vs.tke[:, 1:, :, vs.tau] - vs.tke[:, :-1, :, vs.tau]) \
+            / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] * vs.cosu[np.newaxis, :-1, np.newaxis]
+        vs.flux_north[:, -1, :] = 0.
+        vs.tke[2:-2, 2:-2, :, vs.taup1] += vs.dt_tke * vs.maskW[2:-2, 2:-2, :] * \
+            ((vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :])
+             / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
+             + (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])
+             / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis]))
 
     """
     add tendency due to advection
     """
-    if veros.enable_tke_superbee_advection:
+    if vs.enable_tke_superbee_advection:
         advection.adv_flux_superbee_wgrid(
-            veros, veros.flux_east, veros.flux_north, veros.flux_top, veros.tke[:, :, :, veros.tau])
-    if veros.enable_tke_upwind_advection:
+            vs, vs.flux_east, vs.flux_north, vs.flux_top, vs.tke[:, :, :, vs.tau]
+        )
+    if vs.enable_tke_upwind_advection:
         advection.adv_flux_upwind_wgrid(
-            veros, veros.flux_east, veros.flux_north, veros.flux_top, veros.tke[:, :, :, veros.tau])
-    if veros.enable_tke_superbee_advection or veros.enable_tke_upwind_advection:
-        veros.dtke[2:-2, 2:-2, :, veros.tau] = veros.maskW[2:-2, 2:-2, :] * (-(veros.flux_east[2:-2, 2:-2, :] - veros.flux_east[1:-3, 2:-2, :])
-                                                                             / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dxt[2:-2, np.newaxis, np.newaxis])
-                                                                             - (veros.flux_north[2:-2, 2:-2, :] - veros.flux_north[2:-2, 1:-3, :])
-                                                                             / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dyt[np.newaxis, 2:-2, np.newaxis]))
-        veros.dtke[:, :, 0, veros.tau] += -veros.flux_top[:, :, 0] / veros.dzw[0]
-        veros.dtke[:, :, 1:-1, veros.tau] += \
-            -(veros.flux_top[:, :, 1:-1] - veros.flux_top[:, :, :-2]) / veros.dzw[1:-1]
-        veros.dtke[:, :, -1, veros.tau] += \
-            -(veros.flux_top[:, :, -1] - veros.flux_top[:, :, -2]) / (0.5 * veros.dzw[-1])
+            vs, vs.flux_east, vs.flux_north, vs.flux_top, vs.tke[:, :, :, vs.tau]
+        )
+    if vs.enable_tke_superbee_advection or vs.enable_tke_upwind_advection:
+        vs.dtke[2:-2, 2:-2, :, vs.tau] = vs.maskW[2:-2, 2:-2, :] * (-(vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :])
+                                                                     / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
+                                                                    - (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])
+                                                                     / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis]))
+        vs.dtke[:, :, 0, vs.tau] += -vs.flux_top[:, :, 0] / vs.dzw[0]
+        vs.dtke[:, :, 1:-1, vs.tau] += -(vs.flux_top[:, :, 1:-1] - vs.flux_top[:, :, :-2]) / vs.dzw[1:-1]
+        vs.dtke[:, :, -1, vs.tau] += -(vs.flux_top[:, :, -1] - vs.flux_top[:, :, -2]) / (0.5 * vs.dzw[-1])
         """
         Adam Bashforth time stepping
         """
-        veros.tke[:, :, :, veros.taup1] += veros.dt_tracer * ((1.5 + veros.AB_eps) * veros.dtke[:, :, :, veros.tau]
-                                                              - (0.5 + veros.AB_eps) * veros.dtke[:, :, :, veros.taum1])
+        vs.tke[:, :, :, vs.taup1] += vs.dt_tracer * ((1.5 + vs.AB_eps) * vs.dtke[:, :, :, vs.tau]
+                                                   - (0.5 + vs.AB_eps) * vs.dtke[:, :, :, vs.taum1])

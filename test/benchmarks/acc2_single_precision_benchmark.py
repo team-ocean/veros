@@ -18,6 +18,7 @@ class ACC2Benchmark(VerosLegacy):
     def set_parameter(self):
         self.identifier = "acc2_benchmark"
         self.diskless_mode = True
+        self.default_float_type = "float32"
 
         m = self.main_module
         m.dt_mom = 480

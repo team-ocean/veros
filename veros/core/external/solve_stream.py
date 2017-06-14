@@ -13,105 +13,105 @@ import scipy.linalg.lapack
 
 
 @veros_method
-def solve_streamfunction(veros):
+def solve_streamfunction(vs):
     """
     solve for barotropic streamfunction
     """
-    line_forc = np.zeros(veros.nisle, dtype=veros.default_float_type)
-    aloc = np.zeros((veros.nisle, veros.nisle), dtype=veros.default_float_type)
+    line_forc = np.zeros(vs.nisle, dtype=vs.default_float_type)
+    aloc = np.zeros((vs.nisle, vs.nisle), dtype=vs.default_float_type)
 
     # hydrostatic pressure
-    fxa = veros.grav / veros.rho_0
-    tmp = 0.5 * (veros.rho[:, :, :, veros.tau]) * fxa * veros.dzw * veros.maskT
-    veros.p_hydro[:, :, -1] = tmp[:, :, -1]
-    tmp[:, :, :-1] += 0.5 * veros.rho[:, :, 1:, veros.tau] * \
-        fxa * veros.dzw[:-1] * veros.maskT[:, :, :-1]
-    veros.p_hydro[:, :, -2::-1] = veros.maskT[:, :, -2::-1] * \
-        (veros.p_hydro[:, :, -1, np.newaxis] + np.cumsum(tmp[:, :, -2::-1], axis=2))
+    fxa = vs.grav / vs.rho_0
+    tmp = 0.5 * (vs.rho[:, :, :, vs.tau]) * fxa * vs.dzw * vs.maskT
+    vs.p_hydro[:, :, -1] = tmp[:, :, -1]
+    tmp[:, :, :-1] += 0.5 * vs.rho[:, :, 1:, vs.tau] * \
+        fxa * vs.dzw[:-1] * vs.maskT[:, :, :-1]
+    vs.p_hydro[:, :, -2::-1] = vs.maskT[:, :, -2::-1] * \
+        (vs.p_hydro[:, :, -1, np.newaxis] + np.cumsum(tmp[:, :, -2::-1], axis=2))
 
     # add hydrostatic pressure gradient
-    veros.du[2:-2, 2:-2, :, veros.tau] += \
-        -(veros.p_hydro[3:-1, 2:-2, :] - veros.p_hydro[2:-2, 2:-2, :]) \
-        / (veros.cost[np.newaxis, 2:-2, np.newaxis] * veros.dxu[2:-2, np.newaxis, np.newaxis]) \
-        * veros.maskU[2:-2, 2:-2, :]
-    veros.dv[2:-2, 2:-2, :, veros.tau] += \
-        -(veros.p_hydro[2:-2, 3:-1, :] - veros.p_hydro[2:-2, 2:-2, :]) \
-        / veros.dyu[np.newaxis, 2:-2, np.newaxis] \
-        * veros.maskV[2:-2, 2:-2, :]
+    vs.du[2:-2, 2:-2, :, vs.tau] += \
+        -(vs.p_hydro[3:-1, 2:-2, :] - vs.p_hydro[2:-2, 2:-2, :]) \
+        / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxu[2:-2, np.newaxis, np.newaxis]) \
+        * vs.maskU[2:-2, 2:-2, :]
+    vs.dv[2:-2, 2:-2, :, vs.tau] += \
+        -(vs.p_hydro[2:-2, 3:-1, :] - vs.p_hydro[2:-2, 2:-2, :]) \
+        / vs.dyu[np.newaxis, 2:-2, np.newaxis] \
+        * vs.maskV[2:-2, 2:-2, :]
 
     # forcing for barotropic streamfunction
-    fpx = np.sum((veros.du[:, :, :, veros.tau] + veros.du_mix) *
-                 veros.maskU * veros.dzt, axis=(2,)) * veros.hur
-    fpy = np.sum((veros.dv[:, :, :, veros.tau] + veros.dv_mix) *
-                 veros.maskV * veros.dzt, axis=(2,)) * veros.hvr
+    fpx = np.sum((vs.du[:, :, :, vs.tau] + vs.du_mix) *
+                 vs.maskU * vs.dzt, axis=(2,)) * vs.hur
+    fpy = np.sum((vs.dv[:, :, :, vs.tau] + vs.dv_mix) *
+                 vs.maskV * vs.dzt, axis=(2,)) * vs.hvr
 
-    if veros.enable_cyclic_x:
+    if vs.enable_cyclic_x:
         cyclic.setcyclic_x(fpx)
         cyclic.setcyclic_x(fpy)
 
-    forc = np.zeros((veros.nx + 4, veros.ny + 4), dtype=veros.default_float_type)
+    forc = np.zeros((vs.nx + 4, vs.ny + 4), dtype=vs.default_float_type)
     forc[2:-2, 2:-2] = (fpy[3:-1, 2:-2] - fpy[2:-2, 2:-2]) \
-        / (veros.cosu[2:-2] * veros.dxu[2:-2, np.newaxis]) \
-        - (veros.cost[3:-1] * fpx[2:-2, 3:-1] - veros.cost[2:-2] * fpx[2:-2, 2:-2]) \
-        / (veros.cosu[2:-2] * veros.dyu[2:-2])
+        / (vs.cosu[2:-2] * vs.dxu[2:-2, np.newaxis]) \
+        - (vs.cost[3:-1] * fpx[2:-2, 3:-1] - vs.cost[2:-2] * fpx[2:-2, 2:-2]) \
+        / (vs.cosu[2:-2] * vs.dyu[2:-2])
 
     # solve for interior streamfunction
-    veros.dpsi[:, :, veros.taup1] = 2 * veros.dpsi[:, :, veros.tau] - veros.dpsi[:, :, veros.taum1]
-    solve_poisson.solve(veros, forc, veros.dpsi[:, :, veros.taup1])
+    vs.dpsi[:, :, vs.taup1] = 2 * vs.dpsi[:, :, vs.tau] - vs.dpsi[:, :, vs.taum1]
+    solve_poisson.solve(vs, forc, vs.dpsi[:, :, vs.taup1])
 
-    if veros.enable_cyclic_x:
-        cyclic.setcyclic_x(veros.dpsi[:, :, veros.taup1])
+    if vs.enable_cyclic_x:
+        cyclic.setcyclic_x(vs.dpsi[:, :, vs.taup1])
 
-    if veros.nisle > 1:
+    if vs.nisle > 1:
         # calculate island integrals of forcing, keep psi constant on island 1
-        line_forc[1:] = utilities.line_integrals(
-            veros, fpx[..., np.newaxis], fpy[..., np.newaxis], kind="same")[1:]
+        line_forc[1:] = utilities.line_integrals(vs, fpx[..., np.newaxis],
+                                                 fpy[..., np.newaxis], kind="same")[1:]
 
         # calculate island integrals of interior streamfunction
         fpx[...] = 0.
         fpy[...] = 0.
-        fpx[1:, 1:] = -veros.maskU[1:, 1:, -1] \
-            * (veros.dpsi[1:, 1:, veros.taup1] - veros.dpsi[1:, :-1, veros.taup1]) \
-            / veros.dyt[np.newaxis, 1:] * veros.hur[1:, 1:]
-        fpy[1:, 1:] = veros.maskV[1:, 1:, -1] \
-            * (veros.dpsi[1:, 1:, veros.taup1] - veros.dpsi[:-1, 1:, veros.taup1]) \
-            / (veros.cosu[np.newaxis, 1:] * veros.dxt[1:, np.newaxis]) * veros.hvr[1:, 1:]
-        line_forc[1:] += -utilities.line_integrals(veros, fpx[..., np.newaxis],
+        fpx[1:, 1:] = -vs.maskU[1:, 1:, -1] \
+            * (vs.dpsi[1:, 1:, vs.taup1] - vs.dpsi[1:, :-1, vs.taup1]) \
+            / vs.dyt[np.newaxis, 1:] * vs.hur[1:, 1:]
+        fpy[1:, 1:] = vs.maskV[1:, 1:, -1] \
+            * (vs.dpsi[1:, 1:, vs.taup1] - vs.dpsi[:-1, 1:, vs.taup1]) \
+            / (vs.cosu[np.newaxis, 1:] * vs.dxt[1:, np.newaxis]) * vs.hvr[1:, 1:]
+        line_forc[1:] += -utilities.line_integrals(vs, fpx[..., np.newaxis],
                                                    fpy[..., np.newaxis], kind="same")[1:]
 
         # solve for time dependent boundary values
-        if veros.backend_name == "bohrium":
-            line_forc[1:] = np.lapack.gesv(veros.line_psin[1:, 1:], line_forc[1:])
+        if vs.backend_name == "bohrium":
+            line_forc[1:] = np.lapack.gesv(vs.line_psin[1:, 1:], line_forc[1:])
         else:
-            line_forc[1:] = scipy.linalg.lapack.dgesv(veros.line_psin[1:, 1:], line_forc[1:])[2]
-        veros.dpsin[1:, veros.tau] = line_forc[1:]
+            line_forc[1:] = scipy.linalg.lapack.dgesv(vs.line_psin[1:, 1:], line_forc[1:])[2]
+        vs.dpsin[1:, vs.tau] = line_forc[1:]
 
     # integrate barotropic and baroclinic velocity forward in time
-    veros.psi[:, :, veros.taup1] = veros.psi[:, :, veros.tau] + veros.dt_mom * ((1.5 + veros.AB_eps) * veros.dpsi[:, :, veros.taup1]
-                                                                                - (0.5 + veros.AB_eps) * veros.dpsi[:, :, veros.tau])
-    veros.psi[:, :, veros.taup1] += veros.dt_mom * np.sum(((1.5 + veros.AB_eps) * veros.dpsin[1:, veros.tau]
-                                                           - (0.5 + veros.AB_eps) * veros.dpsin[1:, veros.taum1]) * veros.psin[:, :, 1:], axis=2)
-    veros.u[:, :, :, veros.taup1] = veros.u[:, :, :, veros.tau] + veros.dt_mom * (veros.du_mix + (1.5 + veros.AB_eps) * veros.du[:, :, :, veros.tau]
-                                                                                  - (0.5 + veros.AB_eps) * veros.du[:, :, :, veros.taum1]) * veros.maskU
-    veros.v[:, :, :, veros.taup1] = veros.v[:, :, :, veros.tau] + veros.dt_mom * (veros.dv_mix + (1.5 + veros.AB_eps) * veros.dv[:, :, :, veros.tau]
-                                                                                  - (0.5 + veros.AB_eps) * veros.dv[:, :, :, veros.taum1]) * veros.maskV
+    vs.psi[:, :, vs.taup1] = vs.psi[:, :, vs.tau] + vs.dt_mom * ((1.5 + vs.AB_eps) * vs.dpsi[:, :, vs.taup1]
+                                                               - (0.5 + vs.AB_eps) * vs.dpsi[:, :, vs.tau])
+    vs.psi[:, :, vs.taup1] += vs.dt_mom * np.sum(((1.5 + vs.AB_eps) * vs.dpsin[1:, vs.tau]
+                                                           - (0.5 + vs.AB_eps) * vs.dpsin[1:, vs.taum1]) * vs.psin[:, :, 1:], axis=2)
+    vs.u[:, :, :, vs.taup1] = vs.u[:, :, :, vs.tau] + vs.dt_mom * (vs.du_mix + (1.5 + vs.AB_eps) * vs.du[:, :, :, vs.tau]
+                                                                             - (0.5 + vs.AB_eps) * vs.du[:, :, :, vs.taum1]) * vs.maskU
+    vs.v[:, :, :, vs.taup1] = vs.v[:, :, :, vs.tau] + vs.dt_mom * (vs.dv_mix + (1.5 + vs.AB_eps) * vs.dv[:, :, :, vs.tau]
+                                                                             - (0.5 + vs.AB_eps) * vs.dv[:, :, :, vs.taum1]) * vs.maskV
 
     # subtract incorrect vertical mean from baroclinic velocity
-    fpx = np.sum(veros.u[:, :, :, veros.taup1] * veros.maskU * veros.dzt, axis=(2,))
-    fpy = np.sum(veros.v[:, :, :, veros.taup1] * veros.maskV * veros.dzt, axis=(2,))
-    veros.u[:, :, :, veros.taup1] += -fpx[:, :, np.newaxis] * \
-        veros.maskU * veros.hur[:, :, np.newaxis]
-    veros.v[:, :, :, veros.taup1] += -fpy[:, :, np.newaxis] * \
-        veros.maskV * veros.hvr[:, :, np.newaxis]
+    fpx = np.sum(vs.u[:, :, :, vs.taup1] * vs.maskU * vs.dzt, axis=(2,))
+    fpy = np.sum(vs.v[:, :, :, vs.taup1] * vs.maskV * vs.dzt, axis=(2,))
+    vs.u[:, :, :, vs.taup1] += -fpx[:, :, np.newaxis] * \
+        vs.maskU * vs.hur[:, :, np.newaxis]
+    vs.v[:, :, :, vs.taup1] += -fpy[:, :, np.newaxis] * \
+        vs.maskV * vs.hvr[:, :, np.newaxis]
 
     # add barotropic mode to baroclinic velocity
-    veros.u[2:-2, 2:-2, :, veros.taup1] += \
-        -veros.maskU[2:-2, 2:-2, :]\
-        * (veros.psi[2:-2, 2:-2, veros.taup1, np.newaxis] - veros.psi[2:-2, 1:-3, veros.taup1, np.newaxis]) \
-        / veros.dyt[np.newaxis, 2:-2, np.newaxis]\
-        * veros.hur[2:-2, 2:-2, np.newaxis]
-    veros.v[2:-2, 2:-2, :, veros.taup1] += \
-        veros.maskV[2:-2, 2:-2, :]\
-        * (veros.psi[2:-2, 2:-2, veros.taup1, np.newaxis] - veros.psi[1:-3, 2:-2, veros.taup1, np.newaxis]) \
-        / (veros.cosu[2:-2, np.newaxis] * veros.dxt[2:-2, np.newaxis, np.newaxis])\
-        * veros.hvr[2:-2, 2:-2][:, :, np.newaxis]
+    vs.u[2:-2, 2:-2, :, vs.taup1] += \
+        -vs.maskU[2:-2, 2:-2, :]\
+        * (vs.psi[2:-2, 2:-2, vs.taup1, np.newaxis] - vs.psi[2:-2, 1:-3, vs.taup1, np.newaxis]) \
+        / vs.dyt[np.newaxis, 2:-2, np.newaxis]\
+        * vs.hur[2:-2, 2:-2, np.newaxis]
+    vs.v[2:-2, 2:-2, :, vs.taup1] += \
+        vs.maskV[2:-2, 2:-2, :]\
+        * (vs.psi[2:-2, 2:-2, vs.taup1, np.newaxis] - vs.psi[1:-3, 2:-2, vs.taup1, np.newaxis]) \
+        / (vs.cosu[2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])\
+        * vs.hvr[2:-2, 2:-2][:, :, np.newaxis]

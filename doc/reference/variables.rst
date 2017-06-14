@@ -10,7 +10,7 @@ snippet (as commonly used in the :ref:`diagnostics`) illustrates this behavior:
 
 ::
 
-   var_meta = {key: val for key, val in veros.variables.items() if val.time_dependent and val.output}
+   var_meta = {key: val for key, val in vs.variables.items() if val.time_dependent and val.output}
    var_data = {key: getattr(veros, key) for key in var_meta.keys()}
 
 In this case, ``var_meta`` is a dictionary containing all metadata for variables that
