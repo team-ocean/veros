@@ -126,6 +126,7 @@ class WavePropagation(Veros):
         self.kbot *= self.kbot < self.nz
 
     def _fix_north_atlantic(self, arr):
+        """ Calculate zonal mean forcing over masked area (na_mask)  """
         newaxes = (slice(None), slice(None)) + (np.newaxis,) * (arr.ndim - 2)
         arr_masked = np.ma.masked_where(~self._na_mask[newaxes] * np.ones(arr.shape), arr)
         zonal_mean_na = arr_masked.mean(axis=0)
