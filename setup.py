@@ -14,7 +14,7 @@ setup(
     version = "0.0.1b0",
     packages = find_packages(),
     install_requires = [
-        "numpy<1.12",
+        "numpy",
         "scipy",
         "netCDF4",
         "h5py",
