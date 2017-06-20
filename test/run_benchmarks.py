@@ -29,7 +29,7 @@ SLURM_COMMANDS = {
     "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
     "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
     "fortran": "srun --ntasks 1 -- " + BENCHMARK_COMMANDS["fortran"],
-    "fortran-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- " + BENCHMARK_COMMANDS["bohrium"]
+    "fortran-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}"
 }
 AVAILABLE_BENCHMARKS = [f for f in os.listdir(TESTDIR) if f.endswith("_benchmark.py")]
 
