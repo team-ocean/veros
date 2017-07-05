@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.interpolate
+import scipy.spatial
 
 
 def _gaussian(x, mu, sig):
@@ -149,3 +150,10 @@ def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
     wght2 = (tmpTime - rec_spacing * (tRec1 - 1)) / rec_spacing
     wght1 = 1.0 - wght2
     return (tRec1 - 1, wght1), (tRec2 - 1, wght2)
+
+
+def get_coastline_distance(coords, iscoast, maxdistance):
+    coast_kdtree = scipy.spatial.cKDTree(coords[iscoast])
+    distance = np.zeros_like(coords[..., 0])
+    distance[~iscoast] = coast_kdtree.query(coords[~iscoast], n_jobs=-1)[0]
+    return distance
