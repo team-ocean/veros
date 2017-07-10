@@ -20,10 +20,19 @@ class WavePropagation(Veros):
     def set_parameter(self):
         self.identifier = "wp"
 
+        # settings for north atlantic
+        self.na_shelf_depth = 150
+        self.na_shelf_distance = 100e3
+        self.na_slope_length = 100e3
+        self.na_max_depth = 4000
+
+        # global settings
+        self.max_depth = 5600.
+
+        # Veros settings
         self.nx = 360
-        self.ny = 160
+        self.ny = 180
         self.nz = 115
-        self._max_depth = 5600.
         self.dt_mom = 900.
         self.dt_tracer = 900.
         self.runlen = 0.
@@ -83,7 +92,7 @@ class WavePropagation(Veros):
             return forcing_file.variables[var][...].T
 
     def set_grid(self):
-        self.dzt[...] = tools.gaussian_spacing(self.nz, self._max_depth, min_spacing=10.)[::-1]
+        self.dzt[...] = tools.gaussian_spacing(self.nz, self.max_depth, min_spacing=10.)[::-1]
         self.dxt[...] = 360. / self.nx
         self.dyt[...] = 160. / self.ny
         self.y_origin = -80. + 160. / self.ny
@@ -100,30 +109,38 @@ class WavePropagation(Veros):
 
     def set_topography(self):
         with Dataset("ETOPO5_Ice_g_gmt4.nc", "r") as topography_file:
-            topo_x, topo_y, topo_z = (topography_file.variables[k][...].T.astype(
-                np.float) for k in ("x", "y", "z"))
+            topo_x, topo_y, topo_z = (topography_file.variables[k][...].T.astype(np.float) for k in ("x", "y", "z"))
         topo_z[topo_z > 0] = 0.
-        topo_mask = (np.flipud(Image.open("topography_idealized.png")).T /
-                     255).astype(np.bool)
-        topo_z_smoothed = scipy.ndimage.gaussian_filter(topo_z,
-                                                        sigma=(0.5 * len(topo_x) / self.nx, 0.5 * len(topo_y) / self.ny))
+        topo_mask = (np.flipud(Image.open("topography_idealized.png")).T / 255).astype(np.bool)
+        gaussian_sigma = (0.5 * len(topo_x) / self.nx, 0.5 * len(topo_y) / self.ny)
+        topo_z_smoothed = scipy.ndimage.gaussian_filter(topo_z, sigma=gaussian_sigma)
         topo_z_smoothed[~topo_mask & (topo_z_smoothed >= 0.)] = -100.
         topo_masked = np.where(topo_mask, 0., topo_z_smoothed)
 
         na_mask_image = np.flipud(Image.open("na_mask.png")).T / 255.
         topo_x_shifted, na_mask_shifted = self._shift_longitude_array(topo_x, na_mask_image)
-        self._na_mask = ~tools.interpolate((topo_x_shifted, topo_y), na_mask_shifted, (
-            self.xt[2:-2], self.yt[2:-2]), kind="nearest", fill=False).astype(np.bool)
-        
+        coords = (self.xt[2:-2], self.yt[2:-2])
+        self._na_mask = ~tools.interpolate((topo_x_shifted, topo_y), na_mask_shifted, coords, kind="nearest", fill=False).astype(np.bool)
+
         topo_x_shifted, topo_masked_shifted = self._shift_longitude_array(topo_x, topo_masked)
-        z_interp = tools.interpolate((topo_x_shifted, topo_y), topo_masked_shifted,
-                                     (self.xt[2:-2], self.yt[2:-2]), kind="nearest", fill=False)
-        z_interp[self._na_mask] = -4000
-        depth_levels = 1 + \
-            np.argmin(np.abs(z_interp[:, :, np.newaxis] -
-                             self.zt[np.newaxis, np.newaxis, :]), axis=2)
+        z_interp = tools.interpolate((topo_x_shifted, topo_y), topo_masked_shifted, coords, kind="nearest", fill=False)
+
+        grid_coords = np.meshgrid(*coords, indexing="ij")
+        coastline_distance = tools.get_coastline_distance(grid_coords, z_interp >= 0, spherical=True, radius=self.radius)
+
+        z_interp[self._na_mask] = -self.na_max_depth
+        if self.na_slope_length:
+            slope_distance = coastline_distance - self.na_shelf_distance
+            slope_mask = np.logical_and(self._na_mask, slope_distance < self.na_slope_length)
+            z_interp[slope_mask] = -(self.na_shelf_depth + slope_distance[slope_mask] / self.na_slope_length * (self.na_max_depth - self.na_shelf_depth))
+        if self.na_shelf_depth:
+            shelf_mask = np.logical_and(self._na_mask, coastline_distance < self.na_shelf_distance)
+            z_interp[shelf_mask] = -self.na_shelf_depth
+
+        depth_levels = 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - self.zt[np.newaxis, np.newaxis, :]), axis=2)
         self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., depth_levels, 0)
         self.kbot *= self.kbot < self.nz
+
 
     def _fix_north_atlantic(self, arr):
         """ Calculate zonal mean forcing over masked area (na_mask)  """
@@ -264,12 +281,12 @@ class WavePropagation(Veros):
         self.diagnostics["cfl_monitor"].output_frequency = 86400.
         self.diagnostics["tracer_monitor"].output_frequency = 86400.
         self.diagnostics["snapshot"].output_frequency = 0.5 * 86400.
-        self.diagnostics["overturning"].output_frequency = 365 * 86400
-        self.diagnostics["overturning"].sampling_frequency = 365 * 86400 / 24.
-        self.diagnostics["energy"].output_frequency = 365 * 86400
-        self.diagnostics["energy"].sampling_frequency = 365 * 86400 / 24.
-        self.diagnostics["averages"].output_frequency = 365 * 86400
-        self.diagnostics["averages"].sampling_frequency = 365 * 86400 / 24.
+        self.diagnostics["overturning"].output_frequency = 360 * 86400
+        self.diagnostics["overturning"].sampling_frequency = 360 * 86400 / 24.
+        self.diagnostics["energy"].output_frequency = 360 * 86400
+        self.diagnostics["energy"].sampling_frequency = 360 * 86400 / 24.
+        self.diagnostics["averages"].output_frequency = 360 * 86400
+        self.diagnostics["averages"].sampling_frequency = 360 * 86400 / 24.
 
         average_vars = ["surface_taux", "surface_tauy", "forc_temp_surface", "forc_salt_surface",
                         "psi", "temp", "salt", "u", "v", "w", "Nsqr", "Hd", "rho",
@@ -287,6 +304,12 @@ class WavePropagation(Veros):
         if self.enable_eke:
             average_vars += ["eke", "K_gm", "L_rossby", "L_rhines"]
         self.diagnostics["averages"].output_variables = average_vars
+
+
+    @veros_method
+    def after_timestep(self):
+        if self.time > 90 * 86400. and self.dt_tracer < 1800.:
+            self.dt_tracer = self.dt_mom = 1800.
 
 
 if __name__ == "__main__":
