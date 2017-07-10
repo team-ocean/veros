@@ -16,19 +16,21 @@ Runs all Veros benchmarks back to back and writes timing results to JSON outfile
 """
 
 TESTDIR = os.path.join(os.path.dirname(__file__), os.path.relpath("benchmarks"))
-COMPONENTS = ["numpy", "bohrium", "bohrium-opencl", "fortran", "fortran-mpi"]
+COMPONENTS = ["numpy", "bohrium", "bohrium-opencl", "bohrium-cuda", "fortran", "fortran-mpi"]
 BENCHMARK_COMMANDS = {
-    "numpy": "{python} {filename} -b numpy -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
+    "numpy": "OMP_NUM_THREADS={nproc} {python} {filename} -b numpy -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
     "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
     "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
+    "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
     "fortran": "{python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
     "fortran-mpi": "{mpiexec} -n {nproc} --allow-run-as-root -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}"
 }
 SLURM_COMMANDS = {
-    "numpy": "srun --ntasks 1 --cpus-per-task {nproc} -- " + BENCHMARK_COMMANDS["numpy"],
+    "numpy": "OMP_NUM_THREADS={nproc} srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b numpy -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
     "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
     "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
-    "fortran": "srun --ntasks 1 -- " + BENCHMARK_COMMANDS["fortran"],
+    "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
+    "fortran": "srun --ntasks 1 -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
     "fortran-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}"
 }
 AVAILABLE_BENCHMARKS = [f for f in os.listdir(TESTDIR) if f.endswith("_benchmark.py")]
@@ -106,9 +108,7 @@ if __name__ == "__main__":
                     sys.stdout.write("  {:<15} ... ".format(comp))
                     sys.stdout.flush()
                     try: # must run each benchmark in its own Python subprocess to reload the Fortran library
-            	        output = subprocess.check_output(cmd,
-                                                         shell=True,
-                                                         stderr=subprocess.STDOUT)
+            	        output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
                     except subprocess.CalledProcessError as e:
                         print("failed")
                         print(e.output)
