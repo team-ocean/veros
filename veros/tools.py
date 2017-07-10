@@ -84,7 +84,8 @@ def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind=
 
 
 def fill_holes(data):
-    """A simple helper function that replaces NaN values with the nearest finite value.
+    """A simple inpainting function that replaces NaN values in `data` with the
+    nearest finite value.
     """
     data = data.copy()
     shape = data.shape
@@ -152,8 +153,86 @@ def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
     return (tRec1 - 1, wght1), (tRec2 - 1, wght2)
 
 
-def get_coastline_distance(coords, iscoast, maxdistance):
-    coast_kdtree = scipy.spatial.cKDTree(coords[iscoast])
-    distance = np.zeros_like(coords[..., 0])
-    distance[~iscoast] = coast_kdtree.query(coords[~iscoast], n_jobs=-1)[0]
+def make_cyclic(longitude, array=None, wrap=360.):
+    """Create a cyclic version of a longitude array and (optionally) another array.
+
+    Arguments:
+        longitude (ndarray): Longitude array of shape (nlon, ...).
+        array (ndarray): Another array that is to be made cyclic of shape (nlon, ...).
+        wrap (float): Wrapping value, defaults to 360 (degrees).
+
+    Returns:
+        Tuple containing (cyclic_longitudes, cyclic_array) if `array` is given, otherwise
+        just the ndarray cyclic_longitudes of shape (2 * nlon, ...).
+    """
+    lonsize = longitude.shape[0]
+    cyclic_longitudes = np.hstack((longitude[lonsize//2:, ...] - wrap, longitude, longitude[:lonsize//2, ...] + wrap))
+    if array is None:
+        return cyclic_longitudes
+    cyclic_array = np.hstack((array[lonsize//2:, ...], array, array[:lonsize//2, ...]))
+    return cyclic_longitudes, cyclic_array
+
+
+def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num_candidates=None, n_jobs=-1):
+    """Calculate the (approximate) distance of each water cell from the nearest coastline.
+
+    Arguments:
+        coords (tuple of ndarrays): Tuple containing x and y (longitude and latitude)
+            coordinate arrays of shape (nx, ny).
+        coast_mask (ndarray): Boolean mask indicating whether a cell is a land cell
+            (must be same shape as coordinate arrays).
+        spherical (bool): Use spherical instead of Cartesian coordinates.
+            When this is `True`, cyclical boundary conditions are used, and the
+            resulting distances are only approximate. Cells are pre-sorted by
+            Euclidean lon-lat distance, and great circle distances are calculated for
+            the first `num_candidates` elements. Defaults to `False`.
+        radius (float): Radius of spherical coordinate system. Must be given when
+            `spherical` is `True`.
+        num_candidates (int): Number of candidates to calculate great circle distances
+            for for each water cell. The higher this value, the more accurate the returned
+            distances become when `spherical` is `True`. Defaults to the square root
+            of the number of coastal cells.
+        n_jobs (int): Number of parallel jobs to determine nearest neighbors
+            (defaults to -1, which uses all available threads).
+
+    Returns:
+        :obj:`ndarray` of shape (nx, ny) indicating the distance to the nearest land
+        cell (0 if cell is land).
+
+    Example:
+        The following returns coastal distances of all T cells for a spherical Veros setup.
+
+        >>> coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
+        >>> dist = tools.get_coastline_distance(coords, self.kbot > 0, spherical=True, radius=self.radius)
+    """
+    if not len(coords) == 2:
+        raise ValueError("coords must be lon-lat tuple")
+    if not all(c.shape == coast_mask.shape for c in coords):
+        raise ValueError("coordinates must have same shape as coastal mask")
+    if spherical and not radius:
+        raise ValueError("radius must be given for spherical coordinates")
+
+    watercoords = np.array([c[~coast_mask] for c in coords]).T
+    if spherical:
+        coastcoords = np.array(make_cyclic(coords[0][coast_mask], coords[1][coast_mask])).T
+    else:
+        coastcoords = np.array((coords[0][coast_mask], coords[1][coast_mask])).T
+    coast_kdtree = scipy.spatial.cKDTree(coastcoords)
+
+    distance = np.zeros(coords[0].shape)
+    if spherical:
+        def spherical_distance(coords1, coords2):
+            """Calculate great circle distance from latitude and longitude"""
+            coords1 *= np.pi / 180.
+            coords2 *= np.pi / 180.
+            lon1, lon2, lat1, lat2 = coords1[..., 0], coords2[..., 0], coords1[..., 1], coords2[..., 1]
+            return radius * np.arccos(np.sin(lat1) * np.sin(lat2) + np.cos(lat1) * np.cos(lat2) * np.cos(lon1 - lon2))
+        if not num_candidates:
+            num_candidates = int(np.sqrt(np.count_nonzero(~coast_mask)))
+        i_nearest = coast_kdtree.query(watercoords, k=num_candidates, n_jobs=n_jobs)[1]
+        approx_nearest = coastcoords[i_nearest]
+        distance[~coast_mask] = np.min(spherical_distance(approx_nearest, watercoords[..., np.newaxis, :]), axis=-1)
+    else:
+        distance[~coast_mask] = coast_kdtree.query(watercoords, n_jobs=n_jobs)[0]
+
     return distance
