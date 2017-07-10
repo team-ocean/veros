@@ -23,7 +23,7 @@ class WavePropagation(Veros):
         # settings for north atlantic
         self.na_shelf_depth = 150
         self.na_shelf_distance = 100e3
-        self.na_slope_length = 100e3
+        self.na_slope_length = 200e3
         self.na_max_depth = 4000
 
         # global settings
@@ -31,7 +31,7 @@ class WavePropagation(Veros):
 
         # Veros settings
         self.nx = 360
-        self.ny = 180
+        self.ny = 160
         self.nz = 115
         self.dt_mom = 900.
         self.dt_tracer = 900.
@@ -77,19 +77,22 @@ class WavePropagation(Veros):
         self.enable_eke_superbee_advection = True
         self.enable_eke_isopycnal_diffusion = True
 
-        self.enable_idemix = True
+        self.enable_idemix = False
         self.enable_eke_diss_surfbot = True
         self.eke_diss_surfbot_frac = 0.2
         self.enable_idemix_superbee_advection = True
         self.enable_idemix_hor_diffusion = True
 
+
     def _set_parameters(self, module, parameters):
         for key, attribute in parameters.items():
             setattr(module, key, attribute)
 
+
     def _get_data(self, var):
         with Dataset("forcing_1deg_global.nc", "r") as forcing_file:
             return forcing_file.variables[var][...].T
+
 
     def set_grid(self):
         self.dzt[...] = tools.gaussian_spacing(self.nz, self.max_depth, min_spacing=10.)[::-1]
@@ -98,14 +101,17 @@ class WavePropagation(Veros):
         self.y_origin = -80. + 160. / self.ny
         self.x_origin = 90. + 360. / self.nx
 
+
     def set_coriolis(self):
         self.coriolis_t[...] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
+
 
     def _shift_longitude_array(self, lon, arr):
         wrap_i = np.where((lon[:-1] < self.xt.min()) & (lon[1:] >= self.xt.min()))[0][0]
         new_lon = np.concatenate((lon[wrap_i:-1], lon[:wrap_i] + 360.))
         new_arr = np.concatenate((arr[wrap_i:-1, ...], arr[:wrap_i, ...]))
         return new_lon, new_arr
+
 
     def set_topography(self):
         with Dataset("ETOPO5_Ice_g_gmt4.nc", "r") as topography_file:
@@ -124,11 +130,10 @@ class WavePropagation(Veros):
 
         topo_x_shifted, topo_masked_shifted = self._shift_longitude_array(topo_x, topo_masked)
         z_interp = tools.interpolate((topo_x_shifted, topo_y), topo_masked_shifted, coords, kind="nearest", fill=False)
+        z_interp[self._na_mask] = -self.na_max_depth
 
         grid_coords = np.meshgrid(*coords, indexing="ij")
         coastline_distance = tools.get_coastline_distance(grid_coords, z_interp >= 0, spherical=True, radius=self.radius)
-
-        z_interp[self._na_mask] = -self.na_max_depth
         if self.na_slope_length:
             slope_distance = coastline_distance - self.na_shelf_distance
             slope_mask = np.logical_and(self._na_mask, slope_distance < self.na_slope_length)
@@ -149,6 +154,7 @@ class WavePropagation(Veros):
         zonal_mean_na = arr_masked.mean(axis=0)
         return np.where(~arr_masked.mask, zonal_mean_na[np.newaxis, ...], arr)
 
+
     def set_initial_conditions(self):
         self._t_star = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
         self._s_star = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
@@ -168,24 +174,26 @@ class WavePropagation(Veros):
         zt_forc = zt_forc[::-1]
 
         # initial conditions
-        temp_data = tools.interpolate((xt_forc, yt_forc, zt_forc), self._get_data(
-            "temperature")[:, :, ::-1], t_grid, missing_value=0.)
+        temp_data = tools.interpolate((xt_forc, yt_forc, zt_forc), self._get_data("temperature")[:, :, ::-1],
+                                      t_grid, missing_value=0.)
         self.temp[2:-2, 2:-2, :, 0] = temp_data * self.maskT[2:-2, 2:-2, :]
         self.temp[2:-2, 2:-2, :, 1] = temp_data * self.maskT[2:-2, 2:-2, :]
 
-        salt_data = tools.interpolate((xt_forc, yt_forc, zt_forc), self._get_data("salinity")[
-                                      :, :, ::-1], t_grid, missing_value=0.)
+        salt_data = tools.interpolate((xt_forc, yt_forc, zt_forc), self._get_data("salinity")[:, :, ::-1],
+                                       t_grid, missing_value=0.)
         self.salt[2:-2, 2:-2, :, 0] = salt_data * self.maskT[2:-2, 2:-2, :]
         self.salt[2:-2, 2:-2, :, 1] = salt_data * self.maskT[2:-2, 2:-2, :]
 
         # wind stress on MIT grid
         time_grid = (self.xt[2:-2], self.yt[2:-2], np.arange(12))
-        taux_data = tools.interpolate((xt_forc, yt_forc, np.arange(
-            12)), self._get_data("tau_x"), time_grid, missing_value=0.)
+        taux_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+                                      self._get_data("tau_x"), time_grid,
+                                      missing_value=0.)
         self._taux[2:-2, 2:-2, :] = taux_data / self.rho_0
 
-        tauy_data = tools.interpolate((xt_forc, yt_forc, np.arange(
-            12)), self._get_data("tau_y"), time_grid, missing_value=0.)
+        tauy_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+                                      self._get_data("tau_y"), time_grid,
+                                      missing_value=0.)
         self._tauy[2:-2, 2:-2, :] = tauy_data / self.rho_0
 
         if self.enable_cyclic_x:
@@ -215,14 +223,18 @@ class WavePropagation(Veros):
         self._s_star[2:-2, 2:-2, :] = sss_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         if self.enable_idemix:
-            tidal_energy_data = tools.interpolate((xt_forc, yt_forc), self._get_data(
-                "tidal_energy"), t_grid[:-1], missing_value=0.)
+            tidal_energy_data = tools.interpolate((xt_forc, yt_forc), self._get_data("tidal_energy"),
+                                                   t_grid[:-1], missing_value=0.)
             mask_x, mask_y = (i + 2 for i in np.indices((self.nx, self.ny)))
             mask_z = np.maximum(0, self.kbot[2:-2, 2:-2] - 1)
             tidal_energy_data[:, :] *= self.maskW[mask_x, mask_y, mask_z] / self.rho_0
             self.forc_iw_bottom[2:-2, 2:-2] = tidal_energy_data
 
-        for k in (self._taux, self._tauy, self._qnet, self._qnec, self._qsol, self._t_star, self._s_star, self.salt, self.temp, self.forc_iw_bottom):
+        na_average_vars = [self._taux, self._tauy, self._qnet, self._qnec, self._qsol,
+                           self._t_star, self._s_star, self.salt, self.temp]
+        if self.enable_idemix:
+            na_average_vars += [self.forc_iw_bottom]
+        for k in na_average_vars:
             k[2:-2, 2:-2, ...] = self._fix_north_atlantic(k[2:-2, 2:-2, ...])
 
         """
@@ -238,6 +250,7 @@ class WavePropagation(Veros):
         self._divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
         self._divpen_shortwave[0] = pen[0] / self.dzt[0]
 
+
     @veros_method
     def set_forcing(self):
         t_rest = 30. * 86400.
@@ -252,7 +265,7 @@ class WavePropagation(Veros):
 
         if self.enable_tke:
             self.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (self.surface_taux[1:-1, 1:-1] + self.surface_taux[:-2, 1:-1])) ** 2
-                                                        + (0.5 * (self.surface_tauy[1:-1, 1:-1] + self.surface_tauy[1:-1, :-2])) ** 2) ** (3. / 2.)
+                                                      + (0.5 * (self.surface_tauy[1:-1, 1:-1] + self.surface_tauy[1:-1, :-2])) ** 2) ** (3. / 2.)
 
         # W/m^2 K kg/J m^3/kg = K m/s
         fxa = f1 * self._t_star[..., n1] + f2 * self._t_star[..., n2]
@@ -275,6 +288,7 @@ class WavePropagation(Veros):
         self.temp_source[..., :] = (f1 * self._qsol[..., n1, None] + f2 * self._qsol[..., n2, None]) \
             * self._divpen_shortwave[None, None, :] * ice[..., None] \
             * self.maskT[..., :] / cp_0 / self.rho_0
+
 
     @veros_method
     def set_diagnostics(self):

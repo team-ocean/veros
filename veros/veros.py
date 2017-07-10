@@ -227,6 +227,8 @@ class Veros(object):
             self.diagnostics = diagnostics.create_diagnostics(self)
             self.set_diagnostics()
             diagnostics.initialize(self)
+            diagnostics.diagnose(self)
+            diagnostics.output(self)
 
             eke.init_eke(self)
 
