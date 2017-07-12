@@ -18,18 +18,18 @@ Runs all Veros benchmarks back to back and writes timing results to JSON outfile
 TESTDIR = os.path.join(os.path.dirname(__file__), os.path.relpath("benchmarks"))
 COMPONENTS = ["numpy", "bohrium", "bohrium-opencl", "bohrium-cuda", "fortran", "fortran-mpi"]
 BENCHMARK_COMMANDS = {
-    "numpy": "OMP_NUM_THREADS={nproc} {python} {filename} -b numpy -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
-    "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
-    "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
-    "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
+    "numpy": "OMP_NUM_THREADS={nproc} {python} {filename} -b numpy -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
+    "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
+    "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
+    "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
     "fortran": "{python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
     "fortran-mpi": "{mpiexec} -n {nproc} --allow-run-as-root -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}"
 }
 SLURM_COMMANDS = {
-    "numpy": "OMP_NUM_THREADS={nproc} srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b numpy -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
-    "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
-    "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
-    "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
+    "numpy": "OMP_NUM_THREADS={nproc} srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b numpy -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
+    "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
+    "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
+    "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
     "fortran": "srun --ntasks 1 -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
     "fortran-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}"
 }
@@ -52,6 +52,7 @@ def parse_cli():
     parser.add_argument("--mpiexec", default="mpiexec", help="Executable used for calling MPI (e.g. mpirun, mpiexec)")
     parser.add_argument("--slurm", action="store_true", help="Run benchmarks using SLURM scheduling command (srun)")
     parser.add_argument("--debug", action="store_true", help="Additionally print each command that is executed")
+    parser.add_argument("--float-type", default="float64", help="Data type for floating point arrays in Veros components")
     return parser.parse_args()
 
 def check_fortran_library(path):
@@ -79,6 +80,14 @@ if __name__ == "__main__":
     if fortran_version != "parallel" and "fortran-mpi" in args.components:
         raise RuntimeError("Fortran library must be compiled with MPI support for fortran-mpi component")
 
+    if args.float_type != "float64" and ("fortran" in args.components or "fortran-mpi" in args.components):
+        raise RuntimeError("Can run Fortran components only with 'float64' float type")
+
+    settings = {
+        "timesteps": args.timesteps,
+        "nproc": args.nproc,
+        "float_type": args.float_type
+    }
     out_data = {}
     all_passed = True
     try:
@@ -98,7 +107,8 @@ if __name__ == "__main__":
                             "mpiexec": args.mpiexec,
                             "fortran_lib": args.fortran_library,
                             "nx": nx, "ny": ny, "nz": nz,
-                            "timesteps": args.timesteps
+                            "timesteps": args.timesteps,
+                            "float_type": args.float_type
                            }
 
                 for comp in args.components:
@@ -134,6 +144,6 @@ if __name__ == "__main__":
                                         "detailed_stats": detailed_stats})
     finally:
         with open(args.outfile, "w") as f:
-            json.dump(out_data, f, indent=4)
+            json.dump({"benchmarks": out_data, "settings": settings}, f, indent=4)
 
     sys.exit(int(not all_passed))
