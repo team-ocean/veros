@@ -10,28 +10,30 @@ import math
 import re
 import json
 import time
+import numpy as np
 
 """
-Runs all Veros benchmarks back to back and writes timing results to JSON outfile.
+Runs selected Veros benchmarks back to back and writes timing results to a JSON file.
 """
 
 TESTDIR = os.path.join(os.path.dirname(__file__), os.path.relpath("benchmarks"))
 COMPONENTS = ["numpy", "bohrium", "bohrium-opencl", "bohrium-cuda", "fortran", "fortran-mpi"]
+STATIC_SETTINGS = "-v debug -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}"
 BENCHMARK_COMMANDS = {
-    "numpy": "OMP_NUM_THREADS={nproc} {python} {filename} -b numpy -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
-    "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
-    "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
-    "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
-    "fortran": "{python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
-    "fortran-mpi": "{mpiexec} -n {nproc} --allow-run-as-root -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}"
+    "numpy": "OMP_NUM_THREADS={nproc} {python} {filename} -b numpy " + STATIC_SETTINGS,
+    "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 {python} {filename} -b bohrium "  + STATIC_SETTINGS,
+    "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 {python} {filename} -b bohrium " + STATIC_SETTINGS,
+    "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 {python} {filename} -b bohrium " + STATIC_SETTINGS,
+    "fortran": "{python} {filename} --fortran-lib {fortran_lib} " + STATIC_SETTINGS,
+    "fortran-mpi": "{mpiexec} -n {nproc} --allow-run-as-root -- {python} {filename} --fortran-lib {fortran_lib} " + STATIC_SETTINGS
 }
 SLURM_COMMANDS = {
-    "numpy": "OMP_NUM_THREADS={nproc} srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b numpy -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
-    "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
-    "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
-    "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}",
-    "fortran": "srun --ntasks 1 -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}",
-    "fortran-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} --fortran-lib {fortran_lib} -s nx {nx} -s ny {ny} -s nz {nz} --timesteps {timesteps}"
+    "numpy": "OMP_NUM_THREADS={nproc} srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b numpy " + STATIC_SETTINGS,
+    "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium " + STATIC_SETTINGS,
+    "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium " + STATIC_SETTINGS,
+    "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium " + STATIC_SETTINGS,
+    "fortran": "srun --ntasks 1 -- {python} {filename} --fortran-lib {fortran_lib} " + STATIC_SETTINGS,
+    "fortran-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} --fortran-lib {fortran_lib} " + STATIC_SETTINGS
 }
 AVAILABLE_BENCHMARKS = [f for f in os.listdir(TESTDIR) if f.endswith("_benchmark.py")]
 
@@ -124,24 +126,34 @@ if __name__ == "__main__":
                         print(e.output)
                         all_passed = False
                         continue
-                    elapsed = float(re.search(r"Veros benchmark took ([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)s", output).group(1))
-                    print("{:>6.2f}s".format(elapsed))
+                    iteration_times = list(map(float, re.findall(r"Time step took ([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)s", output))) or [0]
+                    total_elapsed = float(re.search(r"Veros benchmark took ([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)s", output).group(1))
+                    print("{:>6.2f}s".format(total_elapsed))
 
-                    detailed_stats = None
+                    bohrium_stats = None
                     if "bohrium" in comp:
-                        detailed_stats = {"Pre-fusion": None, "Fusion": None,
-                                          "Compile": None, "Exec": None}
-                        patterns = {stat: r"\s*{}\:\s*(\d+\.?\d*)s".format(stat) for stat in detailed_stats.keys()}
+                        bohrium_stats = {"Pre-fusion": None, "Fusion": None,
+                                         "Compile": None, "Exec": None,
+                                         "Copy2dev": None, "Copy2host": None,
+                                         "Offload": None, "Other": None}
+                        patterns = {stat: r"\s*{}\:\s*(\d+\.?\d*)s".format(stat) for stat in bohrium_stats.keys()}
                         for line in output.splitlines():
-                            for stat in detailed_stats.keys():
+                            for stat in bohrium_stats.keys():
                                 match = re.match(patterns[stat], line)
                                 if match:
-                                    detailed_stats[stat] = float(match.group(1))
+                                    bohrium_stats[stat] = float(match.group(1))
 
-                    out_data[f].append({"component": comp,
-                                        "size": real_size,
-                                        "wall_time": elapsed,
-                                        "detailed_stats": detailed_stats})
+                    out_data[f].append({
+                        "component": comp,
+                        "size": real_size,
+                        "wall_time": total_elapsed,
+                        "per_iteration": {
+                            "best": np.min(iteration_times),
+                            "mean": np.mean(iteration_times),
+                            "stdev": np.std(iteration_times),
+                        },
+                        "bohrium_stats": bohrium_stats
+                    })
     finally:
         with open(args.outfile, "w") as f:
             json.dump({"benchmarks": out_data, "settings": settings}, f, indent=4)

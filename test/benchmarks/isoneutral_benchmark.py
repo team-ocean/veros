@@ -34,8 +34,8 @@ class StreamfunctionBenchmark(VerosLegacy):
             self.je_pe = self.ny
 
         m = self.main_module
-        self.set_attribute("x_origin",np.random.rand().astype(self.default_float_type))
-        self.set_attribute("y_origin",np.random.rand().astype(self.default_float_type))
+        self.set_attribute("x_origin",np.random.rand())
+        self.set_attribute("y_origin",np.random.rand())
         self.set_attribute("dxt",np.random.randint(1,100,size=m.ie_pe-m.is_pe+5).astype(self.default_float_type))
         self.set_attribute("dyt",np.random.randint(1,100,size=m.je_pe-m.js_pe+5).astype(self.default_float_type))
         self.set_attribute("dzt",np.random.randint(1,100,size=m.nz).astype(self.default_float_type))
@@ -50,19 +50,19 @@ class StreamfunctionBenchmark(VerosLegacy):
     @veros_method
     def set_coriolis(self):
         m = self.main_module
-        self.set_attribute("coriolis_t", 2 * np.random.rand(1, m.je_pe-m.js_pe+5, dtype=self.default_float_type) - 1.)
+        self.set_attribute("coriolis_t", 2 * np.random.rand(1, m.je_pe-m.js_pe+5).astype(self.default_float_type) - 1.)
 
     @veros_method
     def set_initial_conditions(self):
         m = self.main_module
-        self.set_attribute("salt", 35 + np.random.randn(m.ie_pe-m.is_pe+5,m.je_pe-m.js_pe+5,m.nz,3, dtype=self.default_float_type))
-        self.set_attribute("temp", 20 + 5 * np.random.rand(m.ie_pe-m.is_pe+5,m.je_pe-m.js_pe+5,m.nz,3, dtype=self.default_float_type))
+        self.set_attribute("salt", 35 + np.random.randn(m.ie_pe-m.is_pe+5, m.je_pe-m.js_pe+5, m.nz,3).astype(self.default_float_type))
+        self.set_attribute("temp", 20 + 5 * np.random.rand(m.ie_pe-m.is_pe+5, m.je_pe-m.js_pe+5, m.nz,3).astype(self.default_float_type))
 
     @veros_method
     def set_forcing(self):
         m = self.main_module
         for a in ("flux_east","flux_north","flux_top","u_wgrid","v_wgrid","w_wgrid","K_iso","K_gm","du_mix","P_diss_iso","P_diss_skew"):
-            self.set_attribute(a,np.random.randn(m.ie_pe-m.is_pe+5,m.je_pe-m.js_pe+5,m.nz, dtype=self.default_float_type))
+            self.set_attribute(a,np.random.randn(m.ie_pe-m.is_pe+5,m.je_pe-m.js_pe+5,m.nz).astype(self.default_float_type))
 
     def set_diagnostics(self):
         pass
@@ -99,7 +99,7 @@ class StreamfunctionBenchmark(VerosLegacy):
                 self.fortran.isoneutral_diffusion_pre()
             else:
                 core.isoneutral.isoneutral_diffusion_pre(self)
-            print("iteration took {:.2f}s".format(time.time() - start))
+            print("Time step took {:.2e}s".format(time.time() - start))
 
 
 if __name__ == "__main__":
