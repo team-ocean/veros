@@ -31,7 +31,7 @@ class WavePropagation(Veros):
 
         # Veros settings
         self.nx = 360
-        self.ny = 160
+        self.ny = 248
         self.nz = 115
         self.dt_mom = 900.
         self.dt_tracer = 900.
@@ -97,10 +97,11 @@ class WavePropagation(Veros):
     def set_grid(self):
         self.dzt[...] = tools.gaussian_spacing(self.nz, self.max_depth, min_spacing=10.)[::-1]
         self.dxt[...] = 360. / self.nx
-        self.dyt[...] = 160. / self.ny
-        self.y_origin = -80. + 160. / self.ny
-        self.x_origin = 90. + 360. / self.nx
-
+        numUniSteps, uniformSteps = tools.uniformGridSetup(0., 6., 0.25)
+        stretchedSteps = tools.stretchedGridSetup(self.ny/2-numUniSteps, lb=6., ub=80., stretchingFactor=2.79889)
+        self.dyt[...] = np.concatenate((stretchedSteps[:1:-1], uniformSteps[::-1], uniformSteps, stretchedSteps[2::]))
+        self.y_origin = -80. + self.dyt[0]
+        self.x_origin = 90. + self.dxt[0]
 
     def set_coriolis(self):
         self.coriolis_t[...] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
