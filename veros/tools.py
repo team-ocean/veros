@@ -236,3 +236,99 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
         distance[~coast_mask] = coast_kdtree.query(watercoords, n_jobs=n_jobs)[0]
 
     return distance
+
+def uniformGridSetup(lb=-6., ub=6., equatorGridStep=0.25):
+    """ Set up uniorm grid steps within [lb, ub]
+    
+    Arguments:
+        lb, ub (int): lower and upper boundaries, respectively
+        equatorGridStep (float, optional): grid step
+        
+    Returns:
+        :obj: `int`, `ndarray` containing number of grid steps and array of grid steps between lb and ub
+    
+    Example:
+        numUniSteps, uniformSteps = uniformGridSetup(0., 6., 0.25)
+        numUniSteps
+        >>>>numUniSteps 
+        24
+        >>>>uniformSteps
+        [ 0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,
+         0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,
+         0.25,  0.25,  0.25,  0.25,  0.25,  0.25]
+    """
+    nytI = int((ub - lb) / equatorGridStep)
+    return nytI, np.ones(nytI) * equatorGridStep
+
+def stretchedGridSetup(nGrids, lb=0., ub=1., stretchingFactor=1.2, oneSideStretching=True,\
+                       ubRefine=False, verbose=False):
+    """Routine computes stretched grid/grid steps between lb and ub coordinates for regional and 
+    global domains with both one and two sided stretching.
+    
+    For two sided grid stretching it calculates a half of grid/grid steps and mirrors it to 
+    another half. In this case, the output grid/grid steps are refined in the center/or 
+    lateral boundaries (lb & ub) 
+        
+    ... note :: The stretching function is hyperbolic tangent:
+    $x(u) = 1 + \dfrac{ tanh(\delta (u-1) / 2) } {tanh(\delta / 2)} $,
+    where $u=(i-1) / (n-1), i = 1,...,n$
+        
+    Arguments:
+        nGrids (int): number of grid-points 
+        lb, ub (float, optional): lower and upper boundaries of a grid 
+            to be stretched (when not [0,1] interval)
+        stretchingFactor (float, optional): stretching factor
+        ubRefine (bool, optional): refine grid/grid steps towards upper grid boundary, 
+            otherwise lower boundary
+        verbose (bool, optional): turn on extra output - uniform variable and grid
+                 
+    Returns:
+        :obj: `ndarray` containing grid steps between lb and ub
+    
+    Reference:
+        Vinokur, Marcel, On One-Dimensional Stretching Functions for Finite-Difference Calculations, 
+        Journal of Computational Physics. 50, 215, 1983.
+    
+    Example:
+        self.dyt = stretchGrid(10, lb=-80., ub=80., stretchingFactor=2.615, oneSideStretching=False, verbose=False)
+        >>>print(self.dyt)
+        [ 23.68556906  23.68556906  23.68556906  20.77844654  16.23543219
+          11.57557794   7.72497428   7.72497428  11.57557794  16.23543219
+          20.77844654  23.68556906  23.68556906  23.68556906]    
+    
+    """
+    
+    if oneSideStretching:
+        ngp = nGrids + 1
+    else:    
+        if ~nGrids % 2 == 0:
+            raise ValueError('Number of grid points must be even integer number - given {}'.format(number))
+        ngp = nGrids / 2 + 1
+    
+    uniformVariable =  np.asarray([(i-1.) / (ngp-1.) for i in range(1, ngp+1)])
+    gridOutput = 1. + np.tanh(stretchingFactor * (uniformVariable-1.)/2.) / \
+                                             np.tanh(stretchingFactor/2.)
+    
+    if ubRefine:
+        gridOutput = np.flipud(1.-gridOutput)
+    
+    if oneSideStretching:
+        gridOutput *= (ub-lb)
+        gridOutput += lb
+    else:
+        gridOutput = np.concatenate( ((((1-gridOutput)*ub + (1+gridOutput)*lb) / 2.)[::-1],\
+                                       (((gridOutput+1)*ub - (gridOutput-1)*lb) / 2.)[1::] ) )
+    
+    gridStep = (gridOutput[1::] - gridOutput[:-1])
+    gridStep=np.concatenate((np.array([gridStep[0], gridStep[0]]), \
+                                       gridStep, \
+                             np.array([gridStep[-1], gridStep[-1]])))
+       
+    if verbose:
+        print('Uniform variable: ')
+        print( np.array2string(uniformVariable, formatter={'float_kind':'{0:.4f}'.format}) )
+        print('Grid: ')
+        print( np.array2string(gridOutput, formatter={'float_kind':'{0:.4f}'.format}) )
+
+    return gridStep
+
