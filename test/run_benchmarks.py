@@ -156,6 +156,7 @@ if __name__ == "__main__":
                         "wall_time": total_elapsed,
                         "per_iteration": {
                             "best": np.min(iteration_times),
+                            "worst": np.max(iteration_times),
                             "mean": np.mean(iteration_times),
                             "stdev": np.std(iteration_times),
                         },
