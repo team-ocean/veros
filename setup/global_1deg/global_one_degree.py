@@ -81,11 +81,6 @@ class GlobalOneDegree(Veros):
         self.enable_idemix_hor_diffusion = True
 
     @veros_method
-    def _set_parameters(self, parameters):
-        for key, attribute in parameters.items():
-            setattr(self, key, attribute)
-
-    @veros_method
     def _read_forcing(self, var):
         with Dataset(FORCING_FILE, "r") as infile:
             return np.array(infile.variables[var][...]).T
