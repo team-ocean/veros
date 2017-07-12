@@ -16,18 +16,20 @@ def smooth_image(data, sigma):
 
 
 def save_image(data, path):
+    import numpy as np
     from PIL import Image
     Image.fromarray(np.flipud(data)).convert("1").save(path + ".png")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("-f", "--file", help="Input file holding topography information",
-                        required=True)
-    parser.add_argument("-v,", help="Variable holding topography data (defaults to 'z')",
+    parser.add_argument("file", help="Input file holding topography information")
+    parser.add_argument("-v", help="Variable holding topography data (defaults to 'z')",
                         default="z", required=False)
-    parser.add_argument("-o", "--out", help="", default="topography", required=False)
-    parser.add_argument("-s", "--scale", nargs=2, type=int, required=False, default=None)
+    parser.add_argument("-o", "--out", default="topography", required=False,
+	                help="Output filename (default 'topography')")
+    parser.add_argument("-s", "--scale", nargs=2, type=int, required=False, default=None,
+                        help="Standard deviation in grid cells for Gaussian smoother")
     args = parser.parse_args()
 
     from netCDF4 import Dataset
