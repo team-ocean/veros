@@ -113,7 +113,4 @@ if __name__ == "__main__":
     sim = StreamfunctionBenchmark(fortran)
     sim.repetitions = args.timesteps
     sim.setup()
-    start = time.time()
     sim.run()
-    end = time.time()
-    print("Veros benchmark took {}s".format(end - start))

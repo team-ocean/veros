@@ -42,10 +42,10 @@ def parse_cli():
     parser.add_argument("-f", "--fortran-library", type=str, help="Path to pyOM2 fortran library")
     parser.add_argument("-s", "--sizes", nargs="*", type=float, required=True,
                         help="Problem sizes to test (total number of elements)")
-    parser.add_argument("-c", "--components", nargs="*", choices=COMPONENTS,
-                        default=["numpy"], metavar="COMPONENT",
+    parser.add_argument("-c", "--components", nargs="*", choices=COMPONENTS, default=["numpy"], metavar="COMPONENT",
                         help="Numerical backend components to benchmark (possible values: {})".format(", ".join(COMPONENTS)))
-    parser.add_argument("-n", "--nproc", type=int, default=multiprocessing.cpu_count(), help="Number of processes / threads for parallel execution")
+    parser.add_argument("-n", "--nproc", type=int, default=multiprocessing.cpu_count(),
+                        help="Number of processes / threads for parallel execution")
     parser.add_argument("-o", "--outfile", default="benchmark_{}.json".format(time.time()), help="JSON file to write timings")
     parser.add_argument("-t", "--timesteps", default=1000, help="Number of time steps that each benchmark is run for")
     parser.add_argument("--only", nargs="*", default=AVAILABLE_BENCHMARKS,
@@ -55,7 +55,20 @@ def parse_cli():
     parser.add_argument("--slurm", action="store_true", help="Run benchmarks using SLURM scheduling command (srun)")
     parser.add_argument("--debug", action="store_true", help="Additionally print each command that is executed")
     parser.add_argument("--float-type", default="float64", help="Data type for floating point arrays in Veros components")
+    parser.add_argument("--burnin", default=3, type=int, help="Number of iterations to exclude in timings")
     return parser.parse_args()
+
+def check_arguments(args):
+    fortran_version = check_fortran_library(args.fortran_library)
+
+    if not fortran_version and ("fortran" in args.components or "fortran-mpi" in args.components):
+        raise RuntimeError("Path to fortran library must be given when running fortran components")
+    if fortran_version != "parallel" and "fortran-mpi" in args.components:
+        raise RuntimeError("Fortran library must be compiled with MPI support for fortran-mpi component")
+    if args.float_type != "float64" and ("fortran" in args.components or "fortran-mpi" in args.components):
+        raise RuntimeError("Can run Fortran components only with 'float64' float type")
+    if not args.burnin < args.timesteps:
+        raise RuntimeError("burnin must be smaller than number of timesteps")
 
 def check_fortran_library(path):
     if not path:
@@ -74,21 +87,13 @@ def check_fortran_library(path):
 
 if __name__ == "__main__":
     args = parse_cli()
-    fortran_version = check_fortran_library(args.fortran_library)
-
-    if not fortran_version and ("fortran" in args.components or "fortran-mpi" in args.components):
-        raise RuntimeError("Path to fortran library must be given when running fortran components")
-
-    if fortran_version != "parallel" and "fortran-mpi" in args.components:
-        raise RuntimeError("Fortran library must be compiled with MPI support for fortran-mpi component")
-
-    if args.float_type != "float64" and ("fortran" in args.components or "fortran-mpi" in args.components):
-        raise RuntimeError("Can run Fortran components only with 'float64' float type")
+    check_arguments(args)
 
     settings = {
         "timesteps": args.timesteps,
         "nproc": args.nproc,
-        "float_type": args.float_type
+        "float_type": args.float_type,
+        "burnin": args.burnin
     }
     out_data = {}
     all_passed = True
@@ -126,8 +131,10 @@ if __name__ == "__main__":
                         print(e.output)
                         all_passed = False
                         continue
-                    iteration_times = list(map(float, re.findall(r"Time step took ([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)s", output))) or [0]
-                    total_elapsed = float(re.search(r"Veros benchmark took ([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)s", output).group(1))
+                    iteration_times = list(map(float, re.findall(r"Time step took ([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)s", output)))[args.burnin:]
+                    if not iteration_times:
+                        raise RuntimeError("could not extract iteration times from output")
+                    total_elapsed = sum(iteration_times)
                     print("{:>6.2f}s".format(total_elapsed))
 
                     bohrium_stats = None

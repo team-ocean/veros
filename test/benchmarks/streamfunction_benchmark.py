@@ -74,7 +74,8 @@ class StreamfunctionBenchmark(VerosLegacy):
                 sol = np.zeros_like(rhs)
                 start = time.time()
                 core.external.solve_poisson.solve(self, rhs, sol)
-            print("Time step took {}s".format(time.time() - start))
+            end = time.time()
+            print("Time step took {}s".format(end - start))
 
 if __name__ == "__main__":
     import argparse
@@ -87,7 +88,4 @@ if __name__ == "__main__":
     sim = StreamfunctionBenchmark(fortran)
     sim.repetitions = args.timesteps
     sim.setup()
-    start = time.time()
     sim.run()
-    end = time.time()
-    print("Veros benchmark took {}s".format(end - start))
