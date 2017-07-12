@@ -42,7 +42,7 @@ class Veros(object):
         >>>
         >>> simulation = MyModel(backend="bohrium")
         >>> simulation.run()
-        >>> plt.imshow(simulation.psi)
+        >>> plt.imshow(simulation.psi[..., 0])
         >>> plt.show()
     """
 
@@ -227,14 +227,14 @@ class Veros(object):
             self.diagnostics = diagnostics.create_diagnostics(self)
             self.set_diagnostics()
             diagnostics.initialize(self)
-            diagnostics.diagnose(self)
-            diagnostics.output(self)
 
             eke.init_eke(self)
 
             isoneutral.check_isoneutral_slope_crit(self)
 
             diagnostics.read_restart(self)
+            diagnostics.diagnose(self)
+            diagnostics.output(self)
 
 
     def run(self):
@@ -318,7 +318,7 @@ class Veros(object):
                         diagnostics.diagnose(self)
                         diagnostics.output(self)
 
-                    logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
+                    logging.debug("Time step took {:.2e}s".format(self.timers["main"].getLastTime()))
 
                     # permutate time indices
                     self.taum1, self.tau, self.taup1 = self.tau, self.taup1, self.taum1
