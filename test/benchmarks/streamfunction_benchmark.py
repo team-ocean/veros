@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import logging
 
 from veros import VerosLegacy, veros_method, core
 
@@ -75,7 +76,7 @@ class StreamfunctionBenchmark(VerosLegacy):
                 start = time.time()
                 core.external.solve_poisson.solve(self, rhs, sol)
             end = time.time()
-            print("Time step took {}s".format(end - start))
+            logging.info("Time step took {}s".format(end - start))
 
 if __name__ == "__main__":
     import argparse

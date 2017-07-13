@@ -46,7 +46,7 @@ def parse_cli():
                         help="Numerical backend components to benchmark (possible values: {})".format(", ".join(COMPONENTS)))
     parser.add_argument("-n", "--nproc", type=int, default=multiprocessing.cpu_count(),
                         help="Number of processes / threads for parallel execution")
-    parser.add_argument("-o", "--outfile", default="benchmark_{}.json".format(time.time()), help="JSON file to write timings")
+    parser.add_argument("-o", "--outfile", default="benchmark_{}.json".format(time.time()), help="JSON file to write timings to")
     parser.add_argument("-t", "--timesteps", default=1000, help="Number of time steps that each benchmark is run for")
     parser.add_argument("--only", nargs="*", default=AVAILABLE_BENCHMARKS,
                         help="Run only these benchmarks (possible values: {})".format(", ".join(AVAILABLE_BENCHMARKS)),

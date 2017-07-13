@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import logging
 
 from veros import VerosLegacy, veros_method, core
 
@@ -99,7 +100,7 @@ class StreamfunctionBenchmark(VerosLegacy):
                 self.fortran.isoneutral_diffusion_pre()
             else:
                 core.isoneutral.isoneutral_diffusion_pre(self)
-            print("Time step took {:.2e}s".format(time.time() - start))
+            logging.info("Time step took {:.2e}s".format(time.time() - start))
 
 
 if __name__ == "__main__":
