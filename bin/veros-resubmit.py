@@ -63,4 +63,4 @@ if __name__ == "__main__":
         sys.exit(0)
 
     subprocess.Popen(args.callback)
-    time.sleep(10) # make sure next process is properly spawned before exiting
+    time.sleep(30) # make sure next process is properly spawned before exiting
