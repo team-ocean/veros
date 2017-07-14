@@ -6,7 +6,7 @@ from netCDF4 import Dataset
 from PIL import Image
 import scipy.ndimage
 
-from veros import Veros, veros_method, tools
+from veros import Veros, veros_method, tools, variables
 from veros.core import cyclic
 
 
@@ -15,34 +15,41 @@ class WavePropagation(Veros):
     Global model with flexible resolution and idealized geometry in the
     Atlantic to examine coastal wave propagation.
     """
+    # settings for north atlantic
+    na_shelf_depth = 250
+    na_shelf_distance = 0
+    na_slope_length = 600e3
+    na_max_depth = 4000
+
+    # global settings
+    max_depth = 5600.
+    equatorial_grid_spacing = 0.5
+    polar_grid_spacing = None
+
+    # southern ocean wind modifier
+    so_wind_interval = (-69., -27.)
+    so_wind_factor = 1.
+
 
     @veros_method
     def set_parameter(self):
         self.identifier = "wp"
 
-        # settings for north atlantic
-        self.na_shelf_depth = 150
-        self.na_shelf_distance = 100e3
-        self.na_slope_length = 200e3
-        self.na_max_depth = 4000
-
-        # global settings
-        self.max_depth = 5600.
-
-        # Veros settings
-        self.nx = 360
-        self.ny = 248
-        self.nz = 115
-        self.dt_mom = 900.
-        self.dt_tracer = 900.
-        self.runlen = 0.
+        self.nx = 180
+        self.ny = 180
+        self.nz = 60
+        self.dt_mom = 1800.
+        self.dt_tracer = 1800.
+        self.runlen = 86400 * 10
 
         self.coord_degree = True
         self.enable_cyclic_x = True
 
+        # streamfunction
         self.congr_epsilon = 1e-6
         self.congr_max_iterations = 10000
 
+        # friction
         self.enable_hor_friction = True
         self.A_h = 5e4
         self.enable_hor_friction_cos_scaling = True
@@ -52,6 +59,7 @@ class WavePropagation(Veros):
 
         self.eq_of_state_type = 5
 
+        # isoneutral
         self.enable_neutral_diffusion = True
         self.K_iso_0 = 1000.0
         self.K_iso_steep = 50.0
@@ -59,6 +67,7 @@ class WavePropagation(Veros):
         self.iso_slopec = 0.005
         self.enable_skew_diffusion = True
 
+        # tke
         self.enable_tke = True
         self.c_k = 0.1
         self.c_eps = 0.7
@@ -67,6 +76,7 @@ class WavePropagation(Veros):
         self.tke_mxl_choice = 2
         self.enable_tke_superbee_advection = True
 
+        # eke
         self.enable_eke = True
         self.eke_k_max = 1e4
         self.eke_c_k = 0.4
@@ -77,6 +87,7 @@ class WavePropagation(Veros):
         self.enable_eke_superbee_advection = True
         self.enable_eke_isopycnal_diffusion = True
 
+        # idemix
         self.enable_idemix = False
         self.enable_eke_diss_surfbot = True
         self.eke_diss_surfbot_frac = 0.2
@@ -84,29 +95,28 @@ class WavePropagation(Veros):
         self.enable_idemix_hor_diffusion = True
 
 
-    def _set_parameters(self, module, parameters):
-        for key, attribute in parameters.items():
-            setattr(module, key, attribute)
-
-
     def _get_data(self, var):
         with Dataset("forcing_1deg_global.nc", "r") as forcing_file:
             return forcing_file.variables[var][...].T
 
 
+    @veros_method
     def set_grid(self):
-        self.dzt[...] = tools.gaussian_spacing(self.nz, self.max_depth, min_spacing=10.)[::-1]
+        if self.ny % 2:
+            raise ValueError("ny has to be an even number of grid cells")
         self.dxt[...] = 360. / self.nx
-        numUniSteps, uniformSteps = tools.uniformGridSetup(0., 6., 0.25)
-        stretchedSteps = tools.stretchedGridSetup(self.ny/2-numUniSteps, lb=6., ub=80., stretchingFactor=2.79889)
-        self.dyt[...] = np.concatenate((stretchedSteps[:1:-1], uniformSteps[::-1], uniformSteps, stretchedSteps[2::]))
-        self.y_origin = -80. + self.dyt[0]
-        self.x_origin = 90. + self.dxt[0]
+        self.dyt[2:-2] = tools.get_vinokur_grid_steps(self.ny, 160., self.equatorial_grid_spacing, upper_stepsize=self.polar_grid_spacing, two_sided_grid=True)
+        self.dzt[...] = tools.get_vinokur_grid_steps(self.nz, self.max_depth, 10., refine_towards="lower")
+        self.y_origin = -80.
+        self.x_origin = 90.
 
+
+    @veros_method
     def set_coriolis(self):
         self.coriolis_t[...] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
 
+    @veros_method
     def _shift_longitude_array(self, lon, arr):
         wrap_i = np.where((lon[:-1] < self.xt.min()) & (lon[1:] >= self.xt.min()))[0][0]
         new_lon = np.concatenate((lon[wrap_i:-1], lon[:wrap_i] + 360.))
@@ -114,6 +124,7 @@ class WavePropagation(Veros):
         return new_lon, new_arr
 
 
+    @veros_method
     def set_topography(self):
         with Dataset("ETOPO5_Ice_g_gmt4.nc", "r") as topography_file:
             topo_x, topo_y, topo_z = (topography_file.variables[k][...].T.astype(np.float) for k in ("x", "y", "z"))
@@ -127,20 +138,21 @@ class WavePropagation(Veros):
         na_mask_image = np.flipud(Image.open("na_mask.png")).T / 255.
         topo_x_shifted, na_mask_shifted = self._shift_longitude_array(topo_x, na_mask_image)
         coords = (self.xt[2:-2], self.yt[2:-2])
-        self._na_mask = ~tools.interpolate((topo_x_shifted, topo_y), na_mask_shifted, coords, kind="nearest", fill=False).astype(np.bool)
+        self.na_mask = np.zeros((self.nx+4, self.ny+4), dtype=np.bool)
+        self.na_mask[2:-2, 2:-2] = np.logical_not(tools.interpolate((topo_x_shifted, topo_y), na_mask_shifted, coords, kind="nearest", fill=False).astype(np.bool))
 
         topo_x_shifted, topo_masked_shifted = self._shift_longitude_array(topo_x, topo_masked)
         z_interp = tools.interpolate((topo_x_shifted, topo_y), topo_masked_shifted, coords, kind="nearest", fill=False)
-        z_interp[self._na_mask] = -self.na_max_depth
+        z_interp[self.na_mask[2:-2, 2:-2]] = -self.na_max_depth
 
         grid_coords = np.meshgrid(*coords, indexing="ij")
         coastline_distance = tools.get_coastline_distance(grid_coords, z_interp >= 0, spherical=True, radius=self.radius)
         if self.na_slope_length:
             slope_distance = coastline_distance - self.na_shelf_distance
-            slope_mask = np.logical_and(self._na_mask, slope_distance < self.na_slope_length)
+            slope_mask = np.logical_and(self.na_mask[2:-2, 2:-2], slope_distance < self.na_slope_length)
             z_interp[slope_mask] = -(self.na_shelf_depth + slope_distance[slope_mask] / self.na_slope_length * (self.na_max_depth - self.na_shelf_depth))
-        if self.na_shelf_depth:
-            shelf_mask = np.logical_and(self._na_mask, coastline_distance < self.na_shelf_distance)
+        if self.na_shelf_distance:
+            shelf_mask = np.logical_and(self.na_mask[2:-2, 2:-2], coastline_distance < self.na_shelf_distance)
             z_interp[shelf_mask] = -self.na_shelf_depth
 
         depth_levels = 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - self.zt[np.newaxis, np.newaxis, :]), axis=2)
@@ -148,14 +160,16 @@ class WavePropagation(Veros):
         self.kbot *= self.kbot < self.nz
 
 
+    @veros_method
     def _fix_north_atlantic(self, arr):
-        """ Calculate zonal mean forcing over masked area (na_mask)  """
-        newaxes = (slice(None), slice(None)) + (np.newaxis,) * (arr.ndim - 2)
-        arr_masked = np.ma.masked_where(~self._na_mask[newaxes] * np.ones(arr.shape), arr)
+        """Calculate zonal mean forcing over masked area (na_mask)."""
+        newaxes = (slice(2,-2), slice(2,-2)) + (np.newaxis,) * (arr.ndim - 2)
+        arr_masked = np.ma.masked_where(np.logical_or(~self.na_mask[newaxes], arr == 0.), arr)
         zonal_mean_na = arr_masked.mean(axis=0)
         return np.where(~arr_masked.mask, zonal_mean_na[np.newaxis, ...], arr)
 
 
+    @veros_method
     def set_initial_conditions(self):
         self._t_star = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
         self._s_star = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
@@ -191,6 +205,8 @@ class WavePropagation(Veros):
                                       self._get_data("tau_x"), time_grid,
                                       missing_value=0.)
         self._taux[2:-2, 2:-2, :] = taux_data / self.rho_0
+        mask = np.logical_and(self.yt > self.so_wind_interval[0], self.yt < self.so_wind_interval[1])[..., np.newaxis]
+        self._taux *= 1. + mask * (self.so_wind_factor - 1.) * np.sin(np.pi * (self.yt[np.newaxis, :, np.newaxis] - self.so_wind_interval[0]) / (self.so_wind_interval[1] - self.so_wind_interval[0]))
 
         tauy_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                       self._get_data("tau_y"), time_grid,
@@ -202,8 +218,8 @@ class WavePropagation(Veros):
             cyclic.setcyclic_x(self._tauy)
 
         # Qnet and dQ/dT and Qsol
-        qnet_data = tools.interpolate((xt_forc, yt_forc, np.arange(
-            12)), self._get_data("q_net"), time_grid, missing_value=0.)
+        qnet_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+                                      self._get_data("q_net"), time_grid, missing_value=0.)
         self._qnet[2:-2, 2:-2, :] = -qnet_data * self.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         qnec_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)),
@@ -320,11 +336,16 @@ class WavePropagation(Veros):
             average_vars += ["eke", "K_gm", "L_rossby", "L_rhines"]
         self.diagnostics["averages"].output_variables = average_vars
 
+        self.variables["na_mask"] = variables.Variable(
+            "Mask for North Atlantic", ("xt", "yt"), "", "Mask for North Atlantic", dtype="int", time_dependent=False, output=True
+        )
+        self.diagnostics["snapshot"].output_variables.append("na_mask")
+
 
     @veros_method
     def after_timestep(self):
-        if self.time > 90 * 86400. and self.dt_tracer < 1800.:
-            self.dt_tracer = self.dt_mom = 1800.
+        if self.time > 90 * 86400. and self.dt_tracer < 3600.:
+            self.dt_tracer = self.dt_mom = 3600.
 
 
 if __name__ == "__main__":
