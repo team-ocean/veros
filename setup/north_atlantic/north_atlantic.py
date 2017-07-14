@@ -79,7 +79,7 @@ class NorthAtlantic(Veros):
     def set_grid(self):
         self.dxt[2:-2] = (self._x_boundary - self.x_origin) / self.nx
         self.dyt[2:-2] = (self._y_boundary - self.y_origin) / self.ny
-        self.dzt[...] = tools.gaussian_spacing(self.nz, self._max_depth, min_spacing=10.)[::-1]
+        self.dzt[...] = tools.get_vinokur_grid_steps(self.nz, self._max_depth, 10., refine_towards="lower")
 
     def set_coriolis(self):
         self.coriolis_t[:, :] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)

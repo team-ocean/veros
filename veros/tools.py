@@ -3,48 +3,6 @@ import scipy.interpolate
 import scipy.spatial
 
 
-def _gaussian(x, mu, sig):
-    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
-
-
-def _normalize_sum(var, sum_value, minimum_value=0.):
-    var *= (sum_value - len(var) * minimum_value) / var.sum()
-    return var + minimum_value
-
-
-def gaussian_spacing(n, sum_value, min_spacing=0., mu=0.5, sigma=0.125):
-    """Create a sample where values are separated by gaussian step sizes.
-
-    This can be used to create a vertical grid that covers a fixed distance
-    (``sum_value``) and minimizes discretization errors.
-
-    .. note::
-        The first two step sizes are kept constant at ``minimum_value``.
-
-    Arguments:
-       n: Number of sample members.
-       sum_value: Target sum of the created sample.
-       min_spacing (optional): Minimum spacing between sample members. Defaults
-          to zero.
-       mu (optional): Mean of the underlying gaussian.
-       sigma (optional): Standard deviation of the underlying gaussian.
-
-    Example:
-       >>> a = gaussian_spacing(10, 100., min_spacing=2.)
-       >>> a
-       array([  2.        ,   2.        ,   2.10115551,   2.65269846,
-         4.38051667,   7.72821622,  12.25219105,  17.2265533 ,
-        22.29184721,  27.36682157])
-       >>> a.sum()
-       100.00000000000001
-
-    """
-    ddx = _gaussian(np.arange(n), mu * n, sigma * n)
-    dx = np.cumsum(ddx)
-    dx[:2] = 0.
-    return _normalize_sum(np.cumsum(dx), sum_value, min_spacing)
-
-
 def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind="linear"):
     """Interpolate globally defined data to a different (regular) grid.
 
@@ -63,6 +21,7 @@ def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind=
     Returns:
        :obj:`ndarray` containing the interpolated values on the grid spanned by
        ``interp_coords``.
+
     """
     if len(coords) != len(interp_coords) or len(coords) != var.ndim:
         raise ValueError("Dimensions of coordinates and values do not match")
@@ -142,6 +101,7 @@ def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
        (360, 180, 12)
        >>> (n1, f1), (n2, f2) = get_periodic_interval(current_time, year_in_seconds, year_in_seconds / 12, 12)
        >>> data_at_current_time = f1 * data[..., n1] + f2 * data[..., n2]
+
     """
     locTime = current_time - rec_spacing * 0.5 + \
         cycle_length * (2 - round(current_time / cycle_length))
@@ -164,6 +124,7 @@ def make_cyclic(longitude, array=None, wrap=360.):
     Returns:
         Tuple containing (cyclic_longitudes, cyclic_array) if `array` is given, otherwise
         just the ndarray cyclic_longitudes of shape (2 * nlon, ...).
+
     """
     lonsize = longitude.shape[0]
     cyclic_longitudes = np.hstack((longitude[lonsize//2:, ...] - wrap, longitude, longitude[:lonsize//2, ...] + wrap))
@@ -204,6 +165,7 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
 
         >>> coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
         >>> dist = tools.get_coastline_distance(coords, self.kbot > 0, spherical=True, radius=self.radius)
+
     """
     if not len(coords) == 2:
         raise ValueError("coords must be lon-lat tuple")
@@ -234,5 +196,201 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
         distance[~coast_mask] = np.min(spherical_distance(approx_nearest, watercoords[..., np.newaxis, :]), axis=-1)
     else:
         distance[~coast_mask] = coast_kdtree.query(watercoords, n_jobs=n_jobs)[0]
-
     return distance
+
+
+def get_uniform_grid_steps(total_length, stepsize):
+    """Get uniform grid step sizes in an interval.
+
+    Arguments:
+        total_length (float): total length of the resulting grid
+        stepsize (float): grid step size
+
+    Returns:
+        :obj:`ndarray` of grid steps
+
+    Example:
+        >>> uniform_steps = uniform_grid_setup(6., 0.25)
+        >>> uniform_steps
+        [ 0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,
+          0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,  0.25,
+          0.25,  0.25,  0.25,  0.25,  0.25,  0.25 ]
+
+    """
+    if total_length % stepsize:
+        raise ValueError("total length must be an integer multiple of stepsize")
+    return stepsize * np.ones(int(total_length / stepsize))
+
+
+
+def get_stretched_grid_steps(n_cells, total_length, minimum_stepsize, stretching_factor=2.5,
+                             two_sided_grid=False, refine_towards="upper"):
+    """Computes stretched grid steps for regional and global domains with either
+    one or two-sided stretching using a hyperbolic tangent stretching function.
+
+    Arguments:
+        n_cells (int): Number of grid points.
+        total_length (float): Length of the grid interval to be covered (sum of the
+            resulting grid steps).
+        minimum_stepsize (float): Grid step size on the lower end of the interval.
+        stretching_factor (float, optional): Coefficient of the `tanh` stretching
+            function. The higher this value, the more abrupt the step sizes change.
+        two_sided_grid (bool, optional): If set to `True`, the resulting grid will be symmetrical
+            around the center. Defaults to `False`.
+        refine_towards ("upper" or "lower", optional): The side of the interval that is to be refined.
+            Defaults to "upper".
+
+    Returns:
+        :obj:`ndarray` of shape `(n_cells)` containing grid steps.
+
+    Examples:
+        >>> dyt = get_stretched_grid_steps(14, 180, 5)
+        >>> dyt
+        [  5.10517337   5.22522948   5.47813251   5.99673813   7.00386752
+           8.76808565  11.36450896  14.34977676  16.94620006  18.71041819
+          19.71754758  20.2361532   20.48905624  20.60911234]
+        >>> dyt.sum()
+        180.0
+
+        >>> dyt = get_stretched_grid_steps(14, 180, 5, stretching_factor=4.)
+        >>> dyt
+        [  5.00526979   5.01802837   5.06155549   5.20877528   5.69251688
+           7.14225176  10.51307232  15.20121339  18.57203395  20.02176884
+          20.50551044  20.65273022  20.69625734  20.70901593]
+        >>> dyt.sum()
+        180.0
+        
+    """
+
+    if refine_towards not in ("upper", "lower"):
+        raise ValueError("refine_towards must be 'upper' or 'lower'")
+    if two_sided_grid:
+        if n_cells % 2:
+            raise ValueError("number of grid points must be even integer number (given: {})".format(n_cells))
+        n_cells = n_cells / 2
+
+    stretching_function = np.tanh(stretching_factor * np.linspace(-1, 1, n_cells))
+
+    if refine_towards == "lower":
+        stretching_function = stretching_function[::-1]
+    if two_sided_grid:
+        stretching_function = np.concatenate((stretching_function[::-1], stretching_function))
+
+    def normalize_sum(var, sum_value, minimum_value=0.):
+        if abs(var.sum()) < 1e-5:
+            var += 1
+        var *= (sum_value - len(var) * minimum_value) / var.sum()
+        return var + minimum_value
+
+    stretching_function = normalize_sum(stretching_function, total_length, minimum_stepsize)
+    assert abs(1 - np.sum(stretching_function) / total_length) < 1e-5, "precision error"
+    return stretching_function
+
+
+def get_vinokur_grid_steps(n_cells, total_length, lower_stepsize, upper_stepsize=None,
+                           two_sided_grid=False, refine_towards="upper"):
+    """Computes stretched grid steps for regional and global domains with either
+    one or two-sided stretching using Vinokur stretching.
+
+    This stretching function minimizes discretization errors on finite difference
+    grids.
+
+    Arguments:
+        n_cells (int): Number of grid points.
+        total_length (float): Length of the grid interval to be covered (sum of the
+            resulting grid steps).
+        lower_stepsize (float): Grid step size on the lower end of the interval.
+        upper_stepsize (float or ``None``, optional): Grid step size on the upper end of the interval.
+            If not given, the one-sided version of the algorithm is used (that enforces zero curvature
+            on the upper end).
+        two_sided_grid (bool, optional): If set to `True`, the resulting grid will be symmetrical
+            around the center. Defaults to `False`.
+        refine_towards ("upper" or "lower", optional): The side of the interval that is to be refined.
+            Defaults to "upper".
+
+    Returns:
+        :obj:`ndarray` of shape `(n_cells)` containing grid steps.
+
+    Reference:
+        Vinokur, Marcel, On One-Dimensional Stretching Functions for Finite-Difference Calculations,
+        Journal of Computational Physics. 50, 215, 1983.
+
+    Examples:
+        >>> dyt = get_vinokur_grid_steps(14, 180, 5, two_sided_grid=True)
+        >>> dyt
+        [ 18.2451554   17.23915939  15.43744632  13.17358802  10.78720589
+           8.53852027   6.57892471   6.57892471   8.53852027  10.78720589
+          13.17358802  15.43744632  17.23915939  18.2451554 ]
+        >>> dyt.sum()
+        180.
+
+        >>> dyt = get_vinokur_grid_steps(14, 180, 5, upper_stepsize=10)
+        >>> dyt
+        [  5.9818365    7.3645667    8.92544833  10.61326984  12.33841985
+          13.97292695  15.36197306  16.3485688   16.80714121  16.67536919
+          15.97141714  14.78881918  13.27136448  11.57887877 ]
+        >>> dyt.sum()
+        180.
+
+    """
+    if refine_towards not in ("upper", "lower"):
+        raise ValueError("refine_towards must be 'upper' or 'lower'")
+    if two_sided_grid:
+        if n_cells % 2:
+            raise ValueError("number of grid points must be even integer number (given: {})".format(n_cells))
+        n_cells = n_cells / 2
+    n_cells += 1
+
+    def approximate_sinc_inverse(y):
+        """Approximate inverse of sin(y) / y"""
+        if y < 0.26938972:
+            inv =  np.pi * (1 - y + y**2 - (1 + np.pi**2 / 6) * y**3 + 6.794732 * y**4 - 13.205501 * y**5 + 11.726095 * y**6)
+        else:
+            ybar = 1. - y
+            inv =  np.sqrt(6 * ybar) * (1 + .15 * ybar + 0.057321429 * ybar**2 + 0.048774238 * ybar**3 - 0.053337753 * ybar**4 + 0.075845134 * ybar**5)
+        assert abs(1 - np.sin(inv) / inv / y) < 1e-2, "precision error"
+        return inv
+
+    def approximate_sinhc_inverse(y):
+        """Approximate inverse of sinh(y) / y"""
+        if y < 2.7829681:
+            ybar = y - 1.
+            inv = np.sqrt(6 * ybar) * (1 - 0.15 * ybar + 0.057321429 * ybar**2 - 0.024907295 * ybar**3 + 0.0077424461 * ybar**4 - 0.0010794123 * ybar**5)
+        else:
+            v = np.log(y)
+            w = 1. / y - 0.028527431
+            inv = v + (1 + 1. / v) * np.log(2 * v) - 0.02041793 + 0.24902722 * w + 1.9496443 * w**2 - 2.6294547 * w**3 + 8.56795911 * w**4
+        assert abs(1 - np.sinh(inv) / inv / y) < 1e-2, "precision error"
+        return inv
+
+    target_sum = total_length
+    if two_sided_grid:
+        target_sum *= .5
+
+    s0 = float(target_sum) / float(lower_stepsize * n_cells)
+    if upper_stepsize:
+        s1 = float(target_sum) / float(upper_stepsize * n_cells)
+        a, b = np.sqrt(s1 / s0), np.sqrt(s1 * s0)
+        if b > 1:
+            stretching_factor = approximate_sinhc_inverse(b)
+            stretched_grid = .5 + .5 * np.tanh(stretching_factor * np.linspace(-.5, .5, n_cells)) / np.tanh(.5 * stretching_factor)
+        else:
+            stretching_factor = approximate_sinc_inverse(b)
+            stretched_grid = .5 + .5 * np.tan(stretching_factor * np.linspace(-.5, .5, n_cells)) / np.tan(.5 * stretching_factor)
+        stretched_grid = stretched_grid / (a + (1. - a) * stretched_grid)
+    else:
+        if s0 > 1:
+            stretching_factor = approximate_sinhc_inverse(s0) * .5
+            stretched_grid = 1 + np.tanh(stretching_factor * np.linspace(0., 1., n_cells)) / np.tanh(stretching_factor)
+        else:
+            stretching_factor = approximate_sinc_inverse(s0) * .5
+            stretched_grid = 1 + np.tan(stretching_factor * np.linspace(0., 1., n_cells)) / np.tan(stretching_factor)
+
+    stretched_grid_steps = np.diff(stretched_grid * target_sum)
+    if refine_towards == "upper":
+        stretched_grid_steps = stretched_grid_steps[::-1]
+    if two_sided_grid:
+        stretched_grid_steps = np.concatenate((stretched_grid_steps[::-1], stretched_grid_steps))
+
+    assert abs(1 - np.sum(stretched_grid_steps) / total_length) < 1e-5, "precision error"
+    return stretched_grid_steps
