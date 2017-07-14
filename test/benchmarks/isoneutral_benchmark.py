@@ -37,9 +37,9 @@ class StreamfunctionBenchmark(VerosLegacy):
         m = self.main_module
         self.set_attribute("x_origin",np.random.rand())
         self.set_attribute("y_origin",np.random.rand())
-        self.set_attribute("dxt",np.random.randint(1,100,size=m.ie_pe-m.is_pe+5).astype(self.default_float_type))
-        self.set_attribute("dyt",np.random.randint(1,100,size=m.je_pe-m.js_pe+5).astype(self.default_float_type))
-        self.set_attribute("dzt",np.random.randint(1,100,size=m.nz).astype(self.default_float_type))
+        self.set_attribute("dxt",1 + 100 * np.random.rand(m.ie_pe-m.is_pe+5).astype(self.default_float_type))
+        self.set_attribute("dyt",1 + 100 * np.random.rand(m.je_pe-m.js_pe+5).astype(self.default_float_type))
+        self.set_attribute("dzt",1 + 100 * np.random.rand(m.nz).astype(self.default_float_type))
 
     @veros_method
     def set_topography(self):
