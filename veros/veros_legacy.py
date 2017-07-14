@@ -66,7 +66,10 @@ class VerosLegacy(Veros):
         self.modules = (self.main_module, self.isoneutral_module, self.idemix_module,
                         self.tke_module, self.eke_module)
 
+        if self.use_mpi and self.mpi_comm.Get_rank() != 0:
+            kwargs["loglevel"] = "critical"
         super(VerosLegacy, self).__init__(*args, **kwargs)
+
 
     def set_legacy_parameter(self, *args, **kwargs):
         m = self.fortran.main_module
@@ -226,7 +229,7 @@ class VerosLegacy(Veros):
             # shift time
             m.itt += 1
             self.time += m.dt_tracer
-            
+
             self.after_timestep()
 
             otaum1 = m.taum1 * 1

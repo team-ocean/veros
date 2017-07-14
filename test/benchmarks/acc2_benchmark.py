@@ -152,7 +152,4 @@ if __name__ == "__main__":
     sim = ACC2Benchmark(fortran)
     sim.setup()
     sim.main_module.runlen = args.timesteps * sim.main_module.dt_tracer
-    start = time.time()
     sim.run()
-    end = time.time()
-    print("Veros benchmark took {}s".format(end - start))

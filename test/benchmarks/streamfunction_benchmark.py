@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import logging
 
 from veros import VerosLegacy, veros_method, core
 
@@ -66,13 +67,16 @@ class StreamfunctionBenchmark(VerosLegacy):
                 rhs = np.zeros((m.ie_pe-m.is_pe+5, m.je_pe-m.js_pe+5), order="f", dtype=self.default_float_type)
                 rhs[2:-2, 2:-2] = np.random.randn(m.ie_pe-m.is_pe+1, m.je_pe-m.js_pe+1)
                 sol = np.zeros_like(rhs)
+                start = time.time()
                 self.fortran.congrad_streamfunction(is_=m.is_pe-m.onx, ie_=m.ie_pe+m.onx, js_=m.js_pe-m.onx, je_=m.je_pe+m.onx, forc=rhs, iterations=m.congr_itts, sol=sol, converged=False)
             else:
                 rhs = np.zeros((self.nx+4, self.ny+4), dtype=self.default_float_type)
                 rhs[2:-2, 2:-2] = np.random.randn(self.nx, self.ny)
                 sol = np.zeros_like(rhs)
+                start = time.time()
                 core.external.solve_poisson.solve(self, rhs, sol)
-
+            end = time.time()
+            logging.info("Time step took {}s".format(end - start))
 
 if __name__ == "__main__":
     import argparse
@@ -85,7 +89,4 @@ if __name__ == "__main__":
     sim = StreamfunctionBenchmark(fortran)
     sim.repetitions = args.timesteps
     sim.setup()
-    start = time.time()
     sim.run()
-    end = time.time()
-    print("Veros benchmark took {}s".format(end - start))
