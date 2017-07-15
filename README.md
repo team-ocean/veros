@@ -61,3 +61,10 @@ After setting up your model, all you need to do is call the ``setup`` and ``run`
     $ python acc.py
 
 For more information on using Veros, have a look at [our documentation](http://veros.readthedocs.io).
+
+## Contributing
+
+Contributions to Veros are always welcome, no matter if you spotted an inaccuracy in [the documentation](http://veros.readthedocs.io), wrote a nice setup, fixed a bug, or even extended Veros' core mechanics. There are two ways to contribute:
+
+- If you want to report a bug or request a missing feature, please [open an issue](https://github.com/dionhaefner/veros/issues). If you are reporting a bug, make sure to include all relevant information for reproducing it (ideally through a *minimal* code sample).
+- If you want to fix the issue yourself, or wrote an extension for Veros - that is great! You are welcome to submit your code for review by committing it to a repository and opening a [pull request](https://github.com/dionhaefner/veros/pulls). However, before you do so, please check [the contribution guide](http://veros.readthedocs.io/quickstart/get-started.html#enhancing-veros) for some tips on testing and benchmarking, and to make sure that your modifications adhere with our style policies. Most importantly, please ensure that you follow the [PEP8 guidelines](https://www.python.org/dev/peps/pep-0008/), use *meaningful* variable names, and document your code using [Google-style docstrings](http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html).
