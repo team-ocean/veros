@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 #
 #SBATCH -p mycluster
 #SBATCH -A myaccount
@@ -10,13 +10,13 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=your@email.xyz
 
+# load module dependencies
+module load bohrium
+
 # only needed if not found automatically
 export BH_CONFIG=/path/to/bohrium/config.ini
 
-# removes "-march=native" from compiler flags, not always needed
+# if needed, you can modify the internal Bohrium compiler flags
 export BH_OPENMP_COMPILER_FLG="-x c -fPIC -shared -std=gnu99 -O3 -Werror -fopenmp"
-
-# only needed if working with a virtual python environment
-source $HOME/venvs/veros/bin/activate
 
 veros resubmit my_run 8 7776000 "python my_setup.py -b bohrium -v debug" --callback "sbatch veros_batch.sh"
