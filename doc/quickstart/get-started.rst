@@ -58,7 +58,7 @@ Setting up a model
 
 To run Veros, you need to set up a model - i.e., specify which settings and model domain you want to use. This is done by subclassing the :class:`Veros base class <veros.Veros>` in a *setup script* that is written in Python. You should have a look at the pre-implemented model setups in the repository's :file:`setup` folder, or use the :command:`veros copy-setup` command to copy one into your current folder. A good place to start is the :class:`ACC model <acc.ACC>`: ::
 
-    veros copy-setup acc
+    $ veros copy-setup acc
 
 By working through the existing models, you should quickly be able to figure out how to write your own simulation. Just keep in mind this genral advice:
 
@@ -129,7 +129,7 @@ Using Bohrium
 
   While Bohrium yields significant speed-ups for large to very large setups, the overhead introduced by Bohrium often leads to (sometimes considerably) slower execution for problems below a certain threshold size (see also :ref:`when-to-use-bohrium`). You are thus advised to test carefully whether Bohrium is beneficial in your particular use case.
 
-For large simulations, it is often beneficial to use the Bohrium backend for computations. When using Bohrium, all number crunching will make full use of your availble architecture, i.e., computations are executed in parallel on all of your CPU cores, or even GPU when using :envvar:`BH_STACK=opencl` (experimental). You may switch between NumPy and Bohrium with a simple command line switch: ::
+For large simulations, it is often beneficial to use the Bohrium backend for computations. When using Bohrium, all number crunching will make full use of your available architecture, i.e., computations are executed in parallel on all of your CPU cores, or even GPU when using :envvar:`BH_STACK=opencl` or :envvar:`BH_STACK=cuda` (experimental). You may switch between NumPy and Bohrium with a simple command line switch: ::
 
    $ python my_setup.py -b bohrium
 
@@ -153,6 +153,20 @@ Veros was written with extensibility in mind. If you already know some Python an
 We believe that the best way to learn how Veros works is to read its source code. Starting from the :py:class:`Veros base class <veros.Veros>`, you should be able to work your way through the flow of the program, and figure out where to add your modifications. If you installed Veros through :command:`pip -e` or :command:`setup.py develop`, all changes you make will immediately be reflected when running the code.
 
 In case you want to add additional output capabilities or compute additional quantities without changing the main solution of the simulation, you should consider :doc:`adding a custom diagnostic </reference/diagnostics>`.
+
+A convenient way to implement your modifications is to create your own fork of Veros on GitHub, and submit a `pull request <https://github.com/dionhaefner/veros/pulls>`_ if you think your modifications could be useful for the Veros community.
+
+Code conventions
+++++++++++++++++
+
+When contributing to Veros, please adhere to the following general guidelines:
+
+- Your first guide should be the surrounding Veros code. Look around, and be consistent with your modifications.
+- Unless you have a very good reason not to do so, please stick to `the PEP8 style guide <https://www.python.org/dev/peps/pep-0008/>`_ throughout your code. One exception we make in Veros is in regard to the maximum line length - since numerical operations can take up quite a lot of horizontal space, you may use longer lines if it increases readability.
+- Please follow the PEP8 naming conventions, and use meaningful, telling names for your variables, functions, and classes. The variable name :data:`stretching_factor` is infinitely more meaningful than :data:`k`. This is especially important for settings and generic helper functions.
+- "Private" helper functions that are not meant to be called from outside the current source file should be prefixed with an underscore (``_``).
+- Use double quotes (``"``) for all strings longer than a single character.
+- Document your functions using `Google-style docstrings <http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html>`_. This is especially important if you are implementing a user-facing API (such as a diagnostic, a setup, or tools that are meant to be called from setups).
 
 Running tests and benchmarks
 ++++++++++++++++++++++++++++
@@ -188,7 +202,7 @@ If your changes to Veros turn out to have a negative effect on the runtime of th
       if vs.backend_name == "bohrium":
           u_np = vs.u.copy2numpy()
       else:
-          u_np = vs.y
+          u_np = vs.u
       vs.u[...] = np.asarray(external_function(u_np))
 
 - If you are still having trouble, don't hesitate to ask for help (e.g. `on GitHub <https://github.com/dionhaefner/veros/issues>`_).
