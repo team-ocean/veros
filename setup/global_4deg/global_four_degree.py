@@ -182,13 +182,6 @@ class GlobalFourDegree(Veros):
         self.forc_temp_surface[mask] = 0.0
         self.forc_salt_surface[mask] = 0.0
 
-        if self.enable_tempsalt_sources:
-            self.temp_source[:] = self.maskT * self.rest_tscl * \
-                (f1 * self.t_star[:, :, :, n1] + f2 * self.t_star[:, :, :, n2] \
-                - self.temp[:, :, :, self.tau])
-            self.salt_source[:] = self.maskT * self.rest_tscl * \
-                (f1 * self.s_star[:, :, :, n1] + f2 * self.s_star[:, :, :, n2] \
-                - self.salt[:, :, :, self.tau])
 
     @veros_method
     def set_diagnostics(self):
