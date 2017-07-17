@@ -349,15 +349,18 @@ class WavePropagation(Veros):
 
     @veros_method
     def set_timestep(self):
-        if self.time < 90 * 86400 and self.dt_tracer != 1800.:
-            self.dt_tracer = self.dt_mom = 1800.
-            logging.info("Setting time step to 30m")
-        elif self.time < 360 * 86400 and self.dt_tracer != 3600.:
-            self.dt_tracer = self.dt_mom = 3600.
-            logging.info("Setting time step to 1h")
-        elif self.dt_tracer != 7200.:
-            self.dt_tracer = self.dt_mom = 7200.
-            logging.info("Setting time step to 2h")
+        if self.time < 90 * 86400:
+            if self.dt_tracer != 1800.:
+                self.dt_tracer = self.dt_mom = 1800.
+                logging.info("Setting time step to 30m")
+        elif self.time < 360 * 86400:
+            if self.dt_tracer != 3600.:
+                self.dt_tracer = self.dt_mom = 3600.
+                logging.info("Setting time step to 1h")
+        else:
+            if self.dt_tracer != 7200.:
+                self.dt_tracer = self.dt_mom = 7200.
+                logging.info("Setting time step to 2h")
 
 
 if __name__ == "__main__":
