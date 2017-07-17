@@ -240,9 +240,7 @@ class Veros(object):
     def run(self):
         """Main routine of the simulation.
         """
-        enditt = self.itt + int(self.runlen / self.dt_tracer) - 1
         logging.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(self, self.runlen)))
-        logging.info(" from time step {} to {}".format(self.itt, enditt))
 
         start_time, start_iteration = self.time, self.itt
         profiler = None
@@ -310,7 +308,7 @@ class Veros(object):
 
                     with self.timers["diagnostics"]:
                         if not diagnostics.sanity_check(self):
-                            raise RuntimeError("solver diverged at iteration {}".format(self.itt))
+                            raise RuntimeError("solution diverged at iteration {}".format(self.itt))
 
                         if self.enable_neutral_diffusion and self.enable_skew_diffusion:
                             isoneutral.isoneutral_diag_streamfunction(self)

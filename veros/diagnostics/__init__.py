@@ -11,9 +11,11 @@ def create_diagnostics(vs):
                                                 energy.Energy, overturning.Overturning,
                                                 snapshot.Snapshot, tracer_monitor.TracerMonitor)}
 
+
 @veros_method
 def sanity_check(vs):
     return np.all(np.isfinite(vs.u))
+
 
 @veros_method
 def read_restart(vs):
@@ -25,6 +27,7 @@ def read_restart(vs):
     for diagnostic in vs.diagnostics.values():
         diagnostic.read_restart(vs)
 
+
 @veros_method
 def write_restart(vs, force=False):
     if vs.diskless_mode:
@@ -34,18 +37,18 @@ def write_restart(vs, force=False):
             for diagnostic in vs.diagnostics.values():
                 diagnostic.write_restart(vs, outfile)
 
+
 @veros_method
 def initialize(vs):
     for name, diagnostic in vs.diagnostics.items():
         diagnostic.initialize(vs)
         if diagnostic.sampling_frequency:
-            logging.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
-                         .format(name, time.format_time(vs, diagnostic.sampling_frequency),
-                                 diagnostic.sampling_frequency / vs.dt_tracer))
+            logging.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]}"
+                         .format(name, time.format_time(vs, diagnostic.sampling_frequency)))
         if diagnostic.output_frequency:
-            logging.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]} / {2:.1f} time steps"
-                         .format(name, time.format_time(vs, diagnostic.output_frequency),
-                                 diagnostic.output_frequency / vs.dt_tracer))
+            logging.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]}"
+                         .format(name, time.format_time(vs, diagnostic.output_frequency)))
+
 
 @veros_method
 def diagnose(vs):
@@ -53,17 +56,20 @@ def diagnose(vs):
         if diagnostic.sampling_frequency and vs.time % diagnostic.sampling_frequency < vs.dt_tracer:
             diagnostic.diagnose(vs)
 
+
 @veros_method
 def output(vs):
     for diagnostic in vs.diagnostics.values():
         if diagnostic.output_frequency and vs.time % diagnostic.output_frequency < vs.dt_tracer:
             diagnostic.output(vs)
 
+
 def start_profiler():
     import pyinstrument
     profiler = pyinstrument.Profiler()
     profiler.start()
     return profiler
+
 
 def stop_profiler(profiler):
     try:
