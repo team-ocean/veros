@@ -184,17 +184,18 @@ class GlobalOneDegree(Veros):
             self.forc_iw_surface[2:-2, 2:-2] = wind_energy_data
 
         """
-        Initialize penetration profile for solar radiation
-        and store divergence in divpen
-        note that pen(nz) is set 0.0 instead of 1.0 to compensate for the
+        Initialize penetration profile for solar radiation and store divergence in divpen
+        note that pen is set to 0.0 at the surface instead of 1.0 to compensate for the
         shortwave part of the total surface flux
         """
         swarg1 = self.zw / efold1_shortwave
         swarg2 = self.zw / efold2_shortwave
         pen = rpart_shortwave * np.exp(swarg1) + (1.0 - rpart_shortwave) * np.exp(swarg2)
+        pen[-1] = 0.
         self.divpen_shortwave = np.zeros(self.nz, dtype=self.default_float_type)
         self.divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
         self.divpen_shortwave[0] = pen[0] / self.dzt[0]
+
 
     @veros_method
     def set_forcing(self):
@@ -233,9 +234,10 @@ class GlobalOneDegree(Veros):
         self.forc_salt_surface *= ice
 
         # solar radiation
-        self.temp_source[..., :] = (f1 * self.qsol[..., n1, None] + f2 * self.qsol[..., n2, None]) \
-            * self.divpen_shortwave[None, None, :] * ice[..., None] \
-            * self.maskT[..., :] / cp_0 / self.rho_0
+        if self.enable_tempsalt_sources:
+            self.temp_source[..., :] = (f1 * self.qsol[..., n1, None] + f2 * self.qsol[..., n2, None]) \
+                * self.divpen_shortwave[None, None, :] * ice[..., None] \
+                * self.maskT[..., :] / cp_0 / self.rho_0
 
     @veros_method
     def set_diagnostics(self):

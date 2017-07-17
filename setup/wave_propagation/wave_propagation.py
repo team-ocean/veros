@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import os
+import logging
+
 import numpy as np
 from netCDF4 import Dataset
 from PIL import Image
@@ -38,8 +40,7 @@ class WavePropagation(Veros):
         self.nx = 180
         self.ny = 180
         self.nz = 60
-        self.dt_mom = 1800.
-        self.dt_tracer = 1800.
+        self.dt_mom = self.dt_tracer = 0
         self.runlen = 86400 * 10
 
         self.coord_degree = True
@@ -247,6 +248,7 @@ class WavePropagation(Veros):
             tidal_energy_data[:, :] *= self.maskW[mask_x, mask_y, mask_z] / self.rho_0
             self.forc_iw_bottom[2:-2, 2:-2] = tidal_energy_data
 
+        # average variables in North Atlantic
         na_average_vars = [self._taux, self._tauy, self._qnet, self._qnec, self._qsol,
                            self._t_star, self._s_star, self.salt, self.temp]
         if self.enable_idemix:
@@ -255,21 +257,23 @@ class WavePropagation(Veros):
             k[2:-2, 2:-2, ...] = self._fix_north_atlantic(k[2:-2, 2:-2, ...])
 
         """
-        Initialize penetration profile for solar radiation
-        and store divergence in divpen
-        note that pen(nz) is set 0.0 instead of 1.0 to compensate for the
+        Initialize penetration profile for solar radiation and store divergence in divpen
+        note that pen is set to 0.0 at the surface instead of 1.0 to compensate for the
         shortwave part of the total surface flux
         """
         swarg1 = self.zw / efold1_shortwave
         swarg2 = self.zw / efold2_shortwave
         pen = rpart_shortwave * np.exp(swarg1) + (1.0 - rpart_shortwave) * np.exp(swarg2)
-        self._divpen_shortwave = np.zeros(self.nz)
-        self._divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
-        self._divpen_shortwave[0] = pen[0] / self.dzt[0]
+        pen[-1] = 0.
+        self.divpen_shortwave = np.zeros(self.nz, dtype=self.default_float_type)
+        self.divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
+        self.divpen_shortwave[0] = pen[0] / self.dzt[0]
 
 
     @veros_method
     def set_forcing(self):
+        self.set_timestep()
+
         t_rest = 30. * 86400.
         cp_0 = 3991.86795711963  # J/kg /K
 
@@ -302,9 +306,10 @@ class WavePropagation(Veros):
         self.forc_salt_surface[...] *= ice
 
         # solar radiation
-        self.temp_source[..., :] = (f1 * self._qsol[..., n1, None] + f2 * self._qsol[..., n2, None]) \
-            * self._divpen_shortwave[None, None, :] * ice[..., None] \
-            * self.maskT[..., :] / cp_0 / self.rho_0
+        if self.enable_tempsalt_sources:
+            self.temp_source[..., :] = (f1 * self._qsol[..., n1, None] + f2 * self._qsol[..., n2, None]) \
+                * self.divpen_shortwave[None, None, :] * ice[..., None] \
+                * self.maskT[..., :] / cp_0 / self.rho_0
 
 
     @veros_method
@@ -343,9 +348,16 @@ class WavePropagation(Veros):
 
 
     @veros_method
-    def after_timestep(self):
-        if self.time > 90 * 86400. and self.dt_tracer < 3600.:
+    def set_timestep(self):
+        if self.time < 90 * 86400 and self.dt_tracer != 1800.:
+            self.dt_tracer = self.dt_mom = 1800.
+            logging.info("Setting time step to 30m")
+        elif self.time < 360 * 86400 and self.dt_tracer != 3600.:
             self.dt_tracer = self.dt_mom = 3600.
+            logging.info("Setting time step to 1h")
+        elif self.dt_tracer != 7200.:
+            self.dt_tracer = self.dt_mom = 7200.
+            logging.info("Setting time step to 2h")
 
 
 if __name__ == "__main__":
