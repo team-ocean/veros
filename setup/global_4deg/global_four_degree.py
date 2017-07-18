@@ -149,7 +149,7 @@ class GlobalFourDegree(Veros):
     @veros_method
     def set_forcing(self):
         year_in_seconds = 360 * 86400.
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.itt * self.dt_tracer, year_in_seconds,
+        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.time, year_in_seconds,
                                                          year_in_seconds / 12., 12)
 
         # wind stress
@@ -185,11 +185,11 @@ class GlobalFourDegree(Veros):
 
     @veros_method
     def set_diagnostics(self):
-        self.diagnostics["cfl_monitor"].output_frequency = 365 * 86400. / 24.
-        self.diagnostics["snapshot"].output_frequency = 365 * 86400. / 24.
-        self.diagnostics["overturning"].output_frequency = 365 * 86400. / 24.
+        self.diagnostics["cfl_monitor"].output_frequency = 360 * 86400. / 24.
+        self.diagnostics["snapshot"].output_frequency = 360 * 86400. / 24.
+        self.diagnostics["overturning"].output_frequency = 360 * 86400. / 24.
         self.diagnostics["overturning"].sampling_frequency = self.dt_tracer
-        self.diagnostics["energy"].output_frequency = 365 * 86400. / 24.
+        self.diagnostics["energy"].output_frequency = 360 * 86400. / 24.
         self.diagnostics["energy"].sampling_frequency = 86400
         average_vars = ["temp", "salt", "u", "v", "w", "surface_taux",
                         "surface_tauy", "psi"]

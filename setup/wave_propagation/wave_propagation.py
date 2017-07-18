@@ -106,7 +106,8 @@ class WavePropagation(Veros):
         if self.ny % 2:
             raise ValueError("ny has to be an even number of grid cells")
         self.dxt[...] = 360. / self.nx
-        self.dyt[2:-2] = tools.get_vinokur_grid_steps(self.ny, 160., self.equatorial_grid_spacing, upper_stepsize=self.polar_grid_spacing, two_sided_grid=True)
+        self.dyt[2:-2] = tools.get_vinokur_grid_steps(self.ny, 160., self.equatorial_grid_spacing,
+                                                      upper_stepsize=self.polar_grid_spacing, two_sided_grid=True)
         self.dzt[...] = tools.get_vinokur_grid_steps(self.nz, self.max_depth, 10., refine_towards="lower")
         self.y_origin = -80.
         self.x_origin = 90.
@@ -140,7 +141,9 @@ class WavePropagation(Veros):
         topo_x_shifted, na_mask_shifted = self._shift_longitude_array(topo_x, na_mask_image)
         coords = (self.xt[2:-2], self.yt[2:-2])
         self.na_mask = np.zeros((self.nx+4, self.ny+4), dtype=np.bool)
-        self.na_mask[2:-2, 2:-2] = np.logical_not(tools.interpolate((topo_x_shifted, topo_y), na_mask_shifted, coords, kind="nearest", fill=False).astype(np.bool))
+        self.na_mask[2:-2, 2:-2] = np.logical_not(tools.interpolate((topo_x_shifted, topo_y), na_mask_shifted,
+                                                                    coords, kind="nearest", fill=False)
+                                                  .astype(np.bool))
 
         topo_x_shifted, topo_masked_shifted = self._shift_longitude_array(topo_x, topo_masked)
         z_interp = tools.interpolate((topo_x_shifted, topo_y), topo_masked_shifted, coords, kind="nearest", fill=False)
@@ -151,7 +154,8 @@ class WavePropagation(Veros):
         if self.na_slope_length:
             slope_distance = coastline_distance - self.na_shelf_distance
             slope_mask = np.logical_and(self.na_mask[2:-2, 2:-2], slope_distance < self.na_slope_length)
-            z_interp[slope_mask] = -(self.na_shelf_depth + slope_distance[slope_mask] / self.na_slope_length * (self.na_max_depth - self.na_shelf_depth))
+            z_interp[slope_mask] = -(self.na_shelf_depth + slope_distance[slope_mask] / self.na_slope_length \
+                                                           * (self.na_max_depth - self.na_shelf_depth))
         if self.na_shelf_distance:
             shelf_mask = np.logical_and(self.na_mask[2:-2, 2:-2], coastline_distance < self.na_shelf_distance)
             z_interp[shelf_mask] = -self.na_shelf_depth
@@ -207,7 +211,8 @@ class WavePropagation(Veros):
                                       missing_value=0.)
         self._taux[2:-2, 2:-2, :] = taux_data / self.rho_0
         mask = np.logical_and(self.yt > self.so_wind_interval[0], self.yt < self.so_wind_interval[1])[..., np.newaxis]
-        self._taux *= 1. + mask * (self.so_wind_factor - 1.) * np.sin(np.pi * (self.yt[np.newaxis, :, np.newaxis] - self.so_wind_interval[0]) / (self.so_wind_interval[1] - self.so_wind_interval[0]))
+        self._taux *= 1. + mask * (self.so_wind_factor - 1.) * np.sin(np.pi * (self.yt[np.newaxis, :, np.newaxis] - self.so_wind_interval[0]) \
+                                                                            / (self.so_wind_interval[1] - self.so_wind_interval[0]))
 
         tauy_data = tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                       self._get_data("tau_y"), time_grid,
@@ -265,9 +270,8 @@ class WavePropagation(Veros):
         swarg2 = self.zw / efold2_shortwave
         pen = rpart_shortwave * np.exp(swarg1) + (1.0 - rpart_shortwave) * np.exp(swarg2)
         pen[-1] = 0.
-        self.divpen_shortwave = np.zeros(self.nz, dtype=self.default_float_type)
-        self.divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
-        self.divpen_shortwave[0] = pen[0] / self.dzt[0]
+        self._divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
+        self._divpen_shortwave[0] = pen[0] / self.dzt[0]
 
 
     @veros_method
@@ -278,7 +282,7 @@ class WavePropagation(Veros):
         cp_0 = 3991.86795711963  # J/kg /K
 
         year_in_seconds = 360 * 86400.
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.itt * self.dt_tracer, year_in_seconds,
+        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.time, year_in_seconds,
                                                          year_in_seconds / 12., 12)
 
         self.surface_taux[...] = f1 * self._taux[:, :, n1] + f2 * self._taux[:, :, n2]
@@ -308,7 +312,7 @@ class WavePropagation(Veros):
         # solar radiation
         if self.enable_tempsalt_sources:
             self.temp_source[..., :] = (f1 * self._qsol[..., n1, None] + f2 * self._qsol[..., n2, None]) \
-                * self.divpen_shortwave[None, None, :] * ice[..., None] \
+                * self._divpen_shortwave[None, None, :] * ice[..., None] \
                 * self.maskT[..., :] / cp_0 / self.rho_0
 
 
@@ -316,13 +320,13 @@ class WavePropagation(Veros):
     def set_diagnostics(self):
         self.diagnostics["cfl_monitor"].output_frequency = 86400.
         self.diagnostics["tracer_monitor"].output_frequency = 86400.
-        self.diagnostics["snapshot"].output_frequency = 0.5 * 86400.
+        self.diagnostics["snapshot"].output_frequency = 10 * 86400.
         self.diagnostics["overturning"].output_frequency = 360 * 86400
-        self.diagnostics["overturning"].sampling_frequency = 360 * 86400 / 24.
+        self.diagnostics["overturning"].sampling_frequency = 10 * 86400
         self.diagnostics["energy"].output_frequency = 360 * 86400
-        self.diagnostics["energy"].sampling_frequency = 360 * 86400 / 24.
+        self.diagnostics["energy"].sampling_frequency = 86400.
         self.diagnostics["averages"].output_frequency = 360 * 86400
-        self.diagnostics["averages"].sampling_frequency = 360 * 86400 / 24.
+        self.diagnostics["averages"].sampling_frequency = 86400.
 
         average_vars = ["surface_taux", "surface_tauy", "forc_temp_surface", "forc_salt_surface",
                         "psi", "temp", "salt", "u", "v", "w", "Nsqr", "Hd", "rho",
@@ -342,7 +346,8 @@ class WavePropagation(Veros):
         self.diagnostics["averages"].output_variables = average_vars
 
         self.variables["na_mask"] = variables.Variable(
-            "Mask for North Atlantic", ("xt", "yt"), "", "Mask for North Atlantic", dtype="int", time_dependent=False, output=True
+            "Mask for North Atlantic", ("xt", "yt"), "", "Mask for North Atlantic",
+            dtype="int", time_dependent=False, output=True
         )
         self.diagnostics["snapshot"].output_variables.append("na_mask")
 
@@ -353,14 +358,10 @@ class WavePropagation(Veros):
             if self.dt_tracer != 1800.:
                 self.dt_tracer = self.dt_mom = 1800.
                 logging.info("Setting time step to 30m")
-        elif self.time < 360 * 86400:
+        else:
             if self.dt_tracer != 3600.:
                 self.dt_tracer = self.dt_mom = 3600.
                 logging.info("Setting time step to 1h")
-        else:
-            if self.dt_tracer != 7200.:
-                self.dt_tracer = self.dt_mom = 7200.
-                logging.info("Setting time step to 2h")
 
 
 if __name__ == "__main__":
