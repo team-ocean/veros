@@ -74,7 +74,7 @@ class VerosLegacy(Veros):
     def set_legacy_parameter(self, *args, **kwargs):
         m = self.fortran.main_module
         if self.use_mpi:
-            proc_combinations = ((ni, m.n_pes / ni) for ni in xrange(1, int(math.sqrt(m.n_pes)+1) if ni * (m.n_pes / ni) == m.n_pes)
+            proc_combinations = [(ni, m.n_pes / ni) for ni in xrange(1, int(math.sqrt(m.n_pes)+1)) if ni * (m.n_pes / ni) == m.n_pes]
             m.n_pes_i, m.n_pes_j = min(proc_combinations, key=lambda x: abs(x[1] - x[0]))
         self.if2py = lambda i: i + m.onx - m.is_pe
         self.jf2py = lambda j: j + m.onx - m.js_pe
