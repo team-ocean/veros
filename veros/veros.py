@@ -219,20 +219,17 @@ class Veros(object):
 
             self.set_initial_conditions()
             numerics.calc_initial_conditions(self)
-
-            self.set_forcing()
             external.streamfunction_init(self)
+            eke.init_eke(self)
 
-            logging.info("Initializing diagnostics")
             self.diagnostics = diagnostics.create_diagnostics(self)
             self.set_diagnostics()
             diagnostics.initialize(self)
+            diagnostics.read_restart(self)
 
-            eke.init_eke(self)
-
+            self.set_forcing()
             isoneutral.check_isoneutral_slope_crit(self)
 
-            diagnostics.read_restart(self)
             diagnostics.diagnose(self)
             diagnostics.output(self)
 
