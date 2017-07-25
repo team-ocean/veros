@@ -120,9 +120,9 @@ class VerosLegacy(Veros):
                 self.fortran.calc_spectral_topo()
                 self.set_initial_conditions()
                 self.fortran.calc_initial_conditions()
-                self.set_forcing()
                 self.fortran.streamfunction_init()
                 self.set_diagnostics()
+                self.set_forcing()
                 self.fortran.check_isoneutral_slope_crit()
             else:
                 # self.set_parameter() is called twice, but that shouldn't matter
@@ -149,8 +149,7 @@ class VerosLegacy(Veros):
 
     def run(self, **kwargs):
         if not self.legacy_mode:
-            super(VerosLegacy, self).run(**kwargs)
-            return
+            return super(VerosLegacy, self).run(**kwargs)
 
         f = self.fortran
         m = self.main_module
@@ -158,11 +157,12 @@ class VerosLegacy(Veros):
         ekm = self.eke_module
         tkm = self.tke_module
 
-        m.enditt = m.itt + int(m.runlen / m.dt_tracer)
+        start_time, start_iteration = self.time, m.itt
         logging.info("Starting integration for {:.2e}s".format(float(m.runlen)))
-        logging.info(" from time step {} to {}".format(m.itt, m.enditt))
 
-        while m.itt < m.enditt:
+        while self.time < m.runlen:
+            logging.info("Current iteration: {}".format(m.itt))
+
             with self.timers["main"]:
                 self.set_forcing()
 
@@ -236,7 +236,6 @@ class VerosLegacy(Veros):
             m.tau = m.taup1
             m.taup1 = otaum1
 
-            logging.info("Current iteration: {}".format(m.itt))
             logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
 
         logging.debug("Timing summary:")

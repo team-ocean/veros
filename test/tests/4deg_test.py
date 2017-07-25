@@ -27,6 +27,7 @@ class GlobalFourDegree(VerosLegacy):
         (M.nx,M.ny,M.nz) = (90,40,15)
         M.dt_mom    = 1800.0
         M.dt_tracer = 86400.0
+        M.AB_eps = 0.1
 
         M.coord_degree     = True
         M.enable_cyclic_x  = True
@@ -43,7 +44,7 @@ class GlobalFourDegree(VerosLegacy):
         I.enable_skew_diffusion = True
 
         M.enable_hor_friction  = True
-        M.A_h = (4*M.degtom)**3*2e-11
+        M.A_h = 1.75e6
         M.enable_hor_friction_cos_scaling = True
         M.hor_friction_cosPower=1
 
@@ -65,10 +66,14 @@ class GlobalFourDegree(VerosLegacy):
         E.eke_cross  = 2.
         E.eke_crhin  = 1.0
         E.eke_lmin   = 100.0
+        E.eke_int_diss0 = 5.78703703704e-07
+        E.kappa_EKE0 = 0.1
         E.enable_eke_superbee_advection = True
 
         I=self.idemix_module
         I.enable_idemix = True
+        I.gamma = 1.57
+        I.mu0 = 1.33333333333
         I.enable_idemix_hor_diffusion = True
         I.enable_eke_diss_surfbot = True
         I.eke_diss_surfbot_frac = 0.2 # fraction which goes into bottom
@@ -159,8 +164,7 @@ class GlobalFourDegree(VerosLegacy):
         m = self.main_module
 
         year_in_seconds = 360 * 86400.
-        current_time = m.itt * m.dt_tracer if self.legacy_mode else (m.itt - 1) * m.dt_tracer
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(current_time, year_in_seconds,
+        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.time, year_in_seconds,
                                                          year_in_seconds / 12., 12)
 
         # wind stress
