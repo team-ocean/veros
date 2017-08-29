@@ -55,6 +55,7 @@ class Veros(object):
     rho_0 = 1024.  # Boussinesq reference density in :math:`kg/m^3`
     grav = 9.81  # Gravitational constant in :math:`m/s^2`
 
+
     def __init__(self, backend=None, loglevel=None, logfile=None):
         args = cli.parse_command_line()
         self.command_line_settings = args.set or {}
@@ -84,8 +85,10 @@ class Veros(object):
         self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
         self.time, self.itt = 0., 1 # current time and iteration
 
+
     def _not_implemented(self):
         raise NotImplementedError("Needs to be implemented by subclass")
+
 
     def set_parameter(self):
         """To be implemented by subclass.
@@ -101,6 +104,7 @@ class Veros(object):
         """
         self._not_implemented()
 
+
     def set_initial_conditions(self):
         """To be implemented by subclass.
 
@@ -112,6 +116,7 @@ class Veros(object):
           >>>     self.u[:, :, :, self.tau] = np.random.rand(self.u.shape[:-1])
         """
         self._not_implemented()
+
 
     def set_grid(self):
         """To be implemented by subclass.
@@ -130,6 +135,7 @@ class Veros(object):
         """
         self._not_implemented()
 
+
     def set_coriolis(self):
         """To be implemented by subclass.
 
@@ -141,6 +147,7 @@ class Veros(object):
           >>>     self.coriolis_t[:, :] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
         """
         self._not_implemented()
+
 
     def set_topography(self):
         """To be implemented by subclass.
@@ -155,6 +162,7 @@ class Veros(object):
           >>>     self.kbot[10:20, 10:20] = 0
         """
         self._not_implemented()
+
 
     def set_forcing(self):
         """To be implemented by subclass.
@@ -172,6 +180,7 @@ class Veros(object):
         """
         self._not_implemented()
 
+
     def set_diagnostics(self):
         """To be implemented by subclass.
 
@@ -185,11 +194,13 @@ class Veros(object):
         """
         self._not_implemented()
 
+
     def after_timestep(self):
         """Called at the end of each time step. Can be used to define custom, setup-specific
         events.
         """
         pass
+
 
     def flush(self):
         """Flush computations if supported by the current backend.
@@ -198,6 +209,7 @@ class Veros(object):
             self.backend.flush()
         except AttributeError:
             pass
+
 
     def setup(self):
         with self.timers["setup"]:
@@ -229,9 +241,6 @@ class Veros(object):
 
             self.set_forcing()
             isoneutral.check_isoneutral_slope_crit(self)
-
-            diagnostics.diagnose(self)
-            diagnostics.output(self)
 
 
     def run(self):
