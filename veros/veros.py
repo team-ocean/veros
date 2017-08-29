@@ -55,7 +55,7 @@ class Veros(object):
     rho_0 = 1024.  # Boussinesq reference density in :math:`kg/m^3`
     grav = 9.81  # Gravitational constant in :math:`m/s^2`
 
-
+    
     def __init__(self, backend=None, loglevel=None, logfile=None):
         args = cli.parse_command_line()
         self.command_line_settings = args.set or {}
