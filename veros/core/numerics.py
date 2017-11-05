@@ -234,6 +234,26 @@ def vgrid_to_tgrid(vs, a):
 
 
 @veros_method
+def tdma(vs, diagonals, solution):
+    a, b, c = diagonals
+    d = solution
+
+    cp, dp, x = np.zeros_like(d), np.zeros_like(d), np.zeros_like(d)
+    cp[0] = c[0] / b[0]
+    dp[0] = d[0] / b[0]
+
+    for i in xrange(1, len(a) - 1):
+        cp[i] = c[i] / (b[i] - a[i] * cp[i - 1])
+        dp[i] = (d[i] - a[i] * dp[i-1]) / (b[i] - a[i] * cp[i-1])
+
+    x[-1] = dp[-1]
+    for i in xrange(len(a) - 2, -1, -1):
+        x[i] = dp[i] - cp[i] * x[i+1]
+
+    return x
+
+
+@veros_method
 def solve_tridiag(vs, a, b, c, d):
     """
     Solves a tridiagonal matrix system with diagonals a, b, c and RHS vector d.
@@ -241,10 +261,19 @@ def solve_tridiag(vs, a, b, c, d):
     last axis of the input arrays.
     """
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-    try:
-        return np.linalg.solve_tridiagonal(a, b, c, d)
-    except AttributeError:
-        return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
+    cp, dp, x = np.zeros_like(d), np.zeros_like(d), np.zeros_like(d)
+    cp[..., 0] = c[..., 0] / b[..., 0]
+    dp[..., 0] = d[..., 0] / b[..., 0]
+
+    for i in xrange(1, a.shape[-1] - 1):
+        cp[..., i] = c[..., i] / (b[..., i] - a[..., i] * cp[..., i - 1])
+        dp[..., i] = (d[..., i] - a[..., i] * dp[..., i-1]) / (b[..., i] - a[..., i] * cp[..., i-1])
+
+    x[..., -1] = dp[..., -1]
+    for i in xrange(a.shape[-1] - 2, -1, -1):
+        x[..., i] = dp[..., i] - cp[..., i] * x[..., i+1]
+
+    return x
 
 
 @veros_method
