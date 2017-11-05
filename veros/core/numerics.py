@@ -265,9 +265,9 @@ def solve_tridiag(vs, a, b, c, d):
     cp[..., 0] = c[..., 0] / b[..., 0]
     dp[..., 0] = d[..., 0] / b[..., 0]
 
-    for i in xrange(1, a.shape[-1] - 1):
+    for i in xrange(1, a.shape[-1]):
         cp[..., i] = c[..., i] / (b[..., i] - a[..., i] * cp[..., i - 1])
-        dp[..., i] = (d[..., i] - a[..., i] * dp[..., i-1]) / (b[..., i] - a[..., i] * cp[..., i-1])
+        dp[..., i] = (d[..., i] - a[..., i] * dp[..., i - 1]) / (b[..., i] - a[..., i] * cp[..., i - 1])
 
     x[..., -1] = dp[..., -1]
     for i in xrange(a.shape[-1] - 2, -1, -1):
