@@ -2,6 +2,12 @@ from .. import veros_method, veros_inline_method
 
 
 @veros_inline_method
+def where(vs, cond, arr1, arr2):
+    assert cond.dtype == np.bool
+    return cond * arr1 + ~cond * arr2
+
+
+@veros_inline_method
 def pad_z_edges(vs, array):
     """
     Pads the z-axis of an array by repeating its edge values
@@ -23,7 +29,7 @@ def pad_z_edges(vs, array):
     return newarray
 
 
-@veros_method
+@veros_inline_method
 def solve_implicit(vs, ks, a, b, c, d, b_edge=None, d_edge=None):
     from .numerics import solve_tridiag  # avoid circular import
 
@@ -33,14 +39,14 @@ def solve_implicit(vs, ks, a, b, c, d, b_edge=None, d_edge=None):
     water_mask = land_mask & (np.arange(a.shape[2])[
                               np.newaxis, np.newaxis, :] >= ks[:, :, np.newaxis])
 
-    a_tri = np.where(water_mask, a, 0.)
-    a_tri = np.where(edge_mask, 0., a_tri)
-    b_tri = np.where(water_mask, b, 1.)
-    if not (b_edge is None):
-        b_tri = np.where(edge_mask, b_edge, b_tri)
-    c_tri = np.where(water_mask, c, 0.)
+    a_tri = where(vs, water_mask, a, 0.)
+    a_tri = where(vs, edge_mask, 0., a_tri)
+    b_tri = where(vs, water_mask, b, 1.)
+    if b_edge is not None:
+        b_tri = where(vs, edge_mask, b_edge, b_tri)
+    c_tri = where(vs, water_mask, c, 0.)
     c_tri[:, :, -1] = 0.
-    d_tri = np.where(water_mask, d, 0.)
+    d_tri = where(vs, water_mask, d, 0.)
     if not (d_edge is None):
-        d_tri = np.where(edge_mask, d_edge, d_tri)
+        d_tri = where(vs, edge_mask, d_edge, d_tri)
     return solve_tridiag(vs, a_tri, b_tri, c_tri, d_tri), water_mask

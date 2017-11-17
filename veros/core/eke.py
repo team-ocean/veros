@@ -129,7 +129,7 @@ def integrate_eke(vs):
         vertically integrated EKE to account for vertical EKE radiation
         """
         mask = b_loc > 0
-        a_loc[...] = np.where(mask, a_loc / (b_loc + 1e-20), 0.)
+        a_loc[...] = utilities.where(vs, mask, a_loc / (b_loc + 1e-20), 0.)
         c_int[...] = a_loc[:, :, np.newaxis]
     else:
         """
@@ -155,7 +155,7 @@ def integrate_eke(vs):
     c_tri[:, :, :-1] = -delta[:, :, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1]
     d_tri[:, :, :] = vs.eke[2:-2, 2:-2, :, vs.tau] + vs.dt_tracer * forc[2:-2, 2:-2, :]
     sol, water_mask = utilities.solve_implicit(vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    vs.eke[2:-2, 2:-2, :, vs.taup1] = np.where(water_mask, sol, vs.eke[2:-2, 2:-2, :, vs.taup1])
+    vs.eke[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, water_mask, sol, vs.eke[2:-2, 2:-2, :, vs.taup1])
 
     """
     store eke dissipation
@@ -182,16 +182,16 @@ def integrate_eke(vs):
         a_loc += (vs.eke_diss_iw[:, :, -1] + vs.eke_diss_tke[:, :, -1]) * vs.dzw[-1] * 0.5
         b_loc += c_int[:, :, -1] * vs.eke[:, :, -1, vs.taup1] * vs.dzw[-1] * 0.5
         mask = a_loc != 0.
-        b_loc[...] = np.where(mask, b_loc / (a_loc + 1e-20), 0.)
+        b_loc[...] = utilities.where(vs, mask, b_loc / (a_loc + 1e-20), 0.)
         vs.eke_diss_iw[...] *= b_loc[:, :, np.newaxis]
         vs.eke_diss_tke[...] *= b_loc[:, :, np.newaxis]
 
         """
         store diagnosed flux by lee waves and bottom friction
         """
-        vs.eke_lee_flux[2:-2, 2:-2] = np.where(boundary_mask, np.sum(vs.c_lee[2:-2, 2:-2, np.newaxis] * vs.eke[2:-2, 2:-2, :, vs.taup1]
+        vs.eke_lee_flux[2:-2, 2:-2] = utilities.where(vs, boundary_mask, np.sum(vs.c_lee[2:-2, 2:-2, np.newaxis] * vs.eke[2:-2, 2:-2, :, vs.taup1]
                                                                         * vs.dzw[np.newaxis, np.newaxis, :] * full_mask, axis=-1), vs.eke_lee_flux[2:-2, 2:-2])
-        vs.eke_bot_flux[2:-2, 2:-2] = np.where(boundary_mask, np.sum(2 * vs.eke_r_bot * vs.eke[2:-2, 2:-2, :, vs.taup1]
+        vs.eke_bot_flux[2:-2, 2:-2] = utilities.where(vs, boundary_mask, np.sum(2 * vs.eke_r_bot * vs.eke[2:-2, 2:-2, :, vs.taup1]
                                                                         * math.sqrt(2.0) * vs.sqrteke[2:-2, 2:-2, :] * full_mask, axis=-1), vs.eke_bot_flux[2:-2, 2:-2])
     else:
         vs.eke_diss_iw = c_int * vs.eke[:, :, :, vs.taup1]

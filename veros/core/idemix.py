@@ -58,10 +58,10 @@ def integrate_idemix(vs):
         ks = np.maximum(0, vs.kbot[2:-2, 2:-2] - 1)
         mask = ks[:, :, np.newaxis] == np.arange(vs.nz)[np.newaxis, np.newaxis, :]
         if vs.enable_eke_diss_bottom:
-            forc[2:-2, 2:-2, :] = np.where(mask, a_loc[2:-2, 2:-2, np.newaxis] /
+            forc[2:-2, 2:-2, :] = utilities.where(vs, mask, a_loc[2:-2, 2:-2, np.newaxis] /
                                            vs.dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :])
         else:
-            forc[2:-2, 2:-2, :] = np.where(mask, vs.eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, np.newaxis]
+            forc[2:-2, 2:-2, :] = utilities.where(vs, mask, vs.eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, np.newaxis]
                                            / vs.dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :])
             forc[2:-2, 2:-2, -1] = (1. - vs.eke_diss_surfbot_frac) \
                                     * a_loc[2:-2, 2:-2] / (0.5 * vs.dzw[-1])
@@ -101,7 +101,7 @@ def integrate_idemix(vs):
         vs.forc_iw_bottom[2:-2, 2:-2, np.newaxis] / vs.dzw[np.newaxis, np.newaxis, :]
     d_tri[:, :, -1] += vs.dt_tracer * vs.forc_iw_surface[2:-2, 2:-2] / (0.5 * vs.dzw[-1:])
     sol, water_mask = utilities.solve_implicit(vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge, d_edge=d_tri_edge)
-    vs.E_iw[2:-2, 2:-2, :, vs.taup1] = np.where(water_mask, sol, vs.E_iw[2:-2, 2:-2, :, vs.taup1])
+    vs.E_iw[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, water_mask, sol, vs.E_iw[2:-2, 2:-2, :, vs.taup1])
 
     """
     store IW dissipation

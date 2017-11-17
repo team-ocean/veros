@@ -8,7 +8,7 @@ try:
 except ImportError:
     has_pyamg = False
 
-from .. import cyclic
+from .. import cyclic, utilities
 from ... import veros_method
 
 
@@ -59,7 +59,7 @@ def solve(vs, rhs, sol, boundary_val=None):
         cyclic.setcyclic_x(sol)
 
     boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
-    rhs[...] = np.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
+    rhs[...] = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
     linear_solution = vs.poisson_solver(rhs, sol)
     sol[...] = boundary_val
     sol[2:-2, 2:-2] = linear_solution.reshape(vs.nx + 4, vs.ny + 4)[2:-2, 2:-2]
@@ -70,13 +70,13 @@ def _jacobi_preconditioner(vs, matrix):
     """
     Construct a simple Jacobi preconditioner
     """
-    Z = np.ones((vs.nx + 4, vs.ny + 4))
+    if vs.backend_name == "bohrium":
+        Z = np.ones((vs.nx + 4, vs.ny + 4), bohrium=False)
+    else:
+        Z = np.ones((vs.nx + 4, vs.ny + 4))
     Y = matrix.diagonal().copy().reshape(vs.nx + 4, vs.ny + 4)[2:-2, 2:-2]
     Z[2:-2, 2:-2] = np.where(Y != 0., 1. / Y, 1.)
-    try:
-        Z = Z.copy2numpy()
-    except AttributeError:
-        pass
+
     return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
 
 

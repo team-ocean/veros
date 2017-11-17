@@ -135,13 +135,13 @@ def thermodynamics(vs):
         d_tri[...] = vs.temp[2:-2, 2:-2, :, vs.taup1]
         d_tri[:, :, -1] += vs.dt_tracer * vs.forc_temp_surface[2:-2, 2:-2] / vs.dzt[-1]
         sol, mask = utilities.solve_implicit(vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-        vs.temp[2:-2, 2:-2, :, vs.taup1] = np.where(mask, sol, vs.temp[2:-2, 2:-2, :, vs.taup1])
+        vs.temp[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, mask, sol, vs.temp[2:-2, 2:-2, :, vs.taup1])
         d_tri[...] = vs.salt[2:-2, 2:-2, :, vs.taup1]
         d_tri[:, :, -1] += vs.dt_tracer * vs.forc_salt_surface[2:-2, 2:-2] / vs.dzt[-1]
         sol, mask = utilities.solve_implicit(
             vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge
         )
-        vs.salt[2:-2, 2:-2, :, vs.taup1] = np.where(mask, sol, vs.salt[2:-2, 2:-2, :, vs.taup1])
+        vs.salt[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, mask, sol, vs.salt[2:-2, 2:-2, :, vs.taup1])
 
         vs.dtemp_vmix[...] = (vs.temp[:, :, :, vs.taup1] -
                               vs.dtemp_vmix) / vs.dt_tracer

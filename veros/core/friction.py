@@ -80,7 +80,7 @@ def implicit_vert_friction(vs):
     c_tri[...] = -delta / vs.dzt[np.newaxis, np.newaxis, :]
     d_tri[...] = vs.u[1:-2, 1:-2, :, vs.tau]
     res, mask = utilities.solve_implicit(vs, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    vs.u[1:-2, 1:-2, :, vs.taup1] = np.where(mask, res, vs.u[1:-2, 1:-2, :, vs.taup1])
+    vs.u[1:-2, 1:-2, :, vs.taup1] = utilities.where(vs, mask, res, vs.u[1:-2, 1:-2, :, vs.taup1])
 
     vs.du_mix[1:-2, 1:-2] = (vs.u[1:-2, 1:-2, :, vs.taup1] -
                                 vs.u[1:-2, 1:-2, :, vs.tau]) / vs.dt_mom
@@ -112,7 +112,7 @@ def implicit_vert_friction(vs):
     c_tri[:, :, -1] = 0.
     d_tri[...] = vs.v[1:-2, 1:-2, :, vs.tau]
     res, mask = utilities.solve_implicit(vs, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    vs.v[1:-2, 1:-2, :, vs.taup1] = np.where(mask, res, vs.v[1:-2, 1:-2, :, vs.taup1])
+    vs.v[1:-2, 1:-2, :, vs.taup1] = utilities.where(vs, mask, res, vs.v[1:-2, 1:-2, :, vs.taup1])
     vs.dv_mix[1:-2, 1:-2] = (vs.v[1:-2, 1:-2, :, vs.taup1] - vs.v[1:-2, 1:-2, :, vs.tau]) / vs.dt_mom
 
     """

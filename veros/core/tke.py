@@ -144,7 +144,7 @@ def integrate_tke(vs):
     d_tri[:, :, -1] += vs.dt_tke * vs.forc_tke_surface[2:-2, 2:-2] / (0.5 * vs.dzw[-1])
 
     sol, water_mask = utilities.solve_implicit(vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    vs.tke[2:-2, 2:-2, :, vs.taup1] = np.where(water_mask, sol, vs.tke[2:-2, 2:-2, :, vs.taup1])
+    vs.tke[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, water_mask, sol, vs.tke[2:-2, 2:-2, :, vs.taup1])
 
     """
     store tke dissipation for diagnostics
@@ -156,7 +156,7 @@ def integrate_tke(vs):
     """
     mask = vs.tke[2:-2, 2:-2, -1, vs.taup1] < 0.0
     vs.tke_surf_corr[...] = 0.
-    vs.tke_surf_corr[2:-2, 2:-2] = np.where(mask,
+    vs.tke_surf_corr[2:-2, 2:-2] = utilities.where(vs, mask,
                                             -vs.tke[2:-2, 2:-2, -1, vs.taup1] * 0.5
                                                * vs.dzw[-1] / vs.dt_tke,
                                             0.)

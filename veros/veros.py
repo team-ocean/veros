@@ -55,12 +55,13 @@ class Veros(object):
     rho_0 = 1024.  # Boussinesq reference density in :math:`kg/m^3`
     grav = 9.81  # Gravitational constant in :math:`m/s^2`
 
-    
+
     def __init__(self, backend=None, loglevel=None, logfile=None):
         args = cli.parse_command_line()
         self.command_line_settings = args.set or {}
         self.profile_mode = args.profile
         self.backend, self.backend_name = _backend.get_backend(backend or args.backend)
+        self.target = _backend.get_target(self.backend)
 
         try: # python 2
             logging.basicConfig(logfile=logfile or args.logfile, filemode="w",

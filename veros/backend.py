@@ -23,3 +23,13 @@ def get_backend(backend):
     if BACKENDS[backend] is None:
         raise ValueError("{} backend failed to import".format(backend))
     return BACKENDS[backend], backend
+
+
+def get_target(np):
+    try:
+        runtime_info = np.bh_info.runtime_info()
+    except AttributeError:
+        return "cpu"
+    if "OpenCL" in runtime_info or "CUDA" in runtime_info:
+        return "gpu"
+    return "cpu"
