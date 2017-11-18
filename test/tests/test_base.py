@@ -184,6 +184,7 @@ class VerosUnitTest(object):
         veros_timers = {k: Timer("veros " + k) for k in self.test_routines}
         veros_legacy_timers = {k: Timer("veros legacy " + k) for k in self.test_routines}
         all_passed = True
+
         for routine in self.test_routines.keys():
             veros_routine, veros_legacy_routine = self.get_routine(routine,self.test_module)
             veros_args, veros_legacy_args = self.test_routines[routine]
