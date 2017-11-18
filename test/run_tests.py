@@ -17,15 +17,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Veros testing suite (requires pyOM)")
     parser.add_argument("pyomlib", type=os.path.realpath, help="Path to pyOM fortran library to test against")
     parser.add_argument("--only", nargs="*", default=available_tests, help="Run only these tests", choices=available_tests, required=False)
-    parser.add_argument("--bohrium", action="store_true", help="Run tests with Bohrium", default=False, required=False)
+    parser.add_argument("-b", "--backend", choices=["numpy", "bohrium"], default="numpy",
+                        help="Backend to run tests on (numpy or bohrium)", required=False)
     args = parser.parse_args()
 
     success, fail = "passed", "failed"
     if sys.stdout.isatty():
         success = "\x1b[{}m{}\x1b[0m".format("32", success)
         fail = "\x1b[{}m{}\x1b[0m".format("31", fail)
-
-    backend = "bohrium" if args.bohrium else "numpy"
 
     all_passed = True
     for testscript in args.only:
