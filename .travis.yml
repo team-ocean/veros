@@ -29,7 +29,8 @@ env:
     - BACKEND=bohrium BH_STACK=opencl PYTHON_EXEC=python3 PYOM_LIB=pyOM_code_py3.so PYOM_MPI_LIB=pyOM_code_MPI_py3.so
 
 script:
-- docker run -e BH_STACK -t veros $PYTHON_EXEC $TEST_DIR/run_tests.py /pyOM2/py_src/$PYOM_LIB -b $BACKEND
+  - docker run -t veros $PYTHON_EXEC -c "import bohrium; print(bohrium.bh_info.runtime_info())"
+  - docker run -e BH_STACK -t veros $PYTHON_EXEC $TEST_DIR/run_tests.py /pyOM2/py_src/$PYOM_LIB -b $BACKEND
 
 notifications:
   email: false
