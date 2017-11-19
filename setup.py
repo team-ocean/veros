@@ -14,13 +14,13 @@ setup(
     version = "0.0.1b0",
     packages = find_packages(),
     install_requires = [
-        "numpy",
+        "numpy>=1.13",
         "scipy",
         "netCDF4",
         "h5py",
         "pillow"
         ],
     author = "Dion Häfner (NBI Copenhagen)",
-    author_email = "dion.haefner@nbi.ku.dk",
+    author_email = "mail@dionhaefner.de",
     scripts = find_scripts("bin")
 )
