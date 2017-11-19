@@ -25,11 +25,13 @@ def get_backend(backend):
     return BACKENDS[backend], backend
 
 
-def get_target(np):
+def get_vector_engine(np):
     try:
         runtime_info = np.bh_info.runtime_info()
     except AttributeError:
-        return "cpu"
-    if "OpenCL" in runtime_info or "CUDA" in runtime_info:
-        return "gpu"
-    return "cpu"
+        return None
+    if "OpenCL" in runtime_info:
+        return "opencl"
+    if "CUDA" in runtime_info:
+        return "cuda"
+    return "openmp"

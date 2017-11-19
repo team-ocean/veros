@@ -1,6 +1,8 @@
+from scipy.linalg import lapack
+
 from .. import veros_method, veros_inline_method
 from . import cyclic, density, utilities, diffusion
-from scipy.linalg import lapack
+from .special import tdma_opencl
 
 
 @veros_method
@@ -233,29 +235,6 @@ def vgrid_to_tgrid(vs, a):
     return b
 
 
-# @veros_method
-# def solve_tridiag(vs, a, b, c, d):
-#     """
-#     Solves a tridiagonal matrix system with diagonals a, b, c and RHS vector d.
-#     Uses LAPACK when running with NumPy, and otherwise the Thomas algorithm iterating over the
-#     last axis of the input arrays.
-#     """
-#     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-#     cp, dp, x = np.zeros_like(d), np.zeros_like(d), np.zeros_like(d)
-#     cp[..., 0] = c[..., 0] / b[..., 0]
-#     dp[..., 0] = d[..., 0] / b[..., 0]
-#
-#     for i in xrange(1, a.shape[-1]):
-#         cp[..., i] = c[..., i] / (b[..., i] - a[..., i] * cp[..., i - 1])
-#         dp[..., i] = (d[..., i] - a[..., i] * dp[..., i - 1]) / (b[..., i] - a[..., i] * cp[..., i - 1])
-#
-#     x[..., -1] = dp[..., -1]
-#     for i in xrange(a.shape[-1] - 2, -1, -1):
-#         x[..., i] = dp[..., i] - cp[..., i] * x[..., i+1]
-#
-#     return x
-
-
 @veros_method
 def solve_tridiag(vs, a, b, c, d):
     """
@@ -265,46 +244,26 @@ def solve_tridiag(vs, a, b, c, d):
     """
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
 
-    if vs.backend_name == 'numpy':
+    if vs.backend_name == "numpy":
         return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
 
-    if vs.target == 'cpu':
-        return np.linalg.solve_tridiagonal(a, b, c, d)
+    if vs.vector_engine == "opencl":
+        return tdma_opencl.tdma(a, b, c, d)
 
-    cp, dp, x = np.zeros_like(d), np.zeros_like(d), np.zeros_like(d)
-    cp[..., 0] = c[..., 0] / b[..., 0]
-    dp[..., 0] = d[..., 0] / b[..., 0]
-
-    i = [1]
-    def forward_sweep(ii):
-        i = ii[0]
-        cp[..., i] = c[..., i] / (b[..., i] - a[..., i] * cp[..., i - 1])
-        dp[..., i] = (d[..., i] - a[..., i] * dp[..., i - 1]) / (b[..., i] - a[..., i] * cp[..., i - 1])
-        ii[0] += 1
-    np.do_while(forward_sweep, a.shape[-1] - 1, i)
-
-    x[..., -1] = dp[..., -1]
-    i = [a.shape[-1] - 2]
-    def backward_sweep(ii):
-        i = ii[0]
-        x[..., i] = dp[..., i] - cp[..., i] * x[..., i+1]
-        ii[0] -= 1
-    np.do_while(backward_sweep, a.shape[-1] - 1, i)
-
-    return x
+    return np.linalg.solve_tridiagonal(a, b, c, d)
 
 
 @veros_method
 def calc_diss(vs, diss, K_diss, tag):
     diss_u = np.zeros_like(diss)
     ks = np.zeros_like(vs.kbot)
-    if tag == 'U':
+    if tag == "U":
         ks[1:-2, 2:-2] = np.maximum(vs.kbot[1:-2, 2:-2], vs.kbot[2:-1, 2:-2]) - 1
         interpolator = ugrid_to_tgrid
-    elif tag == 'V':
+    elif tag == "V":
         ks[2:-2, 1:-2] = np.maximum(vs.kbot[2:-2, 1:-2], vs.kbot[2:-2, 2:-1]) - 1
         interpolator = vgrid_to_tgrid
     else:
-        raise ValueError("unknown tag {} (must be 'U' or 'V')".format(tag))
+        raise ValueError("unknown tag {} (must be \"U\" or \"V\")".format(tag))
     diffusion.dissipation_on_wgrid(vs, diss_u, aloc=diss, ks=ks)
     return K_diss + interpolator(vs, diss_u)

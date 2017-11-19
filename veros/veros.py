@@ -61,7 +61,7 @@ class Veros(object):
         self.command_line_settings = args.set or {}
         self.profile_mode = args.profile
         self.backend, self.backend_name = _backend.get_backend(backend or args.backend)
-        self.target = _backend.get_target(self.backend)
+        self.vector_engine = _backend.get_vector_engine(self.backend)
 
         try: # python 2
             logging.basicConfig(logfile=logfile or args.logfile, filemode="w",

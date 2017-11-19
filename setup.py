@@ -18,7 +18,8 @@ setup(
         "scipy",
         "netCDF4",
         "h5py",
-        "pillow"
+        "pillow",
+        "backports.lru_cache"
         ],
     author = "Dion Häfner (NBI Copenhagen)",
     author_email = "dion.haefner@nbi.ku.dk",
