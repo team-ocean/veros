@@ -60,7 +60,6 @@ class AdvectionTest(VerosUnitTest):
             passed = self.check_variable(f)
             if not passed:
                 all_passed = False
-        #plt.show()
         return all_passed
 
 if __name__ == "__main__":

@@ -76,7 +76,6 @@ class IdemixTest(VerosUnitTest):
                 passed = self.check_variable(v)
                 if not passed:
                     all_passed = False
-        plt.show()
         return all_passed
 
 if __name__ == "__main__":
