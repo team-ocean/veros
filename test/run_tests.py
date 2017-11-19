@@ -37,7 +37,6 @@ if __name__ == "__main__":
                                              stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             sys.stdout.write(fail + "\n\n")
-            print(type(e.output))
             print(e.output.decode("utf-8"))
             all_passed = False
             continue
