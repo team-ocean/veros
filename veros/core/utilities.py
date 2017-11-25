@@ -4,7 +4,7 @@ from .. import veros_method, veros_inline_method
 @veros_inline_method
 def where(vs, cond, arr1, arr2):
     assert cond.dtype == np.bool
-    return cond * arr1 + ~cond * arr2
+    return cond * arr1 + np.logical_not(cond) * arr2
 
 
 @veros_inline_method
@@ -34,19 +34,19 @@ def solve_implicit(vs, ks, a, b, c, d, b_edge=None, d_edge=None):
     from .numerics import solve_tridiag  # avoid circular import
 
     land_mask = (ks >= 0)[:, :, np.newaxis]
-    edge_mask = land_mask & (np.arange(a.shape[2])[
-                             np.newaxis, np.newaxis, :] == ks[:, :, np.newaxis])
-    water_mask = land_mask & (np.arange(a.shape[2])[
-                              np.newaxis, np.newaxis, :] >= ks[:, :, np.newaxis])
+    edge_mask = land_mask & (np.arange(a.shape[2])[np.newaxis, np.newaxis, :]
+                             == ks[:, :, np.newaxis])
+    water_mask = land_mask & (np.arange(a.shape[2])[np.newaxis, np.newaxis, :]
+                              >= ks[:, :, np.newaxis])
 
-    a_tri = where(vs, water_mask, a, 0.)
-    a_tri = where(vs, edge_mask, 0., a_tri)
+    a_tri = water_mask * a * np.logical_not(edge_mask)
+    #a_tri = np.logical_not(edge_mask) * a_tri
     b_tri = where(vs, water_mask, b, 1.)
     if b_edge is not None:
         b_tri = where(vs, edge_mask, b_edge, b_tri)
-    c_tri = where(vs, water_mask, c, 0.)
-    c_tri[:, :, -1] = 0.
-    d_tri = where(vs, water_mask, d, 0.)
-    if not (d_edge is None):
+    c_tri = water_mask * c
+    d_tri = water_mask * d
+    if d_edge is not None:
         d_tri = where(vs, edge_mask, d_edge, d_tri)
+
     return solve_tridiag(vs, a_tri, b_tri, c_tri, d_tri), water_mask

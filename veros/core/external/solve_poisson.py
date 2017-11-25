@@ -74,19 +74,14 @@ def _jacobi_preconditioner(vs, matrix):
     """
     Construct a simple Jacobi preconditioner
     """
-    if vs.backend_name == "bohrium":
-        Z = np.ones((vs.nx + 4, vs.ny + 4), bohrium=False)
-    else:
-        Z = np.ones((vs.nx + 4, vs.ny + 4))
-    Y = matrix.diagonal().copy().reshape(vs.nx + 4, vs.ny + 4)[2:-2, 2:-2]
-    Z[2:-2, 2:-2] = np.where(Y != 0., 1. / Y, 1.)
+    eps = 1e-20
+    Z = np.ones((vs.nx + 4, vs.ny + 4))
+    Y = np.reshape(matrix.diagonal().copy(), (vs.nx + 4, vs.ny + 4))[2:-2, 2:-2]
+    Z[2:-2, 2:-2] = utilities.where(vs, np.abs(Y) > eps, 1. / (Y + eps), 1.)
 
-<<<<<<< HEAD
-=======
     if vs.backend_name == "bohrium":
         Z = Z.copy2numpy()
 
->>>>>>> python3
     return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
 
 

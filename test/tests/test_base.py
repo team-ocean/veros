@@ -145,7 +145,7 @@ class VerosUnitTest(object):
             v2 = v2[2:-2, 2:-2, ...]
         passed = np.allclose(*self._normalize(v1,v2), atol=atol)
         if not passed:
-            print("{}: new max: {:.2e} old max: {:.2e} diff max: {:.2e}"
+            print("- {}: (new: {:.2e}, old: {:.2e}, diff: {:.2e})"
                   .format(var, np.abs(v1).max(), np.abs(v2).max(), np.abs(v1-v2).max()))
             while v1.ndim > 2:
                 v1 = v1[...,-1]
