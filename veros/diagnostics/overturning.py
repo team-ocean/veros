@@ -63,8 +63,8 @@ class Overturning(VerosDiagnostic):
         self._allocate(vs)
 
         # sigma levels
-        self.sige = density.get_rho(vs, 35., -2., self.p_ref)
-        self.sigs = density.get_rho(vs, 35., 30., self.p_ref)
+        self.sige = float(density.get_rho(vs, 35., -2., self.p_ref))
+        self.sigs = float(density.get_rho(vs, 35., 30., self.p_ref))
         self.dsig = (self.sige - self.sigs) / (self.nlevel - 1)
 
         logging.debug(" sigma ranges for overturning diagnostic:")

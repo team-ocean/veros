@@ -1,7 +1,6 @@
 import sys
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from test_base import VerosUnitTest
 from veros.core import friction, numerics

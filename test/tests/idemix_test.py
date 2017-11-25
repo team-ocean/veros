@@ -1,6 +1,5 @@
 from collections import OrderedDict
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 
 from test_base import VerosUnitTest
@@ -77,7 +76,6 @@ class IdemixTest(VerosUnitTest):
                 passed = self.check_variable(v)
                 if not passed:
                     all_passed = False
-        plt.show()
         return all_passed
 
 if __name__ == "__main__":

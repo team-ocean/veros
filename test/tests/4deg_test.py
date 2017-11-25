@@ -89,9 +89,13 @@ class GlobalFourDegree(VerosLegacy):
 
     @veros_method
     def set_grid(self):
+        create_args = {}
+        if self.backend_name == "bohrium":
+            create_args = dict(bohrium=False)
+
         m = self.main_module
         ddz = np.array([50., 70., 100., 140., 190., 240., 290., 340.,
-                        390., 440., 490., 540., 590., 640., 690.])
+                        390., 440., 490., 540., 590., 640., 690.], **create_args)
         m.dzt[:] = ddz[::-1]
         m.dxt[:] = 4.0
         m.dyt[:] = 4.0
@@ -118,8 +122,12 @@ class GlobalFourDegree(VerosLegacy):
     def set_initial_conditions(self):
         m = self.main_module
 
+        create_args = {}
+        if self.backend_name == "bohrium":
+            create_args = dict(bohrium=False)
+
         self.taux, self.tauy, self.qnec, self.qnet, self.sss_clim, self.sst_clim = (
-            np.zeros((m.nx + 4, m.ny + 4, 12)) for _ in range(6))
+            np.zeros((m.nx + 4, m.ny + 4, 12), **create_args) for _ in range(6))
 
         # initial conditions for T and S
         temp_data = self._read_forcing("temperature")[:, :, ::-1]
@@ -136,7 +144,7 @@ class GlobalFourDegree(VerosLegacy):
 
         # heat flux
         with Dataset(DATA_FILES["ecmwf"], "r") as ecmwf_data:
-            self.qnec[2:-2, 2:-2, :] = np.array(ecmwf_data.variables["Q3"]).transpose()
+            self.qnec[2:-2, 2:-2, :] = np.array(ecmwf_data.variables["Q3"], **create_args).transpose()
             self.qnec[self.qnec <= -1e10] = 0.0
 
         q = self._read_forcing("q_net")
@@ -148,7 +156,11 @@ class GlobalFourDegree(VerosLegacy):
 
         fxa = float(fxa / fxb)
         logging.info(" removing an annual mean heat flux imbalance of {:.3e} W/m^2".format(fxa))
-        self.qnet[...] = (self.qnet - fxa) * m.maskT[:, :, -1, np.newaxis]
+        try:
+            maskT = m.maskT[:, :, -1, np.newaxis].copy2numpy()
+        except AttributeError:
+            maskT = m.maskT[:, :, -1, np.newaxis]
+        self.qnet[...] = (self.qnet - fxa) * maskT
 
         # SST and SSS
         self.sst_clim[2:-2, 2:-2, :] = self._read_forcing("sst")

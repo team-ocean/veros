@@ -1,6 +1,5 @@
 from collections import OrderedDict
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 
 from test_base import VerosUnitTest
@@ -61,7 +60,6 @@ class AdvectionTest(VerosUnitTest):
             passed = self.check_variable(f)
             if not passed:
                 all_passed = False
-        #plt.show()
         return all_passed
 
 if __name__ == "__main__":

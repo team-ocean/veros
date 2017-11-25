@@ -1,6 +1,5 @@
 from collections import OrderedDict
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 
 from test_base import VerosUnitTest
@@ -46,8 +45,7 @@ class DiffusionTest(VerosUnitTest):
         numerics.calc_topo(self.veros_new)
         self.veros_legacy.fortran.calc_topo()
 
-        self.set_attribute("P_diss_hmix",np.random.randn(self.nx+4,self.ny+4,self.nz) * self.veros_new.maskT)
-
+        self.set_attribute("P_diss_hmix",np.random.randn(self.nx+4,self.ny+4,self.nz) * m.maskT)
         self.test_module = diffusion
         veros_args = (self.veros_new,)
         veros_legacy_args = dict()
@@ -65,7 +63,6 @@ class DiffusionTest(VerosUnitTest):
             passed = self.check_variable(f)
             if not passed:
                 all_passed = False
-        plt.show()
         return all_passed
 
 if __name__ == "__main__":

@@ -4,9 +4,9 @@ import scipy.sparse.linalg as spalg
 
 try:
     import pyamg
-    has_pyamg = True
+    HAS_PYAMG = True
 except ImportError:
-    has_pyamg = False
+    HAS_PYAMG = False
 
 from .. import cyclic, utilities
 from ... import veros_method
@@ -20,7 +20,7 @@ def initialize_solver(vs):
     extra_args = {}
 
     if vs.use_amg_preconditioner:
-        if has_pyamg:
+        if HAS_PYAMG:
             ml = pyamg.smoothed_aggregation_solver(matrix)
             extra_args["M"] = ml.aspreconditioner()
         else:
@@ -50,8 +50,6 @@ def solve(vs, rhs, sol, boundary_val=None):
         sol: Initial guess, gets overwritten with solution
         boundary_val: Array containing values to set on boundary elements. Defaults to `sol`.
     """
-    vs.flush()
-
     if boundary_val is None:
         boundary_val = sol
 
@@ -60,7 +58,13 @@ def solve(vs, rhs, sol, boundary_val=None):
 
     boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
     rhs[...] = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
-    linear_solution = vs.poisson_solver(rhs, sol)
+
+    if vs.backend_name == "bohrium":
+        vs.flush()
+        linear_solution = np.asarray(vs.poisson_solver(rhs.copy2numpy(), sol.copy2numpy()))
+    else:
+        linear_solution = vs.poisson_solver(rhs, sol)
+
     sol[...] = boundary_val
     sol[2:-2, 2:-2] = linear_solution.reshape(vs.nx + 4, vs.ny + 4)[2:-2, 2:-2]
 
@@ -77,6 +81,12 @@ def _jacobi_preconditioner(vs, matrix):
     Y = matrix.diagonal().copy().reshape(vs.nx + 4, vs.ny + 4)[2:-2, 2:-2]
     Z[2:-2, 2:-2] = np.where(Y != 0., 1. / Y, 1.)
 
+<<<<<<< HEAD
+=======
+    if vs.backend_name == "bohrium":
+        Z = Z.copy2numpy()
+
+>>>>>>> python3
     return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
 
 
@@ -124,7 +134,8 @@ def _assemble_poisson_matrix(vs):
         cf += (wrap_diag_east.flatten(), wrap_diag_west.flatten())
 
     if vs.backend_name == "bohrium":
-        cf = np.array(cf, bohrium=False)
+        cf = np.array([c.copy2numpy() for c in cf], bohrium=False)
     else:
         cf = np.array(cf)
+
     return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()
