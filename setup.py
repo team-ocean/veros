@@ -19,7 +19,8 @@ setup(
         "netCDF4",
         "h5py",
         "pillow",
-        "backports.functools_lru_cache"
+        "backports.functools_lru_cache",
+        'future'
         ],
     author = "Dion Häfner (NBI Copenhagen)",
     author_email = "dion.haefner@nbi.ku.dk",

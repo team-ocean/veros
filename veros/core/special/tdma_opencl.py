@@ -6,12 +6,12 @@ import logging
 import functools
 import operator
 
+import bohrium as bh
+import pyopencl as cl
+
 
 @lru_cache()
 def compile_tdma(sys_depth, dtype):
-    import bohrium as bh
-    import pyopencl as cl
-
     logging.debug("Re-compiling TDMA kernel")
 
     ctx = bh.interop_pyopencl.get_context()
@@ -51,9 +51,6 @@ def compile_tdma(sys_depth, dtype):
 def tdma(a, b, c, d, workgrp_size=None):
     assert a.shape == b.shape == c.shape == d.shape
     assert a.dtype == b.dtype == c.dtype == d.dtype
-
-    import bohrium as bh
-    import pyopencl as cl
 
     # Check that PyOpenCL is installed and that the Bohrium runtime uses the OpenCL backend
     if not bh.interop_pyopencl.available():

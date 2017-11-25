@@ -4,7 +4,6 @@ import sys
 import os
 import subprocess
 import imp
-import py_compile
 import textwrap
 from collections import OrderedDict
 
@@ -13,10 +12,6 @@ COMMANDS = OrderedDict([
     ("create-mask", "veros-create-mask.py"),
     ("resubmit", "veros-resubmit.py"),
 ])
-
-#for mod in COMMANDS.values():
-#    path = os.path.join(os.path.dirname(__file__),mod)
-#    py_compile.compile(path, path + ".pyc")
 
 DOCSTRINGS = OrderedDict([(cmd, imp.load_source(cmd, os.path.join(os.path.dirname(__file__),module)).__doc__) for cmd, module in COMMANDS.items()])
 
