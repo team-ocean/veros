@@ -4,7 +4,7 @@ except ImportError: # python 3.x
     import queue
 import logging
 
-from .. import cyclic
+from .. import cyclic, utilities
 from ... import veros_method
 
 OFFMAP = -1
@@ -31,7 +31,7 @@ def isleperim(vs, kmt, verbose=False):
     when no land points remain unassigned, land mass numbers are
     reduced by 1 and their perimeter ocean points relabelled accordingly
     """
-    boundary_map = np.where(kmt > 0, OCEAN, LAND)
+    boundary_map = utilities.where(vs, kmt > 0, OCEAN, LAND)
     if vs.backend_name == "bohrium":
         vs.flush()
         boundary_map = boundary_map.copy2numpy()

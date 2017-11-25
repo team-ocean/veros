@@ -1,16 +1,16 @@
 import warnings
 
-from .. import veros_method
-from .utilities import pad_z_edges
+from .. import veros_method, veros_inline_method
+from .utilities import pad_z_edges, where
 
 
-@veros_method
+@veros_inline_method
 def _calc_cr(vs, rjp, rj, rjm, vel):
     """
     Calculates cr value used in superbee advection scheme
     """
     eps = 1e-20  # prevent division by 0
-    return np.where(vel > 0., rjm, rjp) / np.where(np.abs(rj) < eps, eps, rj)
+    return where(vs, vel > 0., rjm, rjp) / where(vs, np.abs(rj) < eps, eps, rj)
 
 
 @veros_method

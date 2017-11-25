@@ -1,6 +1,13 @@
-from .. import veros_method
-from . import cyclic, density, utilities, diffusion
 from scipy.linalg import lapack
+
+from .. import veros_method, veros_inline_method
+from . import cyclic, density, utilities, diffusion
+
+try:
+    from .special import tdma_opencl
+except ImportError:
+    import warnings
+    warnings.warn("Special OpenCL implementations could not be imported")
 
 
 @veros_method
@@ -217,7 +224,7 @@ def calc_initial_conditions(vs):
     vs.Nsqr[:, :, -1, :] = vs.Nsqr[:, :, -2, :]
 
 
-@veros_method
+@veros_inline_method
 def ugrid_to_tgrid(vs, a):
     b = np.zeros_like(a)
     b[2:-2, :, :] = (vs.dxu[2:-2, np.newaxis, np.newaxis] * a[2:-2, :, :] + vs.dxu[1:-3, np.newaxis, np.newaxis] * a[1:-3, :, :]) \
@@ -225,7 +232,7 @@ def ugrid_to_tgrid(vs, a):
     return b
 
 
-@veros_method
+@veros_inline_method
 def vgrid_to_tgrid(vs, a):
     b = np.zeros_like(a)
     b[:, 2:-2, :] = (vs.area_v[:, 2:-2, np.newaxis] * a[:, 2:-2, :] + vs.area_v[:, 1:-3, np.newaxis] * a[:, 1:-3, :]) \
@@ -241,23 +248,28 @@ def solve_tridiag(vs, a, b, c, d):
     last axis of the input arrays.
     """
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-    try:
-        return np.linalg.solve_tridiagonal(a, b, c, d)
-    except AttributeError:
+
+    if vs.backend_name == "numpy":
+        a[..., 0] = c[..., -1] = 0 # remove couplings between slices
         return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
 
+    if vs.vector_engine == "opencl":
+        return tdma_opencl.tdma(a, b, c, d)
 
-@veros_method
-def calc_diss(vs, diss, K_diss, tag):
+    return np.linalg.solve_tridiagonal(a, b, c, d)
+
+
+@veros_inline_method
+def calc_diss(vs, diss, tag):
     diss_u = np.zeros_like(diss)
     ks = np.zeros_like(vs.kbot)
-    if tag == 'U':
+    if tag == "U":
         ks[1:-2, 2:-2] = np.maximum(vs.kbot[1:-2, 2:-2], vs.kbot[2:-1, 2:-2]) - 1
         interpolator = ugrid_to_tgrid
-    elif tag == 'V':
+    elif tag == "V":
         ks[2:-2, 1:-2] = np.maximum(vs.kbot[2:-2, 1:-2], vs.kbot[2:-2, 2:-1]) - 1
         interpolator = vgrid_to_tgrid
     else:
-        raise ValueError("unknown tag {} (must be 'U' or 'V')".format(tag))
+        raise ValueError("unknown tag {} (must be \"U\" or \"V\")".format(tag))
     diffusion.dissipation_on_wgrid(vs, diss_u, aloc=diss, ks=ks)
-    return K_diss + interpolator(vs, diss_u)
+    return interpolator(vs, diss_u)

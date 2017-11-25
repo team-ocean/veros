@@ -33,7 +33,7 @@ def isoneutral_friction(vs):
     sol, water_mask = utilities.solve_implicit(
         vs, ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], b_edge=b_tri_edge
     )
-    vs.u[1:-2, 1:-2, :, vs.taup1] = np.where(water_mask, sol, vs.u[1:-2, 1:-2, :, vs.taup1])
+    vs.u[1:-2, 1:-2, :, vs.taup1] = utilities.where(vs, water_mask, sol, vs.u[1:-2, 1:-2, :, vs.taup1])
     vs.du_mix[1:-2, 1:-2, :] += (vs.u[1:-2, 1:-2, :, vs.taup1] \
                                 - aloc[1:-2, 1:-2, :]) / vs.dt_mom * water_mask
 
@@ -70,7 +70,7 @@ def isoneutral_friction(vs):
     sol, water_mask = utilities.solve_implicit(
         vs, ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], b_edge=b_tri_edge
     )
-    vs.v[1:-2, 1:-2, :, vs.taup1] = np.where(water_mask, sol, vs.v[1:-2, 1:-2, :, vs.taup1])
+    vs.v[1:-2, 1:-2, :, vs.taup1] = utilities.where(vs, water_mask, sol, vs.v[1:-2, 1:-2, :, vs.taup1])
     vs.dv_mix[1:-2, 1:-2, :] += (vs.v[1:-2, 1:-2, :, vs.taup1] -
                                  aloc[1:-2, 1:-2, :]) / vs.dt_mom * water_mask
 

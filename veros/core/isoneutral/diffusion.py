@@ -96,7 +96,7 @@ def _calc_implicit_part(vs, tr):
     sol, water_mask = utilities.solve_implicit(
         vs, ks, a_tri, b_tri, c_tri, tr[2:-2, 2:-2, :, vs.taup1], b_edge=b_tri_edge
     )
-    tr[2:-2, 2:-2, :, vs.taup1] = np.where(water_mask, sol, tr[2:-2, 2:-2, :, vs.taup1])
+    tr[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, water_mask, sol, tr[2:-2, 2:-2, :, vs.taup1])
 
 
 @veros_method

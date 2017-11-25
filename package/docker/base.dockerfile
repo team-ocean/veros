@@ -42,5 +42,9 @@ RUN mv pyOM_code.cpython-35m-x86_64-linux-gnu.so pyOM_code_py3.so && \
 
 RUN ls -l /pyOM2/py_src
 
+# Install optional dependencies
+RUN pip install pyopencl && \
+    pip3 install pyopencl
+
 RUN mkdir -p /veros
 WORKDIR /veros

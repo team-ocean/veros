@@ -1,14 +1,11 @@
 import sys
 import os
-#import matplotlib.pyplot as plt
+
 import numpy as np
-import bohrium as bh
-from collections import OrderedDict
 
 from veros import VerosLegacy, variables
 from veros.timer import Timer
 
-flush = bh.flush
 
 class VerosUnitTest(object):
     legacy_modules = ("main_module", "isoneutral_module", "tke_module",
@@ -55,10 +52,10 @@ class VerosUnitTest(object):
         else:
             setattr(self.veros_new, attribute, value)
         for module in self.legacy_modules:
-            module_handle = getattr(self.veros_legacy,module)
+            module_handle = getattr(self.veros_legacy, module)
             if hasattr(module_handle, attribute):
                 try:
-                    v = np.asfortranarray(value).copy2numpy()
+                    v = np.asfortranarray(value.copy2numpy())
                 except AttributeError:
                     v = np.asfortranarray(value)
                 setattr(module_handle, attribute, v)
@@ -148,29 +145,20 @@ class VerosUnitTest(object):
             v2 = v2[2:-2, 2:-2, ...]
         passed = np.allclose(*self._normalize(v1,v2), atol=atol)
         if not passed:
-            print(var, np.abs(v1-v2).max(), v1.max(), v2.max(), np.where(v1 != v2))
+            print("- {}: (new: {:.2e}, old: {:.2e}, diff: {:.2e})"
+                  .format(var, np.abs(v1).max(), np.abs(v2).max(), np.abs(v1-v2).max()))
             while v1.ndim > 2:
                 v1 = v1[...,-1]
             while v2.ndim > 2:
                 v2 = v2[...,-1]
-            #if v1.ndim == 2:
-                #fig, axes = plt.subplots(1,3)
-                #axes[0].imshow(v1)
-                #axes[0].set_title("New")
-                #axes[1].imshow(v2)
-                #axes[1].set_title("Legacy")
-                #axes[2].imshow(v1 - v2)
-                #axes[2].set_title("diff")
-                #fig.suptitle(var)
         return passed
 
     def run(self):
         self.initialize()
-        flush()
         differing_scalars = self.check_scalar_objects()
         differing_arrays = self.check_array_objects()
         if differing_scalars or differing_arrays:
-            print("Warning: the following attributes do not match between old and new veros after initialization:")
+            print("The following attributes do not match between old and new veros after initialization:")
             for s, (v1, v2) in differing_scalars.items():
                 print("{}, {}, {}".format(s,v1,v2))
             for a, (v1, v2) in differing_arrays.items():
@@ -184,6 +172,7 @@ class VerosUnitTest(object):
         veros_timers = {k: Timer("veros " + k) for k in self.test_routines}
         veros_legacy_timers = {k: Timer("veros legacy " + k) for k in self.test_routines}
         all_passed = True
+
         for routine in self.test_routines.keys():
             veros_routine, veros_legacy_routine = self.get_routine(routine,self.test_module)
             veros_args, veros_legacy_args = self.test_routines[routine]
@@ -194,13 +183,12 @@ class VerosUnitTest(object):
                 veros_legacy_routine(**veros_legacy_args)
             veros_legacy_timers[routine].printTime()
             passed = self.test_passed(routine)
-            flush()
             if not passed:
                 all_passed = False
                 print("Test failed")
             self.initialize()
-            flush()
         return all_passed
+
 
 class VerosRunTest(VerosUnitTest):
     Testclass = None

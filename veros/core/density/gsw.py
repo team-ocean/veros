@@ -68,7 +68,8 @@ def gsw_rho(vs, sa, ct, p):
      p      : sea pressure                                    [dbar]
     ==========================================================================
     """
-    p = np.asarray(p)  # convert scalar value if necessary
+    # convert scalar values if necessary
+    sa, ct, p = np.asarray(sa), np.asarray(ct), np.asarray(p)
     sqrtsa = np.sqrt(sa)
     v_hat_denominator = v01 + ct * (v02 + ct * (v03 + v04 * ct)) \
         + sa * (v05 + ct * (v06 + v07 * ct)

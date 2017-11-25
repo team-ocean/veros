@@ -80,7 +80,7 @@ def implicit_vert_friction(vs):
     c_tri[...] = -delta / vs.dzt[np.newaxis, np.newaxis, :]
     d_tri[...] = vs.u[1:-2, 1:-2, :, vs.tau]
     res, mask = utilities.solve_implicit(vs, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    vs.u[1:-2, 1:-2, :, vs.taup1] = np.where(mask, res, vs.u[1:-2, 1:-2, :, vs.taup1])
+    vs.u[1:-2, 1:-2, :, vs.taup1] = utilities.where(vs, mask, res, vs.u[1:-2, 1:-2, :, vs.taup1])
 
     vs.du_mix[1:-2, 1:-2] = (vs.u[1:-2, 1:-2, :, vs.taup1] -
                                 vs.u[1:-2, 1:-2, :, vs.tau]) / vs.dt_mom
@@ -112,7 +112,7 @@ def implicit_vert_friction(vs):
     c_tri[:, :, -1] = 0.
     d_tri[...] = vs.v[1:-2, 1:-2, :, vs.tau]
     res, mask = utilities.solve_implicit(vs, kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    vs.v[1:-2, 1:-2, :, vs.taup1] = np.where(mask, res, vs.v[1:-2, 1:-2, :, vs.taup1])
+    vs.v[1:-2, 1:-2, :, vs.taup1] = utilities.where(vs, mask, res, vs.v[1:-2, 1:-2, :, vs.taup1])
     vs.dv_mix[1:-2, 1:-2] = (vs.v[1:-2, 1:-2, :, vs.taup1] - vs.v[1:-2, 1:-2, :, vs.tau]) / vs.dt_mom
 
     """
@@ -137,11 +137,11 @@ def rayleigh_friction(vs):
     vs.du_mix[...] += -vs.maskU * vs.r_ray * vs.u[..., vs.tau]
     if vs.enable_conserve_energy:
         diss = vs.maskU * vs.r_ray * vs.u[..., vs.tau]**2
-        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'U')
+        vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'U')
     vs.dv_mix[...] += -vs.maskV * vs.r_ray * vs.v[..., vs.tau]
     if vs.enable_conserve_energy:
         diss = vs.maskV * vs.r_ray * vs.v[..., vs.tau]**2
-        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'V')
+        vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'V')
 
 
 @veros_method
@@ -162,7 +162,7 @@ def linear_bottom_friction(vs):
             diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
             diss[1:-2, 2:-2] = vs.maskU[1:-2, 2:-2] * vs.r_bot_var_u[1:-2, 2:-2, np.newaxis] \
                                * vs.u[1:-2, 2:-2, :, vs.tau]**2 * mask
-            vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'U')
+            vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'U')
 
         k = np.maximum(vs.kbot[2:-2, 2:-1], vs.kbot[2:-2, 1:-2]) - 1
         mask = np.arange(vs.nz) == k[:, :, np.newaxis]
@@ -172,7 +172,7 @@ def linear_bottom_friction(vs):
             diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
             diss[2:-2, 1:-2] = vs.maskV[2:-2, 1:-2] * vs.r_bot_var_v[2:-2, 1:-2, np.newaxis] \
                                * vs.v[2:-2, 1:-2, :, vs.tau]**2 * mask
-            vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'V')
+            vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'V')
     else:
         """
         with constant coefficient
@@ -183,7 +183,7 @@ def linear_bottom_friction(vs):
         if vs.enable_conserve_energy:
             diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
             diss[1:-2, 2:-2] = vs.maskU[1:-2, 2:-2] * vs.r_bot * vs.u[1:-2, 2:-2, :, vs.tau]**2 * mask
-            vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'U')
+            vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'U')
 
         k = np.maximum(vs.kbot[2:-2, 2:-1], vs.kbot[2:-2, 1:-2]) - 1
         mask = np.arange(vs.nz) == k[:, :, np.newaxis]
@@ -191,7 +191,7 @@ def linear_bottom_friction(vs):
         if vs.enable_conserve_energy:
             diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
             diss[2:-2, 1:-2] = vs.maskV[2:-2, 1:-2] * vs.r_bot * vs.v[2:-2, 1:-2, :, vs.tau]**2 * mask
-            vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'V')
+            vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'V')
 
 
 @veros_method
@@ -215,7 +215,7 @@ def quadratic_bottom_friction(vs):
     if vs.enable_conserve_energy:
         diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
         diss[1:-2, 2:-2, :] = aloc * vs.u[1:-2, 2:-2, :, vs.tau]
-        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'U')
+        vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'U')
 
     k = np.maximum(vs.kbot[2:-2, 1:-2], vs.kbot[2:-2, 2:-1]) - 1
     mask = k[..., np.newaxis] == np.arange(vs.nz)[np.newaxis, np.newaxis, :]
@@ -231,7 +231,7 @@ def quadratic_bottom_friction(vs):
     if vs.enable_conserve_energy:
         diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
         diss[2:-2, 1:-2, :] = aloc * vs.v[2:-2, 1:-2, :, vs.tau]
-        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'V')
+        vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'V')
 
 
 @veros_method
@@ -279,7 +279,7 @@ def harmonic_friction(vs):
                    + (vs.u[1:-2, 2:-2, :, vs.tau] - vs.u[1:-2, 1:-3, :, vs.tau]) * vs.flux_north[1:-2, 1:-3]) \
             / (vs.cost[2:-2] * vs.dyt[2:-2])[np.newaxis, :, np.newaxis]
         vs.K_diss_h[...] = 0.
-        vs.K_diss_h[...] = numerics.calc_diss(vs, diss, vs.K_diss_h, 'U')
+        vs.K_diss_h[...] += numerics.calc_diss(vs, diss, 'U')
 
     """
     Meridional velocity
@@ -317,7 +317,7 @@ def harmonic_friction(vs):
             + 0.5 * ((vs.v[2:-2, 2:-1, :, vs.tau] - vs.v[2:-2, 1:-2, :, vs.tau]) * vs.flux_north[2:-2, 1:-2]
                    + (vs.v[2:-2, 1:-2, :, vs.tau] - vs.v[2:-2, :-3, :, vs.tau]) * vs.flux_north[2:-2, :-3]) \
             / (vs.cosu[1:-2] * vs.dyu[1:-2])[np.newaxis, :, np.newaxis]
-        vs.K_diss_h[...] = numerics.calc_diss(vs, diss, vs.K_diss_h, 'V')
+        vs.K_diss_h[...] += numerics.calc_diss(vs, diss, 'V')
 
 
 @veros_method
@@ -374,10 +374,10 @@ def biharmonic_friction(vs):
                                     + (vs.u[1:-2, 2:-2, :, vs.tau] - vs.u[:-3, 2:-2, :, vs.tau]) * vs.flux_east[:-3, 2:-2, :]) \
             / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxu[1:-2, np.newaxis, np.newaxis])  \
             - 0.5 * ((vs.u[1:-2, 3:-1, :, vs.tau] - vs.u[1:-2, 2:-2, :, vs.tau]) * vs.flux_north[1:-2, 2:-2, :]
-                     + (vs.u[1:-2, 2:-2, :, vs.tau] - vs.u[1:-2, 1:-3, :, vs.tau]) * vs.flux_north[1:-2, 1:-3, :]) \
+                   + (vs.u[1:-2, 2:-2, :, vs.tau] - vs.u[1:-2, 1:-3, :, vs.tau]) * vs.flux_north[1:-2, 1:-3, :]) \
             / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis])
         vs.K_diss_h[...] = 0.
-        vs.K_diss_h[...] = numerics.calc_diss(vs, diss, vs.K_diss_h, 'U')
+        vs.K_diss_h[...] += numerics.calc_diss(vs, diss, 'U')
 
     """
     Meridional velocity
@@ -408,9 +408,9 @@ def biharmonic_friction(vs):
     update tendency
     """
     vs.dv_mix[2:-2, 2:-2, :] += -vs.maskV[2:-2, 2:-2, :] * ((vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :])
-                                                                  / (vs.cosu[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
-                                                                  + (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])
-                                                                  / (vs.dyu[np.newaxis, 2:-2, np.newaxis] * vs.cosu[np.newaxis, 2:-2, np.newaxis]))
+                                                            / (vs.cosu[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
+                                                            + (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])
+                                                            / (vs.dyu[np.newaxis, 2:-2, np.newaxis] * vs.cosu[np.newaxis, 2:-2, np.newaxis]))
 
     if vs.enable_conserve_energy:
         """
@@ -425,7 +425,7 @@ def biharmonic_friction(vs):
             - 0.5 * ((vs.v[2:-2, 2:-1, :, vs.tau] - vs.v[2:-2, 1:-2, :, vs.tau]) * vs.flux_north[2:-2, 1:-2, :]
                    + (vs.v[2:-2, 1:-2, :, vs.tau] - vs.v[2:-2, :-3, :, vs.tau]) * vs.flux_north[2:-2, :-3, :]) \
             / (vs.cosu[np.newaxis, 1:-2, np.newaxis] * vs.dyu[np.newaxis, 1:-2, np.newaxis])
-        vs.K_diss_h[...] = numerics.calc_diss(vs, diss, vs.K_diss_h, 'V')
+        vs.K_diss_h[...] += numerics.calc_diss(vs, diss, 'V')
 
 
 @veros_method
@@ -437,8 +437,8 @@ def momentum_sources(vs):
     vs.du_mix[...] += vs.maskU * vs.u_source
     if vs.enable_conserve_energy:
         diss = -vs.maskU * vs.u[..., vs.tau] * vs.u_source
-        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'U')
+        vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'U')
     vs.dv_mix[...] += vs.maskV * vs.v_source
     if vs.enable_conserve_energy:
         diss = -vs.maskV * vs.v[..., vs.tau] * vs.v_source
-        vs.K_diss_bot[...] = numerics.calc_diss(vs, diss, vs.K_diss_bot, 'V')
+        vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'V')
