@@ -12,7 +12,7 @@ def find_scripts(scriptdir):
 
 setup(
     name = "veros",
-    version = "0.0.1b0",
+    version = "0.1.0",
     packages = find_packages(),
     install_requires = [
         "numpy>=1.13",
