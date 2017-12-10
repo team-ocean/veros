@@ -28,7 +28,7 @@ for setup in os.listdir(setupdir):
 
 # Mock packages with C dependencies
 import mock
-MOCK_MODULES = ['pyamg', 'netCDF4', 'h5py']
+MOCK_MODULES = ['pyamg', 'netCDF4', 'h5py', 'pyopencl', 'builtins']
 sys.modules.update((mod_name, mock.MagicMock()) for mod_name in MOCK_MODULES)
 
 # -- General configuration ------------------------------------------------
