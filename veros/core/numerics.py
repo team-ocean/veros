@@ -31,15 +31,15 @@ def calc_grid(vs):
     """
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
     """
-    aloc = np.zeros((vs.nx, vs.ny), dtype=vs.default_float_type)
-    dxt_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
-    dxu_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
-    xt_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
-    xu_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
-    dyt_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
-    dyu_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
-    yt_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
-    yu_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
+    aloc = np.zeros((vs.nx, vs.ny), dtype=vs.default_float_type, chunks=(vs.nx, vs.ny))
+    dxt_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type, chunks=vs.nx+4)
+    dxu_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type, chunks=vs.nx+4)
+    xt_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type, chunks=vs.nx+4)
+    xu_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type, chunks=vs.nx+4)
+    dyt_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type, chunks=vs.ny+4)
+    dyu_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type, chunks=vs.ny+4)
+    yt_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type, chunks=vs.ny+4)
+    yu_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type, chunks=vs.ny+4)
 
     """
     transfer from locally defined variables to global ones

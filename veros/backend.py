@@ -8,13 +8,19 @@ if numpy.__name__ == "bohrium":
     numpy = numpy_force
 
 try:
+    import dask.array
+except ImportError:
+    warnings.warn("Could not import Dask")
+    dask = None
+
+try:
     import bohrium
     import bohrium.lapack
 except ImportError:
     warnings.warn("Could not import Bohrium")
     bohrium = None
 
-BACKENDS = {"numpy": numpy, "bohrium": bohrium}
+BACKENDS = {"numpy": numpy, "bohrium": bohrium, "dask": dask.array}
 
 
 def get_backend(backend_name):
@@ -36,3 +42,18 @@ def get_vector_engine(np):
     if "CUDA" in runtime_info:
         return "cuda"
     return "openmp"
+
+
+def flush(vs):
+    if vs.backend_name == "numpy":
+        pass
+
+    elif vs.backend_name == "bohrium":
+        vs.backend.flush()
+
+    elif vs.backend_name == "dask":
+        for variable in vs.variables:
+            getattr(vs, variable).persist()
+
+    else:
+        raise RuntimeError("Unrecognized backend %r" % vs.backend_name)

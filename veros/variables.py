@@ -693,11 +693,17 @@ CONDITIONAL_VARIABLES = OrderedDict([
 
 @veros_method
 def allocate_variables(vs):
-    vs.variables = {}
+    variables = {}
 
     def init_var(var_name, var):
         shape = get_dimensions(vs, var.dims)
-        setattr(vs, var_name, np.zeros(shape, dtype=var.dtype or vs.default_float_type))
+
+        kwargs = {}
+        kwargs["dtype"] = var.dtype or vs.default_float_type
+        if vs.backend_name == "dask":
+            kwargs["chunks"] = shape
+
+        setattr(vs, var_name, np.zeros(shape, **kwargs))
         vs.variables[var_name] = var
 
     for var_name, var in MAIN_VARIABLES.items():
@@ -711,3 +717,5 @@ def allocate_variables(vs):
         if eval_condition:
             for var_name, var in var_dict.items():
                 init_var(var_name, var)
+
+    return variables

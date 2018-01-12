@@ -81,6 +81,7 @@ class Veros(object):
                 "vmix", "eq_of_state"
             )}
 
+        self.variables = {}
         self.poisson_solver = None
         self.nisle = 0 # to be overriden during streamfunction_init
         self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
@@ -206,10 +207,7 @@ class Veros(object):
     def flush(self):
         """Flush computations if supported by the current backend.
         """
-        try:
-            self.backend.flush()
-        except AttributeError:
-            pass
+        _backend.flush(self)
 
 
     def setup(self):
@@ -219,7 +217,7 @@ class Veros(object):
             self.set_parameter()
             cli.set_commandline_settings(self)
             settings.check_setting_conflicts(self)
-            variables.allocate_variables(self)
+            self.variables = variables.allocate_variables(self)
 
             self.set_grid()
             numerics.calc_grid(self)
