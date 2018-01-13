@@ -11,7 +11,7 @@ restart.h5
 *.html
 
 # benchmark output
-test/benchmark_*.json
+test/*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
