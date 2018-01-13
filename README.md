@@ -20,6 +20,10 @@ Veros provides
 - **pre-configured idealized and realistic set-ups** that are ready to run and easy to adapt
 - **accessibility, readability, and extensibility** - thanks to the power of Python!
 
+## Veros for the impatient
+
+
+
 ## Installation
 
 ### Dependencies
