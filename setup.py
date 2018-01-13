@@ -2,6 +2,7 @@
 # coding=utf-8
 
 from setuptools import setup, find_packages
+
 import versioneer
 
 
@@ -23,37 +24,46 @@ Operating System :: Unix
 Operating System :: MacOS
 """
 
+INSTALL_REQUIRES = [
+    "click",
+    "numpy>=1.13",
+    "scipy",
+    "netCDF4",
+    "h5py",
+    "pillow",
+    "backports.functools_lru_cache",
+    "future"
+]
+
 EXTRAS_REQUIRE = {
     "fast": ["bohrium", "pyamg"],
     "bohrium": ["bohrium"],
-    "gpu": ["bohrium", "pyopencl"]
+    "gpu": ["bohrium", "pyopencl"],
+    "postprocessing": ["xarray", "matplotlib"]
 }
 EXTRAS_REQUIRE["all"] = sorted(set(sum(EXTRAS_REQUIRE.values(), [])))
 
+CONSOLE_SCRIPTS = ["veros = veros.scripts.veros:main"]
+
 setup(
     name="veros",
+    license="MIT",
+    author="Dion Häfner (NBI Copenhagen)",
+    author_email="mail@dionhaefner.de",
+    keywords="oceanography python parallel numpy multi-core "
+             "geophysics ocean-model bohrium",
+    description="The versatile ocean simulator, in pure Python, powered by Bohrium.",
+    long_description=open("README.md").read(),
+    url="https://veros.readthedocs.io",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
-    install_requires=[
-        "click",
-        "numpy>=1.13",
-        "scipy",
-        "netCDF4",
-        "h5py",
-        "pillow",
-        "backports.functools_lru_cache",
-        "future"
-    ],
+    install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS_REQUIRE,
-    author="Dion Häfner (NBI Copenhagen)",
-    author_email="mail@dionhaefner.de",
     entry_points={
-        "console_scripts": ["veros = veros.cli:veros"]
+        "console_scripts": CONSOLE_SCRIPTS,
     },
-    license="MIT",
     classifiers=[c for c in CLASSIFIERS.split("\n") if c],
-    keywords="oceanography python parallel numpy multi-core "
-             "geophysics ocean-model bohrium",
-    long_description=open("README.rst").read(),
+    include_package_data=True,
+    package_data={'': ['setup/*/']},
 )

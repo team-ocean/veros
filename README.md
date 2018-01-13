@@ -22,7 +22,12 @@ Veros provides
 
 ## Veros for the impatient
 
-
+```bash
+pip install veros[all]
+veros copy-setup acc
+cd acc
+python acc.py
+```
 
 ## Installation
 

@@ -1,2 +1,4 @@
 include versioneer.py
 include veros/_version.py
+
+graft setup
