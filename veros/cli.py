@@ -5,7 +5,7 @@ from .settings import SETTINGS
 
 def parse_command_line():
     parser = argparse.ArgumentParser(description="Veros command line interface")
-    parser.add_argument("--backend", "-b", default="numpy", choices=BACKENDS.keys(),
+    parser.add_argument("--backend", "-b", default="numpy", choices=BACKENDS,
                         help="Backend to use for computations. Defaults to 'numpy'.")
     parser.add_argument("--loglevel", "-v", default="info",
                         choices=("debug", "info", "warning", "error", "critical"),

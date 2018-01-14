@@ -2,6 +2,7 @@
 # coding=utf-8
 
 from setuptools import setup, find_packages
+import os
 
 import versioneer
 
@@ -32,6 +33,7 @@ INSTALL_REQUIRES = [
     "netCDF4",
     "h5py",
     "pillow",
+    "ruamel.yaml",
     "backports.functools_lru_cache",
     "future"
 ]
@@ -40,11 +42,23 @@ EXTRAS_REQUIRE = {
     "fast": ["bohrium", "pyamg"],
     "bohrium": ["bohrium"],
     "gpu": ["bohrium", "pyopencl"],
-    "postprocessing": ["xarray", "matplotlib"]
+    "postprocessing": ["xarray", "matplotlib"],
+    "dev": ["pyinstrument", "versioneer"]
 }
 EXTRAS_REQUIRE["all"] = sorted(set(sum(EXTRAS_REQUIRE.values(), [])))
 
 CONSOLE_SCRIPTS = ["veros = veros.scripts.veros:main"]
+
+
+def package_files(directory):
+    paths = []
+    for (path, directories, filenames) in os.walk(directory):
+        for filename in filenames:
+            paths.append(os.path.join(path, filename))
+    return paths
+
+
+EXTRA_FILES = ["setup/*/*", "test/tests/*.py", "test/benchmarks/*.py"]
 
 setup(
     name="veros",
@@ -65,6 +79,5 @@ setup(
         "console_scripts": CONSOLE_SCRIPTS,
     },
     classifiers=[c for c in CLASSIFIERS.split("\n") if c],
-    include_package_data=True,
-    package_data={'': ['setup/*/']},
+    package_data={"veros": EXTRA_FILES},
 )

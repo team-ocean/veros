@@ -691,6 +691,7 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ])),
 ])
 
+
 @veros_method
 def allocate_variables(vs):
     variables = {}
@@ -704,7 +705,7 @@ def allocate_variables(vs):
             kwargs["chunks"] = shape
 
         setattr(vs, var_name, np.zeros(shape, **kwargs))
-        vs.variables[var_name] = var
+        variables[var_name] = var
 
     for var_name, var in MAIN_VARIABLES.items():
         init_var(var_name, var)

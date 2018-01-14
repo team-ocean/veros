@@ -4,21 +4,14 @@ import os
 import shutil
 import pkg_resources
 
-try:
-    import click
-    have_click = True
-except ImportError:
-    have_click = False
+import veros.scripts.veros_copy_setup
+import veros.scripts.veros_create_mask
+import veros.scripts.veros_resubmit
 
-if not have_click:
-    raise ImportError("The Veros command line tools require click (e.g. through `pip install click`)")
+import click
 
-SCRIPTDIR = os.path.realpath(os.path.dirname(__file__))
-setupdir = pkg_resources.resource_filename(__name__, "setup/acc")
-print(setupdir)
-raise
-SETUPDIR = os.path.realpath(os.path.join(SCRIPTDIR, "../../setup"))
-SETUPS = [setup for setup in os.listdir(SETUPDIR) if os.path.isdir(os.path.join(SETUPDIR, setup))]
+SETUPDIR = pkg_resources.resource_filename("veros", "setup")
+SETUPS = sorted([setup for setup in os.listdir(SETUPDIR) if os.path.isdir(os.path.join(SETUPDIR, setup))])
 
 
 @click.group()
@@ -26,12 +19,14 @@ def main():
     pass
 
 
-@main.command()
-@click.argument("setup", choices=SETUPS)
-@click.option("target-dir", type=click.Path(), default=None)
+@main.command("copy-setup")
+@click.argument("setup", type=click.Choice(SETUPS))
+@click.option("--target-dir", type=click.Path(exists=True, file_okay=False), required=False, default=None)
 def copy_setup(setup, target_dir=None):
+
     if target_dir is None:
         target_dir = os.getcwd()
+
     shutil.copytree(os.path.join(SETUPDIR, setup), os.path.join(target_dir, setup))
 
 

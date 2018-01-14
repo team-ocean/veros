@@ -1,15 +1,12 @@
 import math
 import logging
-
-# for some reason, netCDF4 has to be imported before h5py, so we do it here
-import netCDF4
-import h5py
+import abc
 
 from . import variables, settings, cli, diagnostics, time, handlers
 from . import backend as _backend
 from .timer import Timer
-from .core import momentum, numerics, thermodynamics, eke, tke, idemix, \
-                  isoneutral, external, advection, cyclic
+from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
+                   isoneutral, external, advection, cyclic)
 
 
 class Veros(object):
@@ -45,6 +42,7 @@ class Veros(object):
         >>> plt.imshow(simulation.psi[..., 0])
         >>> plt.show()
     """
+    __metaclass__ = abc.ABCMeta
 
     # Constants
     pi = math.pi
@@ -74,12 +72,11 @@ class Veros(object):
 
         settings.set_default_settings(self)
 
-        self.timers = {k: Timer(k) for k in
-            (
-                "setup", "main", "momentum", "temperature", "eke", "idemix",
-                "tke", "diagnostics", "pressure", "friction", "isoneutral",
-                "vmix", "eq_of_state"
-            )}
+        self.timers = {k: Timer(k) for k in (
+            "setup", "main", "momentum", "temperature", "eke", "idemix",
+            "tke", "diagnostics", "pressure", "friction", "isoneutral",
+            "vmix", "eq_of_state"
+        )}
 
         self.variables = {}
         self.poisson_solver = None

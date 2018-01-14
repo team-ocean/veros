@@ -50,7 +50,6 @@ def fill_holes(data):
     shape = data.shape
     dim = data.ndim
     flag = np.zeros(shape, dtype=bool)
-    t_ct = int(data.size / 5)
     flag[~np.isnan(data)] = True
 
     slcs = [slice(None)] * dim
@@ -220,7 +219,6 @@ def get_uniform_grid_steps(total_length, stepsize):
     if total_length % stepsize:
         raise ValueError("total length must be an integer multiple of stepsize")
     return stepsize * np.ones(int(total_length / stepsize))
-
 
 
 def get_stretched_grid_steps(n_cells, total_length, minimum_stepsize, stretching_factor=2.5,
