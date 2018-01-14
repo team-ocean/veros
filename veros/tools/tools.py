@@ -259,7 +259,7 @@ def get_stretched_grid_steps(n_cells, total_length, minimum_stepsize, stretching
           20.50551044  20.65273022  20.69625734  20.70901593]
         >>> dyt.sum()
         180.0
-        
+
     """
 
     if refine_towards not in ("upper", "lower"):

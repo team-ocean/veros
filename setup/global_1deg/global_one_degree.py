@@ -5,8 +5,7 @@ from netCDF4 import Dataset
 
 from veros import Veros, veros_method, time, tools
 
-BASE_PATH = os.path.dirname(os.path.realpath(__file__))
-FORCING_FILE = os.path.join(BASE_PATH, "forcing_1deg_global.nc")
+FORCING_FILE = tools.get_asset("global_1deg", open("assets").read())
 
 
 class GlobalOneDegree(Veros):
