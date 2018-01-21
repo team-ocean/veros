@@ -3,18 +3,18 @@
 import os
 from netCDF4 import Dataset
 
-from veros import Veros, veros_method, time, tools
+import veros
 
-FORCING_FILE = tools.get_asset("global_1deg", open("assets").read())
+FORCING_FILE = veros.tools.get_asset("global_1deg", open("assets.yml").read())
 
 
-class GlobalOneDegree(Veros):
+class GlobalOneDegree(veros.Veros):
     """Global 1 degree model with 115 vertical levels.
 
     `Adapted from pyOM2 <https://wiki.zmaw.de/ifm/TO/pyOM2/1x1%20global%20model>`_.
     """
 
-    @veros_method
+    @veros.veros_method
     def set_parameter(self):
         """
         set main parameters
@@ -79,12 +79,12 @@ class GlobalOneDegree(Veros):
         self.enable_idemix_superbee_advection = True
         self.enable_idemix_hor_diffusion = True
 
-    @veros_method
+    @veros.veros_method
     def _read_forcing(self, var):
         with Dataset(FORCING_FILE, "r") as infile:
             return np.array(infile.variables[var][...]).T
 
-    @veros_method
+    @veros.veros_method
     def set_grid(self):
         dz_data = self._read_forcing("dz")
         self.dzt[...] = dz_data[::-1]
@@ -93,11 +93,11 @@ class GlobalOneDegree(Veros):
         self.y_origin = -79.
         self.x_origin = 91.
 
-    @veros_method
+    @veros.veros_method
     def set_coriolis(self):
         self.coriolis_t[...] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
-    @veros_method
+    @veros.veros_method
     def set_topography(self):
         bathymetry_data = self._read_forcing("bathymetry")
         salt_data = self._read_forcing("salinity")[:, :, ::-1]
@@ -124,7 +124,7 @@ class GlobalOneDegree(Veros):
         mask_channel = (i >= 269) & (i < 271) & (j == 130)  # i = 270,271; j = 131
         self.kbot[2:-2, 2:-2][mask_channel] = 0
 
-    @veros_method
+    @veros.veros_method
     def set_initial_conditions(self):
         self.t_star = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
         self.s_star = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
@@ -196,7 +196,7 @@ class GlobalOneDegree(Veros):
         self.divpen_shortwave[0] = pen[0] / self.dzt[0]
 
 
-    @veros_method
+    @veros.veros_method
     def set_forcing(self):
         t_rest = 30. * 86400.
         cp_0 = 3991.86795711963  # J/kg /K
@@ -238,7 +238,7 @@ class GlobalOneDegree(Veros):
                 * self.divpen_shortwave[None, None, :] * ice[..., None] \
                 * self.maskT[..., :] / cp_0 / self.rho_0
 
-    @veros_method
+    @veros.veros_method
     def set_diagnostics(self):
         average_vars = ["surface_taux", "surface_tauy", "forc_temp_surface", "forc_salt_surface",
                         "psi", "temp", "salt", "u", "v", "w", "Nsqr", "Hd", "rho",
@@ -267,7 +267,12 @@ class GlobalOneDegree(Veros):
         self.diagnostics["averages"].sampling_frequency = 365 * 86400 / 24.
 
 
-if __name__ == "__main__":
-    simulation = GlobalOneDegree()
+@veros.tools.cli
+def run(*args, **kwargs):
+    simulation = GlobalOneDegree(*args, **kwargs)
     simulation.setup()
     simulation.run()
+
+
+if __name__ == "__main__":
+    run()

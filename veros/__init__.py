@@ -7,5 +7,6 @@ import netCDF4
 import h5py
 
 from .decorators import veros_method, veros_inline_method, veros_class_method
+from .cli import cli
 from .veros import Veros
 from .veros_legacy import VerosLegacy

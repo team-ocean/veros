@@ -4,17 +4,13 @@ import os
 import logging
 from netCDF4 import Dataset
 
-from veros import Veros, veros_method, tools
+import veros
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
-DATA_FILES = dict(
-    forcing="forcing_4deg_global.nc",
-    ecmwf="ecmwf_4deg_monthly.nc",
-)
-DATA_FILES = {key: os.path.join(BASE_PATH, val) for key, val in DATA_FILES.items()}
+DATA_FILES = veros.tools.get_assets("global_4deg", open("assets.yml").read())
 
 
-class GlobalFourDegree(Veros):
+class GlobalFourDegree(veros.Veros):
     """Global 4 degree model with 15 vertical levels.
 
     This setup demonstrates:
@@ -25,7 +21,7 @@ class GlobalFourDegree(Veros):
 
     `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/4x4%20global%20model>`_.
     """
-    @veros_method
+    @veros.veros_method
     def set_parameter(self):
         self.identifier = "4deg"
 
@@ -78,12 +74,12 @@ class GlobalFourDegree(Veros):
 
         self.eq_of_state_type = 5
 
-    @veros_method
+    @veros.veros_method
     def _read_forcing(self, var):
         with Dataset(DATA_FILES["forcing"], "r") as infile:
             return infile.variables[var][...].T
 
-    @veros_method
+    @veros.veros_method
     def set_grid(self):
         ddz = np.array([50., 70., 100., 140., 190., 240., 290., 340.,
                         390., 440., 490., 540., 590., 640., 690.])
@@ -93,11 +89,11 @@ class GlobalFourDegree(Veros):
         self.y_origin = -76.0
         self.x_origin = 4.0
 
-    @veros_method
+    @veros.veros_method
     def set_coriolis(self):
         self.coriolis_t[...] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
-    @veros_method
+    @veros.veros_method
     def set_topography(self):
         bathymetry_data = self._read_forcing("bathymetry")
         salt_data = self._read_forcing("salinity")[:, :, ::-1]
@@ -107,7 +103,7 @@ class GlobalFourDegree(Veros):
         self.kbot[2:-2, 2:-2][mask_bathy] = 0
         self.kbot[self.kbot == self.nz] = 0
 
-    @veros_method
+    @veros.veros_method
     def set_initial_conditions(self):
         self.taux, self.tauy, self.qnec, self.qnet, self.sss_clim, self.sst_clim = (
             np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type) for _ in range(6))
@@ -146,7 +142,7 @@ class GlobalFourDegree(Veros):
             self.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing("tidal_energy") / self.rho_0
             self.forc_iw_surface[2:-2, 2:-2] = self._read_forcing("wind_energy") / self.rho_0 * 0.2
 
-    @veros_method
+    @veros.veros_method
     def set_forcing(self):
         year_in_seconds = 360 * 86400.
         (n1, f1), (n2, f2) = tools.get_periodic_interval(self.time, year_in_seconds,
@@ -183,7 +179,7 @@ class GlobalFourDegree(Veros):
         self.forc_salt_surface[mask] = 0.0
 
 
-    @veros_method
+    @veros.veros_method
     def set_diagnostics(self):
         self.diagnostics["cfl_monitor"].output_frequency = 360 * 86400. / 24.
         self.diagnostics["snapshot"].output_frequency = 360 * 86400. / 24.
@@ -198,7 +194,12 @@ class GlobalFourDegree(Veros):
         self.diagnostics["averages"].sampling_frequency = 86400
 
 
-if __name__ == "__main__":
-    simulation = GlobalFourDegree()
+@veros.tools.cli
+def run(*args, **kwargs):
+    simulation = GlobalFourDegree(*args, **kwargs)
     simulation.setup()
     simulation.run()
+
+
+if __name__ == "__main__":
+    run()

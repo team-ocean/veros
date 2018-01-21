@@ -2,14 +2,16 @@ import math
 import logging
 import abc
 
-from . import variables, settings, cli, diagnostics, time, handlers
+from future.utils import with_metaclass
+
+from . import variables, settings, diagnostics, time, handlers
 from . import backend as _backend
 from .timer import Timer
 from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
                    isoneutral, external, advection, cyclic)
 
 
-class Veros(object):
+class Veros(with_metaclass(abc.ABCMeta)):
     """Main class for Veros, used for building a model and running it.
 
     Note:
@@ -42,7 +44,6 @@ class Veros(object):
         >>> plt.imshow(simulation.psi[..., 0])
         >>> plt.show()
     """
-    __metaclass__ = abc.ABCMeta
 
     # Constants
     pi = math.pi
@@ -53,21 +54,19 @@ class Veros(object):
     rho_0 = 1024.  # Boussinesq reference density in :math:`kg/m^3`
     grav = 9.81  # Gravitational constant in :math:`m/s^2`
 
-
-    def __init__(self, backend=None, loglevel=None, logfile=None):
-        args = cli.parse_command_line()
-        self.command_line_settings = args.set or {}
-        self.profile_mode = args.profile
-        self.backend, self.backend_name = _backend.get_backend(backend or args.backend)
+    def __init__(self, backend=None, loglevel=None, logfile=None, profile=False, override=None):
+        self.override_settings = override or {}
+        self.profile_mode = profile
+        self.backend, self.backend_name = _backend.get_backend(backend)
         self.vector_engine = _backend.get_vector_engine(self.backend)
 
         try: # python 2
-            logging.basicConfig(logfile=logfile or args.logfile, filemode="w",
-                                level=getattr(logging, (loglevel or args.loglevel).upper()),
+            logging.basicConfig(logfile=logfile, filemode="w",
+                                level=getattr(logging, loglevel.upper()),
                                 format="%(message)s")
         except ValueError: # python 3
-            logging.basicConfig(filename=logfile or args.logfile, filemode="w",
-                                level=getattr(logging, (loglevel or args.loglevel).upper()),
+            logging.basicConfig(filename=logfile, filemode="w",
+                                level=getattr(logging, loglevel.upper()),
                                 format="%(message)s")
 
         settings.set_default_settings(self)
@@ -84,11 +83,7 @@ class Veros(object):
         self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
         self.time, self.itt = 0., 1 # current time and iteration
 
-
-    def _not_implemented(self):
-        raise NotImplementedError("Needs to be implemented by subclass")
-
-
+    @abc.abstractmethod
     def set_parameter(self):
         """To be implemented by subclass.
 
@@ -101,9 +96,9 @@ class Veros(object):
           >>>     self.coord_degree = True
           >>>     self.enable_cyclic = True
         """
-        self._not_implemented()
+        pass
 
-
+    @abc.abstractmethod
     def set_initial_conditions(self):
         """To be implemented by subclass.
 
@@ -114,9 +109,9 @@ class Veros(object):
           >>> def set_initial_conditions(self):
           >>>     self.u[:, :, :, self.tau] = np.random.rand(self.u.shape[:-1])
         """
-        self._not_implemented()
+        pass
 
-
+    @abc.abstractmethod
     def set_grid(self):
         """To be implemented by subclass.
 
@@ -132,9 +127,9 @@ class Veros(object):
           >>>     self.dyt[...] = 1.
           >>>     self.dzt[...] = [10, 10, 20, 50, 100, 200]
         """
-        self._not_implemented()
+        pass
 
-
+    @abc.abstractmethod
     def set_coriolis(self):
         """To be implemented by subclass.
 
@@ -145,9 +140,9 @@ class Veros(object):
           >>> def set_coriolis(self):
           >>>     self.coriolis_t[:, :] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
         """
-        self._not_implemented()
+        pass
 
-
+    @abc.abstractmethod
     def set_topography(self):
         """To be implemented by subclass.
 
@@ -160,9 +155,9 @@ class Veros(object):
           >>>     # add a rectangular island somewhere inside the domain
           >>>     self.kbot[10:20, 10:20] = 0
         """
-        self._not_implemented()
+        pass
 
-
+    @abc.abstractmethod
     def set_forcing(self):
         """To be implemented by subclass.
 
@@ -177,9 +172,9 @@ class Veros(object):
           >>>     current_month = (self.time / (31 * 24 * 60 * 60)) % 12
           >>>     self.surface_taux[:, :] = self._windstress_data[:, :, current_month]
         """
-        self._not_implemented()
+        pass
 
-
+    @abc.abstractmethod
     def set_diagnostics(self):
         """To be implemented by subclass.
 
@@ -191,28 +186,27 @@ class Veros(object):
           >>> def set_diagnostics(self):
           >>>     self.diagnostics["snapshot"].output_vars += ["drho", "dsalt", "dtemp"]
         """
-        self._not_implemented()
+        pass
 
-
+    @abc.abstractmethod
     def after_timestep(self):
         """Called at the end of each time step. Can be used to define custom, setup-specific
         events.
         """
         pass
 
-
     def flush(self):
         """Flush computations if supported by the current backend.
         """
         _backend.flush(self)
-
 
     def setup(self):
         with self.timers["setup"]:
             logging.info("Setting up everything")
 
             self.set_parameter()
-            cli.set_commandline_settings(self)
+            for setting, value in self.override_settings.items():
+                setattr(self, setting, value)
             settings.check_setting_conflicts(self)
             self.variables = variables.allocate_variables(self)
 
@@ -237,7 +231,6 @@ class Veros(object):
 
             self.set_forcing()
             isoneutral.check_isoneutral_slope_crit(self)
-
 
     def run(self):
         """Main routine of the simulation.

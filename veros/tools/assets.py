@@ -31,15 +31,11 @@ def get_assets(basedir, asset_file):
         target_filename = os.path.basename(urlparse.urlparse(url).path)
         target_path = os.path.join(asset_dir, target_filename)
 
-        if not os.path.isfile(target_path):
+        if not os.path.isfile(target_path) or (md5 is not None and _filehash(target_path) != md5):
             logging.info("Downloading asset %s ...", target_filename)
             _download_file(url, target_path)
 
         if md5 is not None and _filehash(target_path) != md5:
-            try:
-                os.remove(target_path)
-            except OSError:
-                pass
             raise AssetError("Mismatching MD5 checksum on asset %s" % target_filename)
 
         return target_path

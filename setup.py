@@ -47,18 +47,17 @@ EXTRAS_REQUIRE = {
 }
 EXTRAS_REQUIRE["all"] = sorted(set(sum(EXTRAS_REQUIRE.values(), [])))
 
-CONSOLE_SCRIPTS = ["veros = veros.scripts.veros:main"]
+CONSOLE_SCRIPTS = [
+    "veros = veros.cli.veros:cli",
+    "veros-run = veros.cli.veros_run:cli",
+    "veros-copy-setup = veros.cli.veros_copy_setup:cli",
+    "veros-resubmit = veros.cli.veros_resubmit:cli",
+    "veros-create-mask = veros.cli.veros_create_mask:cli"
+]
 
-
-def package_files(directory):
-    paths = []
-    for (path, directories, filenames) in os.walk(directory):
-        for filename in filenames:
-            paths.append(os.path.join(path, filename))
-    return paths
-
-
-EXTRA_FILES = ["setup/*/*", "test/tests/*.py", "test/benchmarks/*.py"]
+here = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
+    long_description = f.read()
 
 setup(
     name="veros",
@@ -68,7 +67,7 @@ setup(
     keywords="oceanography python parallel numpy multi-core "
              "geophysics ocean-model bohrium",
     description="The versatile ocean simulator, in pure Python, powered by Bohrium.",
-    long_description=open("README.md").read(),
+    long_description=long_description,
     url="https://veros.readthedocs.io",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
@@ -78,6 +77,5 @@ setup(
     entry_points={
         "console_scripts": CONSOLE_SCRIPTS,
     },
-    classifiers=[c for c in CLASSIFIERS.split("\n") if c],
-    package_data={"veros": EXTRA_FILES},
+    classifiers=[c for c in CLASSIFIERS.split("\n") if c]
 )

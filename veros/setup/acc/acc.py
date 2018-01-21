@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from veros import Veros, veros_method
+import veros
 
 
-class ACC(Veros):
+class ACC(veros.Veros):
     """A model using spherical coordinates with a partially closed domain representing the Atlantic and ACC.
 
     Wind forcing over the channel part and buoyancy relaxation drive a large-scale meridional overturning circulation.
@@ -15,7 +15,7 @@ class ACC(Veros):
 
     `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/ACC%202>`_.
     """
-    @veros_method
+    @veros.veros_method
     def set_parameter(self):
         self.identifier = "acc"
 
@@ -74,7 +74,7 @@ class ACC(Veros):
 
         self.eq_of_state_type = 3
 
-    @veros_method
+    @veros.veros_method
     def set_grid(self):
         ddz = np.array([50., 70., 100., 140., 190., 240., 290., 340.,
                         390., 440., 490., 540., 590., 640., 690.])
@@ -84,16 +84,16 @@ class ACC(Veros):
         self.y_origin = -40.0
         self.dzt[...] = ddz[::-1] / 2.5
 
-    @veros_method
+    @veros.veros_method
     def set_coriolis(self):
         self.coriolis_t[:, :] = 2 * self.omega * np.sin(self.yt[None, :] / 180. * self.pi)
 
-    @veros_method
+    @veros.veros_method
     def set_topography(self):
         x, y = np.meshgrid(self.xt, self.yt, indexing="ij")
         self.kbot[...] = np.logical_or(x > 1.0, y < -20).astype(np.int)
 
-    @veros_method
+    @veros.veros_method
     def set_initial_conditions(self):
         # initial conditions
         self.temp[:, :, :, 0:2] = ((1 - self.zt[None, None, :] / self.zw[0]) * 15 * self.maskT)[..., None]
@@ -119,11 +119,11 @@ class ACC(Veros):
             self.forc_iw_bottom[...] = 1e-6 * self.maskW[:, :, -1]
             self.forc_iw_surface[...] = 1e-7 * self.maskW[:, :, -1]
 
-    @veros_method
+    @veros.veros_method
     def set_forcing(self):
         self.forc_temp_surface[...] = self._t_rest * (self._t_star - self.temp[:, :, -1, self.tau])
 
-    @veros_method
+    @veros.veros_method
     def set_diagnostics(self):
         self.diagnostics["snapshot"].output_frequency = 86400 * 10
         self.diagnostics["averages"].output_variables = (
@@ -138,7 +138,12 @@ class ACC(Veros):
         self.diagnostics["energy"].sampling_frequency = self.dt_tracer * 10
 
 
-if __name__ == "__main__":
-    simulation = ACC()
+@veros.tools.cli
+def run(*args, **kwargs):
+    simulation = ACC(*args, **kwargs)
     simulation.setup()
     simulation.run()
+
+
+if __name__ == "__main__":
+    run()

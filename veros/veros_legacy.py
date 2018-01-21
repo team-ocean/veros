@@ -68,6 +68,7 @@ class VerosLegacy(Veros):
 
         if self.use_mpi and self.mpi_comm.Get_rank() != 0:
             kwargs["loglevel"] = "critical"
+        
         super(VerosLegacy, self).__init__(*args, **kwargs)
 
 
@@ -157,7 +158,6 @@ class VerosLegacy(Veros):
         ekm = self.eke_module
         tkm = self.tke_module
 
-        start_time, start_iteration = self.time, m.itt
         logging.info("Starting integration for {:.2e}s".format(float(m.runlen)))
 
         while self.time < m.runlen:

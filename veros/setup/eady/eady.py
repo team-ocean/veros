@@ -1,7 +1,7 @@
-from veros import Veros, veros_method, core, variables
+import veros
 
 
-class Eady(Veros):
+class Eady(veros.Veros):
     """Demonstrates the classical Eady (1949) solution.
 
     A narrow channel on an f-plane with prescribed stratification and vertically sheared background zonal flow.
@@ -17,7 +17,7 @@ class Eady(Veros):
 
     `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/Eady%201>`_.
     """
-    @veros_method
+    @veros.veros_method
     def set_parameter(self):
         self.identifier = "eady"
 
@@ -43,7 +43,7 @@ class Eady(Veros):
         self.eq_of_state_type = 1
         self.enable_tempsalt_sources = True
 
-    @veros_method
+    @veros.veros_method
     def set_grid(self):
         self.x_origin = 0.
         self.y_origin = 0.
@@ -51,15 +51,15 @@ class Eady(Veros):
         self.dyt[...] = 20e3
         self.dzt[...] = 100.0
 
-    @veros_method
+    @veros.veros_method
     def set_topography(self):
         self.kbot[:, 2:-2] = 1
 
-    @veros_method
+    @veros.veros_method
     def set_coriolis(self):
         self.coriolis_t[:,:] = 1e-4
 
-    @veros_method
+    @veros.veros_method
     def set_initial_conditions(self):
      u_0 = 0.5
      n_0 = 0.004
@@ -74,7 +74,7 @@ class Eady(Veros):
      c1 = (np.sqrt(c1) * d / h + 0.5) * u_0
      A = (u_0 - c1) / u_0 * h / d
 
-     alpha = core.density.linear_eq.linear_eq_of_state_drhodT()
+     alpha = veros.core.density.linear_eq.linear_eq_of_state_drhodT()
 
      # zonal velocity
      self.u[:, :, :, self.tau] = u_0 * (0.5 + self.zt[np.newaxis, np.newaxis, :] / (self.nz * self.dzt[0])) * self.maskU
@@ -95,28 +95,34 @@ class Eady(Veros):
 
      self.t_tot = np.zeros((self.nx+4, self.ny+4, self.nz), dtype=self.default_float_type)
 
-    @veros_method
+    @veros.veros_method
     def set_forcing(self):
         # update density, etc of last time step
         self.temp[:,:,:,self.tau] = self.temp[:,:,:,self.tau] + self.t0
-        core.thermodynamics.calc_eq_of_state(self, self.tau)
+        veros.core.thermodynamics.calc_eq_of_state(self, self.tau)
         self.t_tot[...] = self.temp[..., self.tau]
         self.temp[:,:,:,self.tau] = self.temp[:,:,:,self.tau] - self.t0
 
         # advection of background temperature
-        core.thermodynamics.advect_tracer(self, self.t0, self.dt0[..., self.tau])
+        veros.core.thermodynamics.advect_tracer(self, self.t0, self.dt0[..., self.tau])
         self.temp_source[:] = (1.5 + self.AB_eps) * self.dt0[..., self.tau] - (0.5 + self.AB_eps) * self.dt0[...,self.taum1]
 
-    @veros_method
+    @veros.veros_method
     def set_diagnostics(self):
         self.diagnostics["snapshot"].output_frequency = 86400.
         # add total temperature to output
         self.diagnostics["snapshot"].output_variables += ["t_tot"]
-        self.variables["t_tot"] = variables.Variable("Total temperature", ("xt","yt","zt"), "deg C",
-                                                     "Total temperature", output=True, time_dependent=True,
-                                                     write_to_restart=True)
+        self.variables["t_tot"] = veros.variables.Variable("Total temperature", ("xt", "yt", "zt"), "deg C",
+                                                           "Total temperature", output=True, time_dependent=True,
+                                                           write_to_restart=True)
 
-if __name__ == "__main__":
-    simulation = Eady()
+
+@veros.tools.cli
+def run(*args, **kwargs):
+    simulation = Eady(*args, **kwargs)
     simulation.setup()
     simulation.run()
+
+
+if __name__ == "__main__":
+    run()

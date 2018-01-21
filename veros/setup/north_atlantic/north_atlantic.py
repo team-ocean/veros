@@ -6,11 +6,10 @@ import numpy as np
 import scipy.spatial
 import scipy.ndimage
 
-from veros import Veros, veros_method, tools, time
-from veros.core import cyclic
+import veros
 
 
-class NorthAtlantic(Veros):
+class NorthAtlantic(veros.Veros):
     """ A regional model of the North Atlantic, inspired by `Smith et al., 2000`_.
 
     Forcing and initial conditions are taken from the FLAME PyOM2 setup. Bathymetry
@@ -25,7 +24,7 @@ class NorthAtlantic(Veros):
        http://journals.ametsoc.org/doi/10.1175/1520-0485%282000%29030%3C1532%3ANSOTNA%3E2.0.CO%3B2
     """
 
-    @veros_method
+    @veros.veros_method
     def set_parameter(self):
         self.identifier = "na"
 
@@ -90,14 +89,15 @@ class NorthAtlantic(Veros):
                 topography_file.variables[k][...].T for k in ("x", "y", "z"))
         topo_mask = np.flipud(np.asarray(Image.open("topo_mask.png"))).T
         topo_bottom_depth *= 1 - topo_mask
-        topo_bottom_depth = scipy.ndimage.gaussian_filter(topo_bottom_depth,
-                                sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny))
+        topo_bottom_depth = scipy.ndimage.gaussian_filter(
+            topo_bottom_depth, sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny)
+        )
         interp_coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
         interp_coords = np.rollaxis(np.asarray(interp_coords), 0, 3)
         z_interp = scipy.interpolate.interpn((topo_x, topo_y), topo_bottom_depth, interp_coords,
                                              method="nearest", bounds_error=False, fill_value=0)
         self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis]
-                                - self.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
+                                         - self.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
         self.kbot *= self.kbot < self.nz
 
     def set_initial_conditions(self):
@@ -107,12 +107,13 @@ class NorthAtlantic(Veros):
             forc_coords = [forcing_file.variables[k][...].T for k in ("xt", "yt", "zt")]
             forc_coords[0][...] += -360
             forc_coords[2][...] = -0.01 * forc_coords[2][::-1]
-            temp = tools.interpolate(
-                forc_coords, forcing_file.variables["temp_ic"][::-1, ...].T, t_grid, missing_value=-1e20)
+            temp = veros.tools.interpolate(
+                forc_coords, forcing_file.variables["temp_ic"][::-1, ...].T, t_grid, missing_value=-1e20
+            )
             self.temp[2:-2, 2:-2, :, self.tau] = self.maskT[2:-2, 2:-2, :] * temp
-            salt = 35. + 1000 * tools.interpolate(forc_coords,
-                                                  forcing_file.variables["salt_ic"][::-1, ...].T,
-                                                  t_grid, missing_value=-1e20)
+            salt = 35. + 1000 * veros.tools.interpolate(
+                forc_coords, forcing_file.variables["salt_ic"][::-1, ...].T, t_grid, missing_value=-1e20
+            )
             self.salt[2:-2, 2:-2, :, self.tau] = self.maskT[2:-2, 2:-2, :] * salt
 
             self._taux = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
@@ -120,10 +121,12 @@ class NorthAtlantic(Veros):
             forc_u_coords_hor = [forcing_file.variables[k][...].T for k in ("xu", "yu")]
             forc_u_coords_hor[0][...] += -360
             for k in range(12):
-                self._taux[2:-2, 2:-2, k] = tools.interpolate(forc_u_coords_hor, forcing_file.variables["taux"][k, ...].T,
-                                                              t_hor, missing_value=-1e20) / 10. / self.rho_0
-                self._tauy[2:-2, 2:-2, k] = tools.interpolate(forc_u_coords_hor, forcing_file.variables["tauy"][k, ...].T,
-                                                              t_hor, missing_value=-1e20) / 10. / self.rho_0
+                self._taux[2:-2, 2:-2, k] = veros.tools.interpolate(
+                    forc_u_coords_hor, forcing_file.variables["taux"][k, ...].T, t_hor, missing_value=-1e20
+                ) / 10. / self.rho_0
+                self._tauy[2:-2, 2:-2, k] = veros.tools.interpolate(
+                    forc_u_coords_hor, forcing_file.variables["tauy"][k, ...].T, t_hor, missing_value=-1e20
+                ) / 10. / self.rho_0
 
             # heat flux and salinity restoring
             self._sst_clim = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)
@@ -135,13 +138,13 @@ class NorthAtlantic(Veros):
                 forcing_file.variables[k][...].T for k in ("sst_clim", "sss_clim", "sst_rest", "sss_rest")
             ]
             for k in range(12):
-                self._sst_clim[2:-2, 2:-2, k] = tools.interpolate(
+                self._sst_clim[2:-2, 2:-2, k] = veros.tools.interpolate(
                     forc_coords[:-1], sst_clim[..., k], t_hor, missing_value=-1e20)
-                self._sss_clim[2:-2, 2:-2, k] = tools.interpolate(
+                self._sss_clim[2:-2, 2:-2, k] = veros.tools.interpolate(
                     forc_coords[:-1], sss_clim[..., k], t_hor, missing_value=-1e20) * 1000 + 35
-                self._sst_rest[2:-2, 2:-2, k] = tools.interpolate(
+                self._sst_rest[2:-2, 2:-2, k] = veros.tools.interpolate(
                     forc_coords[:-1], sst_rest[..., k], t_hor, missing_value=-1e20) * 41868.
-                self._sss_rest[2:-2, 2:-2, k] = tools.interpolate(
+                self._sss_rest[2:-2, 2:-2, k] = veros.tools.interpolate(
                     forc_coords[:-1], sss_rest[..., k], t_hor, missing_value=-1e20) / 100.
 
         with Dataset("restoring_zone.nc", "r") as restoring_file:
@@ -153,27 +156,27 @@ class NorthAtlantic(Veros):
             self._s_star = np.zeros((self.nx + 4, self.ny + 4, self.nz, 12), dtype=self.default_float_type)
             self._rest_tscl = np.zeros((self.nx + 4, self.ny + 4, self.nz), dtype=self.default_float_type)
 
-            self._rest_tscl[2:-2, 2:-2, :] = tools.interpolate(
+            self._rest_tscl[2:-2, 2:-2, :] = veros.tools.interpolate(
                 rest_coords, restoring_file.variables["tscl"][0, ...].T, t_grid)
             for k in range(12):
-                self._t_star[2:-2, 2:-2, :, k] = tools.interpolate(
+                self._t_star[2:-2, 2:-2, :, k] = veros.tools.interpolate(
                     rest_coords, restoring_file.variables["t_star"][k, ...].T, t_grid, missing_value=0.
                 )
-                self._s_star[2:-2, 2:-2, :, k] = tools.interpolate(
+                self._s_star[2:-2, 2:-2, :, k] = veros.tools.interpolate(
                     rest_coords, restoring_file.variables["s_star"][k, ...].T, t_grid, missing_value=0.
                 )
 
         if self.enable_idemix:
             f = np.load("tidal_energy.npy") / self.rho_0
-            self.forc_iw_bottom[2:-2, 2:-2] = tools.interpolate(forc_coords[:-1], f, t_hor)
+            self.forc_iw_bottom[2:-2, 2:-2] = veros.tools.interpolate(forc_coords[:-1], f, t_hor)
             f = np.load("wind_energy.npy") / self.rho_0 * 0.2
-            self.forc_iw_surface[2:-2, 2:-2] = tools.interpolate(forc_coords[:-1], f, t_hor)
+            self.forc_iw_surface[2:-2, 2:-2] = veros.tools.interpolate(forc_coords[:-1], f, t_hor)
 
     @veros_method
     def set_forcing(self):
         year_in_seconds = 360 * 86400.0
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.time, year_in_seconds,
-                                                         year_in_seconds / 12., 12)
+        (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(self.time, year_in_seconds,
+                                                               year_in_seconds / 12., 12)
 
         self.surface_taux[...] = (f1 * self._taux[:, :, n1] + f2 * self._taux[:, :, n2])
         self.surface_tauy[...] = (f1 * self._tauy[:, :, n1] + f2 * self._tauy[:, :, n2])
@@ -209,7 +212,12 @@ class NorthAtlantic(Veros):
         self.diagnostics["cfl_monitor"].output_frequency = self.dt_tracer * 10
 
 
+@veros.tools.cli
+def run(*args, **kwargs):
+    simulation = NorthAtlantic(*args, **kwargs)
+    simulation.setup()
+    simulation.run()
+
+
 if __name__ == "__main__":
-    sim = NorthAtlantic()
-    sim.setup()
-    sim.run()
+    run()
