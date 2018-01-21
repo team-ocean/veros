@@ -5,7 +5,6 @@ import subprocess
 import shlex
 import sys
 import os
-import time
 
 import click
 
@@ -13,18 +12,10 @@ LAST_N_FILENAME = "{identifier}.current_run"
 
 
 class ShellCommand(click.ParamType):
+    name = "command"
+
     def convert(self, value, param, ctx):
         return shlex.split(value)
-
-
-def parse_cli():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("IDENTIFIER", help="base identifier of the simulation")
-    parser.add_argument("N_RUNS", type=int, help="total number of runs")
-    parser.add_argument("LENGTH_PER_RUN", type=float, help="length (in seconds) of each run")
-    parser.add_argument("VEROS_CMD", type=shlex.split, help="the command that is used to call veros (quoted)")
-    parser.add_argument("--callback", )
-    return parser.parse_args()
 
 
 def get_current_n(filename):
@@ -41,8 +32,9 @@ def write_next_n(n, filename):
 
 def call_veros(cmd, name, n, runlen):
     identifier = "{name}.{n:0>4}".format(name=name, n=n)
-    prev_id = "{name}.{n:0>4}".format(name=name, n=n-1)
-    args = ["-s", "identifier", identifier, "-s", "restart_output_filename", "{identifier}.restart.h5", "-s", "runlen", "{}".format(runlen)]
+    prev_id = "{name}.{n:0>4}".format(name=name, n=n - 1)
+    args = ["-s", "identifier", identifier, "-s", "restart_output_filename",
+            "{identifier}.restart.h5", "-s", "runlen", "{}".format(runlen)]
     if n:
         args += ["-s", "restart_input_filename", "{prev_id}.restart.h5".format(prev_id=prev_id)]
     sys.stdout.write("\n >>> {}\n\n".format(" ".join(cmd + args)))
@@ -53,7 +45,7 @@ def call_veros(cmd, name, n, runlen):
         raise RuntimeError("Run {} failed, exiting".format(n))
 
 
-def resubmit(identifier, n_runs, length_per_run, veros_cmd, callback=None):
+def resubmit(identifier, num_runs, length_per_run, veros_cmd, callback=None):
     """Performs several runs of Veros back to back, using the previous run as restart input.
 
     Intended to be used with scheduling systems (e.g. SLURM or PBS).
@@ -62,21 +54,25 @@ def resubmit(identifier, n_runs, length_per_run, veros_cmd, callback=None):
     last_n_filename = LAST_N_FILENAME.format(identifier=identifier)
 
     current_n = get_current_n(last_n_filename)
-    if current_n >= args.N_RUNS:
+    if current_n >= num_runs:
         sys.exit(0)
 
-    call_veros(args.VEROS_CMD, args.IDENTIFIER, current_n, args.LENGTH_PER_RUN)
+    call_veros(veros_cmd, identifier, current_n, length_per_run)
     write_next_n(current_n + 1, last_n_filename)
 
-    if current_n >= args.N_RUNS:
+    if current_n >= num_runs:
         sys.exit(0)
 
-    subprocess.Popen(args.callback)
-    time.sleep(30) # make sure next process is properly spawned before exiting
+    subprocess.Popen(callback)
 
 
 @click.command("veros-resubmit", short_help="Re-run a Veros setup several times")
-@click.argument("identifier")
+@click.option("-i", "--identifier", required=True, help="Base identifier of the simulation")
+@click.option("-n", "--num-runs", type=click.INT, required=True, help="Total number of runs")
+@click.option("-l", "--length-per-run", type=click.FLOAT, required=True,
+              help="Length (in seconds) of each run")
+@click.option("-c", "--veros-cmd", type=ShellCommand(), required=True,
+              help="The command that is used to call veros (quoted)")
 @click.option("--callback", metavar="CMD", type=ShellCommand(),
               default=[sys.executable, __file__] + sys.argv[1:],
               help="Command to call after each run has finished (default: call self)")

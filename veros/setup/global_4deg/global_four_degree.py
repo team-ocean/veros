@@ -14,7 +14,7 @@ class GlobalFourDegree(veros.Veros):
     """Global 4 degree model with 15 vertical levels.
 
     This setup demonstrates:
-     - setting up a realistical model
+     - setting up a realistic model
      - reading input data from external files
      - implementing surface forcings
      - applying a simple ice mask

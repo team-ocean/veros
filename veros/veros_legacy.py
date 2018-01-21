@@ -2,7 +2,7 @@ import imp
 import logging
 import math
 
-from . import Veros, settings
+from . import veros, settings
 
 
 class LowercaseAttributeWrapper(object):
@@ -22,7 +22,7 @@ class LowercaseAttributeWrapper(object):
         setattr(self._w, key.lower(), value)
 
 
-class VerosLegacy(Veros):
+class VerosLegacy(veros.Veros):
     """
     An alternative Veros class that supports the pyOM Fortran interface as backend
 
@@ -68,7 +68,7 @@ class VerosLegacy(Veros):
 
         if self.use_mpi and self.mpi_comm.Get_rank() != 0:
             kwargs["loglevel"] = "critical"
-        
+
         super(VerosLegacy, self).__init__(*args, **kwargs)
 
 

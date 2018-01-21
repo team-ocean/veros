@@ -5,6 +5,7 @@
 Veros, the *versatile ocean simulator*, is just that: A powerful tool that makes high-performance ocean modeling approachable and fun. Since it is a pure Python module, the days of struggling with complicated model setup workflows, ancient programming environments, and obscure legacy code are finally over.
 
 Veros supports both a NumPy backend for small-scale problems and a fully parallelized high-performance backend [powered by Bohrium](https://github.com/bh107/bohrium) using either OpenMP (CPU) or OpenCL (GPU). The underlying numerics are based on [pyOM2](https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2), an ocean model developed by Carsten Eden (Institut für Meereskunde, Hamburg University).
+A good starting point to gain an overview of Veros' design, performance, and capabilities are [these slides of a talk on Veros](http://slides.com/dionhaefner/veros-ams) held during the 98th Annual Meeting of the American Meteorological Society.
 
 Veros is currently being developed at Niels Bohr Institute, Copenhagen University.
 
@@ -22,12 +23,13 @@ Veros provides
 
 ## Veros for the impatient
 
-```bash
-pip install veros[all]
-veros copy-setup acc
-cd acc
-python acc.py
-```
+A minimal example to install and run Veros:
+
+    $ pip install veros[all]
+    $ veros copy-setup acc --to /tmp
+    $ cd /tmp/acc
+    $ python acc.py
+
 
 ## Installation
 
