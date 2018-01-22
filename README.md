@@ -53,8 +53,6 @@ As soon as you have a working environment, installing Veros is simple:
 
        $ git clone https://github.com/dionhaefner/veros.git
 
-   Note that you need to have [Git LFS](https://git-lfs.github.com/) installed if you want to download the forcing files required for running the larger models.
-
 2. Install it, preferably with
 
        $ pip install -e veros
