@@ -5,9 +5,10 @@ import logging
 from netCDF4 import Dataset
 
 import veros
+import veros.tools
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
-DATA_FILES = veros.tools.get_assets("global_4deg", open("assets.yml").read())
+DATA_FILES = veros.tools.get_assets("global_4deg", os.path.join(BASE_PATH, "assets.yml"))
 
 
 class GlobalFourDegree(veros.Veros):
@@ -145,8 +146,9 @@ class GlobalFourDegree(veros.Veros):
     @veros.veros_method
     def set_forcing(self):
         year_in_seconds = 360 * 86400.
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.time, year_in_seconds,
-                                                         year_in_seconds / 12., 12)
+        (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(
+            self.time, year_in_seconds, year_in_seconds / 12., 12
+        )
 
         # wind stress
         self.surface_taux[...] = (f1 * self.taux[:, :, n1] + f2 * self.taux[:, :, n2])
@@ -178,7 +180,6 @@ class GlobalFourDegree(veros.Veros):
         self.forc_temp_surface[mask] = 0.0
         self.forc_salt_surface[mask] = 0.0
 
-
     @veros.veros_method
     def set_diagnostics(self):
         self.diagnostics["cfl_monitor"].output_frequency = 360 * 86400. / 24.
@@ -192,6 +193,10 @@ class GlobalFourDegree(veros.Veros):
         self.diagnostics["averages"].output_variables = average_vars
         self.diagnostics["averages"].output_frequency = 86400. * 30
         self.diagnostics["averages"].sampling_frequency = 86400
+
+    @veros.veros_method
+    def after_timestep(self):
+        pass
 
 
 @veros.tools.cli

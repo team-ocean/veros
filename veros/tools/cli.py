@@ -2,8 +2,8 @@ import functools
 
 import click
 
-from .backend import BACKENDS
-from .settings import SETTINGS
+from veros.backend import BACKENDS
+from veros.settings import SETTINGS
 
 
 class VerosSetting(click.ParamType):

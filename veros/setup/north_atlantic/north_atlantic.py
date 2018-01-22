@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 from netCDF4 import Dataset
 from PIL import Image
 import numpy as np
@@ -7,6 +8,10 @@ import scipy.spatial
 import scipy.ndimage
 
 import veros
+import veros.tools
+
+BASE_PATH = os.path.dirname(os.path.realpath(__file__))
+DATA_FILES = veros.tools.get_assets("north_atlantic", os.path.join(BASE_PATH, "assets.yml"))
 
 
 class NorthAtlantic(veros.Veros):
@@ -78,13 +83,13 @@ class NorthAtlantic(veros.Veros):
     def set_grid(self):
         self.dxt[2:-2] = (self._x_boundary - self.x_origin) / self.nx
         self.dyt[2:-2] = (self._y_boundary - self.y_origin) / self.ny
-        self.dzt[...] = tools.get_vinokur_grid_steps(self.nz, self._max_depth, 10., refine_towards="lower")
+        self.dzt[...] = veros.tools.get_vinokur_grid_steps(self.nz, self._max_depth, 10., refine_towards="lower")
 
     def set_coriolis(self):
         self.coriolis_t[:, :] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
     def set_topography(self):
-        with Dataset("ETOPO1_Bed_g_gmt4_NA.nc", "r") as topography_file:
+        with Dataset(DATA_FILES["topography"], "r") as topography_file:
             topo_x, topo_y, topo_bottom_depth = (
                 topography_file.variables[k][...].T for k in ("x", "y", "z"))
         topo_mask = np.flipud(np.asarray(Image.open("topo_mask.png"))).T
@@ -101,7 +106,7 @@ class NorthAtlantic(veros.Veros):
         self.kbot *= self.kbot < self.nz
 
     def set_initial_conditions(self):
-        with Dataset("forcing.nc", "r") as forcing_file:
+        with Dataset(DATA_FILES["forcing"], "r") as forcing_file:
             t_hor = (self.xt[2:-2], self.yt[2:-2])
             t_grid = (self.xt[2:-2], self.yt[2:-2], self.zt)
             forc_coords = [forcing_file.variables[k][...].T for k in ("xt", "yt", "zt")]
@@ -147,7 +152,7 @@ class NorthAtlantic(veros.Veros):
                 self._sss_rest[2:-2, 2:-2, k] = veros.tools.interpolate(
                     forc_coords[:-1], sss_rest[..., k], t_hor, missing_value=-1e20) / 100.
 
-        with Dataset("restoring_zone.nc", "r") as restoring_file:
+        with Dataset(DATA_FILES["restoring"], "r") as restoring_file:
             rest_coords = [restoring_file.variables[k][...].T for k in ("xt", "yt", "zt")]
             rest_coords[0][...] += -360
 
@@ -172,7 +177,7 @@ class NorthAtlantic(veros.Veros):
             f = np.load("wind_energy.npy") / self.rho_0 * 0.2
             self.forc_iw_surface[2:-2, 2:-2] = veros.tools.interpolate(forc_coords[:-1], f, t_hor)
 
-    @veros_method
+    @veros.veros_method
     def set_forcing(self):
         year_in_seconds = 360 * 86400.0
         (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(self.time, year_in_seconds,
@@ -210,6 +215,9 @@ class NorthAtlantic(veros.Veros):
         self.diagnostics["averages"].output_variables = ["temp", "salt", "u", "v", "w",
                                                          "surface_taux", "surface_tauy", "psi"]
         self.diagnostics["cfl_monitor"].output_frequency = self.dt_tracer * 10
+
+    def after_timestep(self):
+        pass
 
 
 @veros.tools.cli

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import logging
 
 import numpy as np
@@ -8,6 +9,10 @@ from PIL import Image
 import scipy.ndimage
 
 import veros
+import veros.tools
+
+BASE_PATH = os.path.dirname(os.path.realpath(__file__))
+DATA_FILES = veros.tools.get_assets("wave_propagation", os.path.join(BASE_PATH, "assets.yml"))
 
 
 class WavePropagation(veros.Veros):
@@ -29,7 +34,6 @@ class WavePropagation(veros.Veros):
     # southern ocean wind modifier
     so_wind_interval = (-69., -27.)
     so_wind_factor = 1.
-
 
     @veros.veros_method
     def set_parameter(self):
@@ -93,11 +97,9 @@ class WavePropagation(veros.Veros):
         self.enable_idemix_superbee_advection = True
         self.enable_idemix_hor_diffusion = True
 
-
     def _get_data(self, var):
-        with Dataset("forcing_1deg_global.nc", "r") as forcing_file:
+        with Dataset(DATA_FILES["forcing"], "r") as forcing_file:
             return forcing_file.variables[var][...].T
-
 
     @veros.veros_method
     def set_grid(self):
@@ -111,11 +113,9 @@ class WavePropagation(veros.Veros):
         self.y_origin = -80.
         self.x_origin = 90.
 
-
     @veros.veros_method
     def set_coriolis(self):
         self.coriolis_t[...] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
-
 
     @veros.veros_method
     def _shift_longitude_array(self, lon, arr):
@@ -124,10 +124,9 @@ class WavePropagation(veros.Veros):
         new_arr = np.concatenate((arr[wrap_i:-1, ...], arr[:wrap_i, ...]))
         return new_lon, new_arr
 
-
     @veros.veros_method
     def set_topography(self):
-        with Dataset("ETOPO5_Ice_g_gmt4.nc", "r") as topography_file:
+        with Dataset(DATA_FILES["topography"], "r") as topography_file:
             topo_x, topo_y, topo_z = (topography_file.variables[k][...].T.astype(np.float) for k in ("x", "y", "z"))
         topo_z[topo_z > 0] = 0.
         topo_mask = (np.flipud(Image.open("topography_idealized.png")).T / 255).astype(np.bool)
@@ -167,7 +166,6 @@ class WavePropagation(veros.Veros):
         self.kbot[2:-2, 2:-2] = np.where(z_interp < 0., depth_levels, 0)
         self.kbot *= self.kbot < self.nz
 
-
     @veros.veros_method
     def _fix_north_atlantic(self, arr):
         """Calculate zonal mean forcing over masked area (na_mask)."""
@@ -175,7 +173,6 @@ class WavePropagation(veros.Veros):
         arr_masked = np.ma.masked_where(np.logical_or(~self.na_mask[newaxes], arr == 0.), arr)
         zonal_mean_na = arr_masked.mean(axis=0)
         return np.where(~arr_masked.mask, zonal_mean_na[np.newaxis, ...], arr)
-
 
     @veros.veros_method
     def set_initial_conditions(self):
@@ -223,8 +220,8 @@ class WavePropagation(veros.Veros):
         self._tauy[2:-2, 2:-2, :] = tauy_data / self.rho_0
 
         if self.enable_cyclic_x:
-            cyclic.setcyclic_x(self._taux)
-            cyclic.setcyclic_x(self._tauy)
+            veros.cyclic.setcyclic_x(self._taux)
+            veros.cyclic.setcyclic_x(self._tauy)
 
         # Qnet and dQ/dT and Qsol
         qnet_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
@@ -277,7 +274,6 @@ class WavePropagation(veros.Veros):
         self._divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
         self._divpen_shortwave[0] = pen[0] / self.dzt[0]
 
-
     @veros.veros_method
     def set_forcing(self):
         self.set_timestep()
@@ -320,7 +316,6 @@ class WavePropagation(veros.Veros):
                 * self._divpen_shortwave[None, None, :] * ice[..., None] \
                 * self.maskT[..., :] / cp_0 / self.rho_0
 
-
     @veros.veros_method
     def set_diagnostics(self):
         self.diagnostics["cfl_monitor"].output_frequency = 86400.
@@ -356,7 +351,6 @@ class WavePropagation(veros.Veros):
         )
         self.diagnostics["snapshot"].output_variables.append("na_mask")
 
-
     @veros.veros_method
     def set_timestep(self):
         if self.time < 90 * 86400:
@@ -367,6 +361,9 @@ class WavePropagation(veros.Veros):
             if self.dt_tracer != 3600.:
                 self.dt_tracer = self.dt_mom = 3600.
                 logging.info("Setting time step to 1h")
+
+    def after_timestep(self):
+        pass
 
 
 @veros.tools.cli

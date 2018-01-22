@@ -4,8 +4,10 @@ import os
 from netCDF4 import Dataset
 
 import veros
+import veros.tools
 
-FORCING_FILE = veros.tools.get_asset("global_1deg", open("assets.yml").read())
+BASE_PATH = os.path.dirname(os.path.realpath(__file__))
+DATA_FILES = veros.tools.get_assets("global_1deg", os.path.join(BASE_PATH, "assets.yml"))
 
 
 class GlobalOneDegree(veros.Veros):
@@ -19,9 +21,6 @@ class GlobalOneDegree(veros.Veros):
         """
         set main parameters
         """
-        if not os.path.isfile(FORCING_FILE):
-            raise RuntimeError("{} data file {} not found".format(name, filepath))
-
         self.nx = 360
         self.ny = 160
         self.nz = 115
@@ -81,7 +80,7 @@ class GlobalOneDegree(veros.Veros):
 
     @veros.veros_method
     def _read_forcing(self, var):
-        with Dataset(FORCING_FILE, "r") as infile:
+        with Dataset(DATA_FILES["forcing"], "r") as infile:
             return np.array(infile.variables[var][...]).T
 
     @veros.veros_method
@@ -195,14 +194,13 @@ class GlobalOneDegree(veros.Veros):
         self.divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / self.dzt[1:]
         self.divpen_shortwave[0] = pen[0] / self.dzt[0]
 
-
     @veros.veros_method
     def set_forcing(self):
         t_rest = 30. * 86400.
         cp_0 = 3991.86795711963  # J/kg /K
 
-        year_in_seconds = time.convert_time(self, 1., "years", "seconds")
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.time, year_in_seconds,
+        year_in_seconds = veros.time.convert_time(self, 1., "years", "seconds")
+        (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(self.time, year_in_seconds,
                                                          year_in_seconds / 12., 12)
 
         # linearly interpolate wind stress and shift from MITgcm U/V grid to this grid
@@ -265,6 +263,9 @@ class GlobalOneDegree(veros.Veros):
         self.diagnostics["energy"].sampling_frequency = 365 * 86400 / 24.
         self.diagnostics["averages"].output_frequency = 365 * 86400
         self.diagnostics["averages"].sampling_frequency = 365 * 86400 / 24.
+
+    def after_timestep(self):
+        pass
 
 
 @veros.tools.cli

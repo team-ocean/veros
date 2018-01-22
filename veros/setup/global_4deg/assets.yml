@@ -1,6 +1,7 @@
 forcing:
-  url: https://github.com/dionhaefner/veros/blob/master/setup/global_1deg/forcing_1deg_global.nc?raw=true
-  md5: 1fc86f88acd820da078c8da5873cfa01
+  url: https://sid.erda.dk/share_redirect/gsdZADr8to/global_4deg/forcing_4deg_global.nc
+  md5: ef3be0a58782771c8ee5a6d0206b87f5
+  
 ecmwf:
-  url:
-  md5:
+  url: https://sid.erda.dk/share_redirect/gsdZADr8to/global_4deg/ecmwf_4deg_monthly.nc
+  md5: 98e484580a5eed362af29593461ada42
