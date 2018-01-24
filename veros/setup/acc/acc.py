@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import veros
+import veros.tools
 
 
 class ACC(veros.Veros):
@@ -136,6 +137,9 @@ class ACC(veros.Veros):
         self.diagnostics["tracer_monitor"].output_frequency = 365 * 86400. / 12.
         self.diagnostics["energy"].output_frequency = 365 * 86400. / 48
         self.diagnostics["energy"].sampling_frequency = self.dt_tracer * 10
+
+    def after_timestep(self):
+        pass
 
 
 @veros.tools.cli

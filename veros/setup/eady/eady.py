@@ -1,4 +1,5 @@
 import veros
+import veros.tools
 
 
 class Eady(veros.Veros):
@@ -61,39 +62,39 @@ class Eady(veros.Veros):
 
     @veros.veros_method
     def set_initial_conditions(self):
-     u_0 = 0.5
-     n_0 = 0.004
-     f = self.coriolis_t[0, self.ny // 2]
-     h = (self.nz - 2) * self.dzt[0]
-     kx = 1.6 * f / (n_0 * h)
-     ky = self.pi / ((self.ny - 2) * self.dxt[0])
-     d = f / n_0 / (kx**2 + ky**2)**0.5
+        u_0 = 0.5
+        n_0 = 0.004
+        f = self.coriolis_t[0, self.ny // 2]
+        h = (self.nz - 2) * self.dzt[0]
+        kx = 1.6 * f / (n_0 * h)
+        ky = self.pi / ((self.ny - 2) * self.dxt[0])
+        d = f / n_0 / (kx**2 + ky**2)**0.5
 
-     fxa = 1. / np.tanh(h / d)
-     c1 = (1. + 0.25 * (h / d)**2 - h / d * fxa) * complex(1,0)
-     c1 = (np.sqrt(c1) * d / h + 0.5) * u_0
-     A = (u_0 - c1) / u_0 * h / d
+        fxa = 1. / np.tanh(h / d)
+        c1 = (1. + 0.25 * (h / d)**2 - h / d * fxa) * complex(1,0)
+        c1 = (np.sqrt(c1) * d / h + 0.5) * u_0
+        A = (u_0 - c1) / u_0 * h / d
 
-     alpha = veros.core.density.linear_eq.linear_eq_of_state_drhodT()
+        alpha = veros.core.density.linear_eq.linear_eq_of_state_drhodT()
 
-     # zonal velocity
-     self.u[:, :, :, self.tau] = u_0 * (0.5 + self.zt[np.newaxis, np.newaxis, :] / (self.nz * self.dzt[0])) * self.maskU
-     self.u[..., self.taum1] = self.u[..., self.tau]
+        # zonal velocity
+        self.u[:, :, :, self.tau] = u_0 * (0.5 + self.zt[np.newaxis, np.newaxis, :] / (self.nz * self.dzt[0])) * self.maskU
+        self.u[..., self.taum1] = self.u[..., self.tau]
 
-     t0 = -n_0 ** 2 * self.zt[np.newaxis, :] / self.grav / alpha * self.rho_0 * self.maskT[:, 2, :]
-     uz = u_0 / self.ht[:, 2:-2, np.newaxis]
-     self.t0 = np.zeros((self.nx+4, self.ny+4, self.nz), dtype=self.default_float_type)
-     self.t0[:, 3:-1, :] = t0[:, np.newaxis, :] + np.cumsum(self.dyt[np.newaxis, 2:-2, np.newaxis] * uz * f / self.grav / alpha * self.rho_0 * self.maskT[:, 2:-2, :], axis=1)
-     self.dt0 = np.zeros((self.nx+4, self.ny+4, self.nz, 3), dtype=self.default_float_type)
+        t0 = -n_0 ** 2 * self.zt[np.newaxis, :] / self.grav / alpha * self.rho_0 * self.maskT[:, 2, :]
+        uz = u_0 / self.ht[:, 2:-2, np.newaxis]
+        self.t0 = np.zeros((self.nx+4, self.ny+4, self.nz), dtype=self.default_float_type)
+        self.t0[:, 3:-1, :] = t0[:, np.newaxis, :] + np.cumsum(self.dyt[np.newaxis, 2:-2, np.newaxis] * uz * f / self.grav / alpha * self.rho_0 * self.maskT[:, 2:-2, :], axis=1)
+        self.dt0 = np.zeros((self.nx+4, self.ny+4, self.nz, 3), dtype=self.default_float_type)
 
-     # perturbation buoyancy
-     phiz = A / d * np.sinh(self.zt / d) + np.cosh(self.zt / d) / d
-     self.temp[..., self.tau] = 0.1 * np.sin(kx * self.xt[:, np.newaxis, np.newaxis]) \
+        # perturbation buoyancy
+        phiz = A / d * np.sinh(self.zt / d) + np.cosh(self.zt / d) / d
+        self.temp[..., self.tau] = 0.1 * np.sin(kx * self.xt[:, np.newaxis, np.newaxis]) \
                                     * np.sin(ky * self.yt[np.newaxis, :, np.newaxis]) \
                                     * np.abs(phiz) * self.maskT * self.rho_0 / self.grav / alpha
-     self.temp[..., self.taum1] = self.temp[..., self.tau]
+        self.temp[..., self.taum1] = self.temp[..., self.tau]
 
-     self.t_tot = np.zeros((self.nx+4, self.ny+4, self.nz), dtype=self.default_float_type)
+        self.t_tot = np.zeros((self.nx+4, self.ny+4, self.nz), dtype=self.default_float_type)
 
     @veros.veros_method
     def set_forcing(self):
@@ -115,6 +116,9 @@ class Eady(veros.Veros):
         self.variables["t_tot"] = veros.variables.Variable("Total temperature", ("xt", "yt", "zt"), "deg C",
                                                            "Total temperature", output=True, time_dependent=True,
                                                            write_to_restart=True)
+
+    def after_timestep(self):
+        pass
 
 
 @veros.tools.cli
