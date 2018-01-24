@@ -13,7 +13,6 @@ Using Anaconda (multi-platform)
 2. Install some dependencies: ::
 
        $ conda install hdf5 libnetcdf
-       $ conda install -c conda-forge git-lfs
 
    and optionally::
 
@@ -40,9 +39,6 @@ Using apt-get (Ubuntu / Debian)
       $ sudo add-apt-repository ppa:bohrium/nightly
       $ sudo apt-get update
       $ sudo apt-get install bohrium
-
-  If you want to clone the input files needed for running the larger setups, you will
-  also need to `install git lfs <https://git-lfs.github.com/>`_.
 
 2. Clone our repository: ::
 

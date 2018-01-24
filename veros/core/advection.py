@@ -1,5 +1,3 @@
-import warnings
-
 from .. import veros_method, veros_inline_method
 from .utilities import pad_z_edges, where
 

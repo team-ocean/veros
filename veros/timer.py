@@ -1,14 +1,5 @@
 from __future__ import absolute_import
 
-import numpy as np
-
-try:
-    import bohrium as bh
-    flush = bh.flush
-except ImportError:
-    def flush():
-        pass
-
 import time
 
 
@@ -18,11 +9,20 @@ class Timer:
         self.total_time = 0
         self.last_time = 0
 
+        try:
+            import bohrium as bh
+            flush = bh.flush
+        except ImportError:
+            def flush():
+                pass
+
+        self._flush = flush
+
     def __enter__(self):
         self.start_time = time.time()
 
     def __exit__(self, type, value, traceback):
-        flush()
+        self._flush()
         self.last_time = time.time() - self.start_time
         self.total_time += self.last_time
 

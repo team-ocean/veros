@@ -2,7 +2,6 @@ import threading
 import contextlib
 import logging
 import warnings
-from netCDF4 import Dataset
 
 from ... import veros_method, variables
 
@@ -17,6 +16,7 @@ def initialize_file(vs, ncfile, create_time_dimension=True):
     """
     Define standard grid in netcdf file
     """
+    from netCDF4 import Dataset
     if not isinstance(ncfile, Dataset):
         raise TypeError("Argument needs to be a netCDF4 Dataset")
 
@@ -99,6 +99,7 @@ def threaded_io(vs, filepath, mode):
     """
     If using IO threads, start a new thread to write the netCDF data to disk.
     """
+    from netCDF4 import Dataset
     if vs.use_io_threads:
         _wait_for_disk(vs, filepath)
         _io_locks[filepath].clear()

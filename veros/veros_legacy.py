@@ -2,7 +2,7 @@ import imp
 import logging
 import math
 
-from . import Veros, settings
+from . import veros, settings
 
 
 class LowercaseAttributeWrapper(object):
@@ -22,7 +22,7 @@ class LowercaseAttributeWrapper(object):
         setattr(self._w, key.lower(), value)
 
 
-class VerosLegacy(Veros):
+class VerosLegacy(veros.Veros):
     """
     An alternative Veros class that supports the pyOM Fortran interface as backend
 
@@ -68,6 +68,7 @@ class VerosLegacy(Veros):
 
         if self.use_mpi and self.mpi_comm.Get_rank() != 0:
             kwargs["loglevel"] = "critical"
+
         super(VerosLegacy, self).__init__(*args, **kwargs)
 
 
@@ -90,7 +91,7 @@ class VerosLegacy(Veros):
         idm.enable_idemix_niw = False
 
     def _set_commandline_settings(self):
-        for key, val in self.command_line_settings:
+        for key, val in self.override_settings.items():
             for m in self.modules:
                 if hasattr(m, key):
                     setattr(m, key, settings.SETTINGS[key].type(val))
@@ -157,7 +158,6 @@ class VerosLegacy(Veros):
         ekm = self.eke_module
         tkm = self.tke_module
 
-        start_time, start_iteration = self.time, m.itt
         logging.info("Starting integration for {:.2e}s".format(float(m.runlen)))
 
         while self.time < m.runlen:

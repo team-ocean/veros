@@ -41,5 +41,6 @@ If you want to learn more about the background and capabilities of Veros, you sh
 
    more/faq
    more/benchmarks
+   more/publications
    more/contact
    Visit us on GitHub <https://github.com/dionhaefner/veros>

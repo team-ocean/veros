@@ -4,14 +4,11 @@
 *.h5
 *.hdf5
 
-# restart files
-restart.h5
-
 # documentation and profiler output
 *.html
 
 # benchmark output
-test/benchmark_*.json
+test/*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

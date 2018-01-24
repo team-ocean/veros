@@ -1,7 +1,7 @@
 from scipy.linalg import lapack
 
 from .. import veros_method, veros_inline_method
-from . import cyclic, density, utilities, diffusion
+from . import cyclic, density, diffusion
 
 try:
     from .special import tdma_opencl

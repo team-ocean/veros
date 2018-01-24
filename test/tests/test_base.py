@@ -7,6 +7,32 @@ from veros import VerosLegacy, variables
 from veros.timer import Timer
 
 
+class VerosLegacyDummy(VerosLegacy):
+    def set_parameter(self):
+        pass
+
+    def set_grid(self):
+        pass
+
+    def set_topography(self):
+        pass
+
+    def set_diagnostics(self):
+        pass
+
+    def after_timestep(self):
+        pass
+
+    def set_coriolis(self):
+        pass
+
+    def set_initial_conditions(self):
+        pass
+
+    def set_forcing(self):
+        pass
+
+
 class VerosUnitTest(object):
     legacy_modules = ("main_module", "isoneutral_module", "tke_module",
                       "eke_module", "idemix_module")
@@ -17,14 +43,14 @@ class VerosUnitTest(object):
     test_routines = None
 
     def __init__(self, dims=None, fortran=None):
-        self.veros_new = VerosLegacy()
+        self.veros_new = VerosLegacyDummy()
         self.veros_new.pyom_compatibility_mode = True
         if not fortran:
             try:
                 fortran = sys.argv[1]
             except IndexError:
                 raise RuntimeError("Path to fortran library must be given via keyword argument or command line")
-        self.veros_legacy = VerosLegacy(fortran=fortran)
+        self.veros_legacy = VerosLegacyDummy(fortran=fortran)
 
         if dims:
             self.nx, self.ny, self.nz = dims
@@ -45,7 +71,6 @@ class VerosUnitTest(object):
         self.veros_legacy.fortran.allocate_eke_module()
         self.veros_legacy.fortran.allocate_idemix_module()
 
-
     def set_attribute(self, attribute, value):
         if isinstance(value, np.ndarray):
             getattr(self.veros_new, attribute)[...] = value
@@ -63,7 +88,6 @@ class VerosUnitTest(object):
                 return
         raise AttributeError("Legacy pyOM has no attribute {}".format(attribute))
 
-
     def get_attribute(self, attribute):
         try:
             veros_attr = getattr(self.veros_new, attribute)
@@ -80,7 +104,6 @@ class VerosUnitTest(object):
                 veros_legacy_attr = getattr(module_handle, attribute)
         return veros_attr, veros_legacy_attr
 
-
     def get_routine(self, routine, submodule=None):
         if submodule:
             veros_module_handle = submodule
@@ -90,15 +113,13 @@ class VerosUnitTest(object):
         veros_legacy_routine = getattr(self.veros_legacy.fortran, routine)
         return veros_routine, veros_legacy_routine
 
-
-    def get_all_attributes(self,attribute_file):
+    def get_all_attributes(self, attribute_file):
         attributes = {}
         with open(attribute_file,"r") as f:
             for a in f:
                 a = a.strip()
                 attributes[a] = self.get_attribute(a)
         return attributes
-
 
     def check_scalar_objects(self):
         differing_objects = {}
@@ -108,7 +129,6 @@ class VerosUnitTest(object):
                 differing_objects[s] = (v1,v2)
         return differing_objects
 
-
     def check_array_objects(self):
         differing_objects = {}
         arrays = self.get_all_attributes(self.array_attribute_file)
@@ -117,19 +137,16 @@ class VerosUnitTest(object):
                 differing_objects[a] = (v1,v2)
         return differing_objects
 
-
     def initialize(self):
         raise NotImplementedError("Must be implemented by test subclass")
 
-
-    def _normalize(self,*arrays):
+    def _normalize(self, *arrays):
         if any(a.size == 0 for a in arrays):
             return arrays
         norm = np.abs(arrays[0]).max()
         if norm == 0.:
             return arrays
         return (a / norm for a in arrays)
-
 
     def check_variable(self, var, atol=1e-8, data=None):
         if data is None:

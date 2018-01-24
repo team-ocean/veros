@@ -1,18 +1,15 @@
 import sys
-import os
-import numpy as np
 import logging
+import pkg_resources
+
+import numpy as np
 from netCDF4 import Dataset
 
 from test_base import VerosRunTest
 from veros import VerosLegacy, veros_method, tools
 
-BASE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../../setup/global_4deg")
-DATA_FILES = dict(
-    forcing="forcing_4deg_global.nc",
-    ecmwf="ecmwf_4deg_monthly.nc",
-)
-DATA_FILES = {key: os.path.join(BASE_PATH, val) for key, val in DATA_FILES.items()}
+DATA_FILES = tools.get_assets("global_4deg", pkg_resources.resource_filename("veros", "setup/global_4deg/assets.yml"))
+
 
 class GlobalFourDegree(VerosLegacy):
     """ global 4 deg model with 15 levels
@@ -22,34 +19,34 @@ class GlobalFourDegree(VerosLegacy):
         self.diskless_mode = True
         self.pyom_compatibility_mode = True
 
-        M=self.main_module
+        M = self.main_module
 
-        (M.nx,M.ny,M.nz) = (90,40,15)
-        M.dt_mom    = 1800.0
+        (M.nx, M.ny, M.nz) = (90, 40, 15)
+        M.dt_mom = 1800.0
         M.dt_tracer = 86400.0
         M.AB_eps = 0.1
 
-        M.coord_degree     = True
-        M.enable_cyclic_x  = True
+        M.coord_degree = True
+        M.enable_cyclic_x = True
 
         M.congr_epsilon = 1e-8
         M.congr_max_iterations = 20000
 
-        I=self.isoneutral_module
+        I = self.isoneutral_module
         I.enable_neutral_diffusion = True
         I.K_iso_0 = 1000.0
         I.K_iso_steep = 1000.0
-        I.iso_dslope=4./1000.0
-        I.iso_slopec=1./1000.0
+        I.iso_dslope = 4. / 1000.0
+        I.iso_slopec = 1. / 1000.0
         I.enable_skew_diffusion = True
 
-        M.enable_hor_friction  = True
+        M.enable_hor_friction = True
         M.A_h = 1.75e6
         M.enable_hor_friction_cos_scaling = True
-        M.hor_friction_cosPower=1
+        M.hor_friction_cosPower = 1
 
         M.enable_implicit_vert_friction = True
-        T=self.tke_module
+        T = self.tke_module
         T.enable_tke = True
         T.c_k = 0.1
         T.c_eps = 0.7
@@ -58,19 +55,19 @@ class GlobalFourDegree(VerosLegacy):
         T.tke_mxl_choice = 2
         T.enable_tke_superbee_advection = True
 
-        E=self.eke_module
+        E = self.eke_module
         E.enable_eke = True
-        E.eke_k_max  = 1e4
-        E.eke_c_k    = 0.4
-        E.eke_c_eps  = 0.5
-        E.eke_cross  = 2.
-        E.eke_crhin  = 1.0
-        E.eke_lmin   = 100.0
+        E.eke_k_max = 1e4
+        E.eke_c_k = 0.4
+        E.eke_c_eps = 0.5
+        E.eke_cross = 2.
+        E.eke_crhin = 1.0
+        E.eke_lmin = 100.0
         E.eke_int_diss0 = 5.78703703704e-07
         E.kappa_EKE0 = 0.1
         E.enable_eke_superbee_advection = True
 
-        I=self.idemix_module
+        I = self.idemix_module
         I.enable_idemix = True
         I.gamma = 1.57
         I.mu0 = 1.33333333333
@@ -80,7 +77,6 @@ class GlobalFourDegree(VerosLegacy):
         I.enable_idemix_superbee_advection = True
 
         M.eq_of_state_type = 5
-
 
     @veros_method
     def _read_forcing(self, var):
@@ -131,12 +127,12 @@ class GlobalFourDegree(VerosLegacy):
 
         # initial conditions for T and S
         temp_data = self._read_forcing("temperature")[:, :, ::-1]
-        m.temp[2:-2, 2:-2, :, :] = temp_data[:, :, :, np.newaxis] * \
-                                    m.maskT[2:-2, 2:-2, :, np.newaxis]
+        m.temp[2:-2, 2:-2, :, :] = (temp_data[:, :, :, np.newaxis]
+                                    * m.maskT[2:-2, 2:-2, :, np.newaxis])
 
         salt_data = self._read_forcing("salinity")[:, :, ::-1]
-        m.salt[2:-2, 2:-2, :, :] = salt_data[..., np.newaxis] * \
-                                    m.maskT[2:-2, 2:-2, :, np.newaxis]
+        m.salt[2:-2, 2:-2, :, :] = (salt_data[..., np.newaxis]
+                                    * m.maskT[2:-2, 2:-2, :, np.newaxis])
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
         self.taux[2:-2, 2:-2, :] = self._read_forcing("tau_x") / m.rho_0
@@ -196,7 +192,7 @@ class GlobalFourDegree(VerosLegacy):
         qnec = f1 * self.qnec[:, :, n1] + f2 * self.qnec[:, :, n2]
         qnet = f1 * self.qnet[:, :, n1] + f2 * self.qnet[:, :, n2]
         m.forc_temp_surface[...] = (qnet + qnec * (sst - m.temp[:, :, -1, self.get_tau()])) \
-                                       * m.maskT[:, :, -1] / cp_0 / m.rho_0
+                                    * m.maskT[:, :, -1] / cp_0 / m.rho_0
 
         # salinity restoring
         t_rest = 30 * 86400.0
@@ -221,6 +217,10 @@ class GlobalFourDegree(VerosLegacy):
     def set_diagnostics(self):
         pass
 
+    def after_timestep(self):
+        pass
+
+
 class FourDegreeTest(VerosRunTest):
     Testclass = GlobalFourDegree
     timesteps = 100
@@ -232,7 +232,7 @@ class FourDegreeTest(VerosRunTest):
         if differing_scalars or differing_arrays:
             print("The following attributes do not match between old and new veros:")
             for s, (v1, v2) in differing_scalars.items():
-                print("{}, {}, {}".format(s,v1,v2))
+                print("{}, {}, {}".format(s, v1, v2))
             for a, (v1, v2) in differing_arrays.items():
                 if a in ("B1_gm", "B2_gm"):
                     continue
@@ -242,9 +242,10 @@ class FourDegreeTest(VerosRunTest):
                 if v2 is None:
                     print(a, "", v2)
                     continue
-                this_passed = self.check_variable(a,atol=1e-4,data=(v1,v2))
+                this_passed = self.check_variable(a, atol=1e-4, data=(v1, v2))
                 passed = this_passed and passed
         return passed
+
 
 if __name__ == "__main__":
     passed = FourDegreeTest().run()

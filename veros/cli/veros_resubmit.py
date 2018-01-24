@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+
+import functools
+import subprocess
+import shlex
+import sys
+import os
+
+import click
+
+LAST_N_FILENAME = "{identifier}.current_run"
+
+
+class ShellCommand(click.ParamType):
+    name = "command"
+
+    def convert(self, value, param, ctx):
+        return shlex.split(value)
+
+
+def get_current_n(filename):
+    if not os.path.isfile(filename):
+        return 0
+    with open(filename, "r") as f:
+        return int(f.read())
+
+
+def write_next_n(n, filename):
+    with open(filename, "w") as f:
+        f.write(str(n))
+
+
+def call_veros(cmd, name, n, runlen):
+    identifier = "{name}.{n:0>4}".format(name=name, n=n)
+    prev_id = "{name}.{n:0>4}".format(name=name, n=n - 1)
+    args = ["-s", "identifier", identifier, "-s", "restart_output_filename",
+            "{identifier}.restart.h5", "-s", "runlen", "{}".format(runlen)]
+    if n:
+        args += ["-s", "restart_input_filename", "{prev_id}.restart.h5".format(prev_id=prev_id)]
+    sys.stdout.write("\n >>> {}\n\n".format(" ".join(cmd + args)))
+    sys.stdout.flush()
+    try:
+        subprocess.check_call(cmd + args)
+    except subprocess.CalledProcessError:
+        raise RuntimeError("Run {} failed, exiting".format(n))
+
+
+def resubmit(identifier, num_runs, length_per_run, veros_cmd, callback=None):
+    """Performs several runs of Veros back to back, using the previous run as restart input.
+
+    Intended to be used with scheduling systems (e.g. SLURM or PBS).
+
+    """
+    last_n_filename = LAST_N_FILENAME.format(identifier=identifier)
+
+    current_n = get_current_n(last_n_filename)
+    if current_n >= num_runs:
+        sys.exit(0)
+
+    call_veros(veros_cmd, identifier, current_n, length_per_run)
+    write_next_n(current_n + 1, last_n_filename)
+
+    if current_n >= num_runs:
+        sys.exit(0)
+
+    subprocess.Popen(callback)
+
+
+@click.command("veros-resubmit", short_help="Re-run a Veros setup several times")
+@click.option("-i", "--identifier", required=True, help="Base identifier of the simulation")
+@click.option("-n", "--num-runs", type=click.INT, required=True, help="Total number of runs")
+@click.option("-l", "--length-per-run", type=click.FLOAT, required=True,
+              help="Length (in seconds) of each run")
+@click.option("-c", "--veros-cmd", type=ShellCommand(), required=True,
+              help="The command that is used to call veros (quoted)")
+@click.option("--callback", metavar="CMD", type=ShellCommand(),
+              default=[sys.executable, __file__] + sys.argv[1:],
+              help="Command to call after each run has finished (default: call self)")
+@functools.wraps(resubmit)
+def cli(*args, **kwargs):
+    pass
+
+
+if __name__ == "__main__":
+    cli()

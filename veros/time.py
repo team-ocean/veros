@@ -15,6 +15,7 @@ SECONDS_TO_X = {key: 1. / val for key, val in X_TO_SECONDS.items()}
 def convert_time(vs, time_value, in_unit, out_unit):
     return time_value * X_TO_SECONDS[in_unit] * SECONDS_TO_X[out_unit]
 
+
 @veros_method
 def format_time(vs, time_value, in_unit="seconds"):
     all_units = X_TO_SECONDS.keys()
