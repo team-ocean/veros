@@ -2,7 +2,6 @@ FROM bohrium/ubuntu:16.04
 
 MAINTAINER Dion Häfner <mail@dionhaefner.de>
 
-
 # Set the locale
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
@@ -28,8 +27,8 @@ RUN ln -s /usr/lib/python3.5/site-packages/bohrium /usr/lib/python3/dist-package
 # Build pyOM2 with Python 2 and Python 3 support
 RUN mkdir /pyOM2
 WORKDIR /pyOM2
-ADD pyOM2.1.0.tar.gz .
-ADD pyOM2_site_specific site_specific.mk_
+COPY vendor/pyOM/pyOM2.1.0.tar.gz .
+COPY vendor/pyOM/pyOM2_site_specific site_specific.mk_
 WORKDIR /pyOM2/py_src
 
 RUN make > /dev/null
