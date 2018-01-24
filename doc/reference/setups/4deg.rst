@@ -1,4 +1,4 @@
 Global four-degree model
 ========================
 
-.. autoclass:: global_four_degree.GlobalFourDegree
+.. autoclass:: veros.setup.global_4deg.GlobalFourDegree

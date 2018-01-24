@@ -47,7 +47,7 @@ Model skeleton
 Instead of starting from scratch, we can use the :doc:`global one degree model
 </reference/setups/1deg>` as a template, which looks like this:
 
-.. literalinclude:: /../setup/global_1deg/global_one_degree.py
+.. literalinclude:: /../veros/setup/global_1deg/global_one_degree.py
   :language: python
 
 The biggest changes in the new wave propgation setup will be located in the
@@ -61,7 +61,7 @@ Step 1: Setup grid
 
 .. warning::
 
-    When using a non-uniform grid, 
+    When using a non-uniform grid,
 
 Step 2: Create idealized topography
 -----------------------------------
@@ -117,7 +117,7 @@ possibility is the free software `GIMP <https://www.gimp.org/>`_. Inside the
 editor, we can use the pencil tools to create a modified version of the
 topography mask:
 
-.. figure:: /../setup/wave_propagation/topography_idealized.png
+.. figure:: /../veros/setup/wave_propagation/topography_idealized.png
    :align: center
    :width: 600
 
@@ -143,7 +143,7 @@ To read the mask in PNG format, we are going to use the Python Imaging Library
 Step 3: Interpolate forcings & initial conditions
 -------------------------------------------------
 
-.. figure:: /../setup/wave_propagation/na_mask.png
+.. figure:: /../veros/setup/wave_propagation/na_mask.png
    :align: center
    :width: 600
 

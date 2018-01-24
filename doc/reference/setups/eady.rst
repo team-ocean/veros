@@ -1,4 +1,4 @@
 Eady model
 ==========
 
-.. autoclass:: eady.Eady
+.. autoclass:: veros.setup.eady.Eady
