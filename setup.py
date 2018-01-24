@@ -56,6 +56,8 @@ CONSOLE_SCRIPTS = [
     "veros-create-mask = veros.cli.veros_create_mask:cli"
 ]
 
+PACKAGE_DATA = ["setup/*/assets.yml", "setup/*/*.npy", "setup/*/*.png"]
+
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
@@ -77,6 +79,9 @@ setup(
     extras_require=EXTRAS_REQUIRE,
     entry_points={
         "console_scripts": CONSOLE_SCRIPTS,
+    },
+    package_data={
+        "veros": PACKAGE_DATA
     },
     classifiers=[c for c in CLASSIFIERS.split("\n") if c]
 )
