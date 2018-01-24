@@ -129,6 +129,9 @@ class ACC2(Veros):
     def set_diagnostics(self):
         pass
 
+    def after_timestep(self):
+        pass
+
 
 class RestartTest(object):
     timesteps = 10

@@ -13,13 +13,13 @@ Veros is currently being developed at Niels Bohr Institute, Copenhagen Universit
 
 Veros provides
 
-- a fully staggered **3-D grid geometry** (*C-grid*)
-- support for both **idealized and realistic configurations** in Cartesian or pseudo-spherical coordinates
-- several **friction and advection schemes** to choose from
-- isoneutral mixing, eddy-kinetic energy, turbulent kinetic energy, and internal wave energy **parameterizations**
-- several **pre-implemented diagnostics** such as energy fluxes, variable time averages, and a vertical overturning stream function (written to netCDF output)
-- **pre-configured idealized and realistic set-ups** that are ready to run and easy to adapt
-- **accessibility, readability, and extensibility** - thanks to the power of Python!
+-   a fully staggered **3-D grid geometry** (*C-grid*)
+-   support for both **idealized and realistic configurations** in Cartesian or pseudo-spherical coordinates
+-   several **friction and advection schemes** to choose from
+-   isoneutral mixing, eddy-kinetic energy, turbulent kinetic energy, and internal wave energy **parameterizations**
+-   several **pre-implemented diagnostics** such as energy fluxes, variable time averages, and a vertical overturning stream function (written to netCDF output)
+-   **pre-configured idealized and realistic set-ups** that are ready to run and easy to adapt
+-   **accessibility, readability, and extensibility** - thanks to the power of Python!
 
 ## Veros for the impatient
 
@@ -49,15 +49,15 @@ Similar package managers on OSX are [Homebrew](https://brew.sh/) or [MacPorts](h
 
 As soon as you have a working environment, installing Veros is simple:
 
-1. Clone the repository to your hard-drive:
+1.  Clone the repository to your hard-drive:
 
-       $ git clone https://github.com/dionhaefner/veros.git
+        $ git clone https://github.com/dionhaefner/veros.git
 
-2. Install it, preferably with
+2.  Install it, preferably with
 
-       $ pip install -e veros
+        $ pip install -e veros
 
-   If you use the `-e` flag, any changes you make to the model code are immediately reflected without having to re-install.
+    If you use the `-e` flag, any changes you make to the model code are immediately reflected without having to re-install.
 
 In case you want to use the Bohrium backend, you will have to install [Bohrium](https://github.com/bh107/bohrium), e.g. through `conda` or `apt-get`, or by building it from source.
 
@@ -75,5 +75,5 @@ For more information on using Veros, have a look at [our documentation](http://v
 
 Contributions to Veros are always welcome, no matter if you spotted an inaccuracy in [the documentation](http://veros.readthedocs.io), wrote a nice setup, fixed a bug, or even extended Veros' core mechanics. There are two ways to contribute:
 
-- If you want to report a bug or request a missing feature, please [open an issue](https://github.com/dionhaefner/veros/issues). If you are reporting a bug, make sure to include all relevant information for reproducing it (ideally through a *minimal* code sample).
-- If you want to fix the issue yourself, or wrote an extension for Veros - that is great! You are welcome to submit your code for review by committing it to a repository and opening a [pull request](https://github.com/dionhaefner/veros/pulls). However, before you do so, please check [the contribution guide](http://veros.readthedocs.io/quickstart/get-started.html#enhancing-veros) for some tips on testing and benchmarking, and to make sure that your modifications adhere with our style policies. Most importantly, please ensure that you follow the [PEP8 guidelines](https://www.python.org/dev/peps/pep-0008/), use *meaningful* variable names, and document your code using [Google-style docstrings](http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html).
+-   If you want to report a bug or request a missing feature, please [open an issue](https://github.com/dionhaefner/veros/issues). If you are reporting a bug, make sure to include all relevant information for reproducing it (ideally through a *minimal* code sample).
+-   If you want to fix the issue yourself, or wrote an extension for Veros - great! You are welcome to submit your code for review by committing it to a repository and opening a [pull request](https://github.com/dionhaefner/veros/pulls). However, before you do so, please check [the contribution guide](http://veros.readthedocs.io/quickstart/get-started.html#enhancing-veros) for some tips on testing and benchmarking, and to make sure that your modifications adhere with our style policies. Most importantly, please ensure that you follow the [PEP8 guidelines](https://www.python.org/dev/peps/pep-0008/), use *meaningful* variable names, and document your code using [Google-style docstrings](http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html).

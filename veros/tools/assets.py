@@ -43,9 +43,9 @@ def get_assets(basedir, asset_file):
     return {key: get_asset(val["url"], val.get("md5", None)) for key, val in assets.items()}
 
 
-def _download_file(url, target_path):
+def _download_file(url, target_path, timeout=10):
     """Download a file and save it to a folder"""
-    with requests.get(url, stream=True) as response:
+    with requests.get(url, stream=True, timeout=timeout) as response:
         response.raise_for_status()
         response.raw.decode_content = True
         with open(target_path, "wb") as dst:

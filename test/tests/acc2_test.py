@@ -1,5 +1,4 @@
 import sys
-import os
 import numpy as np
 
 from test_base import VerosRunTest
@@ -160,6 +159,10 @@ class ACC2(VerosLegacy):
     @veros_method
     def set_diagnostics(self):
         pass
+
+    def after_timestep(self):
+        pass
+
 
 class ACC2Test(VerosRunTest):
     Testclass = ACC2

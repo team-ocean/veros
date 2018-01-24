@@ -54,7 +54,7 @@ class Veros(with_metaclass(abc.ABCMeta)):
     rho_0 = 1024.  # Boussinesq reference density in :math:`kg/m^3`
     grav = 9.81  # Gravitational constant in :math:`m/s^2`
 
-    def __init__(self, backend=None, loglevel=None, logfile=None, profile=False, override=None):
+    def __init__(self, backend="numpy", loglevel="info", logfile=None, profile=False, override=None):
         self.override_settings = override or {}
         self.profile_mode = profile
         self.backend, self.backend_name = _backend.get_backend(backend)
