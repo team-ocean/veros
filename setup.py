@@ -28,7 +28,7 @@ Operating System :: MacOS
 
 INSTALL_REQUIRES = [
     "click",
-    "requests",
+    "requests>=2.18",
     "numpy>=1.13",
     "scipy",
     "netCDF4",
