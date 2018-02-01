@@ -50,9 +50,9 @@ Instead of starting from scratch, we can use the :doc:`global one degree model
 .. literalinclude:: /../veros/setup/global_1deg/global_one_degree.py
   :language: python
 
-The biggest changes in the new wave propgation setup will be located in the
+The biggest changes in the new wave propagation setup will be located in the
 :func:`set_grid` :func:`set_topography` and :func:`set_initial_conditions`
-methods to accomodate for the new geometry and the interpolation of initial
+methods to accommodate for the new geometry and the interpolation of initial
 conditions to the modified grid, so we can concentrate on implementing those
 first.
 
@@ -112,7 +112,7 @@ Modify the mask
 ~~~~~~~~~~~~~~~
 
 We can now proceed to mold this realistic version of the global topography into
-the desired idealized shape. You can use any image editor you have availble; one
+the desired idealized shape. You can use any image editor you have available; one
 possibility is the free software `GIMP <https://www.gimp.org/>`_. Inside the
 editor, we can use the pencil tools to create a modified version of the
 topography mask:
