@@ -5,7 +5,7 @@ Model variables
 
 The variable meta-data (i.e., all instances of :class:`veros.variables.Variable`)
 are available in a dictionary as the attribute :attr:`Veros.variables`. The actual
-data arrays are added directly as atrributes to :class:`Veros`. The following code
+data arrays are added directly as attributes to :class:`Veros`. The following code
 snippet (as commonly used in the :ref:`diagnostics`) illustrates this behavior:
 
 ::

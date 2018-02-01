@@ -37,7 +37,7 @@ A minimal example to install and run Veros:
 
 Currently, the only officially supported Python version for Veros is Python 2.7 (64-bit), which should be the standard Python interpreter on most systems.
 
-Veros only has two external library dependencies, namely `HDF5` and `netCDF`. The installation procedure of those libraries varies between platforms. Probably the easiest way to install Veros and its dependencies (includung Bohrium) is [Anaconda Python](https://www.continuum.io/downloads) that ships with a package manager (``conda``).
+Veros only has two external library dependencies, namely `HDF5` and `netCDF`. The installation procedure of those libraries varies between platforms. Probably the easiest way to install Veros and its dependencies (including Bohrium) is [Anaconda Python](https://www.continuum.io/downloads) that ships with a package manager (``conda``).
 
 If you do not want to use Anaconda, the most convenient way is to use your operating system's package manager. On Debian / Ubuntu, you can e.g. use
 
