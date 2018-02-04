@@ -228,7 +228,7 @@ class FourDegreeTest(VerosRunTest):
     def test_passed(self):
         differing_scalars = self.check_scalar_objects()
         differing_arrays = self.check_array_objects()
-        passed = True
+
         if differing_scalars or differing_arrays:
             print("The following attributes do not match between old and new veros:")
             for s, (v1, v2) in differing_scalars.items():
@@ -236,17 +236,8 @@ class FourDegreeTest(VerosRunTest):
             for a, (v1, v2) in differing_arrays.items():
                 if a in ("B1_gm", "B2_gm"):
                     continue
-                if v1 is None:
-                    print(a, v1, "")
-                    continue
-                if v2 is None:
-                    print(a, "", v2)
-                    continue
-                this_passed = self.check_variable(a, atol=1e-4, data=(v1, v2))
-                passed = this_passed and passed
-        return passed
+                self.check_variable(a, atol=1e-4, data=(v1, v2))
 
 
-if __name__ == "__main__":
-    passed = FourDegreeTest().run()
-    sys.exit(int(not passed))
+#def test_4deg():
+#    FourDegreeTest().run()

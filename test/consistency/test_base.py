@@ -1,5 +1,5 @@
-import sys
 import os
+import pkg_resources
 
 import numpy as np
 
@@ -36,8 +36,8 @@ class VerosLegacyDummy(VerosLegacy):
 class VerosUnitTest(object):
     legacy_modules = ("main_module", "isoneutral_module", "tke_module",
                       "eke_module", "idemix_module")
-    array_attribute_file = os.path.join(os.path.dirname(__file__), "array_attributes")
-    scalar_attribute_file = os.path.join(os.path.dirname(__file__), "scalar_attributes")
+    array_attributes = pkg_resources.resource_string("veros", "data/array_attributes").strip().split("\n")
+    scalar_attributes = pkg_resources.resource_string("veros", "data/scalar_attributes").strip().split("\n")
     extra_settings = None
     test_module = None
     test_routines = None
@@ -45,11 +45,10 @@ class VerosUnitTest(object):
     def __init__(self, dims=None, fortran=None):
         self.veros_new = VerosLegacyDummy()
         self.veros_new.pyom_compatibility_mode = True
+        fortran = fortran or os.environ.get("PYOM2_LIB")
         if not fortran:
-            try:
-                fortran = sys.argv[1]
-            except IndexError:
-                raise RuntimeError("Path to fortran library must be given via keyword argument or command line")
+            raise RuntimeError("Path to fortran library must be given via keyword argument "
+                               "or as environment variable PYOM2_LIB")
         self.veros_legacy = VerosLegacyDummy(fortran=fortran)
 
         if dims:
@@ -99,7 +98,7 @@ class VerosUnitTest(object):
             pass
         veros_legacy_attr = None
         for module in self.legacy_modules:
-            module_handle = getattr(self.veros_legacy,module)
+            module_handle = getattr(self.veros_legacy, module)
             if hasattr(module_handle, attribute):
                 veros_legacy_attr = getattr(module_handle, attribute)
         return veros_attr, veros_legacy_attr
@@ -113,28 +112,23 @@ class VerosUnitTest(object):
         veros_legacy_routine = getattr(self.veros_legacy.fortran, routine)
         return veros_routine, veros_legacy_routine
 
-    def get_all_attributes(self, attribute_file):
-        attributes = {}
-        with open(attribute_file,"r") as f:
-            for a in f:
-                a = a.strip()
-                attributes[a] = self.get_attribute(a)
-        return attributes
+    def get_all_attributes(self, attributes):
+        return {a: self.get_attribute(a) for a in attributes}
 
     def check_scalar_objects(self):
         differing_objects = {}
-        scalars = self.get_all_attributes(self.scalar_attribute_file)
-        for s, (v1,v2) in scalars.items():
+        scalars = self.get_all_attributes(self.scalar_attributes)
+        for s, (v1, v2) in scalars.items():
             if ((v1 is None) != (v2 is None)) or v1 != v2:
-                differing_objects[s] = (v1,v2)
+                differing_objects[s] = (v1, v2)
         return differing_objects
 
     def check_array_objects(self):
         differing_objects = {}
-        arrays = self.get_all_attributes(self.array_attribute_file)
-        for a, (v1,v2) in arrays.items():
-            if ((v1 is None) != (v2 is None)) or not np.array_equal(v1,v2):
-                differing_objects[a] = (v1,v2)
+        arrays = self.get_all_attributes(self.array_attributes)
+        for a, (v1, v2) in arrays.items():
+            if ((v1 is None) != (v2 is None)) or not np.array_equal(v1, v2):
+                differing_objects[a] = (v1, v2)
         return differing_objects
 
     def initialize(self):
@@ -160,15 +154,8 @@ class VerosUnitTest(object):
             v1 = v1[2:-2, 2:-2, ...]
         if v2.ndim > 1:
             v2 = v2[2:-2, 2:-2, ...]
-        passed = np.allclose(*self._normalize(v1,v2), atol=atol)
-        if not passed:
-            print("- {}: (new: {:.2e}, old: {:.2e}, diff: {:.2e})"
-                  .format(var, np.abs(v1).max(), np.abs(v2).max(), np.abs(v1-v2).max()))
-            while v1.ndim > 2:
-                v1 = v1[...,-1]
-            while v2.ndim > 2:
-                v2 = v2[...,-1]
-        return passed
+        np.testing.assert_allclose(*self._normalize(v1, v2), atol=atol)
+        return True
 
     def run(self):
         self.initialize()
@@ -177,21 +164,21 @@ class VerosUnitTest(object):
         if differing_scalars or differing_arrays:
             print("The following attributes do not match between old and new veros after initialization:")
             for s, (v1, v2) in differing_scalars.items():
-                print("{}, {}, {}".format(s,v1,v2))
+                print("{}, {}, {}".format(s, v1, v2))
             for a, (v1, v2) in differing_arrays.items():
                 if np.asarray(v1).size == 0:
                     print("{}, {!r}, {!r}".format(a, None, np.max(v2)))
                 elif np.asarray(v2).size == 0:
                     print("{}, {!r}, {!r}".format(a, np.max(v1), None))
                 else:
-                    print("{}, {!r}, {!r}".format(a,np.max(v1),np.max(v2)))
+                    print("{}, {!r}, {!r}".format(a, np.max(v1), np.max(v2)))
 
         veros_timers = {k: Timer("veros " + k) for k in self.test_routines}
         veros_legacy_timers = {k: Timer("veros legacy " + k) for k in self.test_routines}
         all_passed = True
 
         for routine in self.test_routines.keys():
-            veros_routine, veros_legacy_routine = self.get_routine(routine,self.test_module)
+            veros_routine, veros_legacy_routine = self.get_routine(routine, self.test_module)
             veros_args, veros_legacy_args = self.test_routines[routine]
             with veros_timers[routine]:
                 veros_routine(*veros_args)
@@ -213,13 +200,9 @@ class VerosRunTest(VerosUnitTest):
     extra_settings = None
 
     def __init__(self, **kwargs):
-        try:
-            self.fortran = kwargs["fortran"]
-        except KeyError:
-            try:
-                self.fortran = sys.argv[1]
-            except IndexError:
-                raise RuntimeError("Path to fortran library must be given via keyword argument or command line")
+        self.fortran = kwargs.get("fortran") or os.environ.get("PYOM2_LIB")
+        if not self.fortran:
+            raise RuntimeError("Path to fortran library must be given via keyword argument or command line")
         for attr in ("Testclass", "timesteps"):
             if getattr(self, attr) is None:
                 raise AttributeError("attribute '{}' must be set".format(attr))
@@ -241,4 +224,5 @@ class VerosRunTest(VerosUnitTest):
             self.veros_new.run()
             self.veros_legacy.fortran.main_module.runlen = self.timesteps * self.veros_new.dt_tracer
             self.veros_legacy.run()
+
         return self.test_passed()

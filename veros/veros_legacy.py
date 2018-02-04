@@ -1,6 +1,7 @@
 import imp
 import logging
 import math
+import pkg_resources
 
 from . import veros, settings
 
@@ -22,6 +23,9 @@ class LowercaseAttributeWrapper(object):
         setattr(self._w, key.lower(), value)
 
 
+ALLOCATABLE_ARRAYS = pkg_resources.resource_string("veros", "data/array_attributes").strip().split("\n")
+
+
 class VerosLegacy(veros.Veros):
     """
     An alternative Veros class that supports the pyOM Fortran interface as backend
@@ -31,12 +35,11 @@ class VerosLegacy(veros.Veros):
        Do not use this class for new setups!
 
     """
-
     def __init__(self, fortran=None, *args, **kwargs):
         """
         To use the pyOM2 legacy interface point the fortran argument to the Veros fortran library:
 
-        > simulation = GlobalOneDegree(fortran = "pyOM_code.so")
+        > simulation = GlobalOneDegree(fortran="pyOM_code.so")
 
         """
         if fortran:
@@ -65,17 +68,18 @@ class VerosLegacy(veros.Veros):
             self.eke_module = self
         self.modules = (self.main_module, self.isoneutral_module, self.idemix_module,
                         self.tke_module, self.eke_module)
+        self._reset()
 
         if self.use_mpi and self.mpi_comm.Get_rank() != 0:
             kwargs["loglevel"] = "critical"
 
         super(VerosLegacy, self).__init__(*args, **kwargs)
 
-
     def set_legacy_parameter(self, *args, **kwargs):
         m = self.fortran.main_module
         if self.use_mpi:
-            proc_combinations = [(ni, m.n_pes / ni) for ni in xrange(1, int(math.sqrt(m.n_pes)+1)) if ni * (m.n_pes / ni) == m.n_pes]
+            proc_combinations = [(ni, m.n_pes / ni) for ni in range(1, int(math.sqrt(m.n_pes) + 1))
+                                 if ni * (m.n_pes / ni) == m.n_pes]
             m.n_pes_i, m.n_pes_j = min(proc_combinations, key=lambda x: abs(x[1] - x[0]))
         self.if2py = lambda i: i + m.onx - m.is_pe
         self.jf2py = lambda j: j + m.onx - m.js_pe
@@ -146,7 +150,6 @@ class VerosLegacy(veros.Veros):
                 for diag, param, attr in diag_legacy_settings:
                     if hasattr(self, attr):
                         setattr(diag, param, getattr(self, attr))
-
 
     def run(self, **kwargs):
         if not self.legacy_mode:
@@ -246,3 +249,26 @@ class VerosLegacy(veros.Veros):
         logging.debug("     EKE                  = {}s".format(self.timers["eke"].getTime()))
         logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
         logging.debug("     TKE                  = {}s".format(self.timers["tke"].getTime()))
+
+    def _reset(self):
+        if not self.legacy_mode:
+            settings.set_default_settings(self)
+            return
+
+        for key, setting in settings.SETTINGS.items():
+            for module in self.modules:
+                if hasattr(module, key):
+                    setattr(module, key, setting.type(setting.default))
+                    break
+
+        m = self.main_module
+        m.itt = 0
+        m.taum1, m.tau, m.taup1 = 1, 2, 3
+
+        for attr in ALLOCATABLE_ARRAYS:
+            for module in self.modules:
+                if hasattr(module, attr):
+                    setattr(module, attr, None)
+                    break
+            else:
+                raise RuntimeError("Unknown allocatable %s" % attr)

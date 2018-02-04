@@ -1,4 +1,3 @@
-import sys
 import os
 import tempfile
 import numpy as np
@@ -9,6 +8,7 @@ yt_start = -39.0
 yt_end = 43
 yu_start = -40.0
 yu_end = 42
+
 
 class ACC2(Veros):
     """
@@ -104,7 +104,7 @@ class ACC2(Veros):
         taux = np.zeros(self.ny + 1, dtype=self.default_float_type)
         yt = self.yt[2:self.ny + 3]
         taux = (.1e-3 * np.sin(np.pi * (self.yu[2:self.ny + 3] - yu_start) / (-20.0 - yt_start))) * (yt < -20) \
-             + (.1e-3 * (1 - np.cos(2 * np.pi * (self.yu[2:self.ny + 3] - 10.0) / (yu_end - 10.0)))) * (yt > 10)
+            + (.1e-3 * (1 - np.cos(2 * np.pi * (self.yu[2:self.ny + 3] - 10.0) / (yu_end - 10.0)))) * (yt > 10)
         self.surface_taux[:, 2:self.ny + 3] = taux * self.maskU[:, 2:self.ny + 3, -1]
 
         # surface heatflux forcing
@@ -115,7 +115,7 @@ class ACC2(Veros):
 
         if self.enable_tke:
             self.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (self.surface_taux[2:-2, 2:-2] + self.surface_taux[1:-3, 2:-2]))**2
-                                                      + (0.5 * (self.surface_tauy[2:-2, 2:-2] + self.surface_tauy[2:-2, 1:-3]))**2)**(1.5)
+                                                        + (0.5 * (self.surface_tauy[2:-2, 2:-2] + self.surface_tauy[2:-2, 1:-3]))**2)**(1.5)
 
         if self.enable_idemix:
             self.forc_iw_bottom[:] = 1.0e-6 * self.maskW[:, :, -1]
@@ -143,7 +143,6 @@ class RestartTest(object):
         self.acc_no_restart.diskless_mode = True
         self.acc_restart = ACC2()
         self.acc_restart.restart_output_filename = self.restart_file
-
 
     def run(self):
         self.acc_no_restart.setup()
@@ -183,12 +182,10 @@ class RestartTest(object):
             if "psi" in var:
                 arr_1 = arr_1[3:-2, 2:-2]
                 arr_2 = arr_2[3:-2, 2:-2]
-            if not np.allclose(*self._normalize(arr_1, arr_2), atol=1e-7):
-                print(var, arr_1.max(), arr_2.max(), np.abs(arr_1 - arr_2).max())
-                passed = False
+            np.testing.assert_allclose(arr_1, arr_2, atol=1e-7)
         return passed
 
-    def _normalize(self,*arrays):
+    def _normalize(self, *arrays):
         if any(a.size == 0 for a in arrays):
             return arrays
         norm = np.abs(arrays[0]).max()
@@ -197,6 +194,5 @@ class RestartTest(object):
         return (a / norm for a in arrays)
 
 
-if __name__ == "__main__":
-    passed = RestartTest().run()
-    sys.exit(int(not passed))
+def test_restart():
+    RestartTest().run()

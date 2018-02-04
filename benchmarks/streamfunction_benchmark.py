@@ -1,13 +1,15 @@
-import sys
-import os
 import time
 import logging
 
-from veros import VerosLegacy, veros_method, core
+import click
+
+from veros import VerosLegacy, veros_method, core, tools
 
 
 class StreamfunctionBenchmark(VerosLegacy):
-    repetitions = 100
+    def __init__(self, timesteps, *args, **kwargs):
+        self.repetitions = timesteps
+        super(StreamfunctionBenchmark, self).__init__(*args, **kwargs)
 
     @veros_method
     def set_parameter(self):
@@ -68,7 +70,10 @@ class StreamfunctionBenchmark(VerosLegacy):
                 rhs[2:-2, 2:-2] = np.random.randn(m.ie_pe-m.is_pe+1, m.je_pe-m.js_pe+1)
                 sol = np.zeros_like(rhs)
                 start = time.time()
-                self.fortran.congrad_streamfunction(is_=m.is_pe-m.onx, ie_=m.ie_pe+m.onx, js_=m.js_pe-m.onx, je_=m.je_pe+m.onx, forc=rhs, iterations=m.congr_itts, sol=sol, converged=False)
+                self.fortran.congrad_streamfunction(
+                    is_=m.is_pe-m.onx, ie_=m.ie_pe+m.onx, js_=m.js_pe-m.onx, je_=m.je_pe+m.onx,
+                    forc=rhs, iterations=m.congr_itts, sol=sol, converged=False
+                )
             else:
                 rhs = np.zeros((self.nx+4, self.ny+4), dtype=self.default_float_type)
                 rhs[2:-2, 2:-2] = np.random.randn(self.nx, self.ny)
@@ -78,15 +83,19 @@ class StreamfunctionBenchmark(VerosLegacy):
             end = time.time()
             logging.info("Time step took {}s".format(end - start))
 
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--fortran-lib")
-    parser.add_argument("--timesteps", type=int)
-    args, _ = parser.parse_known_args()
+    @veros_method
+    def after_timestep(self):
+        pass
 
-    fortran = args.fortran_lib or None
-    sim = StreamfunctionBenchmark(fortran)
-    sim.repetitions = args.timesteps
+
+@click.option('-f', '--fortran', type=click.Path(exists=True), default=None)
+@click.option('--timesteps', type=int, default=100)
+@tools.cli
+def main(*args, **kwargs):
+    sim = StreamfunctionBenchmark(*args, **kwargs)
     sim.setup()
     sim.run()
+
+
+if __name__ == "__main__":
+    main()
