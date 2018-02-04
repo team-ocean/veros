@@ -9,5 +9,5 @@ RUN mkdir -p /veros
 WORKDIR /veros
 ADD . .
 RUN ls /veros
-RUN pip install -e .
-RUN pip3 install -e .
+RUN pip install -e .[test]
+RUN pip3 install -e .[test]

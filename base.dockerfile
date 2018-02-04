@@ -32,7 +32,7 @@ RUN mkdir -p /tmp/pyOM2
 COPY vendor/pyom2/pyOM2.1.0.tar.gz /tmp/pyOM2
 COPY vendor/pyom2/pyOM2_site_specific /tmp/pyOM2/site_specific.mk_
 
-WORKDIR /pyOM2
+WORKDIR /tmp/pyOM2
 RUN tar xzf pyOM2.1.0.tar.gz && \
     cd /tmp/pyOM2/py_src && \
     make > /dev/null && \
@@ -46,8 +46,9 @@ RUN tar xzf pyOM2.1.0.tar.gz && \
     rm -rf /tmp/pyOM2
 
 # Install optional dependencies
-RUN pip install pyopencl && \
-    pip3 install pyopencl
+RUN apt-get install -y libffi-dev && \
+    pip install mako pyopencl && \
+    pip3 install mako pyopencl
 
 RUN mkdir -p /veros
 WORKDIR /veros
