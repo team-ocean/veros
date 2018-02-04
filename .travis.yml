@@ -18,7 +18,7 @@ install:
 
 env:
   global:
-    - PYOM_DIR=/pyOM2/py_src
+    - PYOM_DIR=/usr/local/lib
   matrix:
     - VEROS_BACKEND=numpy PYTHON_EXEC=python2 PYOM2_LIB=$PYOM_DIR/pyOM_code_py2.so
     - VEROS_BACKEND=bohrium BH_STACK=openmp PYTHON_EXEC=python2 PYOM2_LIB=$PYOM_DIR/pyOM_code_py2.so
