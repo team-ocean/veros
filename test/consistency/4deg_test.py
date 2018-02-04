@@ -1,17 +1,16 @@
-import sys
 import logging
 import pkg_resources
 
 import numpy as np
 from netCDF4 import Dataset
 
-from test_base import VerosRunTest
-from veros import VerosLegacy, veros_method, tools
+from test_base import VerosRunTest, VerosLegacyDummy
+from veros import veros_method, tools
 
 DATA_FILES = tools.get_assets("global_4deg", pkg_resources.resource_filename("veros", "setup/global_4deg/assets.yml"))
 
 
-class GlobalFourDegree(VerosLegacy):
+class GlobalFourDegree(VerosLegacyDummy):
     """ global 4 deg model with 15 levels
     """
     def set_parameter(self):
@@ -239,5 +238,5 @@ class FourDegreeTest(VerosRunTest):
                 self.check_variable(a, atol=1e-4, data=(v1, v2))
 
 
-#def test_4deg():
-#    FourDegreeTest().run()
+def test_4deg():
+    FourDegreeTest().run()

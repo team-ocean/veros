@@ -15,8 +15,6 @@ class IsoneutralTest(VerosUnitTest):
     test_module = isoneutral
 
     def initialize(self):
-        m = self.veros_legacy.main_module
-
         for a in ("iso_slopec", "iso_dslope", "K_iso_steep", "dt_tracer", "dt_mom"):
             self.set_attribute(a, np.random.rand())
 
@@ -49,8 +47,9 @@ class IsoneutralTest(VerosUnitTest):
 
         istemp = bool(np.random.randint(0, 2))
 
-        veros_args = (self.veros_new, self.veros_new.temp, istemp)
-        veros_legacy_args = dict(is_=-1, ie_=m.nx + 2, js_=-1, je_=m.ny + 2, nz_=m.nz, tr=m.temp, istemp=istemp)
+        veros_args = (self.veros_new, self.veros_new.temp.copy(), istemp)
+        veros_legacy_args = dict(is_=-1, ie_=self.nx + 2, js_=-1, je_=self.ny + 2, nz_=self.nz,
+                                 tr=self.veros_legacy.get_fortran_attribute("temp"), istemp=istemp)
 
         self.test_routines = OrderedDict()
         self.test_routines["isoneutral_diffusion_pre"] = ((self.veros_new, ), dict())
@@ -72,7 +71,8 @@ class IsoneutralTest(VerosUnitTest):
             for v in ("K_diss_gm", "u", "du_mix", "v", "dv_mix", "flux_top"):
                 self.check_variable(v)
         else:
-            for f in ("flux_east", "flux_north", "flux_top", "dtemp_iso", "dsalt_iso", "temp", "salt", "P_diss_iso"):
+            for f in ("flux_east", "flux_north", "flux_top", "dtemp_iso", "dsalt_iso",
+                      "temp", "salt", "P_diss_iso"):
                 self.check_variable(f)
 
 

@@ -59,12 +59,12 @@ class MomentumTest(VerosUnitTest):
 
         numerics.calc_grid(self.veros_new)
         numerics.calc_topo(self.veros_new)
-        self.veros_legacy.fortran.calc_grid()
-        self.veros_legacy.fortran.calc_topo()
+        self.veros_legacy.call_fortran_routine("calc_grid")
+        self.veros_legacy.call_fortran_routine("calc_topo")
 
         if self.first:
             external.streamfunction_init(self.veros_new)
-            self.veros_legacy.fortran.streamfunction_init()
+            self.veros_legacy.call_fortran_routine("streamfunction_init")
             self.first = False
 
         self.test_module = momentum
@@ -77,8 +77,10 @@ class MomentumTest(VerosUnitTest):
 
     def test_passed(self, routine):
         for f in ("flux_east", "flux_north", "flux_top", "u", "v", "w", "K_diss_v", "du_adv", "dv_adv", "du", "dv",
-                  "K_diss_bot", "K_diss_h", "du_mix", "dv_mix", "psi", "dpsi", "du_cor", "dv_cor"):
+                  "K_diss_bot", "du_mix", "dv_mix", "psi", "dpsi", "du_cor", "dv_cor"):
             self.check_variable(f)
+        for f in ("K_diss_h"):
+            self.check_variable(f, atol=1e-7)
 
 
 def test_momentum():

@@ -129,9 +129,11 @@ SETTINGS = OrderedDict([
     ("use_amg_preconditioner", Setting(True, bool, "Use AMG preconditioner in Poisson solver if pyamg is installed."))
 ])
 
+
 def set_default_settings(vs):
     for key, setting in SETTINGS.items():
         setattr(vs, key, setting.type(setting.default))
+
 
 def check_setting_conflicts(vs):
     if vs.enable_tke and not vs.enable_implicit_vert_friction:

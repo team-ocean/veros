@@ -1,7 +1,6 @@
 import imp
 import logging
 import math
-import pkg_resources
 
 from . import veros, settings
 
@@ -21,9 +20,6 @@ class LowercaseAttributeWrapper(object):
 
     def __setattr__(self, key, value):
         setattr(self._w, key.lower(), value)
-
-
-ALLOCATABLE_ARRAYS = pkg_resources.resource_string("veros", "data/array_attributes").strip().split("\n")
 
 
 class VerosLegacy(veros.Veros):
@@ -68,7 +64,6 @@ class VerosLegacy(veros.Veros):
             self.eke_module = self
         self.modules = (self.main_module, self.isoneutral_module, self.idemix_module,
                         self.tke_module, self.eke_module)
-        self._reset()
 
         if self.use_mpi and self.mpi_comm.Get_rank() != 0:
             kwargs["loglevel"] = "critical"
@@ -239,36 +234,13 @@ class VerosLegacy(veros.Veros):
             m.tau = m.taup1
             m.taup1 = otaum1
 
-            logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
+            logging.debug("Time step took {}s".format(self.timers["main"].get_last_time()))
 
         logging.debug("Timing summary:")
-        logging.debug(" setup time summary       = {}s".format(self.timers["setup"].getTime()))
-        logging.debug(" main loop time summary   = {}s".format(self.timers["main"].getTime()))
-        logging.debug("     momentum             = {}s".format(self.timers["momentum"].getTime()))
-        logging.debug("     thermodynamics       = {}s".format(self.timers["temperature"].getTime()))
-        logging.debug("     EKE                  = {}s".format(self.timers["eke"].getTime()))
-        logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
-        logging.debug("     TKE                  = {}s".format(self.timers["tke"].getTime()))
-
-    def _reset(self):
-        if not self.legacy_mode:
-            settings.set_default_settings(self)
-            return
-
-        for key, setting in settings.SETTINGS.items():
-            for module in self.modules:
-                if hasattr(module, key):
-                    setattr(module, key, setting.type(setting.default))
-                    break
-
-        m = self.main_module
-        m.itt = 0
-        m.taum1, m.tau, m.taup1 = 1, 2, 3
-
-        for attr in ALLOCATABLE_ARRAYS:
-            for module in self.modules:
-                if hasattr(module, attr):
-                    setattr(module, attr, None)
-                    break
-            else:
-                raise RuntimeError("Unknown allocatable %s" % attr)
+        logging.debug(" setup time summary       = {}s".format(self.timers["setup"].get_time()))
+        logging.debug(" main loop time summary   = {}s".format(self.timers["main"].get_time()))
+        logging.debug("     momentum             = {}s".format(self.timers["momentum"].get_time()))
+        logging.debug("     thermodynamics       = {}s".format(self.timers["temperature"].get_time()))
+        logging.debug("     EKE                  = {}s".format(self.timers["eke"].get_time()))
+        logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].get_time()))
+        logging.debug("     TKE                  = {}s".format(self.timers["tke"].get_time()))

@@ -18,8 +18,9 @@ class TridiagTest(VerosUnitTest):
         out_legacy = np.zeros((self.nx, self.ny, self.nz))
         for i in range(self.nx):
             for j in range(self.ny):
-                out_legacy[i, j] = self.veros_legacy.fortran.solve_tridiag(
-                    a=a[i, j], b=b[i, j], c=c[i, j], d=d[i, j], n=self.nz)
+                out_legacy[i, j] = self.veros_legacy.call_fortran_routine(
+                    "solve_tridiag", a=a[i, j], b=b[i, j], c=c[i, j], d=d[i, j], n=self.nz
+                )
 
         if self.veros_new.backend_name == "bohrium":
             import bohrium as bh

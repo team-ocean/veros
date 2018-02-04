@@ -1,7 +1,7 @@
 import numpy as np
 
-from test_base import VerosRunTest
-from veros import VerosLegacy, veros_method
+from test_base import VerosRunTest, VerosLegacyDummy
+from veros import veros_method
 
 yt_start = -39.0
 yt_end = 43
@@ -9,7 +9,7 @@ yu_start = -40.0
 yu_end = 42
 
 
-class ACC2(VerosLegacy):
+class ACC2(VerosLegacyDummy):
     """
     A simple global model with a Southern Ocean and Atlantic part
     """

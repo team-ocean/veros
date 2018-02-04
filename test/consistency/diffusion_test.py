@@ -15,8 +15,6 @@ class DiffusionTest(VerosUnitTest):
     }
 
     def initialize(self):
-        m = self.veros_legacy.main_module
-
         self.set_attribute("hor_friction_cosPower", np.random.randint(1, 5))
 
         for a in ("dt_tracer", "K_hbi", "K_h"):
@@ -43,9 +41,9 @@ class DiffusionTest(VerosUnitTest):
 
         self.set_attribute("kbot", np.random.randint(0, self.nz, size=(self.nx + 4, self.ny + 4)))
         numerics.calc_topo(self.veros_new)
-        self.veros_legacy.fortran.calc_topo()
+        self.veros_legacy.call_fortran_routine("calc_topo")
 
-        self.set_attribute("P_diss_hmix", np.random.randn(self.nx + 4, self.ny + 4, self.nz) * m.maskT)
+        self.set_attribute("P_diss_hmix", np.random.randn(self.nx + 4, self.ny + 4, self.nz) * self.veros_new.maskT)
         self.test_module = diffusion
         veros_args = (self.veros_new, )
         veros_legacy_args = dict()
@@ -57,14 +55,10 @@ class DiffusionTest(VerosUnitTest):
         )
 
     def test_passed(self, routine):
-        all_passed = True
         for f in ("flux_east", "flux_north", "flux_top", "temp", "salt", "P_diss_hmix",
                   "dtemp_hmix", "dsalt_hmix", "P_diss_sources"):
-            passed = self.check_variable(f)
-            if not passed:
-                all_passed = False
-        return all_passed
+            self.check_variable(f)
 
 
 def test_diffusion():
-    assert DiffusionTest().run()
+    DiffusionTest().run()

@@ -59,7 +59,7 @@ class IdemixTest(VerosUnitTest):
     def test_passed(self, routine):
         if routine == "set_idemix_parameter":
             for v in ("c0", "v0", "alpha_c"):
-                self.check_variable(v)
+                self.check_variable(v, atol=1e-7)
         elif routine == "integrate_idemix":
             for v in ("E_iw", "dE_iw", "iw_diss", "flux_east", "flux_north", "flux_top"):
                 self.check_variable(v)

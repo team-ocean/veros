@@ -20,11 +20,11 @@ class FrictionTest(VerosUnitTest):
         for a in ("dt_mom", "r_bot", "r_quad_bot", "A_h", "A_hbi", "x_origin", "y_origin"):
             self.set_attribute(a, np.random.rand())
 
-        for a in ("dxt", "dxu"):
-            self.set_attribute(a, np.random.randint(1, 100, size=self.nx + 4).astype(np.float))
+        for a in ("dxt", ):
+            self.set_attribute(a, np.ones(self.nx + 4) * np.random.rand())
 
-        for a in ("dyt", "dyu"):
-            self.set_attribute(a, np.random.randint(1, 100, size=self.ny + 4).astype(np.float))
+        for a in ("dyt", ):
+            self.set_attribute(a, np.ones(self.ny + 4) * np.random.rand())
 
         for a in ("cosu", "cost"):
             self.set_attribute(a, np.random.rand(self.ny + 4) + 1)
@@ -55,8 +55,8 @@ class FrictionTest(VerosUnitTest):
 
         numerics.calc_grid(self.veros_new)
         numerics.calc_topo(self.veros_new)
-        self.veros_legacy.fortran.calc_grid()
-        self.veros_legacy.fortran.calc_topo()
+        self.veros_legacy.call_fortran_routine("calc_grid")
+        self.veros_legacy.call_fortran_routine("calc_topo")
 
         self.test_module = friction
         veros_args = (self.veros_new, )
@@ -68,14 +68,10 @@ class FrictionTest(VerosUnitTest):
         )}
 
     def test_passed(self, routine):
-        all_passed = True
         for f in ("flux_east", "flux_north", "flux_top", "u", "v", "w", "K_diss_v",
                   "K_diss_bot", "K_diss_h", "du_mix", "dv_mix"):
-            passed = self.check_variable(f)
-            if not passed:
-                all_passed = False
-        return all_passed
+            self.check_variable(f)
 
 
 def test_friction():
-    assert FrictionTest().run()
+    FrictionTest().run()

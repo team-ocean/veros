@@ -43,14 +43,12 @@ class StreamfunctionTest(VerosUnitTest):
         self.set_attribute("kbot", kbot)
 
         for r in ("calc_grid", "calc_topo"):
-            num_new, num_legacy = self.get_routine(r, submodule=numerics)
-            num_new(self.veros_new)
-            num_legacy()
+            getattr(numerics, r)(self.veros_new)
+            self.veros_legacy.call_fortran_routine(r)
 
         if self.first:
-            init_new, init_legacy = self.get_routine("streamfunction_init", submodule=external)
-            init_new(self.veros_new)
-            init_legacy()
+            external.streamfunction_init(self.veros_new)
+            self.veros_legacy.call_fortran_routine("streamfunction_init")
             self.first = False
 
         self.test_module = external

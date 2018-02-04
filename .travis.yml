@@ -28,8 +28,8 @@ env:
     - BACKEND=bohrium BH_STACK=opencl PYTHON_EXEC=python3 PYOM2_LIB=$PYOM_DIR/pyOM_code_py3.so
 
 script:
-  - docker run -e BH_STACK -t veros -- $PYTHON_EXEC -c "import pprint; import bohrium; pprint.pprint(bohrium.bh_info.info())"
-  - docker run -e BH_STACK -e PYOM2_LIB -e VEROS_BACKEND -t veros -- $PYTHON_EXEC -m pytest -v
+  - docker run -e BH_STACK -t veros $PYTHON_EXEC -c "import pprint; import bohrium; pprint.pprint(bohrium.bh_info.info())"
+  - docker run -e BH_STACK -e PYOM2_LIB -e VEROS_BACKEND -t veros "$PYTHON_EXEC -m pytest -v --cov=./ && codecov"
 
 notifications:
   email: false

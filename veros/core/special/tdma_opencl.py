@@ -1,33 +1,24 @@
-try:
-    from functools import lru_cache
-except ImportError:
-    from backports.functools_lru_cache import lru_cache
-import logging
 import functools
 import operator
 
-import pyopencl as cl
 
-
-@lru_cache()
 def compile_tdma(sys_depth, dtype):
-    logging.debug("Re-compiling TDMA kernel")
-
+    import pyopencl as cl
     import bohrium as bh
     ctx = bh.interop_pyopencl.get_context()
     source = """
         kernel void tdma(
-            global DTYPE *a,
-            global DTYPE *b,
-            global DTYPE *c,
-            global DTYPE *d,
-            global DTYPE *solution
+            global {dtype:d} *a,
+            global {dtype:d} *b,
+            global {dtype:d} *c,
+            global {dtype:d} *d,
+            global {dtype:d} *solution
         ){
             const int m = SYS_DEPTH;
             const int idx = get_global_id(0) * m;
 
-            private DTYPE cp[SYS_DEPTH];
-            private DTYPE dp[SYS_DEPTH];
+            private {dtype:d} cp[{sys_depth:d}];
+            private {dtype:d} dp[{sys_depth:d}];
             cp[0] = c[idx] / b[idx];
             dp[0] = d[idx] / b[idx];
             for (int j=1; j < m; ++j) {
@@ -41,14 +32,13 @@ def compile_tdma(sys_depth, dtype):
                 solution[idx + j] = dp[j] - cp[j] * solution[idx + j+1];
             }
         }
-    """
-    source = source.replace("SYS_DEPTH", "%d" % sys_depth)
-    source = source.replace("DTYPE", dtype)
+    """.format(sys_depth=sys_depth, dtype=dtype)
     prg = cl.Program(ctx, source).build()
     return prg
 
 
 def tdma(a, b, c, d, workgrp_size=None):
+    import pyopencl as cl
     import bohrium as bh
 
     assert a.shape == b.shape == c.shape == d.shape

@@ -63,8 +63,10 @@ class EKETest(VerosUnitTest):
     def test_passed(self, routine):
         for f in ("flux_east", "flux_north", "flux_top", "eke", "deke", "hrms_k0", "L_rossby",
                   "L_rhines", "eke_len", "K_gm", "kappa_gm", "K_iso", "sqrteke", "c_lee", "c_Ri_diss",
-                  "eke_diss_iw", "eke_diss_tke", "eke_lee_flux", "eke_bot_flux"):
+                  "eke_diss_tke", "eke_lee_flux", "eke_bot_flux"):
             self.check_variable(f)
+        for f in ("eke_diss_iw", ):
+            self.check_variable(f, atol=1e-7)
 
 
 def test_eke():
