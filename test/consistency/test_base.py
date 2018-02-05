@@ -1,12 +1,20 @@
 import os
-import pkg_resources
 import multiprocessing.managers
 
 import numpy as np
 np.random.seed(17)
 
-from veros import VerosLegacy, variables
+from veros import VerosLegacy, variables, settings
 from veros.timer import Timer
+
+
+here = os.path.dirname(os.path.realpath(__file__))
+
+with open(os.path.join(here, "array_attributes"), "r") as f:
+    ARRAY_ATTRIBUTES = [line for line in map(lambda l: l.strip(), f) if line]
+
+with open(os.path.join(here, "scalar_attributes"), "r") as f:
+    SCALAR_ATTRIBUTES = [line for line in map(lambda l: l.strip(), f) if line]
 
 
 class VerosLegacyDummy(VerosLegacy):
@@ -62,8 +70,8 @@ class VerosLegacyDummy(VerosLegacy):
 class VerosUnitTest(object):
     legacy_modules = ("main_module", "isoneutral_module", "tke_module",
                       "eke_module", "idemix_module")
-    array_attributes = pkg_resources.resource_string("veros", "data/array_attributes").strip().split("\n")
-    scalar_attributes = pkg_resources.resource_string("veros", "data/scalar_attributes").strip().split("\n")
+    array_attributes = ARRAY_ATTRIBUTES
+    scalar_attributes = SCALAR_ATTRIBUTES
     extra_settings = None
     test_module = None
     test_routines = None
