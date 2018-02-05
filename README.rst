@@ -1,9 +1,7 @@
+|Documentation Status| |Build Status| |Code Coverage|
+
 .. figure:: doc/_images/veros-logo-400px.png?raw=true
    :alt: Veros
-
-   Veros
-
-|Documentation Status| |Build Status|
 
 Veros, the *versatile ocean simulator*, is just that: A powerful tool
 that makes high-performance ocean modeling approachable and fun. Since
@@ -163,3 +161,5 @@ are two ways to contribute:
    :target: http://veros.readthedocs.io/?badge=latest
 .. |Build Status| image:: https://travis-ci.org/dionhaefner/veros.svg?branch=master
    :target: https://travis-ci.org/dionhaefner/veros
+.. |Code Coverage| image:: https://codecov.io/gh/dionhaefner/veros/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/dionhaefner/veros
