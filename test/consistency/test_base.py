@@ -177,9 +177,7 @@ class VerosUnitTest(object):
             v1, v2 = self.get_attribute(var)
         else:
             v1, v2 = data
-        if v1 is None or v2 is None:
-            print("Variable {} is None".format(var))
-            return False
+        assert v1 is not None and v2 is not None
         if v1.ndim > 1:
             v1 = v1[2:-2, 2:-2, ...]
         if v2.ndim > 1:

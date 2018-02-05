@@ -79,7 +79,7 @@ class MomentumTest(VerosUnitTest):
         for f in ("flux_east", "flux_north", "flux_top", "u", "v", "w", "K_diss_v", "du_adv", "dv_adv", "du", "dv",
                   "K_diss_bot", "du_mix", "dv_mix", "psi", "dpsi", "du_cor", "dv_cor"):
             self.check_variable(f)
-        for f in ("K_diss_h"):
+        for f in ("K_diss_h", ):
             self.check_variable(f, atol=1e-7)
 
 
