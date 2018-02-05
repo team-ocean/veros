@@ -81,10 +81,15 @@ Running Veros
 
 After adapting your setup script, you are ready to run your first simulation. It is advisable to include something like::
 
+   @veros.tools.cli
+   def run(*args, **kwargs):
+       simulation = MyVerosSetup()
+       simulation.setup()
+       simulation.run()
+
    if __name__ == "__main__":
-      simulation = MyVerosSetup()
-      simulation.setup()
-      simulation.run()
+       run()
+
 
 in your setup file, so you can run it as a script: ::
 
@@ -92,7 +97,7 @@ in your setup file, so you can run it as a script: ::
 
 However, you are not required to do so, and you are welcome to write include your simulation class into other Python files and call it dynamically or interactively (e.g. in an IPython session).
 
-All Veros setups accept additional options via the command line when called as a script or as arguments to their :func:`__init__` function when called from another Python module. You can check the available commands through ::
+All Veros setups decorated with :func:`veros.tools.cli` accept additional options via the command line when called as a script or as arguments to their :func:`__init__` function when called from another Python module. You can check the available commands through ::
 
    $ python my_setup.py --help
 
@@ -170,9 +175,10 @@ Running tests and benchmarks
 If you want to make sure that your changes did not break anything, you can run our test suite that compares the results of each subroutine to pyOM2.
 To do that, you will need to compile the Python interface of pyOM2 on your machine, and then point the testing suite to the library location, e.g. through::
 
-   $ python run_tests.py /path/to/pyOM2/py_src/pyOM_code.so
+   $ export PYOM2_LIB=/path/to/pyOM2/py_src/pyOM_code.so
+   $ pytest -v
 
-from Veros's :file:`test` folder.
+from the main folder of the Veros repository.
 
 If you deliberately introduced breaking changes, you can disable them during testing by prefixing them with::
 
@@ -183,7 +189,7 @@ Automated benchmarks are provided in a similar fashion. The benchmarks run some 
 
    $ python run_benchmarks.py --help
 
-from the :file:`test` folder. Timings are written in JSON format.
+from the :file:`test` folder. Timings are written in YAML format.
 
 Performance tweaks
 ++++++++++++++++++
