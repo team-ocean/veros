@@ -33,8 +33,10 @@ script:
       import bohrium; \
       pprint.pprint(bohrium.bh_info.info()) \"\
     "
-  - "docker run -e BH_STACK -e PYOM2_LIB -e VEROS_BACKEND -t veros \
+  - bash <(curl -s https://codecov.io/env)
+  - "docker run \
       `bash <(curl -s https://codecov.io/env)` \
+      -e BH_STACK -e PYOM2_LIB -e VEROS_BACKEND -t veros \
       /bin/bash -c \"$PYTHON_EXEC -m pytest -v --cov=veros && codecov\"\
     "
 
