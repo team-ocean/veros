@@ -56,7 +56,7 @@ To run Veros, you need to set up a model - i.e., specify which settings and mode
 
     $ veros copy-setup acc
 
-By working through the existing models, you should quickly be able to figure out how to write your own simulation. Just keep in mind this genral advice:
+By working through the existing models, you should quickly be able to figure out how to write your own simulation. Just keep in mind this general advice:
 
 - You can (and should) use any (external) Python tools you want in your model setup. Before implementing a certain functionality, you should check whether it is already provided by a common library. Especially `the SciPy module family <https://www.scipy.org/>`_ provides countless implementations of common scientific functions (and SciPy is installed along with Veros).
 
@@ -72,7 +72,7 @@ By working through the existing models, you should quickly be able to figure out
 
 - If you are curious about the general procedure in which a model is set up and ran, you should read the source code of :class:`veros.Veros` (especially the :meth:`setup` and :meth:`run` methods). This is also the best way to find out about the order in which methods and routines are called.
 
-- Out of all functions that need to be imlpemented by your subclass of :class:`veros.Veros`, the only one that is called in every time step is :meth:`set_forcing` (at the beginning of each iteration). This implies that, to achive optimal performance, you should consider moving calculations that are constant in time to other functions.
+- Out of all functions that need to be implemented by your subclass of :class:`veros.Veros`, the only one that is called in every time step is :meth:`set_forcing` (at the beginning of each iteration). This implies that, to achieve optimal performance, you should consider moving calculations that are constant in time to other functions.
 
 If you want to learn more about setting up advanced configurations, you should :doc:`check out our tutorial </tutorial/wave-propagation>` that walks you through the creation of a realistic configuration with an idealized Atlantic.
 
@@ -192,7 +192,7 @@ If your changes to Veros turn out to have a negative effect on the runtime of th
 
 - Run your model with the :option:`-v debug` option to get additional debugging output (such as timings for each time step, and a timing summary after the run has finished).
 - Run your model with the :option:`-p` option to profile Veros with pyinstrument. You may have to run :command:`pip install pyinstrument` before being able to do so. After completion of the run, a file :file:`profile.html` will be written that can be opened with a web browser and contains timings for the entire call stack.
-- You should try and avoid explict loops over arrays at all cost (even more so when using Bohrium). You should always try to work on the whole array at once.
+- You should try and avoid explicit loops over arrays at all cost (even more so when using Bohrium). You should always try to work on the whole array at once.
 - When using Bohrium, it is sometimes beneficial to copy an array to NumPy before passing it to an external module or performing an operation that cannot be vectorized efficiently. Just don't forget to copy it back to Bohrium after you are finished, e.g. like so: ::
 
       if vs.backend_name == "bohrium":
