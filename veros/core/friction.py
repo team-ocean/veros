@@ -185,7 +185,7 @@ def linear_bottom_friction(vs):
             diss[1:-2, 2:-2] = vs.maskU[1:-2, 2:-2] * vs.r_bot * vs.u[1:-2, 2:-2, :, vs.tau]**2 * mask
             vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'U')
 
-        k = np.maximum(vs.kbot[2:-2, 2:-1], vs.kbot[2:-2, 1:-2]) - 1horizontal biharmonic friction
+        k = np.maximum(vs.kbot[2:-2, 2:-1], vs.kbot[2:-2, 1:-2]) - 1
         mask = np.arange(vs.nz) == k[:, :, np.newaxis]
         vs.dv_mix[2:-2, 1:-2] += -vs.maskV[2:-2, 1:-2] * vs.r_bot * vs.v[2:-2, 1:-2, :, vs.tau] * mask
         if vs.enable_conserve_energy:
