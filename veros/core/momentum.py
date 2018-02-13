@@ -43,7 +43,8 @@ def momentum(vs):
                / (vs.dyu[np.newaxis, 2:-2, np.newaxis] * vs.cosu[np.newaxis, 2:-2, np.newaxis])
                + vs.tantr[np.newaxis, 3:-1, np.newaxis]
                * (vs.u[2:-2, 3:-1, :, vs.tau] + vs.u[1:-3, 3:-1, :, vs.tau])**2
-               * vs.dyt[np.newaxis, 3:-1, np.newaxis] * vs.cost[np.newaxis, 3:-1, np.newaxis]
+               * vs.dyt[np.newaxis, 3:-1, np.newaxis] * vs.cost[np.newaxis, 3:-
+               1, np.newaxis]
                / (vs.dyu[np.newaxis, 2:-2, np.newaxis] * vs.cosu[np.newaxis, 2:-2, np.newaxis]))
 
     """

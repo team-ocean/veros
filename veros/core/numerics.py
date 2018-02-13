@@ -184,7 +184,7 @@ def calc_topo(vs):
         cyclic.setcyclic_x(vs.maskZ)
     vs.maskW[...] = vs.maskT
     vs.maskW[:, :, :vs.nz - 1] = np.minimum(vs.maskT[:, :, :vs.nz - 1], vs.maskT[:, :, 1:vs.nz])
-
+    
     """
     total depth
     """
