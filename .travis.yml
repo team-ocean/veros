@@ -29,9 +29,8 @@ env:
 
 script:
   - "docker run -e BH_STACK -t veros $PYTHON_EXEC -c \"\
-      import pprint; \
       import bohrium; \
-      pprint.pprint(bohrium.bh_info.info()) \
+      print(bohrium.bh_info.info()) \
       \"\
     "
   - "docker run \
