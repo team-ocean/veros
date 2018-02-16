@@ -44,7 +44,8 @@ class EKETest(VerosPyOMUnitTest):
             self.set_attribute(a, np.random.randn(self.nx + 4, self.ny + 4))
 
         for a in ("eke_len", "K_diss_h", "K_diss_gm", "P_diss_skew", "P_diss_hmix", "P_diss_iso",
-                  "kappaM", "eke_diss_iw", "eke_diss_tke", "K_gm", "flux_east", "flux_north", "flux_top", "L_rhines"):
+                  "kappaM", "eke_diss_iw", "eke_diss_tke", "K_gm", "flux_east", "flux_north", "flux_top",
+                  "L_rhines", "c_Ri_diss"):
             self.set_attribute(a, np.random.randn(self.nx + 4, self.ny + 4, self.nz))
 
         for a in ("eke", "deke", "Nsqr", "u", "v"):
@@ -65,10 +66,9 @@ class EKETest(VerosPyOMUnitTest):
 
     def test_passed(self, routine):
         for f in ("flux_east", "flux_north", "flux_top", "eke", "deke", "hrms_k0", "L_rossby",
-                  "L_rhines", "eke_len", "K_gm", "kappa_gm", "K_iso", "sqrteke", "c_lee", "c_Ri_diss"):
+                  "L_rhines", "eke_len", "K_gm", "kappa_gm", "K_iso", "sqrteke", "c_lee", "c_Ri_diss",
+                  "eke_diss_iw", "eke_diss_tke", "eke_lee_flux", "eke_bot_flux"):
             self.check_variable(f)
-        for f in ("eke_diss_iw", "eke_diss_tke", "eke_lee_flux", "eke_bot_flux"):
-            self.check_variable(f, atol=1e-6)
 
 
 @pytest.mark.pyom
