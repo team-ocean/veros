@@ -50,7 +50,7 @@ class IsoneutralTest(VerosPyOMUnitTest):
 
         istemp = bool(np.random.randint(0, 2))
 
-        veros_args = (self.veros_new, self.veros_new.temp.copy(), istemp)
+        veros_args = (self.veros_new, self.veros_new.temp, istemp)
         veros_legacy_args = dict(is_=-1, ie_=self.nx + 2, js_=-1, je_=self.ny + 2, nz_=self.nz,
                                  tr=self.veros_legacy.get_fortran_attribute("temp"), istemp=istemp)
 

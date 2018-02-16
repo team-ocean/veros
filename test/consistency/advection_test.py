@@ -38,8 +38,8 @@ class AdvectionTest(VerosPyOMUnitTest):
         self.veros_legacy.call_fortran_routine("calc_topo")
 
         self.test_module = advection
-        veros_args = (self.veros_new, self.veros_new.flux_east.copy(), self.veros_new.flux_north.copy(),
-                      self.veros_new.flux_top.copy(), self.veros_new.Hd[..., 1])
+        veros_args = (self.veros_new, self.veros_new.flux_east, self.veros_new.flux_north,
+                      self.veros_new.flux_top, self.veros_new.Hd[..., 1])
         veros_legacy_args = dict(
             is_=-1, ie_=self.nx + 2, js_=-1, je_=self.ny + 2, nz_=self.nz,
             adv_fe=self.veros_legacy.get_fortran_attribute("flux_east"),

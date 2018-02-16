@@ -35,7 +35,6 @@ INSTALL_REQUIRES = [
     "h5py",
     "pillow",
     "ruamel.yaml",
-    "backports.functools_lru_cache",
     "future"
 ]
 
@@ -45,7 +44,7 @@ EXTRAS_REQUIRE = {
     "gpu": ["bohrium", "pyopencl"],
     "postprocessing": ["xarray", "matplotlib"],
     "dev": ["pyinstrument", "versioneer"],
-    "test": ["pytest", "pytest-cov", "codecov"]
+    "test": ["pytest", "pytest-cov", "pytest-xdist", "codecov"]
 }
 EXTRAS_REQUIRE["all"] = sorted(set(sum(EXTRAS_REQUIRE.values(), [])))
 

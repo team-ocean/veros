@@ -175,8 +175,7 @@ Running tests and benchmarks
 If you want to make sure that your changes did not break anything, you can run our test suite that compares the results of each subroutine to pyOM2.
 To do that, you will need to compile the Python interface of pyOM2 on your machine, and then point the testing suite to the library location, e.g. through::
 
-   $ export PYOM2_LIB=/path/to/pyOM2/py_src/pyOM_code.so
-   $ pytest -v
+   $ pytest -v --pyom2-lib /path/to/pyOM2/py_src/pyOM_code.so test
 
 from the main folder of the Veros repository.
 

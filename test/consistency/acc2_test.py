@@ -181,7 +181,7 @@ class ACC2Test(VerosPyOMSystemTest):
             for a, (v1, v2) in differing_arrays.items():
                 if "salt" in a or a in ("B1_gm", "B2_gm"): # salt and isoneutral streamfunctions aren't used by this example
                     continue
-                self.check_variable(a, atol=1e-5, data=(v1, v2))
+                self.check_variable(a, atol=1e-6, data=(v1, v2))
 
 
 @pytest.mark.pyom

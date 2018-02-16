@@ -1,4 +1,4 @@
-|Documentation Status| |Build Status| |Code Coverage|
+|Documentation Status| |Build Status| |Code Coverage| |DOI|
 
 .. figure:: doc/_images/veros-logo-400px.png?raw=true
    :alt: Veros
@@ -163,3 +163,5 @@ are two ways to contribute:
    :target: https://travis-ci.org/dionhaefner/veros
 .. |Code Coverage| image:: https://codecov.io/gh/dionhaefner/veros/branch/master/graph/badge.svg
    :target: https://codecov.io/gh/dionhaefner/veros
+.. |DOI| image:: https://zenodo.org/badge/87419383.svg
+   :target: https://zenodo.org/badge/latestdoi/87419383

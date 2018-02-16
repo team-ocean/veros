@@ -182,7 +182,7 @@ class RestartTest(object):
             if "psi" in var:
                 arr_1 = arr_1[3:-2, 2:-2]
                 arr_2 = arr_2[3:-2, 2:-2]
-            np.testing.assert_allclose(arr_1, arr_2, atol=1e-7)
+            np.testing.assert_allclose(*self._normalize(arr_1, arr_2), atol=1e-7)
         return passed
 
     def _normalize(self, *arrays):

@@ -1,10 +1,9 @@
 import os
-import multiprocessing.managers
 
 import numpy as np
 np.random.seed(17)
 
-from veros import VerosLegacy, variables, settings
+from veros import VerosLegacy, variables
 from veros.timer import Timer
 
 
@@ -80,15 +79,7 @@ class VerosPyOMUnitTest(object):
         self.veros_new = VerosLegacyDummy()
         self.veros_new.pyom_compatibility_mode = True
 
-        class VerosLegacyManager(multiprocessing.managers.BaseManager):
-            pass
-
-        #VerosLegacyManager.register("VerosLegacyDummy", VerosLegacyDummy)
-
-        #self._manager = VerosLegacyManager()
-        #self._manager.start()
         self.veros_legacy = VerosLegacyDummy(fortran=fortran)
-        #self._manager.VerosLegacyDummy(fortran=fortran)
 
         if dims:
             self.nx, self.ny, self.nz = dims
@@ -164,7 +155,7 @@ class VerosPyOMUnitTest(object):
     def _normalize(self, *arrays):
         if any(a.size == 0 for a in arrays):
             return arrays
-        norm = np.abs(arrays[0]).max()
+        norm = np.nanmax(np.abs(arrays[0]))
         if norm == 0.:
             return arrays
         return (a / norm for a in arrays)
@@ -191,12 +182,7 @@ class VerosPyOMUnitTest(object):
             for s, (v1, v2) in differing_scalars.items():
                 print("{}, {}, {}".format(s, v1, v2))
             for a, (v1, v2) in differing_arrays.items():
-                if np.asarray(v1).size == 0:
-                    print("{}, {!r}, {!r}".format(a, None, np.max(v2)))
-                elif np.asarray(v2).size == 0:
-                    print("{}, {!r}, {!r}".format(a, np.max(v1), None))
-                else:
-                    print("{}, {!r}, {!r}".format(a, np.max(v1), np.max(v2)))
+                print("{}, {!r}, {!r}".format(a, np.max(v1), np.max(v2)))
 
         veros_timers = {k: Timer("veros " + k) for k in self.test_routines}
         veros_legacy_timers = {k: Timer("veros legacy " + k) for k in self.test_routines}
@@ -211,8 +197,6 @@ class VerosPyOMUnitTest(object):
             veros_legacy_timers[routine].print_time()
             self.test_passed(routine)
             self.initialize()
-
-        #self._manager.shutdown()
 
 
 class VerosPyOMSystemTest(VerosPyOMUnitTest):
@@ -233,14 +217,7 @@ class VerosPyOMSystemTest(VerosPyOMUnitTest):
         self.veros_new = self.Testclass()
         self.veros_new.setup()
 
-        # class VerosLegacyManager(multiprocessing.managers.BaseManager):
-        #     pass
-        #
-        # VerosLegacyManager.register("Testclass", self.Testclass)
-
-        # self._manager = VerosLegacyManager()
-        # self._manager.start()
-        self.veros_legacy = self.Testclass(fortran=self.fortran)#self._manager.Testclass(fortran=self.fortran)
+        self.veros_legacy = self.Testclass(fortran=self.fortran)
         self.veros_legacy.setup()
 
         if self.extra_settings:
