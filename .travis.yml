@@ -36,9 +36,9 @@ script:
     "
   - "docker run \
       `bash <(curl -s https://codecov.io/env)` \
-      -e BH_STACK -e PYOM2_LIB -e VEROS_BACKEND -t veros \
+      -e BH_STACK -e VEROS_BACKEND -t veros \
       /bin/bash -c \"\
-          $PYTHON_EXEC -m pytest -v --cov=veros && codecov \
+          $PYTHON_EXEC -m pytest -v --cov=veros --pyom2-lib $PYOM2_LIB test && codecov \
       \"\
     "
 
