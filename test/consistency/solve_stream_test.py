@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import numerics, external
 
 
-class StreamfunctionTest(VerosUnitTest):
+class StreamfunctionTest(VerosPyOMUnitTest):
     nx, ny, nz = 70, 60, 50
     first = True
     extra_settings = {
@@ -63,5 +66,6 @@ class StreamfunctionTest(VerosUnitTest):
             self.check_variable(f)
 
 
-def test_streamfunction():
-    StreamfunctionTest().run()
+@pytest.mark.pyom
+def test_streamfunction(pyom2_lib):
+    StreamfunctionTest(fortran=pyom2_lib).run()

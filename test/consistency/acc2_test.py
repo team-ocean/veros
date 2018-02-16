@@ -1,6 +1,8 @@
+import pytest
+
 import numpy as np
 
-from test_base import VerosRunTest, VerosLegacyDummy
+from test_base import VerosPyOMSystemTest, VerosLegacyDummy
 from veros import veros_method
 
 yt_start = -39.0
@@ -164,7 +166,7 @@ class ACC2(VerosLegacyDummy):
         pass
 
 
-class ACC2Test(VerosRunTest):
+class ACC2Test(VerosPyOMSystemTest):
     Testclass = ACC2
     timesteps = 5
 
@@ -182,5 +184,6 @@ class ACC2Test(VerosRunTest):
                 self.check_variable(a, atol=1e-5, data=(v1, v2))
 
 
-def test_acc2():
-    ACC2Test().run()
+@pytest.mark.pyom
+def test_acc2(pyom2_lib):
+    ACC2Test(fortran=pyom2_lib).run()

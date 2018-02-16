@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import idemix
 
 
-class IdemixTest(VerosUnitTest):
+class IdemixTest(VerosPyOMUnitTest):
     nx, ny, nz = 70, 60, 50
     extra_settings = {
         "enable_idemix": True,
@@ -65,5 +68,6 @@ class IdemixTest(VerosUnitTest):
                 self.check_variable(v)
 
 
-def test_idemix():
-    IdemixTest().run()
+@pytest.mark.pyom
+def test_idemix(pyom2_lib):
+    IdemixTest(fortran=pyom2_lib).run()

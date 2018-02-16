@@ -1,12 +1,14 @@
 from builtins import range
 
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import numerics
 
 
-class TridiagTest(VerosUnitTest):
+class TridiagTest(VerosPyOMUnitTest):
     nx, ny, nz = 100, 100, 100
 
     def initialize(self):
@@ -30,5 +32,6 @@ class TridiagTest(VerosUnitTest):
         np.testing.assert_allclose(out_legacy, out_new)
 
 
-def test_tridiag():
-    TridiagTest().run()
+@pytest.mark.pyom
+def test_tridiag(pyom2_lib):
+    TridiagTest(fortran=pyom2_lib).run()

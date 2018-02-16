@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import numerics
 
 
-class NumericsTest(VerosUnitTest):
+class NumericsTest(VerosPyOMUnitTest):
     nx, ny, nz = 70, 60, 50
     extra_settings = {
         "enable_cyclic_x": True,
@@ -52,5 +55,6 @@ class NumericsTest(VerosUnitTest):
             self.check_variable(f)
 
 
-def test_numerics():
-    NumericsTest().run()
+@pytest.mark.pyom
+def test_numerics(pyom2_lib):
+    NumericsTest(fortran=pyom2_lib).run()

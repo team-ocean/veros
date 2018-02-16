@@ -67,7 +67,7 @@ class VerosLegacyDummy(VerosLegacy):
         return routine_handle(*args, **kwargs)
 
 
-class VerosUnitTest(object):
+class VerosPyOMUnitTest(object):
     legacy_modules = ("main_module", "isoneutral_module", "tke_module",
                       "eke_module", "idemix_module")
     array_attributes = ARRAY_ATTRIBUTES
@@ -76,23 +76,19 @@ class VerosUnitTest(object):
     test_module = None
     test_routines = None
 
-    def __init__(self, dims=None, fortran=None):
+    def __init__(self, fortran, dims=None):
         self.veros_new = VerosLegacyDummy()
         self.veros_new.pyom_compatibility_mode = True
-
-        fortran = fortran or os.environ.get("PYOM2_LIB")
-        if not fortran:
-            raise RuntimeError("Path to fortran library must be given via keyword argument "
-                               "or as environment variable PYOM2_LIB")
 
         class VerosLegacyManager(multiprocessing.managers.BaseManager):
             pass
 
-        VerosLegacyManager.register("VerosLegacyDummy", VerosLegacyDummy)
+        #VerosLegacyManager.register("VerosLegacyDummy", VerosLegacyDummy)
 
-        manager = VerosLegacyManager()
-        manager.start()
-        self.veros_legacy = manager.VerosLegacyDummy(fortran=fortran)
+        #self._manager = VerosLegacyManager()
+        #self._manager.start()
+        self.veros_legacy = VerosLegacyDummy(fortran=fortran)
+        #self._manager.VerosLegacyDummy(fortran=fortran)
 
         if dims:
             self.nx, self.ny, self.nz = dims
@@ -143,7 +139,8 @@ class VerosUnitTest(object):
         return veros_attr, veros_legacy_attr
 
     def get_all_attributes(self, attributes):
-        return {a: v for a, v in zip(attributes, map(self.get_attribute, attributes)) if all(vi is not None for vi in v)}
+        return {a: v for a, v in zip(attributes, map(self.get_attribute, attributes))
+                if all(vi is not None for vi in v)}
 
     def check_scalar_objects(self):
         differing_objects = {}
@@ -215,8 +212,10 @@ class VerosUnitTest(object):
             self.test_passed(routine)
             self.initialize()
 
+        #self._manager.shutdown()
 
-class VerosRunTest(VerosUnitTest):
+
+class VerosPyOMSystemTest(VerosPyOMUnitTest):
     Testclass = None
     timesteps = None
     extra_settings = None
@@ -234,14 +233,14 @@ class VerosRunTest(VerosUnitTest):
         self.veros_new = self.Testclass()
         self.veros_new.setup()
 
-        class VerosLegacyManager(multiprocessing.managers.BaseManager):
-            pass
+        # class VerosLegacyManager(multiprocessing.managers.BaseManager):
+        #     pass
+        #
+        # VerosLegacyManager.register("Testclass", self.Testclass)
 
-        VerosLegacyManager.register("Testclass", self.Testclass)
-
-        manager = VerosLegacyManager()
-        manager.start()
-        self.veros_legacy = manager.Testclass(fortran=self.fortran)
+        # self._manager = VerosLegacyManager()
+        # self._manager.start()
+        self.veros_legacy = self.Testclass(fortran=self.fortran)#self._manager.Testclass(fortran=self.fortran)
         self.veros_legacy.setup()
 
         if self.extra_settings:

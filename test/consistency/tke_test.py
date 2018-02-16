@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import tke
 
 
-class TKETest(VerosUnitTest):
+class TKETest(VerosPyOMUnitTest):
     nx, ny, nz = 70, 60, 50
     extra_settings = {
         "enable_cyclic_x": True,
@@ -66,5 +69,6 @@ class TKETest(VerosUnitTest):
             self.check_variable(f)
 
 
-def test_tke():
-    TKETest().run()
+@pytest.mark.pyom
+def test_tke(pyom2_lib):
+    TKETest(fortran=pyom2_lib).run()

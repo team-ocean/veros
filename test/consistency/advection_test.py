@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import advection, numerics
 
 
-class AdvectionTest(VerosUnitTest):
+class AdvectionTest(VerosPyOMUnitTest):
     nx, ny, nz = 70, 60, 50
 
     def initialize(self):
@@ -62,5 +65,6 @@ class AdvectionTest(VerosUnitTest):
                 self.check_variable(f)
 
 
-def test_advection():
-    AdvectionTest().run()
+@pytest.mark.pyom
+def test_advection(pyom2_lib):
+    AdvectionTest(fortran=pyom2_lib).run()

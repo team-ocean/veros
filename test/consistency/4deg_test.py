@@ -1,10 +1,12 @@
 import logging
 import pkg_resources
 
+import pytest
+
 import numpy as np
 from netCDF4 import Dataset
 
-from test_base import VerosRunTest, VerosLegacyDummy
+from test_base import VerosPyOMSystemTest, VerosLegacyDummy
 from veros import veros_method, tools
 
 DATA_FILES = tools.get_assets("global_4deg", pkg_resources.resource_filename("veros", "setup/global_4deg/assets.yml"))
@@ -220,7 +222,7 @@ class GlobalFourDegree(VerosLegacyDummy):
         pass
 
 
-class FourDegreeTest(VerosRunTest):
+class FourDegreeTest(VerosPyOMSystemTest):
     Testclass = GlobalFourDegree
     timesteps = 100
 
@@ -238,5 +240,6 @@ class FourDegreeTest(VerosRunTest):
                 self.check_variable(a, atol=1e-4, data=(v1, v2))
 
 
-def test_4deg():
-    FourDegreeTest().run()
+@pytest.mark.pyom
+def test_4deg(pyom2_lib):
+    FourDegreeTest(fortran=pyom2_lib).run()

@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import diffusion, numerics
 
 
-class DiffusionTest(VerosUnitTest):
+class DiffusionTest(VerosPyOMUnitTest):
     nx, ny, nz = 70, 60, 50
     extra_settings = {
         "enable_cyclic_x": True,
@@ -60,5 +63,6 @@ class DiffusionTest(VerosUnitTest):
             self.check_variable(f)
 
 
-def test_diffusion():
-    DiffusionTest().run()
+@pytest.mark.pyom
+def test_diffusion(pyom2_lib):
+    DiffusionTest(fortran=pyom2_lib).run()

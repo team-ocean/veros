@@ -1,8 +1,10 @@
-from test_base import VerosRunTest
+import pytest
+
+from test_base import VerosPyOMSystemTest
 from acc2_test import ACC2
 
 
-class ACC2NoEnergyConservationTest(VerosRunTest):
+class ACC2NoEnergyConservationTest(VerosPyOMSystemTest):
     Testclass = ACC2
     timesteps = 5
     extra_settings = {"enable_conserve_energy": False}
@@ -21,5 +23,6 @@ class ACC2NoEnergyConservationTest(VerosRunTest):
                 self.check_variable(a, atol=1e-5, data=(v1, v2))
 
 
-def test_acc2_no_conservation():
-    ACC2NoEnergyConservationTest().run()
+@pytest.mark.pyom
+def test_acc2_no_conservation(pyom2_lib):
+    ACC2NoEnergyConservationTest(fortran=pyom2_lib).run()

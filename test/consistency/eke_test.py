@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import eke
 
 
-class EKETest(VerosUnitTest):
+class EKETest(VerosPyOMUnitTest):
     nx, ny, nz = 70, 60, 50
     extra_settings = {
         "enable_cyclic_x": True,
@@ -44,7 +47,7 @@ class EKETest(VerosUnitTest):
                   "kappaM", "eke_diss_iw", "eke_diss_tke", "K_gm", "flux_east", "flux_north", "flux_top", "L_rhines"):
             self.set_attribute(a, np.random.randn(self.nx + 4, self.ny + 4, self.nz))
 
-        for a in ("eke", "deke", "Nsqr", "u", "v", ):
+        for a in ("eke", "deke", "Nsqr", "u", "v"):
             self.set_attribute(a, np.random.randn(self.nx + 4, self.ny + 4, self.nz, 3))
 
         for a in ("maskU", "maskV", "maskW", "maskT"):
@@ -65,8 +68,9 @@ class EKETest(VerosUnitTest):
                   "L_rhines", "eke_len", "K_gm", "kappa_gm", "K_iso", "sqrteke", "c_lee", "c_Ri_diss"):
             self.check_variable(f)
         for f in ("eke_diss_iw", "eke_diss_tke", "eke_lee_flux", "eke_bot_flux"):
-            self.check_variable(f, atol=1e-7)
+            self.check_variable(f, atol=1e-6)
 
 
-def test_eke():
-    EKETest().run()
+@pytest.mark.pyom
+def test_eke(pyom2_lib):
+    EKETest(fortran=pyom2_lib).run()

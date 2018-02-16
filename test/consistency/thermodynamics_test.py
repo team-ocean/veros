@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import thermodynamics
 
 
-class ThermodynamicsTest(VerosUnitTest):
+class ThermodynamicsTest(VerosPyOMUnitTest):
     nx, ny, nz = 70, 60, 50
     extra_settings = {
         "enable_cyclic_x": True,
@@ -71,5 +74,6 @@ class ThermodynamicsTest(VerosUnitTest):
             self.check_variable(f)
 
 
-def test_thermodynamics():
-    ThermodynamicsTest().run()
+@pytest.mark.pyom
+def test_thermodynamics(pyom2_lib):
+    ThermodynamicsTest(fortran=pyom2_lib).run()

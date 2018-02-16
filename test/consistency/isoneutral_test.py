@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import isoneutral
 
 
-class IsoneutralTest(VerosUnitTest):
+class IsoneutralTest(VerosPyOMUnitTest):
     nx, ny, nz = 70, 60, 50
     extra_settings = {
         "enable_neutral_diffusion": True,
@@ -76,5 +79,6 @@ class IsoneutralTest(VerosUnitTest):
                 self.check_variable(f)
 
 
-def test_isoneutral():
-    IsoneutralTest().run()
+@pytest.mark.pyom
+def test_isoneutral(pyom2_lib):
+    IsoneutralTest(fortran=pyom2_lib).run()

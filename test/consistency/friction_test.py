@@ -1,10 +1,12 @@
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import friction, numerics
 
 
-class FrictionTest(VerosUnitTest):
+class FrictionTest(VerosPyOMUnitTest):
     nx, ny, nz = 70, 60, 50
     extra_settings = {
         "enable_cyclic_x": True,
@@ -73,5 +75,6 @@ class FrictionTest(VerosUnitTest):
             self.check_variable(f)
 
 
-def test_friction():
-    FrictionTest().run()
+@pytest.mark.pyom
+def test_friction(pyom2_lib):
+    FrictionTest(fortran=pyom2_lib).run()

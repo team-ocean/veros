@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
+import pytest
+
 import numpy as np
 
-from test_base import VerosUnitTest
+from test_base import VerosPyOMUnitTest
 from veros.core import momentum, external, numerics
 
 
-class MomentumTest(VerosUnitTest):
+class MomentumTest(VerosPyOMUnitTest):
     nx, ny, nz = 70, 60, 50
     extra_settings = {
         "coord_degree": True,
@@ -83,5 +86,6 @@ class MomentumTest(VerosUnitTest):
             self.check_variable(f, atol=1e-7)
 
 
-def test_momentum():
-    MomentumTest().run()
+@pytest.mark.pyom
+def test_momentum(pyom2_lib):
+    MomentumTest(fortran=pyom2_lib).run()
