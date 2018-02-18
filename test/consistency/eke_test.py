@@ -45,7 +45,7 @@ class EKETest(VerosPyOMUnitTest):
 
         for a in ("eke_len", "K_diss_h", "K_diss_gm", "P_diss_skew", "P_diss_hmix", "P_diss_iso",
                   "kappaM", "eke_diss_iw", "eke_diss_tke", "K_gm", "flux_east", "flux_north", "flux_top",
-                  "L_rhines", "c_Ri_diss"):
+                  "L_rhines"):
             self.set_attribute(a, np.random.randn(self.nx + 4, self.ny + 4, self.nz))
 
         for a in ("eke", "deke", "Nsqr", "u", "v"):
@@ -54,7 +54,10 @@ class EKETest(VerosPyOMUnitTest):
         for a in ("maskU", "maskV", "maskW", "maskT"):
             self.set_attribute(a, np.random.randint(0, 2, size=(self.nx + 4, self.ny + 4, self.nz)).astype(np.float))
 
-        self.set_attribute("kbot", np.random.randint(0, self.nz, size=(self.nx + 4, self.ny + 4)))
+        kbot = np.random.randint(1, self.nz, size=(self.nx + 4, self.ny + 4))
+        # add some islands, but avoid boundaries
+        kbot[3:-3, 3:-3].flat[np.random.randint(0, (self.nx - 2) * (self.ny - 2), size=10)] = 0
+        self.set_attribute("kbot", kbot)
 
         self.test_module = eke
         veros_args = (self.veros_new, )

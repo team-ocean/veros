@@ -25,6 +25,7 @@ def test_setup_4deg():
     sim.run()
 
 
+# too big to test
 # def test_setup_1deg():
 #     from veros.setup.global_1deg import GlobalOneDegree
 #     sim = GlobalOneDegree()
