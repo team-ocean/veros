@@ -1,7 +1,7 @@
-|Documentation Status| |Build Status| |Code Coverage| |DOI|
-
 .. figure:: doc/_images/veros-logo-400px.png?raw=true
    :alt: Veros
+
+|Documentation Status| |Build Status| |Code Coverage| |DOI|
 
 Veros, the *versatile ocean simulator*, is just that: A powerful tool
 that makes high-performance ocean modeling approachable and fun. Since
