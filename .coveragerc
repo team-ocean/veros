@@ -1,6 +1,5 @@
 [run]
 branch = True
-source = veros
 
 [report]
 exclude_lines =
