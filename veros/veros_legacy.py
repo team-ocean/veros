@@ -31,12 +31,11 @@ class VerosLegacy(veros.Veros):
        Do not use this class for new setups!
 
     """
-
     def __init__(self, fortran=None, *args, **kwargs):
         """
         To use the pyOM2 legacy interface point the fortran argument to the Veros fortran library:
 
-        > simulation = GlobalOneDegree(fortran = "pyOM_code.so")
+        > simulation = GlobalOneDegree(fortran="pyOM_code.so")
 
         """
         if fortran:
@@ -71,11 +70,11 @@ class VerosLegacy(veros.Veros):
 
         super(VerosLegacy, self).__init__(*args, **kwargs)
 
-
     def set_legacy_parameter(self, *args, **kwargs):
         m = self.fortran.main_module
         if self.use_mpi:
-            proc_combinations = [(ni, m.n_pes / ni) for ni in xrange(1, int(math.sqrt(m.n_pes)+1)) if ni * (m.n_pes / ni) == m.n_pes]
+            proc_combinations = [(ni, m.n_pes / ni) for ni in range(1, int(math.sqrt(m.n_pes) + 1))
+                                 if ni * (m.n_pes / ni) == m.n_pes]
             m.n_pes_i, m.n_pes_j = min(proc_combinations, key=lambda x: abs(x[1] - x[0]))
         self.if2py = lambda i: i + m.onx - m.is_pe
         self.jf2py = lambda j: j + m.onx - m.js_pe
@@ -146,7 +145,6 @@ class VerosLegacy(veros.Veros):
                 for diag, param, attr in diag_legacy_settings:
                     if hasattr(self, attr):
                         setattr(diag, param, getattr(self, attr))
-
 
     def run(self, **kwargs):
         if not self.legacy_mode:
@@ -236,13 +234,13 @@ class VerosLegacy(veros.Veros):
             m.tau = m.taup1
             m.taup1 = otaum1
 
-            logging.debug("Time step took {}s".format(self.timers["main"].getLastTime()))
+            logging.debug("Time step took {}s".format(self.timers["main"].get_last_time()))
 
         logging.debug("Timing summary:")
-        logging.debug(" setup time summary       = {}s".format(self.timers["setup"].getTime()))
-        logging.debug(" main loop time summary   = {}s".format(self.timers["main"].getTime()))
-        logging.debug("     momentum             = {}s".format(self.timers["momentum"].getTime()))
-        logging.debug("     thermodynamics       = {}s".format(self.timers["temperature"].getTime()))
-        logging.debug("     EKE                  = {}s".format(self.timers["eke"].getTime()))
-        logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].getTime()))
-        logging.debug("     TKE                  = {}s".format(self.timers["tke"].getTime()))
+        logging.debug(" setup time summary       = {}s".format(self.timers["setup"].get_time()))
+        logging.debug(" main loop time summary   = {}s".format(self.timers["main"].get_time()))
+        logging.debug("     momentum             = {}s".format(self.timers["momentum"].get_time()))
+        logging.debug("     thermodynamics       = {}s".format(self.timers["temperature"].get_time()))
+        logging.debug("     EKE                  = {}s".format(self.timers["eke"].get_time()))
+        logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].get_time()))
+        logging.debug("     TKE                  = {}s".format(self.timers["tke"].get_time()))

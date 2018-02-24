@@ -14,6 +14,8 @@ import veros.core.cyclic
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = veros.tools.get_assets("wave_propagation", os.path.join(BASE_PATH, "assets.yml"))
+TOPO_MASK_FILE = os.path.join(BASE_PATH, "topography_idealized.png")
+NA_MASK_FILE = os.path.join(BASE_PATH, "na_mask.png")
 
 
 class WavePropagation(veros.Veros):
@@ -130,13 +132,13 @@ class WavePropagation(veros.Veros):
         with Dataset(DATA_FILES["topography"], "r") as topography_file:
             topo_x, topo_y, topo_z = (topography_file.variables[k][...].T.astype(np.float) for k in ("x", "y", "z"))
         topo_z[topo_z > 0] = 0.
-        topo_mask = (np.flipud(Image.open("topography_idealized.png")).T / 255).astype(np.bool)
+        topo_mask = (np.flipud(Image.open(TOPO_MASK_FILE)).T / 255).astype(np.bool)
         gaussian_sigma = (0.5 * len(topo_x) / self.nx, 0.5 * len(topo_y) / self.ny)
         topo_z_smoothed = scipy.ndimage.gaussian_filter(topo_z, sigma=gaussian_sigma)
         topo_z_smoothed[~topo_mask & (topo_z_smoothed >= 0.)] = -100.
         topo_masked = np.where(topo_mask, 0., topo_z_smoothed)
 
-        na_mask_image = np.flipud(Image.open("na_mask.png")).T / 255.
+        na_mask_image = np.flipud(Image.open(NA_MASK_FILE)).T / 255.
         topo_x_shifted, na_mask_shifted = self._shift_longitude_array(topo_x, na_mask_image)
         coords = (self.xt[2:-2], self.yt[2:-2])
         self.na_mask = np.zeros((self.nx + 4, self.ny + 4), dtype=np.bool)

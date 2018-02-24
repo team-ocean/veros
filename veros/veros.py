@@ -311,7 +311,7 @@ class Veros(with_metaclass(abc.ABCMeta)):
                         diagnostics.diagnose(self)
                         diagnostics.output(self)
 
-                    logging.debug("Time step took {:.2e}s".format(self.timers["main"].getLastTime()))
+                    logging.debug("Time step took {:.2e}s".format(self.timers["main"].get_last_time()))
 
                     # permutate time indices
                     self.taum1, self.tau, self.taup1 = self.tau, self.taup1, self.taum1
@@ -324,19 +324,19 @@ class Veros(with_metaclass(abc.ABCMeta)):
                 diagnostics.write_restart(self, force=True)
                 logging.debug("\n".join([
                     "Timing summary:",
-                    " setup time               = {:.2f}s".format(self.timers["setup"].getTime()),
-                    " main loop time           = {:.2f}s".format(self.timers["main"].getTime()),
-                    "     momentum             = {:.2f}s".format(self.timers["momentum"].getTime()),
-                    "       pressure           = {:.2f}s".format(self.timers["pressure"].getTime()),
-                    "       friction           = {:.2f}s".format(self.timers["friction"].getTime()),
-                    "     thermodynamics       = {:.2f}s".format(self.timers["temperature"].getTime()),
-                    "       lateral mixing     = {:.2f}s".format(self.timers["isoneutral"].getTime()),
-                    "       vertical mixing    = {:.2f}s".format(self.timers["vmix"].getTime()),
-                    "       equation of state  = {:.2f}s".format(self.timers["eq_of_state"].getTime()),
-                    "     EKE                  = {:.2f}s".format(self.timers["eke"].getTime()),
-                    "     IDEMIX               = {:.2f}s".format(self.timers["idemix"].getTime()),
-                    "     TKE                  = {:.2f}s".format(self.timers["tke"].getTime()),
-                    " diagnostics and I/O      = {:.2f}s".format(self.timers["diagnostics"].getTime()),
+                    " setup time               = {:.2f}s".format(self.timers["setup"].get_time()),
+                    " main loop time           = {:.2f}s".format(self.timers["main"].get_time()),
+                    "     momentum             = {:.2f}s".format(self.timers["momentum"].get_time()),
+                    "       pressure           = {:.2f}s".format(self.timers["pressure"].get_time()),
+                    "       friction           = {:.2f}s".format(self.timers["friction"].get_time()),
+                    "     thermodynamics       = {:.2f}s".format(self.timers["temperature"].get_time()),
+                    "       lateral mixing     = {:.2f}s".format(self.timers["isoneutral"].get_time()),
+                    "       vertical mixing    = {:.2f}s".format(self.timers["vmix"].get_time()),
+                    "       equation of state  = {:.2f}s".format(self.timers["eq_of_state"].get_time()),
+                    "     EKE                  = {:.2f}s".format(self.timers["eke"].get_time()),
+                    "     IDEMIX               = {:.2f}s".format(self.timers["idemix"].get_time()),
+                    "     TKE                  = {:.2f}s".format(self.timers["tke"].get_time()),
+                    " diagnostics and I/O      = {:.2f}s".format(self.timers["diagnostics"].get_time()),
                 ]))
                 if profiler is not None:
                     diagnostics.stop_profiler(profiler)

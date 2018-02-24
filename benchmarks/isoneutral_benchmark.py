@@ -1,13 +1,15 @@
-import sys
-import os
 import time
 import logging
 
-from veros import VerosLegacy, veros_method, core
+import click
+
+from veros import VerosLegacy, veros_method, core, tools
 
 
-class StreamfunctionBenchmark(VerosLegacy):
-    repetitions = 100
+class IsoneutralBenchmark(VerosLegacy):
+    def __init__(self, timesteps, *args, **kwargs):
+        self.repetitions = timesteps
+        super(IsoneutralBenchmark, self).__init__(*args, **kwargs)
 
     @veros_method
     def set_parameter(self):
@@ -102,16 +104,19 @@ class StreamfunctionBenchmark(VerosLegacy):
                 core.isoneutral.isoneutral_diffusion_pre(self)
             logging.info("Time step took {:.2e}s".format(time.time() - start))
 
+    @veros_method
+    def after_timestep(self):
+        pass
 
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--fortran-lib")
-    parser.add_argument("--timesteps", type=int)
-    args, _ = parser.parse_known_args()
 
-    fortran = args.fortran_lib or None
-    sim = StreamfunctionBenchmark(fortran)
-    sim.repetitions = args.timesteps
+@click.option('-f', '--fortran', type=click.Path(exists=True), default=None)
+@click.option('--timesteps', type=int, default=100)
+@tools.cli
+def main(*args, **kwargs):
+    sim = IsoneutralBenchmark(*args, **kwargs)
     sim.setup()
     sim.run()
+
+
+if __name__ == "__main__":
+    main()

@@ -12,6 +12,7 @@ import veros.tools
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = veros.tools.get_assets("north_atlantic", os.path.join(BASE_PATH, "assets.yml"))
+TOPO_MASK_FILE = os.path.join(BASE_PATH, "topo_mask.png")
 
 
 class NorthAtlantic(veros.Veros):
@@ -92,7 +93,7 @@ class NorthAtlantic(veros.Veros):
         with Dataset(DATA_FILES["topography"], "r") as topography_file:
             topo_x, topo_y, topo_bottom_depth = (
                 topography_file.variables[k][...].T for k in ("x", "y", "z"))
-        topo_mask = np.flipud(np.asarray(Image.open("topo_mask.png"))).T
+        topo_mask = np.flipud(np.asarray(Image.open(TOPO_MASK_FILE))).T
         topo_bottom_depth *= 1 - topo_mask
         topo_bottom_depth = scipy.ndimage.gaussian_filter(
             topo_bottom_depth, sigma=(len(topo_x) / self.nx, len(topo_y) / self.ny)
