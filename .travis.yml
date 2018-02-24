@@ -37,7 +37,7 @@ script:
       `bash <(curl -s https://codecov.io/env)` \
       -e BH_STACK -e VEROS_BACKEND -t veros \
       /bin/bash -c \"\
-          $PYTHON_EXEC -m pytest -v --cov=veros --pyom2-lib $PYOM2_LIB test && codecov \
+          $PYTHON_EXEC -m pytest -v --cov --pyom2-lib $PYOM2_LIB test && codecov \
       \"\
     "
 
