@@ -88,8 +88,9 @@ def integrate_eke(vs):
         full_mask = boundary_mask[:, :, np.newaxis] & (ki == ks[:, :, np.newaxis])
         fxa = np.maximum(0, vs.Nsqr[2:-2, 2:-2, :, vs.tau])**0.25
         fxa *= 1.5 * fxa / np.sqrt(np.maximum(1e-6, np.abs(vs.coriolis_t[2:-2, 2:-2, np.newaxis]))) - 2
-        vs.c_lee[2:-2, 2:-2] += boundary_mask * np.sum((vs.c_lee0 * vs.hrms_k0[2:-2, 2:-2, np.newaxis] * np.sqrt(vs.sqrteke[2:-2, 2:-2, :])
-                                                           * np.maximum(0, fxa) / vs.dzw[np.newaxis, np.newaxis, :]) * full_mask, axis=-1)
+        vs.c_lee[2:-2, 2:-2] = boundary_mask * vs.c_lee0 * vs.hrms_k0[2:-2, 2:-2] \
+                               * np.sum(np.sqrt(vs.sqrteke[2:-2, 2:-2, :]) * np.maximum(0, fxa)
+                                        / vs.dzw[np.newaxis, np.newaxis, :] * full_mask, axis=-1)
 
         """
         Ri-dependent dissipation by interior loss of balance
@@ -169,9 +170,12 @@ def integrate_eke(vs):
         """
         vs.eke_diss_iw[2:-2, 2:-2, :] += (vs.c_lee[2:-2, 2:-2, np.newaxis] * vs.eke[2:-2, 2:-2, :, vs.taup1]
                                              * vs.maskW[2:-2, 2:-2, :]) * full_mask
-        vs.eke_diss_tke[2:-2, 2:-2, :] += (2 * vs.eke_r_bot * vs.eke[2:-2, 2:-2, :, vs.taup1] * math.sqrt(2.0)
-                                              * vs.sqrteke[2:-2, 2:-2, :] * vs.maskW[2:-2, 2:-2, :] / vs.dzw[np.newaxis, np.newaxis, :]) * full_mask
-
+        if vs.pyom_compatibility_mode:
+            vs.eke_diss_tke[2:-2, 2:-2, :] += (2 * vs.eke_r_bot * vs.eke[2:-2, 2:-2, :, vs.taup1] * np.sqrt(np.float32(2.0))
+                                                  * vs.sqrteke[2:-2, 2:-2, :] * vs.maskW[2:-2, 2:-2, :] / vs.dzw[np.newaxis, np.newaxis, :]) * full_mask
+        else:
+            vs.eke_diss_tke[2:-2, 2:-2, :] += (2 * vs.eke_r_bot * vs.eke[2:-2, 2:-2, :, vs.taup1] * math.sqrt(2.0)
+                                                  * vs.sqrteke[2:-2, 2:-2, :] * vs.maskW[2:-2, 2:-2, :] / vs.dzw[np.newaxis, np.newaxis, :]) * full_mask
         """
         account for sligthly incorrect integral of dissipation due to time stepping
         """
