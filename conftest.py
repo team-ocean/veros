@@ -5,7 +5,7 @@ import pytest
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--pyom2-lib", type=os.path.realpath, default=None,
+        "--pyom2-lib", default=None,
         help="Path to PyOM2 library (must be given for consistency tests)"
     )
     parser.addoption(
