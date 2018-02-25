@@ -35,9 +35,9 @@ script:
       \"\
     "
   - "docker run \
-      -e CODECOV_TOKEN -e VEROS_BACKEND -e BH_STACK -e OMP_NUM_THREADS  -w /veros -t veros \
+      -e CODECOV_TOKEN -e VEROS_BACKEND -e BH_STACK -e OMP_NUM_THREADS -t veros \
       /bin/bash -c \"\
-          $PYTHON_EXEC -m pytest -v --cov --pyom2-lib $PYOM2_LIB --backend $VEROS_BACKEND && codecov \
+          $PYTHON_EXEC -m pytest -v --cov --pyom2-lib $PYOM2_LIB --backend $VEROS_BACKEND . && codecov \
       \"\
     "
 
