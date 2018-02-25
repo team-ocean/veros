@@ -8,8 +8,6 @@ RUN apt-get update && apt-get install -y \
       'python3-pip' \
       'python-mpi4py' \
       'python3-mpi4py' \
-      'python-pyopencl' \
-      'python3-pyopencl' \
       'locales' \
       'git' \
       'curl' \
@@ -57,6 +55,11 @@ RUN sh amd_src/AMD-APP-SDK-v2.9-1.599.381-GA-linux64.sh -- -s -a yes && \
 ENV OpenCL_LIBPATH "/opt/AMDAPPSDK-2.9-1/lib/x86_64/"
 ENV OpenCL_INCPATH "/opt/AMDAPPSDK-2.9-1/include"
 ENV LD_LIBRARY_PATH "$OpenCL_LIBPATH:$LD_LIBRARY_PATH"
+
+RUN pip install --global-option=build_ext --global-option="-I$OpenCL_INCPATH" --global-option="-L$OpenCL_LIBPATH" pyopencl && \
+    python -c "import pyopencl" && \
+    pip3 install --global-option=build_ext --global-option="-I$OpenCL_INCPATH" --global-option="-L$OpenCL_LIBPATH" pyopencl && \
+    python3 -c "import pyopencl"
 
 # Build bohrium
 WORKDIR /tmp
