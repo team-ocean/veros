@@ -14,7 +14,6 @@ before_install:
   - docker pull veros/ubuntu:16.04
 
 install:
-  - ls -la
   - docker build -t veros -f testing.dockerfile .
 
 env:

@@ -1,6 +1,3 @@
 # Ignore binary data
 *.nc
 *.h5
-
-#
-.git
