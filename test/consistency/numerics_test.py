@@ -56,5 +56,5 @@ class NumericsTest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_numerics(pyom2_lib):
-    NumericsTest(fortran=pyom2_lib).run()
+def test_numerics(pyom2_lib, backend):
+    NumericsTest(fortran=pyom2_lib, backend=backend).run()

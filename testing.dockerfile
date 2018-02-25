@@ -1,4 +1,4 @@
-FROM veros/ubuntu:16.04
+FROM veros/ubuntu:17.10
 MAINTAINER Dion Häfner <mail@dionhaefner.de>
 
 # Install testing dependencies

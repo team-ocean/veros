@@ -8,6 +8,10 @@ def pytest_addoption(parser):
         "--pyom2-lib", type=os.path.realpath, default=None,
         help="Path to PyOM2 library (must be given for consistency tests)"
     )
+    parser.addoption(
+        "--backend", choices=["numpy", "bohrium"], default="numpy",
+        help="Numerical backend to test"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
@@ -20,6 +24,10 @@ def pytest_collection_modifyitems(config, items):
 
 
 def pytest_generate_tests(metafunc):
-    option_value = metafunc.config.option.pyom2_lib or os.environ.get("PYOM2_LIB")
+    option_value = metafunc.config.option.pyom2_lib
     if "pyom2_lib" in metafunc.fixturenames and option_value is not None:
         metafunc.parametrize("pyom2_lib", [option_value])
+
+    option_value = metafunc.config.option.backend
+    if "backend" in metafunc.fixturenames:
+        metafunc.parametrize("backend", [option_value])

@@ -66,5 +66,5 @@ class AdvectionTest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_advection(pyom2_lib):
-    AdvectionTest(fortran=pyom2_lib).run()
+def test_advection(pyom2_lib, backend):
+    AdvectionTest(fortran=pyom2_lib, backend=backend).run()

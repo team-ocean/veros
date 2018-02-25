@@ -70,5 +70,5 @@ class TKETest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_tke(pyom2_lib):
-    TKETest(fortran=pyom2_lib).run()
+def test_tke(pyom2_lib, backend):
+    TKETest(fortran=pyom2_lib, backend=backend).run()

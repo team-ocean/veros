@@ -8,17 +8,17 @@ def compile_tdma(sys_depth, dtype):
     ctx = bh.interop_pyopencl.get_context()
     source = """
         kernel void tdma(
-            global {dtype:d} *a,
-            global {dtype:d} *b,
-            global {dtype:d} *c,
-            global {dtype:d} *d,
-            global {dtype:d} *solution
+            global DTYPE *a,
+            global DTYPE *b,
+            global DTYPE *c,
+            global DTYPE *d,
+            global DTYPE *solution
         ){
             const int m = SYS_DEPTH;
             const int idx = get_global_id(0) * m;
 
-            private {dtype:d} cp[{sys_depth:d}];
-            private {dtype:d} dp[{sys_depth:d}];
+            private DTYPE cp[SYS_DEPTH];
+            private DTYPE dp[SYS_DEPTH];
             cp[0] = c[idx] / b[idx];
             dp[0] = d[idx] / b[idx];
             for (int j=1; j < m; ++j) {
@@ -32,7 +32,7 @@ def compile_tdma(sys_depth, dtype):
                 solution[idx + j] = dp[j] - cp[j] * solution[idx + j+1];
             }
         }
-    """.format(sys_depth=sys_depth, dtype=dtype)
+    """.replace("SYS_DEPTH", "%d" % sys_depth).replace("DTYPE", dtype)
     prg = cl.Program(ctx, source).build()
     return prg
 

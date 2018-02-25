@@ -1,6 +1,35 @@
-FROM bohrium/ubuntu:16.04
+FROM ubuntu:17.10
 
 MAINTAINER Dion Häfner <mail@dionhaefner.de>
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+      'python-pip' \
+      'python3-pip' \
+      'locales' \
+      'git' \
+      'curl' \
+      'gcc' \
+      'gfortran' \
+      'cmake' \
+      'libnetcdf-dev' \
+      'libopenmpi-dev' \
+      'libboost-serialization-dev' \
+      'libboost-system-dev' \
+      'libboost-filesystem-dev' \
+      'libboost-thread-dev' \
+      'libboost-regex-dev' \
+      'libopenblas-dev' \
+      'libgl1-mesa-dev' \
+      'libffi-dev' \
+      'swig' \
+      'cython' \
+      'cython3' \
+      'unzip' \
+      'lsb-release'
+
+RUN pip install numpy && mv /usr/local/bin/f2py /usr/local/bin/f2py2.7
+RUN pip3 install numpy && mv /usr/local/bin/f2py /usr/local/bin/f2py3.6
 
 # Set the locale
 RUN locale-gen en_US.UTF-8
@@ -8,24 +37,32 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
-# Install dependencies
-RUN apt-get update > /dev/null && apt-get install -y \
-  python-pip python3-pip \
-  git curl libopenmpi-dev > /dev/null
+# Install OpenCL
+WORKDIR /tmp
+ADD AMD-APP-SDK-linux-v2.9-1.599.381-GA-x64.tar.bz2 amd_src
+ENV OPENCL_HOME "/opt/AMDAPPSDK-2.9-1"
+ENV OPENCL_LIBPATH "/opt/AMDAPPSDK-2.9-1/lib/x86_64"
+RUN sh amd_src/AMD-APP-SDK-v2.9-1.599.381-GA-linux64.sh -- -s -a yes
+ENV OpenCL_LIBPATH "/opt/AMDAPPSDK-2.9-1/lib/x86_64/"
+ENV OpenCL_INCPATH "/opt/AMDAPPSDK-2.9-1/include"
+ENV LD_LIBRARY_PATH "$OpenCL_LIBPATH:$LD_LIBRARY_PATH"
 
 # Build bohrium
-RUN git clone https://github.com/bh107/bohrium.git /tmp/bohrium-master && \
+WORKDIR /tmp
+ADD https://github.com/bh107/bohrium/archive/master.zip bohrium-master.zip
+RUN unzip bohrium-master.zip && \
     mkdir -p /tmp/bohrium-master/build && \
     cd /tmp/bohrium-master/build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DEXT_VISUALIZER=OFF && \
-    make > /dev/null && make install > /dev/null && \
-    rm -rf /tmp/bohrium-master
+    make > /dev/null && \
+    make install > /dev/null && \
+    rm -rf /tmp/bohrium-master /tmp/bohrium-master.zip
 
 RUN ln -s /usr/lib/python2.7/site-packages/bohrium /usr/lib/python2.7/dist-packages/ && \
     python2.7 -c "import bohrium"
 
-RUN ln -s /usr/lib/python3.5/site-packages/bohrium /usr/lib/python3/dist-packages/ && \
-    python3.5 -c "import bohrium"
+RUN ln -s /usr/lib/python3.6/site-packages/bohrium /usr/lib/python3/dist-packages/ && \
+    python3.6 -c "import bohrium"
 
 # Build pyOM2 with Python 2 and Python 3 support
 RUN mkdir -p /tmp/pyOM2
@@ -33,22 +70,22 @@ COPY vendor/pyom2/pyOM2.1.0.tar.gz /tmp/pyOM2
 COPY vendor/pyom2/pyOM2_site_specific /tmp/pyOM2/site_specific.mk_
 
 WORKDIR /tmp/pyOM2
-RUN tar xzf pyOM2.1.0.tar.gz && \
-    cd /tmp/pyOM2/py_src && \
-    make > /dev/null && \
+RUN tar xzf pyOM2.1.0.tar.gz
+WORKDIR /tmp/pyOM2/py_src
+RUN mv Makefile Makefile.template
+
+RUN sed s/f2py/f2py2.7/g Makefile.template > Makefile && \
+    make && \
+    ls -l && \
     mv pyOM_code.so /usr/local/lib/pyOM_code_py2.so && \
     mv pyOM_code_MPI.so /usr/local/lib/pyOM_code_MPI_py2.so && \
-    make clean && \
-    cd /tmp/pyOM2/py_src && \
-    sed -i.py2 s/f2py/f2py3/g Makefile && make > /dev/null && \
-    mv pyOM_code.cpython-35m-x86_64-linux-gnu.so /usr/local/lib/pyOM_code_py3.so && \
-    mv pyOM_code_MPI.cpython-35m-x86_64-linux-gnu.so /usr/local/lib/pyOM_code_MPI_py3.so && \
+    make clean
+
+RUN sed s/f2py/f2py3.6/g Makefile.template > Makefile && \
+    make > /dev/null && \
+    ls -l && \
+    mv pyOM_code.cpython-36m-x86_64-linux-gnu.so /usr/local/lib/pyOM_code_py3.so && \
+    mv pyOM_code_MPI.cpython-36m-x86_64-linux-gnu.so /usr/local/lib/pyOM_code_MPI_py3.so && \
     rm -rf /tmp/pyOM2
 
-# Install optional dependencies
-RUN apt-get install -y libffi-dev && \
-    pip install mako pyopencl && \
-    pip3 install mako pyopencl
-
-RUN mkdir -p /veros
 WORKDIR /veros

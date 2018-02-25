@@ -1,24 +1,24 @@
-def test_setup_acc():
+def test_setup_acc(backend):
     from veros.setup.acc import ACC
-    sim = ACC()
+    sim = ACC(backend=backend)
     sim.diskless_mode = True
     sim.setup()
     sim.runlen = sim.dt_tracer * 20
     sim.run()
 
 
-def test_setup_eady():
+def test_setup_eady(backend):
     from veros.setup.eady import Eady
-    sim = Eady()
+    sim = Eady(backend=backend)
     sim.diskless_mode = True
     sim.setup()
     sim.runlen = sim.dt_tracer * 20
     sim.run()
 
 
-def test_setup_4deg():
+def test_setup_4deg(backend):
     from veros.setup.global_4deg import GlobalFourDegree
-    sim = GlobalFourDegree()
+    sim = GlobalFourDegree(backend=backend)
     sim.diskless_mode = True
     sim.setup()
     sim.runlen = sim.dt_tracer * 20
@@ -35,18 +35,18 @@ def test_setup_4deg():
 #     sim.run()
 
 
-def test_setup_north_atlantic():
+def test_setup_north_atlantic(backend):
     from veros.setup.north_atlantic import NorthAtlantic
-    sim = NorthAtlantic(override=dict(nx=100, ny=100, nz=50))
+    sim = NorthAtlantic(backend=backend, override=dict(nx=100, ny=100, nz=50))
     sim.diskless_mode = True
     sim.setup()
     sim.runlen = sim.dt_tracer
     sim.run()
 
 
-def test_setup_wave_propagation():
+def test_setup_wave_propagation(backend):
     from veros.setup.wave_propagation import WavePropagation
-    sim = WavePropagation(override=dict(nx=100, ny=100, nz=50))
+    sim = WavePropagation(backend=backend, override=dict(nx=100, ny=100, nz=50))
     sim.diskless_mode = True
     sim.setup()
     sim.runlen = sim.dt_tracer

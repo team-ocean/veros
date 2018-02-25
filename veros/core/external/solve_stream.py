@@ -5,11 +5,9 @@ with Dirichlet boundary conditions
 used for streamfunction
 """
 
-from . import island, utilities, solve_poisson
+from . import utilities, solve_poisson
 from .. import cyclic
 from ... import veros_method
-
-import scipy.linalg.lapack
 
 
 @veros_method
@@ -80,10 +78,7 @@ def solve_streamfunction(vs):
                                                    fpy[..., np.newaxis], kind="same")[1:]
 
         # solve for time dependent boundary values
-        if vs.backend_name == "bohrium":
-            line_forc[1:] = np.lapack.gesv(vs.line_psin[1:, 1:], line_forc[1:])
-        else:
-            line_forc[1:] = scipy.linalg.lapack.dgesv(vs.line_psin[1:, 1:], line_forc[1:])[2]
+        line_forc[1:] = np.linalg.solve(vs.line_psin[1:, 1:], line_forc[1:])
         vs.dpsin[1:, vs.tau] = line_forc[1:]
 
     # integrate barotropic and baroclinic velocity forward in time

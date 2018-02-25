@@ -241,5 +241,5 @@ class FourDegreeTest(VerosPyOMSystemTest):
 
 
 @pytest.mark.pyom
-def test_4deg(pyom2_lib):
-    FourDegreeTest(fortran=pyom2_lib).run()
+def test_4deg(pyom2_lib, backend):
+    FourDegreeTest(fortran=pyom2_lib, backend=backend).run()
