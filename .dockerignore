@@ -1,6 +1,6 @@
-__pycache__/
-*.pyc
+**/__pycache__/
+**/*.pyc
 .cache
 .pytest_cache
 .coverage
-_build
+doc/_build
