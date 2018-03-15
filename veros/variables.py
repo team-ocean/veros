@@ -701,9 +701,7 @@ def allocate_variables(vs):
 
         kwargs = {}
         kwargs["dtype"] = var.dtype or vs.default_float_type
-        if vs.backend_name == "dask":
-            kwargs["chunks"] = shape
-
+        
         setattr(vs, var_name, np.zeros(shape, **kwargs))
         variables[var_name] = var
 

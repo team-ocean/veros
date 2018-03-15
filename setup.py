@@ -35,7 +35,6 @@ INSTALL_REQUIRES = [
     "h5py",
     "pillow",
     "ruamel.yaml",
-    "backports.functools_lru_cache",
     "future"
 ]
 
@@ -44,7 +43,8 @@ EXTRAS_REQUIRE = {
     "bohrium": ["bohrium"],
     "gpu": ["bohrium", "pyopencl"],
     "postprocessing": ["xarray", "matplotlib"],
-    "dev": ["pyinstrument", "versioneer"]
+    "dev": ["pyinstrument", "versioneer"],
+    "test": ["pytest", "pytest-cov", "pytest-xdist", "codecov"]
 }
 EXTRAS_REQUIRE["all"] = sorted(set(sum(EXTRAS_REQUIRE.values(), [])))
 
@@ -59,7 +59,7 @@ CONSOLE_SCRIPTS = [
 PACKAGE_DATA = ["setup/*/assets.yml", "setup/*/*.npy", "setup/*/*.png"]
 
 here = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
+with open(os.path.join(here, "README.rst"), encoding="utf-8") as f:
     long_description = f.read()
 
 setup(

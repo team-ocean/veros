@@ -97,7 +97,6 @@ Veros is still in early development. There are several open issues that we would
  - There is currently no ice sheet model in Veros. Some realistic setups employ a simple ice mask that cut off atmospheric forcing for water that gets too cold instead.
 
 **Technical issues**:
- - The GPU backend is experimental, and there is still some work required on both Veros and Bohrium to make it run efficiently.
  - Python 3.x is not yet fully supported due to some issues with Bohrium.
 
 References

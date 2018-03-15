@@ -18,19 +18,27 @@ install:
 
 env:
   global:
-    - PYOM_DIR=/pyOM2/py_src
-    - TEST_DIR=/veros/test
+    - PYOM_DIR=/usr/local/lib
   matrix:
-    - BACKEND=numpy PYTHON_EXEC=python2 PYOM_LIB=pyOM_code_py2.so PYOM_MPI_LIB=pyOM_code_MPI_py2.so
-    - BACKEND=bohrium BH_STACK=openmp PYTHON_EXEC=python2 PYOM_LIB=pyOM_code_py2.so PYOM_MPI_LIB=pyOM_code_MPI_py2.so
-    - BACKEND=bohrium BH_STACK=opencl PYTHON_EXEC=python2 PYOM_LIB=pyOM_code_py2.so PYOM_MPI_LIB=pyOM_code_MPI_py2.so
-    - BACKEND=numpy PYTHON_EXEC=python3 PYOM_LIB=pyOM_code_py3.so PYOM_MPI_LIB=pyOM_code_MPI_py3.so
-    - BACKEND=bohrium BH_STACK=openmp PYTHON_EXEC=python3 PYOM_LIB=pyOM_code_py3.so PYOM_MPI_LIB=pyOM_code_MPI_py3.so
-    - BACKEND=bohrium BH_STACK=opencl PYTHON_EXEC=python3 PYOM_LIB=pyOM_code_py3.so PYOM_MPI_LIB=pyOM_code_MPI_py3.so
+    - VEROS_BACKEND=numpy PYTHON_EXEC=python2 PYOM2_LIB=$PYOM_DIR/pyOM_code_py2.so
+    - VEROS_BACKEND=bohrium BH_STACK=openmp PYTHON_EXEC=python2 PYOM2_LIB=$PYOM_DIR/pyOM_code_py2.so
+    - VEROS_BACKEND=bohrium BH_STACK=opencl PYTHON_EXEC=python2 PYOM2_LIB=$PYOM_DIR/pyOM_code_py2.so
+    - VEROS_BACKEND=numpy PYTHON_EXEC=python3 PYOM2_LIB=$PYOM_DIR/pyOM_code_py3.so
+    - VEROS_BACKEND=bohrium BH_STACK=openmp PYTHON_EXEC=python3 PYOM2_LIB=$PYOM_DIR/pyOM_code_py3.so
+    - VEROS_BACKEND=bohrium BH_STACK=opencl PYTHON_EXEC=python3 PYOM2_LIB=$PYOM_DIR/pyOM_code_py3.so
 
 script:
-  - docker run -t veros $PYTHON_EXEC -c "import pprint; import bohrium; pprint.pprint(bohrium.bh_info.info())"
-  - docker run -e BH_STACK -t veros $PYTHON_EXEC $TEST_DIR/run_tests.py /pyOM2/py_src/$PYOM_LIB -b $BACKEND
+  - "docker run -e BH_STACK -t veros $PYTHON_EXEC -c \"\
+      import bohrium; \
+      print(bohrium.bh_info.info()) \
+      \"\
+    "
+  - "docker run \
+      -e CODECOV_TOKEN -e BH_STACK -e VEROS_BACKEND -t veros \
+      /bin/bash -c \"\
+          $PYTHON_EXEC -m pytest -v --cov --pyom2-lib $PYOM2_LIB test && codecov \
+      \"\
+    "
 
 notifications:
   email: false

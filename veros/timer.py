@@ -1,6 +1,4 @@
-from __future__ import absolute_import
-
-import time
+import timeit
 
 
 class Timer:
@@ -19,18 +17,18 @@ class Timer:
         self._flush = flush
 
     def __enter__(self):
-        self.start_time = time.time()
+        self.start_time = timeit.default_timer()
 
     def __exit__(self, type, value, traceback):
         self._flush()
-        self.last_time = time.time() - self.start_time
+        self.last_time = timeit.default_timer() - self.start_time
         self.total_time += self.last_time
 
-    def printTime(self):
-        print("[{}]: {}s".format(self.name, self.getTime()))
+    def print_time(self):
+        print("[{}]: {}s".format(self.name, self.get_time()))
 
-    def getTime(self):
+    def get_time(self):
         return self.total_time
 
-    def getLastTime(self):
+    def get_last_time(self):
         return self.last_time

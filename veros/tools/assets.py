@@ -25,7 +25,11 @@ def get_assets(basedir, asset_file):
     asset_dir = os.path.join(ASSET_DIRECTORY, basedir)
 
     if not os.path.isdir(asset_dir):
-        os.makedirs(asset_dir)
+        try: # possible race-condition
+            os.makedirs(asset_dir)
+        except OSError:
+            if os.path.isdir(asset_dir):
+                pass
 
     def get_asset(url, md5=None):
         target_filename = os.path.basename(urlparse.urlparse(url).path)

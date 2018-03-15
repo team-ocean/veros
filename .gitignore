@@ -8,7 +8,7 @@
 *.html
 
 # benchmark output
-test/*.json
+benchmark_*.yml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,11 +1,10 @@
-import warnings
-
-from . import advection, numerics, utilities
+from . import advection, utilities
 from .. import veros_method
 
 """
 IDEMIX as in Olbers and Eden, 2013
 """
+
 
 @veros_method
 def set_idemix_parameter(vs):
@@ -22,7 +21,7 @@ def set_idemix_parameter(vs):
     vs.c0[...] = np.maximum(0., vs.gamma * cstar * gofx2(vs, fxa) * vs.maskW)
     vs.v0[...] = np.maximum(0., vs.gamma * cstar * hofx1(vs, fxa) * vs.maskW)
     vs.alpha_c[...] = np.maximum(1e-4, vs.mu0 * np.arccosh(np.maximum(1., fxa))
-                                    * np.abs(vs.coriolis_t[..., np.newaxis]) / cstar**2) * vs.maskW
+                                 * np.abs(vs.coriolis_t[..., np.newaxis]) / cstar**2) * vs.maskW
 
 
 @veros_method
