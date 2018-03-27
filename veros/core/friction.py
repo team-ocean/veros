@@ -427,7 +427,7 @@ def biharmonic_friction(vs):
         vs.flux_east[:-1, :, :] = vs.flux_east[1:,:,:] \
             + 2 * fxa * vs.v[1:, :, :, vs.tau] / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
                 * vs.maskV[1:, :, :] * (1 - vs.maskV[:-1, :, :]) \
-            - 2 * fxA * vs.v[:-1, :, :, vs.tau] / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+            - 2 * fxa * vs.v[:-1, :, :, vs.tau] / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
                 * (1 - vs.maskV[1:, :, :]) * vs.maskV[:-1, :, :] 
     vs.flux_north[:, :-1, :] = fxa * (vs.v[:, 1:, :, vs.tau] - vs.v[:, :-1, :, vs.tau]) \
         / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.cost[np.newaxis, 1:, np.newaxis] \
@@ -439,6 +439,7 @@ def biharmonic_friction(vs):
         / (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])  \
         + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
         / (vs.dyu[np.newaxis, 1:, np.newaxis] * vs.cosu[np.newaxis, 1:, np.newaxis])
+
     vs.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
         / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
         * vs.maskV[1:, :, :] * vs.maskV[:-1, :, :]
@@ -446,7 +447,7 @@ def biharmonic_friction(vs):
         vs.flux_east[:-1, :, :] = vs.flux_east[1:,:,:] \
             + 2 * fxa * del2[1:, :, :] / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
                 * vs.maskV[1:, :, :] * (1 - vs.maskV[:-1, :, :]) \
-            - 2 * fxA * del2[:-1, :, :] / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+            - 2 * fxa * del2[:-1, :, :] / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
                 * (1 - vs.maskV[1:, :, :]) * vs.maskV[:-1, :, :] 
     vs.flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) \
         / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.cost[np.newaxis, 1:, np.newaxis] \
