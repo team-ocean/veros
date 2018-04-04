@@ -75,5 +75,5 @@ class ThermodynamicsTest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_thermodynamics(pyom2_lib):
-    ThermodynamicsTest(fortran=pyom2_lib).run()
+def test_thermodynamics(pyom2_lib, backend):
+    ThermodynamicsTest(fortran=pyom2_lib, backend=backend).run()

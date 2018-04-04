@@ -75,5 +75,5 @@ class EKETest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_eke(pyom2_lib):
-    EKETest(fortran=pyom2_lib).run()
+def test_eke(pyom2_lib, backend):
+    EKETest(fortran=pyom2_lib, backend=backend).run()

@@ -44,7 +44,7 @@ EXTRAS_REQUIRE = {
     "gpu": ["bohrium", "pyopencl"],
     "postprocessing": ["xarray", "matplotlib"],
     "dev": ["pyinstrument", "versioneer"],
-    "test": ["pytest", "pytest-cov", "pytest-xdist", "codecov"]
+    "test": ["pytest", "pytest-cov", "pytest-xdist", "codecov", "pyopencl", "pyamg"]
 }
 EXTRAS_REQUIRE["all"] = sorted(set(sum(EXTRAS_REQUIRE.values(), [])))
 

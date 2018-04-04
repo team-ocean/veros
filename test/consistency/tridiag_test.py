@@ -33,5 +33,5 @@ class TridiagTest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_tridiag(pyom2_lib):
-    TridiagTest(fortran=pyom2_lib).run()
+def test_tridiag(pyom2_lib, backend):
+    TridiagTest(fortran=pyom2_lib, backend=backend).run()

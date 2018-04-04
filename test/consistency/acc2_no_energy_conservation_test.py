@@ -24,5 +24,5 @@ class ACC2NoEnergyConservationTest(VerosPyOMSystemTest):
 
 
 @pytest.mark.pyom
-def test_acc2_no_conservation(pyom2_lib):
-    ACC2NoEnergyConservationTest(fortran=pyom2_lib).run()
+def test_acc2_no_conservation(pyom2_lib, backend):
+    ACC2NoEnergyConservationTest(fortran=pyom2_lib, backend=backend).run()

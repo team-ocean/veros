@@ -75,8 +75,8 @@ class VerosPyOMUnitTest(object):
     test_module = None
     test_routines = None
 
-    def __init__(self, fortran, dims=None):
-        self.veros_new = VerosLegacyDummy()
+    def __init__(self, fortran, backend, dims=None):
+        self.veros_new = VerosLegacyDummy(backend=backend)
         self.veros_new.pyom_compatibility_mode = True
 
         self.veros_legacy = VerosLegacyDummy(fortran=fortran)
@@ -160,7 +160,7 @@ class VerosPyOMUnitTest(object):
             return arrays
         return (a / norm for a in arrays)
 
-    def check_variable(self, var, atol=1e-8, data=None):
+    def check_variable(self, var, atol=1e-8, rtol=1e-6, data=None):
         if data is None:
             v1, v2 = self.get_attribute(var)
         else:
@@ -170,7 +170,7 @@ class VerosPyOMUnitTest(object):
             v1 = v1[2:-2, 2:-2, ...]
         if v2.ndim > 1:
             v2 = v2[2:-2, 2:-2, ...]
-        np.testing.assert_allclose(*self._normalize(v1, v2), atol=atol)
+        np.testing.assert_allclose(*self._normalize(v1, v2), atol=atol, rtol=rtol)
         return True
 
     def run(self):
@@ -204,17 +204,16 @@ class VerosPyOMSystemTest(VerosPyOMUnitTest):
     timesteps = None
     extra_settings = None
 
-    def __init__(self, **kwargs):
-        self.fortran = kwargs.get("fortran") or os.environ.get("PYOM2_LIB")
-        if not self.fortran:
-            raise RuntimeError("Path to fortran library must be given via keyword argument or command line")
+    def __init__(self, fortran, backend):
+        self.backend = backend
+        self.fortran = fortran
 
         for attr in ("Testclass", "timesteps"):
             if getattr(self, attr) is None:
                 raise AttributeError("attribute '{}' must be set".format(attr))
 
     def run(self):
-        self.veros_new = self.Testclass()
+        self.veros_new = self.Testclass(backend=self.backend)
         self.veros_new.setup()
 
         self.veros_legacy = self.Testclass(fortran=self.fortran)

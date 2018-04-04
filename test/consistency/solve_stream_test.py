@@ -67,5 +67,5 @@ class StreamfunctionTest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_streamfunction(pyom2_lib):
-    StreamfunctionTest(fortran=pyom2_lib).run()
+def test_streamfunction(pyom2_lib, backend):
+    StreamfunctionTest(fortran=pyom2_lib, backend=backend).run()

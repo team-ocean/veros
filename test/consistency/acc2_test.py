@@ -185,5 +185,5 @@ class ACC2Test(VerosPyOMSystemTest):
 
 
 @pytest.mark.pyom
-def test_acc2(pyom2_lib):
-    ACC2Test(fortran=pyom2_lib).run()
+def test_acc2(pyom2_lib, backend):
+    ACC2Test(fortran=pyom2_lib, backend=backend).run()

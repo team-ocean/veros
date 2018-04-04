@@ -87,5 +87,5 @@ class MomentumTest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_momentum(pyom2_lib):
-    MomentumTest(fortran=pyom2_lib).run()
+def test_momentum(pyom2_lib, backend):
+    MomentumTest(fortran=pyom2_lib, backend=backend).run()

@@ -136,12 +136,12 @@ class ACC2(Veros):
 class RestartTest(object):
     timesteps = 10
 
-    def __init__(self):
+    def __init__(self, backend):
         self.restart_file = tempfile.NamedTemporaryFile(suffix=".h5", delete=False).name
 
-        self.acc_no_restart = ACC2()
+        self.acc_no_restart = ACC2(backend=backend)
         self.acc_no_restart.diskless_mode = True
-        self.acc_restart = ACC2()
+        self.acc_restart = ACC2(backend=backend)
         self.acc_restart.restart_output_filename = self.restart_file
 
     def run(self):
@@ -194,5 +194,5 @@ class RestartTest(object):
         return (a / norm for a in arrays)
 
 
-def test_restart():
-    RestartTest().run()
+def test_restart(backend):
+    RestartTest(backend=backend).run()

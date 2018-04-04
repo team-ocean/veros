@@ -80,5 +80,5 @@ class IsoneutralTest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_isoneutral(pyom2_lib):
-    IsoneutralTest(fortran=pyom2_lib).run()
+def test_isoneutral(pyom2_lib, backend):
+    IsoneutralTest(fortran=pyom2_lib, backend=backend).run()
