@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
       'cmake' \
       'libnetcdf-dev' \
       'libopenmpi-dev' \
+      'libsigsegv-dev' \
       'libboost-serialization-dev' \
       'libboost-system-dev' \
       'libboost-filesystem-dev' \
