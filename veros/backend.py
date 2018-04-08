@@ -21,7 +21,6 @@ def get_backend(backend_name):
 
     try:
         import bohrium
-        import bohrium.lapack
         backend_modules["bohrium"] = bohrium
     except ImportError:
         warnings.warn("Could not import Bohrium")

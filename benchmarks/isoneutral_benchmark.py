@@ -58,8 +58,10 @@ class IsoneutralBenchmark(VerosLegacy):
     @veros_method
     def set_initial_conditions(self):
         m = self.main_module
-        self.set_attribute("salt", 35 + np.random.randn(m.ie_pe-m.is_pe+5, m.je_pe-m.js_pe+5, m.nz,3).astype(self.default_float_type))
-        self.set_attribute("temp", 20 + 5 * np.random.rand(m.ie_pe-m.is_pe+5, m.je_pe-m.js_pe+5, m.nz,3).astype(self.default_float_type))
+        print(type(m.nz))
+        print(np.random.randn(m.ie_pe - m.is_pe + 5, m.je_pe - m.js_pe + 5, m.nz, 3))
+        self.set_attribute("salt", 35 + np.random.randn(m.ie_pe - m.is_pe + 5, m.je_pe - m.js_pe + 5, m.nz, 3).astype(self.default_float_type))
+        self.set_attribute("temp", 20 + 5 * np.random.rand(m.ie_pe - m.is_pe + 5, m.je_pe - m.js_pe + 5, m.nz, 3).astype(self.default_float_type))
 
     @veros_method
     def set_forcing(self):
