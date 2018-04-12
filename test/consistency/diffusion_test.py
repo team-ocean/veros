@@ -64,5 +64,5 @@ class DiffusionTest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_diffusion(pyom2_lib):
-    DiffusionTest(fortran=pyom2_lib).run()
+def test_diffusion(pyom2_lib, backend):
+    DiffusionTest(fortran=pyom2_lib, backend=backend).run()

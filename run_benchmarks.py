@@ -131,9 +131,10 @@ def run(**kwargs):
                         output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
                     except subprocess.CalledProcessError as e:
                         print("failed")
-                        print(e.output)
+                        print(e.output.decode("utf-8"))
                         all_passed = False
                         continue
+                    output = output.decode("utf-8")
                     iteration_times = list(map(float, re.findall(TIME_PATTERN, output)))[kwargs["burnin"]:]
                     if not iteration_times:
                         raise RuntimeError("could not extract iteration times from output")
@@ -143,7 +144,7 @@ def run(**kwargs):
                     bohrium_stats = None
                     if "bohrium" in comp:
                         bohrium_stats = {"Pre-fusion": None, "Fusion": None,
-                                         "Compile": None, "Exec": None,
+                                         "Compilation": None, "Exec": None,
                                          "Copy2dev": None, "Copy2host": None,
                                          "Offload": None, "Other": None}
                         patterns = {stat: r"\s*{}\:\s*(\d+\.?\d*)s".format(stat) for stat in bohrium_stats.keys()}

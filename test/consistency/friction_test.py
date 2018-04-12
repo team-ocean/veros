@@ -22,10 +22,10 @@ class FrictionTest(VerosPyOMUnitTest):
         for a in ("dt_mom", "r_bot", "r_quad_bot", "A_h", "A_hbi", "x_origin", "y_origin"):
             self.set_attribute(a, np.random.rand())
 
-        for a in ("dxt", ):
+        for a in ("dxt", "dxu"):
             self.set_attribute(a, np.ones(self.nx + 4) * np.random.rand())
 
-        for a in ("dyt", ):
+        for a in ("dyt", "dyu"):
             self.set_attribute(a, np.ones(self.ny + 4) * np.random.rand())
 
         for a in ("cosu", "cost"):
@@ -76,5 +76,5 @@ class FrictionTest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_friction(pyom2_lib):
-    FrictionTest(fortran=pyom2_lib).run()
+def test_friction(pyom2_lib, backend):
+    FrictionTest(fortran=pyom2_lib, backend=backend).run()

@@ -69,5 +69,5 @@ class IdemixTest(VerosPyOMUnitTest):
 
 
 @pytest.mark.pyom
-def test_idemix(pyom2_lib):
-    IdemixTest(fortran=pyom2_lib).run()
+def test_idemix(pyom2_lib, backend):
+    IdemixTest(fortran=pyom2_lib, backend=backend).run()
