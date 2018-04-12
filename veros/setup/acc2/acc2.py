@@ -1,6 +1,5 @@
-import os
-import tempfile
-import numpy as np
+#!/usr/bin/env python
+
 import veros
 import veros.tools
 
@@ -18,7 +17,7 @@ class ACC2(veros.Veros):
     """
     @veros_method
     def set_parameter(self):
-        self.identifier = "acc2_restart_test"
+        self.identifier = "acc2"
 
         self.nx, self.ny, self.nz = 30, 42, 15
         self.dt_mom = 4800

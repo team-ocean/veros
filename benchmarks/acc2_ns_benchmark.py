@@ -28,7 +28,7 @@ class ACC2Benchmark_ns(VerosLegacy):
 
         m.coord_degree = 1
         m.enable_cyclic_x = 1
-        m.enable_noslip_latteral = True
+        m.enable_noslip_lateral = True
 
         m.congr_epsilon = 1e-12
         m.congr_max_iterations = 10000
