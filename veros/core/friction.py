@@ -252,11 +252,22 @@ def harmonic_friction(vs):
         fxa = vs.cosu**vs.hor_friction_cosPower
         vs.flux_north[:, :-1] = vs.A_h * fxa[np.newaxis, :-1, np.newaxis] * (vs.u[:, 1:, :, vs.tau] - vs.u[:, :-1, :, vs.tau]) \
             / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskU[:, 1:] * vs.maskU[:, :-1] * vs.cosu[np.newaxis, :-1, np.newaxis]
+        if vs.enable_noslip_lateral:
+             vs.flux_north[:, :-1] += 2 * vs.A_h * fxa[np.newaxis, :-1, np.newaxis] * (vs.u[:, 1:, :, vs.tau]) \
+                / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskU[:, 1:] * (1 - vs.maskU[:, :-1]) * vs.cosu[np.newaxis, :-1, np.newaxis]\
+                - 2 * vs.A_h * fxa[np.newaxis, :-1, np.newaxis] * (vs.u[:, :-1, :, vs.tau]) \
+                / vs.dyu[np.newaxis, :-1, np.newaxis] * (1 - vs.maskU[:, 1:]) * vs.maskU[:, :-1] * vs.cosu[np.newaxis, :-1, np.newaxis]
     else:
         vs.flux_east[:-1, :, :] = vs.A_h * (vs.u[1:, :, :, vs.tau] - vs.u[:-1, :, :, vs.tau]) \
             / (vs.cost * vs.dxt[1:, np.newaxis])[:, :, np.newaxis] * vs.maskU[1:] * vs.maskU[:-1]
         vs.flux_north[:, :-1, :] = vs.A_h * (vs.u[:, 1:, :, vs.tau] - vs.u[:, :-1, :, vs.tau]) \
             / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskU[:, 1:] * vs.maskU[:, :-1] * vs.cosu[np.newaxis, :-1, np.newaxis]
+        if vs.enable_noslip_lateral:
+             vs.flux_north[:, :-1] += 2 * vs.A_h * vs.u[:, 1:, :, vs.tau] / vs.dyu[np.newaxis, :-1, np.newaxis] \
+                * vs.maskU[:, 1:] * (1 - vs.maskU[:, :-1]) * vs.cosu[np.newaxis, :-1, np.newaxis]\
+                - 2 * vs.A_h * vs.u[:, :-1, :, vs.tau] / vs.dyu[np.newaxis, :-1, np.newaxis] \
+                * (1 - vs.maskU[:, 1:]) * vs.maskU[:, :-1] * vs.cosu[np.newaxis, :-1, np.newaxis]
+
     vs.flux_east[-1, :, :] = 0.
     vs.flux_north[:, -1, :] = 0.
 
@@ -288,12 +299,23 @@ def harmonic_friction(vs):
         fxa = (vs.cosu ** vs.hor_friction_cosPower) * np.ones((vs.nx + 3, 1), dtype=vs.default_float_type)
         vs.flux_east[:-1] = vs.A_h * fxa[:, :, np.newaxis] * (vs.v[1:, :, :, vs.tau] - vs.v[:-1, :, :, vs.tau]) \
             / (vs.cosu * vs.dxu[:-1, np.newaxis])[:, :, np.newaxis] * vs.maskV[1:] * vs.maskV[:-1]
+        if vs.enable_noslip_lateral:
+            vs.flux_east[:-1] += 2 * vs.A_h * fxa[:, :, np.newaxis] * vs.v[1:, :, :, vs.tau] \
+                / (vs.cosu * vs.dxu[:-1, np.newaxis])[:, :, np.newaxis] * vs.maskV[1:] * (1 - vs.maskV[:-1]) \
+                - 2 * vs.A_h * fxa[:, :, np.newaxis] * vs.v[:-1, :, :, vs.tau] \
+                / (vs.cosu * vs.dxu[:-1, np.newaxis])[:, :, np.newaxis] * (1 - vs.maskV[1:]) * vs.maskV[:-1]
+
         fxa = (vs.cost[1:] ** vs.hor_friction_cosPower) * np.ones((vs.nx + 4, 1), dtype=vs.default_float_type)
         vs.flux_north[:, :-1] = vs.A_h * fxa[:, :, np.newaxis] * (vs.v[:, 1:, :, vs.tau] - vs.v[:, :-1, :, vs.tau]) \
             / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.cost[np.newaxis, 1:, np.newaxis] * vs.maskV[:, :-1] * vs.maskV[:, 1:]
     else:
         vs.flux_east[:-1] = vs.A_h * (vs.v[1:, :, :, vs.tau] - vs.v[:-1, :, :, vs.tau]) \
             / (vs.cosu * vs.dxu[:-1, np.newaxis])[:, :, np.newaxis] * vs.maskV[1:] * vs.maskV[:-1]
+        if vs.enable_noslip_lateral:
+            vs.flux_east[:-1] += 2 * vs.A_h * vs.v[1:, :, :, vs.tau] / (vs.cosu * vs.dxu[:-1, np.newaxis])[:, :, np.newaxis] \
+                * vs.maskV[1:] * (1 - vs.maskV[:-1]) \
+                - 2 * vs.A_h * vs.v[:-1, :, :, vs.tau] / (vs.cosu * vs.dxu[:-1, np.newaxis])[:, :, np.newaxis] \
+                * (1 - vs.maskV[1:]) * vs.maskV[:-1]
         vs.flux_north[:, :-1] = vs.A_h * (vs.v[:, 1:, :, vs.tau] - vs.v[:, :-1, :, vs.tau]) \
             / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.cost[np.newaxis, 1:, np.newaxis] * vs.maskV[:, :-1] * vs.maskV[:, 1:]
     vs.flux_east[-1, :, :] = 0.
@@ -337,6 +359,11 @@ def biharmonic_friction(vs):
     vs.flux_north[:, :-1, :] = fxa * (vs.u[:, 1:, :, vs.tau] - vs.u[:, :-1, :, vs.tau]) \
         / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskU[:, 1:, :] \
         * vs.maskU[:, :-1, :] * vs.cosu[np.newaxis, :-1, np.newaxis]
+    if vs.enable_noslip_lateral:
+        vs.flux_north[:, :-1] += 2 * fxa * vs.u[:, 1:, :, vs.tau] / vs.dyu[np.newaxis, :-1, np.newaxis] \
+            * vs.maskU[:, 1:] * (1 - vs.maskU[:, :-1]) * vs.cosu[np.newaxis, :-1, np.newaxis]\
+            - 2 * fxa * vs.u[:, :-1, :, vs.tau] / vs.dyu[np.newaxis, :-1, np.newaxis] \
+            * (1 - vs.maskU[:, 1:]) * vs.maskU[:, :-1] * vs.cosu[np.newaxis, :-1, np.newaxis]
     vs.flux_east[-1, :, :] = 0.
     vs.flux_north[:, -1, :] = 0.
 
@@ -352,6 +379,11 @@ def biharmonic_friction(vs):
     vs.flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) \
         / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskU[:, 1:, :] \
         * vs.maskU[:, :-1, :] * vs.cosu[np.newaxis, :-1, np.newaxis]
+    if vs.enable_noslip_lateral:
+        vs.flux_north[:,:-1,:] += 2 * fxa * del2[:, 1:, :] / vs.dyu[np.newaxis, :-1, np.newaxis] \
+            * vs.maskU[:, 1:, :] * (1 - vs.maskU[:, :-1, :]) * vs.cosu[np.newaxis, :-1, np.newaxis] \
+            - 2 * fxa * del2[:, :-1, :] / vs.dyu[np.newaxis, :-1, np.newaxis] \
+            * (1 - vs.maskU[:, 1:, :]) * vs.maskU[:, :-1, :] * vs.cosu[np.newaxis, :-1, np.newaxis]
     vs.flux_east[-1, :, :] = 0.
     vs.flux_north[:, -1, :] = 0.
 
@@ -385,6 +417,11 @@ def biharmonic_friction(vs):
     vs.flux_east[:-1, :, :] = fxa * (vs.v[1:, :, :, vs.tau] - vs.v[:-1, :, :, vs.tau]) \
         / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
         * vs.maskV[1:, :, :] * vs.maskV[:-1, :, :]
+    if vs.enable_noslip_lateral:
+        vs.flux_east[:-1, :, :] += 2 * fxa * vs.v[1:, :, :, vs.tau] / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+            * vs.maskV[1:, :, :] * (1 - vs.maskV[:-1, :, :]) \
+            - 2 * fxa * vs.v[:-1, :, :, vs.tau] / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+            * (1 - vs.maskV[1:, :, :]) * vs.maskV[:-1, :, :] 
     vs.flux_north[:, :-1, :] = fxa * (vs.v[:, 1:, :, vs.tau] - vs.v[:, :-1, :, vs.tau]) \
         / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.cost[np.newaxis, 1:, np.newaxis] \
         * vs.maskV[:, :-1, :] * vs.maskV[:, 1:, :]
@@ -395,9 +432,15 @@ def biharmonic_friction(vs):
         / (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])  \
         + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
         / (vs.dyu[np.newaxis, 1:, np.newaxis] * vs.cosu[np.newaxis, 1:, np.newaxis])
+
     vs.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
         / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
         * vs.maskV[1:, :, :] * vs.maskV[:-1, :, :]
+    if vs.enable_noslip_lateral:
+        vs.flux_east[:-1, :, :] += 2 * fxa * del2[1:, :, :] / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+            * vs.maskV[1:, :, :] * (1 - vs.maskV[:-1, :, :]) \
+            - 2 * fxa * del2[:-1, :, :] / (vs.cosu[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+            * (1 - vs.maskV[1:, :, :]) * vs.maskV[:-1, :, :] 
     vs.flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) \
         / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.cost[np.newaxis, 1:, np.newaxis] \
         * vs.maskV[:, :-1, :] * vs.maskV[:, 1:, :]

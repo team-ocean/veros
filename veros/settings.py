@@ -36,6 +36,7 @@ SETTINGS = OrderedDict([
     ("enable_conserve_energy", Setting(True, bool, "exchange energy consistently")),
     ("enable_store_bottom_friction_tke", Setting(False, bool, "transfer dissipated energy by bottom/rayleig fric. to TKE, else transfer to internal waves")),
     ("enable_store_cabbeling_heat", Setting(False, bool, "transfer non-linear mixing terms to potential enthalpy, else transfer to TKE and EKE")),
+    ("enable_noslip_lateral", Setting(False, bool, "enable lateral no-slip boundary conditions in harmonic- and biharmonic friction.")),
 
     # External mode
     ("congr_epsilon", Setting(1e-12, float, "convergence criteria for Poisson solver")),
