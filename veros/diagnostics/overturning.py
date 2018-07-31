@@ -47,7 +47,8 @@ class Overturning(VerosDiagnostic):
     """Isopycnal overturning diagnostic. Computes and writes vertical streamfunctions
     (zonally averaged).
     """
-    name = "overturning" #:
+
+    name = "overturning"  #:
     output_path = "{identifier}.overturning.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
@@ -72,8 +73,6 @@ class Overturning(VerosDiagnostic):
         self.sigs = float(density.get_rho(vs, 35., 30., self.p_ref))
         self.dsig = (self.sige - self.sigs) / (self.nlevel - 1)
 
-        self._compute_pressure(vs)
-
         logging.debug(" sigma ranges for overturning diagnostic:")
         logging.debug(" start sigma0 = {:.1f}".format(self.sigs))
         logging.debug(" end sigma0 = {:.1f}".format(self.sige))
@@ -97,7 +96,6 @@ class Overturning(VerosDiagnostic):
     def _allocate(self, vs):
         self.sigma = np.zeros(self.nlevel, dtype=vs.default_float_type)
         self.prho = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
-        self.press = np.zeros((vs.nz), dtype=vs.default_float_type)
         self.zarea = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
         self.trans = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
         self.vsf_iso = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
@@ -105,28 +103,6 @@ class Overturning(VerosDiagnostic):
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
             self.bolus_iso = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
             self.bolus_depth = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
-
-    @veros_class_method
-    def _compute_pressure(self, vs):
-        """ This function computes pressure in decibars from depth in meters
-        using a mean density derived from depth-dependent global
-        average temperatures and salinities from Levitus 1994, and
-        integrating using hydrostatic balance.
-
-        Ported from CESM 1.2.2
-
-        References:
-            Levitus, S., R. Burgett, and T.P. Boyer, World Ocean Atlas
-                1994, Volume 3: Salinity, NOAA Atlas NESDIS 3, US Dept. of
-                Commerce, 1994.
-            Levitus, S. and T.P. Boyer, World Ocean Atlas 1994, Volume 4:
-                Temperature, NOAA Atlas NESDIS 4, US Dept. of Commerce, 1994.
-            Dukowicz, J. K., 2000: Reduction of Pressure and Density
-                Gradient Errors in Ocean Simulations, J. Phys. Oceanogr., 2001.
-
-        """
-        self.press = (0.059808 * (np.exp(-0.025 * (-vs.zt)) - 1.)+
-                      0.100766 * (-vs.zt) + 2.28405e-7 * (-vs.zt)**2) * 10.
 
     @veros_class_method
     def diagnose(self, vs):
@@ -143,10 +119,9 @@ class Overturning(VerosDiagnostic):
         z_sig = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
 
         # Potential density using TEOS-10
-        self.prho[2:-2, 2:-2, :] += density.gsw.gsw_pot_rho_t_exact(vs,
-                                                vs.salt[2:-2, 2:-2, :, vs.tau],
-                                                vs.temp[2:-2, 2:-2, :, vs.tau],
-                                                self.press[np.newaxis, np.newaxis, :], 0.) # p_ref = 0.
+        self.prho[2:-2, 2:-2, :] += density.gsw.gsw_pot_rho_ct(vs,
+                                                               vs.salt[2:-2, 2:-2, :, vs.tau],
+                                                               vs.temp[2:-2, 2:-2, :, vs.tau])
 
         for m in range(self.nlevel):
             # NOTE: vectorized version would be O(N^4) in memory
