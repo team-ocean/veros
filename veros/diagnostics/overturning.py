@@ -14,10 +14,6 @@ SIGMA = Variable(
 )
 
 OVERTURNING_VARIABLES = OrderedDict([
-    ("prho", Variable(
-        "Potential density", ("xt", "yt", "zt"), "kg/m^3",
-        "Potential density", output=True, write_to_restart=True
-    )),
     ("trans", Variable(
         "Meridional transport", ("yu", "sigma"), "m^3/s",
         "Meridional transport", output=True, write_to_restart=True
@@ -95,7 +91,6 @@ class Overturning(VerosDiagnostic):
     @veros_class_method
     def _allocate(self, vs):
         self.sigma = np.zeros(self.nlevel, dtype=vs.default_float_type)
-        self.prho = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
         self.zarea = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
         self.trans = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
         self.vsf_iso = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
@@ -117,11 +112,6 @@ class Overturning(VerosDiagnostic):
         sig_loc_face = 0.5 * (sig_loc[2:-2, 2:-2, :] + sig_loc[2:-2, 3:-1, :])
         trans = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
         z_sig = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
-
-        # Potential density using TEOS-10
-        self.prho[2:-2, 2:-2, :] += density.gsw.gsw_pot_rho_ct(vs,
-                                                               vs.salt[2:-2, 2:-2, :, vs.tau],
-                                                               vs.temp[2:-2, 2:-2, :, vs.tau])
 
         for m in range(self.nlevel):
             # NOTE: vectorized version would be O(N^4) in memory

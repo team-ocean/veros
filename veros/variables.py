@@ -223,6 +223,12 @@ MAIN_VARIABLES = OrderedDict([
         "Density", T_GRID + TIMESTEPS, "kg/m^3", "Potential density", output=True,
         write_to_restart=True
     )),
+
+    ("prho", Variable(
+        "Potential density", T_GRID + TIMESTEPS, "kg/m^3", "Potential density (TEOS-10)",
+        output=True, write_to_restart=True
+    )),
+
     ("int_drhodT", Variable(
         "Der. of dyn. enthalpy by temperature", T_GRID + TIMESTEPS, "?",
         "Partial derivative of dynamic enthalpy by temperature", output=True,
@@ -701,7 +707,7 @@ def allocate_variables(vs):
 
         kwargs = {}
         kwargs["dtype"] = var.dtype or vs.default_float_type
-        
+
         setattr(vs, var_name, np.zeros(shape, **kwargs))
         variables[var_name] = var
 

@@ -137,7 +137,7 @@ def calc_beta(vs):
     """
     calculate beta = df/dy
     """
-    vs.beta[:, 2:-2] = 0.5 * ((vs.coriolis_t[:, 3:-1] - vs.coriolis_t[:, 2:-2]) / vs.dyu[2:-2] \
+    vs.beta[:, 2:-2] = 0.5 * ((vs.coriolis_t[:, 3:-1] - vs.coriolis_t[:, 2:-2]) / vs.dyu[2:-2]
                             + (vs.coriolis_t[:, 2:-2] - vs.coriolis_t[:, 1:-3]) / vs.dyu[1:-3])
 
 
@@ -184,7 +184,7 @@ def calc_topo(vs):
         cyclic.setcyclic_x(vs.maskZ)
     vs.maskW[...] = vs.maskT
     vs.maskW[:, :, :vs.nz - 1] = np.minimum(vs.maskT[:, :, :vs.nz - 1], vs.maskT[:, :, 1:vs.nz])
-    
+
     """
     total depth
     """
@@ -212,6 +212,8 @@ def calc_initial_conditions(vs):
 
     vs.rho[...] = density.get_rho(vs, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis]) \
                   * vs.maskT[..., np.newaxis]
+    vs.prho[...] = density.get_potential_rho(vs, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis]) \
+                   * vs.maskT[..., np.newaxis]
     vs.Hd[...] = density.get_dyn_enthalpy(vs, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis]) \
                  * vs.maskT[..., np.newaxis]
     vs.int_drhodT[...] = density.get_int_drhodT(vs, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis])
@@ -219,7 +221,7 @@ def calc_initial_conditions(vs):
 
     fxa = -vs.grav / vs.rho_0 / vs.dzw[np.newaxis, np.newaxis, :] * vs.maskW
     vs.Nsqr[:, :, :-1, :] = fxa[:, :, :-1, np.newaxis] \
-        * (density.get_rho(vs, vs.salt[:, :, 1:, :], vs.temp[:, :, 1:, :], np.abs(vs.zt)[:-1, np.newaxis]) \
+        * (density.get_rho(vs, vs.salt[:, :, 1:, :], vs.temp[:, :, 1:, :], np.abs(vs.zt)[:-1, np.newaxis])
          - vs.rho[:, :, :-1, :])
     vs.Nsqr[:, :, -1, :] = vs.Nsqr[:, :, -2, :]
 
@@ -250,7 +252,7 @@ def solve_tridiag(vs, a, b, c, d):
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
 
     if vs.backend_name == "numpy":
-        a[..., 0] = c[..., -1] = 0 # remove couplings between slices
+        a[..., 0] = c[..., -1] = 0  # remove couplings between slices
         return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
 
     if vs.vector_engine == "opencl":
