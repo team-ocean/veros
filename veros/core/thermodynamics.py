@@ -258,7 +258,7 @@ def calc_eq_of_state(vs, n):
     """
     calculate new potential density
     """
-    vs.prho[..., n] = density.get_potential_rho(*density_args) * vs.maskT
+    vs.prho[...] = density.get_potential_rho(*density_args) * vs.maskT
 
     if vs.enable_conserve_energy:
         """

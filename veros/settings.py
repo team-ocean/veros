@@ -141,6 +141,3 @@ def check_setting_conflicts(vs):
     if vs.enable_tke and not vs.enable_implicit_vert_friction:
         raise RuntimeError("use TKE model only with implicit vertical friction"
                            "(set enable_implicit_vert_fricton)")
-    if vs.eq_of_state_type != 5:
-        logging.warning("Note, for non-GSW equation of state the potential"
-                        " density equals in-situ density")

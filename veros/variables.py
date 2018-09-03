@@ -225,7 +225,8 @@ MAIN_VARIABLES = OrderedDict([
     )),
 
     ("prho", Variable(
-        "Potential density", T_GRID + TIMESTEPS, "kg/m^3", "Potential density (TEOS-10)",
+        "Potential density", T_GRID, "kg/m^3",
+        "Potential density for GSW EOS and in-situ density for other EOSs",
         output=True, write_to_restart=True
     )),
 
