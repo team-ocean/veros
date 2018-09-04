@@ -220,13 +220,13 @@ MAIN_VARIABLES = OrderedDict([
     )),
 
     ("rho", Variable(
-        "Density", T_GRID + TIMESTEPS, "kg/m^3", "Potential density", output=True,
+        "Density", T_GRID + TIMESTEPS, "kg/m^3", "In-situ density", output=True,
         write_to_restart=True
     )),
 
     ("prho", Variable(
-        "Potential density", T_GRID, "kg/m^3",
-        "Potential density for GSW EOS and in-situ density for other EOSs",
+        "Potential density", T_GRID, "kg/m^3", 
+        "Potential density (equal to in-situ density for equation of state 1 to 4)",
         output=True, write_to_restart=True
     )),
 
