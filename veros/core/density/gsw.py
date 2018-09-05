@@ -1064,4 +1064,5 @@ def gsw_pot_rho_ct(vs, sa, ct, p_ref=0.):
     """
 
     pt = gsw_pt_from_ct(vs, sa, ct)
-    return gsw_rho_t_exact(vs, sa, pt, p=p_ref)
+    return gsw_rho_t_exact(vs, sa, pt, p=p_ref) - rho0
+

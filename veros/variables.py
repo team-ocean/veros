@@ -220,13 +220,15 @@ MAIN_VARIABLES = OrderedDict([
     )),
 
     ("rho", Variable(
-        "Density", T_GRID + TIMESTEPS, "kg/m^3", "In-situ density", output=True,
-        write_to_restart=True
+        "Density", T_GRID + TIMESTEPS, "kg/m^3",
+        "In-situ density anomaly relative to the surface mean value of 1024.",
+        output=True, write_to_restart=True
     )),
 
     ("prho", Variable(
-        "Potential density", T_GRID, "kg/m^3", 
-        "Potential density (equal to in-situ density for equation of state 1 to 4)",
+        "Potential density", T_GRID, "kg/m^3",
+        "Potential density anomaly relative to the surface mean value of 1024."
+        "(equal to in-situ density anomaly for equation of state 1 to 4)",
         output=True, write_to_restart=True
     )),
 
