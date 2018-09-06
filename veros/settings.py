@@ -1,5 +1,4 @@
 from collections import namedtuple, OrderedDict
-import logging
 
 Setting = namedtuple("setting", ("default", "type", "description"))
 
