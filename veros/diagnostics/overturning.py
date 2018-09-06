@@ -12,6 +12,7 @@ SIGMA = Variable(
     "Sigma axis", ("sigma",), "kg/m^3", "Sigma axis", output=True,
     time_dependent=False, write_to_restart=True
 )
+
 OVERTURNING_VARIABLES = OrderedDict([
     ("trans", Variable(
         "Meridional transport", ("yu", "sigma"), "m^3/s",
@@ -42,7 +43,8 @@ class Overturning(VerosDiagnostic):
     """Isopycnal overturning diagnostic. Computes and writes vertical streamfunctions
     (zonally averaged).
     """
-    name = "overturning" #:
+
+    name = "overturning"  #:
     output_path = "{identifier}.overturning.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
@@ -110,6 +112,7 @@ class Overturning(VerosDiagnostic):
         sig_loc_face = 0.5 * (sig_loc[2:-2, 2:-2, :] + sig_loc[2:-2, 3:-1, :])
         trans = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
         z_sig = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
+
         for m in range(self.nlevel):
             # NOTE: vectorized version would be O(N^4) in memory
             # consider cythonizing if performance-critical

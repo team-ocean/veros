@@ -255,6 +255,11 @@ def calc_eq_of_state(vs, n):
     """
     vs.rho[..., n] = density.get_rho(*density_args) * vs.maskT
 
+    """
+    calculate new potential density
+    """
+    vs.prho[...] = density.get_potential_rho(*density_args) * vs.maskT
+
     if vs.enable_conserve_energy:
         """
         calculate new dynamic enthalpy and derivatives

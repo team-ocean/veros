@@ -23,6 +23,30 @@ def get_rho(vs, salt_loc, temp_loc, press):
 
 
 @veros_method
+def get_potential_rho(vs, salt_loc, temp_loc, press):
+    """
+    calculate potential density as a function of temperature, salinity
+    and pressure
+
+    NB! The potential density is computed for equation of state No.5
+    according to TEOS-10 formulation, for other equations of state (No.1-4)
+    it is in-situ density from get_rho
+    """
+    if vs.eq_of_state_type == 1:
+        return lq.linear_eq_of_state_rho(salt_loc, temp_loc)
+    elif vs.eq_of_state_type == 2:
+        return nq1.nonlin1_eq_of_state_rho(salt_loc, temp_loc)
+    elif vs.eq_of_state_type == 3:
+        return nq2.nonlin2_eq_of_state_rho(salt_loc, temp_loc, press)
+    elif vs.eq_of_state_type == 4:
+        return nq3.nonlin3_eq_of_state_rho(salt_loc, temp_loc)
+    elif vs.eq_of_state_type == 5:
+        return gsw.gsw_pot_rho_ct(vs, salt_loc, temp_loc)
+    else:
+        raise ValueError('unknown equation of state')
+
+
+@veros_method
 def get_dyn_enthalpy(vs, salt_loc, temp_loc, press):
     """
     calculate dynamic enthalpy as a function of temperature, salinity and pressure
