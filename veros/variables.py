@@ -698,6 +698,31 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "Internal wave bottom forcing", time_dependent=False, output=True
         )),
     ])),
+    ("enable_npzd", OrderedDict([
+        ("swr", Variable(
+            "Shortwave radiation", W_GRID, "?",
+            "Shortwave radiation from the sun"
+        )),
+        ("phytoplankton", Variable(
+            "Phytoplankton concentration", W_GRID, "mmol/m^3?",
+            "Concentration of phytoplankton in grid box"
+        )),
+        ("zooplankton", Variable(
+            "Zooplankton concentration", W_GRID, "mmol/m^3?",
+            "Concentration of zooplankton in grid box"
+        )),
+        ("detritus", Variable(
+            "Detritus concentration", W_GRID, "mmol/m^3?",
+            "Concentration of detritus in grid box"
+        )),
+        ("po4", Variable(
+            "Phosphate concentration", W_GRID, "mmol/m^3?",
+            "Concentration of phosphate in grid box"
+        )),
+        ("swr", Variable(
+            "Shortwave radiation", T_HOR, "W/m^3?",
+            "Incomming solar radiation at sea level")),
+    ])),
 ])
 
 

@@ -8,7 +8,7 @@ from . import variables, settings, diagnostics, time, handlers
 from . import backend as _backend
 from .timer import Timer
 from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
-                   isoneutral, external, advection, cyclic)
+                   isoneutral, external, advection, cyclic, npzd)
 
 
 class Veros(with_metaclass(abc.ABCMeta)):
@@ -74,7 +74,7 @@ class Veros(with_metaclass(abc.ABCMeta)):
         self.timers = {k: Timer(k) for k in (
             "setup", "main", "momentum", "temperature", "eke", "idemix",
             "tke", "diagnostics", "pressure", "friction", "isoneutral",
-            "vmix", "eq_of_state"
+            "vmix", "eq_of_state", "npzd"
         )}
 
         self.variables = {}
@@ -284,6 +284,10 @@ class Veros(with_metaclass(abc.ABCMeta)):
                             if self.enable_tke:
                                 tke.integrate_tke(self)
 
+                        with self.timers["npzd"]:
+                            if self.enable_npzd:
+                                npzd.npzd(self)
+
                         if self.enable_cyclic_x:
                             cyclic.setcyclic_x(self.u[:, :, :, self.taup1])
                             cyclic.setcyclic_x(self.v[:, :, :, self.taup1])
@@ -336,6 +340,7 @@ class Veros(with_metaclass(abc.ABCMeta)):
                     "     EKE                  = {:.2f}s".format(self.timers["eke"].get_time()),
                     "     IDEMIX               = {:.2f}s".format(self.timers["idemix"].get_time()),
                     "     TKE                  = {:.2f}s".format(self.timers["tke"].get_time()),
+                    "     npzd            = {:.2f}s".format(self.timers["npzd"].get_time()),
                     " diagnostics and I/O      = {:.2f}s".format(self.timers["diagnostics"].get_time()),
                 ]))
                 if profiler is not None:

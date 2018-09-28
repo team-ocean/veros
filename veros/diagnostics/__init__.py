@@ -1,6 +1,6 @@
 import logging
 
-from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monitor, io_tools
+from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monitor, io_tools, npzd
 from .. import time, veros_method
 from .io_tools import hdf5 as h5tools
 
@@ -9,7 +9,8 @@ from .io_tools import hdf5 as h5tools
 def create_diagnostics(vs):
     return {Diag.name: Diag(vs) for Diag in (averages.Averages, cfl_monitor.CFLMonitor,
                                                 energy.Energy, overturning.Overturning,
-                                                snapshot.Snapshot, tracer_monitor.TracerMonitor)}
+                                                snapshot.Snapshot, tracer_monitor.TracerMonitor,
+                                                npzd.NPZDMonitor)}
 
 
 @veros_method

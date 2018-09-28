@@ -12,6 +12,7 @@ SETTINGS = OrderedDict([
     ("dt_mom", Setting(0., float, "Time step in seconds for momentum")),
     ("dt_tracer", Setting(0., float, "Time step for tracers, can be larger than dt_mom")),
     ("dt_tke", Setting(0., float, "Time step for TKE module, currently set to dt_mom (unused)")),
+    ("dt_bio", Setting(0, float, "Time step for npzd, must be smaller than dt_mom")),
     ("runlen", Setting(0., float, "Length of simulation in seconds")),
     ("AB_eps", Setting(0.1, float, "Deviation from Adam-Bashforth weighting")),
 
@@ -127,7 +128,33 @@ SETTINGS = OrderedDict([
     ("pyom_compatibility_mode", Setting(False, bool, "Force compatibility to pyOM2 (even reproducing bugs and other quirks). For testing purposes only.")),
     ("diskless_mode", Setting(False, bool, "Suppress all output to disk. Mainly used for testing purposes.")),
     ("default_float_type", Setting("float64", str, "Default type to use for floating point arrays (e.g. ``float32`` or ``float64``).")),
-    ("use_amg_preconditioner", Setting(True, bool, "Use AMG preconditioner in Poisson solver if pyamg is installed."))
+    ("use_amg_preconditioner", Setting(True, bool, "Use AMG preconditioner in Poisson solver if pyamg is installed.")),
+
+    # NPZD
+    ("light_attenuation_phytoplankton", Setting(0.047, float, "Light attenuation of phytoplankton")),
+    ("light_attenuation_water", Setting(0.04, float, "Light attenuation of water")),
+    ("rctheta", Setting(1.33, float, "Angle of incidence")), # TODO what angle?
+    ("nud0", Setting(0.07 / 86400, float, "Remineralization rate of detritus [1/sec]")),
+    ("bbio", Setting(1.066, float, "??????")),
+    ("cbio", Setting(1.0, float, "???????")),
+    ("abio_P", Setting(0.6 / 86400, float, "Maximum growth rate parameter in [1/sec]")),  # TODO of what?
+    ("gbio", Setting(0.38 / 86400, float, "Maximum grazing rate at 0 deg C [1/day]")),
+    ("nupt0", Setting(0.01 / 86400, float, "Fast-recycling mortality rate of phytoplankton [1/sec]")),
+    ("saturation_constant_N", Setting(0.7, float, "Half saturation constant for N uptate [mmol N / m^3]")),
+    ("saturation_constant_Z_grazing", Setting(0.15, float, "Half saturation constant for Z grazing [mmol/m^3]")),
+    ("specific_mortality_phytoplankton", Setting(0.03 / 86400, float, "Specific mortality rate of phytoplankton")),
+    ("quadric_mortality_zooplankton", Setting(0.06 / 86400**2, float, "Quadric mortality rate of zooplankton [???]")),
+    ("assimilation_efficiency", Setting(0.70, float, "gamma1")),  # TODO comment
+    ("zooplankton_growth_efficiency", Setting(0.6, float, "Zooplankton growth efficiency")),
+    ("wd0", Setting(16. / 86400, float, "Sinking speed of detritus at surface [m/s]")),
+    ("mwz", Setting(1000, float, "Depth below which sinking speed of detritus remains constant [m]")),
+    ("mw", Setting(0.02 / 86400, float, "Increase in sinking speed with depth [1/sec]")),
+    ("zprefP", Setting(.4, float, "Zooplankton preference for grazing on Phytoplankton")),
+    ("zprefZ", Setting(.4, float, "Zooplankton preference for grazing on other zooplankton")),
+    ("zprefDet", Setting(.2, float, "Zooplankton preference for grazing on detritus")),
+    ("redfield_ratio_PN", Setting(1./16, float, "Refield ratio for N/P")),
+    ("trcmin", Setting(0, float, "Minimum npzd tracer value"))
+
 ])
 
 
@@ -140,3 +167,13 @@ def check_setting_conflicts(vs):
     if vs.enable_tke and not vs.enable_implicit_vert_friction:
         raise RuntimeError("use TKE model only with implicit vertical friction"
                            "(set enable_implicit_vert_fricton)")
+
+    if vs.enable_npzd:
+        if vs.dt_bio > vs.dt_mom:
+            raise RuntimeError("Biological timestep must be smaller than or equal to momentum timestep (ensure dt_bio > dt_mom)")
+
+        # if ((vs.dt_mom / vs.dt_bio) % 1 is not 0):
+        #     raise RuntimeError("Momentum timestep must be divisible by biological timestep")
+
+        if (vs.zprefP + vs.zprefZ + vs.zprefDet) != 1:
+            raise RuntimeError("Zooplankton preferences must add to 1")
