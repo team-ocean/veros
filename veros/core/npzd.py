@@ -43,6 +43,7 @@ def npzd(vs):
         # incomming radiation at layer
         swr = swr * np.exp(- vs.light_attenuation_phytoplankton * phyto_integrated)
         phyto_integrated = np.maximum(vs.phytoplankton[:, :, k], vs.trcmin) * vs.dzt[::-1][k]
+        phyto_integrated += np.maximum(vs.diazotroph[:, :, k], vs.trcmin) * vs.dzt[::-1][k]
         grid_light = swr * np.exp(ztt[k] * vs.rctheta)  # light at top of grid box
 
         # calculate detritus import pr time step from layer above
