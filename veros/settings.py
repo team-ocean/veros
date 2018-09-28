@@ -149,11 +149,24 @@ SETTINGS = OrderedDict([
     ("wd0", Setting(16. / 86400, float, "Sinking speed of detritus at surface [m/s]")),
     ("mwz", Setting(1000, float, "Depth below which sinking speed of detritus remains constant [m]")),
     ("mw", Setting(0.02 / 86400, float, "Increase in sinking speed with depth [1/sec]")),
-    ("zprefP", Setting(.4, float, "Zooplankton preference for grazing on Phytoplankton")),
-    ("zprefZ", Setting(.4, float, "Zooplankton preference for grazing on other zooplankton")),
-    ("zprefDet", Setting(.2, float, "Zooplankton preference for grazing on detritus")),
+    ("zprefP", Setting(.3, float, "Zooplankton preference for grazing on Phytoplankton")),
+    ("zprefZ", Setting(.3, float, "Zooplankton preference for grazing on other zooplankton")),
+    ("zprefDet", Setting(.3, float, "Zooplankton preference for grazing on detritus")),
     ("redfield_ratio_PN", Setting(1./16, float, "Refield ratio for N/P")),
-    ("trcmin", Setting(0, float, "Minimum npzd tracer value"))
+    ("trcmin", Setting(0, float, "Minimum npzd tracer value")),
+
+    # NPZD with N
+    ("jdiar", Setting(0.08, float, "Factor reducing the growth rate of diazotrophs")),
+    ("nudon0", Setting(2.33e-5 / 86400, float, "DON remineralization rate [1/sec]")),
+    ("nudop0", Setting(7e-5 / 86400, float, "DOP remineralization rate [1/sec]")),
+    ("nupt0_D", Setting(0.001 / 86400, float, "Fast-recycling mortality rate of diazotrophs [1/sec]")),
+    ("hdop", Setting(0.4, float, "DOP growth rate handicap")),
+    ("zprefD", Setting(.1, float, "Z preference for diazotrophs")),
+    ("specific_mortality_diazotroph", Setting(0.0001 / 86400, float, "Specific mortality rate of diazotrophs [1/sec]")),
+    ("diazotroph_NP", Setting(28, float, "Diazotroph N:P ratio")),
+    ("dfr", Setting(0.08, float, "phtoplankton mortality refactory/semi-labile DOM fraction")),
+    ("dfrt", Setting(0.08, float, "phtoplankton fast recycling refactory/semi-labile DOM fraction")),
+
 
 ])
 
@@ -175,5 +188,5 @@ def check_setting_conflicts(vs):
         # if ((vs.dt_mom / vs.dt_bio) % 1 is not 0):
         #     raise RuntimeError("Momentum timestep must be divisible by biological timestep")
 
-        if (vs.zprefP + vs.zprefZ + vs.zprefDet) != 1:
-            raise RuntimeError("Zooplankton preferences must add to 1")
+        if not round(vs.zprefP + vs.zprefZ + vs.zprefDet + vs.zprefD, 3) == 1:
+            raise RuntimeError("Zooplankton preferences must add to 1 it was {}".format(vs.zprefP + vs.zprefZ + vs.zprefDet + vs.zprefD))

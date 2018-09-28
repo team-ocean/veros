@@ -27,10 +27,11 @@ class NPZDMonitor(VerosDiagnostic):
         npzd_sum = vs.detritus + vs.po4 + vs.zooplankton + vs.phytoplankton
         logging.warning("Total NPZD concentration: {}".format(npzd_sum.sum(axis=2)[5, 5],))
         npzd_sum *= vs.dzw[::-1]
-        logging.warning("Detritus: {}".format(vs.detritus[5, 5, :3]))
-        logging.warning("PO4: {}".format(vs.po4[5, 5, :3]))
-        logging.warning("Phytoplankton: {}".format(vs.phytoplankton[5, 5, :3]))
-        logging.warning("Zooplankton: {}".format(vs.zooplankton[5, 5, :3]))
+        # logging.warning("Detritus: {}".format(vs.detritus[5, 5, :3]))
+        # logging.warning("PO4: {}".format(vs.po4[5, 5, :3]))
+        # logging.warning("Phytoplankton: {}".format(vs.phytoplankton[5, 5, :3]))
+        # logging.warning("Zooplankton: {}".format(vs.zooplankton[5, 5, :3]))
+        logging.warning("DOP - DON: {}".format(vs.dop[5,5,0] - vs.don[5,5,0]))
         logging.warning("Total NPZD organisms: {}".format(npzd_sum.sum(axis=2)[5, 5],))
 
 

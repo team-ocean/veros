@@ -699,10 +699,6 @@ CONDITIONAL_VARIABLES = OrderedDict([
         )),
     ])),
     ("enable_npzd", OrderedDict([
-        ("swr", Variable(
-            "Shortwave radiation", W_GRID, "?",
-            "Shortwave radiation from the sun"
-        )),
         ("phytoplankton", Variable(
             "Phytoplankton concentration", W_GRID, "mmol/m^3?",
             "Concentration of phytoplankton in grid box"
@@ -722,6 +718,22 @@ CONDITIONAL_VARIABLES = OrderedDict([
         ("swr", Variable(
             "Shortwave radiation", T_HOR, "W/m^3?",
             "Incomming solar radiation at sea level")),
+        ("no3", Variable(
+            "Nitrate concentration", W_GRID, "mmol/m^3?",
+            "Concentration of nitrate in grid box"
+        )),
+        ("dop", Variable(
+            "Dissolved organic phosphorus", W_GRID, "mmol/m^3?",
+            "Concentration of Dissolved organic phosphorus in grid box"
+        )),
+        ("don", Variable(
+            "Dissolved organic nitrogen", W_GRID, "mmol/m^3?",
+            "Concentration of dissolved organic nitrogen in grid box"
+        )),
+        ("diazotroph", Variable(
+            "Diazotroph concentration", W_GRID, "mmol/m^3?",
+            "Concentration of diazotrophs in grid box"
+        )),
     ])),
 ])
 
