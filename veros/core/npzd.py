@@ -65,8 +65,6 @@ def npzd(vs):
         Call the npzd ecosystem dynamics model
         """
 
-        # NOTE this was originally in its own subroutine
-
         po4_in = vs.po4[:, :, k]
         phytoplankton_in = vs.phytoplankton[:, :, k]
         zooplankton_in = vs.zooplankton[:, :, k]
@@ -100,38 +98,19 @@ def npzd(vs):
         # Fotosynthesis
         # After Evans & Parslow (1985)
         # ----------------------------
-        f1 = np.exp((- vs.light_attenuation_water - vs.light_attenuation_phytoplankton * (phytoplankton_in + diazotroph_in)) * vs.dzt[::-1][k])
-        # TODO is this the same as denominator below?
+        light_attenuation = (vs.light_attenuation_water + vs.light_attenuation_phytoplankton * (phytoplankton_in + diazotroph_in)) * vs.dzt[::-1][k]
+        f1 = np.exp(-light_attenuation)
 
         # TODO what are these things supposed to be?
         jmax = vs.abio_P * bct
         gd = jmax * vs.dt_mom # *(vs.dt_mom / 86400)
-        u1 = np.maximum(grid_light / gd, 1e-6)  # TODO remove magic number 1e-6
-        u2 = u1 * f1
+        avej = avg_J(vs, f1, gd, grid_light, light_attenuation)
 
-        # NOTE: There is an approximation here: u1 < 20 WTF? Why 20?
-        phi1 = np.log(u1 + np.sqrt(1 + u1**2)) - (np.sqrt(1 + u1) - 1) / u1
-        phi2 = np.log(u2 + np.sqrt(1 + u2**2)) - (np.sqrt(1 + u2) - 1) / u2
-
-        # FIXME It is not clear, what this is supposed to be..
-        avej = gd * (phi1 - phi2) / ((vs.light_attenuation_water + vs.light_attenuation_phytoplankton * (phytoplankton_in + diazotroph_in)) * vs.dzt[::-1][k])
-
-
-        # TODO collect into function - it is similar to above
         # TODO remove magic number 2.6
         jmax_D = np.maximum(0, vs.abio_P * (bct - 2.6)) * vs.jdiar
-
         # TODO remove magic number 1e-14
-        gd_D = np.maximum(1e-14, jmax_D )#* (vs.dt_mom / 84600)
-
-        # TODO remove magic number 1e-6
-        u1 = np.maximum(grid_light / gd_D, 1e-6)
-        u2 = u1 * f1
-
-        # NOTE: There is an approximation here: u1 < 20 WTF? Why 20?
-        phi1 = np.log(u1 + np.sqrt(1 + u1**2)) - (np.sqrt(1 + u1) - 1) / u1
-        phi2 = np.log(u2 + np.sqrt(1 + u2**2)) - (np.sqrt(1 + u2) - 1) / u2
-        avej_D = gd_D * (phi1 - phi2) / ((vs.light_attenuation_water + vs.light_attenuation_phytoplankton * (phytoplankton_in + diazotroph_in)) * vs.dzt[::-1][k])
+        gd_D = np.maximum(1e-14, jmax_D) * vs.dt_mom#* (vs.dt_mom / 84600)
+        avej_D = avg_J(vs, f1, gd_D, grid_light, light_attenuation)
 
         # -----------------------------
         # Grazing
@@ -151,22 +130,23 @@ def npzd(vs):
             # TODO: What do these do? What do the variables mean?
             # TODO saturation / redfield is constant -> calculate only once
             # TODO separate into function (until Michaelis-Menten denominator
-            # TODO how does k1p_P represent in terms of saturation constant of P
             limP_dop = vs.hdop * dop_in / (vs.saturation_constant_P + dop_in)
             limP_po4 = po4_in / (vs.saturation_constant_P + po4_in)
 
+            sat_red = vs.saturation_constant_N / vs.redfield_ratio_PN
+
             dop_uptake_flag = limP_dop > limP_po4
             # nitrate limitation
-            limP = po4_in / (vs.saturation_constant_N / vs.redfield_ratio_PN + po4_in)
+            limP = po4_in / (sat_red + po4_in)
             u_P = np.minimum(avej, jmax * limP)
-            u_P = np.minimum(u_P, jmax * no3_in / (vs.saturation_constant_N / vs.redfield_ratio_PN + no3_in))
+            u_P = np.minimum(u_P, jmax * no3_in / (sat_red + no3_in))
             u_D = np.minimum(avej_D, jmax_D * limP)
 
             dop_uptake_D_flag = dop_uptake_flag  # TODO should this be here?
 
-            po4P = jmax * po4_in / (vs.saturation_constant_N / vs.redfield_ratio_PN + po4_in)
-            no3_P = jmax * no3_in / (vs.saturation_constant_N / vs.redfield_ratio_PN + no3_in)
-            po4_D = jmax_D * po4_in / (vs.saturation_constant_N / vs.redfield_ratio_PN + po4_in)
+            po4P = jmax * po4_in / (sat_red + po4_in)
+            no3_P = jmax * no3_in / (sat_red + no3_in)
+            po4_D = jmax_D * po4_in / (sat_red + po4_in)
 
             # Michaelis-Menten denominator
             thetaZ = vs.zprefP * phytoplankton_in + vs.zprefDet * detritus_in + vs.zprefZ * zooplankton_in + vs.zprefD * diazotroph_in + vs.saturation_constant_Z_grazing * vs.redfield_ratio_PN
@@ -178,7 +158,7 @@ def npzd(vs):
             ing_Z = vs.zprefZ / thetaZ
             ing_D = vs.zprefD / thetaZ
 
-            # Net photosynthetic production?
+            # Net primary production
             npp = u_P * phytoplankton_in
             npp_D = np.maximum(0, u_D * diazotroph_in)
 
@@ -353,7 +333,7 @@ def npzd(vs):
         """
 
         # Calculate total export to get total import for next layer
-        detritus_export[:, :] *= 1.0/nbio  # FIXME inefficient
+        detritus_export[:, :] *= 1.0/nbio
         detritus_export *= vs.dzt[::-1][k]
 
         # ---------------------------------------------------
@@ -370,3 +350,16 @@ def npzd(vs):
         vs.don[:, :, k] = don_in[:, :]
         vs.no3[:, :, k] = no3_in[:, :]
         vs.diazotroph[:, :, k] = diazotroph_in[:, :]
+
+
+@veros_method
+def avg_J(vs, f1, gd, grid_light, light_attenuation):
+    """Average J"""
+    u1 = np.maximum(grid_light / gd, 1e-6)  # TODO remove magic number 1e-6
+    u2 = u1 * f1
+
+    # NOTE: There is an approximation here: u1 < 20 WTF? Why 20?
+    phi1 = np.log(u1 + np.sqrt(1 + u1**2)) - (np.sqrt(1 + u1) - 1) / u1
+    phi2 = np.log(u2 + np.sqrt(1 + u2**2)) - (np.sqrt(1 + u2) - 1) / u2
+
+    return gd * (phi1 - phi2) / light_attenuation
