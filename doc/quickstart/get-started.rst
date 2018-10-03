@@ -8,15 +8,16 @@ Using Anaconda (multi-platform)
 +++++++++++++++++++++++++++++++
 
 1. `Download and install Anaconda <https://www.continuum.io/downloads>`_. Make sure to
-   grab the 64-bit version of the Python 2.7 interpreter.
+   grab the 64-bit version of the Python 2.7 interpreter. During installation ensure
+   that you use Anaconda's pip.
 
 2. Install some dependencies: ::
 
-       $ conda install hdf5 libnetcdf
+       $ conda install h5py netcdf4
 
    and optionally::
 
-       $ conda install -c bohrium bohrium
+       $ pip install bohrium
 
 3. Clone our repository: ::
 
