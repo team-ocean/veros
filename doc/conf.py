@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath('_3rdparty'))
 
 # Mock packages with C dependencies
 import mock
-MOCK_MODULES = ['pyamg', 'netCDF4', 'h5py', 'pyopencl', 'builtins']
+MOCK_MODULES = ['pyamg', 'netCDF4', 'h5py', 'pyopencl']
 sys.modules.update((mod_name, mock.MagicMock()) for mod_name in MOCK_MODULES)
 
 # -- General configuration ------------------------------------------------
