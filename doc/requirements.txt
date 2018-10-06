@@ -1,5 +1,5 @@
 Pygments>=2.0
-sphinx
+sphinx<1.7
 sphinx_rtd_theme
 numpy
 scipy
