@@ -186,3 +186,51 @@ def tempsalt_sources(vs):
              vs.int_drhodS[..., vs.tau] * vs.salt_source)
         vs.P_diss_sources[...] = 0.
         dissipation_on_wgrid(vs, vs.P_diss_sources, aloc=aloc)
+
+
+@veros_method
+def biharmonic(vs, tr, f, dtr):
+    """
+    Biharmonic mixing of tracer tr, results saved as dtr
+    This is essentially just a copy of tempsalt_biharmonic generalized
+    Is there any reason to use the flux_* in vs?
+    """
+    flux_east = np.zeros_like(tr, dtype=vs.default_float_type)
+    flux_north = np.zeros_like(tr, dtype=vs.default_float_type)
+    del2 = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+
+    flux_east[:-1, :, :] = -f * (tr[1:, :, :] - tr[:-1, :, :]) \
+            / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+            * vs.maskU[:-1, :, :]
+
+    flux_north[:, :-1, :] = -f * (tr[:, 1:, :] - tr[:, :-1, :]) \
+            / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] \
+            * vs.cosu[np.newaxis, :-1, np.newaxis]
+
+    flux_east[:, -1, :] = 0.
+    flux_north[:, -1, :] = 0.
+
+    del2[1:, 1:, :] = vs.maskT[1:, 1:, :] * (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
+            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
+            + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
+            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
+
+    if vs.enable_cyclic_x:
+        cyclic.setcyclic_x(del2)
+
+    flux_east[:-1, :, :] = f * (del2[1:, :, :] - del2[:-1, :, :]) \
+            / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+            * vs.maskU[:-1, :, :]
+    flux_north[:, :-1, :] = f * (del2[:, 1:, :] - del2[:, :-1, :]) \
+            / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] \
+            * vs.cosu[np.newaxis, :-1, np.newaxis]
+    flux_east[-1, :, :] = 0.
+    flux_east[:, -1, :] = 0.
+
+    dtr[1:, 1:, :] = vs.maskT[1:, 1:, :] * (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
+            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
+            + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
+            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
+
+    # dtr[...] *= vs.maskT
+    # if vs.enable_conserve_energy: TODO should we do something here?

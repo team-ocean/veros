@@ -4,10 +4,11 @@ Contains veros methods for handling bio- and geochemistry
 """
 import numpy as np  # NOTE np is already defined somehow
 from .. import veros_method
-# from . import numerics, utilities
+from . import advection, diffusion, thermodynamics, cyclic
+
 
 @veros_method
-def npzd(vs):
+def biogeochemistry(vs):
     """
     Integrate biochemistry: phytoplankton, zooplankton, detritus, po4
     """
@@ -23,12 +24,10 @@ def npzd(vs):
     # sinking speed of detritus
     # can't sink beyond bottom
     wd = np.empty_like(vs.phytoplankton)
-    wd[:, :] = (vs.wd0 + vs.mw * np.where(-vs.zw[::-1] < vs.mwz, -vs.zw[::-1], vs.mwz)) / vs.dzt[::-1]
-    wd *= np.logical_not(vs.maskT)  # TODO: Is this the correct way to use the mask?
-                                    # The intention is to zero any element not in water
-    nbio = vs.dt_mom // vs.dt_bio
-    # ztt = depth at top of grid box
-    ztt = vs.zw[::-1]
+    wd[:, :] = (vs.wd0 + vs.mw * np.where(-vs.zw < vs.mwz, -vs.zw, vs.mwz)) / vs.dzt
+    wd *= vs.maskW
+
+    nbio = int(vs.dt_mom // vs.dt_bio)
 
     vs.saturation_constant_P = vs.saturation_constant_N * vs.redfield_ratio_PN
     sat_red = vs.saturation_constant_N / vs.redfield_ratio_PN
@@ -40,17 +39,20 @@ def npzd(vs):
     swr = vs.swr.copy()
 
 
-    for k in range(vs.phytoplankton.shape[2]):
+    # for k in range(vs.phytoplankton.shape[2]):
+    for k in reversed(range(vs.nz)):
         # print("layer", k)
 
         # incomming radiation at layer
         swr = swr * np.exp(- vs.light_attenuation_phytoplankton * phyto_integrated)
-        phyto_integrated = np.maximum(vs.phytoplankton[:, :, k], vs.trcmin) * vs.dzt[::-1][k]
-        phyto_integrated += np.maximum(vs.diazotroph[:, :, k], vs.trcmin) * vs.dzt[::-1][k]
-        grid_light = swr * np.exp(ztt[k] * vs.rctheta)  # light at top of grid box
+        phyto_integrated = np.maximum(vs.phytoplankton[:, :, k], vs.trcmin) * vs.dzt[k]
+        phyto_integrated += np.maximum(vs.diazotroph[:, :, k], vs.trcmin) * vs.dzt[k]
+
+        # grid_light = swr * np.exp(ztt[k] * vs.rctheta)  # light at top of grid box
+        grid_light = swr * np.exp(vs.zw[k] * vs.rctheta)  # light at top of grid box
 
         # calculate detritus import pr time step from layer above
-        detritus_import = detritus_export / vs.dzt[::-1][k] / vs.dt_bio
+        detritus_import = detritus_export / vs.dzt[k] / vs.dt_bio
 
         # reset export
         detritus_export[:, :] = 0
@@ -107,15 +109,19 @@ def npzd(vs):
         # Fotosynthesis
         # After Evans & Parslow (1985)
         # ----------------------------
-        light_attenuation = (vs.light_attenuation_water + vs.light_attenuation_phytoplankton * (tracers["phytoplankton"] + tracers["diazotroph"])) * vs.dzt[::-1][k]
+        light_attenuation = (vs.light_attenuation_water + vs.light_attenuation_phytoplankton * (tracers["phytoplankton"] + tracers["diazotroph"])) * vs.dzt[k]
         f1 = np.exp(-light_attenuation)
 
         # NOTE there are different minimum values in avej for phytoplankton and diazotroph - why?
         # TODO remove magic number 1e-14
-        jmax = {"phytoplankton": vs.abio_P * bct, "diazotroph": np.maximum(0, vs.abio_P * (bct - 2.6)) * vs.jdiar}
-        avej = {producer: avg_J(vs, f1, np.maximum(1e-14 if producer == "diazotroph" else 0, jmax[producer]) * vs.dt_mom, grid_light, light_attenuation) for producer in jmax}
-
-
+        # TODO remove magic number 2.6
+        # TODO dayfrac? dt_mom, dt_bio? noget andet?
+        jmax = {"phytoplankton": vs.abio_P * bct,
+                "diazotroph": np.maximum(0, vs.abio_P * (bct - 2.6)) * vs.jdiar}
+        gd = {"phytoplankton": jmax["phytoplankton"] * vs.dt_mom,
+              "diazotroph": np.maximum(1.e-14, jmax["diazotroph"]) * vs.dt_mom}
+        avej = {"phytoplankton": avg_J(vs, f1, gd["phytoplankton"], grid_light, light_attenuation),
+                "diazotroph": avg_J(vs, f1, gd["diazotroph"], grid_light, light_attenuation)}
 
 
         for _ in range(nbio):
@@ -130,15 +136,16 @@ def npzd(vs):
             limP = limP_dop * dopupt_flag + limP_po4 * np.logical_not(dopupt_flag)
 
             # These values are defined but never used...
-            po4P = jmax["phytoplankton"] * tracers["po4"] / (sat_red + tracers["po4"])
-            no3P = jmax["phytoplankton"] * tracers["no3"] / (vs.saturation_constant_N + tracers["no3"])
-            po4_D = jmax["diazotroph"] * tracers["po4"] / (sat_red + tracers["po4"])
+            # po4P = jmax["phytoplankton"] * tracers["po4"] / (sat_red + tracers["po4"])
+            # no3P = jmax["phytoplankton"] * tracers["no3"] / (vs.saturation_constant_N + tracers["no3"])
+            # po4_D = jmax["diazotroph"] * tracers["po4"] / (sat_red + tracers["po4"])
 
             net_primary_production = {"phytoplankton": 0, "diazotroph": 0}
+
             for producer in net_primary_production:
                 u = np.minimum(avej[producer], jmax[producer] * limP)
 
-                if producer == "phytoplankton" and "no3" in tracers:
+                if producer == "phytoplankton":# and "no3" in tracers:
                     # Phytoplankton growth is nitrate limited
                     u = np.minimum(u, jmax[producer] * tracers["no3"] /
                                    (vs.saturation_constant_N + tracers["no3"]))
@@ -147,11 +154,23 @@ def npzd(vs):
                 # but does it make sense to have negative primary production?
                 net_primary_production[producer] = np.maximum(0, u * tracers[producer])
 
+
+
+            """
+            [5] Denitrification occurs under suboxic conditions (O2 <
+            5 mmol/kg) in the water column and in the seafloor sedi-
+            −ments. Here, microbes use NO3 instead of O2 as the electron
+            acceptor during respiration and convert it to gaseous forms of
+            N (N2O and N2), which can then escape to the atmosphere
+            [Codispoti and Richards, 1976]. The volume and distribution
+            of suboxic water is affected by the temperature‐dependent
+            sCagmpc
+            Somes, Schmittner 
+            """
+
             dop_uptake = net_primary_production["phytoplankton"] * dopupt_flag
             no3_uptake_D = (.5 + .5 * np.tanh(tracers["no3"] - 5.)) * net_primary_production["diazotroph"]  # nitrate uptake TODO: remove magic number 5
             dop_uptake_D = net_primary_production["diazotroph"] * dopupt_flag
-
-
 
             # Michaelis-Menten denominator
             thetaZ = sum([pref_score * tracers[preference] for preference, pref_score in zooplankton_preferences.items()]) + vs.saturation_constant_Z_grazing * vs.redfield_ratio_PN
@@ -167,9 +186,7 @@ def npzd(vs):
                          "zooplankton": vs.quadric_mortality_zooplankton * tracers["zooplankton"] ** 2,
                          }
 
-
             recycled = {recycler: rate * tracers[recycler] for recycler, rate in recycling_rates.items()}
-
 
             # multiply by flags to ensure stability / not loosing more than there is
             for preference in zooplankton_preferences:
@@ -194,46 +211,49 @@ def npzd(vs):
             """
 
             digestion = {preference: vs.assimilation_efficiency * amount_grazed for preference, amount_grazed in grazing.items()}
-            digestion["diazotroph"] *= (vs.redfield_ratio_PN / vs.diazotroph_NP)
+            # digestion["diazotroph"] *= (vs.redfield_ratio_PN / vs.diazotroph_NP)
+            digestion["diazotroph"] *= 1. / (vs.redfield_ratio_PN * vs.diazotroph_NP)
             digestion_total = sum(digestion.values())
 
             excretion = {preference: vs.assimilation_efficiency * (1 - vs.zooplankton_growth_efficiency) * amount_grazed for preference, amount_grazed in grazing.items()}
-            excretion["diazotroph"] *= (vs.redfield_ratio_PN / vs.diazotroph_NP)
+            # excretion["diazotroph"] *= (vs.redfield_ratio_PN / vs.diazotroph_NP)
+            excretion["diazotroph"] *= (vs.redfield_ratio_PN * vs.diazotroph_NP)
             excretion_total = sum(excretion.values())
 
-            nr_excr_D = vs.assimilation_efficiency * grazing["diazotroph"] * (1 - vs.redfield_ratio_PN / vs.diazotroph_NP) + (1 - vs.assimilation_efficiency) * grazing["diazotroph"] * (1 - vs.redfield_ratio_PN / vs.diazotroph_NP)
+            nr_excr_D = vs.assimilation_efficiency * grazing["diazotroph"] * (1 - 1./(vs.redfield_ratio_PN * vs.diazotroph_NP)) + (1 - vs.assimilation_efficiency) * grazing["diazotroph"] * (1 - 1./(vs.redfield_ratio_PN * vs.diazotroph_NP))
             # FIXME is it just me, or is there too much math here?
 
             sloppy_feeding = {preference: (1 - vs.assimilation_efficiency) * amount_grazed for preference, amount_grazed in grazing.items()}
-            sloppy_feeding["diazotroph"] *= (vs.redfield_ratio_PN / vs.diazotroph_NP)
+            # sloppy_feeding["diazotroph"] *= (vs.redfield_ratio_PN / vs.diazotroph_NP)
+            sloppy_feeding["diazotroph"] *= 1. / (vs.redfield_ratio_PN * vs.diazotroph_NP)
             sloppy_feeding_total = sum(sloppy_feeding.values())
 
             """
             Model dynamics:
             """
 
-            tracers["po4"][:, :] += vs.dt_bio * (vs.redfield_ratio_PN * (recycled["detritus"] + excretion_total - net_primary_production["phytoplankton"] + (1 - vs.dfrt) * recycled["phytoplankton"] - (net_primary_production["phytoplankton"] - dop_uptake)) + vs.diazotroph_NP * (recycled["diazotroph"] - (net_primary_production["diazotroph"] - dop_uptake_D)) + recycled["DOP"])
+            tracers["po4"][:, :] += vs.dt_bio * (vs.redfield_ratio_PN * (recycled["detritus"] + excretion_total - net_primary_production["phytoplankton"] + (1 - vs.dfrt) * recycled["phytoplankton"] - (net_primary_production["phytoplankton"] - dop_uptake)) + 1. / vs.diazotroph_NP * (recycled["diazotroph"] - (net_primary_production["diazotroph"] - dop_uptake_D)) + recycled["DOP"])
 
             tracers["phytoplankton"][:, :] += vs.dt_bio * (net_primary_production["phytoplankton"] - mortality["phytoplankton"] - grazing["phytoplankton"] - recycled["phytoplankton"])
 
             tracers["zooplankton"][:, :] += vs.dt_bio * (digestion_total - mortality["zooplankton"] - grazing["zooplankton"] - excretion_total)
 
-            tracers["detritus"][:, :] += vs.dt_bio * ((1 - vs.dfr) * mortality["phytoplankton"] + sloppy_feeding_total + mortality["zooplankton"] - recycled["detritus"] - grazing["detritus"] + mortality["diazotroph"] * (vs.redfield_ratio_PN / vs.diazotroph_NP) - expo + detritus_import)  # TODO simplify mortality to use sum
+            tracers["detritus"][:, :] += vs.dt_bio * ((1 - vs.dfr) * mortality["phytoplankton"] + sloppy_feeding_total + mortality["zooplankton"] - recycled["detritus"] - grazing["detritus"] + mortality["diazotroph"] / (vs.redfield_ratio_PN * vs.diazotroph_NP) - expo + detritus_import)  # TODO simplify mortality to use sum
 
             tracers["diazotroph"][:, :] += vs.dt_bio * (net_primary_production["diazotroph"] - mortality["diazotroph"] - recycled["diazotroph"] - grazing["diazotroph"])
 
             tracers["DON"][:, :] += vs.dt_bio * (vs.dfr * mortality["phytoplankton"] + vs.dfrt * recycled["phytoplankton"] - recycled["DON"])
 
-            tracers["DOP"][:, :] += vs.dt_bio * (vs.redfield_ratio_PN * (vs.dfr * mortality["phytoplankton"] + vs.dfrt * recycled["phytoplankton"] - dop_uptake) - vs.diazotroph_NP * dop_uptake_D - recycled["DOP"])
+            tracers["DOP"][:, :] += vs.dt_bio * (vs.redfield_ratio_PN * (vs.dfr * mortality["phytoplankton"] + vs.dfrt * recycled["phytoplankton"] - dop_uptake) - 1. / vs.diazotroph_NP * dop_uptake_D - recycled["DOP"])
 
-            tracers["no3"][:, :] += vs.dt_bio * (excretion_total + recycled["detritus"] + (1 - vs.dfrt) * recycled["phytoplankton"] - net_primary_production["phytoplankton"] + recycled["diazotroph"] - no3_uptake_D + recycled["DON"] + nr_excr_D + mortality["diazotroph"] * (1 - (vs.redfield_ratio_PN / vs.diazotroph_NP)))
+            tracers["no3"][:, :] += vs.dt_bio * (excretion_total + recycled["detritus"] + (1 - vs.dfrt) * recycled["phytoplankton"] - net_primary_production["phytoplankton"] + recycled["diazotroph"] - no3_uptake_D + recycled["DON"] + nr_excr_D + mortality["diazotroph"] * (1 - 1./(vs.redfield_ratio_PN * vs.diazotroph_NP)))
 
 
             # update export from layer and flags
             detritus_export[:, :] += expo * vs.dt_bio  # NOTE the additional factor is only for easier debugging. It could be removed by removing the same factor in the import
 
             ## TODO: Should it be here?
-            detritus_export = np.minimum(tracers["detritus"], detritus_export)
+            # detritus_export = np.minimum(tracers["detritus"], detritus_export)
 
             update_flags_and_tracers(vs, flags, tracers)
 
@@ -245,7 +265,7 @@ def npzd(vs):
 
         # Calculate total export to get total import for next layer
         detritus_export[:, :] *= 1.0/nbio
-        detritus_export *= vs.dzt[::-1][k]
+        detritus_export *= vs.dzt[k]
 
         # ---------------------------------------------------
         # Set source/sink terms
@@ -286,3 +306,39 @@ def update_flags_and_tracers(vs, flags, tracers, refresh=False):
 
     for key in tracers:
         tracers[key] = np.maximum(tracers[key], vs.trcmin)
+
+
+
+
+
+@veros_method
+def npzd(vs):
+
+    tracers = {"phytoplankton": vs.phytoplankton,
+               "zooplankton": vs.zooplankton,
+               "diazotroph": vs.diazotroph,
+               "DOP": vs.dop,
+               "DON": vs.don,
+               "no3": vs.no3,
+               "po4": vs.po4,
+               "detritus": vs.detritus}
+
+    tracer_result = {key: 0 for key in tracers}
+
+    for tracer, val in tracers.items():
+        dNPZD_advect = np.zeros_like(val)
+        dNPZD_diff = np.zeros_like(val)
+
+
+        # NOTE Why is this in thermodynamics?
+        thermodynamics.advect_tracer(vs, val, dNPZD_advect)
+        diffusion.biharmonic(vs, val, 0.5, dNPZD_diff)  # TODO correct parameter
+
+
+
+        tracer_result[tracer] = vs.dt_mom * (dNPZD_advect + dNPZD_diff)
+
+    biogeochemistry(vs)
+
+    for tracer in tracers:
+        tracers[tracer][...] += tracer_result[tracer]
