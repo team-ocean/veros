@@ -25,7 +25,7 @@ def biogeochemistry(vs):
     # can't sink beyond bottom
     wd = np.empty_like(vs.phytoplankton)
     wd[:, :] = (vs.wd0 + vs.mw * np.where(-vs.zw < vs.mwz, -vs.zw, vs.mwz)) / vs.dzt
-    wd *= vs.maskW
+    wd *= vs.maskT
 
     nbio = int(vs.dt_mom // vs.dt_bio)
 

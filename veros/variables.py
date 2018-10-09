@@ -700,38 +700,38 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ])),
     ("enable_npzd", OrderedDict([
         ("phytoplankton", Variable(
-            "Phytoplankton concentration", W_GRID, "mmol/m^3?",
+            "Phytoplankton concentration", T_GRID, "mmol/m^3?",
             "Concentration of phytoplankton in grid box"
         )),
         ("zooplankton", Variable(
-            "Zooplankton concentration", W_GRID, "mmol/m^3?",
+            "Zooplankton concentration", T_GRID, "mmol/m^3?",
             "Concentration of zooplankton in grid box"
         )),
         ("detritus", Variable(
-            "Detritus concentration", W_GRID, "mmol/m^3?",
+            "Detritus concentration", T_GRID, "mmol/m^3?",
             "Concentration of detritus in grid box"
         )),
         ("po4", Variable(
-            "Phosphate concentration", W_GRID, "mmol/m^3?",
+            "Phosphate concentration", T_GRID, "mmol/m^3?",
             "Concentration of phosphate in grid box"
         )),
         ("swr", Variable(
             "Shortwave radiation", T_HOR, "W/m^3?",
             "Incomming solar radiation at sea level")),
         ("no3", Variable(
-            "Nitrate concentration", W_GRID, "mmol/m^3?",
+            "Nitrate concentration", T_GRID, "mmol/m^3?",
             "Concentration of nitrate in grid box"
         )),
         ("dop", Variable(
-            "Dissolved organic phosphorus", W_GRID, "mmol/m^3?",
+            "Dissolved organic phosphorus", T_GRID, "mmol/m^3?",
             "Concentration of Dissolved organic phosphorus in grid box"
         )),
         ("don", Variable(
-            "Dissolved organic nitrogen", W_GRID, "mmol/m^3?",
+            "Dissolved organic nitrogen", T_GRID, "mmol/m^3?",
             "Concentration of dissolved organic nitrogen in grid box"
         )),
         ("diazotroph", Variable(
-            "Diazotroph concentration", W_GRID, "mmol/m^3?",
+            "Diazotroph concentration", T_GRID, "mmol/m^3?",
             "Concentration of diazotrophs in grid box"
         )),
     ])),
