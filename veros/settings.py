@@ -139,7 +139,7 @@ SETTINGS = OrderedDict([
     ("cbio", Setting(1.0, float, "???????")),
     ("abio_P", Setting(0.6 / 86400, float, "Maximum growth rate parameter in [1/sec]")),  # TODO of what?
     ("gbio", Setting(0.38 / 86400, float, "Maximum grazing rate at 0 deg C [1/day]")),
-    ("nupt0", Setting(0.01 / 86400, float, "Fast-recycling mortality rate of phytoplankton [1/sec]")),
+    ("nupt0", Setting(0.015 / 86400, float, "Fast-recycling mortality rate of phytoplankton [1/sec]")),
     ("saturation_constant_N", Setting(0.7, float, "Half saturation constant for N uptate [mmol N / m^3]")),
     ("saturation_constant_Z_grazing", Setting(0.15, float, "Half saturation constant for Z grazing [mmol/m^3]")),
     ("specific_mortality_phytoplankton", Setting(0.03 / 86400, float, "Specific mortality rate of phytoplankton")),
