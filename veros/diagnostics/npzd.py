@@ -24,15 +24,22 @@ class NPZDMonitor(VerosDiagnostic):
     def output(self, vs):
         """Diagnose NPZD concentrations
         """
-        npzd_sum = vs.detritus + vs.po4 + vs.zooplankton + vs.phytoplankton
-        logging.warning("Total NPZD concentration: {}".format(npzd_sum.sum(axis=2)[5, 5],))
+        x = 50
+        y = 24
+        npzd_sum = vs.detritus + vs.po4 + vs.zooplankton + vs.phytoplankton + vs.dop + vs.don + vs.no3 + vs.diazotroph
+        # logging.warning("Total NPZD concentration: {}".format(npzd_sum.sum(axis=2)[x, y],))
+        logging.warning("Total NPZD concentration: {}".format(npzd_sum.sum()))
         npzd_sum *= vs.dzw[::-1]
-        # logging.warning("Detritus: {}".format(vs.detritus[5, 5, :3]))
-        # logging.warning("PO4: {}".format(vs.po4[5, 5, :3]))
-        # logging.warning("Phytoplankton: {}".format(vs.phytoplankton[5, 5, :3]))
-        # logging.warning("Zooplankton: {}".format(vs.zooplankton[5, 5, :3]))
-        logging.warning("DOP - DON: {}".format(vs.dop[5,5,0] - vs.don[5,5,0]))
-        logging.warning("Total NPZD organisms: {}".format(npzd_sum.sum(axis=2)[5, 5],))
+        logging.warning("PO4: {}".format(vs.po4[x, y, -4:]))
+        logging.warning("DOP: {}".format(vs.dop[x, y, -4:]))
+        logging.warning("DON: {}".format(vs.don[x, y, -4:]))
+        logging.warning("NO3: {}".format(vs.no3[x, y, -4:]))
+        logging.warning("phytoplankton: {}".format(vs.phytoplankton[x, y, -4:]))
+        logging.warning("detritus: {}".format(vs.detritus[x, y, -4:]))
+        logging.warning("zooplankton: {}".format(vs.zooplankton[x, y, -4:]))
+        logging.warning("diazotroph: {}".format(vs.diazotroph[x, y, -4:]))
+        # logging.warning("maskT: {}".format(vs.maskT[x, y]))
+        # logging.warning("dz: {}".format(vs.dzt))
 
 
     def read_restart(self, vs):
