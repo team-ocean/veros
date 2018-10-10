@@ -20,12 +20,11 @@ def biogeochemistry(vs):
     # Integrated phytplankton
     phyto_integrated = np.zeros_like(vs.phytoplankton[:, :, 0])
 
-    # TODO the ones below should be set to settings just once..
     # sinking speed of detritus
     # can't sink beyond bottom
-    wd = np.empty_like(vs.phytoplankton)
-    wd[:, :] = (vs.wd0 + vs.mw * np.where(-vs.zw < vs.mwz, -vs.zw, vs.mwz)) / vs.dzt
-    wd *= vs.maskT
+    vs.wd = np.empty_like(vs.detritus)
+    vs.wd[:, :] = (vs.wd0 + vs.mw * np.where(-vs.zw < vs.mwz, -vs.zw, vs.mwz)) / vs.dzt
+    vs.wd *= vs.maskT
 
     nbio = int(vs.dt_mom // vs.dt_bio)
 
@@ -39,6 +38,23 @@ def biogeochemistry(vs):
     swr = vs.swr.copy()
 
 
+
+    # TODO where does this belong here?
+    if vs.enable_npzd:
+        from collections import defaultdict
+        from functools import partial
+
+        vs.npzd_tracers = defaultdict(partial(np.full_like, vs.phytoplankton, np.nan))
+        vs.npzd_tracers["phytoplankton"] = vs.phytoplankton
+        vs.npzd_tracers["zooplankton"] = vs.zooplankton
+        vs.npzd_tracers["diazotroph"] = vs.diazotroph
+        vs.npzd_tracers["detritus"] = vs.detritus
+        vs.npzd_tracers["po4"] = vs.po4
+        vs.npzd_tracers["no3"] = vs.no3
+        vs.npzd_tracers["DON"] = vs.don
+        vs.npzd_tracers["DOP"] = vs.dop
+
+
     # for k in range(vs.phytoplankton.shape[2]):
     for k in reversed(range(vs.nz)):
         # print("layer", k)
@@ -48,13 +64,10 @@ def biogeochemistry(vs):
         phyto_integrated = np.maximum(vs.phytoplankton[:, :, k], vs.trcmin) * vs.dzt[k]
         phyto_integrated += np.maximum(vs.diazotroph[:, :, k], vs.trcmin) * vs.dzt[k]
 
-        # grid_light = swr * np.exp(ztt[k] * vs.rctheta)  # light at top of grid box
         grid_light = swr * np.exp(vs.zw[k] * vs.rctheta)  # light at top of grid box
 
-        # calculate detritus import pr time step from layer above
+        # calculate detritus import pr time step from layer above, reset export
         detritus_import = detritus_export / vs.dzt[k] / vs.dt_bio
-
-        # reset export
         detritus_export[:, :] = 0
 
         # TODO What is this?
@@ -82,25 +95,10 @@ def biogeochemistry(vs):
                            "DOP": nudop * bct}
 
 
-        """
-        --------------------------------------
-        Call the npzd ecosystem dynamics model
-        """
-
-
-        tracers = {"po4": vs.po4[:, :, k],
-                   "phytoplankton": vs.phytoplankton[:, :, k],
-                   "zooplankton": vs.zooplankton[:, :, k],
-                   "detritus": vs.detritus[:, :, k],
-                   "no3": vs.no3[:, :, k],
-                   "DOP": vs.dop[:, :, k],
-                   "DON": vs.dop[:, :, k],
-                   "diazotroph": vs.diazotroph[:, :, k]}
+        tracers = {name: value[:, :, k] for name, value in vs.npzd_tracers.items()}
 
         # flags to prevent more outgoing flux than available capacity - stability?
         flags = {tracer: True for tracer in tracers}
-
-        zooplankton_preferences = {"phytoplankton": vs.zprefP, "zooplankton": vs.zprefZ, "detritus": vs.zprefDet, "diazotroph": vs.zprefD}
 
         # Set flags and tracers based on minimum concentration
         update_flags_and_tracers(vs, flags, tracers, refresh=True)
@@ -173,34 +171,25 @@ def biogeochemistry(vs):
             dop_uptake_D = net_primary_production["diazotroph"] * dopupt_flag
 
             # Michaelis-Menten denominator
-            thetaZ = sum([pref_score * tracers[preference] for preference, pref_score in zooplankton_preferences.items()]) + vs.saturation_constant_Z_grazing * vs.redfield_ratio_PN
+            thetaZ = sum([pref_score * tracers[preference] for preference, pref_score in vs.zooplankton_preferences.items()]) + vs.saturation_constant_Z_grazing * vs.redfield_ratio_PN
 
             # Ingestion by zooplankton based on preference
-            ingestion = {preference: pref_score / thetaZ for preference, pref_score in zooplankton_preferences.items()}
+            ingestion = {preference: pref_score / thetaZ for preference, pref_score in vs.zooplankton_preferences.items()}
 
             # Grazing is based on availability of food and eaters??
-            grazing = {preference: gmax * ingestion[preference] * tracers[preference] * tracers["zooplankton"] for preference in zooplankton_preferences}
+            grazing = {preference: flags[preference] * flags["zooplankton"] * gmax *
+                       ingestion[preference] * tracers[preference] * tracers["zooplankton"]
+                       for preference in vs.zooplankton_preferences}
 
-            mortality = {"phytoplankton": vs.specific_mortality_phytoplankton * tracers["phytoplankton"],
-                         "diazotroph": vs.specific_mortality_diazotroph * tracers["diazotroph"],
-                         "zooplankton": vs.quadric_mortality_zooplankton * tracers["zooplankton"] ** 2,
-                         }
+            mortality = {plankton: flags[plankton] * rate * tracers[plankton]
+                         for plankton, rate in vs.mortality_rates.items()}
+            mortality["zooplankton"] *= tracers["zooplankton"]  # quadric rate
 
-            recycled = {recycler: rate * tracers[recycler] for recycler, rate in recycling_rates.items()}
-
-            # multiply by flags to ensure stability / not loosing more than there is
-            for preference in zooplankton_preferences:
-                grazing[preference] *= flags[preference] * flags["zooplankton"]
-
-            for plankton in mortality:
-                mortality[plankton] *= flags[plankton]
-
-            # remineralization / recycling cannot occour, if there is nothing to recycle
-            for recycler in recycled:
-                recycled[recycler] *= flags[recycler]
+            recycled = {recycler: flags[recycler] * rate * tracers[recycler]
+                        for recycler, rate in recycling_rates.items()}
 
 
-            expo = wd[:, :, k] * tracers["detritus"]  # temporary detritus export
+            expo = vs.wd[:, :, k] * tracers["detritus"]  # temporary detritus export
             expo *= flags["detritus"]
 
             """
@@ -211,12 +200,10 @@ def biogeochemistry(vs):
             """
 
             digestion = {preference: vs.assimilation_efficiency * amount_grazed for preference, amount_grazed in grazing.items()}
-            # digestion["diazotroph"] *= (vs.redfield_ratio_PN / vs.diazotroph_NP)
             digestion["diazotroph"] *= 1. / (vs.redfield_ratio_PN * vs.diazotroph_NP)
             digestion_total = sum(digestion.values())
 
             excretion = {preference: vs.assimilation_efficiency * (1 - vs.zooplankton_growth_efficiency) * amount_grazed for preference, amount_grazed in grazing.items()}
-            # excretion["diazotroph"] *= (vs.redfield_ratio_PN / vs.diazotroph_NP)
             excretion["diazotroph"] *= (vs.redfield_ratio_PN * vs.diazotroph_NP)
             excretion_total = sum(excretion.values())
 
@@ -224,7 +211,6 @@ def biogeochemistry(vs):
             # FIXME is it just me, or is there too much math here?
 
             sloppy_feeding = {preference: (1 - vs.assimilation_efficiency) * amount_grazed for preference, amount_grazed in grazing.items()}
-            # sloppy_feeding["diazotroph"] *= (vs.redfield_ratio_PN / vs.diazotroph_NP)
             sloppy_feeding["diazotroph"] *= 1. / (vs.redfield_ratio_PN * vs.diazotroph_NP)
             sloppy_feeding_total = sum(sloppy_feeding.values())
 
@@ -240,7 +226,7 @@ def biogeochemistry(vs):
 
             tracers["detritus"][:, :] += vs.dt_bio * ((1 - vs.dfr) * mortality["phytoplankton"] + sloppy_feeding_total + mortality["zooplankton"] - recycled["detritus"] - grazing["detritus"] + mortality["diazotroph"] / (vs.redfield_ratio_PN * vs.diazotroph_NP) - expo + detritus_import)  # TODO simplify mortality to use sum
 
-            tracers["diazotroph"][:, :] += vs.dt_bio * (net_primary_production["diazotroph"] - mortality["diazotroph"] - recycled["diazotroph"] - grazing["diazotroph"])
+            tracers["diazotroph"][:, :] += vs.dt_bio * (net_primary_production["diazotroph"] - mortality["diazotroph"] - recycled["diazotroph"])# - grazing["diazotroph"])
 
             tracers["DON"][:, :] += vs.dt_bio * (vs.dfr * mortality["phytoplankton"] + vs.dfrt * recycled["phytoplankton"] - recycled["DON"])
 
@@ -254,33 +240,16 @@ def biogeochemistry(vs):
 
             ## TODO: Should it be here?
             # detritus_export = np.minimum(tracers["detritus"], detritus_export)
-
             update_flags_and_tracers(vs, flags, tracers)
 
-
-        """
-        End the npzd ecosystem dynamic model
-        --------------------------------------
-        """
 
         # Calculate total export to get total import for next layer
         detritus_export[:, :] *= 1.0/nbio
         detritus_export *= vs.dzt[k]
 
-        # ---------------------------------------------------
-        # Set source/sink terms
-        # ---------------------------------------------------
-
-        # NOTE Added to get values back into veros
-        # TODO can't we just work directly on the values?
-        vs.po4[:, :, k] = tracers["po4"][:, :]
-        vs.phytoplankton[:, :, k] = tracers["phytoplankton"][:, :]
-        vs.zooplankton[:, :, k] = tracers["zooplankton"][:, :]
-        vs.detritus[:, :, k] = tracers["detritus"][:, :]
-        vs.dop[:, :, k] = tracers["DOP"][:, :]
-        vs.don[:, :, k] = tracers["DON"][:, :]
-        vs.no3[:, :, k] = tracers["no3"][:, :]
-        vs.diazotroph[:, :, k] = tracers["diazotroph"][:, :]
+        # Update model values
+        for name, value in tracers.items():
+            vs.npzd_tracers[name][:, :, k] = value
 
 
 @veros_method
@@ -308,37 +277,21 @@ def update_flags_and_tracers(vs, flags, tracers, refresh=False):
         tracers[key] = np.maximum(tracers[key], vs.trcmin)
 
 
-
-
-
 @veros_method
 def npzd(vs):
 
-    tracers = {"phytoplankton": vs.phytoplankton,
-               "zooplankton": vs.zooplankton,
-               "diazotroph": vs.diazotroph,
-               "DOP": vs.dop,
-               "DON": vs.don,
-               "no3": vs.no3,
-               "po4": vs.po4,
-               "detritus": vs.detritus}
+    # tracer_result = {key: 0 for key in vs.npzd_tracers}
 
-    tracer_result = {key: 0 for key in tracers}
+    # for tracer, val in vs.npzd_tracers.items():
+    #     dNPZD_advect = np.zeros_like(val)
+    #     dNPZD_diff = np.zeros_like(val)
 
-    for tracer, val in tracers.items():
-        dNPZD_advect = np.zeros_like(val)
-        dNPZD_diff = np.zeros_like(val)
-
-
-        # NOTE Why is this in thermodynamics?
-        thermodynamics.advect_tracer(vs, val, dNPZD_advect)
-        diffusion.biharmonic(vs, val, 0.5, dNPZD_diff)  # TODO correct parameter
-
-
-
-        tracer_result[tracer] = vs.dt_mom * (dNPZD_advect + dNPZD_diff)
+    #     # NOTE Why is this in thermodynamics?
+    #     thermodynamics.advect_tracer(vs, val, dNPZD_advect)
+    #     diffusion.biharmonic(vs, val, 0.5, dNPZD_diff)  # TODO correct parameter
+    #     tracer_result[tracer] = vs.dt_mom * (dNPZD_advect + dNPZD_diff)
 
     biogeochemistry(vs)
 
-    for tracer in tracers:
-        tracers[tracer][...] += tracer_result[tracer]
+    # for tracer in vs.npzd_tracers:
+    #     vs.npzd_tracers[tracer][...] += tracer_result[tracer]

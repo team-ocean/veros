@@ -131,6 +131,7 @@ SETTINGS = OrderedDict([
     ("use_amg_preconditioner", Setting(True, bool, "Use AMG preconditioner in Poisson solver if pyamg is installed.")),
 
     # NPZD
+    ("enable_npzd", Setting(False, bool, "")),
     ("light_attenuation_phytoplankton", Setting(0.047, float, "Light attenuation of phytoplankton")),
     ("light_attenuation_water", Setting(0.04, float, "Light attenuation of water")),
     ("rctheta", Setting(1.33, float, "Angle of incidence")), # TODO what angle?
@@ -176,6 +177,25 @@ def set_default_settings(vs):
         setattr(vs, key, setting.type(setting.default))
 
 
+    # does this belong here?
+    # and can it be prettier?
+    # if vs.enable_npzd:
+    from collections import defaultdict
+    vs.zooplankton_preferences = defaultdict(None)
+    vs.zooplankton_preferences["phytoplankton"] = vs.zprefP
+    vs.zooplankton_preferences["zooplankton"] = vs.zprefZ
+    vs.zooplankton_preferences["detritus"] = vs.zprefDet
+
+    # if vs.enable_nitrogen: ??
+    vs.zooplankton_preferences["diazotroph"] = vs.zprefD
+
+
+    vs.mortality_rates = defaultdict(None)
+    vs.mortality_rates["phytoplankton"] = vs.specific_mortality_phytoplankton
+    vs.mortality_rates["diazotroph"] = vs.specific_mortality_diazotroph
+    vs.mortality_rates["zooplankton"] = vs.quadric_mortality_zooplankton
+
+
 def check_setting_conflicts(vs):
     if vs.enable_tke and not vs.enable_implicit_vert_friction:
         raise RuntimeError("use TKE model only with implicit vertical friction"
@@ -188,5 +208,5 @@ def check_setting_conflicts(vs):
         # if ((vs.dt_mom / vs.dt_bio) % 1 is not 0):
         #     raise RuntimeError("Momentum timestep must be divisible by biological timestep")
 
-        if not round(vs.zprefP + vs.zprefZ + vs.zprefDet + vs.zprefD, 3) == 1:
+        if not round(sum(vs.zooplankton_preferences.values()), 3) == 1:
             raise RuntimeError("Zooplankton preferences must add to 1 it was {}".format(vs.zprefP + vs.zprefZ + vs.zprefDet + vs.zprefD))
