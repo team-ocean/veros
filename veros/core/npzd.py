@@ -293,7 +293,7 @@ def npzd(vs):
 
     biogeochemistry(vs)
 
-    for tracer in tracer_result:
+    for tracer in vs.npzd_tracers:
         vs.npzd_tracers[tracer][...] += tracer_result[tracer]
 
     if vs.enable_cyclic_x:
