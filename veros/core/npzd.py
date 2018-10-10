@@ -295,3 +295,7 @@ def npzd(vs):
 
     # for tracer in vs.npzd_tracers:
     #     vs.npzd_tracers[tracer][...] += tracer_result[tracer]
+
+    if vs.enable_cyclic_x:
+        for tracer in vs.npzd_tracers.values():
+            cyclic.setcyclic_x(tracer)
