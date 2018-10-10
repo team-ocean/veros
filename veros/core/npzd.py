@@ -280,21 +280,21 @@ def update_flags_and_tracers(vs, flags, tracers, refresh=False):
 @veros_method
 def npzd(vs):
 
-    # tracer_result = {key: 0 for key in vs.npzd_tracers}
+    tracer_result = {key: 0 for key in vs.npzd_tracers}
 
-    # for tracer, val in vs.npzd_tracers.items():
-    #     dNPZD_advect = np.zeros_like(val)
-    #     dNPZD_diff = np.zeros_like(val)
+    for tracer, val in vs.npzd_tracers.items():
+        dNPZD_advect = np.zeros_like(val)
+        dNPZD_diff = np.zeros_like(val)
 
-    #     # NOTE Why is this in thermodynamics?
-    #     thermodynamics.advect_tracer(vs, val, dNPZD_advect)
-    #     diffusion.biharmonic(vs, val, 0.5, dNPZD_diff)  # TODO correct parameter
-    #     tracer_result[tracer] = vs.dt_mom * (dNPZD_advect + dNPZD_diff)
+        # NOTE Why is this in thermodynamics?
+        thermodynamics.advect_tracer(vs, val, dNPZD_advect)
+        diffusion.biharmonic(vs, val, 0.5, dNPZD_diff)  # TODO correct parameter
+        tracer_result[tracer] = vs.dt_mom * (dNPZD_advect + dNPZD_diff)
 
     biogeochemistry(vs)
 
-    # for tracer in vs.npzd_tracers:
-    #     vs.npzd_tracers[tracer][...] += tracer_result[tracer]
+    for tracer in tracer_result:
+        vs.npzd_tracers[tracer][...] += tracer_result[tracer]
 
     if vs.enable_cyclic_x:
         for tracer in vs.npzd_tracers.values():
