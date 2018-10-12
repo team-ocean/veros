@@ -58,11 +58,18 @@ def biogeochemistry(vs):
     # for k in range(vs.phytoplankton.shape[2]):
     for k in reversed(range(vs.nz)):
         # print("layer", k)
+        tracers = {name: value[:, :, k] for name, value in vs.npzd_tracers.items()}
+
+        # flags to prevent more outgoing flux than available capacity - stability?
+        flags = {tracer: True for tracer in tracers}
+
+        # Set flags and tracers based on minimum concentration
+        update_flags_and_tracers(vs, flags, tracers, refresh=True)
 
         # incomming radiation at layer
         swr = swr * np.exp(- vs.light_attenuation_phytoplankton * phyto_integrated)
-        phyto_integrated = np.maximum(vs.phytoplankton[:, :, k], vs.trcmin) * vs.dzt[k]
-        phyto_integrated += np.maximum(vs.diazotroph[:, :, k], vs.trcmin) * vs.dzt[k]
+        phyto_integrated = np.maximum(tracer["phytoplankton"], vs.trcmin) * vs.dzt[k]
+        phyto_integrated += np.maximum(tracer["diazotroph"], vs.trcmin) * vs.dzt[k]
 
         grid_light = swr * np.exp(vs.zw[k] * vs.rctheta)  # light at top of grid box
 
@@ -82,6 +89,12 @@ def biogeochemistry(vs):
         nupt = vs.nupt0
         nupt_D = vs.nupt0_D
 
+        # decrease remineralisation rate in oxygen minimum zone
+        # TODO remove magic numbers
+        bctz *= (0.5 * (np.tanh(tracers["o2"] - 8.0) + 1))
+        nud *= (0.65 + 0.35 * np.tanh(tracers["o2"] - 3.0))
+
+
         # Maximum grazing rate is a function of temperature
         # bctz sets an upper limit on effects of temperature on grazing
         gmax = vs.gbio * bctz
@@ -95,13 +108,6 @@ def biogeochemistry(vs):
                            "DOP": nudop * bct}
 
 
-        tracers = {name: value[:, :, k] for name, value in vs.npzd_tracers.items()}
-
-        # flags to prevent more outgoing flux than available capacity - stability?
-        flags = {tracer: True for tracer in tracers}
-
-        # Set flags and tracers based on minimum concentration
-        update_flags_and_tracers(vs, flags, tracers, refresh=True)
 
         # ----------------------------
         # Fotosynthesis
@@ -243,6 +249,29 @@ def biogeochemistry(vs):
             update_flags_and_tracers(vs, flags, tracers)
 
 
+
+        # !-----------------------------------------------------------------------
+        # !        benthic denitrification model of Bohlen et al., 2012, GBC (eq. 10)
+        # !        NO3 is removed out of bottom water nitrate.
+        # !        See Somes et al., 2012, BGS for additional details/results
+        # !-----------------------------------------------------------------------
+        # TODO remove magic numbers
+        limit_no3 = .5 * np.tanh(tracers["no3"] * 10 - 5.0)
+
+        # TODO this should be simplieable as flags has just been updated
+        sg_bdeni = (0.06 + 0.19 * 0.99**(np.maximum(tracers["o2"], vs.trcmin)
+                                         - np.maximum(tracers["no3"], vs.tracmin)))
+
+        # TODO sgb_in is already accounted for in sinking speed?
+        # TODO what do these things mean?
+        # TODO remove min, max blubber
+        sg_bdeni = np.minimum(sg_bdeni, detritus_export)
+        sg_bdeni = np.maximum(sg_bdeni, 0)
+        sg_bdeni = sg_bdeni * (.5 + limit_no3) * flags["no3"] # * din15flag
+        bdeni[k] = sg_bdeni  # wat?
+        tracers["no3"] += detritus_export - sg_bdeni
+        tracers["po4"] += detritus_export * vs.redfield_ratio_PN
+
         # Calculate total export to get total import for next layer
         detritus_export[:, :] *= 1.0/nbio
         detritus_export *= vs.dzt[k]
@@ -250,6 +279,29 @@ def biogeochemistry(vs):
         # Update model values
         for name, value in tracers.items():
             vs.npzd_tracers[name][:, :, k] = value
+
+        # apparently after updating
+        dic_npzd_sms[k] = tracers["po4"] * vs.redfield_ratio_CP
+
+    # TODO is there any reason, this couldn't be in the other loop?
+    for k in range(vs.nz):
+        # limit oxygen consumption below concentration of 5umol/kg
+        # as reccomended in OCMIP
+        fo2 = .5 * np.tanh(vs.npzd_tracers["o2"] - 2.5)
+        # sink of oxygen
+        # O2 is needed to generate the equivalent of NO3 from N2 during N2 fixation
+        # 0.5 H2O + 0.5 N2+1.25O2 -> HNO3
+        # note that so2 is -dO2/dt
+        # TODO remove magic number
+        so2 = dic_npzd_sms[k] * vs.refield_ratio_OC + nfix[k] * (1.25e-3 / nbio)
+        flags["no3"] = vs.npzd_tracers["no3"] > trcmin  # TODO why would this check be necessary?
+        limit_no3 = .5 * np.tanh(vs.npzd_tracers["no3"] - 2.5)
+        # limit_ntp = 0.5 * np.tanh(vs.npzd_tracers["no3"] / (vs.refield_ratio_NP * vs.npzd_tracers["po4"]) * 100 - 60.)
+        # 800 = (elec/mol O2)/(elec/mol NO3)*(mmol/mol)
+        wcdeni = 800 * flags["no3"] * so2 * (.5 - fo2) * (.5 * limit_no3)
+        wcdeni = np.maximum(wcdeni, 0)
+        vs.npzd_tracers["no3"] -= wcdeni
+        vs.npzd_tracers["iso2"] = - so2 * (0.5 + fo2)
 
 
 @veros_method
