@@ -18,10 +18,8 @@ def biogeochemistry(vs):
     detritus_import = np.zeros_like(detritus_export)
     caco3_export = np.zeros((vs.caco3.shape[:2]))
     caco3_import = np.zeros_like(caco3_export)
-
-    # dissl = 0
-    # calatt = 0
-    # dissk1 = 0
+    fe_export = np.zeros((vs.fe.shape[:2]))
+    fe_import = np.zeros_like(fe_export)
 
     # Integrated phytplankton
     phyto_integrated = np.zeros_like(vs.phytoplankton[:, :, 0])
@@ -56,8 +54,8 @@ def biogeochemistry(vs):
     # down the water column
     swr = vs.swr.copy()
 
-    # for k in range(vs.phytoplankton.shape[2]):
     for k in reversed(range(vs.nz)):
+    # for k in [vs.nz -1]:
 
         """
 
@@ -85,12 +83,75 @@ def biogeochemistry(vs):
 
         grid_light = swr * np.exp(vs.zw[k] * vs.rctheta)  # light at top of grid box
 
+
+
+
+        """ Vars for iron
+            Set them all to one to ignore iron
+        """
+        iron_limits = {"phytoplankton": (vs.kfemin, vs.kfemax),
+                       "coccolitophore": (vs.kfemin_C, vs.kfemax_C),
+                       "diazotroph": (vs.kfe_D, vs.kfe_D)}
+        pmax = {"phytoplankton": vs.pmax,
+                "coccolitophore": vs.pmax_C,
+                "diazotroph": 1}  # TODO not 1, but some number
+
+        gl = {"phytoplankton": 0, "coccolitophore": 0, "diazotroph": 0}
+        deffe = {"phytoplankton": 0, "coccolitophore": 0, "diazotroph": 0}
+
+        for plankton in gl:
+            p1 = np.minimum(tracers[plankton], pmax[plankton])
+            p2 = np.minimum(0, tracers[plankton] - pmax[plankton])
+            kfevar = (iron_limits[plankton][0] * p1 + iron_limits[plankton][1] * p2) / (p1 + p2)
+            deffe[plankton] = tracers["fe"] / (kfevar + tracers["fe"])
+            thetamax = vs.thetamaxlo + (vs.thetamaxhi - vs.thetamaxlo) * deffe[plankton]
+            alpha = vs.alphamin + (vs.alphamax - vs.alphamin) * deffe[plankton]
+            gl[plankton] = grid_light * thetamax * alpha
+
+        # p1 = np.minimum(tracers["phytoplankton"], vs.pmax)
+        # p2 = np.maximum(0, tracers["phytoplankton"] - vs.pmax)
+        # kfevar = (vs.kfemin * p1 + vs.kfemax * p2) / (p1 + p2)
+        # deffe = tracers["fe"] / (kfevar + tracers["fe"])
+        # thetamax = vs.thetamaxlo + (vs.thetamaxhi - vs.thetamaxlo) * deffe
+        # alpha_O = vs.alphamin + (vs.alphamax - vs.alphamin) * deffe
+        # gl_O = grid_light * thetamax * alpha_O
+
+        # # if vs.enable_caco3:
+        # p1_C = np.minimum(tracers["coccolitophore"], vs.pmax_C)
+        # p2_C = np.maximum(0, tracers["coccolitophore"] - vs.pmax_C)
+        # kfevar_C = (vs.kfemin_C * p1_C + vs.kfemax * p2_C) / (p1_C + p2_C)
+        # deffe_C = tracers["fe"] / (kfevar_C + tracers["fe"])
+        # thetamax_C = vs.thetamaxlo + (vs.thetamaxhi - vs.thetamaxlo) * deffe_C
+        # alpha_OC = vs.alphamin + (vs.alphamax - vs.alphamin) * deffe_C
+        # gl_C = grid_light * thetamax_C * alpha_OC
+
+        # # if vs.enable_N:
+        # deffe_D = tracers["fe"] / (vs.kfe_D + tracers["fe"])
+        # thetamax_D = vs.thetamaxlo + (vs.thetamaxhi - vs.thetamaxlo) * deffe_D
+        # alpha_D = vs.alphamin + (vs.alphamax - vs.alphamin) * deffe_D
+        # gl_D = grid_light * thetamax_D * alpha_D
+
+
+        """ End vars for iron
+        """
+
+
+
+
+
+
+
+
+
         # calculate detritus import pr time step from layer above, reset export
         detritus_import = detritus_export / vs.dzt[k] / vs.dt_bio
         detritus_export[:, :] = 0
         # calculate caco3 import pr time step from layer above, reset export
         caco3_import = caco3_export / vs.dzt[k] / vs.dt_bio
         caco3_export[:, :] = 0
+        # calculate iron import pr time step from layer above, reset export
+        fe_import = fe_export / vs.dzt[k] / vs.dt_bio
+        fe_export[:, :] = 0
 
         dissk1 = vs.dissk0 * (1 - vs.Omega_c)
 
@@ -139,18 +200,46 @@ def biogeochemistry(vs):
         # TODO remove magic number 1e-14
         # TODO remove magic number 2.6
         # TODO dayfrac? dt_mom, dt_bio? noget andet?
-        jmax = {"phytoplankton": vs.abio_P * bct,
-                "diazotroph": np.maximum(0, vs.abio_P * (bct - 2.6)) * vs.jdiar,
-                "coccolitophore": vs.abio_C * bct}
+        # jmax = {"phytoplankton": vs.abio_P * bct
+        #         "diazotroph": np.maximum(0, vs.abio_P * (bct - 2.6)) * vs.jdiar,
+        #         "coccolitophore": vs.abio_C * bct}
+        # gd = {"phytoplankton": jmax["phytoplankton"] * vs.dt_mom,
+        #       "diazotroph": np.maximum(1.e-14, jmax["diazotroph"]) * vs.dt_mom,
+        #       "coccolitophore": jmax["coccolitophore"] * vs.dt_mom}
+        # avej = {"phytoplankton": avg_J(vs, f1, gd["phytoplankton"], grid_light, light_attenuation),
+        #         "diazotroph": avg_J(vs, f1, gd["diazotroph"], grid_light, light_attenuation),
+        #         "coccolitophore": avg_J(vs, f1, gd["coccolitophore"], grid_light, light_attenuation)}
+        jmax = {"phytoplankton": vs.abio_P * bct * deffe["phytoplankton"],
+                "diazotroph": np.maximum(0, vs.abio_P * (bct - 2.6) * deffe["phytoplankton"]) * vs.jdiar,
+                "coccolitophore": vs.abio_C * bct * deffe["coccolitophore"]}
         gd = {"phytoplankton": jmax["phytoplankton"] * vs.dt_mom,
               "diazotroph": np.maximum(1.e-14, jmax["diazotroph"]) * vs.dt_mom,
               "coccolitophore": jmax["coccolitophore"] * vs.dt_mom}
-        avej = {"phytoplankton": avg_J(vs, f1, gd["phytoplankton"], grid_light, light_attenuation),
-                "diazotroph": avg_J(vs, f1, gd["diazotroph"], grid_light, light_attenuation),
-                "coccolitophore": avg_J(vs, f1, gd["coccolitophore"], grid_light, light_attenuation)}
+        avej = {"phytoplankton": avg_J(vs, f1, gd["phytoplankton"], gl["phytoplankton"], light_attenuation),
+                "diazotroph": avg_J(vs, f1, gd["diazotroph"], gl["diazotroph"], light_attenuation),
+                "coccolitophore": avg_J(vs, f1, gd["coccolitophore"], gl["coccolitophore"], light_attenuation)}
 
 
         for _ in range(nbio):
+
+            """
+
+            Fe bullshit
+            """
+            p1 = np.minimum(tracers["phytoplankton"], vs.pmax)
+            p2 = np.maximum(0, tracers["phytoplankton"] - vs.pmax)
+            kfevar = (vs.kfemin * p1 + vs.kfemax * p2) / (p1 + p2)
+            deffe = tracers["fe"] / (kfevar + tracers["fe"])
+            jmax["phytoplankton"] = vs.abio_P * bct * deffe
+            p1 = np.minimum(tracers["coccolitophore"], vs.pmax_C)
+            p2 = np.maximum(0, tracers["coccolitophore"] - vs.pmax_C)
+            kfevar = (vs.kfemin * p1 + vs.kfemax * p2) / (p1 + p2)
+            deffe = tracers["fe"] / (kfevar + tracers["fe"])
+            jmax["coccolitophore"] = vs.abio_P * bct * deffe
+            deffe = tracers["fe"] / (vs.kfe_D + tracers["fe"])
+            jmax["diazotroph"] = np.maximum(0, vs.abio_P * (bct - 2.6) * deffe) * vs.jdiar
+
+
 
             """
             growth rate of phytoplankton
@@ -241,6 +330,28 @@ def biogeochemistry(vs):
             expo_caco3 = vs.wc[:, :, k] * tracers["caco3"]  # temporary caco3 export
             expo_caco3 *= flags["caco3"]
 
+
+            """ More iron bullshit ... this guy ..
+            """
+            par = 0.43 # fraction of photosynthetically active radiation
+            irrtop = grid_light / 2 / par
+            kirr = - light_attenuation
+            # aveirr = -1 / vs.dzt / kirr * (irrtop - irrtop * np.exp(kirr * vs.dzt))
+            remife = nud * bct * tracers["particulate_fe"] * flags["particulate_fe"]
+            # Scavenging of dissolved iron is based on Honeymoon et al. (1988) 
+            # and Parekh et al. (2004). 
+            flags["o2"] = tracers["o2"] > vs.o2min
+            fepa = (1.0 - vs.kfeleq * (vs.lig - tracers["fe"])) * flags["o2"]
+            feprime = ((-fepa + (fepa * fepa + 4.0 * vs.kfeleq * tracers["fe"]) ** 0.5) / (2.0 * vs.kfeleq)) * flags["o2"]
+            feorgads = (vs.kfeorg * (((tracers["detritus"] * flags["detritus"]) * vs.mc * vs.redfield_ratio_PN * vs.redfield_ratio_CP)**0.58) * feprime) * flags["o2"] * flags["particulate_fe"]
+            fecol = vs.kfecol * feprime * flags["o2"] * flags["fe"]
+
+            expo_fe = vs.wd[:, :, k] * tracers["particulate_fe"] * flags["particulate_fe"]
+
+        
+            # expo_fe = vs.wf[:, :, k] * tracers["fe"]  # temporary fe export
+            # expo_fe *= flags["fe"]
+
             """
             Grazing is split into several parts:
             Digestion: How much of the eaten material is put into growing the population
@@ -294,10 +405,15 @@ def biogeochemistry(vs):
 
             tracers["caco3"][:, :] += vs.dt_bio * (calpro - dissl - expo_caco3 + caco3_import)
 
+            tracers["fe"][:, :] += vs.dt_bio * (vs.rfeton * (excretion_total + (1 - vs.dfrt) * recycled["phytoplankton"] - net_primary_production["phytoplankton"] + recycled["diazotroph"] - net_primary_production["diazotroph"] + recycled["DON"] + nr_excr_D + mortality["diazotroph"] * (1 - 1. / (vs.redfield_ratio_PN / vs.diazotroph_NP))) - feorgads + remife - fecol + vs.rfeton * ((1 - vs.dfrt) * recycled["coccolitophore"] - net_primary_production["coccolitophore"]))
+
+            tracers["particulate_fe"][:, :] += vs.dt_bio * (vs.rfeton * (sloppy_feeding_total + (1 - vs.dfr) * mortality["phytoplankton"] + mortality["diazotroph"] * (vs.redfield_ratio_PN / vs.diazotroph_NP) + mortality["zooplankton"] - grazing["detritus"]) + feorgads + fecol - remife - expo_fe + fe_import + vs.rfeton * (1 - vs.dfr) * mortality["coccolitophore"])
+
 
             # update export from layer and flags
             detritus_export[:, :] += expo * vs.dt_bio  # NOTE the additional factor is only for easier debugging. It could be removed by removing the same factor in the import
             caco3_export[:, :] += expo_caco3 * vs.dt_bio
+            fe_export[:, :] += expo_fe * vs.dt_bio
 
             nfix[:, :, k] += net_primary_production["diazotroph"] - no3_uptake_D
 
@@ -328,9 +444,21 @@ def biogeochemistry(vs):
         tracers["no3"] += detritus_export - sg_bdeni
         tracers["po4"] += detritus_export * vs.redfield_ratio_PN
 
+        fesed = vs.fetopsed * bct * vs.redfield_ratio_PN * detritus_export
+        # bfe = vs.fetopsed
+        tracers["fe"] += fesed
+        flags["o2"] = tracers["o2"] - vs.o2min
+        # tracers["fe"] += fe_export * sgb_in[k] * flags["o2"]
+        tracers["fe"] += fe_export * vs.maskT[:, :, k] * flags["o2"]
+        # bfe += fe_export * vs.maskT[k] * flags["o2"]
+        # fe_export -= sgb_in[k] * fe_export * flags["o2"]
+        fe_export -= vs.maskT[:, :, k] * fe_export * flags["o2"]
+
         # Calculate total export to get total import for next layer
         detritus_export[:, :] *= 1.0/nbio
         detritus_export *= vs.dzt[k]
+        caco3_export[:, :] *= 1.0 / nbio * vs.dzt[k]
+        fe_export[:, :] *= 1.0 /nbio * vs.dzt[k]
 
         # Update model values
         for name, value in tracers.items():

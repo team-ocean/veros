@@ -184,6 +184,28 @@ SETTINGS = OrderedDict([
     ("saturation_constant_NC", Setting(0.7, float, "Half saturation constant for N uptake for coccolitiophores [mmol N / m^3]")),
     ("capr", Setting(0.022, float, "Carbonate to carbon production ratio")),
 
+    # NPZD with iron
+    ("pmax", Setting(0.15, float, "Phytoplankton biomass above which kfe increases [mmol N / m^3]")),
+    ("kfemin", Setting(0.04e-3, float, "Minimum half saturation constant for Fe limitation phyto [mmol Fe / m^3]")),
+    ("kfemax", Setting(0.2e-3, float, "Maximum half saturation constant for Fe limitation phyto [mmol Fe / m^3]")),
+    ("kfe_D", Setting(0.1e-3, float, "Half saturation constant diazotroph Fe limitation [mmol Fe / m^3]")),
+    ("kfemin_C", Setting(0.04e-3, float, "Half saturation constant diazotroph Fe limitation cocc [mmol Fe / m^3]")),
+    ("kfemax_C", Setting(0.4e-3, float, "Half saturation constant diazotroph Fe limitation cocc [mmol Fe / m^3]")),
+    ("pmax_C", Setting(0.15, float, "Biomass above which kfe increases [mmol N / m^3]")),
+    ("kfeleq", Setting(10.0 ** 5.5, float, "Fe-ligand stability constant [m^3/(mmol ligand)]")),
+    ("lig", Setting(1.0e-3, float, "Ligand concentration")),
+    ("thetamaxhi", Setting(0.04, float, "Maximum Chl:C ratio, abundant iron [gChl/(gC)]")),
+    ("thetamaxlo", Setting(0.01, float, "Maximum Chl:C ratio, extreme iron limitation [gChl/(gC)]")),
+    ("alphamax", Setting(73.6e-6, float, "Maximum intial slope in PI-curve [??]")),
+    ("alphamin", Setting(18.4e-6, float, "Minimum intial slope in PI-curve [??]")),
+    ("mc", Setting(12.011, float, "Molar mass of carbon")),
+    ("fetopsed", Setting(0.01, float, "Fe:P for sedimentary iron source [mmolFe/molP]")),
+    ("o2min", Setting(5.0, float, "Minimum O2 concentration for aerobic respiration [mmol/m^3]")),
+    ("kfeorg", Setting(0.45 / 86400, float, "Organic-matter dependent scavenging rate [(m^3/(gC s))^0.58]")),
+    ("rfeton", Setting(1e-6 * 6.625, float, "Uptake ratio of iron to nitrogen [mol Fe/mol N] = 10 micromol Fe / mol C")),
+    ("kfecol", Setting(0.005 / 86400, float, "Colloidal production and precipitation rate [s^-1]")),
+
+
 
 ])
 
