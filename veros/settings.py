@@ -150,10 +150,12 @@ SETTINGS = OrderedDict([
     ("wd0", Setting(16. / 86400, float, "Sinking speed of detritus at surface [m/s]")),
     ("mwz", Setting(1000, float, "Depth below which sinking speed of detritus remains constant [m]")),
     ("mw", Setting(0.02 / 86400, float, "Increase in sinking speed with depth [1/sec]")),
-    ("zprefP", Setting(.3, float, "Zooplankton preference for grazing on Phytoplankton")),
-    ("zprefZ", Setting(.3, float, "Zooplankton preference for grazing on other zooplankton")),
-    ("zprefDet", Setting(.3, float, "Zooplankton preference for grazing on detritus")),
+    ("zprefP", Setting(.225, float, "Zooplankton preference for grazing on Phytoplankton")),
+    ("zprefZ", Setting(.225, float, "Zooplankton preference for grazing on other zooplankton")),
+    ("zprefDet", Setting(.225, float, "Zooplankton preference for grazing on detritus")),
     ("redfield_ratio_PN", Setting(1./16, float, "Refield ratio for N/P")),
+    ("redfield_ratio_CP", Setting(160., float, "Refield ratio for C/P")),
+    ("redfield_ratio_ON", Setting(10.6, float, "Redfield ratio for O/N")),
     ("trcmin", Setting(0, float, "Minimum npzd tracer value")),
 
     # NPZD with N
@@ -167,6 +169,20 @@ SETTINGS = OrderedDict([
     ("diazotroph_NP", Setting(28, float, "Diazotroph N:P ratio")),
     ("dfr", Setting(0.08, float, "phtoplankton mortality refactory/semi-labile DOM fraction")),
     ("dfrt", Setting(0.08, float, "phtoplankton fast recycling refactory/semi-labile DOM fraction")),
+
+    # NPZD with caco3
+    ("light_attenuation_caco3", Setting(0.047, float, "Calcite light attenuation [1/(m * mmol/m^3)")),
+    ("zprefC", Setting(0.225, float, "Zooplankton preference for calcite")),
+    ("alpha_C", Setting(0.06 / 86400, float, "Initial slope P-I curve [(W/m^2)^-1/sec]")),
+    ("abio_C", Setting(0.52 / 86400, float, "a; Maximum growth rate parameter coccolithophore [1/sec]")),
+    ("specific_mortality_coccolitophore", Setting(0.03 / 86400, float, "Specific mortality rate coccolithophores [1/sec]")),
+    ("nuct0", Setting(0.015 / 86400, float, "Fast recycling rate? coccolithophores [1/sec]")),
+    ("wc0", Setting(35.0 / 86400, float, "Constant calcite sinking speed")),
+    ("mw_c", Setting(0.06 / 86400, float, "Calcite sinking speed increase with depth")),
+    ("dissk0", Setting(0.013 / 86400, float, "Initial dissolution rate parameter [1/sec]")),
+    ("Omega_c", Setting(1, float, "?????????????+ Never set or explained????????????????????")),
+    ("saturation_constant_NC", Setting(0.7, float, "Half saturation constant for N uptake for coccolitiophores [mmol N / m^3]")),
+    ("capr", Setting(0.022, float, "Carbonate to carbon production ratio")),
 
 
 ])
@@ -189,11 +205,15 @@ def set_default_settings(vs):
     # if vs.enable_nitrogen: ??
     vs.zooplankton_preferences["diazotroph"] = vs.zprefD
 
+    # if vs.enable_caco3: ??
+    vs.zooplankton_preferences["coccolitophore"] = vs.zprefC
+
 
     vs.mortality_rates = defaultdict(None)
     vs.mortality_rates["phytoplankton"] = vs.specific_mortality_phytoplankton
     vs.mortality_rates["diazotroph"] = vs.specific_mortality_diazotroph
     vs.mortality_rates["zooplankton"] = vs.quadric_mortality_zooplankton
+    vs.mortality_rates["coccolitophore"] = vs.specific_mortality_coccolitophore
 
 
 def check_setting_conflicts(vs):
@@ -209,4 +229,4 @@ def check_setting_conflicts(vs):
         #     raise RuntimeError("Momentum timestep must be divisible by biological timestep")
 
         if not round(sum(vs.zooplankton_preferences.values()), 3) == 1:
-            raise RuntimeError("Zooplankton preferences must add to 1 it was {}".format(vs.zprefP + vs.zprefZ + vs.zprefDet + vs.zprefD))
+            raise RuntimeError("Zooplankton preferences must add to 1 it was {}".format(sum(vs.zooplankton_preferences.values())))

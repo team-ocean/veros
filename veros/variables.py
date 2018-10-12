@@ -734,6 +734,18 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "Diazotroph concentration", T_GRID, "mmol/m^3?",
             "Concentration of diazotrophs in grid box"
         )),
+        ("o2", Variable(
+            "O2 concentration", T_GRID, "mmol/m^3?",
+            "Concentration of O2 in grid box"
+        )),
+        ("caco3", Variable(
+            "CaCO3 concentration", T_GRID, "mmol/m^3?",
+            "Concentration of CaCO3 in grid box"
+        )),
+        ("coccolitophore", Variable(
+            "coccolitophore concentration", T_GRID, "mmol/m^3?",
+            "Concentration of coccolitophore in grid box"
+        )),
     ])),
 ])
 
