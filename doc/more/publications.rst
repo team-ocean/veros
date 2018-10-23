@@ -7,7 +7,7 @@ Papers
 - Häfner, D., Jacobsen, R. L., Eden, C., Kristensen, M. R. B., Jochum, M.,
   Nuterman, R., and Vinter, B.: Veros v0.1 – a fast and versatile ocean
   simulator in pure Python, Geosci. Model Dev., 11, 3299-3312,
-  `https://doi.org/10.5194/gmd-11-3299-2018 <https://doi.org/10.5194/gmd-11-3299-2018>`, 2018.
+  `https://doi.org/10.5194/gmd-11-3299-2018 <https://doi.org/10.5194/gmd-11-3299-2018>`_, 2018.
 
 Talks
 -----
