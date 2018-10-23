@@ -1,0 +1,18 @@
+name: veros
+channels:
+    - conda-forge
+dependencies:
+    - python=3.6
+    - numpy
+    - click
+    - requests>=2.18
+    - numpy>=1.13
+    - scipy
+    - netCDF4
+    - h5py
+    - pillow
+    - ruamel.yaml
+    - future
+    - pyamg
+    - pip:
+        - -e .
