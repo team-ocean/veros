@@ -159,6 +159,7 @@ SETTINGS = OrderedDict([
     ("trcmin", Setting(0, float, "Minimum npzd tracer value")),
 
     # NPZD with N
+    ("enable_nitrogen", Setting(False, bool, "")),
     ("jdiar", Setting(0.08, float, "Factor reducing the growth rate of diazotrophs")),
     ("nudon0", Setting(2.33e-5 / 86400, float, "DON remineralization rate [1/sec]")),
     ("nudop0", Setting(7e-5 / 86400, float, "DOP remineralization rate [1/sec]")),
@@ -171,6 +172,7 @@ SETTINGS = OrderedDict([
     ("dfrt", Setting(0.08, float, "phtoplankton fast recycling refactory/semi-labile DOM fraction")),
 
     # NPZD with caco3
+    ("enable_calcifiers", Setting(False, bool, "")),
     ("light_attenuation_caco3", Setting(0.047, float, "Calcite light attenuation [1/(m * mmol/m^3)")),
     ("zprefC", Setting(0.225, float, "Zooplankton preference for calcite")),
     ("alpha_C", Setting(0.06 / 86400, float, "Initial slope P-I curve [(W/m^2)^-1/sec]")),
@@ -183,8 +185,11 @@ SETTINGS = OrderedDict([
     ("Omega_c", Setting(1, float, "?????????????+ Never set or explained????????????????????")),
     ("saturation_constant_NC", Setting(0.7, float, "Half saturation constant for N uptake for coccolitiophores [mmol N / m^3]")),
     ("capr", Setting(0.022, float, "Carbonate to carbon production ratio")),
+    # Ballast
+    ("bapr", Setting(0.05, float, "detritus to carbonate ratio [mg POC/mg PIC]")),
 
     # NPZD with iron
+    ("enable_iron", Setting(False, bool, "")),
     ("pmax", Setting(0.15, float, "Phytoplankton biomass above which kfe increases [mmol N / m^3]")),
     ("kfemin", Setting(0.04e-3, float, "Minimum half saturation constant for Fe limitation phyto [mmol Fe / m^3]")),
     ("kfemax", Setting(0.2e-3, float, "Maximum half saturation constant for Fe limitation phyto [mmol Fe / m^3]")),
@@ -196,8 +201,8 @@ SETTINGS = OrderedDict([
     ("lig", Setting(1.0e-3, float, "Ligand concentration")),
     ("thetamaxhi", Setting(0.04, float, "Maximum Chl:C ratio, abundant iron [gChl/(gC)]")),
     ("thetamaxlo", Setting(0.01, float, "Maximum Chl:C ratio, extreme iron limitation [gChl/(gC)]")),
-    ("alphamax", Setting(73.6e-6, float, "Maximum intial slope in PI-curve [??]")),
-    ("alphamin", Setting(18.4e-6, float, "Minimum intial slope in PI-curve [??]")),
+    ("alphamax", Setting(73.6 * 1e-6 * 86400, float, "Maximum intial slope in PI-curve [??]")),
+    ("alphamin", Setting(18.4 * 1e-6 * 86400, float, "Minimum intial slope in PI-curve [??]")),
     ("mc", Setting(12.011, float, "Molar mass of carbon")),
     ("fetopsed", Setting(0.01, float, "Fe:P for sedimentary iron source [mmolFe/molP]")),
     ("o2min", Setting(5.0, float, "Minimum O2 concentration for aerobic respiration [mmol/m^3]")),
@@ -219,23 +224,15 @@ def set_default_settings(vs):
     # and can it be prettier?
     # if vs.enable_npzd:
     from collections import defaultdict
-    vs.zooplankton_preferences = defaultdict(None)
-    vs.zooplankton_preferences["phytoplankton"] = vs.zprefP
-    vs.zooplankton_preferences["zooplankton"] = vs.zprefZ
-    vs.zooplankton_preferences["detritus"] = vs.zprefDet
-
-    # if vs.enable_nitrogen: ??
-    vs.zooplankton_preferences["diazotroph"] = vs.zprefD
-
-    # if vs.enable_caco3: ??
-    vs.zooplankton_preferences["coccolitophore"] = vs.zprefC
 
 
     vs.mortality_rates = defaultdict(None)
-    vs.mortality_rates["phytoplankton"] = vs.specific_mortality_phytoplankton
-    vs.mortality_rates["diazotroph"] = vs.specific_mortality_diazotroph
-    vs.mortality_rates["zooplankton"] = vs.quadric_mortality_zooplankton
-    vs.mortality_rates["coccolitophore"] = vs.specific_mortality_coccolitophore
+    vs.zooplankton_preferences = defaultdict(None)
+    vs.recycling_rates = defaultdict(None)
+
+
+
+
 
 
 def check_setting_conflicts(vs):
@@ -250,5 +247,5 @@ def check_setting_conflicts(vs):
         # if ((vs.dt_mom / vs.dt_bio) % 1 is not 0):
         #     raise RuntimeError("Momentum timestep must be divisible by biological timestep")
 
-        if not round(sum(vs.zooplankton_preferences.values()), 3) == 1:
-            raise RuntimeError("Zooplankton preferences must add to 1 it was {}".format(sum(vs.zooplankton_preferences.values())))
+        # if not round(sum(vs.zooplankton_preferences.values()) - vs.zooplankton_preferences["ballast"], 3) == 1:
+        #     raise RuntimeError("Zooplankton preferences must add to 1 it was {}".format(sum(vs.zooplankton_preferences.values())))

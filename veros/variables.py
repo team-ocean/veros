@@ -754,6 +754,18 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "particulate iron concentration", T_GRID, "mmol/m^3?",
             "Concentration of particulate iron in grid box"
         )),
+        ("ballast", Variable(
+            "??", T_GRID, "mmol/m^3?",
+            "??"
+        )),
+        ("dic", Variable(
+            "??", T_GRID, "mmol/m^3?",
+            "??"
+        )),
+        ("alkalinity", Variable(
+            "??", T_GRID, "mmol/m^3",
+            "??"
+        )),
     ])),
 ])
 
