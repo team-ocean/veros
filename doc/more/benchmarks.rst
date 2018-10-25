@@ -5,6 +5,9 @@ Benchmarks
 
    The following benchmarks are for general orientation only. Benchmark results are highly platform dependent; your mileage may vary.
 
+Veros compared to PyOM2
+-----------------------
+
 The following figure presents some benchmarks that compare the performance of Veros and pyOM 2.1 depending on the problem size:
 
 .. figure:: /_images/benchmarks/acc.svg
@@ -15,8 +18,8 @@ The following figure presents some benchmarks that compare the performance of Ve
 Veros runtime estimates on `DC3 <http://nutrik.dk/dc3.html>`_ cluster
 --------------------------------------------------------------------
 
-The following figure presents estimates of Veros runtime required for 1 year prediction on CPU and GPU nodes of DC3 cluster.
-The estimates were done for ACC, Wave propagation and Global cases with different spatial and temporal resolution showen in the table below.
+The following figure presents estimates of Veros runtime required for 1 year prediction on CPU and GPU nodes of the DC3 cluster.
+The estimates were done for ACC, Wave propagation and Global cases with different spatial and temporal resolution shown in the table below.
 
 .. list-table::
    :widths: 25 25 25 25 25
@@ -29,27 +32,27 @@ The estimates were done for ACC, Wave propagation and Global cases with differen
      - Time step (s)
    * - ACC1DEG
      - ACC
-     - :math:`1^o \times 1^o`
+     - :math:`1^{\circ} \times 1^{\circ}`
      - :math:`60`
      - :math:`3600`
    * - ACC1/4DEG
      - ACC
-     - :math:`0.25^o \times 0.25^o`
+     - :math:`0.25^{\circ} \times 0.25^{\circ}`
      - :math:`60`
      - :math:`900`
    * - WP1DEG
      - Wave propagation
-     - :math:`1.15^o \times 1^o`
+     - :math:`1.15^{\circ} \times 1^{\circ}`
      - :math:`60`
      - :math:`2700`
    * - WP1/2DEG
      - Wave propagation
-     - :math:`1.15^o \times 0.5^o`
+     - :math:`1.15^{\circ} \times 0.5^{\circ}`
      - :math:`60`
      - :math:`2400`
    * - GL1DEG
      - Global
-     - :math:`1^o \times 1^o`
+     - :math:`1^{\circ} \times 1^{\circ}`
      - :math:`115`
      - :math:`2700`
 
@@ -59,4 +62,3 @@ For more details on the cases configuration see :doc:`setup gallery </reference/
    :width: 600px
 
    Runtime estimates on a cluster node with 32 CPU cores (Bh CPU) and on a cluster node with 24 CPU cores and an NVidia Tesla P100 GPU (Bh GPU).
-
