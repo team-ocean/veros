@@ -4,49 +4,71 @@ Getting started
 Installation
 ------------
 
-Using Anaconda (multi-platform)
-+++++++++++++++++++++++++++++++
+Using pip (multi-platform)
+++++++++++++++++++++++++++
+
+.. note::
+
+  You should only install Veros via pip if you want to get going as quickly as possible,
+  and do not plan to access or modify the Veros source code. The prefered way to install Veros
+  is through Anaconda (see below).
+
+If you already have Python installed, the quickest way to get a working Veros installation
+is to run::
+
+  $ pip install veros --user
+
+and optionally::
+
+  $ pip install bohrium --user
+
+to use Veros with Bohrium (Linux and OSX only).
+
+
+Using Anaconda (multi-platform, recommended)
+++++++++++++++++++++++++++++++++++++++++++++
 
 1. `Download and install Anaconda <https://www.continuum.io/downloads>`_. Make sure to
-   grab the 64-bit version of the Python 2.7 interpreter.
+   grab the 64-bit version of the Python interpreter.
 
-2. Install some dependencies: ::
+2. Clone the Veros repository: ::
 
-       $ conda install hdf5 libnetcdf
+      $ git clone https://github.com/dionhaefner/veros.git
 
-   and optionally::
+2. Create a new conda environment for Veros, and install all relevant dependencies,
+   by running ::
 
-       $ conda install -c bohrium bohrium
+       $ conda env create -f environment-unix.yml
 
-3. Clone our repository: ::
+   on Linux and OSX, or ::
 
-       $ git clone https://github.com/dionhaefner/veros.git
+       $ conda env create -f environment-windows.yml
 
-4. Install Veros via::
+  on Windows.
 
-       $ pip install -e ./veros
+3. To use Veros, just activate your new conda environment! This can be done through either
+   :program:`conda activate veros`, :program:`source activate veros`, or :program:`activate veros`,
+   depending on your platform and Anaconda installation.
 
 
-Using apt-get (Ubuntu / Debian)
+On bare metal (Ubuntu / Debian)
 +++++++++++++++++++++++++++++++
 
 1. Install some dependencies: ::
 
-      $ sudo apt-get install git python-dev python-pip libhdf5-dev libnetcdf-dev
-
-   and optionally::
-
-      $ sudo add-apt-repository ppa:bohrium/nightly
-      $ sudo apt-get update
-      $ sudo apt-get install bohrium
+      $ sudo apt-get install git python3-dev python3-pip libhdf5-dev libnetcdf-dev
 
 2. Clone our repository: ::
 
       $ git clone https://github.com/dionhaefner/veros.git
 
-3. Install Veros via::
+3. Install Veros (preferably in a virtual environment) via::
 
-      $ pip install -e ./veros
+      $ pip3 install -e ./veros
+
+4. Optionally, install Bohrium via::
+
+      $ pip3 install bohrium
 
 
 Setting up a model
