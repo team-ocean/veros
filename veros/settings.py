@@ -144,15 +144,15 @@ SETTINGS = OrderedDict([
     ("saturation_constant_N", Setting(0.7, float, "Half saturation constant for N uptate [mmol N / m^3]")),
     ("saturation_constant_Z_grazing", Setting(0.15, float, "Half saturation constant for Z grazing [mmol/m^3]")),
     ("specific_mortality_phytoplankton", Setting(0.03 / 86400, float, "Specific mortality rate of phytoplankton")),
-    ("quadric_mortality_zooplankton", Setting(0.06 / 86400**2, float, "Quadric mortality rate of zooplankton [???]")),
+    ("quadric_mortality_zooplankton", Setting(0.06 / 86400, float, "Quadric mortality rate of zooplankton [???]")),
     ("assimilation_efficiency", Setting(0.70, float, "gamma1")),  # TODO comment
     ("zooplankton_growth_efficiency", Setting(0.6, float, "Zooplankton growth efficiency")),
     ("wd0", Setting(16. / 86400, float, "Sinking speed of detritus at surface [m/s]")),
     ("mwz", Setting(1000, float, "Depth below which sinking speed of detritus remains constant [m]")),
     ("mw", Setting(0.02 / 86400, float, "Increase in sinking speed with depth [1/sec]")),
-    ("zprefP", Setting(.225, float, "Zooplankton preference for grazing on Phytoplankton")),
-    ("zprefZ", Setting(.225, float, "Zooplankton preference for grazing on other zooplankton")),
-    ("zprefDet", Setting(.225, float, "Zooplankton preference for grazing on detritus")),
+    ("zprefP", Setting(.33, float, "Zooplankton preference for grazing on Phytoplankton")),
+    ("zprefZ", Setting(.33, float, "Zooplankton preference for grazing on other zooplankton")),
+    ("zprefDet", Setting(.33, float, "Zooplankton preference for grazing on detritus")),
     ("redfield_ratio_PN", Setting(1./16, float, "Refield ratio for N/P")),
     ("redfield_ratio_CP", Setting(160., float, "Refield ratio for C/P")),
     ("redfield_ratio_ON", Setting(10.6, float, "Redfield ratio for O/N")),
@@ -190,7 +190,7 @@ SETTINGS = OrderedDict([
 
     # NPZD with iron
     ("enable_iron", Setting(False, bool, "")),
-    ("pmax", Setting(0.15, float, "Phytoplankton biomass above which kfe increases [mmol N / m^3]")),
+    ("pmax_P", Setting(0.15, float, "Phytoplankton biomass above which kfe increases [mmol N / m^3]")),
     ("kfemin", Setting(0.04e-3, float, "Minimum half saturation constant for Fe limitation phyto [mmol Fe / m^3]")),
     ("kfemax", Setting(0.2e-3, float, "Maximum half saturation constant for Fe limitation phyto [mmol Fe / m^3]")),
     ("kfe_D", Setting(0.1e-3, float, "Half saturation constant diazotroph Fe limitation [mmol Fe / m^3]")),
@@ -218,21 +218,6 @@ SETTINGS = OrderedDict([
 def set_default_settings(vs):
     for key, setting in SETTINGS.items():
         setattr(vs, key, setting.type(setting.default))
-
-
-    # does this belong here?
-    # and can it be prettier?
-    # if vs.enable_npzd:
-    from collections import defaultdict
-
-
-    vs.mortality_rates = defaultdict(None)
-    vs.zooplankton_preferences = defaultdict(None)
-    vs.recycling_rates = defaultdict(None)
-
-
-
-
 
 
 def check_setting_conflicts(vs):

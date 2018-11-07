@@ -232,5 +232,5 @@ def biharmonic(vs, tr, f, dtr):
             + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
             / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
 
-    # dtr[...] *= vs.maskT
+    dtr[...] *= vs.maskT
     # if vs.enable_conserve_energy: TODO should we do something here?

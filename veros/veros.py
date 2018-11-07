@@ -239,6 +239,11 @@ class Veros(with_metaclass(abc.ABCMeta)):
 
         start_time, start_iteration = self.time, self.itt
         profiler = None
+
+        if self.enable_npzd:
+            # Prepare iterables - should be moved out of here
+            npzd.setupNPZD(self)
+
         with handlers.signals_to_exception():
             try:
                 while self.time - start_time < self.runlen:
