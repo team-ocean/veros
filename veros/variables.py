@@ -766,6 +766,9 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "??", T_GRID, "mmol/m^3",
             "??"
         )),
+        ("atmospheric_co2", Variable(
+            "Atmospheric co2 concentration", T_HOR, "ppmv",
+            "???")),
     ])),
 ])
 

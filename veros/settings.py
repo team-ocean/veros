@@ -139,7 +139,7 @@ SETTINGS = OrderedDict([
     ("bbio", Setting(1.066, float, "??????")),
     ("cbio", Setting(1.0, float, "???????")),
     ("abio_P", Setting(0.6 / 86400, float, "Maximum growth rate parameter in [1/sec]")),  # TODO of what?
-    ("gbio", Setting(0.38 / 86400, float, "Maximum grazing rate at 0 deg C [1/day]")),
+    ("gbio", Setting(0.08 / 86400, float, "Maximum grazing rate at 0 deg C [1/sec]")),
     ("nupt0", Setting(0.015 / 86400, float, "Fast-recycling mortality rate of phytoplankton [1/sec]")),
     ("saturation_constant_N", Setting(0.7, float, "Half saturation constant for N uptate [mmol N / m^3]")),
     ("saturation_constant_Z_grazing", Setting(0.15, float, "Half saturation constant for Z grazing [mmol/m^3]")),
@@ -150,10 +150,10 @@ SETTINGS = OrderedDict([
     ("wd0", Setting(16. / 86400, float, "Sinking speed of detritus at surface [m/s]")),
     ("mwz", Setting(1000, float, "Depth below which sinking speed of detritus remains constant [m]")),
     ("mw", Setting(0.02 / 86400, float, "Increase in sinking speed with depth [1/sec]")),
-    ("zprefP", Setting(.33, float, "Zooplankton preference for grazing on Phytoplankton")),
-    ("zprefZ", Setting(.33, float, "Zooplankton preference for grazing on other zooplankton")),
-    ("zprefDet", Setting(.33, float, "Zooplankton preference for grazing on detritus")),
-    ("redfield_ratio_PN", Setting(1./16, float, "Refield ratio for N/P")),
+    ("zprefP", Setting(1, float, "Zooplankton preference for grazing on Phytoplankton")),
+    ("zprefZ", Setting(1, float, "Zooplankton preference for grazing on other zooplankton")),
+    ("zprefDet", Setting(1, float, "Zooplankton preference for grazing on detritus")),
+    ("redfield_ratio_PN", Setting(1./16, float, "Refield ratio for P/N")),
     ("redfield_ratio_CP", Setting(160., float, "Refield ratio for C/P")),
     ("redfield_ratio_ON", Setting(10.6, float, "Redfield ratio for O/N")),
     ("trcmin", Setting(0, float, "Minimum npzd tracer value")),
@@ -165,7 +165,7 @@ SETTINGS = OrderedDict([
     ("nudop0", Setting(7e-5 / 86400, float, "DOP remineralization rate [1/sec]")),
     ("nupt0_D", Setting(0.001 / 86400, float, "Fast-recycling mortality rate of diazotrophs [1/sec]")),
     ("hdop", Setting(0.4, float, "DOP growth rate handicap")),
-    ("zprefD", Setting(.1, float, "Z preference for diazotrophs")),
+    ("zprefD", Setting(1.0 / 3, float, "Z preference for diazotrophs")),
     ("specific_mortality_diazotroph", Setting(0.0001 / 86400, float, "Specific mortality rate of diazotrophs [1/sec]")),
     ("diazotroph_NP", Setting(28, float, "Diazotroph N:P ratio")),
     ("dfr", Setting(0.08, float, "phtoplankton mortality refactory/semi-labile DOM fraction")),
@@ -174,7 +174,7 @@ SETTINGS = OrderedDict([
     # NPZD with caco3
     ("enable_calcifiers", Setting(False, bool, "")),
     ("light_attenuation_caco3", Setting(0.047, float, "Calcite light attenuation [1/(m * mmol/m^3)")),
-    ("zprefC", Setting(0.225, float, "Zooplankton preference for calcite")),
+    ("zprefC", Setting(1, float, "Zooplankton preference for calcite")),
     ("alpha_C", Setting(0.06 / 86400, float, "Initial slope P-I curve [(W/m^2)^-1/sec]")),
     ("abio_C", Setting(0.52 / 86400, float, "a; Maximum growth rate parameter coccolithophore [1/sec]")),
     ("specific_mortality_coccolitophore", Setting(0.03 / 86400, float, "Specific mortality rate coccolithophores [1/sec]")),
@@ -229,8 +229,5 @@ def check_setting_conflicts(vs):
         if vs.dt_bio > vs.dt_mom:
             raise RuntimeError("Biological timestep must be smaller than or equal to momentum timestep (ensure dt_bio > dt_mom)")
 
-        # if ((vs.dt_mom / vs.dt_bio) % 1 is not 0):
-        #     raise RuntimeError("Momentum timestep must be divisible by biological timestep")
-
-        # if not round(sum(vs.zooplankton_preferences.values()) - vs.zooplankton_preferences["ballast"], 3) == 1:
-        #     raise RuntimeError("Zooplankton preferences must add to 1 it was {}".format(sum(vs.zooplankton_preferences.values())))
+        if ((vs.dt_mom / vs.dt_bio) % 1 != 0.0):
+            raise RuntimeError("Momentum timestep must be divisible by biological timestep, ratio was", vs.dt_mom / vs.dt_bio)
