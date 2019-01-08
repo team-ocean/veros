@@ -58,7 +58,7 @@ class Veros(with_metaclass(abc.ABCMeta)):
         self.override_settings = override or {}
         self.profile_mode = profile
         self.backend, self.backend_name = _backend.get_backend(backend)
-        self.vector_engine = _backend.get_vector_engine(self.backend)
+        self.vector_engine = _backend.get_vector_engine(self.backend, self.backend_name)
 
         try: # python 2
             logging.basicConfig(logfile=logfile, filemode="w",

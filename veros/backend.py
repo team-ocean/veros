@@ -30,16 +30,16 @@ def get_backend(backend_name):
     return backend_modules[backend_name], backend_name
 
 
-def get_vector_engine(np):
-    try:
-        runtime_info = np.bh_info.runtime_info()
-    except AttributeError:
-        return None
-    if "OpenCL" in runtime_info:
-        return "opencl"
-    if "CUDA" in runtime_info:
-        return "cuda"
-    return "openmp"
+def get_vector_engine(backend, backend_name):
+    if backend_name == "bohrium":
+        import bohrium_api
+        if bohrium_api.stack_info.is_opencl_in_stack():
+            return "opencl"
+        if bohrium_api.stack_info.is_cuda_in_stack():
+            return "cuda"
+        return "openmp"
+    
+    return None
 
 
 def flush(vs):

@@ -1,61 +1,62 @@
+from string import Template
 import functools
 import operator
 
 
-def compile_tdma(sys_depth, dtype):
-    import pyopencl as cl
-    import bohrium as bh
-    ctx = bh.interop_pyopencl.get_context()
-    source = """
-        kernel void tdma(
-            global DTYPE *a,
-            global DTYPE *b,
-            global DTYPE *c,
-            global DTYPE *d,
-            global DTYPE *solution
-        ){
-            const int m = SYS_DEPTH;
-            const int idx = get_global_id(0) * m;
+KERNEL = Template('''
+kernel void execute(
+    const global $DTYPE *a,
+    const global $DTYPE *b,
+    const global $DTYPE *c,
+    const global $DTYPE *d,
+    global $DTYPE *solution
+){
+    const size_t m = $SYS_DEPTH;
+    const size_t idx = get_global_id(0) * m;
 
-            private DTYPE cp[SYS_DEPTH];
-            private DTYPE dp[SYS_DEPTH];
-            cp[0] = c[idx] / b[idx];
-            dp[0] = d[idx] / b[idx];
-            for (int j=1; j < m; ++j) {
-                cp[j] = c[idx + j] / (b[idx + j] - a[idx + j] * cp[j-1]);
-                dp[j] = (d[idx + j] - a[idx + j] * dp[j-1]) / (b[idx + j] - a[idx + j] * cp[j-1]);
-            }
+    private $DTYPE cp[$SYS_DEPTH];
 
-            solution[idx + m-1] = dp[m-1];
+    cp[0] = c[idx] / b[idx];
+    solution[idx] = d[idx] / b[idx];
 
-            for (int j=m-2; j >= 0; --j) {
-                solution[idx + j] = dp[j] - cp[j] * solution[idx + j+1];
-            }
-        }
-    """.replace("SYS_DEPTH", "%d" % sys_depth).replace("DTYPE", dtype)
-    prg = cl.Program(ctx, source).build()
-    return prg
+    for (size_t j = 1; j < m; ++j) {
+        const $DTYPE norm_factor = b[idx+j] - a[idx+j] * cp[j-1];
+        cp[j] = c[idx+j] / norm_factor;
+        solution[idx+j] = (d[idx+j] - a[idx+j] * solution[idx+j-1]) / norm_factor;
+    }
+
+    for (size_t j = m-1; j > 0; --j) {
+        solution[idx+j-1] -= cp[j-1] * solution[idx+j];
+    }
+}
+'''.strip())
 
 
 def tdma(a, b, c, d, workgrp_size=None):
-    import pyopencl as cl
+    # import pyopencl as cl
     import bohrium as bh
 
     assert a.shape == b.shape == c.shape == d.shape
     assert a.dtype == b.dtype == c.dtype == d.dtype
 
     # Check that PyOpenCL is installed and that the Bohrium runtime uses the OpenCL backend
-    if not bh.interop_pyopencl.available():
-        raise NotImplementedError("OpenCL not available")
+    # if not bh.interop_pyopencl.available():
+    #     raise NotImplementedError("OpenCL not available")
 
     # Get the OpenCL context from Bohrium
-    ctx = bh.interop_pyopencl.get_context()
-    queue = cl.CommandQueue(ctx)
+    # ctx = bh.interop_pyopencl.get_context()
+    # queue = cl.CommandQueue(ctx)
 
-    ret = bh.empty(a.shape, dtype=a.dtype)
-    a_buf, b_buf, c_buf, d_buf, ret_buf = map(bh.interop_pyopencl.get_buffer, (a, b, c, d, ret))
+    res = bh.empty_like(a)
+    # a_buf, b_buf, c_buf, d_buf, ret_buf = map(bh.interop_pyopencl.get_buffer, (a, b, c, d, res))
 
-    prg = compile_tdma(ret.shape[-1], bh.interop_pyopencl.type_np2opencl_str(a.dtype))
-    global_size = functools.reduce(operator.mul, ret.shape[:-1])
-    prg.tdma(queue, [global_size], workgrp_size, a_buf, b_buf, c_buf, d_buf, ret_buf)
-    return ret
+    cltype = bh.interop_pyopencl.type_np2opencl_str(a.dtype)
+    kernel = KERNEL.substitute(SYS_DEPTH=res.shape[-1], DTYPE=cltype)
+    # prg = cl.Program(ctx, kernel).build()
+
+    global_size = res.size // res.shape[-1]
+    # prg.execute(queue, [global_size], workgrp_size, a_buf, b_buf, c_buf, d_buf, ret_buf)
+    bh.user_kernel.execute(kernel, [a, b, c, d, res],
+                           tag="opencl",
+                           param="global_work_size: %d; local_work_size: 1" % global_size)
+    return res

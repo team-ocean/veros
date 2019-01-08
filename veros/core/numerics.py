@@ -3,12 +3,6 @@ from scipy.linalg import lapack
 from .. import veros_method, veros_inline_method
 from . import cyclic, density, diffusion
 
-try:
-    from .special import tdma_opencl
-except ImportError:
-    import warnings
-    warnings.warn("Special OpenCL implementations could not be imported")
-
 
 @veros_method
 def u_centered_grid(vs, dyt, dyu, yt, yu):
@@ -252,13 +246,20 @@ def solve_tridiag(vs, a, b, c, d):
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
 
     if vs.backend_name == "numpy":
+        from scipy.linalg import lapack
         a[..., 0] = c[..., -1] = 0  # remove couplings between slices
         return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
 
-    if vs.vector_engine == "opencl":
-        return tdma_opencl.tdma(a, b, c, d)
+    if vs.backend_name == "bohrium":
+        if vs.vector_engine == "opencl":
+            from .special import tdma_opencl
+            return tdma_opencl.tdma(a, b, c, d)
+        else:
+            from .special import tdma_openmp
+            return tdma_openmp.tdma(a, b, c, d)
 
-    return np.linalg.solve_tridiagonal(a, b, c, d)
+    print(vs.vector_engine, vs.backend_name)
+    raise NotImplementedError("Unrecognized backend for TDMA")
 
 
 @veros_inline_method
