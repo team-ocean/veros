@@ -701,74 +701,103 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ("enable_npzd", OrderedDict([
         ("phytoplankton", Variable(
             "Phytoplankton concentration", T_GRID, "mmol/m^3?",
-            "Concentration of phytoplankton in grid box"
+            "Concentration of phytoplankton in grid box",
+            output=True,
         )),
         ("zooplankton", Variable(
             "Zooplankton concentration", T_GRID, "mmol/m^3?",
-            "Concentration of zooplankton in grid box"
+            "Concentration of zooplankton in grid box",
+            output=True
         )),
         ("detritus", Variable(
             "Detritus concentration", T_GRID, "mmol/m^3?",
-            "Concentration of detritus in grid box"
+            "Concentration of detritus in grid box",
+            output=True
         )),
         ("po4", Variable(
             "Phosphate concentration", T_GRID, "mmol/m^3?",
-            "Concentration of phosphate in grid box"
+            "Concentration of phosphate in grid box",
+            output=True
         )),
         ("swr", Variable(
             "Shortwave radiation", T_HOR, "W/m^3?",
             "Incomming solar radiation at sea level")),
-        ("no3", Variable(
-            "Nitrate concentration", T_GRID, "mmol/m^3?",
-            "Concentration of nitrate in grid box"
-        )),
-        ("dop", Variable(
-            "Dissolved organic phosphorus", T_GRID, "mmol/m^3?",
-            "Concentration of Dissolved organic phosphorus in grid box"
-        )),
-        ("don", Variable(
-            "Dissolved organic nitrogen", T_GRID, "mmol/m^3?",
-            "Concentration of dissolved organic nitrogen in grid box"
-        )),
-        ("diazotroph", Variable(
-            "Diazotroph concentration", T_GRID, "mmol/m^3?",
-            "Concentration of diazotrophs in grid box"
-        )),
-        ("o2", Variable(
-            "O2 concentration", T_GRID, "mmol/m^3?",
-            "Concentration of O2 in grid box"
-        )),
+        # ("o2", Variable(
+        #     "O2 concentration", T_GRID, "mmol/m^3?",
+        #     "Concentration of O2 in grid box",
+        #     output=True
+        # )),
         ("caco3", Variable(
             "CaCO3 concentration", T_GRID, "mmol/m^3?",
-            "Concentration of CaCO3 in grid box"
+            "Concentration of CaCO3 in grid box",
+            output=True
         )),
-        ("coccolitophore", Variable(
-            "coccolitophore concentration", T_GRID, "mmol/m^3?",
-            "Concentration of coccolitophore in grid box"
-        )),
-        ("fe", Variable(
-            "Iron concentration", T_GRID, "mmol/m^3?",
-            "Concentration of iron in grid box"
-        )),
-        ("particulate_fe", Variable(
-            "particulate iron concentration", T_GRID, "mmol/m^3?",
-            "Concentration of particulate iron in grid box"
-        )),
-        ("ballast", Variable(
-            "??", T_GRID, "mmol/m^3?",
-            "??"
-        )),
-        ("dic", Variable(
-            "??", T_GRID, "mmol/m^3?",
-            "??"
-        )),
-        ("alkalinity", Variable(
-            "??", T_GRID, "mmol/m^3",
-            "??"
-        )),
-        ("atmospheric_co2", Variable(
-            "Atmospheric co2 concentration", T_HOR, "ppmv",
-            "???")),
+        # ("coccolitophore", Variable(
+        #     "coccolitophore concentration", T_GRID, "mmol/m^3?",
+        #     "Concentration of coccolitophore in grid box",
+        #     output=True
+        # )),
+        # ("fe", Variable(
+        #     "Iron concentration", T_GRID, "mmol/m^3?",
+        #     "Concentration of iron in grid box",
+        #     output=True
+        # )),
+        # ("particulate_fe", Variable(
+        #     "particulate iron concentration", T_GRID, "mmol/m^3?",
+        #     "Concentration of particulate iron in grid box",
+        #     output=True
+        # )),
+        # ("ballast", Variable(
+        #     "??", T_GRID, "mmol/m^3?",
+        #     "??"
+        # )),
+    ])),
+    ("enable_nitrogen", OrderedDict([
+    ("no3", Variable(
+        "Nitrate concentration", T_GRID, "mmol/m^3?",
+        "Concentration of nitrate in grid box",
+        output=True
+    )),
+    ("dop", Variable(
+        "Dissolved organic phosphorus", T_GRID, "mmol/m^3?",
+        "Concentration of Dissolved organic phosphorus in grid box",
+        output=True
+    )),
+    ("don", Variable(
+        "Dissolved organic nitrogen", T_GRID, "mmol/m^3?",
+        "Concentration of dissolved organic nitrogen in grid box",
+        output=True
+    )),
+    ("diazotroph", Variable(
+        "Diazotroph concentration", T_GRID, "mmol/m^3?",
+        "Concentration of diazotrophs in grid box",
+        output=True
+    )),
+    ])),
+    ("enable_carbon", OrderedDict([
+    ("dic", Variable(
+        "??", T_GRID, "mmol/m^3?",
+        "??",
+        output=True
+    )),
+    ("alkalinity", Variable(
+        "??", T_GRID, "mmol/m^3",
+        "??",
+        output=True
+    )),
+    ("atmospheric_co2", Variable(
+        "Atmospheric co2 concentration", T_HOR, "ppmv",
+        "???")),
+    ("cflux", Variable(
+        "DIC Flux", T_HOR, "?mmol/m^3/s?",
+        "???",
+        output=True)),
+    ("wind_speed", Variable(
+        "Debugging wind speed", T_HOR, "m/s",
+        "Just used for debugging. Please ignore",
+        output=True)),
+    ("hSWS", Variable("hSWS", T_HOR, "?????", "?", output=True)),
+    ("dco2star", Variable("dco2star", T_HOR, "?????", "?", output=True)),
     ])),
 ])
 

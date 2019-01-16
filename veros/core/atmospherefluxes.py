@@ -5,20 +5,29 @@ Functions calculating atmosphere-ocean fluxes
 from veros import veros_method
 import numpy as np  # TODO remove this as veros handles it
 from scipy import optimize
+from . import cyclic
 
 
 @veros_method
 def carbon_flux(vs):
-    t_in = vs.temp[:, :, -1, vs.tau]  # TODO rename variable
-    s_in = vs.salt[:, :, -1, vs.tau]  # TODO rename variable
-    dic_in = vs.npzd_tracers["DIC"][:, :, -1]  # TODO rename variable
-    ta_in = vs.npzd_tracers["alkalinity"][:, :, -1]# TODO rename variable
-    co2_in = vs.atmospheric_co2 # TODO rename variable, TODO add vs.atmospheric_co2
-    ao = 1  # TODO what is this? Only set if ice is defined
-    atmospheric_pressure = 1  # atm  TODO: why set this?
+    t_in = vs.temp[:, :, -1, vs.tau]  # [degree C] TODO rename variable
+    s_in = vs.salt[:, :, -1, vs.tau]  # [g/kg = PSU] TODO rename variable
+    dic_in = vs.dic[:, :, -1] #* 1e-3# [mmol -> mol] TODO rename variable
+    ta_in = vs.alkalinity[:, :, -1] #* 1e-3 # [mmol -> mol] TODO rename variable
+    co2_in = vs.atmospheric_co2 # [ppmv] TODO rename variable
+
+    ao = 1  # 1 - ice fraction coverage
+    # icemask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
+    #         vs.forc_temp_surface < 0.0)
+    # ao = np.logical_not(icemask)
+
+
+    atmospheric_pressure = 1  # atm  NOTE: We don't have an atmosphere yet, hence constant pressure
 
     # sbc(i, j, isw) = surface wind speed direction is specified by angle
-    wind_speed = np.sqrt(vs.surface_taux**2 + vs.surface_tauy**2)
+    # TODO get actual wind speed rather than deriving from wind stress
+    wind_speed = np.sqrt(np.abs(vs.surface_taux) + np.abs(vs.surface_tauy)) * 500 # mult for scale?
+    vs.wind_speed = wind_speed
 
 
 # !     xconv is constant to convert piston_vel from cm/hr -> cm/s
@@ -28,18 +37,27 @@ def carbon_flux(vs):
     xconv = 0.337 / 3.6e5
     xconv *= 0.75
 
-    co2star, dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
+    # co2star, dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
+    dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
+    vs.dco2star = dco2star
 
     # Schmidt number for CO2
     # t_in wasn't actually used but sst was, however they are the same...
     scco2 = 2073.1 - 125.62 * t_in + 3.6276 * t_in ** 2 - 0.043219 * t_in ** 3
 
     # piston_vel = ao * xconv * ((sbc[i, j, iws]) * 0.01) ** 2 * ((scco2/660.0)**(-0.5))
-    piston_vel = ao * xconv * (wind_speed * 0.01) ** 2 * ((scco2/660.0)**(-0.5))
-# !           dic in umol cm-3 or (mol m-3) => flux in umol cm-2 s-1 TODO units
-    DIC_Flux = piston_vel * dco2star
+    # piston_vel = ao * xconv * (wind_speed * 0.01) ** 2 * ((scco2/660.0)**(-0.5))
+    # NOTE units: m * (m / s)^2
+    piston_vel = ao * xconv * (wind_speed) ** 2 * ((scco2/660.0)**(-0.5))
+    # 1e3 added to convert to mmol / m^2 / s
+    DIC_Flux = piston_vel * dco2star # * 1e3
+    # dfluxy = DIC_Flux * 86400 * 360
+    # print("DIC Flux Year mean: {}, min: {}, max: {}".format(dfluxy.mean(), dfluxy.min(), dfluxy.max()))
+    # print("DIC_FLUX", np.min(DIC_Flux), np.min(np.abs(DIC_Flux)), np.max(DIC_Flux))
 
     # TODO set boundary condictions
+    if vs.enable_cyclic_x:
+        cyclic.setcyclic_x(DIC_Flux)
 
     # TODO land fluxes?
 
@@ -60,14 +78,14 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # Hardwire constants
     ph_high = 6.0
     ph_low = 10.0
-    sit_in = 7.6875e-03  # mol / m^3 TODO: What is this?
+    sit_in = 7.6875e-3  # mol / m^3 TODO: What is this?
     pt_in = 0.5125e-3  # mol / m^3  TODO: What is this?
 
     temperature_in_kelvin = temperature + 273.15
 
     # Change units from the input of mol/m^3 -> mol/kg:
     # where the ocean's mean surface density is 1024.5 kg/m^3
-    # Note: mol/kg are actually what the body of this routine uses
+    # Note: mol/kg are actually what the body of this routine uses for calculations
 
     permil = 1.0 / 1024.5
     pt = pt_in * permil
@@ -75,8 +93,7 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     ta = ta_in * permil
     dic = dic_in * permil
 
-    # convert units for pt,sit,ta,dic,c2k,pres
-    # maybe also for co2 in uatm -> atm
+    # convert from uatm to atm, but it's in ppmv
     permeg = 1e-6
     co2 = co2_in * permeg
 
@@ -85,10 +102,10 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
     # Concentrations for borate, sulfate, and flouride
     bt = 0.000232 * scl / 10.811 # Uppstrom (1974)
-    st = 0.14 * scl / 06.062  # Morris & Riley (1966)
+    st = 0.14 * scl / 96.062  # Morris & Riley (1966)
     ft = 0.000067 * scl / 18.9984  # Riley (1965)
 
-    # f = k+(1-pH20) * correction term for non-ideality
+    # f = k0(1-pH20) * correction term for non-ideality
     # Weiss & Price (1980, Mar. Chem., 8, 347-359; Eq 13 with table 6 values)
     ff = np.exp(-162.8301 + 218.2968 / (temperature_in_kelvin / 100) \
             + 90.9241 * np.log(temperature_in_kelvin / 100) \
@@ -207,10 +224,6 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # setting of xacc will result in co2star accurate to 3 significant figures
     # (xx.y). Making xacc bigger will result in faster convergence also, but this
     # is not recommended (xacc of 10**-9 drops precision to 2 significant figures).
-    x1 = 10.0 ** (-ph_high)
-    x2 = 10.0 ** (-ph_low)
-    xacc = 1e-10
-
 
     def ta_iter_SWS(x):
         x2 = x * x
@@ -220,8 +233,9 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
         k123p = k12p * k3p
         c = 1.0 + st / ks + ft / kf
         a = x3 + k1p * x2 + k12p * x + k123p
+        # print(np.abs(a.min()))
         a2 = a * a
-        da = 3.0 * x2 + 2.0 * k1p + k12p
+        da = 3.0 * x2 + 2.0 * k1p * x + k12p
         b = x2 + k1 * x + k12
         b2 = b * b
         db = 2.0 * x + k1
@@ -236,14 +250,24 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
         # df = dfn/dx
         df = ((k1 * dic * b) - k1 * x * dic * db) / b2 - 2.0 * dic * k12 * db / b2 - \
-             bt / kb / (1.0 + x / kb)**2 - kw / x2 + (pt * k12p * (a - x * da)) / a2 - \
+             bt / kb / (1.0 + x / kb)**2.0 - kw / x2 + (pt * k12p * (a - x * da)) / a2 - \
              2.0 * pt * k123p * da / a2 - sit / ksi / (1.0 + x / ksi)**2 - 1.0 / c - \
-             st * (1.0 + ks / (x / c))**(-2) * (ks * c / x2) - ft * (1.0 + kf / (x / c))**(-2) * \
+             st * (1.0 + ks / (x / c))**(-2.0) * (ks * c / x2) - ft * (1.0 + kf / (x / c))**(-2.0) * \
              (kf * c / x2) - pt * x2 * (3.0 * a - x * da) / a2
+
+
 
         return fn, df
 
-    hSWS = drtsafe(np.full_like(co2_in, x1), np.full_like(co2_in, x2), ta_iter_SWS, xacc)
+    x1 = 10.0 ** (-ph_high)
+    x2 = 10.0 ** (-ph_low)
+    xacc = 1e-10
+
+    in1 = np.ones_like(co2_in) * x1
+    in2 = np.ones_like(co2_in) * x2
+    hSWS = drtsafe(in1, in2, ta_iter_SWS, xacc)
+    vs.hSWS[...] = hSWS
+
 
     # Calculate [CO2*] as defined in DOE Methods Handbook 1993 Ver. 2,
     # ORNL/CDIC-74, Dickson and Goyet, eds. (Ch 2 p 1+, Eq A.49)
@@ -251,6 +275,7 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     co2starair = co2 * ff * atmospheric_pressure
     dco2star = co2starair - co2star
     ph = -np.log10(hSWS)
+    # print(np.min(dco2star), np.max(dco2star))
 
     pCO2 = co2star / (k0 * FugFac)
     dpCO2 = pCO2 - co2starair
@@ -263,7 +288,14 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     pCO2 /= permeg
     dpCO2 /= permeg
 
-    return co2star, dco2star
+    # return co2star, dco2star
+    # print()
+    # print("hSWS=", np.min(hSWS), np.min(np.abs(hSWS)), np.max(hSWS))
+    # print("co2star=", np.min(co2star), np.min(np.abs(co2star)), np.max(co2star))
+    # print("co2starair=", np.min(co2starair), np.min(np.abs(co2starair)), np.max(co2starair))
+    # print("dco2star=", np.min(dco2star), np.min(np.abs(dco2star)), np.max(dco2star))
+    # print()
+    return dco2star
 
 
 
@@ -279,30 +311,40 @@ def drtsafe(guess_low, guess_high, ta_iter_SWS, accuracy, max_iterations=100):
 
 
     drtsafe_val = 0.5 * (guess_low + guess_high)
-    dx = guess_high - guess_low
+    dx = np.abs(guess_high - guess_low)
+    # drtsafe_val = 0.5 * (x_low + x_high)
+    # dx = np.abs(x_high - x_low)
     dx_old = dx.copy()
-    mask = np.ones_like(drtsafe_val, dtype=np.bool)
-
     f, df = ta_iter_SWS(drtsafe_val)
 
+    mask = np.zeros_like(drtsafe_val, dtype=np.bool)
+
     for _ in range(max_iterations):
-        tmp_mask = ((drtsafe_val - x_high) * df - f) * ((drtsafe_val - x_low) * df - f) > 0
+        tmp_mask = ((drtsafe_val - x_high) * df - f) * ((drtsafe_val - x_low) * df - f) >= 0
         tmp_mask = np.logical_or(tmp_mask, (np.abs(2.0 * f) > np.abs(dx_old * df)))
 
         dx_old = dx.copy()
-        dx, drtsafe_val = np.where(tmp_mask,
-                (0.5 * (x_low - x_high), x_low + dx),
-                (f / df, drtsafe_val - dx))
+        # dx, drtsafe_val = np.where(tmp_mask,
+        #         (0.5 * (x_high - x_low), x_low + dx),
+        #         (f / df, drtsafe_val - dx))
+        dx = np.where(tmp_mask, 0.5 * (x_high - x_low), f/df)
+        drtsafe_val = np.where(tmp_mask, x_low + dx, drtsafe_val - dx)
 
         mask = np.abs(dx) < accuracy
+
+        if mask.all():
+            break
 
         f, df = ta_iter_SWS(drtsafe_val)
 
         x_low, x_high, f_low, f_high = np.where(f < 0,
                 (drtsafe_val, x_high, f, f_high),
-                (x_low, drtsafe_val, f_low, f_high))
+                (x_low, drtsafe_val, f_low, f))
 
-        if not mask.any():
-            break
+        # if not mask.any():
+        #     break
+
+        # print("f = ", np.min(f), np.min(np.abs(f)), np.max(f))
+        # print("df = ", np.min(df), np.min(np.abs(df)), np.max(df))
 
     return drtsafe_val
