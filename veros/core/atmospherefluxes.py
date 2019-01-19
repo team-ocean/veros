@@ -50,10 +50,7 @@ def carbon_flux(vs):
     # NOTE units: m * (m / s)^2
     piston_vel = ao * xconv * (wind_speed) ** 2 * ((scco2/660.0)**(-0.5))
     # 1e3 added to convert to mmol / m^2 / s
-    DIC_Flux = piston_vel * dco2star # * 1e3
-    # dfluxy = DIC_Flux * 86400 * 360
-    # print("DIC Flux Year mean: {}, min: {}, max: {}".format(dfluxy.mean(), dfluxy.min(), dfluxy.max()))
-    # print("DIC_FLUX", np.min(DIC_Flux), np.min(np.abs(DIC_Flux)), np.max(DIC_Flux))
+    DIC_Flux = piston_vel * dco2star * vs.maskT[:, :, -1] # * 1e3
 
     # TODO set boundary condictions
     if vs.enable_cyclic_x:
@@ -265,7 +262,8 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
     in1 = np.ones_like(co2_in) * x1
     in2 = np.ones_like(co2_in) * x2
-    hSWS = drtsafe(in1, in2, ta_iter_SWS, xacc)
+    # hSWS = drtsafe(in1, in2, ta_iter_SWS, xacc)
+    hSWS = drtsafe(vs, in1, in2, ta_iter_SWS, xacc)
     vs.hSWS[...] = hSWS
 
 
@@ -299,7 +297,8 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
 
 
-def drtsafe(guess_low, guess_high, ta_iter_SWS, accuracy, max_iterations=100):
+# def drtsafe(guess_low, guess_high, ta_iter_SWS, accuracy, max_iterations=100):
+def drtsafe(vs, guess_low, guess_high, ta_iter_SWS, accuracy, max_iterations=100):
     f_low, _ = ta_iter_SWS(guess_low)
     f_high, _ = ta_iter_SWS(guess_high)
 
@@ -312,14 +311,15 @@ def drtsafe(guess_low, guess_high, ta_iter_SWS, accuracy, max_iterations=100):
 
     drtsafe_val = 0.5 * (guess_low + guess_high)
     dx = np.abs(guess_high - guess_low)
-    # drtsafe_val = 0.5 * (x_low + x_high)
-    # dx = np.abs(x_high - x_low)
+    # drtsafe_val = vs.hSWS  # Use current value as initial guess
+    # dx = np.abs(guess_high - vs.hSWS)
     dx_old = dx.copy()
     f, df = ta_iter_SWS(drtsafe_val)
 
     mask = np.zeros_like(drtsafe_val, dtype=np.bool)
 
     for _ in range(max_iterations):
+        # print(_, mask.sum())
         tmp_mask = ((drtsafe_val - x_high) * df - f) * ((drtsafe_val - x_low) * df - f) >= 0
         tmp_mask = np.logical_or(tmp_mask, (np.abs(2.0 * f) > np.abs(dx_old * df)))
 

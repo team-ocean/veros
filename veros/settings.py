@@ -86,6 +86,7 @@ SETTINGS = OrderedDict([
     ("alpha_tke", Setting(1.0, float, "")),
     ("mxl_min", Setting(1e-12, float, "")),
     ("kappaM_min", Setting(0., float, "")),
+    ("kappaM_min", Setting(2e-3, float, "")),
     ("kappaM_max", Setting(100., float, "")),
     ("tke_mxl_choice", Setting(1, int, "")),
     ("enable_tke_superbee_advection", Setting(False, bool, "")),
@@ -154,8 +155,9 @@ SETTINGS = OrderedDict([
     ("zprefZ", Setting(1, float, "Zooplankton preference for grazing on other zooplankton")),
     ("zprefDet", Setting(1, float, "Zooplankton preference for grazing on detritus")),
     ("redfield_ratio_PN", Setting(1./16, float, "Refield ratio for P/N")),
-    ("redfield_ratio_CP", Setting(160., float, "Refield ratio for C/P")),
+    ("redfield_ratio_CP", Setting(7.1 * 16, float, "Refield ratio for C/P")),
     ("redfield_ratio_ON", Setting(10.6, float, "Redfield ratio for O/N")),
+    ("redfield_ratio_CN", Setting(7.1, float, "Redfield ratio for C/N")),
     ("trcmin", Setting(0, float, "Minimum npzd tracer value")),
 
     # NPZD with N

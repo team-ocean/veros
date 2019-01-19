@@ -68,10 +68,10 @@ def biogeochemistry(vs):
 
 
         # TODO remove if statements in running code
-        if vs.enable_calcifiers:
-            swr[:, :] *= np.exp(- vs.light_attenuation_caco3 * tracers["caco3"])
-            dissk1 = vs.dissk0 * (1 - vs.Omega_c)
-            # caco3_integrated[...] += np.maximum(tracers["caco3"], vs.trcmin) * vs.dzt[k]
+        # if vs.enable_calcifiers:
+        #     swr[:, :] *= np.exp(- vs.light_attenuation_caco3 * tracers["caco3"])
+        #     dissk1 = vs.dissk0 * (1 - vs.Omega_c)
+        #     # caco3_integrated[...] += np.maximum(tracers["caco3"], vs.trcmin) * vs.dzt[k]
 
         # integrated phytoplankton for use in next layer
         phyto_integrated = sum([np.maximum(tracers[plankton], vs.trcmin) for plankton in vs.plankton_types]) * vs.dzt[k]
@@ -93,8 +93,8 @@ def biogeochemistry(vs):
                           + vs.light_attenuation_phytoplankton
                           * sum([tracers[plankton] for plankton in vs.plankton_types]))
 
-        if vs.enable_calcifiers:
-            light_attenuation += vs.dzt[k] * vs.light_attenuation_caco3 * tracers["caco3"]
+        # if vs.enable_calcifiers:
+        #     light_attenuation += vs.dzt[k] * vs.light_attenuation_caco3 * tracers["caco3"]
 
         # calculate ??? TODO: what is jmax, avej exactly????
         jmax, avej = {}, {}
@@ -138,20 +138,8 @@ def biogeochemistry(vs):
             vs.excretion_total = sum(vs.excretion.values())  # TODO this one should not be necessary with the rules
 
 
-            # if vs.enable_calcifiers:  # TODO remove ifs -> move to rules
-            #     vs.calatt = (vs.net_primary_production["coccolitophore"] - vs.recycled["coccolitophore"] - vs.mortality["coccolitophore"] - vs.grazing["coccolitophore"] + sum(vs.digestion.values()) - vs.mortality["zooplankton"] - vs.grazing["zooplankton"] - vs.excretion_total) * vs.capr * vs.redfield_ratio_CN * 1e3
-
-            #     vs.calpro = (vs.sloppy_feeding["coccolitophore"] + vs.sloppy_feeding["zooplankton"] + vs.mortality["coccolitophore"] + vs.mortality["zooplankton"]) * vs.capr * vs.redfield_ratio_CN * 1e3
-
-            #     dissl = tracers["caco3"] * dissk1
-
             # Temporary export for use in next layer
             tmp_expo = {sinker: speed[:, :, k] * tracers[sinker] * flags[sinker] for sinker, speed in vs.sinking_speeds.items()}
-
-
-            # Update global tracer tracking with calculated
-            # for name, value in tracers.items():
-            #     vs.npzd_tracers[name][:, :, k] = value
 
             # Gather all state updates
             npzd_updates = [rule[0](vs, rule[1], rule[2]) for rule in vs.npzd_rules]
@@ -160,16 +148,20 @@ def biogeochemistry(vs):
             for update in npzd_updates:
                 for key, value in update.items():
                     vs.npzd_tracers[key][:, :, k] += value * vs.dt_bio  # NOTE far too many multiplications with dt
+                    # tracers[key][:, :, k] += value * vs.dt_bio  # NOTE far too many multiplications with dt
 
             # Import and export between layers
             for tracer in vs.sinking_speeds:
                 vs.npzd_tracers[tracer][:, :, k] += impo[tracer] - tmp_expo[tracer]
+                # tracers[tracer][:, :, k] += impo[tracer] - tmp_expo[tracer]
 
                 # Calculate total export from layer to next
-                # export[sinker][:, :] += tmp_expo[sinker] * vs.dt_bio # TODO Why was it like this?
                 export[tracer][:, :] += tmp_expo[tracer] * vs.dt_bio
 
             # Prepare temporary tracers for next bio iteration
+            # NOTE this doesn't reset the tracer, because vs.npzd_tracers
+            # have been updated - it simply gets the update
+            # TODO: Is it possible to work directly on npzd_tracers in stead?
             for name in vs.npzd_tracers:
                 tracers[name] = vs.npzd_tracers[name][:, :, k]
 
@@ -184,11 +176,6 @@ def biogeochemistry(vs):
         if vs.enable_carbon:  # TODO remove ifs - maybe create common nutrient rule
             tracers["DIC"][at_bottom] += export["detritus"][at_bottom] * vs.redfield_ratio_CN
 
-            # ???
-            # tracers["alkalinity"][:, :] -= tracers["DIC"] * vs.redfield_ratio_NC * 1e-3
-            # tracers["alkalinity"][:, :] = - tracers["DIC"] / vs.redfield_ratio_CN * 1e-3
-            vs.alkalinity[:, :, k] = -tracers["DIC"] * vs.redfield_ratio_CN * 1e-3
-
         for sinker in export:
             export[sinker][:, :] -= at_bottom * export[sinker]
 
@@ -198,11 +185,11 @@ def biogeochemistry(vs):
 
         if vs.enable_carbon:  # TODO remove ifs in process code
             # dprca = export["caco3"] * 1e-3
-            dprca = vs.calpro / nbio * 1e-3
+            dprca = vs.calpro / nbio #* 1e-3
             vs.prca += dprca * vs.dzt[k]
             tracers["DIC"][:, :] -= dprca
 
-            vs.alkalinity[:, :, k] = - tracers["DIC"] / vs.redfield_ratio_CN * 1e-3
+            vs.alkalinity[:, :, k] = - tracers["DIC"] / vs.redfield_ratio_CN# * 1e-3
 
             if not vs.enable_calcifiers:
                 vs.alkalinity[:, :, k] -= 2 * dprca
@@ -215,21 +202,9 @@ def biogeochemistry(vs):
     # Remineralization of calcite - NOTE: Why can't this be in the main loop?
     if vs.enable_carbon:
 
-        # dic_surface_change = vs.prca * vs.rcab[:, :, -1]
-        # dic_bottom_change = vs.prca * vs.rcak[:, :, 0]
-        # vs.npzd_tracers["DIC"][:, :, :-1] += vs.prca[:, :, np.newaxis] * vs.rcak[:, :, :-1]
-        # vs.npzd_tracers["DIC"][:, :, -1] += vs.prca * vs.rcab[:, :, -1]
-
-        # vs.alkalinity[:, :, :-1] += 2 * vs.prca[:, :, np.newaxis] * vs.rcak[:, :, :-1]
-        # vs.alkalinity[:, :, -1] += 2 * vs.prca * vs.rcab[:, :, -1]
-
         # TODO shouldn't rcab be at the bottom? rather than at the very last
         vs.npzd_tracers["DIC"][:, :, 1:] += vs.prca[:, :, np.newaxis] * vs.rcak[:, :, 1:]
         vs.npzd_tracers["DIC"][:, :, 0] += vs.prca * vs.rcab[:, :, 0]
-
-        # print((vs.prca[:, :, np.newaxis] * vs.rcak[:, :, 1:])[50, 23])
-        # print((vs.prca[:, :, np.newaxis] * vs.rcab[:, :, 1:])[50, 23])
-        # print(vs.prca.sum())
 
         vs.alkalinity[:, :, 1:] += 2 * vs.prca[:, :, np.newaxis] * vs.rcak[:, :, 1:]
         vs.alkalinity[:, :, 0] += 2 * vs.prca * vs.rcab[:, :, 0]
@@ -420,16 +395,10 @@ def recycling_to_po4(vs, plankton, phosphate):
 def recycling_to_no3(vs, plankton, no3):
     return recycling(vs, plankton, no3, 1)
 
-# @veros_method
-# def recycling_to_dic(vs, plankton, dic):
-#     return {dic: vs.redfield_ratio_CN * vs.recycled[plankton]}
 @veros_method
 def recycling_to_dic(vs, plankton, dic):
     return recycling(vs, plankton, dic, vs.redfield_ratio_CN)
 
-# @veros_method
-# def recycling_phyto_to_dic(vs, plankton, dic):
-#     return {dic: (1 - vs.dfrt) * vs.redfield_ratio_CN * vs.recycled[plankton]}
 @veros_method
 def recycling_phyto_to_dic(vs, plankton, dic):
     return recycling(vs, plankton, dic, (1 - vs.dfrt) * vs.redfield_ratio_CN)
@@ -442,7 +411,7 @@ def excretion_dic(vs, zooplankton, nutrient):
 @veros_method
 def calpro(vs, plankton, cal):
     # return {cal: (vs.mortality[plankton] + vs.sloppy_feeding[plankton]) * vs.capr * vs.redfield_ratio_CN * 1e3}
-    vs.calpro += (vs.mortality[plankton] + vs.grazing[plankton] * (1 - vs.assimilation_efficiency)) * vs.capr * vs.redfield_ratio_CN * 1.e3
+    vs.calpro += (vs.mortality[plankton] + vs.grazing[plankton] * (1 - vs.assimilation_efficiency)) * vs.capr * vs.redfield_ratio_CN #* 1.e3
     # return {cal: vs.calpro}
     return {}
 
@@ -500,30 +469,21 @@ def setupNPZD(vs):
     # Add carbon to the model
     # TODO complete interactions
     if vs.enable_carbon:
-
-        vs.redfield_ratio_CN = vs.redfield_ratio_CP * vs.redfield_ratio_PN # TODO remove
         # Preparation of some variables for remineralization of caco3
         vs.prca = np.zeros_like(vs.dic[:, :, 0])
       # dcaco3 = 650000.0  ! remineralisation depth of calcite [cm]
-        dcaco3 = 65000.0 / 100  # remineralization depth of calcite
+        dcaco3 = 65000.0 / 100  # remineralization depth of calcite [m]
 
         vs.rcak = np.empty_like(vs.dic)
-        # vs.rcak[:, :, 0] = - (np.exp(-vs.zw[0] / dcaco3) - 1) / vs.dzt[0]
-        # vs.rcak[:, :, 1:] = - np.exp(- vs.zw[1:] / dcaco3) / vs.dzt[1:] \
-        #         + np.exp(-vs.zw[:-1] / dcaco3) / vs.dzt[1:]
         vs.rcak[:, :, -1] = - (np.exp(vs.zw[-1] / dcaco3) - 1) / vs.dzt[-1]
         vs.rcak[:, :, :-1] = (- np.exp(vs.zw[:-1] / dcaco3) + np.exp(vs.zw[1:] / dcaco3)) / vs.dzt[:-1]
         vs.rcak[...] *= vs.maskT
 
-        # print("rcak", vs.rcak[50, 23, :])
 
         vs.rcab = np.empty_like(vs.dic)
-        # vs.rcab[:, :, 0] = 1 / vs.dzt[0]  # only last element is used?
-        # vs.rcab[:, :, 1:] = np.exp(-vs.zw[:-1] / dcaco3) / vs.dzt[1:]
         vs.rcab[:, : -1] = 1 / vs.dzt[-1]
         vs.rcab[:, :, :-1] = np.exp(vs.zw[:-1] / dcaco3) / vs.dzt[:-1]
         vs.rcab[...] *= vs.maskT
-        # print("rcab", vs.rcab[50, 23, :])
 
         # Need to track dissolved inorganic carbon, alkalinity and calcium carbonate
         register_npzd_data(vs, "DIC", vs.dic)
@@ -576,7 +536,7 @@ def setupNPZD(vs):
     # Add calcifying "stuff"
     # TODO: complete rules: Should be trivial if nitrogen is working
     if vs.enable_calcifiers:
-        vs.redfield_ratio_CN = vs.redfield_ratio_CP * vs.redfield_ratio_PN
+        # vs.redfield_ratio_CN = vs.redfield_ratio_CP * vs.redfield_ratio_PN
         vs.zprefs["coccolitophore"] = vs.zprefC
         vs.plankton_types.append("coccolitophore")
 
