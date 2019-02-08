@@ -58,9 +58,9 @@ SETTINGS = OrderedDict([
     ("enable_neutral_diffusion", Setting(False, bool, "enable isopycnal mixing")),
     ("enable_skew_diffusion", Setting(False, bool, "enable skew diffusion approach for eddy-driven velocities")),
     ("enable_TEM_friction", Setting(False, bool, "TEM approach for eddy-driven velocities")),
-    ("K_iso_0", Setting(0.0, float, "constant for isopycnal diffusivity in m^2/s")),
+    ("K_iso_0", Setting(1000.0, float, "constant for isopycnal diffusivity in m^2/s")),
     ("K_iso_steep", Setting(0.0, float, "lateral diffusivity for steep slopes in m^2/s")),
-    ("K_gm_0", Setting(0.0, float, "fixed value for K_gm which is set for no EKE model")),
+    ("K_gm_0", Setting(1000.0, float, "fixed value for K_gm which is set for no EKE model")),
     ("iso_dslope", Setting(0.0008, float, "parameters controlling max allowed isopycnal slopes")),
     ("iso_slopec", Setting(0.001, float, "parameters controlling max allowed isopycnal slopes")),
 
@@ -84,7 +84,7 @@ SETTINGS = OrderedDict([
     ("c_eps", Setting(0.7, float, "")),
     ("alpha_tke", Setting(1.0, float, "")),
     ("mxl_min", Setting(1e-12, float, "")),
-    ("kappaM_min", Setting(0., float, "")),
+    ("kappaM_min", Setting(2e-4, float, "")),
     ("kappaM_max", Setting(100., float, "")),
     ("tke_mxl_choice", Setting(1, int, "")),
     ("enable_tke_superbee_advection", Setting(False, bool, "")),
@@ -115,6 +115,8 @@ SETTINGS = OrderedDict([
     ("eke_hrms_k0_min", Setting(0.0, float, "min value for bottom roughness parameter")),
 
     # New
+    ("enable_Prandtl_tke", Setting(True, bool, "Compute Prandtl number from stratification levels in TKE routine")),
+    ("Prandtl_tke0", Setting(10., float, "Constant Prandtl number when stratification is neglected for kappaH computation in TKE routine")),
     ("verbose_island_routines", Setting(False, bool, "Print extra debugging output in island / boundary integral routines")),
     ("use_io_threads", Setting(True, bool, "Start extra threads for disk writes")),
     ("io_timeout", Setting(20, float, "Timeout in seconds while waiting for IO locks to be released")),
