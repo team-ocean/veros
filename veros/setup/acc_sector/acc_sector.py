@@ -5,18 +5,25 @@ import veros.tools
 
 
 class ACCSector(veros.Veros):
-    """A model using spherical coordinates with a partially closed domain representing the Atlantic and ACC.
+    """A model using spherical coordinates with a partially closed domain representing the narrow sector of Atlantic and ACC.
 
-    Wind forcing over the channel part and buoyancy relaxation drive a large-scale meridional overturning circulation.
+    The bathymetry of the model is idealized to a flat-bottom (with depth of 4000 m) over the majority of the domain,
+    except a half depth appended within the confines of the circumpolar channel at the inflow and outflow regions.
+    The horizontal grid has resolution of :math:`2 \\times 2` degrees, and the vertical one has 40 levels.
+
+    Wind forcing over the sector part and buoyancy relaxation drive a large-scale meridional overturning circulation.
 
     This setup demonstrates:
      - setting up an idealized geometry after `(Munday et al., 2013) <https://doi.org/10.1175/JPO-D-12-095.1>`_.
-     - updating surface forcings
+     - modifing surface forcings over selected regions of the domain
+     - sensitivity of circumpolar transport and meridional overturning 
+       to changes in Southern Ocean wind stress and buoyancy anomalies
      - basic usage of diagnostics
 
-    `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/ACC%202>`_.
-    """
+    :doc:`Adapted from ACC channel model </reference/setups/acc>`.
 
+    """
+    
     max_depth = 4000.
     so_wind_factor = 1.
 
@@ -58,6 +65,7 @@ class ACCSector(veros.Veros):
         self.alpha_tke = 30.0
         self.mxl_min = 1e-8
         self.tke_mxl_choice = 2
+        self.kappaM_min = 2e-4
         # self.enable_tke_superbee_advection = True
         self.enable_Prandtl_tke = False
 
@@ -96,6 +104,9 @@ class ACCSector(veros.Veros):
     def set_topography(self):
         x, y = np.meshgrid(self.xt, self.yt, indexing="ij")
         self.kbot = np.logical_or( (x > 1.0) & (x < 27), y < -40).astype(np.int)
+
+        # A half depth (ridge) is appended to the domain within the confines
+        # of the circumpolar channel at the inflow and outflow regions
         bathymetry = np.logical_or( ((x <= 1.0) & (y < -40)), ((x >= 27) & (y < -40)) )
         kzt2000 = np.sum((self.zt < -2000.).astype(np.int))
         self.kbot[bathymetry] *= kzt2000
@@ -108,18 +119,21 @@ class ACCSector(veros.Veros):
 
         # wind stress forcing
         taux = np.zeros(self.ny + 4, dtype=self.default_float_type)
-        # South
-        taux[self.yt < -30] = 1.5e-4 * np.sin(np.pi * (self.yu[self.yt < -30] - self.yu.min()) / (-30.0 - self.yt.min())) * self.so_wind_factor 
-        # North
-        taux[self.yt > 30] = -5e-5 * np.sin(np.pi * (self.yu[self.yt > 30] - self.yu.max()) / (self.yt.max() - 30.0))
-        # Subequatorial North
-        taux[(self.yt >= 15) & (self.yt < 30)] = 0.5e-4 * np.sin(np.pi * (self.yt[(self.yt >= 15) & (self.yt < 30)] - 30.) / 30)
-        taux[(self.yt > 0) & (self.yt < 15)] =  0.5e-4 * np.sin(np.pi * (self.yu[(self.yt > 0) & (self.yt < 15)] - 30.) / 30)
-        # Subequatorial South
-        taux[(self.yt <= -15) & (self.yt > -30)] = -0.5e-4 * np.sin(np.pi * (self.yt[(self.yt <= -15) & (self.yt > -30)] - 30.) / 30)
-        taux[(self.yt > -15) & (self.yt < 0)] =  -0.5e-4 * np.sin(np.pi * (self.yu[(self.yt > -15) & (self.yt < 0)] - 30.) / 30)
-        # Equatorial
-        taux[(self.yt > -5) & (self.yt < 5)] = -1.5e-5 * np.cos(np.pi * (self.yu[(self.yt > -5) & (self.yt < 5)] - 10.) / 10) - 0.25e-4
+        north = self.yt > 30
+        subequatorial_north_n = (self.yt >= 15) & (self.yt < 30)
+        subequatorial_north_s = (self.yt > 0) & (self.yt < 15)
+        equator = (self.yt > -5) & (self.yt < 5)
+        subequatorial_south_n = (self.yt > -15) & (self.yt < 0)
+        subequatorial_south_s = (self.yt <= -15) & (self.yt > -30)
+        south = self.yt < -30
+
+        taux[north] = -5e-5 * np.sin(np.pi * (self.yu[north] - self.yu.max()) / (self.yt.max() - 30.))
+        taux[subequatorial_north_s] =  5e-5 * np.sin(np.pi * (self.yu[subequatorial_north_s] - 30.) / 30.)
+        taux[subequatorial_north_n] = 5e-5 * np.sin(np.pi * (self.yt[subequatorial_north_n] - 30.) / 30.)
+        taux[subequatorial_south_n] =  -5e-5 * np.sin(np.pi * (self.yu[subequatorial_south_n] - 30.) / 30.)
+        taux[subequatorial_south_s] = -5e-5 * np.sin(np.pi * (self.yt[subequatorial_south_s] - 30.) / 30.)
+        taux[equator] = -1.5e-5 * np.cos(np.pi * (self.yu[equator] - 10.) / 10.) - 2.5e-5
+        taux[south] = 15e-5 * np.sin(np.pi * (self.yu[south] - self.yu.min()) / (-30. - self.yt.min()))
         self.surface_taux[:, :] = taux * self.maskU[:, :, -1]
 
         # surface heatflux forcing
