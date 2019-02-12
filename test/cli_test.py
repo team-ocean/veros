@@ -26,10 +26,10 @@ def runner():
     return CliRunner()
 
 
-def test_veros_copy_setup():
+def test_veros_copy_setup(runner):
     with TemporaryDirectory() as tempdir:
         for setup in ("acc", "eady", "global_4deg", "global_1deg", "north_atlantic", "wave_propagation"):
-            result = runner().invoke(veros.cli.veros_copy_setup.cli, [setup, "--to", tempdir])
+            result = runner.invoke(veros.cli.veros_copy_setup.cli, [setup, "--to", tempdir])
             assert result.exit_code == 0
             assert not result.output
 
