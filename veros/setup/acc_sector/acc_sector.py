@@ -109,7 +109,7 @@ class ACCSector(veros.Veros):
         # of the circumpolar channel at the inflow and outflow regions
         bathymetry = np.logical_or( ((x <= 1.0) & (y < -40)), ((x >= 27) & (y < -40)) )
         kzt2000 = np.sum((self.zt < -2000.).astype(np.int))
-        self.kbot[bathymetry] *= kzt2000
+        self.kbot[bathymetry] = kzt2000
 
     @veros.veros_method
     def set_initial_conditions(self):
