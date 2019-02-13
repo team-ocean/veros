@@ -6,7 +6,7 @@ import logging
 @contextlib.contextmanager
 def threaded_io(vs, filepath, mode):
     """
-    If using IO threads, start a new thread to write the netCDF data to disk.
+    If using IO threads, start a new thread to write the HDF5 data to disk.
     """
     import h5py
     if vs.use_io_threads:
