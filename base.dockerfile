@@ -1,4 +1,4 @@
-FROM ubuntu:17.10
+FROM ubuntu:18.04
 
 MAINTAINER Dion Häfner <mail@dionhaefner.de>
 
@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y \
       'python3-pip' \
       'python-mpi4py' \
       'python3-mpi4py' \
+      'python-virtualenv' \
+      'python3-virtualenv' \
       'locales' \
       'git' \
       'curl' \
@@ -47,19 +49,22 @@ ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
 # Install OpenCL
-WORKDIR /tmp
-ADD AMD-APP-SDK-linux-v2.9-1.599.381-GA-x64.tar.bz2 amd_src
-ENV OPENCL_HOME "/opt/AMDAPPSDK-2.9-1"
-ENV OPENCL_LIBPATH "/opt/AMDAPPSDK-2.9-1/lib/x86_64"
-RUN sh amd_src/AMD-APP-SDK-v2.9-1.599.381-GA-linux64.sh -- -s -a yes && \
-    rm -rf /tmp/amd_src
-ENV OpenCL_LIBPATH "/opt/AMDAPPSDK-2.9-1/lib/x86_64/"
-ENV OpenCL_INCPATH "/opt/AMDAPPSDK-2.9-1/include"
-ENV LD_LIBRARY_PATH "$OpenCL_LIBPATH:$LD_LIBRARY_PATH"
+RUN apt-get update && apt-get install -y ocl-icd-opencl-dev opencl-headers
+# WORKDIR /tmp
+# ADD AMD-APP-SDK-linux-v2.9-1.599.381-GA-x64.tar.bz2 amd_src
+# ENV OPENCL_HOME "/opt/AMDAPPSDK-2.9-1"
+# ENV OPENCL_LIBPATH "/opt/AMDAPPSDK-2.9-1/lib/x86_64"
+# RUN sh amd_src/AMD-APP-SDK-v2.9-1.599.381-GA-linux64.sh -- -s -a yes && \
+#     rm -rf /tmp/amd_src
+# ENV OpenCL_LIBPATH "/opt/AMDAPPSDK-2.9-1/lib/x86_64/"
+# ENV OpenCL_INCPATH "/opt/AMDAPPSDK-2.9-1/include"
+# ENV LD_LIBRARY_PATH "$OpenCL_LIBPATH:$LD_LIBRARY_PATH"
 
-RUN pip install --global-option=build_ext --global-option="-I$OpenCL_INCPATH" --global-option="-L$OpenCL_LIBPATH" pyopencl && \
+RUN pip install mako pybind11 && \
+    pip install pyopencl && \
     python -c "import pyopencl" && \
-    pip3 install --global-option=build_ext --global-option="-I$OpenCL_INCPATH" --global-option="-L$OpenCL_LIBPATH" pyopencl && \
+    pip3 install mako pybind11 && \
+    pip3 install pyopencl && \
     python3 -c "import pyopencl"
 
 # Build bohrium
@@ -68,16 +73,23 @@ ADD https://github.com/bh107/bohrium/archive/master.zip bohrium-master.zip
 RUN unzip bohrium-master.zip && \
     mkdir -p /tmp/bohrium-master/build && \
     cd /tmp/bohrium-master/build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DEXT_VISUALIZER=OFF && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DEXT_VISUALIZER=OFF -DPY_EXE_LIST="python2.7;python3.6" && \
     make -j 4 > /dev/null && \
     make install > /dev/null && \
     rm -rf /tmp/bohrium-master /tmp/bohrium-master.zip
 
-RUN ln -s /usr/lib/python2.7/site-packages/bohrium /usr/lib/python2.7/dist-packages/ && \
-    python2.7 -c "import bohrium"
+ENV BH_CONFIG=/usr/etc/bohrium/config.ini
 
+RUN ln -s /usr/lib/python2.7/site-packages/bohrium /usr/lib/python2.7/dist-packages/ && \
+    ln -s /usr/lib/python2.7/site-packages/bohrium_api /usr/lib/python2.7/dist-packages/ && \
+    python2.7 -m bohrium --info
+
+RUN python3.6 -m site
+RUN ls /usr/lib/python3.6
 RUN ln -s /usr/lib/python3.6/site-packages/bohrium /usr/lib/python3/dist-packages/ && \
-    python3.6 -c "import bohrium"
+    ln -s /usr/lib/python3.6/site-packages/bohrium_api /usr/lib/python3/dist-packages/ && \
+    ls -l /usr/lib/python3/dist-packages && \
+    python3.6 -m bohrium --info
 
 # Build pyOM2 with Python 2 and Python 3 support
 RUN mkdir -p /tmp/pyOM2
