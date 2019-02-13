@@ -5,10 +5,13 @@ import subprocess
 import shlex
 import sys
 import os
+import time
 
 import click
 
 LAST_N_FILENAME = "{identifier}.current_run"
+CHILD_TIMEOUT = 10
+POLL_DELAY = 0.1
 
 
 class ShellCommand(click.ParamType):
@@ -60,7 +63,21 @@ def resubmit(identifier, num_runs, length_per_run, veros_cmd, callback):
 
     call_veros(veros_cmd, identifier, current_n, length_per_run)
     write_next_n(current_n + 1, last_n_filename)
-    subprocess.Popen(callback)
+    next_proc = subprocess.Popen(callback)
+
+    # catch immediately crashing processes
+    timeout = CHILD_TIMEOUT
+
+    while timeout > 0:
+        retcode = next_proc.poll()
+        if retcode is not None:
+            if retcode > 0:
+                # process crashed
+                raise RuntimeError("Callback exited with {}".format(retcode))
+            else:
+                break
+        time.sleep(POLL_DELAY)
+        timeout -= POLL_DELAY
 
 
 @click.command("veros-resubmit", short_help="Re-run a Veros setup several times")
@@ -78,6 +95,7 @@ def resubmit(identifier, num_runs, length_per_run, veros_cmd, callback):
 def cli(*args, **kwargs):
     if kwargs["callback"] is None:
         kwargs["callback"] = sys.argv
+
     resubmit(*args, **kwargs)
 
 
