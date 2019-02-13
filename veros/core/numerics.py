@@ -245,21 +245,13 @@ def solve_tridiag(vs, a, b, c, d):
     """
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
 
-    if vs.backend_name == "numpy":
-        from scipy.linalg import lapack
-        a[..., 0] = c[..., -1] = 0  # remove couplings between slices
-        return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
-
-    if vs.backend_name == "bohrium":
-        if vs.vector_engine == "opencl":
-            from .special import tdma_opencl
-            return tdma_opencl.tdma(a, b, c, d)
-        else:
-            from .special import tdma_openmp
-            return tdma_openmp.tdma(a, b, c, d)
-
-    print(vs.vector_engine, vs.backend_name)
-    raise NotImplementedError("Unrecognized backend for TDMA")
+    if vs.backend_name == "bohrium" and vs.vector_engine in ("opencl", "openmp"):
+        return np.linalg.solve_tridiagonal(a, b, c, d)
+            
+    # fall back to scipy
+    from scipy.linalg import lapack
+    a[..., 0] = c[..., -1] = 0  # remove couplings between slices
+    return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
 
 
 @veros_inline_method
