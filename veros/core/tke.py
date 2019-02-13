@@ -61,7 +61,10 @@ def set_tke_diffusivities(vs):
         if vs.enable_idemix:
             Rinumber[...] = np.minimum(Rinumber, vs.kappaM * vs.Nsqr[:, :, :, vs.tau]
                                   / np.maximum(1e-12, vs.alpha_c * vs.E_iw[:, :, :, vs.tau]**2))
-        vs.Prandtlnumber[...] = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
+        if vs.enable_Prandtl_tke:
+            vs.Prandtlnumber[...] = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
+        else:
+            vs.Prandtlnumber[...] = vs.Prandtl_tke0
         vs.kappaH[...] = vs.kappaM / vs.Prandtlnumber
         vs.kappaM[...] = np.maximum(vs.kappaM_min, vs.kappaM)
     else:
