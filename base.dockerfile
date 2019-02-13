@@ -49,16 +49,13 @@ ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
 # Install OpenCL
-RUN apt-get update && apt-get install -y ocl-icd-opencl-dev opencl-headers
-# WORKDIR /tmp
-# ADD AMD-APP-SDK-linux-v2.9-1.599.381-GA-x64.tar.bz2 amd_src
-# ENV OPENCL_HOME "/opt/AMDAPPSDK-2.9-1"
-# ENV OPENCL_LIBPATH "/opt/AMDAPPSDK-2.9-1/lib/x86_64"
-# RUN sh amd_src/AMD-APP-SDK-v2.9-1.599.381-GA-linux64.sh -- -s -a yes && \
-#     rm -rf /tmp/amd_src
-# ENV OpenCL_LIBPATH "/opt/AMDAPPSDK-2.9-1/lib/x86_64/"
-# ENV OpenCL_INCPATH "/opt/AMDAPPSDK-2.9-1/include"
-# ENV LD_LIBRARY_PATH "$OpenCL_LIBPATH:$LD_LIBRARY_PATH"
+RUN apt-get update && apt-get install -y \
+    'ocl-icd-opencl-dev' \
+    'pocl-opencl-icd' \
+    'opencl-headers' \
+    'clinfo' && \
+  clinfo && \
+  rm -rf /var/lib/apt/lists/*
 
 RUN pip install mako pybind11 && \
     pip install pyopencl && \
@@ -82,14 +79,13 @@ ENV BH_CONFIG=/usr/etc/bohrium/config.ini
 
 RUN ln -s /usr/lib/python2.7/site-packages/bohrium /usr/lib/python2.7/dist-packages/ && \
     ln -s /usr/lib/python2.7/site-packages/bohrium_api /usr/lib/python2.7/dist-packages/ && \
-    python2.7 -m bohrium --info
+    python2.7 -m bohrium_api --info && \
+    BH_STACK=opencl python2.7 -m bohrium_api --info
 
-RUN python3.6 -m site
-RUN ls /usr/lib/python3.6
 RUN ln -s /usr/lib/python3.6/site-packages/bohrium /usr/lib/python3/dist-packages/ && \
     ln -s /usr/lib/python3.6/site-packages/bohrium_api /usr/lib/python3/dist-packages/ && \
-    ls -l /usr/lib/python3/dist-packages && \
-    python3.6 -m bohrium --info
+    python3.6 -m bohrium_api --info && \
+    BH_STACK=opencl python3.6 -m bohrium_api --info
 
 # Build pyOM2 with Python 2 and Python 3 support
 RUN mkdir -p /tmp/pyOM2

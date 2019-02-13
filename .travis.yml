@@ -11,7 +11,7 @@ branches:
     - master
 
 before_install:
-  - docker pull veros/ubuntu:17.10
+  - docker pull veros/ubuntu:18.04
 
 install:
   - docker build -t veros -f testing.dockerfile .
@@ -29,11 +29,7 @@ env:
     - VEROS_BACKEND=bohrium BH_STACK=opencl PYTHON_EXEC=python3 PYOM2_LIB=$PYOM_DIR/pyOM_code_py3.so
 
 script:
-  - "docker run -e BH_STACK -t veros $PYTHON_EXEC -c \"\
-      import bohrium; \
-      print(bohrium.bh_info.info()) \
-      \"\
-    "
+  - docker run -e BH_STACK -t veros $PYTHON_EXEC -m bohrium_api --info
   - "docker run \
       -e CODECOV_TOKEN -e VEROS_BACKEND -e BH_STACK -e OMP_NUM_THREADS -t veros \
       /bin/bash -c \"\
