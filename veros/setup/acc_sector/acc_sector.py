@@ -66,6 +66,7 @@ class ACCSector(veros.Veros):
         self.mxl_min = 1e-8
         self.tke_mxl_choice = 2
         self.kappaM_min = 2e-4
+        self.kappaH_min = 2e-5
         # self.enable_tke_superbee_advection = True
         self.enable_Prandtl_tke = False
 
