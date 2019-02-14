@@ -115,6 +115,7 @@ SETTINGS = OrderedDict([
     ("eke_hrms_k0_min", Setting(0.0, float, "min value for bottom roughness parameter")),
 
     # New
+    ("kappaH_min", Setting(0., float, "minimum value for vertical diffusivity")),
     ("enable_Prandtl_tke", Setting(True, bool, "Compute Prandtl number from stratification levels in TKE routine")),
     ("Prandtl_tke0", Setting(10., float, "Constant Prandtl number when stratification is neglected for kappaH computation in TKE routine")),
     ("verbose_island_routines", Setting(False, bool, "Print extra debugging output in island / boundary integral routines")),

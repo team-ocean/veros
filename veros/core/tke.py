@@ -65,7 +65,7 @@ def set_tke_diffusivities(vs):
             vs.Prandtlnumber[...] = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
         else:
             vs.Prandtlnumber[...] = vs.Prandtl_tke0
-        vs.kappaH[...] = vs.kappaM / vs.Prandtlnumber
+        vs.kappaH[...] = np.maximum(vs.kappaH_min, vs.kappaM / vs.Prandtlnumber)
         vs.kappaM[...] = np.maximum(vs.kappaM_min, vs.kappaM)
     else:
         vs.kappaM[...] = vs.kappaM_0
