@@ -3,7 +3,6 @@ Contains veros methods for handling bio- and geochemistry
 (currently only simple bio)
 """
 import numpy as np  # NOTE np is already defined somehow
-# from graphviz import Digraph
 from .. import veros_method
 from . import advection, diffusion, thermodynamics, cyclic, atmospherefluxes
 
@@ -29,10 +28,10 @@ def biogeochemistry(vs):
             # scale flux by timestep size and depth
             # we get input in mmol/m^2/s and want to convert to mmol/m^3
             vs.npzd_tracers[key][:, :, -1] += value * vs.dt_mom / vs.dzt[-1]
-            # vs.npzd_tracers[key][:, :, -1] = np.maximum(vs.npzd_tracers[key][:, :, -1], vs.trcmin)
-
+            # vs.npzd_tracers[key][vs.maskT[:, :, -1].astype(bool), -1] += value[vs.maskT[:, :, -1].astype(bool)] * (vs.dt_mom / vs.dzt[-1])
 
     # import from layer above, export to layer below
+    # TODO reset rather than create - reset might not even be necessary
     impo = {sinker: np.zeros((vs.detritus.shape[:2])) for sinker in vs.sinking_speeds}
     export = {sinker: np.zeros_like(imp) for sinker, imp in impo.items()}
 
@@ -48,9 +47,16 @@ def biogeochemistry(vs):
     gmax = vs.gbio * bctz
 
     if vs.enable_carbon:
-        # reset
-        vs.prca[:, :] = 0
-        vs.calpro = np.zeros_like(vs.prca)
+    #     # reset
+    #     vs.prca[:, :] = 0
+        vs.calpro = np.zeros_like(vs.prca) # TODO: Just reset?
+
+
+    # TODO these could be created elsewhere
+    # TODO make these local somehow, so they don't pollute the variable set
+    vs.net_primary_production = {}
+    vs.recycled = {}
+    vs.mortality = {}
 
     for k in reversed(range(vs.nz)):
 
@@ -61,7 +67,7 @@ def biogeochemistry(vs):
         flags = {tracer: True for tracer in tracers}
 
         # Set flags and tracers based on minimum concentration
-        update_flags_and_tracers(vs, flags, tracers, refresh=True)
+        update_flags_and_tracers(vs, flags, tracers, k, refresh=True)
 
         # incomming radiation at layer
         swr[...] *= np.exp(- vs.light_attenuation_phytoplankton * phyto_integrated)
@@ -74,6 +80,7 @@ def biogeochemistry(vs):
         #     # caco3_integrated[...] += np.maximum(tracers["caco3"], vs.trcmin) * vs.dzt[k]
 
         # integrated phytoplankton for use in next layer
+        # TODO: Again just reset?
         phyto_integrated = sum([np.maximum(tracers[plankton], vs.trcmin) for plankton in vs.plankton_types]) * vs.dzt[k]
 
 
@@ -96,7 +103,7 @@ def biogeochemistry(vs):
         # if vs.enable_calcifiers:
         #     light_attenuation += vs.dzt[k] * vs.light_attenuation_caco3 * tracers["caco3"]
 
-        # calculate ??? TODO: what is jmax, avej exactly????
+        # calculate maxing growth functions and averaged? growth
         jmax, avej = {}, {}
         for plankton, growth_function in vs.plankton_growth_functions.items():
             jmax[plankton], avej[plankton] = growth_function(vs, k, bct, grid_light, light_attenuation)
@@ -104,9 +111,6 @@ def biogeochemistry(vs):
 
         # bio loop
         for _ in range(nbio):
-            vs.net_primary_production = {}
-            vs.recycled = {}
-            vs.mortality = {}
 
             # Plankton is recycled, dying and growing
             for plankton in vs.plankton_types:
@@ -114,6 +118,7 @@ def biogeochemistry(vs):
                 # Nutrient limiting growth
                 u = np.inf
 
+                # TODO Create "rule factory" to turn this into single rules used below
                 for growth_limiting_function in vs.limiting_functions[plankton]:
                     u = np.minimum(u, growth_limiting_function(vs, tracers))
 
@@ -148,7 +153,8 @@ def biogeochemistry(vs):
             for update in npzd_updates:
                 for key, value in update.items():
                     vs.npzd_tracers[key][:, :, k] += value * vs.dt_bio  # NOTE far too many multiplications with dt
-                    # tracers[key][:, :, k] += value * vs.dt_bio  # NOTE far too many multiplications with dt
+#                    tracers[key][:, :, k] += value * vs.dt_bio  # NOTE far too many multiplications with dt
+#                    vs.npzd_tracers[key][vs.maskT[:, :, k].astype(bool), k] += value[vs.maskT[:, :, k].astype(bool)] * vs.dt_bio
 
             # Import and export between layers
             for tracer in vs.sinking_speeds:
@@ -166,11 +172,11 @@ def biogeochemistry(vs):
                 tracers[name] = vs.npzd_tracers[name][:, :, k]
 
             # reset flags and tracers
-            update_flags_and_tracers(vs, flags, tracers)
+            update_flags_and_tracers(vs, flags, tracers, k)
 
         # Remineralize at bottom, and ensure sinking stuff doesn't fall through
         # at_bottom = (vs.kbot - 1) == k
-        at_bottom = (vs.kbot == k + 1)
+        at_bottom = (vs.kbot == k + 1) # TODO only calculate this once
         tracers["po4"][at_bottom] += export["detritus"][at_bottom] * vs.redfield_ratio_PN
 
         if vs.enable_carbon:  # TODO remove ifs - maybe create common nutrient rule
@@ -180,7 +186,7 @@ def biogeochemistry(vs):
             export[sinker][:, :] -= at_bottom * export[sinker]
 
         # Calculate export for next layer
-        for sinker in export:
+        # for sinker in export:
             export[sinker][:, :] *= vs.dzt[k] / nbio
 
         if vs.enable_carbon:  # TODO remove ifs in process code
@@ -260,14 +266,14 @@ def diazotroph_potential_growth(vs, k, bct, grid_light, light_attenuation):
     return jmax, avej
 
 
-@veros_method
-def calc_net_primary_production(vs, tracers, flags, jmax, avej, saturation_constant, plankton):
-    limit_phosphate = tracers["po4"] / (saturation_constant + tracers["po4"])
-    u = limit_phosphate * jmax
-    u = np.minimum(u, avej)
-    net_primary_production = u * tracers[plankton] * flags["po4"]
+# @veros_method
+# def calc_net_primary_production(vs, tracers, flags, jmax, avej, saturation_constant, plankton):
+#     limit_phosphate = tracers["po4"] / (saturation_constant + tracers["po4"])
+#     u = limit_phosphate * jmax
+#     u = np.minimum(u, avej)
+#     net_primary_production = u * tracers[plankton] * flags["po4"]
 
-    return net_primary_production
+#     return net_primary_production
 
 @veros_method
 def avg_J(vs, f1, gd, grid_light, light_attenuation):
@@ -303,22 +309,23 @@ def nitrate_limitation_diazotroph(vs, tracers):
     return general_nutrient_limitation(tracers["no3"], vs.saturation_constant_N)
 
 @veros_method
-def update_flags_and_tracers(vs, flags, tracers, refresh=False):
+def update_flags_and_tracers(vs, flags, tracers, k, refresh=False):
     """Set flags"""
 
     for key in tracers:
         keep = flags[key] if not refresh else True  # if the flag was already false, keep it false
-        flags[key] = (tracers[key] > vs.trcmin) * keep
-        tracers[key] = np.maximum(tracers[key], vs.trcmin)
+        flags[key] = ((tracers[key] * vs.maskT[:, :, k]) > vs.trcmin) * keep
+        tracers[key] = np.maximum(tracers[key] * vs.maskT[:, :, k], vs.trcmin)
 
 @veros_method
 def register_npzd_data(vs, name, value=0):
 
-    # if name not in vs.npzd_tracers:
-    #     vs.npzd_graph.attr('node', shape='square')
-    #     vs.npzd_graph.node(name)
-    # else:
-    #     print(name, "has already been added to the NPZD data set, value has been updated")
+    if name not in vs.npzd_tracers:
+        if vs.show_npzd_graph:
+            vs.npzd_graph.attr('node', shape='square')
+            vs.npzd_graph.node(name)
+    else:
+        print(name, "has already been added to the NPZD data set, value has been updated")
 
     vs.npzd_tracers[name] = value
 
@@ -334,7 +341,11 @@ def register_npzd_rule(vs, function, source, destination, label="?"):
         ...
     """
     vs.npzd_rules.append((function, source, destination))
-    # vs.npzd_graph.edge(source, destination, label=label)
+    if vs.show_npzd_graph:
+        #vs.npzd_graph.edge(source, destination, label=label)
+        vs.npzd_graph.edge(source, destination, label=label, lblstyle="above, sloped")
+        # it is also possible to add tooltiplabels for more explanation
+        # TODO would it be possible to add lblstyle to work with tikz/pgf?
 
 @veros_method
 def empty_rule(*args):
@@ -353,7 +364,7 @@ def recycling(vs, plankton, nutrient, ratio):
 
 @veros_method
 def mortality(vs, plankton, detritus):
-    """ All matter dead from regular mortality is detritus """
+    """ All dead matter from plankton is converted to detritus """
     return {plankton: - vs.mortality[plankton], detritus: vs.mortality[plankton]}
 
 @veros_method
@@ -406,7 +417,8 @@ def recycling_phyto_to_dic(vs, plankton, dic):
 @veros_method
 def excretion_dic(vs, zooplankton, nutrient):
     """ Zooplankton excretes nutrients after eating. Poop, breathing... """
-    return {zooplankton: - vs.excretion_total, nutrient: vs.redfield_ratio_CN * vs.excretion_total}
+    #return {zooplankton: - vs.excretion_total, nutrient: vs.redfield_ratio_CN * vs.excretion_total}
+    return {nutrient: vs.redfield_ratio_CN * vs.excretion_total}
 
 @veros_method
 def calpro(vs, plankton, cal):
@@ -427,7 +439,9 @@ def setupNPZD(vs):
     vs.npzd_tracers = {}  # Dictionary keeping track of plankton, nutrients etc.
     vs.npzd_rules = []  # List of rules describing the interaction between tracers
     vs.nutrient_surface_fluxes = []
-    # vs.npzd_graph = Digraph("npzd_dynamics", filename="npzd_dynamics.gv")  # graph for visualizing interactions - usefull for debugging
+    if vs.show_npzd_graph:
+        from graphviz import Digraph
+        vs.npzd_graph = Digraph("npzd_dynamics", filename="npzd_dynamics.gv", format="png")  # graph for visualizing interactions - usefull for debugging
     vs.plankton_growth_functions = {}  # Dictionary containing functions describing growth of plankton
     vs.limiting_functions = {}  # Contains descriptions of how nutrients put a limit on growth
 
@@ -495,10 +509,17 @@ def setupNPZD(vs):
         register_npzd_rule(vs, excretion_dic, "zooplankton", "DIC", label="Excretion")
 
 
+        vs.hSWS[:, :] = 0.5 * (1e-6 + 1e-10) # for initial guess
+
+
         # These rules will be different if we track coccolithophores
         if not vs.enable_calcifiers:
-            register_npzd_rule(vs, calpro, "phytoplankton", "caco3", label="Calcite production due to sloppy feeding???")
-            register_npzd_rule(vs, calpro, "zooplankton", "caco3", label="Calcite production due to sloppy feeding???")
+            register_npzd_rule(vs, calpro, "phytoplankton", "caco3", label="Production of calcite")
+            register_npzd_rule(vs, calpro, "zooplankton", "caco3", label="Production of calcite")
+
+            # rules below do nothing. They are just here for show..
+            register_npzd_rule(vs, empty_rule, "alkalinity", "caco3", label="Production")
+            register_npzd_rule(vs, empty_rule, "caco3", "alkalinity", label="Dissolution")
 
 
     # Add nitrogen cycling to the model
@@ -597,7 +618,8 @@ def npzd(vs):
 
         # NOTE Why is this in thermodynamics?
         thermodynamics.advect_tracer(vs, val, dNPZD_advect)
-        diffusion.biharmonic(vs, val, vs.K_hbi, dNPZD_diff)  # TODO correct parameter
+        # diffusion.biharmonic(vs, val, vs.K_hbi, dNPZD_diff)  # TODO correct parameter
+        diffusion.biharmonic(vs, val, np.sqrt(abs(vs.K_hbi)), dNPZD_diff)  # TODO correct parameter
         vs.tracer_result[tracer] = vs.dt_mom * (dNPZD_advect + dNPZD_diff)
 
     biogeochemistry(vs)
@@ -606,7 +628,7 @@ def npzd(vs):
         vs.npzd_tracers[tracer][...] += vs.tracer_result[tracer]
 
     for tracer in vs.npzd_tracers.values():
-        tracer[...] = np.maximum(tracer, vs.trcmin)
+        tracer[...] = np.maximum(tracer, vs.trcmin) * vs.maskT
 
     if vs.enable_cyclic_x:
         for tracer in vs.npzd_tracers.values():
