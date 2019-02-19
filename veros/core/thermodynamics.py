@@ -1,5 +1,5 @@
 from .. import veros_method
-from . import advection, diffusion, isoneutral, cyclic, numerics, density, utilities
+from . import advection, diffusion, isoneutral, numerics, density, utilities
 
 
 @veros_method
@@ -151,9 +151,8 @@ def thermodynamics(vs):
     """
     boundary exchange
     """
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(vs.temp[..., vs.taup1])
-        cyclic.setcyclic_x(vs.salt[..., vs.taup1])
+    utilities.enforce_boundaries(vs, vs.temp[..., vs.taup1])
+    utilities.enforce_boundaries(vs, vs.salt[..., vs.taup1])
 
     with vs.timers["eq_of_state"]:
         calc_eq_of_state(vs, vs.taup1)

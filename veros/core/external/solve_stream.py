@@ -6,8 +6,8 @@ used for streamfunction
 """
 
 from . import utilities, solve_poisson
-from .. import cyclic
-from ... import veros_method
+from .. import utilities as mainutils
+from ... import veros_method, distributed
 
 
 @veros_method
@@ -43,9 +43,8 @@ def solve_streamfunction(vs):
     fpy = np.sum((vs.dv[:, :, :, vs.tau] + vs.dv_mix) *
                  vs.maskV * vs.dzt, axis=(2,)) * vs.hvr
 
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(fpx)
-        cyclic.setcyclic_x(fpy)
+    mainutils.enforce_boundaries(vs, fpx)
+    mainutils.enforce_boundaries(vs, fpy)
 
     forc = np.zeros((vs.nx + 4, vs.ny + 4), dtype=vs.default_float_type)
     forc[2:-2, 2:-2] = (fpy[3:-1, 2:-2] - fpy[2:-2, 2:-2]) \
@@ -55,10 +54,12 @@ def solve_streamfunction(vs):
 
     # solve for interior streamfunction
     vs.dpsi[:, :, vs.taup1] = 2 * vs.dpsi[:, :, vs.tau] - vs.dpsi[:, :, vs.taum1]
-    solve_poisson.solve(vs, forc, vs.dpsi[:, :, vs.taup1])
 
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(vs.dpsi[:, :, vs.taup1])
+    forc_global = distributed.gather(vs, forc, ("xt", "yt"))
+    dpsi_global = distributed.gather(vs, vs.dpsi[:, :, vs.taup1], ("xt", "yt"))
+    solve_poisson.solve(vs, forc_global, dpsi_global)
+
+    mainutils.enforce_boundaries(vs, vs.dpsi[:, :, vs.taup1])
 
     if vs.nisle > 1:
         # calculate island integrals of forcing, keep psi constant on island 1
@@ -92,8 +93,8 @@ def solve_streamfunction(vs):
                                                                              - (0.5 + vs.AB_eps) * vs.dv[:, :, :, vs.taum1]) * vs.maskV
 
     # subtract incorrect vertical mean from baroclinic velocity
-    fpx = np.sum(vs.u[:, :, :, vs.taup1] * vs.maskU * vs.dzt, axis=(2,))
-    fpy = np.sum(vs.v[:, :, :, vs.taup1] * vs.maskV * vs.dzt, axis=(2,))
+    fpx = np.sum(vs.u[:, :, :, vs.taup1] * vs.maskU * vs.dzt, axis=2)
+    fpy = np.sum(vs.v[:, :, :, vs.taup1] * vs.maskV * vs.dzt, axis=2)
     vs.u[:, :, :, vs.taup1] += -fpx[:, :, np.newaxis] * \
         vs.maskU * vs.hur[:, :, np.newaxis]
     vs.v[:, :, :, vs.taup1] += -fpy[:, :, np.newaxis] * \

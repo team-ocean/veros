@@ -4,14 +4,16 @@ import abc
 
 from future.utils import with_metaclass
 
-from . import variables, settings, diagnostics, time, handlers
+from . import (variables, settings, diagnostics, time, handlers, logs,
+               distributed)
 from . import backend as _backend
+from .state import VerosState
 from .timer import Timer
 from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
-                   isoneutral, external, advection, cyclic)
+                   isoneutral, external, advection, utilities)
 
 
-class Veros(with_metaclass(abc.ABCMeta)):
+class VerosSetup(with_metaclass(abc.ABCMeta)):
     """Main class for Veros, used for building a model and running it.
 
     Note:
@@ -34,85 +36,64 @@ class Veros(with_metaclass(abc.ABCMeta)):
 
     Example:
         >>> import matplotlib.pyplot as plt
-        >>> from climate.veros import Veros
+        >>> from veros import VerosSetup
         >>>
-        >>> class MyModel(Veros):
+        >>> class MyModel(VerosSetup):
         >>>     ...
         >>>
         >>> simulation = MyModel(backend="bohrium")
         >>> simulation.run()
-        >>> plt.imshow(simulation.psi[..., 0])
+        >>> plt.imshow(simulation.state.psi[..., 0])
         >>> plt.show()
+
     """
 
-    # Constants
-    pi = math.pi
-    radius = 6370e3  # Earth radius in m
-    degtom = radius / 180. * pi  # Conversion degrees latitude to meters
-    mtodeg = 1. / degtom  # Conversion meters to degrees latitude
-    omega = pi / 43082.  # Earth rotation frequency in 1/s
-    rho_0 = 1024.  # Boussinesq reference density in :math:`kg/m^3`
-    grav = 9.81  # Gravitational constant in :math:`m/s^2`
+    def __init__(self, state=None, override=None):
+        from . import runtime_settings as rs
 
-    def __init__(self, backend="numpy", loglevel="info", logfile=None, profile=False, override=None):
         self.override_settings = override or {}
-        self.profile_mode = profile
-        self.backend, self.backend_name = _backend.get_backend(backend)
-        self.vector_engine = _backend.get_vector_engine(self.backend)
+        logs.setup_logging(loglevel=rs.loglevel, logfile=rs.logfile)
 
-        try: # python 2
-            logging.basicConfig(logfile=logfile, filemode="w",
-                                level=getattr(logging, loglevel.upper()),
-                                format="%(message)s")
-        except ValueError: # python 3
-            logging.basicConfig(filename=logfile, filemode="w",
-                                level=getattr(logging, loglevel.upper()),
-                                format="%(message)s")
+        if state is None:
+            self.state = VerosState()
+            settings.set_default_settings(self.state)
 
-        settings.set_default_settings(self)
-
-        self.timers = {k: Timer(k) for k in (
+        self.state.timers = {k: Timer(k) for k in (
             "setup", "main", "momentum", "temperature", "eke", "idemix",
             "tke", "diagnostics", "pressure", "friction", "isoneutral",
             "vmix", "eq_of_state"
         )}
 
-        self.variables = {}
-        self.poisson_solver = None
-        self.nisle = 0 # to be overriden during streamfunction_init
-        self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
-        self.time, self.itt = 0., 1 # current time and iteration
-
     @abc.abstractmethod
-    def set_parameter(self):
+    def set_parameter(self, vs):
         """To be implemented by subclass.
 
         First function to be called during setup.
         Use this to modify the model settings.
 
         Example:
-          >>> def set_parameter(self):
-          >>>     self.nx, self.ny, self.nz = (360, 120, 50)
-          >>>     self.coord_degree = True
-          >>>     self.enable_cyclic = True
+          >>> def set_parameter(self, vs):
+          >>>     vs.nx, vs.ny, vs.nz = (360, 120, 50)
+          >>>     vs.coord_degree = True
+          >>>     vs.enable_cyclic = True
         """
         pass
 
     @abc.abstractmethod
-    def set_initial_conditions(self):
+    def set_initial_conditions(self, vs):
         """To be implemented by subclass.
 
         May be used to set initial conditions.
 
         Example:
           >>> @veros_method
-          >>> def set_initial_conditions(self):
-          >>>     self.u[:, :, :, self.tau] = np.random.rand(self.u.shape[:-1])
+          >>> def set_initial_conditions(self, vs):
+          >>>     vs.u[:, :, :, vs.tau] = np.random.rand(vs.u.shape[:-1])
         """
         pass
 
     @abc.abstractmethod
-    def set_grid(self):
+    def set_grid(self, vs):
         """To be implemented by subclass.
 
         Has to set the grid spacings :attr:`dxt`, :attr:`dyt`, and :attr:`dzt`,
@@ -121,44 +102,44 @@ class Veros(with_metaclass(abc.ABCMeta)):
 
         Example:
           >>> @veros_method
-          >>> def set_grid(self):
-          >>>     self.x_origin, self.y_origin = 0, 0
-          >>>     self.dxt[...] = [0.1, 0.05, 0.025, 0.025, 0.05, 0.1]
-          >>>     self.dyt[...] = 1.
-          >>>     self.dzt[...] = [10, 10, 20, 50, 100, 200]
+          >>> def set_grid(self, vs):
+          >>>     vs.x_origin, vs.y_origin = 0, 0
+          >>>     vs.dxt[...] = [0.1, 0.05, 0.025, 0.025, 0.05, 0.1]
+          >>>     vs.dyt[...] = 1.
+          >>>     vs.dzt[...] = [10, 10, 20, 50, 100, 200]
         """
         pass
 
     @abc.abstractmethod
-    def set_coriolis(self):
+    def set_coriolis(self, vs):
         """To be implemented by subclass.
 
         Has to set the Coriolis parameter :attr:`coriolis_t` at T grid cells.
 
         Example:
           >>> @veros_method
-          >>> def set_coriolis(self):
-          >>>     self.coriolis_t[:, :] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
+          >>> def set_coriolis(self, vs):
+          >>>     vs.coriolis_t[:, :] = 2 * vs.omega * np.sin(vs.yt[np.newaxis, :] / 180. * vs.pi)
         """
         pass
 
     @abc.abstractmethod
-    def set_topography(self):
+    def set_topography(self, vs):
         """To be implemented by subclass.
 
         Must specify the model topography by setting :attr:`kbot`.
 
         Example:
           >>> @veros_method
-          >>> def set_topography(self):
-          >>>     self.kbot[:, :] = 10
+          >>> def set_topography(self, vs):
+          >>>     vs.kbot[:, :] = 10
           >>>     # add a rectangular island somewhere inside the domain
-          >>>     self.kbot[10:20, 10:20] = 0
+          >>>     vs.kbot[10:20, 10:20] = 0
         """
         pass
 
     @abc.abstractmethod
-    def set_forcing(self):
+    def set_forcing(self, vs):
         """To be implemented by subclass.
 
         Called before every time step to update the external forcing, e.g. through
@@ -168,14 +149,14 @@ class Veros(with_metaclass(abc.ABCMeta)):
 
         Example:
           >>> @veros_method
-          >>> def set_forcing(self):
-          >>>     current_month = (self.time / (31 * 24 * 60 * 60)) % 12
-          >>>     self.surface_taux[:, :] = self._windstress_data[:, :, current_month]
+          >>> def set_forcing(self, vs):
+          >>>     current_month = (vs.time / (31 * 24 * 60 * 60)) % 12
+          >>>     vs.surface_taux[:, :] = vs._windstress_data[:, :, current_month]
         """
         pass
 
     @abc.abstractmethod
-    def set_diagnostics(self):
+    def set_diagnostics(self, vs):
         """To be implemented by subclass.
 
         Called before setting up the :ref:`diagnostics <diagnostics>`. Use this method e.g. to
@@ -183,161 +164,164 @@ class Veros(with_metaclass(abc.ABCMeta)):
 
         Example:
           >>> @veros_method
-          >>> def set_diagnostics(self):
-          >>>     self.diagnostics["snapshot"].output_vars += ["drho", "dsalt", "dtemp"]
+          >>> def set_diagnostics(self, vs):
+          >>>     vs.diagnostics["snapshot"].output_vars += ["drho", "dsalt", "dtemp"]
         """
         pass
 
     @abc.abstractmethod
-    def after_timestep(self):
+    def after_timestep(self, vs):
         """Called at the end of each time step. Can be used to define custom, setup-specific
         events.
         """
         pass
 
-    def flush(self):
-        """Flush computations if supported by the current backend.
-        """
-        _backend.flush(self)
-
     def setup(self):
-        with self.timers["setup"]:
+        vs = self.state
+
+        with vs.timers["setup"]:
             logging.info("Setting up everything")
 
-            self.set_parameter()
+            self.set_parameter(vs)
             for setting, value in self.override_settings.items():
-                setattr(self, setting, value)
-            settings.check_setting_conflicts(self)
-            self.variables = variables.allocate_variables(self)
+                setattr(vs, setting, value)
+            settings.check_setting_conflicts(vs)
+            distributed.validate_decomposition(vs)
+            vs.allocate_variables()
 
-            self.set_grid()
-            numerics.calc_grid(self)
+            self.set_grid(vs)
+            numerics.calc_grid(vs)
 
-            self.set_coriolis()
-            numerics.calc_beta(self)
+            self.set_coriolis(vs)
+            numerics.calc_beta(vs)
 
-            self.set_topography()
-            numerics.calc_topo(self)
+            self.set_topography(vs)
+            numerics.calc_topo(vs)
 
-            self.set_initial_conditions()
-            numerics.calc_initial_conditions(self)
-            external.streamfunction_init(self)
-            eke.init_eke(self)
+            self.set_initial_conditions(vs)
+            numerics.calc_initial_conditions(vs)
+            external.streamfunction_init(vs)
+            eke.init_eke(vs)
 
-            self.diagnostics = diagnostics.create_diagnostics(self)
-            self.set_diagnostics()
-            diagnostics.initialize(self)
-            diagnostics.read_restart(self)
+            vs.diagnostics = diagnostics.create_diagnostics(vs)
+            self.set_diagnostics(vs)
+            diagnostics.initialize(vs)
+            diagnostics.read_restart(vs)
 
-            self.set_forcing()
-            isoneutral.check_isoneutral_slope_crit(self)
+            self.set_forcing(vs)
+            isoneutral.check_isoneutral_slope_crit(vs)
 
     def run(self):
         """Main routine of the simulation.
         """
-        logging.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(self, self.runlen)))
+        from veros import runtime_settings as rs
+        vs = self.state
 
-        start_time, start_iteration = self.time, self.itt
+        logging.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(vs, vs.runlen)))
+
+        start_time, start_iteration = vs.time, vs.itt
         profiler = None
         with handlers.signals_to_exception():
             try:
-                while self.time - start_time < self.runlen:
-                    logging.info("Current iteration: {}".format(self.itt))
+                while vs.time - start_time < vs.runlen:
+                    logging.info("Current iteration: {}".format(vs.itt))
 
-                    with self.timers["diagnostics"]:
-                        diagnostics.write_restart(self)
+                    with vs.timers["diagnostics"]:
+                        diagnostics.write_restart(vs)
 
-                    if self.itt - start_iteration == 3 and self.profile_mode:
+                    if vs.itt - start_iteration == 3 and rs.profile_mode:
                         # when using bohrium, most kernels should be pre-compiled by now
                         profiler = diagnostics.start_profiler()
 
-                    with self.timers["main"]:
-                        self.set_forcing()
+                    with vs.timers["main"]:
+                        self.set_forcing(vs)
 
-                        if self.enable_idemix:
-                            idemix.set_idemix_parameter(self)
+                        if vs.enable_idemix:
+                            idemix.set_idemix_parameter(vs)
 
-                        with self.timers["eke"]:
-                            eke.set_eke_diffusivities(self)
+                        with vs.timers["eke"]:
+                            eke.set_eke_diffusivities(vs)
 
-                        with self.timers["tke"]:
-                            tke.set_tke_diffusivities(self)
+                        with vs.timers["tke"]:
+                            tke.set_tke_diffusivities(vs)
 
-                        with self.timers["momentum"]:
-                            momentum.momentum(self)
+                        with vs.timers["momentum"]:
+                            momentum.momentum(vs)
 
-                        with self.timers["temperature"]:
-                            thermodynamics.thermodynamics(self)
+                        with vs.timers["temperature"]:
+                            thermodynamics.thermodynamics(vs)
 
-                        if self.enable_eke or self.enable_tke or self.enable_idemix:
-                            advection.calculate_velocity_on_wgrid(self)
+                        if vs.enable_eke or vs.enable_tke or vs.enable_idemix:
+                            advection.calculate_velocity_on_wgrid(vs)
 
-                        with self.timers["eke"]:
-                            if self.enable_eke:
-                                eke.integrate_eke(self)
+                        with vs.timers["eke"]:
+                            if vs.enable_eke:
+                                eke.integrate_eke(vs)
 
-                        with self.timers["idemix"]:
-                            if self.enable_idemix:
-                                idemix.integrate_idemix(self)
+                        with vs.timers["idemix"]:
+                            if vs.enable_idemix:
+                                idemix.integrate_idemix(vs)
 
-                        with self.timers["tke"]:
-                            if self.enable_tke:
-                                tke.integrate_tke(self)
+                        with vs.timers["tke"]:
+                            if vs.enable_tke:
+                                tke.integrate_tke(vs)
 
-                        if self.enable_cyclic_x:
-                            cyclic.setcyclic_x(self.u[:, :, :, self.taup1])
-                            cyclic.setcyclic_x(self.v[:, :, :, self.taup1])
-                            if self.enable_tke:
-                                cyclic.setcyclic_x(self.tke[:, :, :, self.taup1])
-                            if self.enable_eke:
-                                cyclic.setcyclic_x(self.eke[:, :, :, self.taup1])
-                            if self.enable_idemix:
-                                cyclic.setcyclic_x(self.E_iw[:, :, :, self.taup1])
+                        utilities.enforce_boundaries(vs, vs.u[:, :, :, vs.taup1])
+                        utilities.enforce_boundaries(vs, vs.v[:, :, :, vs.taup1])
+                        if vs.enable_tke:
+                            utilities.enforce_boundaries(vs, vs.tke[:, :, :, vs.taup1])
+                        if vs.enable_eke:
+                            utilities.enforce_boundaries(vs, vs.eke[:, :, :, vs.taup1])
+                        if vs.enable_idemix:
+                            utilities.enforce_boundaries(vs, vs.E_iw[:, :, :, vs.taup1])
 
-                        momentum.vertical_velocity(self)
+                        momentum.vertical_velocity(vs)
 
-                    self.itt += 1
-                    self.time += self.dt_tracer
+                    vs.itt += 1
+                    vs.time += vs.dt_tracer
 
-                    self.after_timestep()
+                    self.after_timestep(vs)
 
-                    with self.timers["diagnostics"]:
-                        if not diagnostics.sanity_check(self):
-                            raise RuntimeError("solution diverged at iteration {}".format(self.itt))
+                    with vs.timers["diagnostics"]:
+                        if not diagnostics.sanity_check(vs):
+                            raise RuntimeError("solution diverged at iteration {}".format(vs.itt))
 
-                        if self.enable_neutral_diffusion and self.enable_skew_diffusion:
-                            isoneutral.isoneutral_diag_streamfunction(self)
+                        if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
+                            isoneutral.isoneutral_diag_streamfunction(vs)
 
-                        diagnostics.diagnose(self)
-                        diagnostics.output(self)
+                        diagnostics.diagnose(vs)
+                        diagnostics.output(vs)
 
-                    logging.debug("Time step took {:.2e}s".format(self.timers["main"].get_last_time()))
+                    logging.debug("Time step took {:.2e}s".format(vs.timers["main"].get_last_time()))
 
                     # permutate time indices
-                    self.taum1, self.tau, self.taup1 = self.tau, self.taup1, self.taum1
+                    vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
             except:
-                logging.critical("stopping integration at iteration {}".format(self.itt))
+                logging.critical("stopping integration at iteration {}".format(vs.itt))
                 raise
 
             finally:
-                diagnostics.write_restart(self, force=True)
+                diagnostics.write_restart(vs, force=True)
+
                 logging.debug("\n".join([
                     "Timing summary:",
-                    " setup time               = {:.2f}s".format(self.timers["setup"].get_time()),
-                    " main loop time           = {:.2f}s".format(self.timers["main"].get_time()),
-                    "     momentum             = {:.2f}s".format(self.timers["momentum"].get_time()),
-                    "       pressure           = {:.2f}s".format(self.timers["pressure"].get_time()),
-                    "       friction           = {:.2f}s".format(self.timers["friction"].get_time()),
-                    "     thermodynamics       = {:.2f}s".format(self.timers["temperature"].get_time()),
-                    "       lateral mixing     = {:.2f}s".format(self.timers["isoneutral"].get_time()),
-                    "       vertical mixing    = {:.2f}s".format(self.timers["vmix"].get_time()),
-                    "       equation of state  = {:.2f}s".format(self.timers["eq_of_state"].get_time()),
-                    "     EKE                  = {:.2f}s".format(self.timers["eke"].get_time()),
-                    "     IDEMIX               = {:.2f}s".format(self.timers["idemix"].get_time()),
-                    "     TKE                  = {:.2f}s".format(self.timers["tke"].get_time()),
-                    " diagnostics and I/O      = {:.2f}s".format(self.timers["diagnostics"].get_time()),
+                    " setup time               = {:.2f}s".format(vs.timers["setup"].get_time()),
+                    " main loop time           = {:.2f}s".format(vs.timers["main"].get_time()),
+                    "     momentum             = {:.2f}s".format(vs.timers["momentum"].get_time()),
+                    "       pressure           = {:.2f}s".format(vs.timers["pressure"].get_time()),
+                    "       friction           = {:.2f}s".format(vs.timers["friction"].get_time()),
+                    "     thermodynamics       = {:.2f}s".format(vs.timers["temperature"].get_time()),
+                    "       lateral mixing     = {:.2f}s".format(vs.timers["isoneutral"].get_time()),
+                    "       vertical mixing    = {:.2f}s".format(vs.timers["vmix"].get_time()),
+                    "       equation of state  = {:.2f}s".format(vs.timers["eq_of_state"].get_time()),
+                    "     EKE                  = {:.2f}s".format(vs.timers["eke"].get_time()),
+                    "     IDEMIX               = {:.2f}s".format(vs.timers["idemix"].get_time()),
+                    "     TKE                  = {:.2f}s".format(vs.timers["tke"].get_time()),
+                    " diagnostics and I/O      = {:.2f}s".format(vs.timers["diagnostics"].get_time()),
                 ]))
+
                 if profiler is not None:
                     diagnostics.stop_profiler(profiler)
+
                 logging.shutdown()

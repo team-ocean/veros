@@ -1,61 +1,130 @@
 import functools
 import signal
+import threading
 import logging
+import inspect
+
+CONTEXT = threading.local()
+CONTEXT.is_dist_safe = True
+CONTEXT.wrapped_methods = []
 
 
-def veros_class_method(function):
-    return _veros_method(function, True, 1)
-
-
-def veros_method(function):
+def veros_method(function=None, **kwargs):
     """Decorator that injects the current backend as variable ``np`` into the wrapped function.
 
     .. note::
 
       This decorator should be applied to all functions that make use of the computational
-      backend (even when subclassing :class:`climate.veros.Veros`). The first argument to the
+      backend (even when subclassing :class:`veros.Veros`). The first argument to the
       decorated function must be a Veros instance.
 
     Example:
-       >>> from climate.veros import Veros, veros_method
-       >>>
+       >>> from veros import Veros, veros_method
+       >>> 
        >>> class MyModel(Veros):
        >>>     @veros_method
        >>>     def set_topography(self):
        >>>         self.kbot[...] = np.random.randint(0, self.nz, size=self.kbot.shape)
+
     """
-    return _veros_method(function, True)
+    if function is not None:
+        narg = 1 if _is_method(function) else 0
+        return _veros_method(function, narg=narg)
+
+    flush_on_exit = not kwargs.pop("inline", False)
+    dist_safe = kwargs.pop("dist_safe", True)
+
+    if not dist_safe and "local_variables" not in kwargs:
+        raise ValueError("local_variables argument must be given if dist_safe=False")
+
+    local_vars = kwargs.pop("local_variables", [])
+    dist_only = kwargs.pop("dist_only", False)
+
+    def inner_decorator(function):
+        narg = 1 if _is_method(function) else 0
+        return _veros_method(
+            function, flush_on_exit=flush_on_exit, narg=narg,
+            dist_safe=dist_safe, local_vars=local_vars, dist_only=dist_only
+        )
+
+    return inner_decorator
 
 
-def veros_inline_method(function):
-    return _veros_method(function, False)
+def _is_method(function):
+    spec = inspect.getargspec(function)
+    return spec.args and spec.args[0] == 'self'
 
 
-def _veros_method(function, flush_on_exit, narg=0):
-    import veros
-    _veros_method.methods.append(function)
+def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
+                  dist_only=False, narg=0):
+    from . import runtime_settings as rs
+    from .backend import flush, get_backend
+    from .state import VerosState
+    from .state_dist import DistributedVerosState
+    CONTEXT.wrapped_methods.append(function)
 
     @functools.wraps(function)
     def veros_method_wrapper(*args, **kwargs):
-        veros_instance = args[narg]
-        if not isinstance(veros_instance, veros.Veros):
-            raise TypeError("first argument to a veros_method must be subclass of Veros")
+        from .distributed import RANK, SIZE, HAS_MPI4PY
+
+        if dist_only:
+            if not HAS_MPI4PY or SIZE == 1 or not CONTEXT.is_dist_safe:
+                return
+
+        veros_state = args[narg]
+
+        if not isinstance(veros_state, VerosState):
+            raise TypeError("first argument to a veros_method must be subclass of VerosState")
+
+        reset_dist_safe = False
+        if not CONTEXT.is_dist_safe:
+            assert isinstance(veros_state, DistributedVerosState)
+        elif not dist_safe and SIZE > 1:
+            reset_dist_safe = True
+
+        if reset_dist_safe:
+            dist_state = DistributedVerosState(veros_state)
+            dist_state.gather_arrays(local_vars)
+            func_state = dist_state
+            CONTEXT.is_dist_safe = False
+        else:
+            func_state = veros_state
+
+        execute = True
+        if not CONTEXT.is_dist_safe:
+            execute = RANK == 0
+
         g = function.__globals__
         sentinel = object()
 
         oldvalue = g.get('np', sentinel)
-        g['np'] = veros_instance.backend
+        g['np'] = get_backend(rs.backend)
+
+        newargs = list(args)
+        newargs[narg] = func_state
 
         try:
-            res = function(*args, **kwargs)
+            if execute:
+                res = function(*newargs, **kwargs)
+            else:
+                res = None
+        except Exception:
+            raise
+        else:
+            if reset_dist_safe:
+                CONTEXT.is_dist_safe = True
+                dist_state.scatter_arrays()
         finally:
             if oldvalue is sentinel:
                 del g['np']
             else:
                 g['np'] = oldvalue
+
         if flush_on_exit:
-            veros_instance.flush()
+            flush()
+
         return res
+
     return veros_method_wrapper
 
 
@@ -90,7 +159,7 @@ def do_not_disturb(function):
             for s in signals:
                 signal.signal(s, old_handlers[s])
             sig = signal_received["sig"]
-            if not sig is None:
+            if sig is not None:
                 old_handlers[sig](signal_received["sig"], signal_received["frame"])
 
         return res

@@ -6,7 +6,7 @@ import copy
 
 from .diagnostic import VerosDiagnostic
 from . import io_tools
-from .. import veros_class_method
+from .. import veros_method
 from ..variables import Variable, TIMESTEPS
 
 Running_sum = namedtuple("Running_sum", ("var", "sum"))
@@ -25,7 +25,7 @@ class Averages(VerosDiagnostic):
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
 
-    @veros_class_method
+    @veros_method
     def initialize(self, vs):
         """Register all variables to be averaged
         """

@@ -1,10 +1,10 @@
 import math
 
-from .. import veros_method, veros_inline_method
-from . import cyclic, utilities
+from .. import veros_method
+from . import utilities
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def dissipation_on_wgrid(vs, p_arr, int_drhodX=None, aloc=None, ks=None):
     if aloc is None:
         aloc = np.zeros_like(p_arr)
@@ -35,7 +35,7 @@ def dissipation_on_wgrid(vs, p_arr, int_drhodX=None, aloc=None, ks=None):
 @veros_method
 def tempsalt_biharmonic(vs):
     """
-    biharmonic mixing of vs.temp and salinity,
+    biharmonic mixing of temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
     aloc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
@@ -55,8 +55,7 @@ def tempsalt_biharmonic(vs):
         + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
         / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
 
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(del2)
+    utilities.enforce_boundaries(vs, del2)
 
     vs.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
         / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
@@ -92,8 +91,8 @@ def tempsalt_biharmonic(vs):
         / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
         + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
         / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(del2)
+
+    utilities.enforce_boundaries(vs, del2)
 
     vs.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
         / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
@@ -118,7 +117,7 @@ def tempsalt_biharmonic(vs):
 @veros_method
 def tempsalt_diffusion(vs):
     """
-    Diffusion of vs.temp and salinity,
+    Diffusion of temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
     aloc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
@@ -174,7 +173,7 @@ def tempsalt_diffusion(vs):
 @veros_method
 def tempsalt_sources(vs):
     """
-    Sources of vs.temp and salinity,
+    Sources of temp and salinity,
     effect on dyn. Enthalpy is stored
     """
     vs.temp[:, :, :, vs.taup1] += vs.dt_tracer * vs.temp_source * vs.maskT

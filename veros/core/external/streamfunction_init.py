@@ -1,11 +1,13 @@
 import logging
 
-from ... import veros_method
-from .. import cyclic
+from ... import veros_method, runtime_settings as rs
+from .. import utilities as mainutils
 from . import island, utilities, solve_poisson
 
 
-@veros_method
+@veros_method(dist_safe=False, local_variables=[
+    "kbot"
+])
 def streamfunction_init(vs):
     """
     prepare for island integrals
@@ -17,8 +19,7 @@ def streamfunction_init(vs):
     """
     logging.info(" determining number of land masses")
     allmap = island.isleperim(vs, vs.kbot, verbose=vs.verbose_island_routines)
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(allmap)
+    mainutils.enforce_boundaries(vs, allmap)
     logging.info(_ascii_map(vs, allmap))
 
     """
@@ -35,7 +36,7 @@ def streamfunction_init(vs):
     vs.line_dir_east_mask = np.zeros((vs.nx + 4, vs.ny + 4, vs.nisle), dtype=np.bool)
     vs.line_dir_west_mask = np.zeros((vs.nx + 4, vs.ny + 4, vs.nisle), dtype=np.bool)
 
-    if vs.backend_name == "bohrium":
+    if rs.backend == "bohrium":
         vs.boundary_mask = vs.boundary_mask.copy2numpy()
         vs.line_dir_south_mask = vs.line_dir_south_mask.copy2numpy()
         vs.line_dir_north_mask = vs.line_dir_north_mask.copy2numpy()
@@ -51,7 +52,7 @@ def streamfunction_init(vs):
         land map for island number isle: 1 is land, -1 is perimeter, 0 is ocean
         """
         boundary_map = island.isleperim(vs, allmap != isle + 1)
-        if vs.backend_name == "bohrium":
+        if rs.backend == "bohrium":
             boundary_map = boundary_map.copy2numpy()
         _print_verbose(vs, _ascii_map(vs, boundary_map))
 
@@ -156,7 +157,7 @@ def streamfunction_init(vs):
         _print_verbose(vs, " Positions:")
         _print_verbose(vs, " boundary: {!r}".format(vs.boundary_mask[..., isle]))
 
-    if vs.backend_name == "bohrium":
+    if rs.backend == "bohrium":
         vs.boundary_mask = np.asarray(vs.boundary_mask)
         vs.line_dir_south_mask = np.asarray(vs.line_dir_south_mask)
         vs.line_dir_north_mask = np.asarray(vs.line_dir_north_mask)
@@ -178,8 +179,7 @@ def streamfunction_init(vs):
         solve_poisson.solve(vs, forc, vs.psin[:, :, isle],
                             boundary_val=vs.boundary_mask[:, :, isle])
 
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(vs.psin)
+    mainutils.enforce_boundaries(vs, vs.psin)
 
     """
     precalculate time independent island integrals

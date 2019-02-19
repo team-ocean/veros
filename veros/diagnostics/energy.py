@@ -1,7 +1,7 @@
 import os
 
 from .diagnostic import VerosDiagnostic
-from .. import veros_class_method
+from .. import veros_method
 from ..variables import Variable
 
 ENERGY_VARIABLES = dict(
@@ -103,7 +103,7 @@ class Energy(VerosDiagnostic):
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
     variables = ENERGY_VARIABLES
 
-    @veros_class_method
+    @veros_method
     def initialize(self, vs):
         self.nitts = 0
         for var in self.variables.keys():
@@ -112,7 +112,7 @@ class Energy(VerosDiagnostic):
         output_variables = {key: val for key, val in self.variables.items() if val.output}
         self.initialize_output(vs, output_variables)
 
-    @veros_class_method
+    @veros_method
     def diagnose(self, vs):
         # changes of dynamic enthalpy
         vol_t = vs.area_t[2:-2, 2:-2, np.newaxis] \
@@ -286,7 +286,7 @@ class Energy(VerosDiagnostic):
 
         self.nitts += 1
 
-    @veros_class_method
+    @veros_method
     def output(self, vs):
         self.nitts = float(self.nitts or 1)
         output_variables = {key: val for key, val in self.variables.items() if val.output}
@@ -300,14 +300,14 @@ class Energy(VerosDiagnostic):
             setattr(self, key, 0.)
         self.nitts = 0
 
-    @veros_class_method
+    @veros_method
     def read_restart(self, vs):
         attributes, variables = self.read_h5_restart(vs)
         if attributes:
             for key, val in attributes.items():
                 setattr(self, key, val)
 
-    @veros_class_method
+    @veros_method
     def write_restart(self, vs, outfile):
         restart_data = {key: getattr(self, key)
                         for key, val in self.variables.items() if val.write_to_restart}

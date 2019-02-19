@@ -10,7 +10,7 @@ import scipy.ndimage
 
 import veros
 import veros.tools
-import veros.core.cyclic
+import veros.utilities
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = veros.tools.get_assets("wave_propagation", os.path.join(BASE_PATH, "assets.yml"))
@@ -222,9 +222,8 @@ class WavePropagation(veros.Veros):
                                       missing_value=0.)
         self._tauy[2:-2, 2:-2, :] = tauy_data / self.rho_0
 
-        if self.enable_cyclic_x:
-            veros.core.cyclic.setcyclic_x(self._taux)
-            veros.core.cyclic.setcyclic_x(self._tauy)
+        veros.utilities.enforce_boundaries(vs, self._taux)
+        veros.utilities.enforce_boundaries(vs, self._tauy)
 
         # Qnet and dQ/dT and Qsol
         qnet_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),

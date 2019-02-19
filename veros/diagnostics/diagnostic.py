@@ -6,9 +6,9 @@ import warnings
 
 from .io_tools import netcdf as nctools
 from .io_tools import hdf5 as h5tools
-from ..decorators import veros_class_method, veros_method, do_not_disturb
+from ..decorators import veros_method, do_not_disturb
 from ..variables import Variable
-from .. import time
+from .. import time, runtime_settings as rs
 
 
 class VerosDiagnostic(object):
@@ -42,12 +42,12 @@ class VerosDiagnostic(object):
     read_restart = _not_implemented
     """Responsible for reading restart files."""
 
-    @veros_class_method
+    @veros_method
     def get_output_file_name(self, vs):
         return self.output_path.format(**vars(vs))
 
     @do_not_disturb
-    @veros_class_method
+    @veros_method
     def initialize_output(self, vs, variables, var_data=None, extra_dimensions=None):
         if vs.diskless_mode or (not self.output_frequency and not self.sampling_frequency):
             return
@@ -70,7 +70,7 @@ class VerosDiagnostic(object):
                     nctools.write_variable(vs, key, var, var_data[key], outfile)
 
     @do_not_disturb
-    @veros_class_method
+    @veros_method
     def write_output(self, vs, variables, variable_data):
         if vs.diskless_mode:
             return
@@ -82,19 +82,19 @@ class VerosDiagnostic(object):
                 nctools.write_variable(vs, key, var, variable_data[key],
                                        outfile, time_step=time_step)
 
-    @veros_class_method
+    @veros_method
     def get_restart_input_file_name(self, vs):
         """ Returns the file name for input restart file.
         """
         return vs.restart_input_filename.format(**vars(vs))
 
-    @veros_class_method
+    @veros_method
     def get_restart_output_file_name(self, vs):
         """ Returns the file name for output restart file.
         """
         return vs.restart_output_filename.format(**vars(vs))
 
-    @veros_class_method
+    @veros_method
     def read_h5_restart(self, vs):
         restart_filename = self.get_restart_input_file_name(vs)
         if not os.path.isfile(restart_filename):
@@ -110,11 +110,11 @@ class VerosDiagnostic(object):
         return attributes, variables
 
     @do_not_disturb
-    @veros_class_method
+    @veros_method
     def write_h5_restart(self, vs, attributes, var_meta, var_data, outfile):
         group = outfile.require_group(self.name)
         for key, var in var_data.items():
-            if vs.backend_name == "bohrium" and not np.isscalar(var):
+            if rs.backend == "bohrium" and not np.isscalar(var):
                 var = var.copy2numpy()
             kwargs = {"compression": "gzip", "compression_opts": 9} if vs.enable_hdf5_gzip_compression else {}
             group.require_dataset(key, var.shape, var.dtype, exact=True, **kwargs)

@@ -1,8 +1,8 @@
-from .. import veros_method, veros_inline_method
+from .. import veros_method
 from .utilities import pad_z_edges, where
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def _calc_cr(vs, rjp, rj, rjm, vel):
     """
     Calculates cr value used in superbee advection scheme

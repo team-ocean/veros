@@ -41,10 +41,19 @@ def cli(run):
     @click.option("-s", "--override", nargs=2, multiple=True, metavar="SETTING VALUE",
                   type=VerosSetting(), default=tuple(),
                   help="Override default setting, may be specified multiple times")
-    @click.option("-p", "--profile", is_flag=True, default=False, type=click.BOOL, envvar="VEROS_PROFILE",
+    @click.option("-p", "--profile-mode", is_flag=True, default=False, type=click.BOOL, envvar="VEROS_PROFILE",
                   help="Write a performance profile for debugging (default: false)")
+    @click.option("-n", "--num-proc", nargs=2, default=[1, 1], type=click.INT,
+                  help="Number of processes in x and y dimension (requires execution via mpirun)")
     @functools.wraps(run)
     def wrapped(*args, **kwargs):
+        from veros import runtime_settings
+
+        for setting in ("backend", "profile_mode", "num_proc", "loglevel", "logfile"):
+            if setting not in kwargs:
+                continue
+            setattr(runtime_settings, setting, kwargs.pop(setting))
+
         kwargs["override"] = dict(kwargs["override"])
         run(*args, **kwargs)
 

@@ -1,7 +1,7 @@
 import logging
 
 from .diagnostic import VerosDiagnostic
-from .. import veros_class_method
+from .. import veros_method
 
 
 class CFLMonitor(VerosDiagnostic):
@@ -19,7 +19,7 @@ class CFLMonitor(VerosDiagnostic):
     def diagnose(self, vs):
         pass
 
-    @veros_class_method
+    @veros_method
     def output(self, vs):
         """
         check for CFL violation

@@ -1,7 +1,7 @@
 import logging
 
 from .. import density, utilities
-from ... import veros_method, veros_inline_method
+from ... import veros_method
 
 
 @veros_method
@@ -169,7 +169,7 @@ def isoneutral_diag_streamfunction(vs):
     vs.B1_gm[2:-2, 1:-2, :] = -0.25 * sumz
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def dm_taper(vs, sx, iso_slopec, iso_dslope):
     """
     tapering function for isopycnal slopes

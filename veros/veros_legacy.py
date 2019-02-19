@@ -22,7 +22,7 @@ class LowercaseAttributeWrapper(object):
         setattr(self._w, key.lower(), value)
 
 
-class VerosLegacy(veros.Veros):
+class VerosLegacy(veros.VerosSetup):
     """
     An alternative Veros class that supports the pyOM Fortran interface as backend
 

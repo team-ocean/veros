@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from . import veros_method
+from . import veros_method, runtime_settings
 
 
 class Variable:
@@ -49,11 +49,13 @@ GHOST_DIMENSIONS = ("xt", "yt", "xu", "yu")
 
 
 def get_dimensions(vs, grid, include_ghosts=True):
+    px, py = runtime_settings.num_proc
+
     dimensions = {
-        "xt": vs.nx,
-        "xu": vs.nx,
-        "yt": vs.ny,
-        "yu": vs.ny,
+        "xt": vs.nx // px,
+        "xu": vs.nx // px,
+        "yt": vs.ny // py,
+        "yu": vs.ny // py,
         "zt": vs.nz,
         "zw": vs.nz,
         "timesteps": 3,
@@ -61,9 +63,11 @@ def get_dimensions(vs, grid, include_ghosts=True):
         "tensor2": 2,
         "isle": vs.nisle,
     }
+
     if include_ghosts:
         for d in GHOST_DIMENSIONS:
             dimensions[d] += 4
+
     return tuple(dimensions[grid_dim] for grid_dim in grid)
 
 

@@ -3,7 +3,7 @@ import os
 import warnings
 
 from . import io_tools
-from .. import veros_class_method, time
+from .. import veros_method, time
 from .diagnostic import VerosDiagnostic
 
 
@@ -27,7 +27,7 @@ class Snapshot(VerosDiagnostic):
         """Variables to be written to restart. Defaults to all Veros variables that
         have the attribute :attr:`write_to_restart`."""
 
-    @veros_class_method
+    @veros_method
     def initialize(self, vs):
         var_meta = {var: vs.variables[var] for var in self.output_variables}
         var_data = {var: getattr(vs, var) for var in self.output_variables}
@@ -36,7 +36,7 @@ class Snapshot(VerosDiagnostic):
     def diagnose(self, vs):
         pass
 
-    @veros_class_method
+    @veros_method
     def output(self, vs):
         logging.info(" writing snapshot at {0[0]:.2f} {0[1]}".format(
             time.format_time(vs, vs.time)))

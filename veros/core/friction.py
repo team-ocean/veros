@@ -1,7 +1,7 @@
 import math
 
 from .. import veros_method
-from . import numerics, utilities, cyclic
+from . import numerics, utilities
 
 
 @veros_method
@@ -398,9 +398,8 @@ def biharmonic_friction(vs):
         """
         diagnose dissipation by lateral friction
         """
-        if vs.enable_cyclic_x:
-            cyclic.setcyclic_x(vs.flux_east)
-            cyclic.setcyclic_x(vs.flux_north)
+        utilities.enforce_boundaries(vs, vs.flux_east)
+        utilities.enforce_boundaries(vs, vs.flux_north)
         diss = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
         diss[1:-2, 2:-2, :] = -0.5 * ((vs.u[2:-1, 2:-2, :, vs.tau] - vs.u[1:-2, 2:-2, :, vs.tau]) * vs.flux_east[1:-2, 2:-2, :]
                                     + (vs.u[1:-2, 2:-2, :, vs.tau] - vs.u[:-3, 2:-2, :, vs.tau]) * vs.flux_east[:-3, 2:-2, :]) \
@@ -459,9 +458,8 @@ def biharmonic_friction(vs):
         """
         diagnose dissipation by lateral friction
         """
-        if vs.enable_cyclic_x:
-            cyclic.setcyclic_x(vs.flux_east)
-            cyclic.setcyclic_x(vs.flux_north)
+        utilities.enforce_boundaries(vs, vs.flux_east)
+        utilities.enforce_boundaries(vs, vs.flux_north)
         diss[2:-2, 1:-2, :] = -0.5 * ((vs.v[3:-1, 1:-2, :, vs.tau] - vs.v[2:-2, 1:-2, :, vs.tau]) * vs.flux_east[2:-2, 1:-2, :]
                                     + (vs.v[2:-2, 1:-2, :, vs.tau] - vs.v[1:-3, 1:-2, :, vs.tau]) * vs.flux_east[1:-3, 1:-2, :]) \
             / (vs.cosu[np.newaxis, 1:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis]) \

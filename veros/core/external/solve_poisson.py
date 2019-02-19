@@ -8,8 +8,8 @@ try:
 except ImportError:
     HAS_PYAMG = False
 
-from .. import cyclic, utilities
-from ... import veros_method
+from .. import utilities
+from ... import veros_method, runtime_settings as rs
 
 
 @veros_method
@@ -39,7 +39,7 @@ def initialize_solver(vs):
     vs.poisson_solver = scipy_solver
 
 
-@veros_method
+@veros_method(dist_safe=False, local_variables=["boundary_mask"])
 def solve(vs, rhs, sol, boundary_val=None):
     """
     Main solver for streamfunction. Solves a 2D Poisson equation. Uses either pyamg
@@ -53,14 +53,13 @@ def solve(vs, rhs, sol, boundary_val=None):
     if boundary_val is None:
         boundary_val = sol
 
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(sol)
+    utilities.enforce_boundaries(vs, sol)
 
     boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
     rhs[...] = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
-    if vs.backend_name == "bohrium":
-        vs.flush()
+    if rs.backend == "bohrium":
+        np.flush()
         linear_solution = np.asarray(vs.poisson_solver(rhs.copy2numpy(), sol.copy2numpy()))
     else:
         linear_solution = vs.poisson_solver(rhs, sol)
@@ -79,7 +78,7 @@ def _jacobi_preconditioner(vs, matrix):
     Y = np.reshape(matrix.diagonal().copy(), (vs.nx + 4, vs.ny + 4))[2:-2, 2:-2]
     Z[2:-2, 2:-2] = utilities.where(vs, np.abs(Y) > eps, 1. / (Y + eps), 1.)
 
-    if vs.backend_name == "bohrium":
+    if rs.backend == "bohrium":
         Z = Z.copy2numpy()
 
     return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
@@ -108,6 +107,7 @@ def _assemble_poisson_matrix(vs):
         vs.dyt[np.newaxis, 3:-1] * vs.cost[np.newaxis, 3:-1] / vs.cosu[np.newaxis, 2:-2]
     south_diag[2:-2, 2:-2] = vs.hur[2:-2, 2:-2] / vs.dyu[np.newaxis, 2:-2] / \
         vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2]
+
     if vs.enable_cyclic_x:
         # couple edges of the domain
         wrap_diag_east, wrap_diag_west = (np.zeros((vs.nx + 4, vs.ny + 4)) for _ in range(2))
@@ -128,9 +128,6 @@ def _assemble_poisson_matrix(vs):
         offsets += (-main_diag.shape[1] * (vs.nx - 1), main_diag.shape[1] * (vs.nx - 1))
         cf += (wrap_diag_east.flatten(), wrap_diag_west.flatten())
 
-    if vs.backend_name == "bohrium":
-        cf = np.array([c.copy2numpy() for c in cf], bohrium=False)
-    else:
-        cf = np.array(cf)
+    cf = np.array(cf)
 
     return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()

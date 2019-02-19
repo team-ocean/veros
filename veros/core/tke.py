@@ -3,7 +3,7 @@ import math
 from builtins import range
 
 from .. import veros_method
-from . import cyclic, advection, utilities, numerics
+from . import advection, utilities, numerics
 
 
 @veros_method
@@ -53,8 +53,7 @@ def set_tke_diffusivities(vs):
         """
         calculate viscosity and diffusivity based on Prandtl number
         """
-        if vs.enable_cyclic_x:
-            cyclic.setcyclic_x(vs.K_diss_v)
+        utilities.enforce_boundaries(vs, vs.K_diss_v)
         vs.kappaM[...] = np.minimum(vs.kappaM_max, vs.c_k * vs.mxl * vs.sqrttke)
         Rinumber[...] = vs.Nsqr[:, :, :, vs.tau] / \
             np.maximum(vs.K_diss_v / np.maximum(1e-12, vs.kappaM), 1e-12)

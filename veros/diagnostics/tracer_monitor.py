@@ -1,7 +1,7 @@
 import logging
 
 from .diagnostic import VerosDiagnostic
-from .. import veros_class_method
+from .. import veros_method
 
 
 class TracerMonitor(VerosDiagnostic):
@@ -23,7 +23,7 @@ class TracerMonitor(VerosDiagnostic):
     def diagnose(self, vs):
         pass
 
-    @veros_class_method
+    @veros_method
     def output(self, vs):
         """
         Diagnose tracer content

@@ -3,7 +3,7 @@ import logging
 import os
 
 from . import io_tools
-from .. import veros_class_method
+from .. import veros_method
 from .diagnostic import VerosDiagnostic
 from ..core import density
 from ..variables import Variable
@@ -58,7 +58,7 @@ class Overturning(VerosDiagnostic):
         self.variables = self.mean_variables.copy()
         self.variables.update({"sigma": self.sigma_var})
 
-    @veros_class_method
+    @veros_method
     def initialize(self, vs):
         self.nitts = 0
         self.nlevel = vs.nz * 4
@@ -88,7 +88,7 @@ class Overturning(VerosDiagnostic):
                                var_data={"sigma": self.sigma},
                                extra_dimensions={"sigma": self.nlevel})
 
-    @veros_class_method
+    @veros_method
     def _allocate(self, vs):
         self.sigma = np.zeros(self.nlevel, dtype=vs.default_float_type)
         self.zarea = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
@@ -99,7 +99,7 @@ class Overturning(VerosDiagnostic):
             self.bolus_iso = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
             self.bolus_depth = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
 
-    @veros_class_method
+    @veros_method
     def diagnose(self, vs):
         # sigma at p_ref
         sig_loc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz))
@@ -174,7 +174,7 @@ class Overturning(VerosDiagnostic):
 
         self.nitts += 1
 
-    @veros_class_method
+    @veros_method
     def _interpolate_along_axis(self, vs, coords, arr, interp_coords, axis=0):
         if coords.ndim == 1:
             if len(coords) != arr.shape[axis]:
@@ -213,7 +213,7 @@ class Overturning(VerosDiagnostic):
         pos = np.where(dx == 0., 0., (coords[i_p_slice] - interp_coords) / (dx + 1e-12))
         return np.moveaxis(arr[i_p_slice] * (1. - pos) + arr[i_m_slice] * pos, 0, axis)
 
-    @veros_class_method
+    @veros_method
     def output(self, vs):
         if not os.path.isfile(self.get_output_file_name(vs)):
             self.initialize_output(vs, self.variables,
@@ -234,7 +234,7 @@ class Overturning(VerosDiagnostic):
         for var in self.mean_variables.keys():
             getattr(self, var)[...] = 0.
 
-    @veros_class_method
+    @veros_method
     def read_restart(self, vs):
         attributes, variables = self.read_h5_restart(vs)
         if attributes:
@@ -243,7 +243,7 @@ class Overturning(VerosDiagnostic):
             for var, arr in variables.items():
                 getattr(self, var)[...] = arr
 
-    @veros_class_method
+    @veros_method
     def write_restart(self, vs, outfile):
         var_data = {key: getattr(self, key)
                     for key, var in self.variables.items() if var.write_to_restart}

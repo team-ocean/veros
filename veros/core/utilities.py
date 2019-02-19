@@ -1,13 +1,31 @@
-from .. import veros_method, veros_inline_method
+from .. import veros_method, runtime_settings as rs
 
 
-@veros_inline_method
+@veros_method
+def enforce_boundaries(vs, arr):
+    from ..distributed import exchange_cyclic_boundaries, CONTEXT
+
+    if vs.enable_cyclic_x:
+        if rs.num_proc[0] == 1 or not CONTEXT.is_dist_safe:
+            arr[-2:, ...] = arr[2:4, ...]
+            arr[:2, ...] = arr[-4:-2, ...]
+        else:
+            exchange_cyclic_boundaries(vs, arr)
+
+    if rs.num_proc[0] == 1 and rs.num_proc[1] == 1:
+        return
+
+    from ..distributed import exchange_overlap
+    exchange_overlap(vs, arr)
+
+
+@veros_method(inline=True)
 def where(vs, cond, arr1, arr2):
     assert cond.dtype == np.bool
     return cond * arr1 + np.logical_not(cond) * arr2
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def pad_z_edges(vs, array):
     """
     Pads the z-axis of an array by repeating its edge values
@@ -29,7 +47,7 @@ def pad_z_edges(vs, array):
     return newarray
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def solve_implicit(vs, ks, a, b, c, d, b_edge=None, d_edge=None):
     from .numerics import solve_tridiag  # avoid circular import
 

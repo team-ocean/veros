@@ -4,8 +4,8 @@ except ImportError: # python 3.x
     import queue
 import logging
 
-from .. import cyclic, utilities
-from ... import veros_method
+from .. import utilities
+from ... import veros_method, runtime_settings as rs
 
 OFFMAP = -1
 LAND = 1
@@ -17,7 +17,6 @@ def isleperim(vs, kmt, verbose=False):
     """
     Island and Island Perimeter boundary mapping routines
     """
-
     if verbose:
         logging.info(" Finding perimeters of all land masses")
         if vs.enable_cyclic_x:
@@ -32,8 +31,8 @@ def isleperim(vs, kmt, verbose=False):
     reduced by 1 and their perimeter ocean points relabelled accordingly
     """
     boundary_map = utilities.where(vs, kmt > 0, OCEAN, LAND)
-    if vs.backend_name == "bohrium":
-        vs.flush()
+    if rs.backend == "bohrium":
+        np.flush()
         boundary_map = boundary_map.copy2numpy()
 
     """
@@ -58,7 +57,7 @@ def isleperim(vs, kmt, verbose=False):
                 expand(vs, boundary_map, label, island_queue, nippts)
                 if verbose:
                     logging.debug(" found island {} with {} perimeter points"
-                                  .format(label-1, nippts[-1]))
+                                  .format(label - 1, nippts[-1]))
                 label += 1
                 nippts.append(0)
     nisle = label - 2
@@ -72,6 +71,7 @@ def isleperim(vs, kmt, verbose=False):
         logging.info(" Island perimeter statistics:")
         logging.info("  number of land masses is {}".format(nisle))
         logging.info("  number of total island perimeter points is {}".format(sum(nippts)))
+
     return np.asarray(boundary_map)
 
 

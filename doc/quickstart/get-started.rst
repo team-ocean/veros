@@ -222,7 +222,9 @@ If your changes to Veros turn out to have a negative effect on the runtime of th
 - You should try and avoid explicit loops over arrays at all cost (even more so when using Bohrium). You should always try to work on the whole array at once.
 - When using Bohrium, it is sometimes beneficial to copy an array to NumPy before passing it to an external module or performing an operation that cannot be vectorized efficiently. Just don't forget to copy it back to Bohrium after you are finished, e.g. like so: ::
 
-      if vs.backend_name == "bohrium":
+      from veros import runtime_settings as rs
+
+      if rs.backend == "bohrium":
           u_np = vs.u.copy2numpy()
       else:
           u_np = vs.u
