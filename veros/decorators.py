@@ -65,11 +65,9 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
 
     @functools.wraps(function)
     def veros_method_wrapper(*args, **kwargs):
-        from .distributed import RANK, SIZE, HAS_MPI4PY
-
-        if dist_only:
-            if not HAS_MPI4PY or SIZE == 1 or not CONTEXT.is_dist_safe:
-                return
+        from .distributed import RANK, SIZE, HAS_MPI4PY, broadcast
+        # if RANK == 0:
+        #     print(function.__name__)
 
         veros_state = args[narg]
 
@@ -103,16 +101,18 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
         newargs = list(args)
         newargs[narg] = func_state
 
+        res = None
         try:
             if execute:
                 res = function(*newargs, **kwargs)
-            else:
-                res = None
-        except Exception:
+        except:
+            if reset_dist_safe:
+                CONTEXT.is_dist_safe = True
             raise
         else:
             if reset_dist_safe:
                 CONTEXT.is_dist_safe = True
+                res = broadcast(veros_state, res)
                 dist_state.scatter_arrays()
         finally:
             if oldvalue is sentinel:
@@ -120,8 +120,8 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
             else:
                 g['np'] = oldvalue
 
-        if flush_on_exit:
-            flush()
+            if flush_on_exit:
+                flush()
 
         return res
 

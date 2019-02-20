@@ -21,15 +21,6 @@ def calc_grid(vs):
     """
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
     """
-    aloc = np.zeros((vs.nx, vs.ny), dtype=vs.default_float_type)
-    dxt_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
-    dxu_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
-    xt_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
-    xu_gl = np.zeros(vs.nx + 4, dtype=vs.default_float_type)
-    dyt_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
-    dyu_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
-    yt_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
-    yu_gl = np.zeros(vs.ny + 4, dtype=vs.default_float_type)
 
     def u_centered_grid(dyt, dyu, yt, yu):
         yu[0] = 0
@@ -45,69 +36,46 @@ def calc_grid(vs):
         dyu[:-1] = yt[1:] - yt[:-1]
         dyu[-1] = 2 * dyt[-1] - dyu[-2]
 
-    """
-    transfer from locally defined variables to global ones
-    """
-    aloc[:, 0] = vs.dxt[2:-2]
-
-    dxt_gl[2:-2] = aloc[:, 0]
-
     if vs.enable_cyclic_x:
-        dxt_gl[vs.nx + 2:] = dxt_gl[2:4]
-        dxt_gl[:2] = dxt_gl[vs.nx:-2]
+        vs.dxt[-2:] = vs.dxt[2:4]
+        vs.dxt[:2] = vs.dxt[-4:-2]
     else:
-        dxt_gl[vs.nx + 2:] = dxt_gl[vs.nx + 1]
-        dxt_gl[:2] = dxt_gl[2]
+        vs.dxt[-2:] = vs.dxt[-3]
+        vs.dxt[:2] = vs.dxt[2]
 
-    aloc[0, :] = vs.dyt[2:-2]
-    dyt_gl[2:-2] = aloc[0, :]
-
-    dyt_gl[vs.ny + 2:] = dyt_gl[vs.ny + 1]
-    dyt_gl[:2] = dyt_gl[2]
+    vs.dyt[-2:] = vs.dyt[-3]
+    vs.dyt[:2] = vs.dyt[2]
 
     """
     grid in east/west direction
     """
-    u_centered_grid(dxt_gl, dxu_gl, xt_gl, xu_gl)
-    xt_gl += vs.x_origin - xu_gl[2]
-    xu_gl += vs.x_origin - xu_gl[2]
+    u_centered_grid(vs.dxt, vs.dxu, vs.xt, vs.xu)
+    vs.xt += vs.x_origin - vs.xu[2]
+    vs.xu += vs.x_origin - vs.xu[2]
 
     if vs.enable_cyclic_x:
-        xt_gl[vs.nx + 2:] = xt_gl[2:4]
-        xt_gl[:2] = xt_gl[vs.nx:-2]
-        xu_gl[vs.nx + 2:] = xt_gl[2:4]
-        xu_gl[:2] = xu_gl[vs.nx:-2]
-        dxu_gl[vs.nx + 2:] = dxu_gl[2:4]
-        dxu_gl[:2] = dxu_gl[vs.nx:-2]
+        vs.xt[-2:] = vs.xt[2:4]
+        vs.xt[:2] = vs.xt[-4:-2]
+        vs.xu[-2:] = vs.xt[2:4]
+        vs.xu[:2] = vs.xu[-4:-2]
+        vs.dxu[-2:] = vs.dxu[2:4]
+        vs.dxu[:2] = vs.dxu[-4:-2]
 
     """
     grid in north/south direction
     """
-    u_centered_grid(dyt_gl, dyu_gl, yt_gl, yu_gl)
-    yt_gl += vs.y_origin - yu_gl[2]
-    yu_gl += vs.y_origin - yu_gl[2]
+    u_centered_grid(vs.dyt, vs.dyu, vs.yt, vs.yu)
+    vs.yt += vs.y_origin - vs.yu[2]
+    vs.yu += vs.y_origin - vs.yu[2]
 
     if vs.coord_degree:
         """
         convert from degrees to pseudo cartesian grid
         """
-        dxt_gl *= vs.degtom
-        dxu_gl *= vs.degtom
-        dyt_gl *= vs.degtom
-        dyu_gl *= vs.degtom
-
-    """
-    transfer to locally defined variables
-    """
-    vs.xt[:] = xt_gl[:]
-    vs.xu[:] = xu_gl[:]
-    vs.dxu[:] = dxu_gl[:]
-    vs.dxt[:] = dxt_gl[:]
-
-    vs.yt[:] = yt_gl[:]
-    vs.yu[:] = yu_gl[:]
-    vs.dyu[:] = dyu_gl[:]
-    vs.dyt[:] = dyt_gl[:]
+        vs.dxt *= vs.degtom
+        vs.dxu *= vs.degtom
+        vs.dyt *= vs.degtom
+        vs.dyu *= vs.degtom
 
     """
     grid in vertical direction
@@ -154,6 +122,7 @@ def calc_topo(vs):
     """
     close domain
     """
+
     vs.kbot[:, :2] = 0
     vs.kbot[:, -2:] = 0
     if vs.enable_cyclic_x:
@@ -169,7 +138,6 @@ def calc_topo(vs):
     land_mask = vs.kbot > 0
     ks = np.arange(vs.maskT.shape[2])[np.newaxis, np.newaxis, :]
     vs.maskT[...] = land_mask[..., np.newaxis] & (vs.kbot[..., np.newaxis] - 1 <= ks)
-
     utilities.enforce_boundaries(vs, vs.maskT)
     vs.maskU[...] = vs.maskT
     vs.maskU[:-1, :, :] = np.minimum(vs.maskT[:-1, :, :], vs.maskT[1:, :, :])
@@ -254,7 +222,7 @@ def solve_tridiag(vs, a, b, c, d):
         a[..., 0] = c[..., -1] = 0  # remove couplings between slices
         return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
 
-    if backend.get_vector_engine() == "opencl":
+    if backend.get_vector_engine(np) == "opencl":
         return tdma_opencl.tdma(a, b, c, d)
 
     return np.linalg.solve_tridiagonal(a, b, c, d)

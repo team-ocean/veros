@@ -2,17 +2,18 @@ from .. import veros_method, runtime_settings as rs
 
 
 @veros_method
-def enforce_boundaries(vs, arr):
-    from ..distributed import exchange_cyclic_boundaries, CONTEXT
+def enforce_boundaries(vs, arr, local=False):
+    from ..distributed import exchange_cyclic_boundaries
+    from ..decorators import CONTEXT
 
     if vs.enable_cyclic_x:
-        if rs.num_proc[0] == 1 or not CONTEXT.is_dist_safe:
+        if rs.num_proc[0] == 1 or not CONTEXT.is_dist_safe or local:
             arr[-2:, ...] = arr[2:4, ...]
             arr[:2, ...] = arr[-4:-2, ...]
         else:
             exchange_cyclic_boundaries(vs, arr)
 
-    if rs.num_proc[0] == 1 and rs.num_proc[1] == 1:
+    if local or (rs.num_proc[0] == 1 and rs.num_proc[1] == 1):
         return
 
     from ..distributed import exchange_overlap

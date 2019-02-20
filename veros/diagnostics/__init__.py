@@ -72,9 +72,9 @@ def start_profiler():
 
 
 def stop_profiler(profiler):
-    try:
-        profiler.stop()
-        with open("profile.html", "w") as f:
-            f.write(profiler.output_html())
-    except UnboundLocalError:  # profiler has not been started
-        pass
+    if profiler is None:
+        return
+
+    profiler.stop()
+    with open("profile.html", "w") as f:
+        f.write(profiler.output_html())

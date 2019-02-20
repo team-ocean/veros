@@ -21,11 +21,12 @@ class DistributedVerosState(VerosState):
                 self._vs.variables[arr].dims
             )
             setattr(self, arr, gathered_arr)
-    
+
     def scatter_arrays(self):
         """Sync all changes with parent state object"""
         from .distributed import scatter
         for arr in sorted(self._gathered):
+            print("s", arr)
             getattr(self._vs, arr)[...] = scatter(
                 self._vs,
                 getattr(self, arr),
@@ -51,6 +52,8 @@ class DistributedVerosState(VerosState):
         if attr in self._gathered:
             return object.__setattr__(self, attr, val)
 
-        from .distributed import RANK
-        print(RANK)
+        if attr not in self._vs.variables:
+            # not a variable: pass through
+            return self._vs.__setattr__(attr, val)
+
         raise AttributeError("Cannot access distributed variable %s since it was not retrieved" % attr)

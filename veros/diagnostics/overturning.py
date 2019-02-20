@@ -102,7 +102,7 @@ class Overturning(VerosDiagnostic):
     @veros_method
     def diagnose(self, vs):
         # sigma at p_ref
-        sig_loc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz))
+        sig_loc = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz))
         sig_loc[2:-2, 2:-1, :] = density.get_rho(vs,
                                                  vs.salt[2:-2, 2:-1, :, vs.tau],
                                                  vs.temp[2:-2, 2:-1, :, vs.tau],

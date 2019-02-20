@@ -1,5 +1,5 @@
-from .. import veros_method
-from . import advection, diffusion, isoneutral, numerics, density, utilities
+from .. import veros_method, runtime_settings as rs
+from . import advection, diffusion, isoneutral, density, utilities
 
 
 @veros_method
@@ -34,7 +34,7 @@ def thermodynamics(vs):
         """
         changes in dyn. Enthalpy due to advection
         """
-        aloc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+        aloc = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
         aloc[2:-2, 2:-2, :] = vs.grav / vs.rho_0 * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau] * vs.dtemp[2:-2, 2:-2, :, vs.tau]
                                                    - vs.int_drhodS[2:-2, 2:-2, :, vs.tau] * vs.dsalt[2:-2, 2:-2, :, vs.tau]) \
                             - vs.dHd[2:-2, 2:-2, :, vs.tau]
@@ -117,11 +117,11 @@ def thermodynamics(vs):
         vs.dtemp_vmix[...] = vs.temp[:, :, :, vs.taup1]
         vs.dsalt_vmix[...] = vs.salt[:, :, :, vs.taup1]
 
-        a_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        b_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        c_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        d_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        delta = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+        a_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
+        b_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
+        c_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
+        d_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
+        delta = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
 
         ks = vs.kbot[2:-2, 2:-2] - 1
         delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1] \

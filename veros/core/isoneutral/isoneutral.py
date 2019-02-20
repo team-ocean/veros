@@ -1,7 +1,7 @@
 import logging
 
 from .. import density, utilities
-from ... import veros_method
+from ... import veros_method, runtime_settings as rs
 
 
 @veros_method
@@ -11,10 +11,10 @@ def isoneutral_diffusion_pre(vs):
     following functional formulation by Griffies et al
     Code adopted from MOM2.1
     """
-    drdTS = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz, 2), dtype=vs.default_float_type)
-    ddzt = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz, 2), dtype=vs.default_float_type)
-    ddxt = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz, 2), dtype=vs.default_float_type)
-    ddyt = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz, 2), dtype=vs.default_float_type)
+    drdTS = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz, 2), dtype=vs.default_float_type)
+    ddzt = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz, 2), dtype=vs.default_float_type)
+    ddxt = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz, 2), dtype=vs.default_float_type)
+    ddyt = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz, 2), dtype=vs.default_float_type)
     epsln = 1e-20
 
     """
@@ -59,12 +59,12 @@ def isoneutral_diffusion_pre(vs):
     """
     Compute Ai_ez and K11 on center of east face of T cell.
     """
-    diffloc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+    diffloc = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
     diffloc[1:-2, 2:-2, 1:] = 0.25 * (vs.K_iso[1:-2, 2:-2, 1:] + vs.K_iso[1:-2, 2:-2, :-1]
                                       + vs.K_iso[2:-1, 2:-2, 1:] + vs.K_iso[2:-1, 2:-2, :-1])
     diffloc[1:-2, 2:-2, 0] = 0.5 * (vs.K_iso[1:-2, 2:-2, 0] + vs.K_iso[2:-1, 2:-2, 0])
 
-    sumz = np.zeros((vs.nx + 1, vs.ny, vs.nz), dtype=vs.default_float_type)
+    sumz = np.zeros((vs.nx // rs.num_proc[0] + 1, vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
     for kr in range(2):
         ki = 0 if kr == 1 else 1
         for ip in range(2):
@@ -83,12 +83,12 @@ def isoneutral_diffusion_pre(vs):
     """
     Compute Ai_nz and K_22 on center of north face of T cell.
     """
-    diffloc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+    diffloc = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
     diffloc[2:-2, 1:-2, 1:] = 0.25 * (vs.K_iso[2:-2, 1:-2, 1:] + vs.K_iso[2:-2, 1:-2, :-1]
                                       + vs.K_iso[2:-2, 2:-1, 1:] + vs.K_iso[2:-2, 2:-1, :-1])
     diffloc[2:-2, 1:-2, 0] = 0.5 * (vs.K_iso[2:-2, 1:-2, 0] + vs.K_iso[2:-2, 2:-1, 0])
 
-    sumz = np.zeros((vs.nx, vs.ny + 1, vs.nz), dtype=vs.default_float_type)
+    sumz = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1] + 1, vs.nz), dtype=vs.default_float_type)
     for kr in range(2):
         ki = 0 if kr == 1 else 1
         for jp in range(2):
@@ -108,7 +108,7 @@ def isoneutral_diffusion_pre(vs):
     compute Ai_bx, Ai_by and K33 on top face of T cell.
     """
     # eastward slopes at the top of T cells
-    sumx = np.zeros((vs.nx, vs.ny, vs.nz - 1), dtype=vs.default_float_type)
+    sumx = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz - 1), dtype=vs.default_float_type)
     for ip in range(2):
         for kr in range(2):
             drodxb = drdTS[2:-2, 2:-2, kr:-1 + kr or None, 0] * ddxt[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None, 0] \
@@ -123,7 +123,7 @@ def isoneutral_diffusion_pre(vs):
             vs.Ai_bx[2:-2, 2:-2, :-1, ip, kr] = taper * sxb * vs.maskW[2:-2, 2:-2, :-1]
 
     # northward slopes at the top of T cells
-    sumy = np.zeros((vs.nx, vs.ny, vs.nz - 1), dtype=vs.default_float_type)
+    sumy = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz - 1), dtype=vs.default_float_type)
     for jp in range(2):
         facty = vs.cosu[1 + jp:-3 + jp] * vs.dyu[1 + jp:-3 + jp]
         for kr in range(2):

@@ -5,9 +5,15 @@ from .. import utilities as mainutils
 from . import island, utilities, solve_poisson
 
 
-@veros_method(dist_safe=False, local_variables=[
-    "kbot"
-])
+@veros_method(inline=True, dist_safe=False, local_variables=["kbot", "land_map"])
+def get_isleperim(vs):
+    logging.info(" determining number of land masses")
+    vs.land_map[...] = island.isleperim(vs, vs.kbot, verbose=vs.verbose_island_routines)
+    logging.info(_ascii_map(vs, vs.land_map))
+    return int(vs.land_map.max())
+
+
+@veros_method
 def streamfunction_init(vs):
     """
     prepare for island integrals
@@ -17,24 +23,23 @@ def streamfunction_init(vs):
     """
     preprocess land map using MOMs algorithm for B-grid to determine number of islands
     """
-    logging.info(" determining number of land masses")
-    allmap = island.isleperim(vs, vs.kbot, verbose=vs.verbose_island_routines)
-    mainutils.enforce_boundaries(vs, allmap)
-    logging.info(_ascii_map(vs, allmap))
+    vs.land_map = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4), dtype='int')
+    nisle = get_isleperim(vs)
+    mainutils.enforce_boundaries(vs, vs.land_map)
 
     """
     now that the number of islands is known we can allocate the rest of the variables
     """
-    vs.nisle = int(allmap.max())
+    vs.nisle = nisle
     vs.isle = np.arange(vs.nisle) + 1
-    vs.psin = np.zeros((vs.nx + 4, vs.ny + 4, vs.nisle), dtype=vs.default_float_type)
+    vs.psin = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=vs.default_float_type)
     vs.dpsin = np.zeros((vs.nisle, 3), dtype=vs.default_float_type)
     vs.line_psin = np.zeros((vs.nisle, vs.nisle), dtype=vs.default_float_type)
-    vs.boundary_mask = np.zeros((vs.nx + 4, vs.ny + 4, vs.nisle), dtype=np.bool)
-    vs.line_dir_south_mask = np.zeros((vs.nx + 4, vs.ny + 4, vs.nisle), dtype=np.bool)
-    vs.line_dir_north_mask = np.zeros((vs.nx + 4, vs.ny + 4, vs.nisle), dtype=np.bool)
-    vs.line_dir_east_mask = np.zeros((vs.nx + 4, vs.ny + 4, vs.nisle), dtype=np.bool)
-    vs.line_dir_west_mask = np.zeros((vs.nx + 4, vs.ny + 4, vs.nisle), dtype=np.bool)
+    vs.boundary_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
+    vs.line_dir_south_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
+    vs.line_dir_north_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
+    vs.line_dir_east_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
+    vs.line_dir_west_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
 
     if rs.backend == "bohrium":
         vs.boundary_mask = vs.boundary_mask.copy2numpy()
@@ -43,6 +48,15 @@ def streamfunction_init(vs):
         vs.line_dir_east_mask = vs.line_dir_east_mask.copy2numpy()
         vs.line_dir_west_mask = vs.line_dir_west_mask.copy2numpy()
 
+    do_streamfunction_init(vs)
+
+
+@veros_method(dist_safe=False, local_variables=[
+    "psin", "dpsin", "line_psin", "boundary_mask", "land_map",
+    "line_dir_south_mask", "line_dir_north_mask", "line_dir_east_mask", "line_dir_west_mask",
+    "maskU", "maskV", "maskT", "maskZ", "hur", "hvr", "dxu", "dxt", "dyu", "dyt", "cosu", "cost"
+])
+def do_streamfunction_init(vs):
     for isle in range(vs.nisle):
         _print_verbose(vs, " ------------------------")
         _print_verbose(vs, " processing land mass #{:d}".format(isle))
@@ -51,7 +65,7 @@ def streamfunction_init(vs):
         """
         land map for island number isle: 1 is land, -1 is perimeter, 0 is ocean
         """
-        boundary_map = island.isleperim(vs, allmap != isle + 1)
+        boundary_map = island.isleperim(vs, vs.land_map != isle + 1)
         if rs.backend == "bohrium":
             boundary_map = boundary_map.copy2numpy()
         _print_verbose(vs, _ascii_map(vs, boundary_map))
@@ -103,7 +117,7 @@ def streamfunction_init(vs):
             _print_verbose(vs, " position is {!r}".format(ij))
             _print_verbose(vs, " direction is {!r}".format(Dir))
             _print_verbose(vs, " map ahead is {} {}"
-                          .format(boundary_map[ijp[0], ijp[1]], boundary_map[ijp_right[0], ijp_right[1]]))
+                           .format(boundary_map[ijp[0], ijp[1]], boundary_map[ijp_right[0], ijp_right[1]]))
 
             if boundary_map[ijp[0], ijp[1]] == -1 and boundary_map[ijp_right[0], ijp_right[1]] == 1:
                 _print_verbose(vs, " go forward")
@@ -118,7 +132,7 @@ def streamfunction_init(vs):
                 Dir = [-Dir[1], Dir[0]]
             else:
                 _print_verbose(vs, " map ahead is {} {}"
-                             .format(boundary_map[ijp[0], ijp[1]], boundary_map[ijp_right[0], ijp_right[1]]))
+                               .format(boundary_map[ijp[0], ijp[1]], boundary_map[ijp_right[0], ijp_right[1]]))
                 raise RuntimeError("unknown situation or lost track")
 
             """
@@ -217,9 +231,11 @@ def _avoid_cyclic_boundaries(vs, boundary_map, isle, n, x_range):
                 return cont, (i - 1, j), Dir, (i, j)
     return False, None, [0, 0], [0, 0]
 
+
 def _print_verbose(vs, message):
     if vs.verbose_island_routines:
         logging.info(message)
+
 
 @veros_method
 def _ascii_map(vs, boundary_map):

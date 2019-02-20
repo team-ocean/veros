@@ -390,6 +390,9 @@ MAIN_VARIABLES = OrderedDict([
         "Streamfunction tendency", ZETA_HOR + TIMESTEPS, "m^3/s^2",
         "Streamfunction tendency", write_to_restart=True
     )),
+    ("land_map", Variable(
+        "Land map", T_HOR, "", "Land map"
+    )),
     ("isle", Variable(
         "Island number", ISLE, "", "Island number", output=True
     )),

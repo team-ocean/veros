@@ -1,8 +1,7 @@
 import functools
 
 from . import runtime_settings as rs
-from .decorators import CONTEXT, veros_method
-from .core import utilities
+from .decorators import veros_method, CONTEXT
 
 try:
     from mpi4py import MPI
@@ -18,13 +17,45 @@ if HAS_MPI4PY:
     SIZE = COMM.Get_size()
 else:
     COMM = None
-    RANK = 1
+    RANK = 0
     SIZE = 1
 
 SCATTERED_DIMENSIONS = (
     ("xt", "xu"),
     ("yt", "yu")
 )
+
+
+def distributed_veros_method(function):
+    wrapped_function = veros_method(function)
+
+    @functools.wraps(function)
+    def distributed_veros_method_wrapper(vs, arr, *args, **kwargs):
+        if not HAS_MPI4PY or SIZE == 1 or not CONTEXT.is_dist_safe:
+            return arr
+
+        try:
+            return wrapped_function(vs, arr, *args, **kwargs)
+        finally:
+            barrier()
+
+    return distributed_veros_method_wrapper
+
+
+def ascontiguousarray(arr):
+    if not arr.flags["C_CONTIGUOUS"] and not arr.flags["F_CONTIGUOUS"]:
+        return arr.copy()
+    return arr
+
+
+@veros_method(inline=True)
+def get_array_buffer(vs, arr):
+    if rs.backend == "bohrium":
+        if not arr.flags["OWNDATA"]:
+            arr = arr.copy()
+        buffer = np.interop_numpy.get_array(arr)
+        return buffer
+    return arr
 
 
 def validate_decomposition(vs):
@@ -50,7 +81,7 @@ def proc_rank_to_index(vs, rank):
 
 
 def proc_index_to_rank(vs, ix, iy):
-    return ix + iy * rs.num_proc[0] 
+    return ix + iy * rs.num_proc[0]
 
 
 def get_global_idx(vs, rank):
@@ -83,29 +114,50 @@ def get_process_neighbors(vs):
     return global_neighbors
 
 
-@veros_method(dist_only=True)
-def exchange_overlap(vs, arr):
-    proc_neighbors = get_process_neighbors(vs)
+@distributed_veros_method
+def exchange_overlap(vs, arr, dim='xy'):
+    if dim == 'xy':
+        proc_neighbors = get_process_neighbors(vs)
 
-    overlap_slices_from = (
-        (slice(2, 4), slice(0, None), Ellipsis), # west
-        (slice(0, None), slice(2, 4), Ellipsis), # south
-        (slice(-4, -2), slice(0, None), Ellipsis), # east
-        (slice(0, None), slice(-4, -2), Ellipsis), # north
-    )
+        overlap_slices_from = (
+            (slice(2, 4), slice(0, None), Ellipsis), # west
+            (slice(0, None), slice(2, 4), Ellipsis), # south
+            (slice(-4, -2), slice(0, None), Ellipsis), # east
+            (slice(0, None), slice(-4, -2), Ellipsis), # north
+        )
 
-    overlap_slices_to = (
-        (slice(0, 2), slice(0, None), Ellipsis), # west
-        (slice(0, None), slice(0, 2), Ellipsis), # south
-        (slice(-2, None), slice(0, None), Ellipsis), # east
-        (slice(0, None), slice(-2, None), Ellipsis), # north
-    )
+        overlap_slices_to = (
+            (slice(0, 2), slice(0, None), Ellipsis), # west
+            (slice(0, None), slice(0, 2), Ellipsis), # south
+            (slice(-2, None), slice(0, None), Ellipsis), # east
+            (slice(0, None), slice(-2, None), Ellipsis), # north
+        )
 
-    # flipped indices of overlap (n <-> s, w <-> e)
-    send_to_recv = [2, 3, 0, 1]
+        # flipped indices of overlap (n <-> s, w <-> e)
+        send_to_recv = [2, 3, 0, 1]
+
+    else:
+        if dim == 'x':
+            proc_neighbors = get_process_neighbors(vs)[0::2] # west and east
+        elif dim == 'y':
+            proc_neighbors = get_process_neighbors(vs)[1::2] # south and north
+        else:
+            raise NotImplementedError()
+
+        overlap_slices_from = (
+            (slice(2, 4), Ellipsis),
+            (slice(-4, -2), Ellipsis),
+        )
+
+        overlap_slices_to = (
+            (slice(0, 2), Ellipsis),
+            (slice(-2, None), Ellipsis),
+        )
+
+        send_to_recv = [1, 0]
 
     receive_futures = []
-    for i_s in range(4):
+    for i_s in range(len(proc_neighbors)):
         i_r = send_to_recv[i_s]
         other_proc = proc_neighbors[i_s]
 
@@ -115,11 +167,11 @@ def exchange_overlap(vs, arr):
         send_idx = overlap_slices_from[i_s]
         recv_idx = overlap_slices_to[i_s]
 
-        send_arr = np.ascontiguousarray(arr[send_idx])
+        send_arr = ascontiguousarray(arr[send_idx])
         recv_arr = np.empty_like(arr[recv_idx])
 
-        COMM.Isend(send_arr, dest=other_proc, tag=i_s)
-        future = COMM.Irecv(recv_arr, source=other_proc, tag=i_r)
+        COMM.Isend(get_array_buffer(vs, send_arr), dest=other_proc, tag=i_s)
+        future = COMM.Irecv(get_array_buffer(vs, recv_arr), source=other_proc, tag=i_r)
         receive_futures.append((future, recv_idx, recv_arr))
 
     for future, recv_idx, recv_arr in receive_futures:
@@ -127,7 +179,7 @@ def exchange_overlap(vs, arr):
         arr[recv_idx] = recv_arr
 
 
-@veros_method(dist_only=True)
+@distributed_veros_method
 def exchange_cyclic_boundaries(vs, arr):
     import numpy as np
     ix, iy = proc_rank_to_index(vs, RANK)
@@ -147,9 +199,10 @@ def exchange_cyclic_boundaries(vs, arr):
         tag_s, tag_r = 1, 0
 
     recv_arr = np.empty_like(arr[recv_idx])
+    send_arr = ascontiguousarray(arr[send_idx])
 
-    send_future = COMM.Isend(np.ascontiguousarray(arr[send_idx]), dest=other_proc, tag=tag_s)
-    recv_future = COMM.Irecv(recv_arr, source=other_proc, tag=tag_r)
+    send_future = COMM.Isend(get_array_buffer(vs, send_arr), dest=other_proc, tag=tag_s)
+    recv_future = COMM.Irecv(get_array_buffer(vs, recv_arr), source=other_proc, tag=tag_r)
 
     send_future.wait()
     recv_future.wait()
@@ -157,116 +210,281 @@ def exchange_cyclic_boundaries(vs, arr):
     arr[recv_idx] = recv_arr
 
 
-@veros_method(dist_only=True)
+@distributed_veros_method
 def global_max(vs, arr):
     pass
 
 
-@veros_method(dist_only=True)
+@distributed_veros_method
 def global_min(vs, arr):
     pass
 
 
-@veros_method(dist_only=True)
+@distributed_veros_method
 def global_sum(vs, arr):
     pass
 
 
-@veros_method(dist_only=True)
+@distributed_veros_method
 def zonal_sum(vs, arr):
     pass
 
 
-def _process_grid(vs, arr, var_grid):
-    """yields (has_ghosts, chunk_size, num_blocks)"""
+@distributed_veros_method
+def _gather_1d(vs, arr, dim):
+    assert dim in (0, 1)
+
+    nx = get_chunk_size(vs)[dim]
+    nproc = rs.num_proc[dim]
+
+    def get_buffer(proc):
+        px = proc_rank_to_index(vs, proc)[dim]
+        sl = 0 if px == 0 else 2
+        su = nx + 4 if (px + 1) == nproc else nx + 2
+        local_slice = slice(sl, su)
+        global_slice = slice(sl + px * nx, su + px * nx)
+        buffer = np.empty((su - sl, *arr.shape[1:]), dtype=arr.dtype)
+        return local_slice, global_slice, buffer
+
+    otherdim = int(not dim)
+    pi = proc_rank_to_index(vs, RANK)
+    if pi[otherdim] != 0:
+        return arr
+
+    idx, _, sendbuf = get_buffer(RANK)
+    sendbuf[...] = arr[idx]
+    send_future = COMM.Isend(get_array_buffer(vs, sendbuf), dest=0, tag=0)
+
+    if RANK == 0:
+        buffer_list = []
+        futures = [send_future]
+        for proc in range(0, SIZE):
+            pi = proc_rank_to_index(vs, proc)
+            if pi[otherdim] != 0:
+                continue
+            sidx, tidx, recvbuf = get_buffer(proc)
+            buffer_list.append((sidx, tidx, recvbuf))
+            futures.append(
+                COMM.Irecv(get_array_buffer(vs, recvbuf), source=proc, tag=0)
+            )
+
+        for future in futures:
+            future.wait()
+
+        out_shape = ((vs.nx + 4, vs.ny + 4)[dim], *arr.shape[1:])
+        out = np.empty(out_shape, dtype=arr.dtype)
+        for _, idx, val in buffer_list:
+            out[idx] = val
+
+        return out
+
+    send_future.wait()
+    return arr
+
+
+@distributed_veros_method
+def _gather_xy(vs, arr):
     nxi, nyi = get_chunk_size(vs)
 
-    for shp, dim in zip(arr.shape, var_grid):
-        if dim in SCATTERED_DIMENSIONS[0]:
-            yield (True, nxi, rs.num_proc[0])
-        elif dim in SCATTERED_DIMENSIONS[1]:
-            yield (True, nyi, rs.num_proc[1])
-        else:
-            yield (False, shp, 1)
+    def get_buffer(proc):
+        px, py = proc_rank_to_index(vs, proc)
+        sxl = 0 if px == 0 else 2
+        sxu = nxi + 4 if (px + 1) == rs.num_proc[0] else nxi + 2
+        syl = 0 if py == 0 else 2
+        syu = nyi + 4 if (py + 1) == rs.num_proc[1] else nyi + 2
+        local_slice = (slice(sxl, sxu), slice(syl, syu))
+        global_slice = (
+            slice(sxl + px * nxi, sxu + px * nxi),
+            slice(syl + py * nyi, syu + py * nyi)
+        )
+        buffer = np.empty((sxu - sxl, syu - syl, *arr.shape[2:]), dtype=arr.dtype)
+        return local_slice, global_slice, buffer
+
+    assert arr.shape[:2] == (nxi + 4, nyi + 4)
+
+    idx, _, sendbuf = get_buffer(RANK)
+    sendbuf[...] = arr[idx]
+    send_future = COMM.Isend(get_array_buffer(vs, sendbuf), dest=0, tag=0)
+
+    if RANK == 0:
+        buffer_list = []
+        futures = [send_future]
+        for proc in range(0, SIZE):
+            sidx, tidx, recvbuf = get_buffer(proc)
+            buffer_list.append((sidx, tidx, recvbuf))
+            futures.append(
+                COMM.Irecv(get_array_buffer(vs, recvbuf), source=proc, tag=0)
+            )
+
+        for i, future in enumerate(futures):
+            future.wait()
+
+        out_shape = (vs.nx + 4, vs.ny + 4, *arr.shape[2:])
+        out = np.empty(out_shape, dtype=arr.dtype)
+        for _, idx, val in buffer_list:
+            out[idx] = val
+
+        return out
+
+    send_future.wait()
+    return arr
 
 
-@veros_method(dist_only=True)
+@distributed_veros_method
 def gather(vs, arr, var_grid):
-    ghost_slices = []
-    block_nums = []
-    chunk_sizes = []
-    out_shape = []
+    if len(var_grid) < 2:
+        d1, d2 = var_grid[0], None
+    else:
+        d1, d2 = var_grid[:2]
 
-    for has_ghost, chunk_size, num_blocks in _process_grid(vs, arr, var_grid):
-        ghost_slices.append(slice(2, -2) if has_ghost else slice(None))
-        block_nums.append(num_blocks)
-        chunk_sizes.append(chunk_size)
-        global_size = chunk_size * num_blocks
-        out_shape.append(global_size + 4 if has_ghost else global_size)
-
-    if not any(block > 1 for block in block_nums):
-        # nothing to do
+    if d1 not in SCATTERED_DIMENSIONS[0] and d1 not in SCATTERED_DIMENSIONS[1] and d2 not in SCATTERED_DIMENSIONS[1]:
+        # neither x nor y dependent, nothing to do
         return arr
 
-    recv_shape = block_nums + chunk_sizes
-    ghost_slices = tuple(ghost_slices)
-    blocks_last = list(range(0, len(recv_shape), 2)) + list(range(1, len(recv_shape), 2))
+    if d1 in SCATTERED_DIMENSIONS[0] and d2 not in SCATTERED_DIMENSIONS[1]:
+        # only x dependent
+        return _gather_1d(vs, arr, 0)
 
-    recvbuf = None
+    elif d1 in SCATTERED_DIMENSIONS[1]:
+        # only y dependent
+        return _gather_1d(vs, arr, 1)
+
+    elif d1 in SCATTERED_DIMENSIONS[0] and d2 in SCATTERED_DIMENSIONS[1]:
+        # x and y dependent
+        return _gather_xy(vs, arr)
+
+    else:
+        raise NotImplementedError()
+
+
+@distributed_veros_method
+def broadcast(vs, obj):
+    if isinstance(obj, np.ndarray):
+        return COMM.Bcast(get_array_buffer(vs, obj), root=0)
+    else:
+        return COMM.bcast(obj, root=0)
+
+
+@distributed_veros_method
+def _scatter_constant(vs, arr):
+    COMM.Bcast(get_array_buffer(vs, arr), root=0)
+    return arr
+
+
+@distributed_veros_method
+def _scatter_1d(vs, arr, dim):
+    assert dim in (0, 1)
+
+    nx = get_chunk_size(vs)[dim]
+
+    def get_buffer(proc):
+        px = proc_rank_to_index(vs, proc)[dim]
+        sl = 0 if px == 0 else 2
+        su = nx + 4 if (px + 1) == rs.num_proc[dim] else nx + 2
+        local_slice = slice(sl, su)
+        global_slice = slice(sl + px * nx, su + px * nx)
+        buffer = np.empty((su - sl, *arr.shape[1:]), dtype=arr.dtype)
+        return local_slice, global_slice, buffer
+
+    local_slice, _, recvbuf = get_buffer(RANK)
+    recv_future = COMM.Irecv(get_array_buffer(vs, recvbuf), source=0, tag=0)
+
     if RANK == 0:
-        recvbuf = np.empty(recv_shape, dtype=arr.dtype)
+        futures = []
+        for proc in range(0, SIZE):
+            _, global_slice, sendbuf = get_buffer(proc)
+            sendbuf = ascontiguousarray(arr[global_slice])
+            futures.append(
+                COMM.Isend(get_array_buffer(vs, sendbuf), dest=proc, tag=0)
+            )
 
-    send_arr = np.ascontiguousarray(
-        arr[ghost_slices]
-    )
-    COMM.Gather(send_arr, recvbuf, root=0)
+        for future in futures:
+            future.wait()
 
-    if RANK != 0:
-        # no-op for other processes
-        return arr
-
-    out = np.zeros(out_shape, dtype=arr.dtype)
-    out[ghost_slices] = recvbuf.transpose(*blocks_last).reshape(out[ghost_slices].shape)
-    return out
-
-
-@veros_method(dist_only=True)
-def scatter(vs, arr, var_grid):
-    ghost_slices = []
-    block_nums = []
-    chunk_sizes = []
-    block_shape = []
-    out_shape = []
-
-    for has_ghost, chunk_size, num_blocks in _process_grid(vs, arr, var_grid):
-        ghost_slices.append(slice(2, -2) if has_ghost else slice(None))
-        block_nums.append(num_blocks)
-        chunk_sizes.append(chunk_size)
-        block_shape.extend([num_blocks, chunk_size])
-        out_shape.append(chunk_size + 4 if has_ghost else chunk_size)
-
-    if not any(block > 1 for block in block_nums):
-        # nothing to do
-        return arr
-
-    ghost_slices = tuple(ghost_slices)
-    blocks_last = list(range(1, len(block_shape), 2)) + list(range(0, len(block_shape), 2))
-
-    sendbuf = None
-    if RANK == 0:
-        sendbuf = arr[ghost_slices].reshape(block_shape).transpose(*blocks_last)
-        sendbuf = np.ascontiguousarray(sendbuf)
-
-    recvbuf = np.empty(chunk_sizes, dtype=arr.dtype)
-    COMM.Scatter(sendbuf, recvbuf, root=0)
+    recv_future.wait()
 
     if RANK == 0:
         # arr changes shape in main process
-        arr = np.zeros(out_shape, dtype=arr.dtype)
+        arr = np.zeros((nx + 4, *arr.shape[2:]), dtype=arr.dtype)
 
-    arr[ghost_slices] = recvbuf
-    #utilities.enforce_boundaries(vs, arr)
+    arr[local_slice] = recvbuf
+    exchange_overlap(vs, arr, dim='x' if dim == 0 else 'y')
     return arr
+
+
+@distributed_veros_method
+def _scatter_xy(vs, arr):
+    nxi, nyi = get_chunk_size(vs)
+
+    def get_buffer(proc):
+        px, py = proc_rank_to_index(vs, proc)
+        sxl = 0 if px == 0 else 2
+        sxu = nxi + 4 if (px + 1) == rs.num_proc[0] else nxi + 2
+        syl = 0 if py == 0 else 2
+        syu = nyi + 4 if (py + 1) == rs.num_proc[1] else nyi + 2
+        local_slice = (slice(sxl, sxu), slice(syl, syu))
+        global_slice = (
+            slice(sxl + px * nxi, sxu + px * nxi),
+            slice(syl + py * nyi, syu + py * nyi)
+        )
+        buffer = np.empty((sxu - sxl, syu - syl, *arr.shape[2:]), dtype=arr.dtype)
+        return local_slice, global_slice, buffer
+
+    local_slice, _, recvbuf = get_buffer(RANK)
+    recv_future = COMM.Irecv(get_array_buffer(vs, recvbuf), source=0, tag=0)
+
+    if RANK == 0:
+        futures = []
+        for proc in range(0, SIZE):
+            _, global_slice, _ = get_buffer(proc)
+            sendbuf = ascontiguousarray(arr[global_slice])
+            futures.append(
+                COMM.Isend(get_array_buffer(vs, sendbuf), dest=proc, tag=0)
+            )
+
+        for future in futures:
+            future.wait()
+
+    recv_future.wait()
+
+    if RANK == 0:
+        # arr changes shape in main process
+        arr = np.empty((nxi + 4, nyi + 4, *arr.shape[2:]), dtype=arr.dtype)
+
+    arr[local_slice] = recvbuf
+    # exchange twice to make sure corners get communicated (haxx!)
+    exchange_overlap(vs, arr)
+    exchange_overlap(vs, arr)
+    return arr
+
+
+@distributed_veros_method
+def scatter(vs, arr, var_grid):
+    if len(var_grid) < 2:
+        d1, d2 = var_grid[0], None
+    else:
+        d1, d2 = var_grid[:2]
+
+    arr = np.asarray(arr)
+
+    if d1 not in SCATTERED_DIMENSIONS[0] and d1 not in SCATTERED_DIMENSIONS[1] and d2 not in SCATTERED_DIMENSIONS[1]:
+        # neither x nor y dependent
+        return _scatter_constant(vs, arr)
+
+    if d1 in SCATTERED_DIMENSIONS[0] and d2 not in SCATTERED_DIMENSIONS[1]:
+        # only x dependent
+        return _scatter_1d(vs, arr, 0)
+
+    elif d1 in SCATTERED_DIMENSIONS[1]:
+        # only y dependent
+        return _scatter_1d(vs, arr, 1)
+
+    elif d1 in SCATTERED_DIMENSIONS[0] and d2 in SCATTERED_DIMENSIONS[1]:
+        # x and y dependent
+        return _scatter_xy(vs, arr)
+
+    else:
+        raise NotImplementedError()
 
 
 def barrier():
