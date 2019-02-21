@@ -1,7 +1,11 @@
 from ... import veros_method
 
 
-@veros_method
+@veros_method(dist_safe=False, local_variables=[
+    "dxu", "dyu", "cost", "boundary_mask",
+    "line_dir_east_mask", "line_dir_west_mask",
+    "line_dir_north_mask", "line_dir_south_mask"
+])
 def line_integrals(vs, uloc, vloc, kind="same"):
     """
     calculate line integrals along all islands

@@ -1,12 +1,10 @@
-import math
 import logging
 import abc
 
 from future.utils import with_metaclass
 
-from . import (variables, settings, diagnostics, time, handlers, logs,
+from . import (settings, diagnostics, time, handlers, logs,
                distributed)
-from . import backend as _backend
 from .state import VerosState
 from .timer import Timer
 from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,

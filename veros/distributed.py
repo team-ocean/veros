@@ -20,6 +20,7 @@ else:
     RANK = 0
     SIZE = 1
 
+
 SCATTERED_DIMENSIONS = (
     ("xt", "xu"),
     ("yt", "yu")
@@ -45,16 +46,15 @@ def distributed_veros_method(function):
 def ascontiguousarray(arr):
     if not arr.flags["C_CONTIGUOUS"] and not arr.flags["F_CONTIGUOUS"]:
         return arr.copy()
+    if not arr.flags["OWNDATA"]:
+        return arr.copy()
     return arr
 
 
-@veros_method(inline=True)
+@veros_method
 def get_array_buffer(vs, arr):
     if rs.backend == "bohrium":
-        if not arr.flags["OWNDATA"]:
-            arr = arr.copy()
-        buffer = np.interop_numpy.get_array(arr)
-        return buffer
+        return np.interop_numpy.get_array(arr)
     return arr
 
 
@@ -116,6 +116,8 @@ def get_process_neighbors(vs):
 
 @distributed_veros_method
 def exchange_overlap(vs, arr, dim='xy'):
+    arr = np.asarray(arr)
+
     if dim == 'xy':
         proc_neighbors = get_process_neighbors(vs)
 
@@ -181,7 +183,6 @@ def exchange_overlap(vs, arr, dim='xy'):
 
 @distributed_veros_method
 def exchange_cyclic_boundaries(vs, arr):
-    import numpy as np
     ix, iy = proc_rank_to_index(vs, RANK)
 
     if 0 < ix < (rs.num_proc[0] - 1):
@@ -191,18 +192,16 @@ def exchange_cyclic_boundaries(vs, arr):
         other_proc = proc_index_to_rank(vs, rs.num_proc[0] - 1, iy)
         send_idx = (slice(2, 4), Ellipsis)
         recv_idx = (slice(0, 2), Ellipsis)
-        tag_s, tag_r = 0, 1
     else:
         other_proc = proc_index_to_rank(vs, 0, iy)
         send_idx = (slice(-4, -2), Ellipsis)
         recv_idx = (slice(-2, None), Ellipsis)
-        tag_s, tag_r = 1, 0
 
     recv_arr = np.empty_like(arr[recv_idx])
     send_arr = ascontiguousarray(arr[send_idx])
 
-    send_future = COMM.Isend(get_array_buffer(vs, send_arr), dest=other_proc, tag=tag_s)
-    recv_future = COMM.Irecv(get_array_buffer(vs, recv_arr), source=other_proc, tag=tag_r)
+    send_future = COMM.Isend(get_array_buffer(vs, send_arr), dest=other_proc)
+    recv_future = COMM.Irecv(get_array_buffer(vs, recv_arr), source=other_proc)
 
     send_future.wait()
     recv_future.wait()
@@ -211,18 +210,32 @@ def exchange_cyclic_boundaries(vs, arr):
 
 
 @distributed_veros_method
+def _reduce(vs, arr, op):
+    if np.isscalar(arr):
+        arr = np.array([arr])
+    arr = ascontiguousarray(arr)
+    res = np.empty(1, dtype=arr.dtype)
+    COMM.Allreduce(
+        get_array_buffer(vs, arr),
+        get_array_buffer(vs, res),
+        op=op
+    )
+    return res[0]
+
+
+@distributed_veros_method
 def global_max(vs, arr):
-    pass
+    return _reduce(vs, arr, MPI.MAX)
 
 
 @distributed_veros_method
 def global_min(vs, arr):
-    pass
+    return _reduce(vs, arr, MPI.MIN)
 
 
 @distributed_veros_method
 def global_sum(vs, arr):
-    pass
+    return _reduce(vs, arr, MPI.SUM)
 
 
 @distributed_veros_method
@@ -251,21 +264,20 @@ def _gather_1d(vs, arr, dim):
     if pi[otherdim] != 0:
         return arr
 
-    idx, _, sendbuf = get_buffer(RANK)
+    idx, gidx, sendbuf = get_buffer(RANK)
     sendbuf[...] = arr[idx]
-    send_future = COMM.Isend(get_array_buffer(vs, sendbuf), dest=0, tag=0)
 
     if RANK == 0:
         buffer_list = []
-        futures = [send_future]
-        for proc in range(0, SIZE):
+        futures = []
+        for proc in range(1, SIZE):
             pi = proc_rank_to_index(vs, proc)
             if pi[otherdim] != 0:
                 continue
             sidx, tidx, recvbuf = get_buffer(proc)
             buffer_list.append((sidx, tidx, recvbuf))
             futures.append(
-                COMM.Irecv(get_array_buffer(vs, recvbuf), source=proc, tag=0)
+                COMM.Irecv(get_array_buffer(vs, recvbuf), source=proc)
             )
 
         for future in futures:
@@ -273,13 +285,14 @@ def _gather_1d(vs, arr, dim):
 
         out_shape = ((vs.nx + 4, vs.ny + 4)[dim], *arr.shape[1:])
         out = np.empty(out_shape, dtype=arr.dtype)
+        out[gidx] = sendbuf
         for _, idx, val in buffer_list:
             out[idx] = val
 
         return out
-
-    send_future.wait()
-    return arr
+    else:
+        COMM.Send(get_array_buffer(vs, sendbuf), dest=0)
+        return arr
 
 
 @distributed_veros_method
@@ -302,31 +315,30 @@ def _gather_xy(vs, arr):
 
     assert arr.shape[:2] == (nxi + 4, nyi + 4)
 
-    idx, _, sendbuf = get_buffer(RANK)
+    idx, gidx, sendbuf = get_buffer(RANK)
     sendbuf[...] = arr[idx]
-    send_future = COMM.Isend(get_array_buffer(vs, sendbuf), dest=0, tag=0)
 
     if RANK == 0:
         buffer_list = []
-        futures = [send_future]
-        for proc in range(0, SIZE):
+        futures = []
+        for proc in range(1, SIZE):
             sidx, tidx, recvbuf = get_buffer(proc)
             buffer_list.append((sidx, tidx, recvbuf))
             futures.append(
-                COMM.Irecv(get_array_buffer(vs, recvbuf), source=proc, tag=0)
+                COMM.Irecv(get_array_buffer(vs, recvbuf), source=proc)
             )
-
-        for i, future in enumerate(futures):
-            future.wait()
+        MPI.Request.Waitall(futures)
 
         out_shape = (vs.nx + 4, vs.ny + 4, *arr.shape[2:])
         out = np.empty(out_shape, dtype=arr.dtype)
+        out[gidx] = sendbuf
         for _, idx, val in buffer_list:
             out[idx] = val
 
         return out
+    else:
+        COMM.Send(get_array_buffer(vs, sendbuf), dest=0)
 
-    send_future.wait()
     return arr
 
 
@@ -360,6 +372,7 @@ def gather(vs, arr, var_grid):
 @distributed_veros_method
 def broadcast(vs, obj):
     if isinstance(obj, np.ndarray):
+        obj = ascontiguousarray(obj)
         return COMM.Bcast(get_array_buffer(vs, obj), root=0)
     else:
         return COMM.bcast(obj, root=0)
@@ -367,6 +380,7 @@ def broadcast(vs, obj):
 
 @distributed_veros_method
 def _scatter_constant(vs, arr):
+    arr = ascontiguousarray(arr)
     COMM.Bcast(get_array_buffer(vs, arr), root=0)
     return arr
 
@@ -387,15 +401,16 @@ def _scatter_1d(vs, arr, dim):
         return local_slice, global_slice, buffer
 
     local_slice, _, recvbuf = get_buffer(RANK)
-    recv_future = COMM.Irecv(get_array_buffer(vs, recvbuf), source=0, tag=0)
+    recv_future = COMM.Irecv(get_array_buffer(vs, recvbuf), source=0)
 
     if RANK == 0:
         futures = []
         for proc in range(0, SIZE):
             _, global_slice, sendbuf = get_buffer(proc)
             sendbuf = ascontiguousarray(arr[global_slice])
+            sendbuf = get_array_buffer(vs, sendbuf)
             futures.append(
-                COMM.Isend(get_array_buffer(vs, sendbuf), dest=proc, tag=0)
+                COMM.Isend(sendbuf, dest=proc)
             )
 
         for future in futures:
@@ -409,6 +424,10 @@ def _scatter_1d(vs, arr, dim):
 
     arr[local_slice] = recvbuf
     exchange_overlap(vs, arr, dim='x' if dim == 0 else 'y')
+
+    if vs.enable_cyclic_x:
+        exchange_cyclic_boundaries(vs, arr)
+
     return arr
 
 
@@ -431,7 +450,7 @@ def _scatter_xy(vs, arr):
         return local_slice, global_slice, buffer
 
     local_slice, _, recvbuf = get_buffer(RANK)
-    recv_future = COMM.Irecv(get_array_buffer(vs, recvbuf), source=0, tag=0)
+    recv_future = COMM.Irecv(get_array_buffer(vs, recvbuf), source=0)
 
     if RANK == 0:
         futures = []
@@ -439,7 +458,7 @@ def _scatter_xy(vs, arr):
             _, global_slice, _ = get_buffer(proc)
             sendbuf = ascontiguousarray(arr[global_slice])
             futures.append(
-                COMM.Isend(get_array_buffer(vs, sendbuf), dest=proc, tag=0)
+                COMM.Isend(get_array_buffer(vs, sendbuf), dest=proc)
             )
 
         for future in futures:
@@ -452,9 +471,12 @@ def _scatter_xy(vs, arr):
         arr = np.empty((nxi + 4, nyi + 4, *arr.shape[2:]), dtype=arr.dtype)
 
     arr[local_slice] = recvbuf
-    # exchange twice to make sure corners get communicated (haxx!)
+
     exchange_overlap(vs, arr)
-    exchange_overlap(vs, arr)
+
+    if vs.enable_cyclic_x:
+        exchange_cyclic_boundaries(vs, arr)
+
     return arr
 
 

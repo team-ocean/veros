@@ -65,7 +65,7 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
 
     @functools.wraps(function)
     def veros_method_wrapper(*args, **kwargs):
-        from .distributed import RANK, SIZE, HAS_MPI4PY, broadcast
+        from .distributed import RANK, SIZE, broadcast
         # if RANK == 0:
         #     print(function.__name__)
 

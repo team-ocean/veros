@@ -177,7 +177,9 @@ def dm_taper(vs, sx, iso_slopec, iso_dslope):
     return 0.5 * (1. + np.tanh((-np.abs(sx) + iso_slopec) / iso_dslope))
 
 
-@veros_method
+@veros_method(dist_safe=False, local_variables=[
+    "dxt", "dyt", "dzt", "cost"
+])
 def check_isoneutral_slope_crit(vs):
     """
     check linear stability criterion from Griffies et al
@@ -189,10 +191,10 @@ def check_isoneutral_slope_crit(vs):
                 * vs.dzt[np.newaxis, np.newaxis, :] * ft1)
         delta1b = np.min(vs.dyt[np.newaxis, 2:-2, np.newaxis] *
                          vs.dzt[np.newaxis, np.newaxis, :] * ft1)
-        delta_iso1 = np.minimum(
-                        vs.dzt[0] * ft1 * vs.dxt[-1] * np.abs(vs.cost[-1]),
-                        np.minimum(delta1a, delta1b)
-                    )
+        delta_iso1 = min(
+            vs.dzt[0] * ft1 * vs.dxt[-1] * abs(vs.cost[-1]),
+            min(delta1a, delta1b)
+        )
 
         logging.info("diffusion grid factor delta_iso1 = {}".format(delta_iso1))
         if delta_iso1 < vs.iso_slopec:

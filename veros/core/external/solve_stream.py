@@ -7,46 +7,29 @@ used for streamfunction
 
 from . import utilities, solve_poisson
 from .. import utilities as mainutils
-from ... import veros_method, distributed, runtime_settings as rs
+from ... import veros_method
 
 
-@veros_method
-def solve_streamfunction(vs):
-    """
-    solve for barotropic streamfunction
-    """
+@veros_method(dist_safe=False, local_variables=[
+    "du", "dv", "maskU", "maskV", "du_mix", "dv_mix",
+    "dxt", "dxu", "dyt", "dyu", "dzt", "hur", "hvr", "cosu", "cost",
+    "dpsi", "dpsin", "boundary_mask", "line_psin",
+    "line_dir_east_mask", "line_dir_west_mask",
+    "line_dir_north_mask", "line_dir_south_mask"
+])
+def _sequential_solve(vs):
     line_forc = np.zeros(vs.nisle, dtype=vs.default_float_type)
-    aloc = np.zeros((vs.nisle, vs.nisle), dtype=vs.default_float_type)
-
-    # hydrostatic pressure
-    fxa = vs.grav / vs.rho_0
-    tmp = 0.5 * (vs.rho[:, :, :, vs.tau]) * fxa * vs.dzw * vs.maskT
-    vs.p_hydro[:, :, -1] = tmp[:, :, -1]
-    tmp[:, :, :-1] += 0.5 * vs.rho[:, :, 1:, vs.tau] * \
-        fxa * vs.dzw[:-1] * vs.maskT[:, :, :-1]
-    vs.p_hydro[:, :, -2::-1] = vs.maskT[:, :, -2::-1] * \
-        (vs.p_hydro[:, :, -1, np.newaxis] + np.cumsum(tmp[:, :, -2::-1], axis=2))
-
-    # add hydrostatic pressure gradient
-    vs.du[2:-2, 2:-2, :, vs.tau] += \
-        -(vs.p_hydro[3:-1, 2:-2, :] - vs.p_hydro[2:-2, 2:-2, :]) \
-        / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxu[2:-2, np.newaxis, np.newaxis]) \
-        * vs.maskU[2:-2, 2:-2, :]
-    vs.dv[2:-2, 2:-2, :, vs.tau] += \
-        -(vs.p_hydro[2:-2, 3:-1, :] - vs.p_hydro[2:-2, 2:-2, :]) \
-        / vs.dyu[np.newaxis, 2:-2, np.newaxis] \
-        * vs.maskV[2:-2, 2:-2, :]
 
     # forcing for barotropic streamfunction
-    fpx = np.sum((vs.du[:, :, :, vs.tau] + vs.du_mix) *
-                 vs.maskU * vs.dzt, axis=(2,)) * vs.hur
-    fpy = np.sum((vs.dv[:, :, :, vs.tau] + vs.dv_mix) *
-                 vs.maskV * vs.dzt, axis=(2,)) * vs.hvr
+    fpx = np.sum((vs.du[:, :, :, vs.tau] + vs.du_mix)
+                 * vs.maskU * vs.dzt, axis=(2,)) * vs.hur
+    fpy = np.sum((vs.dv[:, :, :, vs.tau] + vs.dv_mix)
+                 * vs.maskV * vs.dzt, axis=(2,)) * vs.hvr
 
     mainutils.enforce_boundaries(vs, fpx)
     mainutils.enforce_boundaries(vs, fpy)
 
-    forc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4), dtype=vs.default_float_type)
+    forc = np.zeros((vs.nx + 4, vs.ny + 4), dtype=vs.default_float_type)
     forc[2:-2, 2:-2] = (fpy[3:-1, 2:-2] - fpy[2:-2, 2:-2]) \
         / (vs.cosu[2:-2] * vs.dxu[2:-2, np.newaxis]) \
         - (vs.cost[3:-1] * fpx[2:-2, 3:-1] - vs.cost[2:-2] * fpx[2:-2, 2:-2]) \
@@ -55,9 +38,7 @@ def solve_streamfunction(vs):
     # solve for interior streamfunction
     vs.dpsi[:, :, vs.taup1] = 2 * vs.dpsi[:, :, vs.tau] - vs.dpsi[:, :, vs.taum1]
 
-    forc_global = distributed.gather(vs, forc, ("xt", "yt"))
-    dpsi_global = distributed.gather(vs, vs.dpsi[:, :, vs.taup1], ("xt", "yt"))
-    solve_poisson.solve(vs, forc_global, dpsi_global)
+    solve_poisson.solve(vs, forc, vs.dpsi[..., vs.taup1])
 
     mainutils.enforce_boundaries(vs, vs.dpsi[:, :, vs.taup1])
 
@@ -81,6 +62,33 @@ def solve_streamfunction(vs):
         # solve for time dependent boundary values
         line_forc[1:] = np.linalg.solve(vs.line_psin[1:, 1:], line_forc[1:])
         vs.dpsin[1:, vs.tau] = line_forc[1:]
+
+
+@veros_method
+def solve_streamfunction(vs):
+    """
+    solve for barotropic streamfunction
+    """
+    # hydrostatic pressure
+    fxa = vs.grav / vs.rho_0
+    tmp = 0.5 * (vs.rho[:, :, :, vs.tau]) * fxa * vs.dzw * vs.maskT
+    vs.p_hydro[:, :, -1] = tmp[:, :, -1]
+    tmp[:, :, :-1] += 0.5 * vs.rho[:, :, 1:, vs.tau] * \
+        fxa * vs.dzw[:-1] * vs.maskT[:, :, :-1]
+    vs.p_hydro[:, :, -2::-1] = vs.maskT[:, :, -2::-1] * \
+        (vs.p_hydro[:, :, -1, np.newaxis] + np.cumsum(tmp[:, :, -2::-1], axis=2))
+
+    # add hydrostatic pressure gradient
+    vs.du[2:-2, 2:-2, :, vs.tau] += \
+        -(vs.p_hydro[3:-1, 2:-2, :] - vs.p_hydro[2:-2, 2:-2, :]) \
+        / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxu[2:-2, np.newaxis, np.newaxis]) \
+        * vs.maskU[2:-2, 2:-2, :]
+    vs.dv[2:-2, 2:-2, :, vs.tau] += \
+        -(vs.p_hydro[2:-2, 3:-1, :] - vs.p_hydro[2:-2, 2:-2, :]) \
+        / vs.dyu[np.newaxis, 2:-2, np.newaxis] \
+        * vs.maskV[2:-2, 2:-2, :]
+
+    _sequential_solve(vs)
 
     # integrate barotropic and baroclinic velocity forward in time
     vs.psi[:, :, vs.taup1] = vs.psi[:, :, vs.tau] + vs.dt_mom * ((1.5 + vs.AB_eps) * vs.dpsi[:, :, vs.taup1]

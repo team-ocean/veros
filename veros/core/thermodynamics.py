@@ -1,4 +1,5 @@
 from .. import veros_method, runtime_settings as rs
+from ..distributed import global_sum
 from . import advection, diffusion, isoneutral, density, utilities
 
 
@@ -66,6 +67,10 @@ def thermodynamics(vs):
         tke_mask = vs.tke[2:-2, 2:-2, :-1, vs.tau] > 0.
         fxb = np.sum(vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1] * tke_mask) \
             + np.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
+
+        fxa = global_sum(vs, fxa)
+        fxb = global_sum(vs, fxb)
+
         vs.P_diss_adv[...] = 0.
         vs.P_diss_adv[2:-2, 2:-2, :-1] = fxa / fxb * tke_mask
         vs.P_diss_adv[2:-2, 2:-2, -1] = fxa / fxb
