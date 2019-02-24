@@ -59,7 +59,6 @@ def solve(vs, rhs, sol, boundary_val=None):
     rhs[...] = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
     if rs.backend == "bohrium":
-        np.flush()
         linear_solution = np.asarray(vs.poisson_solver(rhs.copy2numpy(), sol.copy2numpy()))
     else:
         linear_solution = vs.poisson_solver(rhs, sol)
@@ -129,5 +128,8 @@ def _assemble_poisson_matrix(vs):
         cf += (wrap_diag_east.flatten(), wrap_diag_west.flatten())
 
     cf = np.array(cf)
+
+    if rs.backend == "bohrium":
+        cf = cf.copy2numpy()
 
     return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()

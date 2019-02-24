@@ -15,10 +15,20 @@ if HAS_MPI4PY:
     COMM = MPI.COMM_WORLD
     RANK = COMM.Get_rank()
     SIZE = COMM.Get_size()
+
+    MPI_TYPE_MAP = {
+        'int32': MPI.INT,
+        'int64': MPI.LONG,
+        'float32': MPI.FLOAT,
+        'float64': MPI.DOUBLE,
+        'bool': MPI.BOOL,
+    }
 else:
     COMM = None
     RANK = 0
     SIZE = 1
+
+    MPI_TYPE_MAP = {}
 
 
 SCATTERED_DIMENSIONS = (
@@ -54,8 +64,10 @@ def ascontiguousarray(arr):
 @veros_method
 def get_array_buffer(vs, arr):
     if rs.backend == "bohrium":
-        return np.interop_numpy.get_array(arr)
-    return arr
+        buf = np.interop_numpy.get_array(arr)
+    else:
+        buf = arr
+    return [buf, arr.size, MPI_TYPE_MAP[str(arr.dtype)]]
 
 
 def validate_decomposition(vs):
@@ -84,15 +96,6 @@ def proc_index_to_rank(vs, ix, iy):
     return ix + iy * rs.num_proc[0]
 
 
-def get_global_idx(vs, rank):
-    this_x, this_y = proc_rank_to_index(vs, rank)
-    chunk_x, chunk_y = get_chunk_size(vs)
-    return (
-        slice(2 + this_x * chunk_x, 2 + (this_x + 1) * chunk_x),
-        slice(2 + this_y * chunk_y, 2 + (this_y + 1) * chunk_y)
-    )
-
-
 def get_process_neighbors(vs):
     this_x, this_y = proc_rank_to_index(vs, RANK)
 
@@ -102,10 +105,16 @@ def get_process_neighbors(vs):
     north = this_y + 1 if (this_y + 1) < rs.num_proc[1] else None
 
     neighbors = [
+        # direct neighbors
         (west, this_y),
         (this_x, south),
         (east, this_y),
-        (this_x, north)
+        (this_x, north),
+        # corners
+        (west, south),
+        (east, south),
+        (east, north),
+        (west, north),
     ]
 
     global_neighbors = [
@@ -116,8 +125,6 @@ def get_process_neighbors(vs):
 
 @distributed_veros_method
 def exchange_overlap(vs, arr, dim='xy'):
-    arr = np.asarray(arr)
-
     if dim == 'xy':
         proc_neighbors = get_process_neighbors(vs)
 
@@ -126,6 +133,10 @@ def exchange_overlap(vs, arr, dim='xy'):
             (slice(0, None), slice(2, 4), Ellipsis), # south
             (slice(-4, -2), slice(0, None), Ellipsis), # east
             (slice(0, None), slice(-4, -2), Ellipsis), # north
+            (slice(2, 4), slice(2, 4), Ellipsis), # sw
+            (slice(-4, -2), slice(2, 4), Ellipsis), # se
+            (slice(-4, -2), slice(-4, -2), Ellipsis), # ne
+            (slice(2, 4), slice(-4, -2), Ellipsis), # nw
         )
 
         overlap_slices_to = (
@@ -133,16 +144,20 @@ def exchange_overlap(vs, arr, dim='xy'):
             (slice(0, None), slice(0, 2), Ellipsis), # south
             (slice(-2, None), slice(0, None), Ellipsis), # east
             (slice(0, None), slice(-2, None), Ellipsis), # north
+            (slice(0, 2), slice(0, 2), Ellipsis), # sw
+            (slice(-2, None), slice(0, 2), Ellipsis), # se
+            (slice(-2, None), slice(-2, None), Ellipsis), # ne
+            (slice(0, 2), slice(-2, None), Ellipsis), # nw
         )
 
         # flipped indices of overlap (n <-> s, w <-> e)
-        send_to_recv = [2, 3, 0, 1]
+        send_to_recv = [2, 3, 0, 1, 6, 7, 4, 5]
 
     else:
         if dim == 'x':
-            proc_neighbors = get_process_neighbors(vs)[0::2] # west and east
+            proc_neighbors = get_process_neighbors(vs)[0:4:2] # west and east
         elif dim == 'y':
-            proc_neighbors = get_process_neighbors(vs)[1::2] # south and north
+            proc_neighbors = get_process_neighbors(vs)[1:4:2] # south and north
         else:
             raise NotImplementedError()
 
@@ -166,15 +181,20 @@ def exchange_overlap(vs, arr, dim='xy'):
         if other_proc is None:
             continue
 
-        send_idx = overlap_slices_from[i_s]
         recv_idx = overlap_slices_to[i_s]
-
-        send_arr = ascontiguousarray(arr[send_idx])
         recv_arr = np.empty_like(arr[recv_idx])
-
-        COMM.Isend(get_array_buffer(vs, send_arr), dest=other_proc, tag=i_s)
         future = COMM.Irecv(get_array_buffer(vs, recv_arr), source=other_proc, tag=i_r)
         receive_futures.append((future, recv_idx, recv_arr))
+
+    for i_s in range(len(proc_neighbors)):
+        other_proc = proc_neighbors[i_s]
+
+        if other_proc is None:
+            continue
+
+        send_idx = overlap_slices_from[i_s]
+        send_arr = ascontiguousarray(arr[send_idx])
+        COMM.Ssend(get_array_buffer(vs, send_arr), dest=other_proc, tag=i_s)
 
     for future, recv_idx, recv_arr in receive_futures:
         future.wait()
@@ -183,6 +203,11 @@ def exchange_overlap(vs, arr, dim='xy'):
 
 @distributed_veros_method
 def exchange_cyclic_boundaries(vs, arr):
+    if rs.num_proc[0] == 1:
+        arr[-2:, ...] = arr[2:4, ...]
+        arr[:2, ...] = arr[-4:-2, ...]
+        return
+
     ix, iy = proc_rank_to_index(vs, RANK)
 
     if 0 < ix < (rs.num_proc[0] - 1):
@@ -200,11 +225,10 @@ def exchange_cyclic_boundaries(vs, arr):
     recv_arr = np.empty_like(arr[recv_idx])
     send_arr = ascontiguousarray(arr[send_idx])
 
-    send_future = COMM.Isend(get_array_buffer(vs, send_arr), dest=other_proc)
-    recv_future = COMM.Irecv(get_array_buffer(vs, recv_arr), source=other_proc)
-
-    send_future.wait()
-    recv_future.wait()
+    COMM.Sendrecv(
+        sendbuf=get_array_buffer(vs, send_arr), dest=other_proc,
+        recvbuf=get_array_buffer(vs, recv_arr), source=other_proc
+    )
 
     arr[recv_idx] = recv_arr
 
@@ -280,8 +304,7 @@ def _gather_1d(vs, arr, dim):
                 COMM.Irecv(get_array_buffer(vs, recvbuf), source=proc)
             )
 
-        for future in futures:
-            future.wait()
+        MPI.Request.Waitall(futures)
 
         out_shape = ((vs.nx + 4, vs.ny + 4)[dim], *arr.shape[1:])
         out = np.empty(out_shape, dtype=arr.dtype)
@@ -291,7 +314,7 @@ def _gather_1d(vs, arr, dim):
 
         return out
     else:
-        COMM.Send(get_array_buffer(vs, sendbuf), dest=0)
+        COMM.Ssend(get_array_buffer(vs, sendbuf), dest=0)
         return arr
 
 
@@ -337,7 +360,7 @@ def _gather_xy(vs, arr):
 
         return out
     else:
-        COMM.Send(get_array_buffer(vs, sendbuf), dest=0)
+        COMM.Ssend(get_array_buffer(vs, sendbuf), dest=0)
 
     return arr
 
@@ -401,32 +424,28 @@ def _scatter_1d(vs, arr, dim):
         return local_slice, global_slice, buffer
 
     local_slice, _, recvbuf = get_buffer(RANK)
+
     recv_future = COMM.Irecv(get_array_buffer(vs, recvbuf), source=0)
 
     if RANK == 0:
-        futures = []
         for proc in range(0, SIZE):
             _, global_slice, sendbuf = get_buffer(proc)
             sendbuf = ascontiguousarray(arr[global_slice])
             sendbuf = get_array_buffer(vs, sendbuf)
-            futures.append(
-                COMM.Isend(sendbuf, dest=proc)
-            )
-
-        for future in futures:
-            future.wait()
+            COMM.Ssend(sendbuf, dest=proc)
 
     recv_future.wait()
 
     if RANK == 0:
         # arr changes shape in main process
-        arr = np.zeros((nx + 4, *arr.shape[2:]), dtype=arr.dtype)
+        arr = np.zeros((nx + 4, *arr.shape[1:]), dtype=arr.dtype)
 
     arr[local_slice] = recvbuf
+
     exchange_overlap(vs, arr, dim='x' if dim == 0 else 'y')
 
-    if vs.enable_cyclic_x:
-        exchange_cyclic_boundaries(vs, arr)
+    # if vs.enable_cyclic_x and dim == 0:
+    #     exchange_cyclic_boundaries(vs, arr)
 
     return arr
 
@@ -453,29 +472,22 @@ def _scatter_xy(vs, arr):
     recv_future = COMM.Irecv(get_array_buffer(vs, recvbuf), source=0)
 
     if RANK == 0:
-        futures = []
         for proc in range(0, SIZE):
             _, global_slice, _ = get_buffer(proc)
             sendbuf = ascontiguousarray(arr[global_slice])
-            futures.append(
-                COMM.Isend(get_array_buffer(vs, sendbuf), dest=proc)
-            )
+            COMM.Ssend(get_array_buffer(vs, sendbuf), dest=proc)
 
-        for future in futures:
-            future.wait()
-
-    recv_future.wait()
-
-    if RANK == 0:
         # arr changes shape in main process
         arr = np.empty((nxi + 4, nyi + 4, *arr.shape[2:]), dtype=arr.dtype)
+
+    recv_future.wait()
 
     arr[local_slice] = recvbuf
 
     exchange_overlap(vs, arr)
 
-    if vs.enable_cyclic_x:
-        exchange_cyclic_boundaries(vs, arr)
+    # if vs.enable_cyclic_x:
+    #     exchange_cyclic_boundaries(vs, arr)
 
     return arr
 

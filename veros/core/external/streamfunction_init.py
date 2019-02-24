@@ -27,6 +27,12 @@ def streamfunction_init(vs):
     nisle = get_isleperim(vs)
     mainutils.enforce_boundaries(vs, vs.land_map)
 
+    import matplotlib.pyplot as plt
+    from veros.distributed import RANK
+    plt.imshow(vs.land_map)
+    plt.title(RANK)
+    plt.show()
+
     """
     now that the number of islands is known we can allocate the rest of the variables
     """
@@ -41,13 +47,6 @@ def streamfunction_init(vs):
     vs.line_dir_east_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
     vs.line_dir_west_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
 
-    if rs.backend == "bohrium":
-        vs.boundary_mask = vs.boundary_mask.copy2numpy()
-        vs.line_dir_south_mask = vs.line_dir_south_mask.copy2numpy()
-        vs.line_dir_north_mask = vs.line_dir_north_mask.copy2numpy()
-        vs.line_dir_east_mask = vs.line_dir_east_mask.copy2numpy()
-        vs.line_dir_west_mask = vs.line_dir_west_mask.copy2numpy()
-
     do_streamfunction_init(vs)
 
 
@@ -57,6 +56,13 @@ def streamfunction_init(vs):
     "maskU", "maskV", "maskT", "maskZ", "hur", "hvr", "dxu", "dxt", "dyu", "dyt", "cosu", "cost"
 ])
 def do_streamfunction_init(vs):
+    if rs.backend == "bohrium":
+        vs.boundary_mask = vs.boundary_mask.copy2numpy()
+        vs.line_dir_south_mask = vs.line_dir_south_mask.copy2numpy()
+        vs.line_dir_north_mask = vs.line_dir_north_mask.copy2numpy()
+        vs.line_dir_east_mask = vs.line_dir_east_mask.copy2numpy()
+        vs.line_dir_west_mask = vs.line_dir_west_mask.copy2numpy()
+
     for isle in range(vs.nisle):
         _print_verbose(vs, " ------------------------")
         _print_verbose(vs, " processing land mass #{:d}".format(isle))
