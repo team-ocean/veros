@@ -4,7 +4,7 @@ Contains veros methods for handling bio- and geochemistry
 """
 import numpy as np  # NOTE np is already defined somehow
 from .. import veros_method
-from . import advection, diffusion, thermodynamics, cyclic, atmospherefluxes
+from . import advection, diffusion, thermodynamics, cyclic, atmospherefluxes, utilities
 
 
 @veros_method
@@ -618,9 +618,63 @@ def npzd(vs):
 
         # NOTE Why is this in thermodynamics?
         thermodynamics.advect_tracer(vs, val, dNPZD_advect)
+        # vs.tracer_result[tracer] = vs.dt_mom * ((1.5 + vs.AB_eps) * dNPZD_advect - (0.5 + vs.AB_eps) * dNPZD_advect)
+        vs.tracer_result[tracer] = vs.dt_mom * dNPZD_advect
+
+
+        # TODO distinguish between biharmonic mixing and simple diffusion like in thermodynamics
+
         # diffusion.biharmonic(vs, val, vs.K_hbi, dNPZD_diff)  # TODO correct parameter
         diffusion.biharmonic(vs, val, np.sqrt(abs(vs.K_hbi)), dNPZD_diff)  # TODO correct parameter
-        vs.tracer_result[tracer] = vs.dt_mom * (dNPZD_advect + dNPZD_diff)
+        vs.tracer_result[tracer] += vs.dt_mom * dNPZD_diff
+
+        # TODO isopycnal diffusion
+
+
+
+        """
+        Vertical mixing
+        """
+
+        # TODO: Most of this could probably be moved outside
+        # dtracer_vmix = val[...]
+        # a_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+        # b_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+        # c_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+        # d_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+        # delta = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+
+        # ks = vs.kbot[2:-2, 2:-2] - 1
+        # delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1] \
+        #     * vs.kappaH[2:-2, 2:-2, :-1]
+        # delta[:, :, -1] = 0.
+        # a_tri[:, :, 1:] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
+        # b_tri[:, :, 1:] = 1 + (delta[:, :, 1:] + delta[:, :, :-1]) \
+        #     / vs.dzt[np.newaxis, np.newaxis, 1:]
+        # b_tri_edge = 1 + delta / vs.dzt[np.newaxis, np.newaxis, :]
+        # c_tri[:, :, :-1] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, :-1]
+
+
+
+        # d_tri[...] = val[2:-2, 2:-2, :]
+
+        # # TODO use dt_tracer in stead of dt_mom
+        # # d_tri[:, :, -1] += vs.dt_mom * vs.forc_temp_surface[2:-2, 2:-2] / vs.dzt[-1]
+        # d_tri[:, :, -1] += 0  # NOTE: 0 because no forcing of nutrients or plankton
+
+
+
+
+        # sol, mask = utilities.solve_implicit(vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+
+        # val[2:-2, 2:-2, :] = utilities.where(vs, mask, sol, val[2:-2, 2:-2])
+
+        # if tracer == "DIC":
+        #     vs.ddic_vmix = (val - dtracer_mix) / vs.dt_mom # TODO td_tracer
+
+
+        # vs.tracer_result[tracer] = vs.dt_mom * (dNPZD_advect + dNPZD_diff) # NOTE: old before Adam-Bashforth etc.
+
 
     biogeochemistry(vs)
 
@@ -628,7 +682,7 @@ def npzd(vs):
         vs.npzd_tracers[tracer][...] += vs.tracer_result[tracer]
 
     for tracer in vs.npzd_tracers.values():
-        tracer[...] = np.maximum(tracer, vs.trcmin) * vs.maskT
+        tracer[...] = np.maximum(tracer, vs.trcmin * vs.maskT)
 
     if vs.enable_cyclic_x:
         for tracer in vs.npzd_tracers.values():
