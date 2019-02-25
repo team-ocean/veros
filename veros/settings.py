@@ -85,8 +85,7 @@ SETTINGS = OrderedDict([
     ("c_eps", Setting(0.7, float, "")),
     ("alpha_tke", Setting(1.0, float, "")),
     ("mxl_min", Setting(1e-12, float, "")),
-    ("kappaM_min", Setting(0., float, "")),
-    ("kappaM_min", Setting(2e-3, float, "")),
+    ("kappaM_min", Setting(2e-4, float, "")),
     ("kappaM_max", Setting(100., float, "")),
     ("tke_mxl_choice", Setting(1, int, "")),
     ("enable_tke_superbee_advection", Setting(False, bool, "")),
@@ -117,6 +116,8 @@ SETTINGS = OrderedDict([
     ("eke_hrms_k0_min", Setting(0.0, float, "min value for bottom roughness parameter")),
 
     # New
+    ("enable_Prandtl_tke", Setting(True, bool, "Compute Prandtl number from stratification levels in TKE routine")),
+    ("Prandtl_tke0", Setting(10., float, "Fixed Prandtl number for kappaH computation when stratification levels are not used in TKE routine")),
     ("verbose_island_routines", Setting(False, bool, "Print extra debugging output in island / boundary integral routines")),
     ("use_io_threads", Setting(True, bool, "Start extra threads for disk writes")),
     ("io_timeout", Setting(20, float, "Timeout in seconds while waiting for IO locks to be released")),
@@ -211,9 +212,6 @@ SETTINGS = OrderedDict([
     ("kfeorg", Setting(0.45 / 86400, float, "Organic-matter dependent scavenging rate [(m^3/(gC s))^0.58]")),
     ("rfeton", Setting(1e-6 * 6.625, float, "Uptake ratio of iron to nitrogen [mol Fe/mol N] = 10 micromol Fe / mol C")),
     ("kfecol", Setting(0.005 / 86400, float, "Colloidal production and precipitation rate [s^-1]")),
-
-
-
 ])
 
 

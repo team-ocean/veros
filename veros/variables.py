@@ -592,7 +592,7 @@ CONDITIONAL_VARIABLES = OrderedDict([
         )),
     ])),
     ("enable_TEM_friction", OrderedDict([
-        ("kappa_gm", Variable("Vertical diffusivity", W_GRID, "m^2/s", "Vertical diffusivity")),
+        ("kappa_gm", Variable("Vertical diffusivity", W_GRID, "m^2/s", "Vertical diffusivity", output=True)),
     ])),
     ("enable_tke", OrderedDict([
         ("tke", Variable(
