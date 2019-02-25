@@ -35,31 +35,36 @@ def carbon_flux(vs):
 #       xconv = 33.7/3.6e+05
 #       xconv = xconv*0.75
     xconv = 0.337 / 3.6e5
-    xconv *= 0.75
+    xconv *= 0.75  # NOTE: This seems like an approximation I don't where they got it
 
     # co2star, dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
     dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
-    vs.dco2star = dco2star
+    #vs.dco2star = dco2star
 
     # Schmidt number for CO2
     # t_in wasn't actually used but sst was, however they are the same...
     scco2 = 2073.1 - 125.62 * t_in + 3.6276 * t_in ** 2 - 0.043219 * t_in ** 3
+    # Wanninkhof, 1992, table A
 
     # piston_vel = ao * xconv * ((sbc[i, j, iws]) * 0.01) ** 2 * ((scco2/660.0)**(-0.5))
     # piston_vel = ao * xconv * (wind_speed * 0.01) ** 2 * ((scco2/660.0)**(-0.5))
-    # NOTE units: m * (m / s)^2
     piston_vel = ao * xconv * (wind_speed) ** 2 * ((scco2/660.0)**(-0.5))
+    # NOTE: According to https://www.soest.hawaii.edu/oceanography/courses/OCN623/Spring%202015/Gas_Exchange_2015_one-lecture1.pdf there are 3 regimes we are looking at the wavy surface
+    # NOTE: https://aslopubs.onlinelibrary.wiley.com/doi/pdf/10.4319/lom.2014.12.351 uses the correct form for scco2
+    # Sweeney et al. 2007
+
     # 1e3 added to convert to mmol / m^2 / s
-    DIC_Flux = piston_vel * dco2star * vs.maskT[:, :, -1] # * 1e3
+    co2_flux = piston_vel * dco2star * vs.maskT[:, :, -1] # * 1e3
+    # NOTE Is this Fick's First law? https://www.ocean.washington.edu/courses/oc400/Lecture_Notes/CHPT11.pdf
 
     # TODO set boundary condictions
     if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(DIC_Flux)
+        cyclic.setcyclic_x(co2_flux)
 
     # TODO land fluxes?
 
     # call co2forc
-    return DIC_Flux
+    return co2_flux
 
 @veros_method
 def oxygen_flux(vs):
@@ -117,11 +122,12 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
     # Now calculate FugFac according to Weiss (1974) Marine Chemestry TODO: What does FugFac mean?
     # delta_x and b_x are in cm3/mol TODO we should use m over cm right?
+    # NOTE: This looks like equation 9, but without the pressure factors. Could FugFac mean fugacity factor??
     rt_x = 83.1451 * temperature_in_kelvin  # Gas constant times temperature
-    delta_x = (57.7 - 0.118 * temperature_in_kelvin)
+    delta_x = (57.7 - 0.118 * temperature_in_kelvin)  # In the text "\delta CO_2-air
     b_x = -1636.75 + 12.0408 * temperature_in_kelvin - 0.0327957 * temperature_in_kelvin ** 2 \
-            + 3.16528 * 1e-5 * temperature_in_kelvin ** 3
-    FugFac = np.exp((b_x + 2 * delta_x) / rt_x)
+            + 3.16528 * 1e-5 * temperature_in_kelvin ** 3  # equation 6: Second viral coefficient B(T) (cm^3/mol)
+    FugFac = np.exp((b_x + 2 * delta_x) / rt_x)  # equation 9 without front factor and ignoring pressure factors, but if they are 1atm, then that explains it
 
 
     # k1 = [H][HCO3]/[H2CO3]
@@ -222,57 +228,27 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # (xx.y). Making xacc bigger will result in faster convergence also, but this
     # is not recommended (xacc of 10**-9 drops precision to 2 significant figures).
 
-    def ta_iter_SWS(x):
-        x2 = x * x
-        x3 = x2 * x
-        k12 = k1 * k2
-        k12p = k1p * k2p
-        k123p = k12p * k3p
-        c = 1.0 + st / ks + ft / kf
-        a = x3 + k1p * x2 + k12p * x + k123p
-        # print(np.abs(a.min()))
-        a2 = a * a
-        da = 3.0 * x2 + 2.0 * k1p * x + k12p
-        b = x2 + k1 * x + k12
-        b2 = b * b
-        db = 2.0 * x + k1
 
-
-        # fn = hco3+co3+borate+oh+hpo4+2*po4+silicate-hfree-hso4-hf-h3po4-ta
-        fn = k1 * x * dic / b + 2.0 * dic * k12 / b + \
-             bt / (1.0 + x / kb) + kw / x + pt * k12p * x / a + \
-             2.0 * pt * k123p / a + sit / (1.0 + x / ksi) - x / c - \
-             st / (1.0 + ks / (x / c)) - ft / (1.0 + kf / (x / c)) -\
-             pt * x3/a - ta
-
-        # df = dfn/dx
-        df = ((k1 * dic * b) - k1 * x * dic * db) / b2 - 2.0 * dic * k12 * db / b2 - \
-             bt / kb / (1.0 + x / kb)**2.0 - kw / x2 + (pt * k12p * (a - x * da)) / a2 - \
-             2.0 * pt * k123p * da / a2 - sit / ksi / (1.0 + x / ksi)**2 - 1.0 / c - \
-             st * (1.0 + ks / (x / c))**(-2.0) * (ks * c / x2) - ft * (1.0 + kf / (x / c))**(-2.0) * \
-             (kf * c / x2) - pt * x2 * (3.0 * a - x * da) / a2
-
-
-
-        return fn, df
-
-    x1 = 10.0 ** (-ph_high)
-    x2 = 10.0 ** (-ph_low)
+    ph = np.log10(vs.hSWS) # negativ ph
+    # x1 = 10.0 ** (-ph_high)
+    # x2 = 10.0 ** (-ph_low)
+    x1 = 10.0 ** (ph + 0.5)
+    x2 = 10.0 ** (ph - 0.5)
     xacc = 1e-10
 
     in1 = np.ones_like(co2_in) * x1
     in2 = np.ones_like(co2_in) * x2
     # hSWS = drtsafe(in1, in2, ta_iter_SWS, xacc)
-    hSWS = drtsafe(vs, in1, in2, ta_iter_SWS, xacc)
-    vs.hSWS[...] = hSWS
+    vs.hSWS = drtsafe(vs, in1, in2, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb, xacc)
+    # vs.hSWS[...] = hSWS
 
 
     # Calculate [CO2*] as defined in DOE Methods Handbook 1993 Ver. 2,
     # ORNL/CDIC-74, Dickson and Goyet, eds. (Ch 2 p 1+, Eq A.49)
-    co2star = dic * hSWS**2 / (hSWS**2 + k1 * hSWS + k1 * k2)
+    co2star = dic * vs.hSWS**2 / (vs.hSWS**2 + k1 * vs.hSWS + k1 * k2)
     co2starair = co2 * ff * atmospheric_pressure
     dco2star = co2starair - co2star
-    ph = -np.log10(hSWS)
+    # ph = -np.log10(hSWS)
     # print(np.min(dco2star), np.max(dco2star))
 
     pCO2 = co2star / (k0 * FugFac)
@@ -286,21 +262,44 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     pCO2 /= permeg
     dpCO2 /= permeg
 
-    # return co2star, dco2star
-    # print()
-    # print("hSWS=", np.min(hSWS), np.min(np.abs(hSWS)), np.max(hSWS))
-    # print("co2star=", np.min(co2star), np.min(np.abs(co2star)), np.max(co2star))
-    # print("co2starair=", np.min(co2starair), np.min(np.abs(co2starair)), np.max(co2starair))
-    # print("dco2star=", np.min(dco2star), np.min(np.abs(dco2star)), np.max(dco2star))
-    # print()
     return dco2star
 
+def ta_iter_SWS(x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb):
+    x2 = x * x
+    x3 = x2 * x
+    k12 = k1 * k2
+    k12p = k1p * k2p
+    k123p = k12p * k3p
+    c = 1.0 + st / ks + ft / kf
+    a = x3 + k1p * x2 + k12p * x + k123p
+    a2 = a * a
+    da = 3.0 * x2 + 2.0 * k1p * x + k12p
+    b = x2 + k1 * x + k12
+    b2 = b * b
+    db = 2.0 * x + k1
 
 
-# def drtsafe(guess_low, guess_high, ta_iter_SWS, accuracy, max_iterations=100):
-def drtsafe(vs, guess_low, guess_high, ta_iter_SWS, accuracy, max_iterations=100):
-    f_low, _ = ta_iter_SWS(guess_low)
-    f_high, _ = ta_iter_SWS(guess_high)
+    # fn = hco3+co3+borate+oh+hpo4+2*po4+silicate-hfree-hso4-hf-h3po4-ta
+    fn = k1 * x * dic / b + 2.0 * dic * k12 / b + \
+         bt / (1.0 + x / kb) + kw / x + pt * k12p * x / a + \
+         2.0 * pt * k123p / a + sit / (1.0 + x / ksi) - x / c - \
+         st / (1.0 + ks / (x / c)) - ft / (1.0 + kf / (x / c)) -\
+         pt * x3/a - ta
+
+    # df = dfn/dx
+    df = ((k1 * dic * b) - k1 * x * dic * db) / b2 - 2.0 * dic * k12 * db / b2 - \
+         bt / kb / (1.0 + x / kb)**2.0 - kw / x2 + (pt * k12p * (a - x * da)) / a2 - \
+         2.0 * pt * k123p * da / a2 - sit / ksi / (1.0 + x / ksi)**2 - 1.0 / c - \
+         st * (1.0 + ks / (x / c))**(-2.0) * (ks * c / x2) - ft * (1.0 + kf / (x / c))**(-2.0) * \
+         (kf * c / x2) - pt * x2 * (3.0 * a - x * da) / a2
+
+
+
+    return fn, df
+
+def drtsafe(vs, guess_low, guess_high, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb, accuracy, max_iterations=100):
+    f_low, _ = ta_iter_SWS(guess_low, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb)
+    f_high, _ = ta_iter_SWS(guess_high, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb)
 
 
     # Switch variables depending on value of f_low
@@ -310,41 +309,75 @@ def drtsafe(vs, guess_low, guess_high, ta_iter_SWS, accuracy, max_iterations=100
 
 
     drtsafe_val = 0.5 * (guess_low + guess_high)
+    #drtsafe_val = vs.hSWS[:, :]
     dx = np.abs(guess_high - guess_low)
-    # drtsafe_val = vs.hSWS  # Use current value as initial guess
-    # dx = np.abs(guess_high - vs.hSWS)
     dx_old = dx.copy()
-    f, df = ta_iter_SWS(drtsafe_val)
+    f, df = ta_iter_SWS(drtsafe_val, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb)
 
-    mask = np.zeros_like(drtsafe_val, dtype=np.bool)
+    mask = np.empty_like(drtsafe_val, dtype=np.bool)
+    mask[...] = vs.maskT[:, :, -1]
 
     for _ in range(max_iterations):
         # print(_, mask.sum())
-        tmp_mask = ((drtsafe_val - x_high) * df - f) * ((drtsafe_val - x_low) * df - f) >= 0
-        tmp_mask = np.logical_or(tmp_mask, (np.abs(2.0 * f) > np.abs(dx_old * df)))
+        # mask[...] = True
+        tmp_mask = ((drtsafe_val[mask] - x_high[mask]) * df[mask] - f[mask]) * ((drtsafe_val[mask] - x_low[mask]) * df[mask] - f[mask]) >= 0
+        tmp_mask = np.logical_or(tmp_mask, (np.abs(2.0 * f[mask]) > np.abs(dx_old[mask] * df[mask])))
 
         dx_old = dx.copy()
-        # dx, drtsafe_val = np.where(tmp_mask,
-        #         (0.5 * (x_high - x_low), x_low + dx),
-        #         (f / df, drtsafe_val - dx))
-        dx = np.where(tmp_mask, 0.5 * (x_high - x_low), f/df)
-        drtsafe_val = np.where(tmp_mask, x_low + dx, drtsafe_val - dx)
+        dx[mask] = np.where(tmp_mask, 0.5 * (x_high[mask] - x_low[mask]), f[mask]/df[mask])
+        drtsafe_val[mask] = np.where(tmp_mask, x_low[mask] + dx[mask], drtsafe_val[mask] - dx[mask])
 
-        mask = np.abs(dx) < accuracy
+        mask[mask] = np.abs(dx[mask]) > accuracy
 
-        if mask.all():
+        if not mask.any():
             break
 
-        f, df = ta_iter_SWS(drtsafe_val)
+        f[mask], df[mask] = ta_iter_SWS(drtsafe_val[mask], k1[mask], k2[mask], k1p[mask], k2p[mask], k3p[mask], st[mask], ks[mask], kf[mask], ft[mask], dic[mask], ta[mask], sit, ksi[mask], pt, bt[mask], kw[mask], kb[mask])
 
-        x_low, x_high, f_low, f_high = np.where(f < 0,
-                (drtsafe_val, x_high, f, f_high),
-                (x_low, drtsafe_val, f_low, f))
-
-        # if not mask.any():
-        #     break
-
-        # print("f = ", np.min(f), np.min(np.abs(f)), np.max(f))
-        # print("df = ", np.min(df), np.min(np.abs(df)), np.max(df))
+        x_low[mask], x_high[mask], f_low[mask], f_high[mask] = np.where(f[mask] < 0,
+                (drtsafe_val[mask], x_high[mask], f[mask], f_high[mask]),
+                (x_low[mask], drtsafe_val[mask], f_low[mask], f[mask]))
 
     return drtsafe_val
+
+# def drtsafe(vs, guess_low, guess_high, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb, accuracy, max_iterations=100):
+# def drtsafe(guess_low, guess_high, ta_iter_SWS, accuracy, max_iterations=100):
+# def drtsafe(vs, guess_low, guess_high, accuracy, max_iterations=100):
+#     f_low, _ = ta_iter_SWS(guess_low)
+#     f_high, _ = ta_iter_SWS(guess_high)
+
+
+#     # Switch variables depending on value of f_low
+#     x_low, x_high, f_low, f_high = np.where(f_low < 0,
+#             (guess_low, guess_high, f_low, f_high),
+#             (guess_high, guess_low, f_high, f_low))
+
+
+#     drtsafe_val = 0.5 * (guess_low + guess_high)
+#     dx = np.abs(guess_high - guess_low)
+#     dx_old = dx.copy()
+#     f, df = ta_iter_SWS(drtsafe_val)
+
+#     mask = np.zeros_like(drtsafe_val, dtype=np.bool)
+
+#     for _ in range(max_iterations):
+#         # print(_, mask.sum())
+#         tmp_mask = ((drtsafe_val - x_high) * df - f) * ((drtsafe_val - x_low) * df - f) >= 0
+#         tmp_mask = np.logical_or(tmp_mask, (np.abs(2.0 * f) > np.abs(dx_old * df)))
+
+#         dx_old = dx.copy()
+#         dx = np.where(tmp_mask, 0.5 * (x_high - x_low), f/df)
+#         drtsafe_val = np.where(tmp_mask, x_low + dx, drtsafe_val - dx)
+
+#         mask = np.abs(dx) < accuracy
+
+#         if mask.all():
+#             break
+
+#         f, df = ta_iter_SWS(drtsafe_val)
+
+#         x_low, x_high, f_low, f_high = np.where(f < 0,
+#                 (drtsafe_val, x_high, f, f_high),
+#                 (x_low, drtsafe_val, f_low, f))
+
+#     return drtsafe_val
