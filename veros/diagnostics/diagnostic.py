@@ -1,10 +1,9 @@
 import os
 import logging
 
-from .io_tools import netcdf as nctools
-from .io_tools import hdf5 as h5tools
+from .io_tools import netcdf as nctools, hdf5 as h5tools
 from ..decorators import veros_method, do_not_disturb
-from .. import time, runtime_state
+from .. import time, runtime_state, distributed
 
 
 class VerosDiagnostic(object):
@@ -91,7 +90,7 @@ class VerosDiagnostic(object):
         return vs.restart_output_filename.format(**vars(vs))
 
     @veros_method
-    def read_h5_restart(self, vs):
+    def read_h5_restart(self, vs, var_meta):
         restart_filename = self.get_restart_input_file_name(vs)
         if not os.path.isfile(restart_filename):
             raise IOError("restart file {} not found".format(restart_filename))
@@ -99,9 +98,20 @@ class VerosDiagnostic(object):
         logging.info(" reading restart data for diagnostic {} from {}"
                      .format(self.name, restart_filename))
         with h5tools.threaded_io(vs, restart_filename, "r") as infile:
-            # cast dtype to str to prevent custom types from leaking
-            to_arr = lambda v: np.array(v, dtype=str(v.dtype))
-            variables = {key: to_arr(var) for key, var in infile[self.name].items()}
+            variables = {}
+            for key, var in infile[self.name].items():
+                if np.isscalar(var):
+                    variables[key] = var
+                    continue
+
+                local_shape = distributed.get_local_size(vs, var, var_meta[key].dims)
+                gidx, lidx = distributed.get_chunk_slices(vs, var_meta[key].dims[:var.ndim], include_overlap=True)
+
+                variables[key] = np.empty(local_shape, dtype=str(var.dtype))
+                variables[key][lidx] = var[gidx]
+
+                distributed.exchange_overlap(vs, variables[key], var_meta[key].dims)
+
             attributes = {key: var for key, var in infile[self.name].attrs.items()}
         return attributes, variables
 
@@ -114,13 +124,18 @@ class VerosDiagnostic(object):
                 var = var.copy2numpy()
             except AttributeError:
                 pass
+
+            global_shape = distributed.get_global_size(vs, var, var_meta[key].dims)
+            gidx, lidx = distributed.get_chunk_slices(vs, var_meta[key].dims, include_overlap=True)
+
             kwargs = {}
             if vs.enable_hdf5_gzip_compression and runtime_state.proc_num == 1:
                 kwargs.update(
                     compression="gzip",
                     compression_opts=9
                 )
-            group.require_dataset(key, var.shape, var.dtype, exact=True, **kwargs)
-            group[key][...] = var
+            group.require_dataset(key, global_shape, var.dtype, exact=True, **kwargs)
+            group[key][gidx] = var[lidx]
+
         for key, val in attributes.items():
             group.attrs[key] = val

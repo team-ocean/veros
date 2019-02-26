@@ -4,7 +4,7 @@ import logging
 import warnings
 
 from ... import veros_method, variables, runtime_state
-from ...distributed import get_global_chunk_slice
+from ...distributed import get_chunk_slices
 
 """
 netCDF output is designed to follow the COARDS guidelines from
@@ -94,7 +94,7 @@ def write_variable(vs, key, var, var_data, ncfile, time_step=None):
 
     var_obj = ncfile.variables[key]
 
-    chunk = get_global_chunk_slice(vs, var_obj.dimensions)
+    chunk, _ = get_chunk_slices(vs, var_obj.dimensions)
 
     if "Time" in var_obj.dimensions:
         if time_step is None:

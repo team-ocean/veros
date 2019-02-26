@@ -52,7 +52,7 @@ class Snapshot(VerosDiagnostic):
     def read_restart(self, vs):
         restart_vars = {var: vs.variables[var] for var in self.restart_variables}
         restart_data = {var: getattr(vs, var) for var in self.restart_variables}
-        attributes, variables = self.read_h5_restart(vs)
+        attributes, variables = self.read_h5_restart(vs, restart_vars)
         for key, arr in restart_data.items():
             try:
                 restart_var = variables[key]

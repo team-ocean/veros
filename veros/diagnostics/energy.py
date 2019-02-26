@@ -331,7 +331,7 @@ class Energy(VerosDiagnostic):
 
     @veros_method
     def read_restart(self, vs):
-        attributes, variables = self.read_h5_restart(vs)
+        attributes, variables = self.read_h5_restart(vs, self.variables)
         if attributes:
             for key, val in attributes.items():
                 setattr(self, key, val)

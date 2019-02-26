@@ -242,7 +242,7 @@ class Overturning(VerosDiagnostic):
 
     @veros_method
     def read_restart(self, vs):
-        attributes, variables = self.read_h5_restart(vs)
+        attributes, variables = self.read_h5_restart(vs, self.variables)
         if attributes:
             self.nitts = attributes["nitts"]
         if variables:
@@ -253,4 +253,4 @@ class Overturning(VerosDiagnostic):
     def write_restart(self, vs, outfile):
         var_data = {key: getattr(self, key)
                     for key, var in self.variables.items() if var.write_to_restart}
-        self.write_h5_restart(vs, {"nitts": self.nitts}, {}, var_data, outfile)
+        self.write_h5_restart(vs, {"nitts": self.nitts}, self.variables, var_data, outfile)

@@ -17,7 +17,7 @@ def enforce_boundaries(vs, arr, local=False):
         return
 
     from ..distributed import exchange_overlap
-    exchange_overlap(vs, arr)
+    exchange_overlap(vs, arr, ["xt", "yt"])
 
 
 @veros_method(inline=True)

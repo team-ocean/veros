@@ -70,6 +70,30 @@ def get_chunk_size(vs):
     return (vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1])
 
 
+def get_global_size(vs, arr, dim_grid):
+    shape = []
+    for s, dim in zip(arr.shape, dim_grid):
+        if dim in SCATTERED_DIMENSIONS[0]:
+            shape.append(vs.nx + 4)
+        elif dim in SCATTERED_DIMENSIONS[1]:
+            shape.append(vs.ny + 4)
+        else:
+            shape.append(s)
+    return shape
+
+
+def get_local_size(vs, arr, dim_grid):
+    shape = []
+    for s, dim in zip(arr.shape, dim_grid):
+        if dim in SCATTERED_DIMENSIONS[0]:
+            shape.append(vs.nx // rs.num_proc[0] + 4)
+        elif dim in SCATTERED_DIMENSIONS[1]:
+            shape.append(vs.ny // rs.num_proc[1] + 4)
+        else:
+            shape.append(s)
+    return shape
+
+
 def proc_rank_to_index(rank):
     return (rank % rs.num_proc[0], rank // rs.num_proc[0])
 
@@ -78,23 +102,37 @@ def proc_index_to_rank(ix, iy):
     return ix + iy * rs.num_proc[0]
 
 
-def get_global_chunk_slice(vs, dim_grid, proc_idx=None):
+def get_chunk_slices(vs, dim_grid, proc_idx=None, include_overlap=False):
     if proc_idx is None:
         proc_idx = proc_rank_to_index(RANK)
 
     px, py = proc_idx
     nx, ny = get_chunk_size(vs)
 
-    chunk = []
+    if include_overlap:
+        sxl = 0 if px == 0 else 2
+        sxu = nx + 4 if (px + 1) == rs.num_proc[0] else nx + 2
+        syl = 0 if py == 0 else 2
+        syu = ny + 4 if (py + 1) == rs.num_proc[1] else ny + 2
+    else:
+        sxl = syl = 0
+        sxu = nx
+        syu = ny
+
+    global_slice, local_slice = [], []
+
     for dim in dim_grid:
         if dim in SCATTERED_DIMENSIONS[0]:
-            chunk.append(slice(px * nx, (px + 1) * nx))
+            global_slice.append(slice(sxl + px * nx, sxu + px * nx))
+            local_slice.append(slice(sxl, sxu))
         elif dim in SCATTERED_DIMENSIONS[1]:
-            chunk.append(slice(py * ny, (py + 1) * ny))
+            global_slice.append(slice(syl + py * ny, syu + py * ny))
+            local_slice.append(slice(syl, syu))
         else:
-            chunk.append(slice(None))
+            global_slice.append(slice(None))
+            local_slice.append(slice(None))
 
-    return tuple(chunk)
+    return tuple(global_slice), tuple(local_slice)
 
 
 def get_process_neighbors(vs):
@@ -126,8 +164,17 @@ def get_process_neighbors(vs):
 
 @dist_context_only
 @veros_method
-def exchange_overlap(vs, arr, dim='xy'):
-    if dim == 'xy':
+def exchange_overlap(vs, arr, var_grid):
+    if len(var_grid) < 2:
+        d1, d2 = var_grid[0], None
+    else:
+        d1, d2 = var_grid[:2]
+
+    if d1 not in SCATTERED_DIMENSIONS[0] and d1 not in SCATTERED_DIMENSIONS[1] and d2 not in SCATTERED_DIMENSIONS[1]:
+        # neither x nor y dependent, nothing to do
+        return arr
+
+    if d1 in SCATTERED_DIMENSIONS[0] and d2 in SCATTERED_DIMENSIONS[1]:
         proc_neighbors = get_process_neighbors(vs)
 
         overlap_slices_from = (
@@ -156,9 +203,9 @@ def exchange_overlap(vs, arr, dim='xy'):
         send_to_recv = [2, 3, 0, 1, 6, 7, 4, 5]
 
     else:
-        if dim == 'x':
+        if d1 in SCATTERED_DIMENSIONS[0]:
             proc_neighbors = get_process_neighbors(vs)[0:4:2] # west and east
-        elif dim == 'y':
+        elif d1 in SCATTERED_DIMENSIONS[1]:
             proc_neighbors = get_process_neighbors(vs)[1:4:2] # south and north
         else:
             raise NotImplementedError()
@@ -282,25 +329,14 @@ def global_sum(vs, arr):
 def _gather_1d(vs, arr, dim):
     assert dim in (0, 1)
 
-    nx = get_chunk_size(vs)[dim]
-    nproc = rs.num_proc[dim]
-
-    def get_buffer(proc):
-        px = proc_rank_to_index(proc)[dim]
-        sl = 0 if px == 0 else 2
-        su = nx + 4 if (px + 1) == nproc else nx + 2
-        local_slice = slice(sl, su)
-        global_slice = slice(sl + px * nx, su + px * nx)
-        buffer = np.empty((su - sl, *arr.shape[1:]), dtype=arr.dtype)
-        return local_slice, global_slice, buffer
-
     otherdim = int(not dim)
     pi = proc_rank_to_index(RANK)
     if pi[otherdim] != 0:
         return arr
 
-    idx, gidx, sendbuf = get_buffer(RANK)
-    sendbuf[...] = arr[idx]
+    dim_grid = ["xt" if dim == 0 else "yt"] + [None] * (arr.ndim - 1)
+    gidx, idx = get_chunk_slices(vs, dim_grid, include_overlap=True)
+    sendbuf = ascontiguousarray(arr[idx])
 
     if RANK == 0:
         buffer_list = []
@@ -309,8 +345,9 @@ def _gather_1d(vs, arr, dim):
             pi = proc_rank_to_index(proc)
             if pi[otherdim] != 0:
                 continue
-            sidx, tidx, recvbuf = get_buffer(proc)
-            buffer_list.append((sidx, tidx, recvbuf))
+            idx_g, idx_l = get_chunk_slices(vs, dim_grid, include_overlap=True, proc_idx=pi)
+            recvbuf = np.empty_like(arr[idx_l])
+            buffer_list.append((idx_g, recvbuf))
             futures.append(
                 COMM.Irecv(get_array_buffer(vs, recvbuf), source=proc)
             )
@@ -320,7 +357,7 @@ def _gather_1d(vs, arr, dim):
         out_shape = ((vs.nx + 4, vs.ny + 4)[dim], *arr.shape[1:])
         out = np.empty(out_shape, dtype=arr.dtype)
         out[gidx] = sendbuf
-        for _, idx, val in buffer_list:
+        for idx, val in buffer_list:
             out[idx] = val
 
         return out
@@ -333,32 +370,22 @@ def _gather_1d(vs, arr, dim):
 @veros_method
 def _gather_xy(vs, arr):
     nxi, nyi = get_chunk_size(vs)
-
-    def get_buffer(proc):
-        px, py = proc_rank_to_index(proc)
-        sxl = 0 if px == 0 else 2
-        sxu = nxi + 4 if (px + 1) == rs.num_proc[0] else nxi + 2
-        syl = 0 if py == 0 else 2
-        syu = nyi + 4 if (py + 1) == rs.num_proc[1] else nyi + 2
-        local_slice = (slice(sxl, sxu), slice(syl, syu))
-        global_slice = (
-            slice(sxl + px * nxi, sxu + px * nxi),
-            slice(syl + py * nyi, syu + py * nyi)
-        )
-        buffer = np.empty((sxu - sxl, syu - syl, *arr.shape[2:]), dtype=arr.dtype)
-        return local_slice, global_slice, buffer
-
     assert arr.shape[:2] == (nxi + 4, nyi + 4)
 
-    idx, gidx, sendbuf = get_buffer(RANK)
-    sendbuf[...] = arr[idx]
+    dim_grid = ["xt", "yt"] + [None] * (arr.ndim - 2)
+    gidx, idx = get_chunk_slices(vs, dim_grid, include_overlap=True)
+    sendbuf = ascontiguousarray(arr[idx])
 
     if RANK == 0:
         buffer_list = []
         futures = []
         for proc in range(1, SIZE):
-            sidx, tidx, recvbuf = get_buffer(proc)
-            buffer_list.append((sidx, tidx, recvbuf))
+            idx_g, idx_l = get_chunk_slices(
+                vs, dim_grid, include_overlap=True,
+                proc_idx=proc_rank_to_index(proc)
+            )
+            recvbuf = np.empty_like(arr[idx_l])
+            buffer_list.append((idx_g, recvbuf))
             futures.append(
                 COMM.Irecv(get_array_buffer(vs, recvbuf), source=proc)
             )
@@ -367,7 +394,7 @@ def _gather_xy(vs, arr):
         out_shape = (vs.nx + 4, vs.ny + 4, *arr.shape[2:])
         out = np.empty(out_shape, dtype=arr.dtype)
         out[gidx] = sendbuf
-        for _, idx, val in buffer_list:
+        for idx, val in buffer_list:
             out[idx] = val
 
         return out
@@ -429,26 +456,17 @@ def _scatter_1d(vs, arr, dim):
     assert dim in (0, 1)
 
     nx = get_chunk_size(vs)[dim]
+    dim_grid = ["xt" if dim == 0 else "yt"] + [None] * (arr.ndim - 1)
+    _, local_slice = get_chunk_slices(vs, dim_grid, include_overlap=True)
 
-    def get_buffer(proc):
-        px = proc_rank_to_index(proc)[dim]
-        sl = 0 if px == 0 else 2
-        su = nx + 4 if (px + 1) == rs.num_proc[dim] else nx + 2
-        local_slice = slice(sl, su)
-        global_slice = slice(sl + px * nx, su + px * nx)
-        buffer = np.empty((su - sl, *arr.shape[1:]), dtype=arr.dtype)
-        return local_slice, global_slice, buffer
-
-    local_slice, _, recvbuf = get_buffer(RANK)
-
+    recvbuf = np.empty_like(arr[local_slice])
     recv_future = COMM.Irecv(get_array_buffer(vs, recvbuf), source=0)
 
     if RANK == 0:
         for proc in range(0, SIZE):
-            _, global_slice, sendbuf = get_buffer(proc)
+            global_slice, _ = get_chunk_slices(vs, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
             sendbuf = ascontiguousarray(arr[global_slice])
-            sendbuf = get_array_buffer(vs, sendbuf)
-            COMM.Send(sendbuf, dest=proc)
+            COMM.Send(get_array_buffer(vs, sendbuf), dest=proc)
 
     recv_future.wait()
 
@@ -458,7 +476,7 @@ def _scatter_1d(vs, arr, dim):
 
     arr[local_slice] = recvbuf
 
-    exchange_overlap(vs, arr, dim='x' if dim == 0 else 'y')
+    exchange_overlap(vs, arr, ['xt' if dim == 0 else 'yt'])
 
     return arr
 
@@ -468,26 +486,14 @@ def _scatter_1d(vs, arr, dim):
 def _scatter_xy(vs, arr):
     nxi, nyi = get_chunk_size(vs)
 
-    def get_buffer(proc):
-        px, py = proc_rank_to_index(proc)
-        sxl = 0 if px == 0 else 2
-        sxu = nxi + 4 if (px + 1) == rs.num_proc[0] else nxi + 2
-        syl = 0 if py == 0 else 2
-        syu = nyi + 4 if (py + 1) == rs.num_proc[1] else nyi + 2
-        local_slice = (slice(sxl, sxu), slice(syl, syu))
-        global_slice = (
-            slice(sxl + px * nxi, sxu + px * nxi),
-            slice(syl + py * nyi, syu + py * nyi)
-        )
-        buffer = np.empty((sxu - sxl, syu - syl, *arr.shape[2:]), dtype=arr.dtype)
-        return local_slice, global_slice, buffer
-
-    local_slice, _, recvbuf = get_buffer(RANK)
+    dim_grid = ["xt", "yt"] + [None] * (arr.ndim - 2)
+    _, local_slice = get_chunk_slices(vs, dim_grid, include_overlap=True)
+    recvbuf = np.empty_like(arr[local_slice])
     recv_future = COMM.Irecv(get_array_buffer(vs, recvbuf), source=0)
 
     if RANK == 0:
         for proc in range(0, SIZE):
-            _, global_slice, _ = get_buffer(proc)
+            global_slice, _ = get_chunk_slices(vs, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
             sendbuf = ascontiguousarray(arr[global_slice])
             COMM.Send(get_array_buffer(vs, sendbuf), dest=proc)
 
@@ -498,7 +504,7 @@ def _scatter_xy(vs, arr):
 
     arr[local_slice] = recvbuf
 
-    exchange_overlap(vs, arr)
+    exchange_overlap(vs, arr, ["xt", "yt"])
 
     return arr
 

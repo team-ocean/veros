@@ -2,6 +2,7 @@ import logging
 
 from .diagnostic import VerosDiagnostic
 from .. import veros_method
+from ..distributed import global_sum
 
 
 class TracerMonitor(VerosDiagnostic):
@@ -30,11 +31,11 @@ class TracerMonitor(VerosDiagnostic):
         """
         cell_volume = vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzt[np.newaxis, np.newaxis, :] \
             * vs.maskT[2:-2, 2:-2, :]
-        volm = np.sum(cell_volume)
-        tempm = np.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau])
-        saltm = np.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau])
-        vtemp = np.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau]**2)
-        vsalt = np.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau]**2)
+        volm = global_sum(vs, np.sum(cell_volume))
+        tempm = global_sum(vs, np.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau]))
+        saltm = global_sum(vs, np.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau]))
+        vtemp = global_sum(vs, np.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau]**2))
+        vsalt = global_sum(vs, np.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau]**2))
 
         logging.warning(" mean temperature {} change to last {}"
                         .format(tempm / volm, (tempm - self.tempm1) / volm))
@@ -51,7 +52,7 @@ class TracerMonitor(VerosDiagnostic):
         self.vsalt1 = vsalt
 
     def read_restart(self, vs):
-        attributes, variables = self.read_h5_restart(vs)
+        attributes, variables = self.read_h5_restart(vs, {})
         for attr in self.restart_attributes:
             setattr(self, attr, attributes[attr])
 

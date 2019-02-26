@@ -68,7 +68,7 @@ class Averages(VerosDiagnostic):
         self.average_nitts = 0
 
     def read_restart(self, vs):
-        attributes, variables = self.read_h5_restart(vs)
+        attributes, variables = self.read_h5_restart(vs, vs.variables)
         if attributes:
             self.average_nitts = attributes["average_nitts"]
         if variables:
