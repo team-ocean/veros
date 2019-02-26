@@ -57,14 +57,14 @@ def _is_method(function):
 
 def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
                   dist_only=False, narg=0):
-    from . import runtime_settings as rs, runtime_state as rst
-    from .backend import flush, get_backend
-    from .state import VerosState
-    from .state_dist import DistributedVerosState
     CONTEXT.wrapped_methods.append(function)
 
     @functools.wraps(function)
     def veros_method_wrapper(*args, **kwargs):
+        from . import runtime_settings as rs, runtime_state as rst
+        from .backend import flush, get_backend
+        from .state import VerosState
+        from .state_dist import DistributedVerosState
         from .distributed import broadcast
 
         veros_state = args[narg]
