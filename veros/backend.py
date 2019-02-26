@@ -34,7 +34,7 @@ def get_backend(backend_name):
 
 
 def get_vector_engine(np):
-    from veros import runtime_settings
+    from . import runtime_settings
 
     if runtime_settings.backend == "bohrium":
         try:
@@ -54,7 +54,7 @@ def get_vector_engine(np):
 
 
 def flush():
-    from veros import runtime_settings as rs
+    from . import runtime_settings as rs
 
     if rs.backend == "numpy":
         pass
