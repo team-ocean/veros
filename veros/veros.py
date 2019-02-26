@@ -212,8 +212,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
     def run(self):
         """Main routine of the simulation.
         """
-        from veros import runtime_settings as rs
-        from .distributed import RANK
+        from veros import runtime_settings as rs, runtime_state as rst
         vs = self.state
 
         logging.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(vs, vs.runlen)))
@@ -228,7 +227,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
                     with vs.timers["diagnostics"]:
                         diagnostics.write_restart(vs)
 
-                    if vs.itt - start_iteration == 3 and rs.profile_mode and RANK == 0:
+                    if vs.itt - start_iteration == 3 and rs.profile_mode and rst.proc_rank == 0:
                         # when using bohrium, most kernels should be pre-compiled by now
                         profiler = diagnostics.start_profiler()
 

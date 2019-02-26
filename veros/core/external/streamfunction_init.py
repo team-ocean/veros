@@ -27,12 +27,6 @@ def streamfunction_init(vs):
     nisle = get_isleperim(vs)
     mainutils.enforce_boundaries(vs, vs.land_map)
 
-    import matplotlib.pyplot as plt
-    from veros.distributed import RANK
-    plt.imshow(vs.land_map)
-    plt.title(RANK)
-    plt.show()
-
     """
     now that the number of islands is known we can allocate the rest of the variables
     """

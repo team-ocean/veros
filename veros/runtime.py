@@ -48,7 +48,7 @@ class RuntimeSettings(object):
             if callable(stype):
                 val = stype(val)
             elif not isinstance(val, stype):
-                raise TypeError("invalid type for setting %s" % setting)
+                raise TypeError("invalid type for setting %s" % attr)
 
         return super(RuntimeSettings, self).__setattr__(attr, val)
 
@@ -60,3 +60,34 @@ class RuntimeSettings(object):
             clsname=self.__class__.__name__,
             setval=setval
         )
+
+
+class RuntimeState(object):
+    """Unifies attributes from various modules in a simple read-only object"""
+    @property
+    def proc_rank(self):
+        import veros.distributed
+        return veros.distributed.RANK
+
+    @property
+    def proc_num(self):
+        from veros import runtime_settings
+        return runtime_settings.num_proc[0] * runtime_settings.num_proc[1]
+
+    @property
+    def proc_idx(self):
+        import veros.distributed
+        return veros.distributed.proc_rank_to_index(self.proc_rank)
+
+    @property
+    def backend_module(self):
+        from veros import backend, runtime_settings
+        return backend.get_backend(runtime_settings.backend)
+
+    @property
+    def vector_engine(self):
+        from veros import backend
+        return backend.get_vector_engine(self.backend_module)
+
+    def __setattr__(self, attr, val):
+        raise TypeError("Cannot modify runtime state objects")

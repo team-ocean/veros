@@ -2,6 +2,8 @@ import threading
 import contextlib
 import logging
 
+from ... import runtime_state
+
 
 @contextlib.contextmanager
 def threaded_io(vs, filepath, mode):
@@ -12,7 +14,14 @@ def threaded_io(vs, filepath, mode):
     if vs.use_io_threads:
         _wait_for_disk(vs, filepath)
         _io_locks[filepath].clear()
-    h5file = h5py.File(filepath, mode)
+    kwargs = {}
+    if runtime_state.proc_num > 1:
+        from ...distributed import COMM
+        kwargs.update(
+            driver='mpio',
+            comm=COMM
+        )
+    h5file = h5py.File(filepath, mode, **kwargs)
     try:
         yield h5file
     finally:

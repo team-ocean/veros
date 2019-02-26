@@ -1,13 +1,10 @@
 from collections import namedtuple
-import json
-import logging
 import os
 import copy
 
 from .diagnostic import VerosDiagnostic
-from . import io_tools
 from .. import veros_method
-from ..variables import Variable, TIMESTEPS
+from ..variables import TIMESTEPS
 
 Running_sum = namedtuple("Running_sum", ("var", "sum"))
 
@@ -20,8 +17,7 @@ class Averages(VerosDiagnostic):
     """
     name = "averages" #:
     output_path = "{identifier}.averages.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
-    #: Iterable containing all variables to be averaged. Changes have no effect after ``initialize`` has been called.
-    output_variables = None #:
+    output_variables = None #: Iterable containing all variables to be averaged. Changes have no effect after ``initialize`` has been called.
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
 
@@ -44,7 +40,7 @@ class Averages(VerosDiagnostic):
                 var_sum = np.zeros_like(getattr(vs, var))
             self.average_vars[var] = Running_sum(var_data, var_sum)
         self.initialize_output(vs, {key: runsum.var for key,
-                                       runsum in self.average_vars.items()})
+                                    runsum in self.average_vars.items()})
 
     @staticmethod
     def _cut_timestep(vs, var):
@@ -77,7 +73,7 @@ class Averages(VerosDiagnostic):
             self.average_nitts = attributes["average_nitts"]
         if variables:
             self.average_vars = {key: Running_sum(copy.copy(vs.variables[key]), var)
-                                for key, var in variables.items()}
+                                 for key, var in variables.items()}
         for key, runsum in self.average_vars.items():
             runsum.var.time_dependent = True
             if self._cut_timestep(vs, key):

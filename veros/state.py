@@ -25,4 +25,3 @@ class VerosState(object):
         self.variables.update(
             variables.allocate_variables(self)
         )
-    

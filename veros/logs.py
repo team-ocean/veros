@@ -1,9 +1,10 @@
 import logging
 
+from . import runtime_state
+
 
 def setup_logging(loglevel="info", logfile=None):
-    from .distributed import RANK
-    if RANK != 0:
+    if runtime_state.proc_rank != 0:
         return
 
     try: # python 2

@@ -57,7 +57,7 @@ def _is_method(function):
 
 def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
                   dist_only=False, narg=0):
-    from . import runtime_settings as rs
+    from . import runtime_settings as rs, runtime_state as rst
     from .backend import flush, get_backend
     from .state import VerosState
     from .state_dist import DistributedVerosState
@@ -65,9 +65,7 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
 
     @functools.wraps(function)
     def veros_method_wrapper(*args, **kwargs):
-        from .distributed import RANK, SIZE, broadcast
-        # if RANK == 0:
-        #     print(function.__name__)
+        from .distributed import broadcast
 
         veros_state = args[narg]
 
@@ -77,7 +75,7 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
         reset_dist_safe = False
         if not CONTEXT.is_dist_safe:
             assert isinstance(veros_state, DistributedVerosState)
-        elif not dist_safe and SIZE > 1:
+        elif not dist_safe and rst.proc_num > 1:
             reset_dist_safe = True
 
         if reset_dist_safe:
@@ -90,7 +88,7 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
 
         execute = True
         if not CONTEXT.is_dist_safe:
-            execute = RANK == 0
+            execute = rst.proc_rank == 0
 
         g = function.__globals__
         sentinel = object()
@@ -129,6 +127,20 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
 
 
 _veros_method.methods = []
+
+
+def dist_context_only(function):
+    @functools.wraps(function)
+    def dist_context_only_wrapper(vs, arr, *args, **kwargs):
+        from . import runtime_state as rst
+
+        if rst.proc_num == 1 or not CONTEXT.is_dist_safe:
+            # no-op for sequential execution
+            return arr
+
+        return function(vs, arr, *args, **kwargs)
+
+    return dist_context_only_wrapper
 
 
 def do_not_disturb(function):

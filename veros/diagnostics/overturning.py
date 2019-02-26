@@ -2,11 +2,12 @@ from collections import OrderedDict
 import logging
 import os
 
-from . import io_tools
-from .. import veros_method
+from .. import veros_method, runtime_settings as rs
 from .diagnostic import VerosDiagnostic
 from ..core import density
 from ..variables import Variable
+from ..distributed import global_sum
+
 
 SIGMA = Variable(
     "Sigma axis", ("sigma",), "kg/m^3", "Sigma axis", output=True,
@@ -79,10 +80,10 @@ class Overturning(VerosDiagnostic):
         self.sigma[...] = self.sigs + self.dsig * np.arange(self.nlevel)
 
         # precalculate area below z levels
-        self.zarea[2:-2, :] = np.cumsum(np.sum(
+        self.zarea[2:-2, :] = np.cumsum(global_sum(vs, np.sum(
             vs.dxt[2:-2, np.newaxis, np.newaxis]
             * vs.cosu[np.newaxis, 2:-2, np.newaxis]
-            * vs.maskV[2:-2, 2:-2, :], axis=0) * vs.dzt[np.newaxis, :], axis=1)
+            * vs.maskV[2:-2, 2:-2, :], axis=0)) * vs.dzt[np.newaxis, :], axis=1)
 
         self.initialize_output(vs, self.variables,
                                var_data={"sigma": self.sigma},
@@ -91,18 +92,18 @@ class Overturning(VerosDiagnostic):
     @veros_method
     def _allocate(self, vs):
         self.sigma = np.zeros(self.nlevel, dtype=vs.default_float_type)
-        self.zarea = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
-        self.trans = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
-        self.vsf_iso = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
-        self.vsf_depth = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+        self.zarea = np.zeros((vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+        self.trans = np.zeros((vs.ny // rs.num_proc[1] + 4, self.nlevel), dtype=vs.default_float_type)
+        self.vsf_iso = np.zeros((vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+        self.vsf_depth = np.zeros((vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-            self.bolus_iso = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
-            self.bolus_depth = np.zeros((vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+            self.bolus_iso = np.zeros((vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+            self.bolus_depth = np.zeros((vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
 
     @veros_method
     def diagnose(self, vs):
         # sigma at p_ref
-        sig_loc = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz))
+        sig_loc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz))
         sig_loc[2:-2, 2:-1, :] = density.get_rho(vs,
                                                  vs.salt[2:-2, 2:-1, :, vs.tau],
                                                  vs.temp[2:-2, 2:-1, :, vs.tau],
@@ -110,59 +111,64 @@ class Overturning(VerosDiagnostic):
 
         # transports below isopycnals and area below isopycnals
         sig_loc_face = 0.5 * (sig_loc[2:-2, 2:-2, :] + sig_loc[2:-2, 3:-1, :])
-        trans = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
-        z_sig = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
+        trans = np.zeros((vs.ny // rs.num_proc[1] + 4, self.nlevel), dtype=vs.default_float_type)
+        z_sig = np.zeros((vs.ny // rs.num_proc[1] + 4, self.nlevel), dtype=vs.default_float_type)
 
         for m in range(self.nlevel):
             # NOTE: vectorized version would be O(N^4) in memory
             # consider cythonizing if performance-critical
             mask = sig_loc_face > self.sigma[m]
-            trans[2:-2, m] = np.sum(
+            trans[2:-2, m] = global_sum(vs, np.sum(
                 vs.v[2:-2, 2:-2, :, vs.tau]
                 * vs.dxt[2:-2, np.newaxis, np.newaxis]
                 * vs.cosu[np.newaxis, 2:-2, np.newaxis]
                 * vs.dzt[np.newaxis, np.newaxis, :]
-                * vs.maskV[2:-2, 2:-2, :] * mask, axis=(0, 2))
-            z_sig[2:-2, m] = np.sum(
+                * vs.maskV[2:-2, 2:-2, :] * mask, axis=(0, 2)))
+            z_sig[2:-2, m] = global_sum(vs, np.sum(
                 vs.dzt[np.newaxis, np.newaxis, :]
                 * vs.dxt[2:-2, np.newaxis, np.newaxis]
                 * vs.cosu[np.newaxis, 2:-2, np.newaxis]
-                * vs.maskV[2:-2, 2:-2, :] * mask, axis=(0, 2))
+                * vs.maskV[2:-2, 2:-2, :] * mask, axis=(0, 2)))
         self.trans += trans
 
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-            bolus_trans = np.zeros((vs.ny + 4, self.nlevel), dtype=vs.default_float_type)
+            bolus_trans = np.zeros((vs.ny // rs.num_proc[1] + 4, self.nlevel), dtype=vs.default_float_type)
             # eddy-driven transports below isopycnals
             for m in range(self.nlevel):
                 # NOTE: see above
                 mask = sig_loc_face > self.sigma[m]
-                bolus_trans[2:-2, m] = np.sum(
-                    (vs.B1_gm[2:-2, 2:-2, 1:]
-                     - vs.B1_gm[2:-2, 2:-2, :-1])
-                    * vs.dxt[2:-2, np.newaxis, np.newaxis]
-                    * vs.cosu[np.newaxis, 2:-2, np.newaxis]
-                    * vs.maskV[2:-2, 2:-2, 1:]
-                    * mask[:, :, 1:], axis=(0, 2)) \
+                bolus_trans[2:-2, m] = global_sum(vs,
+                    np.sum(
+                        (vs.B1_gm[2:-2, 2:-2, 1:] - vs.B1_gm[2:-2, 2:-2, :-1])
+                        * vs.dxt[2:-2, np.newaxis, np.newaxis]
+                        * vs.cosu[np.newaxis, 2:-2, np.newaxis]
+                        * vs.maskV[2:-2, 2:-2, 1:]
+                        * mask[:, :, 1:],
+                        axis=(0, 2)
+                    ) \
                     + np.sum(
-                    vs.B1_gm[2:-2, 2:-2, 0]
-                    * vs.dxt[2:-2, np.newaxis]
-                    * vs.cosu[np.newaxis, 2:-2]
-                    * vs.maskV[2:-2, 2:-2, 0]
-                    * mask[:, :, 0], axis=0)
+                        vs.B1_gm[2:-2, 2:-2, 0]
+                        * vs.dxt[2:-2, np.newaxis]
+                        * vs.cosu[np.newaxis, 2:-2]
+                        * vs.maskV[2:-2, 2:-2, 0]
+                        * mask[:, :, 0],
+                        axis=0
+                    )
+                )
 
         # streamfunction on geopotentials
-        self.vsf_depth[2:-2, :] += np.cumsum(np.sum(
+        self.vsf_depth[2:-2, :] += np.cumsum(global_sum(vs, np.sum(
             vs.dxt[2:-2, np.newaxis, np.newaxis]
             * vs.cosu[np.newaxis, 2:-2, np.newaxis]
             * vs.v[2:-2, 2:-2, :, vs.tau]
-            * vs.maskV[2:-2, 2:-2, :], axis=0) * vs.dzt[np.newaxis, :], axis=1)
+            * vs.maskV[2:-2, 2:-2, :], axis=0)) * vs.dzt[np.newaxis, :], axis=1)
 
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
             # streamfunction for eddy driven velocity on geopotentials
-            self.bolus_depth[2:-2, :] += np.sum(
+            self.bolus_depth[2:-2, :] += global_sum(vs, np.sum(
                 vs.dxt[2:-2, np.newaxis, np.newaxis]
                 * vs.cosu[np.newaxis, 2:-2, np.newaxis]
-                * vs.B1_gm[2:-2, 2:-2, :], axis=0)
+                * vs.B1_gm[2:-2, 2:-2, :], axis=0))
         # interpolate from isopycnals to depth
         self.vsf_iso[2:-2, :] += self._interpolate_along_axis(vs,
                                                               z_sig[2:-2, :], trans[2:-2, :],
@@ -193,8 +199,8 @@ class Overturning(VerosDiagnostic):
         diff = coords[np.newaxis, :, ...] - interp_coords[:, np.newaxis, ...]
         diff_m = np.where(diff <= 0., np.abs(diff), np.inf)
         diff_p = np.where(diff > 0., np.abs(diff), np.inf)
-        i_m = np.argmin(diff_m, axis=1)
-        i_p = np.argmin(diff_p, axis=1)
+        i_m = np.asarray(np.argmin(diff_m, axis=1))
+        i_p = np.asarray(np.argmin(diff_p, axis=1))
         mask = np.all(np.isinf(diff_m), axis=1)
         i_m[mask] = i_p[mask]
         mask = np.all(np.isinf(diff_p), axis=1)

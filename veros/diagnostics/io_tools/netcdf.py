@@ -3,7 +3,8 @@ import contextlib
 import logging
 import warnings
 
-from ... import veros_method, variables
+from ... import veros_method, variables, runtime_state
+from ...distributed import get_global_chunk_slice
 
 """
 netCDF output is designed to follow the COARDS guidelines from
@@ -22,13 +23,13 @@ def initialize_file(vs, ncfile, create_time_dimension=True):
 
     for dim in variables.BASE_DIMENSIONS:
         var = vs.variables[dim]
-        dimsize = variables.get_dimensions(vs, var.dims[::-1], include_ghosts=False)[0]
-        nc_dim = add_dimension(vs, dim, dimsize, ncfile)
+        dimsize = variables.get_dimensions(vs, var.dims[::-1], include_ghosts=False, local=False)[0]
+        add_dimension(vs, dim, dimsize, ncfile)
         initialize_variable(vs, dim, var, ncfile)
         write_variable(vs, dim, var, getattr(vs, dim), ncfile)
 
     if create_time_dimension:
-        nc_dim_time = ncfile.createDimension("Time", None)
+        ncfile.createDimension("Time", None)
         nc_dim_var_time = ncfile.createVariable("Time", "f8", ("Time",))
         nc_dim_var_time.long_name = "Time"
         nc_dim_var_time.units = "days"
@@ -49,9 +50,11 @@ def initialize_variable(vs, key, var, ncfile):
         warnings.warn("Variable {} already initialized".format(key))
         return
     # transpose all dimensions in netCDF output (convention in most ocean models)
-    v = ncfile.createVariable(key, var.dtype or vs.default_float_type, dims[::-1],
-                              fill_value=variables.FILL_VALUE,
-                              zlib=vs.enable_netcdf_zlib_compression)
+    v = ncfile.createVariable(
+        key, var.dtype or vs.default_float_type, dims[::-1],
+        fill_value=variables.FILL_VALUE,
+        zlib=vs.enable_netcdf_zlib_compression and runtime_state.proc_num == 1
+    )
     v.long_name = var.name
     v.units = var.units
     v.missing_value = variables.FILL_VALUE
@@ -66,7 +69,9 @@ def get_current_timestep(vs, ncfile):
 
 @veros_method
 def advance_time(vs, time_step, time_value, ncfile):
+    ncfile.variables["Time"].set_collective(True)
     ncfile.variables["Time"][time_step] = time_value
+    ncfile.variables["Time"].set_collective(False)
 
 
 @veros_method
@@ -74,23 +79,34 @@ def write_variable(vs, key, var, var_data, ncfile, time_step=None):
     gridmask = variables.get_grid_mask(vs, var.dims)
     if gridmask is not None:
         newaxes = (slice(None),) * gridmask.ndim + (np.newaxis,) * (var_data.ndim - gridmask.ndim)
-        var_data = np.where(gridmask.astype(np.bool)[newaxes], var_data, variables.FILL_VALUE)
+        var_data = np.where(gridmask.astype("bool")[newaxes], var_data, variables.FILL_VALUE)
+
     if not np.isscalar(var_data):
         tmask = tuple(vs.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
         var_data = variables.remove_ghosts(var_data, var.dims)[tmask].T
+
     var_data = var_data * var.scale
-    if "Time" in ncfile.variables[key].dimensions:
+
+    try:
+        var_data = var_data.copy2numpy()
+    except AttributeError:
+        pass
+
+    var_obj = ncfile.variables[key]
+
+    chunk = get_global_chunk_slice(vs, var_obj.dimensions)
+
+    if "Time" in var_obj.dimensions:
         if time_step is None:
             raise ValueError("time step must be given for non-constant data")
-        try:
-            ncfile.variables[key][time_step, ...] = var_data.copy2numpy()
-        except AttributeError:
-            ncfile.variables[key][time_step, ...] = var_data
+        assert var_obj.dimensions[0] == "Time"
+        chunk = (time_step,) + chunk[1:]
+
+        var_obj.set_collective(True)
+        var_obj[chunk] = var_data
+        var_obj.set_collective(False)
     else:
-        try:
-            ncfile.variables[key][...] = var_data.copy2numpy()
-        except AttributeError:
-            ncfile.variables[key][...] = var_data
+        var_obj[chunk] = var_data
 
 
 @veros_method
@@ -103,7 +119,7 @@ def threaded_io(vs, filepath, mode):
     if vs.use_io_threads:
         _wait_for_disk(vs, filepath)
         _io_locks[filepath].clear()
-    nc_dataset = Dataset(filepath, mode)
+    nc_dataset = Dataset(filepath, mode, parallel=runtime_state.proc_num > 1)
     try:
         yield nc_dataset
     finally:

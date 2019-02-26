@@ -1,14 +1,13 @@
 import warnings
 
+import numpy
 
 # populate available backend modules
 BACKENDS = {}
 
-import numpy
-
 if numpy.__name__ == "bohrium":
     warnings.warn("Running veros with 'python -m bohrium' is discouraged "
-                    "(use '--backend bohrium' instead)")
+                  "(use '--backend bohrium' instead)")
     import numpy_force
     numpy = numpy_force
 
@@ -50,7 +49,7 @@ def get_vector_engine(np):
             return "cuda"
 
         return "openmp"
-    
+
     return None
 
 

@@ -48,14 +48,14 @@ BASE_DIMENSIONS = XT + XU + YT + YU + ZT + ZW + ISLE
 GHOST_DIMENSIONS = ("xt", "yt", "xu", "yu")
 
 
-def get_dimensions(vs, grid, include_ghosts=True):
+def get_dimensions(vs, grid, include_ghosts=True, local=True):
     px, py = runtime_settings.num_proc
 
     dimensions = {
-        "xt": vs.nx // px,
-        "xu": vs.nx // px,
-        "yt": vs.ny // py,
-        "yu": vs.ny // py,
+        "xt": vs.nx,
+        "xu": vs.nx,
+        "yt": vs.ny,
+        "yu": vs.ny,
         "zt": vs.nz,
         "zw": vs.nz,
         "timesteps": 3,
@@ -63,6 +63,14 @@ def get_dimensions(vs, grid, include_ghosts=True):
         "tensor2": 2,
         "isle": vs.nisle,
     }
+
+    if local:
+        dimensions.update({
+            "xt": dimensions["xt"] // px,
+            "xu": dimensions["xu"] // px,
+            "yt": dimensions["yt"] // py,
+            "yu": dimensions["yt"] // py
+        })
 
     if include_ghosts:
         for d in GHOST_DIMENSIONS:

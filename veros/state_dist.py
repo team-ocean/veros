@@ -12,9 +12,8 @@ class DistributedVerosState(VerosState):
 
     def gather_arrays(self, arrays):
         """Gather given variables from parent state object"""
-        from .distributed import gather, RANK
+        from .distributed import gather
         for arr in arrays:
-            # print("g", RANK, arr)
             self._gathered.add(arr)
             gathered_arr = gather(
                 self._vs,
@@ -25,9 +24,8 @@ class DistributedVerosState(VerosState):
 
     def scatter_arrays(self):
         """Sync all changes with parent state object"""
-        from .distributed import scatter, RANK
+        from .distributed import scatter
         for arr in sorted(self._gathered):
-            # print("s", RANK, arr)
             getattr(self._vs, arr)[...] = scatter(
                 self._vs,
                 getattr(self, arr),

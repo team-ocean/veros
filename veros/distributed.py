@@ -1,7 +1,5 @@
-import functools
-
 from . import runtime_settings as rs
-from .decorators import veros_method, CONTEXT
+from .decorators import veros_method, dist_context_only
 
 try:
     from mpi4py import MPI
@@ -35,22 +33,6 @@ SCATTERED_DIMENSIONS = (
     ("xt", "xu"),
     ("yt", "yu")
 )
-
-
-def distributed_veros_method(function):
-    wrapped_function = veros_method(function)
-
-    @functools.wraps(function)
-    def distributed_veros_method_wrapper(vs, arr, *args, **kwargs):
-        if not HAS_MPI4PY or SIZE == 1 or not CONTEXT.is_dist_safe:
-            return arr
-
-        try:
-            return wrapped_function(vs, arr, *args, **kwargs)
-        finally:
-            barrier()
-
-    return distributed_veros_method_wrapper
 
 
 def ascontiguousarray(arr):
@@ -88,16 +70,35 @@ def get_chunk_size(vs):
     return (vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1])
 
 
-def proc_rank_to_index(vs, rank):
+def proc_rank_to_index(rank):
     return (rank % rs.num_proc[0], rank // rs.num_proc[0])
 
 
-def proc_index_to_rank(vs, ix, iy):
+def proc_index_to_rank(ix, iy):
     return ix + iy * rs.num_proc[0]
 
 
+def get_global_chunk_slice(vs, dim_grid, proc_idx=None):
+    if proc_idx is None:
+        proc_idx = proc_rank_to_index(RANK)
+
+    px, py = proc_idx
+    nx, ny = get_chunk_size(vs)
+
+    chunk = []
+    for dim in dim_grid:
+        if dim in SCATTERED_DIMENSIONS[0]:
+            chunk.append(slice(px * nx, (px + 1) * nx))
+        elif dim in SCATTERED_DIMENSIONS[1]:
+            chunk.append(slice(py * ny, (py + 1) * ny))
+        else:
+            chunk.append(slice(None))
+
+    return tuple(chunk)
+
+
 def get_process_neighbors(vs):
-    this_x, this_y = proc_rank_to_index(vs, RANK)
+    this_x, this_y = proc_rank_to_index(RANK)
 
     west = this_x - 1 if this_x > 0 else None
     south = this_y - 1 if this_y > 0 else None
@@ -118,12 +119,13 @@ def get_process_neighbors(vs):
     ]
 
     global_neighbors = [
-        proc_index_to_rank(vs, *i) if None not in i else None for i in neighbors
+        proc_index_to_rank(*i) if None not in i else None for i in neighbors
     ]
     return global_neighbors
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def exchange_overlap(vs, arr, dim='xy'):
     if dim == 'xy':
         proc_neighbors = get_process_neighbors(vs)
@@ -194,31 +196,32 @@ def exchange_overlap(vs, arr, dim='xy'):
 
         send_idx = overlap_slices_from[i_s]
         send_arr = ascontiguousarray(arr[send_idx])
-        COMM.Ssend(get_array_buffer(vs, send_arr), dest=other_proc, tag=i_s)
+        COMM.Send(get_array_buffer(vs, send_arr), dest=other_proc, tag=i_s)
 
     for future, recv_idx, recv_arr in receive_futures:
         future.wait()
         arr[recv_idx] = recv_arr
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def exchange_cyclic_boundaries(vs, arr):
     if rs.num_proc[0] == 1:
         arr[-2:, ...] = arr[2:4, ...]
         arr[:2, ...] = arr[-4:-2, ...]
         return
 
-    ix, iy = proc_rank_to_index(vs, RANK)
+    ix, iy = proc_rank_to_index(RANK)
 
     if 0 < ix < (rs.num_proc[0] - 1):
         return
 
     if ix == 0:
-        other_proc = proc_index_to_rank(vs, rs.num_proc[0] - 1, iy)
+        other_proc = proc_index_to_rank(rs.num_proc[0] - 1, iy)
         send_idx = (slice(2, 4), Ellipsis)
         recv_idx = (slice(0, 2), Ellipsis)
     else:
-        other_proc = proc_index_to_rank(vs, 0, iy)
+        other_proc = proc_index_to_rank(0, iy)
         send_idx = (slice(-4, -2), Ellipsis)
         recv_idx = (slice(-2, None), Ellipsis)
 
@@ -233,41 +236,49 @@ def exchange_cyclic_boundaries(vs, arr):
     arr[recv_idx] = recv_arr
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def _reduce(vs, arr, op):
     if np.isscalar(arr):
+        squeeze = True
         arr = np.array([arr])
+    else:
+        squeeze = False
+
     arr = ascontiguousarray(arr)
-    res = np.empty(1, dtype=arr.dtype)
+    res = np.empty_like(arr)
     COMM.Allreduce(
         get_array_buffer(vs, arr),
         get_array_buffer(vs, res),
         op=op
     )
-    return res[0]
+
+    if squeeze:
+        res = res[0]
+
+    return res
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def global_max(vs, arr):
     return _reduce(vs, arr, MPI.MAX)
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def global_min(vs, arr):
     return _reduce(vs, arr, MPI.MIN)
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def global_sum(vs, arr):
     return _reduce(vs, arr, MPI.SUM)
 
 
-@distributed_veros_method
-def zonal_sum(vs, arr):
-    pass
-
-
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def _gather_1d(vs, arr, dim):
     assert dim in (0, 1)
 
@@ -275,7 +286,7 @@ def _gather_1d(vs, arr, dim):
     nproc = rs.num_proc[dim]
 
     def get_buffer(proc):
-        px = proc_rank_to_index(vs, proc)[dim]
+        px = proc_rank_to_index(proc)[dim]
         sl = 0 if px == 0 else 2
         su = nx + 4 if (px + 1) == nproc else nx + 2
         local_slice = slice(sl, su)
@@ -284,7 +295,7 @@ def _gather_1d(vs, arr, dim):
         return local_slice, global_slice, buffer
 
     otherdim = int(not dim)
-    pi = proc_rank_to_index(vs, RANK)
+    pi = proc_rank_to_index(RANK)
     if pi[otherdim] != 0:
         return arr
 
@@ -295,7 +306,7 @@ def _gather_1d(vs, arr, dim):
         buffer_list = []
         futures = []
         for proc in range(1, SIZE):
-            pi = proc_rank_to_index(vs, proc)
+            pi = proc_rank_to_index(proc)
             if pi[otherdim] != 0:
                 continue
             sidx, tidx, recvbuf = get_buffer(proc)
@@ -314,16 +325,17 @@ def _gather_1d(vs, arr, dim):
 
         return out
     else:
-        COMM.Ssend(get_array_buffer(vs, sendbuf), dest=0)
+        COMM.Send(get_array_buffer(vs, sendbuf), dest=0)
         return arr
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def _gather_xy(vs, arr):
     nxi, nyi = get_chunk_size(vs)
 
     def get_buffer(proc):
-        px, py = proc_rank_to_index(vs, proc)
+        px, py = proc_rank_to_index(proc)
         sxl = 0 if px == 0 else 2
         sxu = nxi + 4 if (px + 1) == rs.num_proc[0] else nxi + 2
         syl = 0 if py == 0 else 2
@@ -360,12 +372,13 @@ def _gather_xy(vs, arr):
 
         return out
     else:
-        COMM.Ssend(get_array_buffer(vs, sendbuf), dest=0)
+        COMM.Send(get_array_buffer(vs, sendbuf), dest=0)
 
     return arr
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def gather(vs, arr, var_grid):
     if len(var_grid) < 2:
         d1, d2 = var_grid[0], None
@@ -392,7 +405,8 @@ def gather(vs, arr, var_grid):
         raise NotImplementedError()
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def broadcast(vs, obj):
     if isinstance(obj, np.ndarray):
         obj = ascontiguousarray(obj)
@@ -401,21 +415,23 @@ def broadcast(vs, obj):
         return COMM.bcast(obj, root=0)
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def _scatter_constant(vs, arr):
     arr = ascontiguousarray(arr)
     COMM.Bcast(get_array_buffer(vs, arr), root=0)
     return arr
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def _scatter_1d(vs, arr, dim):
     assert dim in (0, 1)
 
     nx = get_chunk_size(vs)[dim]
 
     def get_buffer(proc):
-        px = proc_rank_to_index(vs, proc)[dim]
+        px = proc_rank_to_index(proc)[dim]
         sl = 0 if px == 0 else 2
         su = nx + 4 if (px + 1) == rs.num_proc[dim] else nx + 2
         local_slice = slice(sl, su)
@@ -432,7 +448,7 @@ def _scatter_1d(vs, arr, dim):
             _, global_slice, sendbuf = get_buffer(proc)
             sendbuf = ascontiguousarray(arr[global_slice])
             sendbuf = get_array_buffer(vs, sendbuf)
-            COMM.Ssend(sendbuf, dest=proc)
+            COMM.Send(sendbuf, dest=proc)
 
     recv_future.wait()
 
@@ -444,18 +460,16 @@ def _scatter_1d(vs, arr, dim):
 
     exchange_overlap(vs, arr, dim='x' if dim == 0 else 'y')
 
-    # if vs.enable_cyclic_x and dim == 0:
-    #     exchange_cyclic_boundaries(vs, arr)
-
     return arr
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def _scatter_xy(vs, arr):
     nxi, nyi = get_chunk_size(vs)
 
     def get_buffer(proc):
-        px, py = proc_rank_to_index(vs, proc)
+        px, py = proc_rank_to_index(proc)
         sxl = 0 if px == 0 else 2
         sxu = nxi + 4 if (px + 1) == rs.num_proc[0] else nxi + 2
         syl = 0 if py == 0 else 2
@@ -475,7 +489,7 @@ def _scatter_xy(vs, arr):
         for proc in range(0, SIZE):
             _, global_slice, _ = get_buffer(proc)
             sendbuf = ascontiguousarray(arr[global_slice])
-            COMM.Ssend(get_array_buffer(vs, sendbuf), dest=proc)
+            COMM.Send(get_array_buffer(vs, sendbuf), dest=proc)
 
         # arr changes shape in main process
         arr = np.empty((nxi + 4, nyi + 4, *arr.shape[2:]), dtype=arr.dtype)
@@ -486,13 +500,11 @@ def _scatter_xy(vs, arr):
 
     exchange_overlap(vs, arr)
 
-    # if vs.enable_cyclic_x:
-    #     exchange_cyclic_boundaries(vs, arr)
-
     return arr
 
 
-@distributed_veros_method
+@dist_context_only
+@veros_method
 def scatter(vs, arr, var_grid):
     if len(var_grid) < 2:
         d1, d2 = var_grid[0], None

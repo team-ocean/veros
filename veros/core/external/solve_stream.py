@@ -7,61 +7,8 @@ used for streamfunction
 
 from . import utilities, solve_poisson
 from .. import utilities as mainutils
-from ... import veros_method
-
-
-@veros_method(dist_safe=False, local_variables=[
-    "du", "dv", "maskU", "maskV", "du_mix", "dv_mix",
-    "dxt", "dxu", "dyt", "dyu", "dzt", "hur", "hvr", "cosu", "cost",
-    "dpsi", "dpsin", "boundary_mask", "line_psin",
-    "line_dir_east_mask", "line_dir_west_mask",
-    "line_dir_north_mask", "line_dir_south_mask"
-])
-def _sequential_solve(vs):
-    line_forc = np.zeros(vs.nisle, dtype=vs.default_float_type)
-
-    # forcing for barotropic streamfunction
-    fpx = np.sum((vs.du[:, :, :, vs.tau] + vs.du_mix)
-                 * vs.maskU * vs.dzt, axis=(2,)) * vs.hur
-    fpy = np.sum((vs.dv[:, :, :, vs.tau] + vs.dv_mix)
-                 * vs.maskV * vs.dzt, axis=(2,)) * vs.hvr
-
-    mainutils.enforce_boundaries(vs, fpx)
-    mainutils.enforce_boundaries(vs, fpy)
-
-    forc = np.zeros((vs.nx + 4, vs.ny + 4), dtype=vs.default_float_type)
-    forc[2:-2, 2:-2] = (fpy[3:-1, 2:-2] - fpy[2:-2, 2:-2]) \
-        / (vs.cosu[2:-2] * vs.dxu[2:-2, np.newaxis]) \
-        - (vs.cost[3:-1] * fpx[2:-2, 3:-1] - vs.cost[2:-2] * fpx[2:-2, 2:-2]) \
-        / (vs.cosu[2:-2] * vs.dyu[2:-2])
-
-    # solve for interior streamfunction
-    vs.dpsi[:, :, vs.taup1] = 2 * vs.dpsi[:, :, vs.tau] - vs.dpsi[:, :, vs.taum1]
-
-    solve_poisson.solve(vs, forc, vs.dpsi[..., vs.taup1])
-
-    mainutils.enforce_boundaries(vs, vs.dpsi[:, :, vs.taup1])
-
-    if vs.nisle > 1:
-        # calculate island integrals of forcing, keep psi constant on island 1
-        line_forc[1:] = utilities.line_integrals(vs, fpx[..., np.newaxis],
-                                                 fpy[..., np.newaxis], kind="same")[1:]
-
-        # calculate island integrals of interior streamfunction
-        fpx[...] = 0.
-        fpy[...] = 0.
-        fpx[1:, 1:] = -vs.maskU[1:, 1:, -1] \
-            * (vs.dpsi[1:, 1:, vs.taup1] - vs.dpsi[1:, :-1, vs.taup1]) \
-            / vs.dyt[np.newaxis, 1:] * vs.hur[1:, 1:]
-        fpy[1:, 1:] = vs.maskV[1:, 1:, -1] \
-            * (vs.dpsi[1:, 1:, vs.taup1] - vs.dpsi[:-1, 1:, vs.taup1]) \
-            / (vs.cosu[np.newaxis, 1:] * vs.dxt[1:, np.newaxis]) * vs.hvr[1:, 1:]
-        line_forc[1:] += -utilities.line_integrals(vs, fpx[..., np.newaxis],
-                                                   fpy[..., np.newaxis], kind="same")[1:]
-
-        # solve for time dependent boundary values
-        line_forc[1:] = np.linalg.solve(vs.line_psin[1:, 1:], line_forc[1:])
-        vs.dpsin[1:, vs.tau] = line_forc[1:]
+from ...distributed import gather, scatter
+from ... import veros_method, runtime_settings as rs
 
 
 @veros_method
@@ -88,7 +35,56 @@ def solve_streamfunction(vs):
         / vs.dyu[np.newaxis, 2:-2, np.newaxis] \
         * vs.maskV[2:-2, 2:-2, :]
 
-    _sequential_solve(vs)
+    # forcing for barotropic streamfunction
+    fpx = np.sum((vs.du[:, :, :, vs.tau] + vs.du_mix)
+                 * vs.maskU * vs.dzt, axis=(2,)) * vs.hur
+    fpy = np.sum((vs.dv[:, :, :, vs.tau] + vs.dv_mix)
+                 * vs.maskV * vs.dzt, axis=(2,)) * vs.hvr
+
+    mainutils.enforce_boundaries(vs, fpx)
+    mainutils.enforce_boundaries(vs, fpy)
+
+    forc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4), dtype=vs.default_float_type)
+    forc[2:-2, 2:-2] = (fpy[3:-1, 2:-2] - fpy[2:-2, 2:-2]) \
+        / (vs.cosu[2:-2] * vs.dxu[2:-2, np.newaxis]) \
+        - (vs.cost[3:-1] * fpx[2:-2, 3:-1] - vs.cost[2:-2] * fpx[2:-2, 2:-2]) \
+        / (vs.cosu[2:-2] * vs.dyu[2:-2])
+
+    # solve for interior streamfunction
+    vs.dpsi[:, :, vs.taup1] = 2 * vs.dpsi[:, :, vs.tau] - vs.dpsi[:, :, vs.taum1]
+
+    dpsi_global = gather(vs, vs.dpsi[..., vs.taup1], ("xt", "yt"))
+    solve_poisson.solve(
+        vs,
+        gather(vs, forc, ("xt", "yt")),
+        dpsi_global
+    )
+    vs.dpsi[..., vs.taup1] = scatter(vs, dpsi_global, ("xt", "yt"))
+
+    mainutils.enforce_boundaries(vs, vs.dpsi[:, :, vs.taup1])
+
+    line_forc = np.zeros(vs.nisle, dtype=vs.default_float_type)
+
+    if vs.nisle > 1:
+        # calculate island integrals of forcing, keep psi constant on island 1
+        line_forc[1:] = utilities.line_integrals(vs, fpx[..., np.newaxis],
+                                                 fpy[..., np.newaxis], kind="same")[1:]
+
+        # calculate island integrals of interior streamfunction
+        fpx[...] = 0.
+        fpy[...] = 0.
+        fpx[1:, 1:] = -vs.maskU[1:, 1:, -1] \
+            * (vs.dpsi[1:, 1:, vs.taup1] - vs.dpsi[1:, :-1, vs.taup1]) \
+            / vs.dyt[np.newaxis, 1:] * vs.hur[1:, 1:]
+        fpy[1:, 1:] = vs.maskV[1:, 1:, -1] \
+            * (vs.dpsi[1:, 1:, vs.taup1] - vs.dpsi[:-1, 1:, vs.taup1]) \
+            / (vs.cosu[np.newaxis, 1:] * vs.dxt[1:, np.newaxis]) * vs.hvr[1:, 1:]
+        line_forc[1:] += -utilities.line_integrals(vs, fpx[..., np.newaxis],
+                                                   fpy[..., np.newaxis], kind="same")[1:]
+
+        # solve for time dependent boundary values
+        line_forc[1:] = np.linalg.solve(vs.line_psin[1:, 1:], line_forc[1:])
+        vs.dpsin[1:, vs.tau] = line_forc[1:]
 
     # integrate barotropic and baroclinic velocity forward in time
     vs.psi[:, :, vs.taup1] = vs.psi[:, :, vs.tau] + vs.dt_mom * ((1.5 + vs.AB_eps) * vs.dpsi[:, :, vs.taup1]

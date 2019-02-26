@@ -1,6 +1,6 @@
 from scipy.linalg import lapack
 
-from .. import veros_method, backend, runtime_settings as rs
+from .. import veros_method, backend, runtime_settings as rs, runtime_state as rst
 from . import density, diffusion, utilities
 
 try:
@@ -222,7 +222,7 @@ def solve_tridiag(vs, a, b, c, d):
         a[..., 0] = c[..., -1] = 0  # remove couplings between slices
         return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
 
-    if backend.get_vector_engine(np) == "opencl":
+    if rst.vector_engine == "opencl":
         return tdma_opencl.tdma(a, b, c, d)
 
     return np.linalg.solve_tridiagonal(a, b, c, d)

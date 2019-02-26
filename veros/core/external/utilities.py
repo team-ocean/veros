@@ -1,11 +1,8 @@
 from ... import veros_method
+from veros.distributed import global_sum
 
 
-@veros_method(dist_safe=False, local_variables=[
-    "dxu", "dyu", "cost", "boundary_mask",
-    "line_dir_east_mask", "line_dir_west_mask",
-    "line_dir_north_mask", "line_dir_south_mask"
-])
+@veros_method
 def line_integrals(vs, uloc, vloc, kind="same"):
     """
     calculate line integrals along all islands
@@ -47,4 +44,4 @@ def line_integrals(vs, uloc, vloc, kind="same"):
     south = np.sum(south[s1] * (vs.line_dir_south_mask[1:-2, 1:-2]
                                 & vs.boundary_mask[1:-2, 1:-2])[s2], axis=(0, 1))
 
-    return east + west + north + south
+    return global_sum(vs, east + west + north + south)

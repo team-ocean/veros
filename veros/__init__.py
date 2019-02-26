@@ -10,9 +10,10 @@ del netCDF4
 del h5py
 
 # runtime settings object
-from .runtime import RuntimeSettings
+from .runtime import RuntimeSettings, RuntimeState
 runtime_settings = RuntimeSettings()
-del RuntimeSettings
+runtime_state = RuntimeState()
+del RuntimeSettings, RuntimeState
 
 # public API
 from .decorators import veros_method

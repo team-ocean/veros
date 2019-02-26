@@ -1,14 +1,10 @@
-from collections import OrderedDict
 import os
-import copy
 import logging
-import warnings
 
 from .io_tools import netcdf as nctools
 from .io_tools import hdf5 as h5tools
 from ..decorators import veros_method, do_not_disturb
-from ..variables import Variable
-from .. import time, runtime_settings as rs
+from .. import time, runtime_state
 
 
 class VerosDiagnostic(object):
@@ -114,9 +110,16 @@ class VerosDiagnostic(object):
     def write_h5_restart(self, vs, attributes, var_meta, var_data, outfile):
         group = outfile.require_group(self.name)
         for key, var in var_data.items():
-            if rs.backend == "bohrium" and not np.isscalar(var):
+            try:
                 var = var.copy2numpy()
-            kwargs = {"compression": "gzip", "compression_opts": 9} if vs.enable_hdf5_gzip_compression else {}
+            except AttributeError:
+                pass
+            kwargs = {}
+            if vs.enable_hdf5_gzip_compression and runtime_state.proc_num == 1:
+                kwargs.update(
+                    compression="gzip",
+                    compression_opts=9
+                )
             group.require_dataset(key, var.shape, var.dtype, exact=True, **kwargs)
             group[key][...] = var
         for key, val in attributes.items():
