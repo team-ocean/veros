@@ -354,7 +354,7 @@ def _gather_1d(vs, arr, dim):
 
         MPI.Request.Waitall(futures)
 
-        out_shape = ((vs.nx + 4, vs.ny + 4)[dim], *arr.shape[1:])
+        out_shape = ((vs.nx + 4, vs.ny + 4)[dim],) + arr.shape[1:]
         out = np.empty(out_shape, dtype=arr.dtype)
         out[gidx] = sendbuf
         for idx, val in buffer_list:
@@ -391,7 +391,7 @@ def _gather_xy(vs, arr):
             )
         MPI.Request.Waitall(futures)
 
-        out_shape = (vs.nx + 4, vs.ny + 4, *arr.shape[2:])
+        out_shape = (vs.nx + 4, vs.ny + 4) + arr.shape[2:]
         out = np.empty(out_shape, dtype=arr.dtype)
         out[gidx] = sendbuf
         for idx, val in buffer_list:
@@ -472,7 +472,7 @@ def _scatter_1d(vs, arr, dim):
 
     if RANK == 0:
         # arr changes shape in main process
-        arr = np.zeros((nx + 4, *arr.shape[1:]), dtype=arr.dtype)
+        arr = np.zeros((nx + 4,) + arr.shape[1:], dtype=arr.dtype)
 
     arr[local_slice] = recvbuf
 
@@ -498,7 +498,7 @@ def _scatter_xy(vs, arr):
             COMM.Send(get_array_buffer(vs, sendbuf), dest=proc)
 
         # arr changes shape in main process
-        arr = np.empty((nxi + 4, nyi + 4, *arr.shape[2:]), dtype=arr.dtype)
+        arr = np.empty((nxi + 4, nyi + 4) + arr.shape[2:], dtype=arr.dtype)
 
     recv_future.wait()
 
