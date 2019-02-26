@@ -71,7 +71,7 @@ class RuntimeState(object):
 
     @property
     def proc_num(self):
-        from veros import runtime_settings
+        from . import runtime_settings
         return runtime_settings.num_proc[0] * runtime_settings.num_proc[1]
 
     @property
@@ -81,12 +81,12 @@ class RuntimeState(object):
 
     @property
     def backend_module(self):
-        from veros import backend, runtime_settings
+        from . import backend, runtime_settings
         return backend.get_backend(runtime_settings.backend)
 
     @property
     def vector_engine(self):
-        from veros import backend
+        from . import backend
         return backend.get_vector_engine(self.backend_module)
 
     def __setattr__(self, attr, val):

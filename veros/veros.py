@@ -212,7 +212,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
     def run(self):
         """Main routine of the simulation.
         """
-        from veros import runtime_settings as rs, runtime_state as rst
+        from . import runtime_settings as rs, runtime_state as rst
         vs = self.state
 
         logging.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(vs.runlen)))
