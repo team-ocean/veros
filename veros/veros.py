@@ -215,7 +215,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
         from veros import runtime_settings as rs, runtime_state as rst
         vs = self.state
 
-        logging.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(vs, vs.runlen)))
+        logging.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(vs.runlen)))
 
         start_time, start_iteration = vs.time, vs.itt
         profiler = None

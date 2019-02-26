@@ -22,6 +22,5 @@ class VerosState(object):
         self.time, self.itt = 0., 1 # current time and iteration
 
     def allocate_variables(self):
-        self.variables.update(
-            variables.allocate_variables(self)
-        )
+        self.variables.update(variables.get_standard_variables(self))
+        variables.allocate_variables(self)

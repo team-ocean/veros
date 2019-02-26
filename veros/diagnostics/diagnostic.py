@@ -71,7 +71,7 @@ class VerosDiagnostic(object):
             return
         with nctools.threaded_io(vs, self.get_output_file_name(vs), "r+") as outfile:
             time_step = nctools.get_current_timestep(vs, outfile)
-            current_days = time.convert_time(vs, vs.time, "seconds", "days")
+            current_days = time.convert_time(vs.time, "seconds", "days")
             nctools.advance_time(vs, time_step, current_days, outfile)
             for key, var in variables.items():
                 nctools.write_variable(vs, key, var, variable_data[key],

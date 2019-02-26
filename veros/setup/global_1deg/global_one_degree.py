@@ -4,6 +4,7 @@ import os
 from netCDF4 import Dataset
 
 from veros import VerosSetup, tools, veros_method, time
+from veros.variables import Variable
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = tools.get_assets("global_1deg", os.path.join(BASE_PATH, "assets.yml"))
@@ -77,14 +78,27 @@ class GlobalOneDegree(VerosSetup):
         vs.enable_idemix_superbee_advection = True
         vs.enable_idemix_hor_diffusion = True
 
+        # custom variables
+        vs.nmonths = 12
+        vs.variables.update(
+            t_star=Variable("t_star", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            s_star=Variable("s_star", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            qnec=Variable("qnec", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            qnet=Variable("qnet", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            qsol=Variable("qsol", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            divpen_shortwave=Variable("divpen_shortwave", ("zt",), "", "", time_dependent=False),
+            taux=Variable("taux", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            tauy=Variable("tauy", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+        )
+
     @veros_method
-    def _read_forcing(self, var):
+    def _read_forcing(self, vs, var):
         with Dataset(DATA_FILES["forcing"], "r") as infile:
-            return np.array(infile.variables[var][...]).T
+            return np.array(infile.variables[var]).T
 
     @veros_method
     def set_grid(self, vs):
-        dz_data = vs._read_forcing("dz")
+        dz_data = self._read_forcing(vs, "dz")
         vs.dzt[...] = dz_data[::-1]
         vs.dxt[...] = 1.0
         vs.dyt[...] = 1.0
@@ -97,8 +111,8 @@ class GlobalOneDegree(VerosSetup):
 
     @veros_method(dist_safe=False, local_variables=["kbot"])
     def set_topography(self, vs):
-        bathymetry_data = vs._read_forcing("bathymetry")
-        salt_data = vs._read_forcing("salinity")[:, :, ::-1]
+        bathymetry_data = self._read_forcing(vs, "bathymetry")
+        salt_data = self._read_forcing(vs, "salinity")[:, :, ::-1]
 
         mask_salt = salt_data == 0.
         vs.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
@@ -122,61 +136,56 @@ class GlobalOneDegree(VerosSetup):
         mask_channel = (i >= 269) & (i < 271) & (j == 130)  # i = 270,271; j = 131
         vs.kbot[2:-2, 2:-2][mask_channel] = 0
 
-    @veros_method
+    @veros_method(dist_safe=False, local_variables=[
+        "t_star", "s_star", "qnec", "qnet", "qsol", "divpen_shortwave", "taux", "tauy",
+        "temp", "salt", "forc_iw_bottom", "forc_iw_surface", "kbot", "maskT", "maskW",
+        "zw", "dzt"
+    ])
     def set_initial_conditions(self, vs):
-        vs.t_star = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-        vs.s_star = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-        vs.qnec = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-        vs.qnet = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-        vs.qsol = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-        vs.divpen_shortwave = np.zeros(vs.nz, dtype=vs.default_float_type)
-        vs.taux = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-        vs.tauy = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-
         rpart_shortwave = 0.58
         efold1_shortwave = 0.35
         efold2_shortwave = 23.0
 
         # initial conditions
-        temp_data = vs._read_forcing("temperature")
+        temp_data = self._read_forcing(vs, "temperature")
         vs.temp[2:-2, 2:-2, :, 0] = temp_data[..., ::-1] * vs.maskT[2:-2, 2:-2, :]
         vs.temp[2:-2, 2:-2, :, 1] = temp_data[..., ::-1] * vs.maskT[2:-2, 2:-2, :]
 
-        salt_data = vs._read_forcing("salinity")
+        salt_data = self._read_forcing(vs, "salinity")
         vs.salt[2:-2, 2:-2, :, 0] = salt_data[..., ::-1] * vs.maskT[2:-2, 2:-2, :]
         vs.salt[2:-2, 2:-2, :, 1] = salt_data[..., ::-1] * vs.maskT[2:-2, 2:-2, :]
 
         # wind stress on MIT grid
-        taux_data = vs._read_forcing("tau_x")
+        taux_data = self._read_forcing(vs, "tau_x")
         vs.taux[2:-2, 2:-2, :] = taux_data / vs.rho_0
 
-        tauy_data = vs._read_forcing("tau_y")
+        tauy_data = self._read_forcing(vs, "tau_y")
         vs.tauy[2:-2, 2:-2, :] = tauy_data / vs.rho_0
 
         # Qnet and dQ/dT and Qsol
-        qnet_data = vs._read_forcing("q_net")
+        qnet_data = self._read_forcing(vs, "q_net")
         vs.qnet[2:-2, 2:-2, :] = -qnet_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qnec_data = vs._read_forcing("dqdt")
+        qnec_data = self._read_forcing(vs, "dqdt")
         vs.qnec[2:-2, 2:-2, :] = qnec_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qsol_data = vs._read_forcing("swf")
+        qsol_data = self._read_forcing(vs, "swf")
         vs.qsol[2:-2, 2:-2, :] = -qsol_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         # SST and SSS
-        sst_data = vs._read_forcing("sst")
+        sst_data = self._read_forcing(vs, "sst")
         vs.t_star[2:-2, 2:-2, :] = sst_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        sss_data = vs._read_forcing("sss")
+        sss_data = self._read_forcing(vs, "sss")
         vs.s_star[2:-2, 2:-2, :] = sss_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         if vs.enable_idemix:
-            tidal_energy_data = vs._read_forcing("tidal_energy")
+            tidal_energy_data = self._read_forcing(vs, "tidal_energy")
             mask = np.maximum(0, vs.kbot[2:-2, 2:-2] - 1)[:, :, np.newaxis] == np.arange(vs.nz)[np.newaxis, np.newaxis, :]
             tidal_energy_data[:, :] *= vs.maskW[2:-2, 2:-2, :][mask].reshape(vs.nx, vs.ny) / vs.rho_0
             vs.forc_iw_bottom[2:-2, 2:-2] = tidal_energy_data
 
-            wind_energy_data = vs._read_forcing("wind_energy")
+            wind_energy_data = self._read_forcing(vs, "wind_energy")
             wind_energy_data[:, :] *= vs.maskW[2:-2, 2:-2, -1] / vs.rho_0 * 0.2
             vs.forc_iw_surface[2:-2, 2:-2] = wind_energy_data
 
@@ -198,7 +207,7 @@ class GlobalOneDegree(VerosSetup):
         t_rest = 30. * 86400.
         cp_0 = 3991.86795711963  # J/kg /K
 
-        year_in_seconds = time.convert_time(self, 1., "years", "seconds")
+        year_in_seconds = time.convert_time(1., "years", "seconds")
         (n1, f1), (n2, f2) = tools.get_periodic_interval(vs.time, year_in_seconds,
                                                          year_in_seconds / 12., 12)
 

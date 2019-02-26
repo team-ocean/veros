@@ -39,7 +39,7 @@ class Snapshot(VerosDiagnostic):
     @veros_method
     def output(self, vs):
         logging.info(" writing snapshot at {0[0]:.2f} {0[1]}".format(
-            time.format_time(vs, vs.time)))
+            time.format_time(vs.time)))
 
         if not os.path.isfile(self.get_output_file_name(vs)):
             self.initialize(vs)

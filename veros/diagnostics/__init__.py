@@ -44,10 +44,10 @@ def initialize(vs):
         diagnostic.initialize(vs)
         if diagnostic.sampling_frequency:
             logging.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]}"
-                         .format(name, time.format_time(vs, diagnostic.sampling_frequency)))
+                         .format(name, time.format_time(diagnostic.sampling_frequency)))
         if diagnostic.output_frequency:
             logging.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]}"
-                         .format(name, time.format_time(vs, diagnostic.output_frequency)))
+                         .format(name, time.format_time(diagnostic.output_frequency)))
 
 
 @veros_method

@@ -76,7 +76,17 @@ def get_dimensions(vs, grid, include_ghosts=True, local=True):
         for d in GHOST_DIMENSIONS:
             dimensions[d] += 4
 
-    return tuple(dimensions[grid_dim] for grid_dim in grid)
+    dims = []
+    for grid_dim in grid:
+        if grid_dim in dimensions:
+            dims.append(dimensions[grid_dim])
+        else:
+            if hasattr(vs, grid_dim):
+                dims.append(getattr(vs, grid_dim))
+            else:
+                raise ValueError("unrecognized dimension %s" % grid_dim)
+
+    return tuple(dims)
 
 
 def remove_ghosts(array, dims):
@@ -717,20 +727,11 @@ CONDITIONAL_VARIABLES = OrderedDict([
 
 
 @veros_method
-def allocate_variables(vs):
+def get_standard_variables(vs):
     variables = {}
 
-    def init_var(var_name, var):
-        shape = get_dimensions(vs, var.dims)
-
-        kwargs = {}
-        kwargs["dtype"] = var.dtype or vs.default_float_type
-
-        setattr(vs, var_name, np.zeros(shape, **kwargs))
-        variables[var_name] = var
-
     for var_name, var in MAIN_VARIABLES.items():
-        init_var(var_name, var)
+        variables[var_name] = var
 
     for condition, var_dict in CONDITIONAL_VARIABLES.items():
         if condition.startswith("not "):
@@ -739,6 +740,17 @@ def allocate_variables(vs):
             eval_condition = bool(getattr(vs, condition))
         if eval_condition:
             for var_name, var in var_dict.items():
-                init_var(var_name, var)
+                variables[var_name] = var
 
     return variables
+
+
+@veros_method
+def allocate_variables(vs):
+    for key, var in vs.variables.items():
+        shape = get_dimensions(vs, var.dims)
+
+        kwargs = {}
+        kwargs["dtype"] = var.dtype or vs.default_float_type
+
+        setattr(vs, key, np.zeros(shape, **kwargs))

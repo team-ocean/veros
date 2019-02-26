@@ -1,4 +1,3 @@
-from . import veros_method
 
 YEAR_LENGTH = 360.
 X_TO_SECONDS = {
@@ -11,15 +10,13 @@ X_TO_SECONDS = {
 SECONDS_TO_X = {key: 1. / val for key, val in X_TO_SECONDS.items()}
 
 
-@veros_method
-def convert_time(vs, time_value, in_unit, out_unit):
+def convert_time(time_value, in_unit, out_unit):
     return time_value * X_TO_SECONDS[in_unit] * SECONDS_TO_X[out_unit]
 
 
-@veros_method
-def format_time(vs, time_value, in_unit="seconds"):
+def format_time(time_value, in_unit="seconds"):
     all_units = X_TO_SECONDS.keys()
-    val_in_all_units = {u: convert_time(vs, time_value, in_unit, u) for u in all_units}
+    val_in_all_units = {u: convert_time(time_value, in_unit, u) for u in all_units}
     valid_units = {u: v for u, v in val_in_all_units.items() if v >= 1.}
     if valid_units:
         best_unit = min(valid_units, key=valid_units.get)
