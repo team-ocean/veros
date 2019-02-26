@@ -66,8 +66,8 @@ class RuntimeState(object):
     """Unifies attributes from various modules in a simple read-only object"""
     @property
     def proc_rank(self):
-        import veros.distributed
-        return veros.distributed.RANK
+        from . import distributed
+        return distributed.RANK
 
     @property
     def proc_num(self):
@@ -76,8 +76,8 @@ class RuntimeState(object):
 
     @property
     def proc_idx(self):
-        import veros.distributed
-        return veros.distributed.proc_rank_to_index(self.proc_rank)
+        from . import distributed
+        return distributed.proc_rank_to_index(self.proc_rank)
 
     @property
     def backend_module(self):
