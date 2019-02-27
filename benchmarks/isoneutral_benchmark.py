@@ -4,6 +4,7 @@ import logging
 import click
 
 from veros import VerosLegacy, veros_method, core, tools, runtime_settings as rs
+from veros.distributed import barrier
 
 
 class IsoneutralBenchmark(VerosLegacy):
@@ -98,6 +99,7 @@ class IsoneutralBenchmark(VerosLegacy):
                 self.fortran.isoneutral_diffusion_pre()
             else:
                 core.isoneutral.isoneutral_diffusion_pre(vs)
+            barrier()
             logging.info("Time step took {:.2e}s".format(time.time() - start))
 
     @veros_method

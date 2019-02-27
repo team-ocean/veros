@@ -4,6 +4,7 @@ import logging
 import click
 
 from veros import VerosLegacy, veros_method, core, tools
+from veros.distributed import barrier
 
 
 class StreamfunctionBenchmark(VerosLegacy):
@@ -83,6 +84,7 @@ class StreamfunctionBenchmark(VerosLegacy):
                 sol = np.zeros_like(rhs)
                 start = time.time()
                 core.external.solve_poisson.solve(vs, rhs, sol)
+            barrier()
             end = time.time()
             logging.info("Time step took {}s".format(end - start))
 
