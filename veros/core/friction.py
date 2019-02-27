@@ -10,7 +10,7 @@ def explicit_vert_friction(vs):
     explicit vertical friction
     dissipation is calculated and added to K_diss_v
     """
-    diss = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+    diss = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
 
     """
     vertical friction of zonal momentum
@@ -159,7 +159,7 @@ def linear_bottom_friction(vs):
         vs.du_mix[1:-2, 2:-2] += -(vs.maskU[1:-2, 2:-2] * vs.r_bot_var_u[1:-2, 2:-2, np.newaxis]) \
                                  * vs.u[1:-2, 2:-2, :, vs.tau] * mask
         if vs.enable_conserve_energy:
-            diss = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+            diss = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
             diss[1:-2, 2:-2] = vs.maskU[1:-2, 2:-2] * vs.r_bot_var_u[1:-2, 2:-2, np.newaxis] \
                                * vs.u[1:-2, 2:-2, :, vs.tau]**2 * mask
             vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'U')
@@ -169,7 +169,7 @@ def linear_bottom_friction(vs):
         vs.dv_mix[2:-2, 1:-2] += -(vs.maskV[2:-2, 1:-2] * vs.r_bot_var_v[2:-2, 1:-2, np.newaxis]) \
                                  * vs.v[2:-2, 1:-2, :, vs.tau] * mask
         if vs.enable_conserve_energy:
-            diss = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+            diss = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
             diss[2:-2, 1:-2] = vs.maskV[2:-2, 1:-2] * vs.r_bot_var_v[2:-2, 1:-2, np.newaxis] \
                                * vs.v[2:-2, 1:-2, :, vs.tau]**2 * mask
             vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'V')
@@ -181,7 +181,7 @@ def linear_bottom_friction(vs):
         mask = np.arange(vs.nz) == k[:, :, np.newaxis]
         vs.du_mix[1:-2, 2:-2] += -vs.maskU[1:-2, 2:-2] * vs.r_bot * vs.u[1:-2, 2:-2, :, vs.tau] * mask
         if vs.enable_conserve_energy:
-            diss = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+            diss = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
             diss[1:-2, 2:-2] = vs.maskU[1:-2, 2:-2] * vs.r_bot * vs.u[1:-2, 2:-2, :, vs.tau]**2 * mask
             vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'U')
 
@@ -189,7 +189,7 @@ def linear_bottom_friction(vs):
         mask = np.arange(vs.nz) == k[:, :, np.newaxis]
         vs.dv_mix[2:-2, 1:-2] += -vs.maskV[2:-2, 1:-2] * vs.r_bot * vs.v[2:-2, 1:-2, :, vs.tau] * mask
         if vs.enable_conserve_energy:
-            diss = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+            diss = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
             diss[2:-2, 1:-2] = vs.maskV[2:-2, 1:-2] * vs.r_bot * vs.v[2:-2, 1:-2, :, vs.tau]**2 * mask
             vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'V')
 
@@ -213,7 +213,7 @@ def quadratic_bottom_friction(vs):
     vs.du_mix[1:-2, 2:-2, :] += -aloc
 
     if vs.enable_conserve_energy:
-        diss = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+        diss = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
         diss[1:-2, 2:-2, :] = aloc * vs.u[1:-2, 2:-2, :, vs.tau]
         vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'U')
 
@@ -229,7 +229,7 @@ def quadratic_bottom_friction(vs):
     vs.dv_mix[2:-2, 1:-2, :] += -aloc
 
     if vs.enable_conserve_energy:
-        diss = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+        diss = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
         diss[2:-2, 1:-2, :] = aloc * vs.v[2:-2, 1:-2, :, vs.tau]
         vs.K_diss_bot[...] += numerics.calc_diss(vs, diss, 'V')
 
@@ -240,7 +240,7 @@ def harmonic_friction(vs):
     horizontal harmonic friction
     dissipation is calculated and added to K_diss_h
     """
-    diss = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+    diss = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
 
     """
     Zonal velocity
@@ -367,7 +367,7 @@ def biharmonic_friction(vs):
     vs.flux_east[-1, :, :] = 0.
     vs.flux_north[:, -1, :] = 0.
 
-    del2 = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+    del2 = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
     del2[1:, 1:, :] = (vs.flux_east[1:, 1:, :] - vs.flux_east[:-1, 1:, :]) \
         / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxu[1:, np.newaxis, np.newaxis]) \
         + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
@@ -400,7 +400,7 @@ def biharmonic_friction(vs):
         """
         utilities.enforce_boundaries(vs, vs.flux_east)
         utilities.enforce_boundaries(vs, vs.flux_north)
-        diss = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+        diss = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
         diss[1:-2, 2:-2, :] = -0.5 * ((vs.u[2:-1, 2:-2, :, vs.tau] - vs.u[1:-2, 2:-2, :, vs.tau]) * vs.flux_east[1:-2, 2:-2, :]
                                     + (vs.u[1:-2, 2:-2, :, vs.tau] - vs.u[:-3, 2:-2, :, vs.tau]) * vs.flux_east[:-3, 2:-2, :]) \
             / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxu[1:-2, np.newaxis, np.newaxis])  \

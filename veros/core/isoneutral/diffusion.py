@@ -4,7 +4,7 @@ from .. import utilities, diffusion
 
 @veros_method
 def _calc_tracer_fluxes(vs, tr, K_iso, K_skew):
-    tr_pad = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz + 2), dtype=vs.default_float_type)
+    tr_pad = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz + 2), dtype=vs.default_float_type)
     tr_pad[:, :, 1:-1] = tr[..., vs.tau]
     tr_pad[:, :, 0] = tr[:, :, 1, vs.tau]
     tr_pad[:, :, -1] = tr[:, :, -2, vs.tau]
@@ -66,7 +66,7 @@ def _calc_tracer_fluxes(vs, tr, K_iso, K_skew):
 
 @veros_method
 def _calc_explicit_part(vs):
-    aloc = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+    aloc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
     aloc[2:-2, 2:-2, :] = vs.maskT[2:-2, 2:-2, :] * ((vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :]) / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
                                                    + (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :]) / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis]))
     aloc[:, :, 0] += vs.maskT[:, :, 0] * vs.flux_top[:, :, 0] / vs.dzt[0]

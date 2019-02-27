@@ -59,7 +59,7 @@ def integrate_eke(vs):
     """
     integrate EKE equation on W grid
     """
-    c_int = np.zeros((vs.nx  // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+    c_int = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
 
     """
     forcing by dissipation by lateral friction and GM using TRM formalism or skew diffusion

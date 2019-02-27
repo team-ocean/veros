@@ -3,7 +3,7 @@ import logging
 
 import click
 
-from veros import VerosLegacy, veros_method, core, tools
+from veros import VerosLegacy, veros_method, core, tools, runtime_settings as rs
 
 
 class IsoneutralBenchmark(VerosLegacy):
@@ -12,7 +12,7 @@ class IsoneutralBenchmark(VerosLegacy):
         super(IsoneutralBenchmark, self).__init__(*args, **kwargs)
 
     @veros_method
-    def set_parameter(self):
+    def set_parameter(self, vs):
         np.random.seed(123456789)
         m = self.main_module
         m.dt_tracer = m.dt_mom = 86400.
@@ -28,53 +28,48 @@ class IsoneutralBenchmark(VerosLegacy):
         im.K_iso_steep = np.random.rand()
         im.iso_dslope = np.random.rand()
 
-
     @veros_method
-    def set_grid(self):
+    def set_grid(self, vs):
         if not self.legacy_mode:
-            self.is_pe = self.js_pe = 1
-            self.ie_pe = self.nx
-            self.je_pe = self.ny
+            vs.is_pe = vs.js_pe = 1
+            vs.ie_pe, vs.je_pe = vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1]
 
         m = self.main_module
-        self.set_attribute("x_origin",np.random.rand())
-        self.set_attribute("y_origin",np.random.rand())
-        self.set_attribute("dxt",1 + 100 * np.random.rand(m.ie_pe-m.is_pe+5).astype(self.default_float_type))
-        self.set_attribute("dyt",1 + 100 * np.random.rand(m.je_pe-m.js_pe+5).astype(self.default_float_type))
-        self.set_attribute("dzt",1 + 100 * np.random.rand(m.nz).astype(self.default_float_type))
+        self.set_attribute(vs, "x_origin", np.random.rand())
+        self.set_attribute(vs, "y_origin", np.random.rand())
+        self.set_attribute(vs, "dxt", 1 + 100 * np.random.rand(m.ie_pe-m.is_pe+5).astype(vs.default_float_type))
+        self.set_attribute(vs, "dyt", 1 + 100 * np.random.rand(m.je_pe-m.js_pe+5).astype(vs.default_float_type))
+        self.set_attribute(vs, "dzt", 1 + 100 * np.random.rand(m.nz).astype(vs.default_float_type))
 
     @veros_method
-    def set_topography(self):
+    def set_topography(self, vs):
         m = self.main_module
         kbot = np.zeros((m.ie_pe-m.is_pe+5,m.je_pe-m.js_pe+5))
         kbot[2:-2, 2:-2] = np.random.randint(1, m.nz, size=(m.ie_pe-m.is_pe+1,m.je_pe-m.js_pe+1))
-        self.set_attribute("kbot", kbot)
+        self.set_attribute(vs, "kbot", kbot)
 
     @veros_method
-    def set_coriolis(self):
+    def set_coriolis(self, vs):
         m = self.main_module
-        self.set_attribute("coriolis_t", 2 * np.random.rand(1, m.je_pe-m.js_pe+5).astype(self.default_float_type) - 1.)
+        self.set_attribute(vs, "coriolis_t", 2 * np.random.rand(1, m.je_pe-m.js_pe+5).astype(vs.default_float_type) - 1.)
 
     @veros_method
-    def set_initial_conditions(self):
+    def set_initial_conditions(self, vs):
         m = self.main_module
-        print(type(m.nz))
-        print(np.random.randn(m.ie_pe - m.is_pe + 5, m.je_pe - m.js_pe + 5, m.nz, 3))
-        self.set_attribute("salt", 35 + np.random.randn(m.ie_pe - m.is_pe + 5, m.je_pe - m.js_pe + 5, m.nz, 3).astype(self.default_float_type))
-        self.set_attribute("temp", 20 + 5 * np.random.rand(m.ie_pe - m.is_pe + 5, m.je_pe - m.js_pe + 5, m.nz, 3).astype(self.default_float_type))
+        self.set_attribute(vs, "salt", 35 + np.random.randn(m.ie_pe - m.is_pe + 5, m.je_pe - m.js_pe + 5, m.nz, 3).astype(vs.default_float_type))
+        self.set_attribute(vs, "temp", 20 + 5 * np.random.rand(m.ie_pe - m.is_pe + 5, m.je_pe - m.js_pe + 5, m.nz, 3).astype(vs.default_float_type))
 
     @veros_method
-    def set_forcing(self):
+    def set_forcing(self, vs):
         m = self.main_module
         for a in ("flux_east","flux_north","flux_top","u_wgrid","v_wgrid","w_wgrid","K_iso","K_gm","du_mix","P_diss_iso","P_diss_skew"):
-            self.set_attribute(a,np.random.randn(m.ie_pe-m.is_pe+5,m.je_pe-m.js_pe+5,m.nz).astype(self.default_float_type))
+            self.set_attribute(vs, a,np.random.randn(m.ie_pe-m.is_pe+5,m.je_pe-m.js_pe+5,m.nz).astype(vs.default_float_type))
 
-    def set_diagnostics(self):
+    def set_diagnostics(self, vs):
         pass
 
-
     @veros_method
-    def set_attribute(self, attribute, value):
+    def set_attribute(self, vs, attribute, value):
         if self.legacy_mode:
             legacy_modules = ("main_module", "isoneutral_module", "tke_module",
                               "eke_module", "idemix_module")
@@ -91,23 +86,22 @@ class IsoneutralBenchmark(VerosLegacy):
             raise AttributeError("Legacy pyOM has no attribute {}".format(attribute))
         else:
             if isinstance(value, np.ndarray):
-                getattr(self, attribute)[...] = value
+                getattr(vs, attribute)[...] = value
             else:
-                setattr(self, attribute, value)
+                setattr(vs, attribute, value)
 
-
-    @veros_method
     def run(self):
-        for _ in range(self.repetitions):
+        vs = self.state
+        for t in range(self.repetitions):
             start = time.time()
             if self.legacy_mode:
                 self.fortran.isoneutral_diffusion_pre()
             else:
-                core.isoneutral.isoneutral_diffusion_pre(self)
+                core.isoneutral.isoneutral_diffusion_pre(vs)
             logging.info("Time step took {:.2e}s".format(time.time() - start))
 
     @veros_method
-    def after_timestep(self):
+    def after_timestep(self, vs):
         pass
 
 

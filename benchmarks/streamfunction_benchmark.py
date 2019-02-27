@@ -12,9 +12,9 @@ class StreamfunctionBenchmark(VerosLegacy):
         super(StreamfunctionBenchmark, self).__init__(*args, **kwargs)
 
     @veros_method
-    def set_parameter(self):
-        self.identifier = "streamfunction_benchmark"
-        self.diskless_mode = True
+    def set_parameter(self, vs):
+        vs.identifier = "streamfunction_benchmark"
+        vs.diskless_mode = True
 
         m = self.main_module
         m.dt_mom = 480
@@ -29,7 +29,7 @@ class StreamfunctionBenchmark(VerosLegacy):
         m.enable_congrad_verbose = 1
 
     @veros_method
-    def set_grid(self):
+    def set_grid(self, vs):
         m = self.main_module
         m.dxt[:] = 80.0 / m.nx
         m.dyt[:] = 80.0 / m.ny
@@ -38,35 +38,38 @@ class StreamfunctionBenchmark(VerosLegacy):
         m.y_origin = -40.0
 
     @veros_method
-    def set_coriolis(self):
+    def set_coriolis(self, vs):
         m = self.main_module
         m.coriolis_t[:, :] = 2 * m.omega * np.sin(m.yt[None, :] / 180. * np.pi)
 
     @veros_method
-    def set_topography(self):
+    def set_topography(self, vs):
         m = self.main_module
         (X, Y) = np.meshgrid(m.xt, m.yt, indexing="ij")
         m.kbot[...] = (X > 1.0) | (Y < -20)
 
     @veros_method
-    def set_initial_conditions(self):
+    def set_initial_conditions(self, vs):
         pass
 
     @veros_method
-    def set_forcing(self):
+    def set_forcing(self, vs):
         pass
 
     @veros_method
-    def set_diagnostics(self):
+    def set_diagnostics(self, vs):
         pass
 
-    @veros_method
     def run(self):
+        from veros import runtime_state
+        vs = self.state
+        np = runtime_state.backend_module
+
         np.random.seed(123456789)
         for _ in range(self.repetitions):
             if self.legacy_mode:
                 m = self.fortran.main_module
-                rhs = np.zeros((m.ie_pe-m.is_pe+5, m.je_pe-m.js_pe+5), order="f", dtype=self.default_float_type)
+                rhs = np.zeros((m.ie_pe-m.is_pe+5, m.je_pe-m.js_pe+5), order="f", dtype=vs.default_float_type)
                 rhs[2:-2, 2:-2] = np.random.randn(m.ie_pe-m.is_pe+1, m.je_pe-m.js_pe+1)
                 sol = np.zeros_like(rhs)
                 start = time.time()
@@ -75,16 +78,16 @@ class StreamfunctionBenchmark(VerosLegacy):
                     forc=rhs, iterations=m.congr_itts, sol=sol, converged=False
                 )
             else:
-                rhs = np.zeros((self.nx+4, self.ny+4), dtype=self.default_float_type)
-                rhs[2:-2, 2:-2] = np.random.randn(self.nx, self.ny)
+                rhs = np.zeros((vs.nx+4, vs.ny+4), dtype=vs.default_float_type)
+                rhs[2:-2, 2:-2] = np.random.randn(vs.nx, vs.ny)
                 sol = np.zeros_like(rhs)
                 start = time.time()
-                core.external.solve_poisson.solve(self, rhs, sol)
+                core.external.solve_poisson.solve(vs, rhs, sol)
             end = time.time()
             logging.info("Time step took {}s".format(end - start))
 
     @veros_method
-    def after_timestep(self):
+    def after_timestep(self, vs):
         pass
 
 

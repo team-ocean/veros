@@ -7,6 +7,8 @@ import multiprocessing
 import imp
 import re
 import time
+import math
+import itertools
 
 import click
 import numpy as np
@@ -17,23 +19,27 @@ Runs selected Veros benchmarks back to back and writes timing results to a YAML 
 """
 
 TESTDIR = os.path.join(os.path.dirname(__file__), os.path.relpath("benchmarks"))
-COMPONENTS = ["numpy", "bohrium", "bohrium-opencl", "bohrium-cuda", "fortran", "fortran-mpi"]
+COMPONENTS = ["numpy", "numpy-mpi", "bohrium", "bohrium-opencl", "bohrium-cuda", "bohrium-mpi", "fortran", "fortran-mpi"]
 STATIC_SETTINGS = "-v debug -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}"
 BENCHMARK_COMMANDS = {
-    "numpy": "OMP_NUM_THREADS={nproc} {python} {filename} -b numpy " + STATIC_SETTINGS,
+    "numpy": "{python} {filename} -b numpy " + STATIC_SETTINGS,
+    "numpy-mpi": "{mpiexec} -n {nproc} --allow-run-as-root -- {python} {filename} -b numpy -n {decomp} " + STATIC_SETTINGS,
     "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 {python} {filename} -b bohrium "  + STATIC_SETTINGS,
     "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 {python} {filename} -b bohrium " + STATIC_SETTINGS,
     "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 {python} {filename} -b bohrium " + STATIC_SETTINGS,
+    "bohrium-mpi": "OMP_NUM_THREADS=2 {mpiexec} -n {nproc} --allow-run-as-root -- {python} {filename} -b bohrium -n {decomp} " + STATIC_SETTINGS,
     "fortran": "{python} {filename} --fortran {fortran_library} " + STATIC_SETTINGS,
-    "fortran-mpi": "{mpiexec} -n {nproc} --allow-run-as-root -- {python} {filename} --fortran {fortran_library} " + STATIC_SETTINGS
+    "fortran-mpi": "{mpiexec} -n {nproc} --allow-run-as-root -- {python} {filename} --fortran {fortran_library} -n {decomp} " + STATIC_SETTINGS
 }
 SLURM_COMMANDS = {
-    "numpy": "OMP_NUM_THREADS={nproc} srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b numpy " + STATIC_SETTINGS,
+    "numpy": "srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b numpy " + STATIC_SETTINGS,
+    "numpy-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} -b numpy -n {decomp} " + STATIC_SETTINGS,
     "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium " + STATIC_SETTINGS,
     "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium " + STATIC_SETTINGS,
     "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium " + STATIC_SETTINGS,
+    "bohrium-mpi": "OMP_NUM_THREADS=2 srun --ntasks {nproc} --cpus-per-task 2 -- {python} {filename} -b bohrium -n {decomp} " + STATIC_SETTINGS,
     "fortran": "srun --ntasks 1 -- {python} {filename} --fortran {fortran_library} " + STATIC_SETTINGS,
-    "fortran-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} --fortran {fortran_library} " + STATIC_SETTINGS
+    "fortran-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} --fortran {fortran_library} -n {decomp} " + STATIC_SETTINGS
 }
 AVAILABLE_BENCHMARKS = [f for f in os.listdir(TESTDIR) if f.endswith("_benchmark.py")]
 TIME_PATTERN = r"Time step took ([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)s"
@@ -74,6 +80,33 @@ def check_fortran_library(path):
     return None
 
 
+def _factorize(num):
+    j = 2
+    while num > 1:
+        for i in range(j, int(math.sqrt(num + 0.05)) + 1):
+            if num % i == 0:
+                num /= i
+                j = i
+                yield i
+                break
+        else:
+            if num > 1:
+                yield num
+                break
+
+
+def _decompose_num(num, into=2):
+    out = [1] * into
+    for fac, i in zip(_factorize(num), itertools.cycle(range(into))):
+        out[i] *= fac
+
+    return tuple(map(int, out))
+
+
+def _round_to_multiple(num, divisor):
+    return int(round(num / divisor) * divisor)
+
+
 @click.command("veros-benchmarks", help="Run Veros benchmarks")
 @click.option("-f", "--fortran-library", type=str, help="Path to pyOM2 fortran library")
 @click.option("-s", "--sizes", multiple=True, type=float, required=True,
@@ -96,12 +129,17 @@ def check_fortran_library(path):
 def run(**kwargs):
     check_arguments(**kwargs)
 
+    proc_decom = _decompose_num(kwargs["nproc"], 2)
     settings = {
         "timesteps": kwargs["timesteps"],
         "nproc": kwargs["nproc"],
         "float_type": kwargs["float_type"],
-        "burnin": kwargs["burnin"]
+        "burnin": kwargs["burnin"],
+        "decomp": "%s %s" % proc_decom,
+        "fortran_library": kwargs["fortran_library"],
+        "mpiexec": kwargs["mpiexec"],
     }
+
     out_data = {}
     all_passed = True
     try:
@@ -110,11 +148,13 @@ def run(**kwargs):
             print("running benchmark {} ".format(f))
             for size in kwargs["sizes"]:
                 n = int(size ** (1. / 3.)) + 1
-                nx = ny = int(2. ** 0.5 * n)
+                nx = _round_to_multiple(int(2. ** 0.5 * n), proc_decom[0])
+                ny = _round_to_multiple(int(2. ** 0.5 * n), proc_decom[1])
                 nz = n // 2
                 real_size = nx * ny * nz
                 print(" current size: {}".format(real_size))
-                cmd_args = kwargs.copy()
+
+                cmd_args = settings.copy()
                 cmd_args.update({
                     "python": sys.executable,
                     "filename": os.path.realpath(os.path.join(TESTDIR, f)),
