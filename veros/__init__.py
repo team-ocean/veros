@@ -16,7 +16,7 @@ runtime_state = RuntimeState()
 del RuntimeSettings, RuntimeState
 
 # logging
-from . import logs
+import logs
 del logs
 
 # public API
