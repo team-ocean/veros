@@ -2,6 +2,7 @@ try: # python 2.x
     import Queue as queue
 except ImportError: # python 3.x
     import queue
+
 import logging
 
 from .. import utilities
@@ -11,6 +12,8 @@ OFFMAP = -1
 LAND = 1
 OCEAN = 0
 
+logger = logging.getLogger(__name__)
+
 
 @veros_method
 def isleperim(vs, kmt, verbose=False):
@@ -18,9 +21,9 @@ def isleperim(vs, kmt, verbose=False):
     Island and Island Perimeter boundary mapping routines
     """
     if verbose:
-        logging.info(" Finding perimeters of all land masses")
+        logger.info(" Finding perimeters of all land masses")
         if vs.enable_cyclic_x:
-            logging.info(" using cyclic boundary conditions")
+            logger.info(" using cyclic boundary conditions")
 
     """
     copy kmt to map changing notation
@@ -56,7 +59,7 @@ def isleperim(vs, kmt, verbose=False):
                 island_queue.put((i, j))
                 expand(vs, boundary_map, label, island_queue, nippts)
                 if verbose:
-                    logging.debug(" found island {} with {} perimeter points"
+                    logger.debug(" found island {} with {} perimeter points"
                                   .format(label - 1, nippts[-1]))
                 label += 1
                 nippts.append(0)
@@ -68,9 +71,9 @@ def isleperim(vs, kmt, verbose=False):
         boundary_map[imt - 1, :] = boundary_map[1, :]
 
     if verbose:
-        logging.info(" Island perimeter statistics:")
-        logging.info("  number of land masses is {}".format(nisle))
-        logging.info("  number of total island perimeter points is {}".format(sum(nippts)))
+        logger.info(" Island perimeter statistics:")
+        logger.info("  number of land masses is {}".format(nisle))
+        logger.info("  number of total island perimeter points is {}".format(sum(nippts)))
 
     return np.asarray(boundary_map)
 

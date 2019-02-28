@@ -4,6 +4,8 @@ import logging
 
 from ... import runtime_state
 
+logger = logging.getLogger(__name__)
+
 
 @contextlib.contextmanager
 def threaded_io(vs, filepath, mode):
@@ -48,7 +50,7 @@ def _wait_for_disk(vs, file_id):
     """
     Wait for the lock of file_id to be released
     """
-    logging.debug("Waiting for lock {} to be released".format(file_id))
+    logger.debug("Waiting for lock {} to be released".format(file_id))
     _add_to_locks(file_id)
     lock_released = _io_locks[file_id].wait(vs.io_timeout)
     if not lock_released:

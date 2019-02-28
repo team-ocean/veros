@@ -15,6 +15,10 @@ runtime_settings = RuntimeSettings()
 runtime_state = RuntimeState()
 del RuntimeSettings, RuntimeState
 
+# logging
+from . import logs
+del logs
+
 # public API
 from .decorators import veros_method
 from .veros import VerosSetup

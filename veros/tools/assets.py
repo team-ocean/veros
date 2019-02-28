@@ -13,6 +13,8 @@ except ImportError:
 
 ASSET_DIRECTORY = os.environ.get("VEROS_ASSET_DIR") or os.path.join(os.path.expanduser("~"), ".veros", "assets")
 
+logger = logging.getLogger(__name__)
+
 
 class AssetError(Exception):
     pass
@@ -36,7 +38,7 @@ def get_assets(basedir, asset_file):
         target_path = os.path.join(asset_dir, target_filename)
 
         if not os.path.isfile(target_path) or (md5 is not None and _filehash(target_path) != md5):
-            logging.info("Downloading asset %s ...", target_filename)
+            logger.info("Downloading asset %s ...", target_filename)
             _download_file(url, target_path)
 
         if md5 is not None and _filehash(target_path) != md5:

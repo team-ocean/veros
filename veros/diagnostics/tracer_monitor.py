@@ -4,6 +4,8 @@ from .diagnostic import VerosDiagnostic
 from .. import veros_method
 from ..distributed import global_sum
 
+logger = logging.getLogger(__name__)
+
 
 class TracerMonitor(VerosDiagnostic):
     """Diagnostic monitoring global tracer contents / fluxes.
@@ -37,13 +39,13 @@ class TracerMonitor(VerosDiagnostic):
         vtemp = global_sum(vs, np.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau]**2))
         vsalt = global_sum(vs, np.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau]**2))
 
-        logging.warning(" mean temperature {} change to last {}"
+        logger.warning(" mean temperature {} change to last {}"
                         .format(tempm / volm, (tempm - self.tempm1) / volm))
-        logging.warning(" mean salinity    {} change to last {}"
+        logger.warning(" mean salinity    {} change to last {}"
                         .format(saltm / volm, (saltm - self.saltm1) / volm))
-        logging.warning(" temperature var. {} change to last {}"
+        logger.warning(" temperature var. {} change to last {}"
                         .format(vtemp / volm, (vtemp - self.vtemp1) / volm))
-        logging.warning(" salinity var.    {} change to last {}"
+        logger.warning(" salinity var.    {} change to last {}"
                         .format(vsalt / volm, (vsalt - self.vsalt1) / volm))
 
         self.tempm1 = tempm

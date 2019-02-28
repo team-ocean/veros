@@ -2,9 +2,10 @@ import logging
 import os
 import warnings
 
-from . import io_tools
 from .. import veros_method, time
 from .diagnostic import VerosDiagnostic
+
+logger = logging.getLogger(__name__)
 
 
 class Snapshot(VerosDiagnostic):
@@ -38,7 +39,7 @@ class Snapshot(VerosDiagnostic):
 
     @veros_method
     def output(self, vs):
-        logging.info(" writing snapshot at {0[0]:.2f} {0[1]}".format(
+        logger.info(" writing snapshot at {0[0]:.2f} {0[1]}".format(
             time.format_time(vs.time)))
 
         if not os.path.isfile(self.get_output_file_name(vs)):

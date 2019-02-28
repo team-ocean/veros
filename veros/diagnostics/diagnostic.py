@@ -5,6 +5,8 @@ from .io_tools import netcdf as nctools, hdf5 as h5tools
 from ..decorators import veros_method, do_not_disturb
 from .. import time, runtime_state, distributed
 
+logger = logging.getLogger(__name__)
+
 
 class VerosDiagnostic(object):
     """Base class for diagnostics. Provides an interface and wrappers for common I/O.
@@ -95,7 +97,7 @@ class VerosDiagnostic(object):
         if not os.path.isfile(restart_filename):
             raise IOError("restart file {} not found".format(restart_filename))
 
-        logging.info(" reading restart data for diagnostic {} from {}"
+        logger.info(" reading restart data for diagnostic {} from {}"
                      .format(self.name, restart_filename))
         with h5tools.threaded_io(vs, restart_filename, "r") as infile:
             variables = {}

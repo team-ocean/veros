@@ -1,8 +1,9 @@
 import imp
 import logging
-import math
 
 from . import veros, settings, runtime_settings
+
+logger = logging.getLogger(__name__)
 
 
 class LowercaseAttributeWrapper(object):
@@ -156,10 +157,10 @@ class VerosLegacy(veros.VerosSetup):
         ekm = self.eke_module
         tkm = self.tke_module
 
-        logging.info("Starting integration for {:.2e}s".format(float(m.runlen)))
+        logger.info("Starting integration for {:.2e}s".format(float(m.runlen)))
 
         while vs.time < m.runlen:
-            logging.info("Current iteration: {}".format(m.itt))
+            logger.info("Current iteration: {}".format(m.itt))
 
             with vs.timers["main"]:
                 self.set_forcing(vs)
@@ -234,13 +235,13 @@ class VerosLegacy(veros.VerosSetup):
             m.tau = m.taup1
             m.taup1 = otaum1
 
-            logging.debug("Time step took {}s".format(vs.timers["main"].get_last_time()))
+            logger.debug("Time step took {}s".format(vs.timers["main"].get_last_time()))
 
-        logging.debug("Timing summary:")
-        logging.debug(" setup time summary       = {}s".format(vs.timers["setup"].get_time()))
-        logging.debug(" main loop time summary   = {}s".format(vs.timers["main"].get_time()))
-        logging.debug("     momentum             = {}s".format(vs.timers["momentum"].get_time()))
-        logging.debug("     thermodynamics       = {}s".format(vs.timers["temperature"].get_time()))
-        logging.debug("     EKE                  = {}s".format(vs.timers["eke"].get_time()))
-        logging.debug("     IDEMIX               = {}s".format(vs.timers["idemix"].get_time()))
-        logging.debug("     TKE                  = {}s".format(vs.timers["tke"].get_time()))
+        logger.debug("Timing summary:")
+        logger.debug(" setup time summary       = {}s".format(vs.timers["setup"].get_time()))
+        logger.debug(" main loop time summary   = {}s".format(vs.timers["main"].get_time()))
+        logger.debug("     momentum             = {}s".format(vs.timers["momentum"].get_time()))
+        logger.debug("     thermodynamics       = {}s".format(vs.timers["temperature"].get_time()))
+        logger.debug("     EKE                  = {}s".format(vs.timers["eke"].get_time()))
+        logger.debug("     IDEMIX               = {}s".format(vs.timers["idemix"].get_time()))
+        logger.debug("     TKE                  = {}s".format(vs.timers["tke"].get_time()))

@@ -10,6 +10,8 @@ from .timer import Timer
 from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
                    isoneutral, external, advection, utilities)
 
+logger = logging.getLogger(__name__)
+
 
 class VerosSetup(with_metaclass(abc.ABCMeta)):
     """Main class for Veros, used for building a model and running it.
@@ -178,7 +180,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
         vs = self.state
 
         with vs.timers["setup"]:
-            logging.info("Setting up everything")
+            logger.info("Setting up everything")
 
             self.set_parameter(vs)
             for setting, value in self.override_settings.items():
@@ -215,14 +217,14 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
         from . import runtime_settings as rs, runtime_state as rst
         vs = self.state
 
-        logging.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(vs.runlen)))
+        logger.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(vs.runlen)))
 
         start_time, start_iteration = vs.time, vs.itt
         profiler = None
         with handlers.signals_to_exception():
             try:
                 while vs.time - start_time < vs.runlen:
-                    logging.info("Current iteration: {}".format(vs.itt))
+                    logger.info("Current iteration: {}".format(vs.itt))
 
                     with vs.timers["diagnostics"]:
                         diagnostics.write_restart(vs)
@@ -290,19 +292,19 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
                         diagnostics.diagnose(vs)
                         diagnostics.output(vs)
 
-                    logging.debug("Time step took {:.2e}s".format(vs.timers["main"].get_last_time()))
+                    logger.debug("Time step took {:.2e}s".format(vs.timers["main"].get_last_time()))
 
                     # permutate time indices
                     vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
             except:
-                logging.critical("stopping integration at iteration {}".format(vs.itt))
+                logger.critical("stopping integration at iteration {}".format(vs.itt))
                 raise
 
             finally:
                 diagnostics.write_restart(vs, force=True)
 
-                logging.debug("\n".join([
+                logger.debug("\n".join([
                     "Timing summary:",
                     " setup time               = {:.2f}s".format(vs.timers["setup"].get_time()),
                     " main loop time           = {:.2f}s".format(vs.timers["main"].get_time()),

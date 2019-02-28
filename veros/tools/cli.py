@@ -5,6 +5,8 @@ import click
 from veros.backend import BACKENDS
 from veros.settings import SETTINGS
 
+LOGLEVELS = ["trace", "debug", "info", "warning", "error", "critical"]
+
 
 class VerosSetting(click.ParamType):
     name = "setting"
@@ -33,8 +35,7 @@ def cli(run):
     @click.command("veros-run")
     @click.option("-b", "--backend", default="numpy", type=click.Choice(BACKENDS),
                   help="Backend to use for computations (default: numpy)", envvar="VEROS_BACKEND")
-    @click.option("-v", "--loglevel", default="info",
-                  type=click.Choice(["debug", "info", "warning", "error", "critical"]),
+    @click.option("-v", "--loglevel", default="info", type=click.Choice(LOGLEVELS),
                   help="Log level used for output (default: info)", envvar="VEROS_LOGLEVEL")
     @click.option("-l", "--logfile", default=None, envvar="VEROS_LOGFILE",
                   help="Log file to write to (default: write to stdout)")

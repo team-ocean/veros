@@ -8,6 +8,8 @@ from ..core import density
 from ..variables import Variable
 from ..distributed import global_sum
 
+logger = logging.getLogger(__name__)
+
 
 SIGMA = Variable(
     "Sigma axis", ("sigma",), "kg/m^3", "Sigma axis", output=True,
@@ -70,12 +72,12 @@ class Overturning(VerosDiagnostic):
         self.sigs = float(density.get_rho(vs, 35., 30., self.p_ref))
         self.dsig = (self.sige - self.sigs) / (self.nlevel - 1)
 
-        logging.debug(" sigma ranges for overturning diagnostic:")
-        logging.debug(" start sigma0 = {:.1f}".format(self.sigs))
-        logging.debug(" end sigma0 = {:.1f}".format(self.sige))
-        logging.debug(" Delta sigma0 = {:.1e}".format(self.dsig))
+        logger.debug(" sigma ranges for overturning diagnostic:")
+        logger.debug(" start sigma0 = {:.1f}".format(self.sigs))
+        logger.debug(" end sigma0 = {:.1f}".format(self.sige))
+        logger.debug(" Delta sigma0 = {:.1e}".format(self.dsig))
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-            logging.debug(" also calculating overturning by eddy-driven velocities")
+            logger.debug(" also calculating overturning by eddy-driven velocities")
 
         self.sigma[...] = self.sigs + self.dsig * np.arange(self.nlevel)
 

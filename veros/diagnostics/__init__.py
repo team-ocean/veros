@@ -4,6 +4,8 @@ from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monit
 from .. import time, veros_method
 from .io_tools import hdf5 as h5tools
 
+logger = logging.getLogger(__name__)
+
 
 @veros_method
 def create_diagnostics(vs):
@@ -23,7 +25,7 @@ def read_restart(vs):
         return
     if vs.force_overwrite:
         raise RuntimeError("to prevent data loss, force_overwrite cannot be used in restart runs")
-    logging.info("Reading restarts")
+    logger.info("Reading restarts")
     for diagnostic in vs.diagnostics.values():
         diagnostic.read_restart(vs)
 
@@ -43,10 +45,10 @@ def initialize(vs):
     for name, diagnostic in vs.diagnostics.items():
         diagnostic.initialize(vs)
         if diagnostic.sampling_frequency:
-            logging.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]}"
+            logger.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]}"
                          .format(name, time.format_time(diagnostic.sampling_frequency)))
         if diagnostic.output_frequency:
-            logging.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]}"
+            logger.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]}"
                          .format(name, time.format_time(diagnostic.output_frequency)))
 
 

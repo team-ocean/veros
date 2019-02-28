@@ -1,12 +1,14 @@
 import functools
 import signal
+import inspect
 import threading
 import logging
-import inspect
 
 CONTEXT = threading.local()
 CONTEXT.is_dist_safe = True
 CONTEXT.wrapped_methods = []
+
+logger = logging.getLogger(__name__)
 
 
 def veros_method(function=None, **kwargs):
@@ -67,6 +69,8 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
         from .state_dist import DistributedVerosState
         from .distributed import broadcast
 
+        logger.trace("entering %s:%s", inspect.getmodule(function).__name__, function.__name__)
+
         veros_state = args[narg]
 
         if not isinstance(veros_state, VerosState):
@@ -126,9 +130,6 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
     return veros_method_wrapper
 
 
-_veros_method.methods = []
-
-
 def dist_context_only(function):
     @functools.wraps(function)
     def dist_context_only_wrapper(vs, arr, *args, **kwargs):
@@ -158,7 +159,7 @@ def do_not_disturb(function):
         def handler(sig, frame):
             signal_received["sig"] = sig
             signal_received["frame"] = frame
-            logging.error("{} received - cleaning up before exit".format(sig))
+            logger.error("{} received - cleaning up before exit".format(sig))
 
         old_handlers = {s: signal.getsignal(s) for s in signals}
         for s in signals:

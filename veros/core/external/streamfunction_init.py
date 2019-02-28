@@ -4,12 +4,14 @@ from ... import veros_method, runtime_settings as rs
 from .. import utilities as mainutils
 from . import island, utilities, solve_poisson
 
+logger = logging.getLogger(__name__)
+
 
 @veros_method(inline=True, dist_safe=False, local_variables=["kbot", "land_map"])
 def get_isleperim(vs):
-    logging.info(" determining number of land masses")
+    logger.info(" determining number of land masses")
     vs.land_map[...] = island.isleperim(vs, vs.kbot, verbose=vs.verbose_island_routines)
-    logging.info(_ascii_map(vs, vs.land_map))
+    logger.info(_ascii_map(vs, vs.land_map))
     return int(vs.land_map.max())
 
 
@@ -18,7 +20,7 @@ def streamfunction_init(vs):
     """
     prepare for island integrals
     """
-    logging.info("Initializing streamfunction method")
+    logger.info("Initializing streamfunction method")
 
     """
     preprocess land map using MOMs algorithm for B-grid to determine number of islands
@@ -189,7 +191,7 @@ def do_streamfunction_init(vs):
     vs.psin[...] = np.random.rand(*vs.psin.shape) * vs.maskZ[..., -1, np.newaxis]
 
     for isle in range(vs.nisle):
-        logging.info(" solving for boundary contribution by island {:d}".format(isle))
+        logger.info(" solving for boundary contribution by island {:d}".format(isle))
         solve_poisson.solve(vs, forc, vs.psin[:, :, isle],
                             boundary_val=vs.boundary_mask[:, :, isle])
 
@@ -234,7 +236,7 @@ def _avoid_cyclic_boundaries(vs, boundary_map, isle, n, x_range):
 
 def _print_verbose(vs, message):
     if vs.verbose_island_routines:
-        logging.info(message)
+        logger.info(message)
 
 
 @veros_method

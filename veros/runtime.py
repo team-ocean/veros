@@ -5,7 +5,7 @@ def twoints(v):
 
 
 def loglevel(v):
-    loglevels = ("debug", "info", "warning", "error")
+    loglevels = ("trace", "debug", "info", "warning", "error")
     if v not in loglevels:
         raise ValueError("loglevel must be one of %r" % loglevels)
     return v
