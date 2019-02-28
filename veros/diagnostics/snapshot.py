@@ -5,7 +5,7 @@ import warnings
 from .. import veros_method, time
 from .diagnostic import VerosDiagnostic
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 class Snapshot(VerosDiagnostic):

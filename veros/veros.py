@@ -10,7 +10,7 @@ from .timer import Timer
 from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
                    isoneutral, external, advection, utilities)
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 class VerosSetup(with_metaclass(abc.ABCMeta)):

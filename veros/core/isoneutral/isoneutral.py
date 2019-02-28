@@ -3,7 +3,7 @@ import logging
 from .. import density, utilities
 from ... import veros_method, runtime_settings as rs
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 @veros_method
@@ -193,7 +193,7 @@ def check_isoneutral_slope_crit(vs):
             min(delta1a, delta1b)
         )
 
-        logger.info("diffusion grid factor delta_iso1 = {}".format(delta_iso1))
+        logger.info("diffusion grid factor delta_iso1 = {}".format(float(delta_iso1)))
         if delta_iso1 < vs.iso_slopec:
             raise RuntimeError("Without latitudinal filtering, delta_iso1 is the steepest "
                                "isoneutral slope available for linear stability of "

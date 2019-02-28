@@ -5,7 +5,7 @@ from .io_tools import netcdf as nctools, hdf5 as h5tools
 from ..decorators import veros_method, do_not_disturb
 from .. import time, runtime_state, distributed
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 class VerosDiagnostic(object):

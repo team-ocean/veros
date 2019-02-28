@@ -13,7 +13,7 @@ except ImportError:
 
 ASSET_DIRECTORY = os.environ.get("VEROS_ASSET_DIR") or os.path.join(os.path.expanduser("~"), ".veros", "assets")
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 class AssetError(Exception):

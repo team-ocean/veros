@@ -12,7 +12,7 @@ OFFMAP = -1
 LAND = 1
 OCEAN = 0
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 @veros_method

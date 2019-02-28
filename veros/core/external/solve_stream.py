@@ -83,7 +83,15 @@ def solve_streamfunction(vs):
                                                    fpy[..., np.newaxis], kind="same")[1:]
 
         # solve for time dependent boundary values
-        line_forc[1:] = np.linalg.solve(vs.line_psin[1:, 1:], line_forc[1:])
+        if rs.backend == "bohrium":
+            import numpy.linalg
+            line_forc = line_forc.copy2numpy()
+            line_psin = vs.line_psin.copy2numpy()
+            line_forc[1:] = numpy.linalg.solve(line_psin[1:, 1:], line_forc[1:])
+            line_forc = np.array(line_forc)
+        else:
+            line_forc[1:] = np.linalg.solve(vs.line_psin[1:, 1:], line_forc[1:])
+
         vs.dpsin[1:, vs.tau] = line_forc[1:]
 
     # integrate barotropic and baroclinic velocity forward in time

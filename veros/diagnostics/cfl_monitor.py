@@ -4,7 +4,7 @@ from .diagnostic import VerosDiagnostic
 from .. import veros_method
 from ..distributed import global_max
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 class CFLMonitor(VerosDiagnostic):

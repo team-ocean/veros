@@ -4,7 +4,7 @@ from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monit
 from .. import time, veros_method
 from .io_tools import hdf5 as h5tools
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 @veros_method

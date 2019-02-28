@@ -4,7 +4,7 @@ import logging
 
 from ... import runtime_state
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 @contextlib.contextmanager

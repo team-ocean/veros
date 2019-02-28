@@ -8,7 +8,7 @@ CONTEXT = threading.local()
 CONTEXT.is_dist_safe = True
 CONTEXT.wrapped_methods = []
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 def veros_method(function=None, **kwargs):

@@ -3,7 +3,7 @@ import logging
 
 from . import veros, settings, runtime_settings
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 class LowercaseAttributeWrapper(object):

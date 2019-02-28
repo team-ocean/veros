@@ -8,7 +8,7 @@ from ..core import density
 from ..variables import Variable
 from ..distributed import global_sum
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 
 SIGMA = Variable(

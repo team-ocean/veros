@@ -6,7 +6,7 @@ import warnings
 from ... import veros_method, variables, runtime_state, runtime_settings as rs
 from ...distributed import get_chunk_slices
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("veros")
 
 """
 netCDF output is designed to follow the COARDS guidelines from
