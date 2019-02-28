@@ -1,7 +1,5 @@
 import logging
 
-from . import runtime_state
-
 TRACE = 5
 
 
@@ -20,6 +18,8 @@ logging.setLoggerClass(MyLogger)
 
 
 def setup_logging(loglevel="info", logfile=None):
+    from . import runtime_state
+
     if runtime_state.proc_rank != 0:
         return
 
