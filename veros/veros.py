@@ -4,7 +4,7 @@ import abc
 from future.utils import with_metaclass
 
 from . import (settings, diagnostics, time, handlers, logs,
-               distributed)
+               distributed, runtime_settings as rs)
 from .state import VerosState
 from .timer import Timer
 from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
@@ -49,8 +49,6 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
     """
 
     def __init__(self, state=None, override=None):
-        from . import runtime_settings as rs
-
         self.override_settings = override or {}
         logs.setup_logging(loglevel=rs.loglevel, logfile=rs.logfile)
 

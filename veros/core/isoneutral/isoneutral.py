@@ -143,8 +143,8 @@ def isoneutral_diffusion_pre(vs):
                 * taper * syb**2 * vs.maskW[2:-2, 2:-2, :-1]
             vs.Ai_by[2:-2, 2:-2, :-1, jp, kr] = taper * syb * vs.maskW[2:-2, 2:-2, :-1]
 
-    vs.K_33[2:-2, 2:-2, :-1] = sumx / (4 * vs.dxt[2:-2, np.newaxis, np.newaxis]) + sumy \
-        / (4 * vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.cost[np.newaxis, 2:-2, np.newaxis])
+    vs.K_33[2:-2, 2:-2, :-1] = sumx / (4 * vs.dxt[2:-2, np.newaxis, np.newaxis]) + \
+        sumy / (4 * vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.cost[np.newaxis, 2:-2, np.newaxis])
     vs.K_33[2:-2, 2:-2, -1] = 0.
 
 
