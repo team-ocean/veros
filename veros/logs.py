@@ -7,7 +7,7 @@ TRACE = 5
 
 class MyLogger(logging.getLoggerClass()):
         def __init__(self, name, level=logging.NOTSET):
-            super().__init__(name, level)
+            super(MyLogger, self).__init__(name, level)
 
             logging.addLevelName(TRACE, "TRACE")
 
