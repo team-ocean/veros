@@ -28,8 +28,7 @@ def threaded_io(vs, filepath, mode):
         yield h5file
     finally:
         if vs.use_io_threads:
-            io_thread = threading.Thread(target=_write_to_disk, args=(vs, h5file, filepath))
-            io_thread.start()
+            threading.Thread(target=_write_to_disk, args=(vs, h5file, filepath)).start()
         else:
             _write_to_disk(vs, h5file, filepath)
 
@@ -62,7 +61,8 @@ def _write_to_disk(vs, h5file, file_id):
     Sync HDF5 data to disk, close file handle, and release lock.
     May run in a separate thread.
     """
-    h5file.flush()
-    h5file.close()
-    if vs.use_io_threads and file_id is not None:
-        _io_locks[file_id].set()
+    try:
+        h5file.close()
+    finally:
+        if vs.use_io_threads and file_id is not None:
+            _io_locks[file_id].set()

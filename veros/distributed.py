@@ -285,7 +285,7 @@ def exchange_cyclic_boundaries(vs, arr):
 
 
 @dist_context_only
-@veros_method
+@veros_method(inline=True)
 def _reduce(vs, arr, op):
     if np.isscalar(arr):
         squeeze = True
@@ -326,7 +326,7 @@ def global_sum(vs, arr):
 
 
 @dist_context_only
-@veros_method
+@veros_method(inline=True)
 def _gather_1d(vs, arr, dim):
     assert dim in (0, 1)
 
@@ -368,7 +368,7 @@ def _gather_1d(vs, arr, dim):
 
 
 @dist_context_only
-@veros_method
+@veros_method(inline=True)
 def _gather_xy(vs, arr):
     nxi, nyi = get_chunk_size(vs)
     assert arr.shape[:2] == (nxi + 4, nyi + 4)
@@ -444,7 +444,7 @@ def broadcast(vs, obj):
 
 
 @dist_context_only
-@veros_method
+@veros_method(inline=True)
 def _scatter_constant(vs, arr):
     arr = ascontiguousarray(arr)
     COMM.Bcast(get_array_buffer(vs, arr), root=0)
@@ -452,7 +452,7 @@ def _scatter_constant(vs, arr):
 
 
 @dist_context_only
-@veros_method
+@veros_method(inline=True)
 def _scatter_1d(vs, arr, dim):
     assert dim in (0, 1)
 
@@ -483,7 +483,7 @@ def _scatter_1d(vs, arr, dim):
 
 
 @dist_context_only
-@veros_method
+@veros_method(inline=True)
 def _scatter_xy(vs, arr):
     nxi, nyi = get_chunk_size(vs)
 

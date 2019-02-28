@@ -98,7 +98,7 @@ class VerosDiagnostic(object):
             raise IOError("restart file {} not found".format(restart_filename))
 
         logger.info(" reading restart data for diagnostic {} from {}"
-                     .format(self.name, restart_filename))
+                    .format(self.name, restart_filename))
         with h5tools.threaded_io(vs, restart_filename, "r") as infile:
             variables = {}
             for key, var in infile[self.name].items():
@@ -140,4 +140,9 @@ class VerosDiagnostic(object):
             group[key][gidx] = var[lidx]
 
         for key, val in attributes.items():
+            try:
+                val = val.copy2numpy()
+            except AttributeError:
+                pass
+
             group.attrs[key] = val

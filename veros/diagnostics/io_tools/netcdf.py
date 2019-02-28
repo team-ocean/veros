@@ -3,7 +3,7 @@ import contextlib
 import logging
 import warnings
 
-from ... import veros_method, variables, runtime_state
+from ... import veros_method, variables, runtime_state, runtime_settings as rs
 from ...distributed import get_chunk_slices
 
 logger = logging.getLogger(__name__)
@@ -89,10 +89,8 @@ def write_variable(vs, key, var, var_data, ncfile, time_step=None):
 
     var_data = var_data * var.scale
 
-    try:
-        var_data = var_data.copy2numpy()
-    except AttributeError:
-        pass
+    if rs.backend == "bohrium" and not np.isscalar(var_data):
+        var_data = np.interop_numpy.get_array(var_data)
 
     var_obj = ncfile.variables[key]
 
@@ -126,8 +124,7 @@ def threaded_io(vs, filepath, mode):
         yield nc_dataset
     finally:
         if vs.use_io_threads:
-            io_thread = threading.Thread(target=_write_to_disk, args=(vs, nc_dataset, filepath))
-            io_thread.start()
+            threading.Thread(target=_write_to_disk, args=(vs, nc_dataset, filepath)).start()
         else:
             _write_to_disk(vs, nc_dataset, filepath)
 
@@ -160,7 +157,8 @@ def _write_to_disk(vs, ncfile, file_id):
     Sync netCDF data to disk, close file handle, and release lock.
     May run in a separate thread.
     """
-    ncfile.sync()
-    ncfile.close()
-    if vs.use_io_threads and file_id is not None:
-        _io_locks[file_id].set()
+    try:
+        ncfile.close()
+    finally:
+        if vs.use_io_threads and file_id is not None:
+            _io_locks[file_id].set()
