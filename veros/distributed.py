@@ -43,7 +43,7 @@ def ascontiguousarray(arr):
     return arr
 
 
-@veros_method
+@veros_method(inline=True)
 def get_array_buffer(vs, arr):
     if rs.backend == "bohrium":
         buf = np.interop_numpy.get_array(arr)
@@ -52,6 +52,7 @@ def get_array_buffer(vs, arr):
     return [buf, arr.size, MPI_TYPE_MAP[str(arr.dtype)]]
 
 
+@veros_method
 def validate_decomposition(vs):
     if not HAS_MPI4PY and (rs.num_proc[0] > 1 or rs.num_proc[1] > 1):
         raise RuntimeError("mpi4py is required for distributed execution")
