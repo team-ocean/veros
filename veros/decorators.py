@@ -33,7 +33,7 @@ def veros_method(function=None, **kwargs):
         narg = 1 if _is_method(function) else 0
         return _veros_method(function, narg=narg)
 
-    flush_on_exit = not kwargs.pop("inline", False)
+    inline = kwargs.pop("inline", False)
     dist_safe = kwargs.pop("dist_safe", True)
 
     if not dist_safe and "local_variables" not in kwargs:
@@ -45,7 +45,7 @@ def veros_method(function=None, **kwargs):
     def inner_decorator(function):
         narg = 1 if _is_method(function) else 0
         return _veros_method(
-            function, flush_on_exit=flush_on_exit, narg=narg,
+            function, inline=inline, narg=narg,
             dist_safe=dist_safe, local_vars=local_vars, dist_only=dist_only
         )
 
@@ -57,7 +57,7 @@ def _is_method(function):
     return spec.args and spec.args[0] == 'self'
 
 
-def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
+def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
                   dist_only=False, narg=0):
     CONTEXT.wrapped_methods.append(function)
 
@@ -69,7 +69,8 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
         from .state_dist import DistributedVerosState
         from .distributed import broadcast
 
-        logger.trace("entering %s:%s", inspect.getmodule(function).__name__, function.__name__)
+        if not inline:
+            logger.trace("entering %s:%s", inspect.getmodule(function).__name__, function.__name__)
 
         veros_state = args[narg]
 
@@ -122,7 +123,7 @@ def _veros_method(function, flush_on_exit=True, dist_safe=True, local_vars=None,
             else:
                 g['np'] = oldvalue
 
-            if flush_on_exit:
+            if not inline:
                 flush()
 
         return res
