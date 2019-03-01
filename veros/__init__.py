@@ -8,12 +8,12 @@ del get_versions
 try:
     from mpi4py import MPI
 except ImportError:
-    pass
+    MPI = None
 
 import netCDF4
 import h5py
 
-del mpi4py
+del MPI
 del netCDF4
 del h5py
 
