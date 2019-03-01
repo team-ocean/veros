@@ -3,6 +3,7 @@
 import functools
 import subprocess
 import shlex
+import pipes
 import sys
 import os
 import time
@@ -34,6 +35,10 @@ def write_next_n(n, filename):
         f.write(str(n))
 
 
+def unparse(args):
+    return " ".join(map(pipes.quote, args))
+
+
 def call_veros(cmd, name, n, runlen):
     identifier = "{name}.{n:0>4}".format(name=name, n=n)
     prev_id = "{name}.{n:0>4}".format(name=name, n=n - 1)
@@ -44,7 +49,7 @@ def call_veros(cmd, name, n, runlen):
     sys.stdout.write("\n >>> {}\n\n".format(" ".join(cmd + args)))
     sys.stdout.flush()
     try:
-        subprocess.check_call(cmd + args)
+        subprocess.check_call(unparse(cmd + args), shell=True)
     except subprocess.CalledProcessError:
         raise RuntimeError("Run {} failed, exiting".format(n))
 
@@ -63,7 +68,7 @@ def resubmit(identifier, num_runs, length_per_run, veros_cmd, callback):
 
     call_veros(veros_cmd, identifier, current_n, length_per_run)
     write_next_n(current_n + 1, last_n_filename)
-    next_proc = subprocess.Popen(callback)
+    next_proc = subprocess.Popen(unparse(callback), shell=True)
 
     # catch immediately crashing processes
     timeout = CHILD_TIMEOUT
