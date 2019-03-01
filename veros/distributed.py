@@ -57,8 +57,10 @@ def validate_decomposition(vs):
     if not HAS_MPI4PY and (rs.num_proc[0] > 1 or rs.num_proc[1] > 1):
         raise RuntimeError("mpi4py is required for distributed execution")
 
-    if rs.num_proc[0] * rs.num_proc[1] != SIZE:
-        raise RuntimeError("number of processes does not match size of communicator")
+    nproc = rs.num_proc[0] * rs.num_proc[1]
+    if nproc != SIZE:
+        raise RuntimeError("number of processes ({}) does not match size of communicator ({})"
+                           .format(nproc, SIZE))
 
     if vs.nx % rs.num_proc[0]:
         raise ValueError("processes do not divide domain evenly in x-direction")
