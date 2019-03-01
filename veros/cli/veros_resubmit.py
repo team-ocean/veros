@@ -46,10 +46,11 @@ def call_veros(cmd, name, n, runlen):
             "{identifier}.restart.h5", "-s", "runlen", "{}".format(runlen)]
     if n:
         args += ["-s", "restart_input_filename", "{prev_id}.restart.h5".format(prev_id=prev_id)]
-    sys.stdout.write("\n >>> {}\n\n".format(" ".join(cmd + args)))
+    cmd = cmd + " " + unparse(args)
+    sys.stdout.write("\n >>> {}\n\n".format(cmd))
     sys.stdout.flush()
     try:
-        subprocess.check_call(unparse(cmd + args), shell=True)
+        subprocess.check_call(cmd, shell=True)
     except subprocess.CalledProcessError:
         raise RuntimeError("Run {} failed, exiting".format(n))
 
@@ -58,7 +59,6 @@ def resubmit(identifier, num_runs, length_per_run, veros_cmd, callback):
     """Performs several runs of Veros back to back, using the previous run as restart input.
 
     Intended to be used with scheduling systems (e.g. SLURM or PBS).
-
     """
     last_n_filename = LAST_N_FILENAME.format(identifier=identifier)
 
@@ -92,9 +92,9 @@ def resubmit(identifier, num_runs, length_per_run, veros_cmd, callback):
               help="Total number of runs to execute")
 @click.option("-l", "--length-per-run", type=click.FLOAT, required=True,
               help="Length (in seconds) of each run")
-@click.option("-c", "--veros-cmd", type=ShellCommand(), required=True,
+@click.option("-c", "--veros-cmd", required=True,
               help="The command that is used to call veros (quoted)")
-@click.option("--callback", metavar="CMD", type=ShellCommand(), default=None,
+@click.option("--callback", metavar="CMD", default=None,
               help="Command to call after each run has finished (quoted, default: call self)")
 @functools.wraps(resubmit)
 def cli(*args, **kwargs):
