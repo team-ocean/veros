@@ -19,8 +19,9 @@ def initialize_file(vs, ncfile, create_time_dimension=True):
     """
     Define standard grid in netcdf file
     """
-    from netCDF4 import Dataset
-    if not isinstance(ncfile, Dataset):
+    import h5netcdf
+
+    if not isinstance(ncfile, h5netcdf.File):
         raise TypeError("Argument needs to be a netCDF4 Dataset")
 
     for dim in variables.BASE_DIMENSIONS:
@@ -31,8 +32,8 @@ def initialize_file(vs, ncfile, create_time_dimension=True):
         write_variable(vs, dim, var, getattr(vs, dim), ncfile)
 
     if create_time_dimension:
-        ncfile.createDimension("Time", None)
-        nc_dim_var_time = ncfile.createVariable("Time", "f8", ("Time",))
+        ncfile.dimensions["Time"] = None
+        nc_dim_var_time = ncfile.create_variable("Time", ("Time",), float)
         nc_dim_var_time.long_name = "Time"
         nc_dim_var_time.units = "days"
         nc_dim_var_time.time_origin = "01-JAN-1900 00:00:00"
@@ -40,7 +41,7 @@ def initialize_file(vs, ncfile, create_time_dimension=True):
 
 @veros_method
 def add_dimension(vs, identifier, size, ncfile):
-    return ncfile.createDimension(identifier, size)
+    ncfile.dimensions[identifier] = size
 
 
 @veros_method
@@ -48,32 +49,39 @@ def initialize_variable(vs, key, var, ncfile):
     dims = tuple(d for d in var.dims if d in ncfile.dimensions)
     if var.time_dependent and "Time" in ncfile.dimensions:
         dims += ("Time",)
+
     if key in ncfile.variables:
         warnings.warn("Variable {} already initialized".format(key))
         return
+
+    kwargs = {}
+    if vs.enable_hdf5_gzip_compression and runtime_state.proc_num == 1:
+        kwargs.update(
+            compression="gzip",
+            compression_opts=9
+        )
+
     # transpose all dimensions in netCDF output (convention in most ocean models)
-    v = ncfile.createVariable(
-        key, var.dtype or vs.default_float_type, dims[::-1],
-        fill_value=variables.FILL_VALUE,
-        zlib=vs.enable_netcdf_zlib_compression and runtime_state.proc_num == 1
+    v = ncfile.create_variable(
+        key, dims[::-1], var.dtype or vs.default_float_type,
+        fillvalue=variables.FILL_VALUE,
+        **kwargs
     )
     v.long_name = var.name
     v.units = var.units
     v.missing_value = variables.FILL_VALUE
-    for extra_key, extra_attr in var.extra_attributes.items():
-        setattr(v, extra_key, extra_attr)
+    v.attrs.update(var.extra_attributes)
 
 
 @veros_method
 def get_current_timestep(vs, ncfile):
-    return len(ncfile.dimensions["Time"])
+    return len(ncfile.variables["Time"])
 
 
 @veros_method
 def advance_time(vs, time_step, time_value, ncfile):
-    ncfile.variables["Time"].set_collective(True)
+    ncfile.resize_dimension("Time", time_step + 1)
     ncfile.variables["Time"][time_step] = time_value
-    ncfile.variables["Time"].set_collective(False)
 
 
 @veros_method
@@ -97,16 +105,14 @@ def write_variable(vs, key, var, var_data, ncfile, time_step=None):
     chunk, _ = get_chunk_slices(vs, var_obj.dimensions)
 
     if "Time" in var_obj.dimensions:
+        assert var_obj.dimensions[0] == "Time"
+
         if time_step is None:
             raise ValueError("time step must be given for non-constant data")
-        assert var_obj.dimensions[0] == "Time"
+
         chunk = (time_step,) + chunk[1:]
 
-        var_obj.set_collective(True)
-        var_obj[chunk] = var_data
-        var_obj.set_collective(False)
-    else:
-        var_obj[chunk] = var_data
+    var_obj[chunk] = var_data
 
 
 @veros_method
@@ -115,11 +121,21 @@ def threaded_io(vs, filepath, mode):
     """
     If using IO threads, start a new thread to write the netCDF data to disk.
     """
-    from netCDF4 import Dataset
+    import h5netcdf
+
     if vs.use_io_threads:
         _wait_for_disk(vs, filepath)
         _io_locks[filepath].clear()
-    nc_dataset = Dataset(filepath, mode, parallel=runtime_state.proc_num > 1)
+
+    kwargs = {}
+    if runtime_state.proc_num > 1:
+        from ...distributed import COMM
+        kwargs.update(
+            driver='mpio',
+            comm=COMM
+        )
+
+    nc_dataset = h5netcdf.File(filepath, mode, **kwargs)
     try:
         yield nc_dataset
     finally:

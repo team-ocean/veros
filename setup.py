@@ -31,7 +31,7 @@ INSTALL_REQUIRES = [
     "requests>=2.18",
     "numpy>=1.13",
     "scipy",
-    "netCDF4",
+    "h5netcdf",
     "h5py",
     "pillow",
     "ruamel.yaml",

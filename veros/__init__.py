@@ -4,19 +4,6 @@ from veros._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
-# for some reason, netCDF4 and mpi4py have to be imported before h5py
-try:
-    from mpi4py import MPI
-except ImportError:
-    MPI = None
-
-import netCDF4
-import h5py
-
-del MPI
-del netCDF4
-del h5py
-
 # runtime settings object
 from veros.runtime import RuntimeSettings, RuntimeState
 runtime_settings = RuntimeSettings()

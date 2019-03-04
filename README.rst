@@ -60,8 +60,8 @@ Installation
 Dependencies
 ~~~~~~~~~~~~
 
-Veros only has two external library dependencies, namely ``HDF5`` and
-``netCDF``. The installation procedure of those libraries varies between
+Veros only has one external library dependency, ``HDF5``. 
+The installation procedure of this library varies between
 platforms. The easiest way to install Veros and its
 dependencies (including Bohrium) is `Anaconda
 Python <https://www.continuum.io/downloads>`__ that ships with a package
@@ -73,7 +73,7 @@ e.g. use
 
 .. code:: bash
 
-    $ sudo apt-get install libhdf5-dev libnetcdf-dev
+    $ sudo apt-get install libhdf5-dev
 
 Similar package managers on OSX are `Homebrew <https://brew.sh/>`__ or
 `MacPorts <https://www.macports.org/>`__, which both provide the

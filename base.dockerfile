@@ -16,7 +16,6 @@ RUN apt-get update && apt-get install -y \
       'gcc' \
       'gfortran' \
       'cmake' \
-      'libnetcdf-dev' \
       'libopenmpi-dev' \
       'libsigsegv-dev' \
       'libboost-serialization-dev' \
