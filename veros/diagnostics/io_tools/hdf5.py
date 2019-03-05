@@ -18,10 +18,9 @@ def threaded_io(vs, filepath, mode):
         _io_locks[filepath].clear()
     kwargs = {}
     if runtime_state.proc_num > 1:
-        from ...distributed import COMM
         kwargs.update(
             driver='mpio',
-            comm=COMM
+            comm=runtime_state.mpi_comm
         )
     h5file = h5py.File(filepath, mode, **kwargs)
     try:

@@ -64,10 +64,26 @@ class RuntimeSettings(object):
 
 class RuntimeState(object):
     """Unifies attributes from various modules in a simple read-only object"""
+
+    __slots__ = []
+
+    @property
+    def mpi_comm(self):
+        try:
+            from mpi4py import MPI
+        except ImportError:
+            return None
+        else:
+            return MPI.COMM_WORLD
+
     @property
     def proc_rank(self):
-        from . import distributed
-        return distributed.RANK
+        comm = self.mpi_comm
+
+        if comm is None:
+            return 0
+
+        return comm.Get_rank()
 
     @property
     def proc_num(self):
