@@ -119,7 +119,7 @@ SETTINGS = OrderedDict([
     ("enable_Prandtl_tke", Setting(True, bool, "Compute Prandtl number from stratification levels in TKE routine")),
     ("Prandtl_tke0", Setting(10., float, "Constant Prandtl number when stratification is neglected for kappaH computation in TKE routine")),
     ("verbose_island_routines", Setting(False, bool, "Print extra debugging output in island / boundary integral routines")),
-    ("use_io_threads", Setting(True, bool, "Start extra threads for disk writes")),
+    ("use_io_threads", Setting(False, bool, "Start extra threads for disk writes")),
     ("io_timeout", Setting(20, float, "Timeout in seconds while waiting for IO locks to be released")),
     ("enable_netcdf_zlib_compression", Setting(True, bool, "Use netCDF4's native zlib interface, which leads to smaller output files (but carries some computational overhead).")),
     ("enable_hdf5_gzip_compression", Setting(True, bool, "Use h5py's native gzip interface, which leads to smaller restart files (but carries some computational overhead).")),
