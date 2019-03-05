@@ -133,9 +133,9 @@ NetCDF is a binary format that is widely adopted in the geophysical modeling com
 In fact, after installing Veros, you will already have installed the netCDF bindings for Python, so reading data from an output file and plotting it is as easy as::
 
    import matplotlib.pyplot as plt
-   from netCDF4 import Dataset
+   import h5netcdf
 
-   with Dataset("veros.snapshot.nc", "r") as datafile:
+   with h5netcdf.File("veros.snapshot.nc", "r") as datafile:
        # read variable "u" and save it to a NumPy array
        u = datafile.variables["u"][...]
 

@@ -23,8 +23,8 @@ def save_image(data, path):
 
 def create_mask(infile, outfile, variable="z", scale=None):
     """Creates a mask image from a given netCDF file"""
-    from netCDF4 import Dataset
-    with Dataset(infile, "r") as topo:
+    import h5netcdf
+    with h5netcdf.File(infile, "r") as topo:
         z = topo.variables[variable]
     if scale is not None:
         z = smooth_image(z, scale)

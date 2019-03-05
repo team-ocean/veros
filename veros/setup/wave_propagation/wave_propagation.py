@@ -4,7 +4,7 @@ import os
 import logging
 
 import numpy as np
-from netCDF4 import Dataset
+import h5netcdf
 from PIL import Image
 import scipy.ndimage
 
@@ -101,7 +101,7 @@ class WavePropagation(veros.Veros):
         self.enable_idemix_hor_diffusion = True
 
     def _get_data(self, var):
-        with Dataset(DATA_FILES["forcing"], "r") as forcing_file:
+        with h5netcdf.File(DATA_FILES["forcing"], "r") as forcing_file:
             return forcing_file.variables[var][...].T
 
     @veros.veros_method

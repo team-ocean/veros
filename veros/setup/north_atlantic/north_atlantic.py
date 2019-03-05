@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import os
-from netCDF4 import Dataset
+
+import h5netcdf
 from PIL import Image
 import numpy as np
 import scipy.spatial
@@ -90,7 +91,7 @@ class NorthAtlantic(veros.Veros):
         self.coriolis_t[:, :] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
 
     def set_topography(self):
-        with Dataset(DATA_FILES["topography"], "r") as topography_file:
+        with h5netcdf.File(DATA_FILES["topography"], "r") as topography_file:
             topo_x, topo_y, topo_bottom_depth = (
                 topography_file.variables[k][...].T for k in ("x", "y", "z"))
         topo_mask = np.flipud(np.asarray(Image.open(TOPO_MASK_FILE))).T

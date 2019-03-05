@@ -2,7 +2,8 @@
 
 import os
 import logging
-from netCDF4 import Dataset
+
+import h5netcdf
 
 import veros
 import veros.tools
@@ -77,7 +78,7 @@ class GlobalFourDegree(veros.Veros):
 
     @veros.veros_method
     def _read_forcing(self, var):
-        with Dataset(DATA_FILES["forcing"], "r") as infile:
+        with h5netcdf.File(DATA_FILES["forcing"], "r") as infile:
             return infile.variables[var][...].T
 
     @veros.veros_method

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-from netCDF4 import Dataset
+import h5netcdf
 
 from veros import VerosSetup, tools, veros_method, time
 from veros.variables import Variable
@@ -93,7 +93,7 @@ class GlobalOneDegree(VerosSetup):
 
     @veros_method
     def _read_forcing(self, vs, var):
-        with Dataset(DATA_FILES["forcing"], "r") as infile:
+        with h5netcdf.File(DATA_FILES["forcing"], "r") as infile:
             return np.array(infile.variables[var]).T
 
     @veros_method

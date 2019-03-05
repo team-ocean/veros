@@ -4,7 +4,7 @@ import pkg_resources
 import pytest
 
 import numpy as np
-from netCDF4 import Dataset
+import h5netcdf
 
 from test_base import VerosPyOMSystemTest, VerosLegacyDummy
 from veros import veros_method, tools
@@ -81,7 +81,7 @@ class GlobalFourDegree(VerosLegacyDummy):
 
     @veros_method
     def _read_forcing(self, var):
-        with Dataset(DATA_FILES["forcing"], "r") as infile:
+        with h5netcdf.File(DATA_FILES["forcing"], "r") as infile:
             return infile.variables[var][...].T
 
     @veros_method
