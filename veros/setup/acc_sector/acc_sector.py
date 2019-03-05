@@ -112,11 +112,18 @@ class ACCSector(VerosSetup):
 
     @veros_method
     def set_initial_conditions(self, vs):
+        from veros.distributed import global_min, global_max
+
         # initial conditions
         vs.temp[:, :, :, 0:2] = ((1 - vs.zt[None, None, :] / vs.zw[0]) * 15 * vs.maskT)[..., None]
         vs.salt[:, :, :, 0:2] = 35.0 * vs.maskT[..., None]
 
         # wind stress forcing
+        yt_min = global_min(vs, vs.yt.min())
+        yu_min = global_min(vs, vs.yu.min())
+        yt_max = global_max(vs, vs.yt.max())
+        yu_max = global_max(vs, vs.yu.max())
+
         taux = np.zeros(vs.ny // rs.num_proc[1] + 4, dtype=vs.default_float_type)
         north = vs.yt > 30
         subequatorial_north_n = (vs.yt >= 15) & (vs.yt < 30)
@@ -126,13 +133,13 @@ class ACCSector(VerosSetup):
         subequatorial_south_s = (vs.yt <= -15) & (vs.yt > -30)
         south = vs.yt < -30
 
-        taux[north] = -5e-5 * np.sin(np.pi * (vs.yu[north] - vs.yu.max()) / (vs.yt.max() - 30.))
+        taux[north] = -5e-5 * np.sin(np.pi * (vs.yu[north] - yu_max) / (yt_max - 30.))
         taux[subequatorial_north_s] =  5e-5 * np.sin(np.pi * (vs.yu[subequatorial_north_s] - 30.) / 30.)
         taux[subequatorial_north_n] = 5e-5 * np.sin(np.pi * (vs.yt[subequatorial_north_n] - 30.) / 30.)
         taux[subequatorial_south_n] =  -5e-5 * np.sin(np.pi * (vs.yu[subequatorial_south_n] - 30.) / 30.)
         taux[subequatorial_south_s] = -5e-5 * np.sin(np.pi * (vs.yt[subequatorial_south_s] - 30.) / 30.)
         taux[equator] = -1.5e-5 * np.cos(np.pi * (vs.yu[equator] - 10.) / 10.) - 2.5e-5
-        taux[south] = 15e-5 * np.sin(np.pi * (vs.yu[south] - vs.yu.min()) / (-30. - vs.yt.min()))
+        taux[south] = 15e-5 * np.sin(np.pi * (vs.yu[south] - yu_min) / (-30. - yt_min))
         vs.surface_taux[:, :] = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing

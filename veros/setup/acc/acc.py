@@ -96,20 +96,27 @@ class ACC(VerosSetup):
 
     @veros_method
     def set_initial_conditions(self, vs):
+        from veros.distributed import global_min, global_max
+
         # initial conditions
         vs.temp[:, :, :, 0:2] = ((1 - vs.zt[None, None, :] / vs.zw[0]) * 15 * vs.maskT)[..., None]
         vs.salt[:, :, :, 0:2] = 35.0 * vs.maskT[..., None]
 
         # wind stress forcing
+        yt_min = global_min(vs, vs.yt.min())
+        yu_min = global_min(vs, vs.yu.min())
+        yt_max = global_max(vs, vs.yt.max())
+        yu_max = global_max(vs, vs.yu.max())
+
         taux = np.zeros(vs.ny // rs.num_proc[1] + 4, dtype=vs.default_float_type)
-        taux[vs.yt < -20] = 1e-4 * np.sin(vs.pi * (vs.yu[vs.yt < -20] - vs.yu.min()) / (-20.0 - vs.yt.min()))
-        taux[vs.yt > 10] = 1e-4 * (1 - np.cos(2 * vs.pi * (vs.yu[vs.yt > 10] - 10.0) / (vs.yu.max() - 10.0)))
+        taux[vs.yt < -20] = 1e-4 * np.sin(vs.pi * (vs.yu[vs.yt < -20] - yu_min) / (-20.0 - yt_min))
+        taux[vs.yt > 10] = 1e-4 * (1 - np.cos(2 * vs.pi * (vs.yu[vs.yt > 10] - 10.0) / (yu_max - 10.0)))
         vs.surface_taux[:, :] = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing
         vs._t_star = 15 * np.ones(vs.ny // rs.num_proc[1] + 4, dtype=vs.default_float_type)
-        vs._t_star[vs.yt < -20] = 15 * (vs.yt[vs.yt < -20] - vs.yt.min()) / (-20 - vs.yt.min())
-        vs._t_star[vs.yt > 20] = 15 * (1 - (vs.yt[vs.yt > 20] - 20) / (vs.yt.max() - 20))
+        vs._t_star[vs.yt < -20] = 15 * (vs.yt[vs.yt < -20] - yt_min) / (-20 - yt_min)
+        vs._t_star[vs.yt > 20] = 15 * (1 - (vs.yt[vs.yt > 20] - 20) / (yt_max - 20))
         vs._t_rest = vs.dzt[None, -1] / (30. * 86400.) * vs.maskT[:, :, -1]
 
         if vs.enable_tke:
