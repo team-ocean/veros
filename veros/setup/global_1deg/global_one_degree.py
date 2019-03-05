@@ -94,7 +94,8 @@ class GlobalOneDegree(VerosSetup):
     @veros_method
     def _read_forcing(self, vs, var):
         with h5netcdf.File(DATA_FILES["forcing"], "r") as infile:
-            return np.array(infile.variables[var]).T
+            var = infile.variables[var]
+            return np.array(var, dtype=str(var.dtype)).T
 
     @veros_method
     def set_grid(self, vs):

@@ -232,7 +232,7 @@ def exchange_overlap(vs, arr, var_grid):
 
         send_idx = overlap_slices_from[i_s]
         send_arr = ascontiguousarray(arr[send_idx])
-        rst.mpi_comm.Send(get_array_buffer(vs, send_arr), dest=other_proc, tag=i_s)
+        rst.mpi_comm.Ssend(get_array_buffer(vs, send_arr), dest=other_proc, tag=i_s)
 
     for future, recv_idx, recv_arr in receive_futures:
         future.wait()
@@ -358,7 +358,7 @@ def _gather_1d(vs, arr, dim):
         return out
 
     else:
-        rst.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=0)
+        rst.mpi_comm.Ssend(get_array_buffer(vs, sendbuf), dest=0)
         return arr
 
 
@@ -397,7 +397,7 @@ def _gather_xy(vs, arr):
 
         return out
     else:
-        rst.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=0)
+        rst.mpi_comm.Ssend(get_array_buffer(vs, sendbuf), dest=0)
 
     return arr
 
@@ -464,7 +464,7 @@ def _scatter_1d(vs, arr, dim):
         for proc in range(0, rst.proc_num):
             global_slice, _ = get_chunk_slices(vs, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
             sendbuf = ascontiguousarray(arr[global_slice])
-            rst.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=proc)
+            rst.mpi_comm.Ssend(get_array_buffer(vs, sendbuf), dest=proc)
 
     recv_future.wait()
 
@@ -493,7 +493,7 @@ def _scatter_xy(vs, arr):
         for proc in range(0, rst.proc_num):
             global_slice, _ = get_chunk_slices(vs, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
             sendbuf = ascontiguousarray(arr[global_slice])
-            rst.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=proc)
+            rst.mpi_comm.Ssend(get_array_buffer(vs, sendbuf), dest=proc)
 
         # arr changes shape in main process
         arr = np.empty((nxi + 4, nyi + 4) + arr.shape[2:], dtype=arr.dtype)
