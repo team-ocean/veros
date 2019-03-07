@@ -48,7 +48,7 @@ class ACCSector(VerosSetup):
         vs.enable_skew_diffusion = True
 
         vs.enable_hor_friction = True
-        vs.A_h = 5e4 * 2 
+        vs.A_h = 5e4 * 2
         vs.enable_hor_friction_cos_scaling = True
         vs.hor_friction_cosPower = 1
 
@@ -89,10 +89,13 @@ class ACCSector(VerosSetup):
 
     @veros_method
     def set_grid(self, vs):
-        vs.dxt[...] = 2.0
-        vs.dyt[...] = 2.0
+        # keep total domain size constant when nx or ny changes
+        vs.dxt[...] = 2.0 * 15 / vs.nx
+        vs.dyt[...] = 2.0 * 62 / vs.ny
+
         vs.x_origin = 0.0
         vs.y_origin = -60.0
+
         vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, self.max_depth, 10., refine_towards="lower")
 
     @veros_method
