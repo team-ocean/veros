@@ -44,6 +44,22 @@ def add_dimension(vs, identifier, size, ncfile):
     ncfile.dimensions[identifier] = size
 
 
+def get_dim_chunksize(dim, ncfile):
+    # TODO: avoid importing from distributed
+
+    from ...distributed import SCATTERED_DIMENSIONS
+    if dim == "Time":
+        return 1
+
+    if dim in SCATTERED_DIMENSIONS[0]:
+        return ncfile.dimensions[dim] // rs.num_proc[0]
+
+    if dim in SCATTERED_DIMENSIONS[1]:
+        return ncfile.dimensions[dim] // rs.num_proc[1]
+
+    return ncfile.dimensions[dim]
+
+
 @veros_method
 def initialize_variable(vs, key, var, ncfile):
     dims = tuple(d for d in var.dims if d in ncfile.dimensions)
@@ -61,10 +77,13 @@ def initialize_variable(vs, key, var, ncfile):
             compression_opts=9
         )
 
+    chunksize = tuple(get_dim_chunksize(dim, ncfile) for dim in dims)
+
     # transpose all dimensions in netCDF output (convention in most ocean models)
     v = ncfile.create_variable(
         key, dims[::-1], var.dtype or vs.default_float_type,
         fillvalue=variables.FILL_VALUE,
+        chunks=chunksize[::-1],
         **kwargs
     )
     v.long_name = var.name
