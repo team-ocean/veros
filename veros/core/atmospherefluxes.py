@@ -41,7 +41,7 @@ def carbon_flux(vs):
 
     # co2star, dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
     dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
-    vs.dco2star = dco2star
+    #vs.dco2star = dco2star
 
     # Schmidt number for CO2
     # t_in wasn't actually used but sst was, however they are the same...
@@ -258,13 +258,13 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
 
     # Convert units back
-    co2star /= permil
-    dco2star /= permil
+    vs.co2star[:, :] = co2star / permil
+    vs.dco2star[:, :] = dco2star / permil
 
-    pCO2 /= permeg
-    dpCO2 /= permeg
+    vs.pCO2[:, :] = pCO2 / permeg
+    vs.dpCO2[:, :] = dpCO2 / permeg
 
-    return dco2star
+    return vs.dco2star
 
 def ta_iter_SWS(x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb):
     x2 = x * x

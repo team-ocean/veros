@@ -832,6 +832,9 @@ CONDITIONAL_VARIABLES = OrderedDict([
         "Just used for debugging. Please ignore",
         output=True)),
     ("hSWS", Variable("hSWS", T_HOR, "?????", "?", output=True)),
+    ("pCO2", Variable("pCO2", T_HOR, "?????", "?", output=True)),
+    ("dpCO2", Variable("dpCO2", T_HOR, "?????", "?", output=True)),
+    ("co2star", Variable("co2star", T_HOR, "?????", "?", output=True)),
     ("dco2star", Variable("dco2star", T_HOR, "?????", "?", output=True)),
     ])),
 ])
