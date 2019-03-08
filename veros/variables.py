@@ -700,25 +700,45 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ])),
     ("enable_npzd", OrderedDict([
         ("phytoplankton", Variable(
-            "Phytoplankton concentration", T_GRID, "mmol/m^3?",
+            "Phytoplankton concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
             "Concentration of phytoplankton in grid box",
             output=True,
         )),
         ("zooplankton", Variable(
-            "Zooplankton concentration", T_GRID, "mmol/m^3?",
+            "Zooplankton concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
             "Concentration of zooplankton in grid box",
             output=True
         )),
         ("detritus", Variable(
-            "Detritus concentration", T_GRID, "mmol/m^3?",
+            "Detritus concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
             "Concentration of detritus in grid box",
             output=True
         )),
         ("po4", Variable(
-            "Phosphate concentration", T_GRID, "mmol/m^3?",
+            "Phosphate concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
             "Concentration of phosphate in grid box",
             output=True
         )),
+        # ("phytoplankton", Variable(
+        #     "Phytoplankton concentration", T_GRID, "mmol/m^3?",
+        #     "Concentration of phytoplankton in grid box",
+        #     output=True,
+        # )),
+        # ("zooplankton", Variable(
+        #     "Zooplankton concentration", T_GRID, "mmol/m^3?",
+        #     "Concentration of zooplankton in grid box",
+        #     output=True
+        # )),
+        # ("detritus", Variable(
+        #     "Detritus concentration", T_GRID, "mmol/m^3?",
+        #     "Concentration of detritus in grid box",
+        #     output=True
+        # )),
+        # ("po4", Variable(
+        #     "Phosphate concentration", T_GRID, "mmol/m^3?",
+        #     "Concentration of phosphate in grid box",
+        #     output=True
+        # )),
         ("swr", Variable(
             "Shortwave radiation", T_HOR, "W/m^3?",
             "Incomming solar radiation at sea level")),
@@ -727,8 +747,13 @@ CONDITIONAL_VARIABLES = OrderedDict([
         #     "Concentration of O2 in grid box",
         #     output=True
         # )),
+        # ("caco3", Variable(
+        #     "CaCO3 concentration", T_GRID, "mmol/m^3?",
+        #     "Concentration of CaCO3 in grid box",
+        #     output=True
+        # )),
         ("caco3", Variable(
-            "CaCO3 concentration", T_GRID, "mmol/m^3?",
+            "CaCO3 concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
             "Concentration of CaCO3 in grid box",
             output=True
         )),
@@ -776,15 +801,25 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ])),
     ("enable_carbon", OrderedDict([
     ("dic", Variable(
-        "??", T_GRID, "mmol/m^3?",
+        "??", T_GRID + TIMESTEPS, "mmol/m^3?",
         "??",
         output=True
     )),
     ("alkalinity", Variable(
-        "??", T_GRID, "mmol/m^3",
+        "??", T_GRID + TIMESTEPS, "mmol/m^3",
         "??",
         output=True
     )),
+    # ("dic", Variable(
+    #     "??", T_GRID, "mmol/m^3?",
+    #     "??",
+    #     output=True
+    # )),
+    # ("alkalinity", Variable(
+    #     "??", T_GRID, "mmol/m^3",
+    #     "??",
+    #     output=True
+    # )),
     ("atmospheric_co2", Variable(
         "Atmospheric co2 concentration", T_HOR, "ppmv",
         "???")),
