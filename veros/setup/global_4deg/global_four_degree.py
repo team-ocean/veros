@@ -5,14 +5,18 @@ import logging
 
 import h5netcdf
 
-import veros
+from veros import VerosSetup, veros_method
+from veros.variables import Variable
 import veros.tools
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
-DATA_FILES = veros.tools.get_assets("global_4deg", os.path.join(BASE_PATH, "assets.yml"))
+DATA_FILES = veros.tools.get_assets(
+    "global_4deg",
+    os.path.join(BASE_PATH, "assets.yml")
+)
 
 
-class GlobalFourDegree(veros.Veros):
+class GlobalFourDegree(VerosSetup):
     """Global 4 degree model with 15 vertical levels.
 
     This setup demonstrates:
@@ -23,180 +27,194 @@ class GlobalFourDegree(veros.Veros):
 
     `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/4x4%20global%20model>`_.
     """
-    @veros.veros_method
-    def set_parameter(self):
-        self.identifier = "4deg"
+    @veros_method
+    def set_parameter(self, vs):
+        vs.identifier = "4deg"
 
-        self.nx, self.ny, self.nz = 90, 40, 15
-        self.dt_mom = 1800.0
-        self.dt_tracer = 86400.0
-        self.runlen = 0.
+        vs.nx, vs.ny, vs.nz = 90, 40, 15
+        vs.dt_mom = 1800.0
+        vs.dt_tracer = 86400.0
+        vs.runlen = 0.
 
-        self.coord_degree = True
-        self.enable_cyclic_x = True
+        vs.coord_degree = True
+        vs.enable_cyclic_x = True
 
-        self.congr_epsilon = 1e-8
-        self.congr_max_iterations = 20000
+        vs.congr_epsilon = 1e-8
+        vs.congr_max_iterations = 20000
 
-        self.enable_neutral_diffusion = True
-        self.K_iso_0 = 1000.0
-        self.K_iso_steep = 1000.0
-        self.iso_dslope = 4. / 1000.0
-        self.iso_slopec = 1. / 1000.0
-        self.enable_skew_diffusion = True
+        vs.enable_neutral_diffusion = True
+        vs.K_iso_0 = 1000.0
+        vs.K_iso_steep = 1000.0
+        vs.iso_dslope = 4. / 1000.0
+        vs.iso_slopec = 1. / 1000.0
+        vs.enable_skew_diffusion = True
 
-        self.enable_hor_friction = True
-        self.A_h = (4 * self.degtom)**3 * 2e-11
-        self.enable_hor_friction_cos_scaling = True
-        self.hor_friction_cosPower = 1
+        vs.enable_hor_friction = True
+        vs.A_h = (4 * vs.degtom)**3 * 2e-11
+        vs.enable_hor_friction_cos_scaling = True
+        vs.hor_friction_cosPower = 1
 
-        self.enable_implicit_vert_friction = True
-        self.enable_tke = True
-        self.c_k = 0.1
-        self.c_eps = 0.7
-        self.alpha_tke = 30.0
-        self.mxl_min = 1e-8
-        self.tke_mxl_choice = 2
-        self.enable_tke_superbee_advection = True
+        vs.enable_implicit_vert_friction = True
+        vs.enable_tke = True
+        vs.c_k = 0.1
+        vs.c_eps = 0.7
+        vs.alpha_tke = 30.0
+        vs.mxl_min = 1e-8
+        vs.tke_mxl_choice = 2
+        vs.enable_tke_superbee_advection = True
 
-        self.enable_eke = True
-        self.eke_k_max = 1e4
-        self.eke_c_k = 0.4
-        self.eke_c_eps = 0.5
-        self.eke_cross = 2.
-        self.eke_crhin = 1.0
-        self.eke_lmin = 100.0
-        self.enable_eke_superbee_advection = True
+        vs.enable_eke = True
+        vs.eke_k_max = 1e4
+        vs.eke_c_k = 0.4
+        vs.eke_c_eps = 0.5
+        vs.eke_cross = 2.
+        vs.eke_crhin = 1.0
+        vs.eke_lmin = 100.0
+        vs.enable_eke_superbee_advection = True
 
-        self.enable_idemix = True
-        self.enable_idemix_hor_diffusion = True
-        self.enable_eke_diss_surfbot = True
-        self.eke_diss_surfbot_frac = 0.2
-        self.enable_idemix_superbee_advection = True
+        vs.enable_idemix = True
+        vs.enable_idemix_hor_diffusion = True
+        vs.enable_eke_diss_surfbot = True
+        vs.eke_diss_surfbot_frac = 0.2
+        vs.enable_idemix_superbee_advection = True
 
-        self.eq_of_state_type = 5
+        vs.eq_of_state_type = 5
 
-    @veros.veros_method
+        # custom variables
+        vs.nmonths = 12
+        vs.variables.update(
+            sss_clim=Variable("sss_clim", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            sst_clim=Variable("sst_clim", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            qnec=Variable("qnec", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            qnet=Variable("qnet", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            taux=Variable("taux", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            tauy=Variable("tauy", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+        )
+
     def _read_forcing(self, var):
         with h5netcdf.File(DATA_FILES["forcing"], "r") as infile:
             return infile.variables[var][...].T
 
-    @veros.veros_method
-    def set_grid(self):
+    @veros_method
+    def set_grid(self, vs):
         ddz = np.array([50., 70., 100., 140., 190., 240., 290., 340.,
                         390., 440., 490., 540., 590., 640., 690.])
-        self.dzt[:] = ddz[::-1]
-        self.dxt[:] = 4.0
-        self.dyt[:] = 4.0
-        self.y_origin = -76.0
-        self.x_origin = 4.0
+        vs.dzt[:] = ddz[::-1]
+        vs.dxt[:] = 4.0
+        vs.dyt[:] = 4.0
+        vs.y_origin = -76.0
+        vs.x_origin = 4.0
 
-    @veros.veros_method
-    def set_coriolis(self):
-        self.coriolis_t[...] = 2 * self.omega * np.sin(self.yt[np.newaxis, :] / 180. * self.pi)
+    @veros_method
+    def set_coriolis(self, vs):
+        vs.coriolis_t[...] = 2 * vs.omega * np.sin(vs.yt[np.newaxis, :] / 180. * vs.pi)
 
-    @veros.veros_method
-    def set_topography(self):
+    @veros_method(dist_safe=False, local_variables=[
+        "kbot"
+    ])
+    def set_topography(self, vs):
         bathymetry_data = self._read_forcing("bathymetry")
         salt_data = self._read_forcing("salinity")[:, :, ::-1]
         mask_salt = salt_data == 0.
-        self.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
+        vs.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
         mask_bathy = bathymetry_data == 0
-        self.kbot[2:-2, 2:-2][mask_bathy] = 0
-        self.kbot[self.kbot == self.nz] = 0
+        vs.kbot[2:-2, 2:-2][mask_bathy] = 0
+        vs.kbot[vs.kbot == vs.nz] = 0
 
-    @veros.veros_method
-    def set_initial_conditions(self):
-        self.taux, self.tauy, self.qnec, self.qnet, self.sss_clim, self.sst_clim = (
-            np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type) for _ in range(6))
-
+    @veros_method(dist_safe=False, local_variables=[
+        "taux", "tauy", "qnec", "qnet", "sss_clim", "sst_clim",
+        "temp", "salt", "taux", "tauy", "area_t", "maskT",
+        "forc_iw_bottom", "forc_iw_surface"
+    ])
+    def set_initial_conditions(self, vs):
         # initial conditions for T and S
         temp_data = self._read_forcing("temperature")[:, :, ::-1]
-        self.temp[2:-2, 2:-2, :, :2] = temp_data[:, :, :, np.newaxis] * \
-            self.maskT[2:-2, 2:-2, :, np.newaxis]
+        vs.temp[2:-2, 2:-2, :, :2] = temp_data[:, :, :, np.newaxis] * \
+            vs.maskT[2:-2, 2:-2, :, np.newaxis]
 
         salt_data = self._read_forcing("salinity")[:, :, ::-1]
-        self.salt[2:-2, 2:-2, :, :2] = salt_data[..., np.newaxis] * self.maskT[2:-2, 2:-2, :, np.newaxis]
+        vs.salt[2:-2, 2:-2, :, :2] = salt_data[..., np.newaxis] * vs.maskT[2:-2, 2:-2, :, np.newaxis]
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
-        self.taux[2:-2, 2:-2, :] = self._read_forcing("tau_x") / self.rho_0
-        self.tauy[2:-2, 2:-2, :] = self._read_forcing("tau_y") / self.rho_0
+        vs.taux[2:-2, 2:-2, :] = self._read_forcing("tau_x") / vs.rho_0
+        vs.tauy[2:-2, 2:-2, :] = self._read_forcing("tau_y") / vs.rho_0
 
         # heat flux
-        with Dataset(DATA_FILES["ecmwf"], "r") as ecmwf_data:
-            self.qnec[2:-2, 2:-2, :] = np.array(ecmwf_data.variables["Q3"]).transpose()
-            self.qnec[self.qnec <= -1e10] = 0.0
+        with h5netcdf.File(DATA_FILES["ecmwf"], "r") as ecmwf_data:
+            qnec_var = ecmwf_data.variables["Q3"]
+            vs.qnec[2:-2, 2:-2, :] = np.array(qnec_var, dtype=str(qnec_var.dtype)).transpose()
+            vs.qnec[vs.qnec <= -1e10] = 0.0
 
         q = self._read_forcing("q_net")
-        self.qnet[2:-2, 2:-2, :] = -q
-        self.qnet[self.qnet <= -1e10] = 0.0
+        vs.qnet[2:-2, 2:-2, :] = -q
+        vs.qnet[vs.qnet <= -1e10] = 0.0
 
-        fxa = np.sum(self.qnet[2:-2, 2:-2, :] * self.area_t[2:-2, 2:-2, np.newaxis]) \
-              / 12 / np.sum(self.area_t[2:-2, 2:-2])
+        fxa = np.sum(vs.qnet[2:-2, 2:-2, :] * vs.area_t[2:-2, 2:-2, np.newaxis]) \
+              / 12 / np.sum(vs.area_t[2:-2, 2:-2])
         logging.info(" removing an annual mean heat flux imbalance of %e W/m^2" % fxa)
-        self.qnet[...] = (self.qnet - fxa) * self.maskT[:, :, -1, np.newaxis]
+        vs.qnet[...] = (vs.qnet - fxa) * vs.maskT[:, :, -1, np.newaxis]
 
         # SST and SSS
-        self.sst_clim[2:-2, 2:-2, :] = self._read_forcing("sst")
-        self.sss_clim[2:-2, 2:-2, :] = self._read_forcing("sss")
+        vs.sst_clim[2:-2, 2:-2, :] = self._read_forcing("sst")
+        vs.sss_clim[2:-2, 2:-2, :] = self._read_forcing("sss")
 
-        if self.enable_idemix:
-            self.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing("tidal_energy") / self.rho_0
-            self.forc_iw_surface[2:-2, 2:-2] = self._read_forcing("wind_energy") / self.rho_0 * 0.2
+        if vs.enable_idemix:
+            vs.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing("tidal_energy") / vs.rho_0
+            vs.forc_iw_surface[2:-2, 2:-2] = self._read_forcing("wind_energy") / vs.rho_0 * 0.2
 
-    @veros.veros_method
-    def set_forcing(self):
+    @veros_method
+    def set_forcing(self, vs):
         year_in_seconds = 360 * 86400.
         (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(
-            self.time, year_in_seconds, year_in_seconds / 12., 12
+            vs.time, year_in_seconds, year_in_seconds / 12., 12
         )
 
         # wind stress
-        self.surface_taux[...] = (f1 * self.taux[:, :, n1] + f2 * self.taux[:, :, n2])
-        self.surface_tauy[...] = (f1 * self.tauy[:, :, n1] + f2 * self.tauy[:, :, n2])
+        vs.surface_taux[...] = (f1 * vs.taux[:, :, n1] + f2 * vs.taux[:, :, n2])
+        vs.surface_tauy[...] = (f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2])
 
         # tke flux
-        if self.enable_tke:
-            self.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (self.surface_taux[1:-1, 1:-1] \
-                                                                + self.surface_taux[:-2, 1:-1]))**2
-                                                      + (0.5 * (self.surface_tauy[1:-1, 1:-1] \
-                                                                + self.surface_tauy[1:-1, :-2]))**2)**(3. / 2.)
+        if vs.enable_tke:
+            vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] \
+                                                                + vs.surface_taux[:-2, 1:-1]))**2
+                                                      + (0.5 * (vs.surface_tauy[1:-1, 1:-1] \
+                                                                + vs.surface_tauy[1:-1, :-2]))**2)**(3. / 2.)
         # heat flux : W/m^2 K kg/J m^3/kg = K m/s
         cp_0 = 3991.86795711963
-        sst = f1 * self.sst_clim[:, :, n1] + f2 * self.sst_clim[:, :, n2]
-        qnec = f1 * self.qnec[:, :, n1] + f2 * self.qnec[:, :, n2]
-        qnet = f1 * self.qnet[:, :, n1] + f2 * self.qnet[:, :, n2]
-        self.forc_temp_surface[...] = (qnet + qnec * (sst - self.temp[:, :, -1, self.tau])) \
-                                       * self.maskT[:, :, -1] / cp_0 / self.rho_0
+        sst = f1 * vs.sst_clim[:, :, n1] + f2 * vs.sst_clim[:, :, n2]
+        qnec = f1 * vs.qnec[:, :, n1] + f2 * vs.qnec[:, :, n2]
+        qnet = f1 * vs.qnet[:, :, n1] + f2 * vs.qnet[:, :, n2]
+        vs.forc_temp_surface[...] = (qnet + qnec * (sst - vs.temp[:, :, -1, vs.tau])) \
+                                       * vs.maskT[:, :, -1] / cp_0 / vs.rho_0
 
         # salinity restoring
         t_rest = 30 * 86400.0
-        sss = f1 * self.sss_clim[:, :, n1] + f2 * self.sss_clim[:, :, n2]
-        self.forc_salt_surface[:] = 1. / t_rest * \
-            (sss - self.salt[:, :, -1, self.tau]) * self.maskT[:, :, -1] * self.dzt[-1]
+        sss = f1 * vs.sss_clim[:, :, n1] + f2 * vs.sss_clim[:, :, n2]
+        vs.forc_salt_surface[:] = 1. / t_rest * \
+            (sss - vs.salt[:, :, -1, vs.tau]) * vs.maskT[:, :, -1] * vs.dzt[-1]
 
         # apply simple ice mask
-        mask = np.logical_and(self.temp[:, :, -1, self.tau] * self.maskT[:, :, -1] < -1.8,
-                              self.forc_temp_surface < 0.)
-        self.forc_temp_surface[mask] = 0.0
-        self.forc_salt_surface[mask] = 0.0
+        mask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
+                              vs.forc_temp_surface < 0.)
+        vs.forc_temp_surface[mask] = 0.0
+        vs.forc_salt_surface[mask] = 0.0
 
-    @veros.veros_method
-    def set_diagnostics(self):
-        self.diagnostics["cfl_monitor"].output_frequency = 360 * 86400. / 24.
-        self.diagnostics["snapshot"].output_frequency = 360 * 86400. / 24.
-        self.diagnostics["overturning"].output_frequency = 360 * 86400. / 24.
-        self.diagnostics["overturning"].sampling_frequency = self.dt_tracer
-        self.diagnostics["energy"].output_frequency = 360 * 86400. / 24.
-        self.diagnostics["energy"].sampling_frequency = 86400
+    @veros_method
+    def set_diagnostics(self, vs):
+        vs.diagnostics["cfl_monitor"].output_frequency = 360 * 86400. / 24.
+        vs.diagnostics["snapshot"].output_frequency = 360 * 86400. / 24.
+        vs.diagnostics["overturning"].output_frequency = 360 * 86400. / 24.
+        vs.diagnostics["overturning"].sampling_frequency = vs.dt_tracer
+        vs.diagnostics["energy"].output_frequency = 360 * 86400. / 24.
+        vs.diagnostics["energy"].sampling_frequency = 86400
         average_vars = ["temp", "salt", "u", "v", "w", "surface_taux",
                         "surface_tauy", "psi"]
-        self.diagnostics["averages"].output_variables = average_vars
-        self.diagnostics["averages"].output_frequency = 86400. * 30
-        self.diagnostics["averages"].sampling_frequency = 86400
+        vs.diagnostics["averages"].output_variables = average_vars
+        vs.diagnostics["averages"].output_frequency = 86400. * 30
+        vs.diagnostics["averages"].sampling_frequency = 86400
 
-    @veros.veros_method
-    def after_timestep(self):
+    @veros_method
+    def after_timestep(self, vs):
         pass
 
 
