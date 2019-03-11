@@ -91,9 +91,11 @@ class GlobalFourDegree(VerosSetup):
             tauy=Variable("tauy", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
         )
 
-    def _read_forcing(self, var):
+    @veros_method
+    def _read_forcing(self, vs, var):
         with h5netcdf.File(DATA_FILES["forcing"], "r") as infile:
-            return infile.variables[var][...].T
+            var_obj = infile.variables[var]
+            return np.array(var_obj, dtype=str(var_obj.dtype)).T
 
     @veros_method
     def set_grid(self, vs):
@@ -113,8 +115,8 @@ class GlobalFourDegree(VerosSetup):
         "kbot"
     ])
     def set_topography(self, vs):
-        bathymetry_data = self._read_forcing("bathymetry")
-        salt_data = self._read_forcing("salinity")[:, :, ::-1]
+        bathymetry_data = self._read_forcing(vs, "bathymetry")
+        salt_data = self._read_forcing(vs, "salinity")[:, :, ::-1]
         mask_salt = salt_data == 0.
         vs.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
         mask_bathy = bathymetry_data == 0
@@ -128,16 +130,16 @@ class GlobalFourDegree(VerosSetup):
     ])
     def set_initial_conditions(self, vs):
         # initial conditions for T and S
-        temp_data = self._read_forcing("temperature")[:, :, ::-1]
+        temp_data = self._read_forcing(vs, "temperature")[:, :, ::-1]
         vs.temp[2:-2, 2:-2, :, :2] = temp_data[:, :, :, np.newaxis] * \
             vs.maskT[2:-2, 2:-2, :, np.newaxis]
 
-        salt_data = self._read_forcing("salinity")[:, :, ::-1]
+        salt_data = self._read_forcing(vs, "salinity")[:, :, ::-1]
         vs.salt[2:-2, 2:-2, :, :2] = salt_data[..., np.newaxis] * vs.maskT[2:-2, 2:-2, :, np.newaxis]
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
-        vs.taux[2:-2, 2:-2, :] = self._read_forcing("tau_x") / vs.rho_0
-        vs.tauy[2:-2, 2:-2, :] = self._read_forcing("tau_y") / vs.rho_0
+        vs.taux[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_x") / vs.rho_0
+        vs.tauy[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_y") / vs.rho_0
 
         # heat flux
         with h5netcdf.File(DATA_FILES["ecmwf"], "r") as ecmwf_data:
@@ -145,7 +147,7 @@ class GlobalFourDegree(VerosSetup):
             vs.qnec[2:-2, 2:-2, :] = np.array(qnec_var, dtype=str(qnec_var.dtype)).transpose()
             vs.qnec[vs.qnec <= -1e10] = 0.0
 
-        q = self._read_forcing("q_net")
+        q = self._read_forcing(vs, "q_net")
         vs.qnet[2:-2, 2:-2, :] = -q
         vs.qnet[vs.qnet <= -1e10] = 0.0
 
@@ -155,12 +157,12 @@ class GlobalFourDegree(VerosSetup):
         vs.qnet[...] = (vs.qnet - fxa) * vs.maskT[:, :, -1, np.newaxis]
 
         # SST and SSS
-        vs.sst_clim[2:-2, 2:-2, :] = self._read_forcing("sst")
-        vs.sss_clim[2:-2, 2:-2, :] = self._read_forcing("sss")
+        vs.sst_clim[2:-2, 2:-2, :] = self._read_forcing(vs, "sst")
+        vs.sss_clim[2:-2, 2:-2, :] = self._read_forcing(vs, "sss")
 
         if vs.enable_idemix:
-            vs.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing("tidal_energy") / vs.rho_0
-            vs.forc_iw_surface[2:-2, 2:-2] = self._read_forcing("wind_energy") / vs.rho_0 * 0.2
+            vs.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing(vs, "tidal_energy") / vs.rho_0
+            vs.forc_iw_surface[2:-2, 2:-2] = self._read_forcing(vs, "wind_energy") / vs.rho_0 * 0.2
 
     @veros_method
     def set_forcing(self, vs):
