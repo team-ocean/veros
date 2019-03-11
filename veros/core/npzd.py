@@ -17,7 +17,7 @@ def biogeochemistry(vs):
     nbio = int(vs.dt_mom // vs.dt_bio)
 
     # temporary tracer object to store differences
-    temporary_tracers = {tracer: val[:, :, :, vs.tau].copy() for tracer, val in vs.npzd_tracers.items()}
+    vs.temporary_tracers = {tracer: val[:, :, :, vs.tau].copy() for tracer, val in vs.npzd_tracers.items()}
 
     # Integrated phytplankton
     phyto_integrated = np.zeros(vs.phytoplankton.shape[:2], dtype=vs.default_float_type)
@@ -25,12 +25,13 @@ def biogeochemistry(vs):
 
     ## TODO: Make this more elegant...
     ## Nutrient exchange at surface
-    surfaces_fluxes = [rule[0](vs, rule[1], rule[2]) for rule in vs.nutrient_surface_fluxes]
-    for flux in surfaces_fluxes:
-        for key, value in flux.items():
+    pre_rules = [rule[0](vs, rule[1], rule[2]) for rule in vs.npzd_pre_rules]
+    for rule in pre_rules:
+        for key, value in rule.items():
             # scale flux by timestep size and depth
             # we get input in mmol/m^2/s and want to convert to mmol/m^3
-            temporary_tracers[key][:, :, -1] += value * vs.dt_mom / vs.dzt[-1]
+            # vs.temporary_tracers[key][:, :, -1] += value * vs.dt_mom / vs.dzt[-1]
+            vs.temporary_tracers[key][...] += value
 
     # import from layer above, export to layer below
     # TODO reset rather than create - reset might not even be necessary
@@ -48,10 +49,10 @@ def biogeochemistry(vs):
     # bctz sets an upper limit on effects of temperature on grazing
     gmax = vs.gbio * bctz
 
-    if vs.enable_carbon:
+    #if vs.enable_carbon:
     #     # reset
     #     vs.prca[:, :] = 0
-        vs.calpro = np.zeros_like(vs.prca) # TODO: Just reset?
+    #    vs.calpro = np.zeros_like(vs.prca) # TODO: Just reset?
 
 
     # TODO these could be created elsewhere
@@ -59,15 +60,17 @@ def biogeochemistry(vs):
     vs.net_primary_production = {}
     vs.recycled = {}
     vs.mortality = {}
-    flags = {tracer: True for tracer in temporary_tracers}
+    flags = {tracer: True for tracer in vs.temporary_tracers}
+    flag_mask = {}
 
     for k in reversed(range(vs.nz)):
 
+
         # Ensure positive data and keep flags of where
-        for tracer, data in temporary_tracers.items():
-            flag_mask = (data[:, :, k] > vs.trcmin) * vs.maskT[:, :, k]
-            flags[tracer] = np.where(flag_mask, True, False)
-            data[:, :, k] = np.where(flag_mask, data[:, :, k], vs.trcmin)
+        for tracer, data in vs.temporary_tracers.items():
+            flag_mask[tracer] = (data[:, :, k] > vs.trcmin) * vs.maskT[:, :, k]
+            flags[tracer] = np.where(flag_mask[tracer], True, False)
+            data[:, :, k] = np.where(flag_mask[tracer], data[:, :, k], vs.trcmin)
 
         # incomming radiation at layer
         swr[:, :] *= np.exp(- vs.light_attenuation_phytoplankton * phyto_integrated)
@@ -81,7 +84,7 @@ def biogeochemistry(vs):
 
 
         # Integration of all light blocking plankton in current layer. Values have been set positive above
-        phyto_integrated[:, :] = sum([temporary_tracers[plankton][:, :, k] for plankton in vs.plankton_types]) * vs.dzt[k]
+        phyto_integrated[:, :] = sum([vs.temporary_tracers[plankton][:, :, k] for plankton in vs.plankton_types]) * vs.dzt[k]
 
 
         ## TODO: Update nud, bctz based on oxygen availability
@@ -118,30 +121,30 @@ def biogeochemistry(vs):
 
                 # TODO Create "rule factory" to turn this into single rules used below
                 for growth_limiting_function in vs.limiting_functions[plankton]:
-                    u = np.minimum(u, growth_limiting_function(vs, k, temporary_tracers))
+                    u = np.minimum(u, growth_limiting_function(vs, k, vs.temporary_tracers))
 
                 vs.net_primary_production[plankton] = np.minimum(avej[plankton], u * jmax[plankton])
 
                 # Fast recycling of plankton
                 # TODO Could this be moved to individual rules?
-                vs.recycled[plankton] = flags[plankton] * vs.nupt0 * bct[:, :, k] * temporary_tracers[plankton][:, :, k]  # TODO check nupt0 for other plankton types
+                vs.recycled[plankton] = flags[plankton] * vs.nupt0 * bct[:, :, k] * vs.temporary_tracers[plankton][:, :, k]  # TODO check nupt0 for other plankton types
 
                 # Mortality of plankton
                 # Would probably be easier to handle as rules
-                vs.mortality[plankton] = flags[plankton] * vs.specific_mortality_phytoplankton * temporary_tracers[plankton][:, :, k]  # TODO proper mortality rates for other plankton
+                vs.mortality[plankton] = flags[plankton] * vs.specific_mortality_phytoplankton * vs.temporary_tracers[plankton][:, :, k]  # TODO proper mortality rates for other plankton
 
             # Detritus is recycled
-            vs.recycled["detritus"] = flags["detritus"] * vs.nud0 * bct[:, :, k] * temporary_tracers["detritus"][:, :, k]
+            vs.recycled["detritus"] = flags["detritus"] * vs.nud0 * bct[:, :, k] * vs.temporary_tracers["detritus"][:, :, k]
 
             # zooplankton displays quadric mortality rates
-            vs.mortality["zooplankton"] = flags["zooplankton"] * vs.quadric_mortality_zooplankton * temporary_tracers["zooplankton"][:, :, k] ** 2
+            vs.mortality["zooplankton"] = flags["zooplankton"] * vs.quadric_mortality_zooplankton * vs.temporary_tracers["zooplankton"][:, :, k] ** 2
 
             # TODO: move these to rules except grazing
-            vs.grazing, vs.digestion, vs.excretion, vs.sloppy_feeding = zooplankton_grazing(vs, k, temporary_tracers, flags, gmax[:, :, k])
+            vs.grazing, vs.digestion, vs.excretion, vs.sloppy_feeding = zooplankton_grazing(vs, k, vs.temporary_tracers, flags, gmax[:, :, k])
             vs.excretion_total = sum(vs.excretion.values())  # TODO this one should not be necessary with the rules
 
             # Temporary export for use in next layer
-            tmp_expo = {sinker: speed[:, :, k] * temporary_tracers[sinker][:, :, k] * flags[sinker] for sinker, speed in vs.sinking_speeds.items()}
+            tmp_expo = {sinker: speed[:, :, k] * vs.temporary_tracers[sinker][:, :, k] * flags[sinker] for sinker, speed in vs.sinking_speeds.items()}
 
             # Gather all state updates
             npzd_updates = [rule[0](vs, rule[1], rule[2]) for rule in vs.npzd_rules]
@@ -149,28 +152,30 @@ def biogeochemistry(vs):
             # perform updates
             for update in npzd_updates:
                 for key, value in update.items():
-                    temporary_tracers[key][:, :, k] += value * vs.dt_bio
+                    # print(key, value[50,23] * vs.dt_bio)
+                    vs.temporary_tracers[key][:, :, k] += value * vs.dt_bio
 
             # Import and export between layers
             for tracer in vs.sinking_speeds:
-                temporary_tracers[tracer][:, :, k] += impo[tracer] - tmp_expo[tracer]
+                vs.temporary_tracers[tracer][:, :, k] += impo[tracer] - tmp_expo[tracer]
 
                 # Calculate total export from layer to next
                 export[tracer][:, :] += tmp_expo[tracer] * vs.dt_bio
 
             # Prepare temporary tracers for next bio iteration
-            for tracer, data in temporary_tracers.items():
-                flag_mask = np.logical_and(flag_mask, data[:, :, k] > vs.trcmin) * vs.maskT[:, :, k]
-                flags[tracer] = np.where(flag_mask, True, False)
-                data[:, :, k] = np.where(flag_mask, data[:, :, k], vs.trcmin)
+            for tracer, data in vs.temporary_tracers.items():
+                flag_mask[tracer] = np.logical_and(flag_mask[tracer], data[:, :, k] > vs.trcmin) * vs.maskT[:, :, k]
+                flags[tracer] = np.where(flag_mask[tracer], True, False)
+                data[:, :, k] = np.where(flag_mask[tracer], data[:, :, k], vs.trcmin)
+
 
         # Remineralize at bottom, and ensure sinking stuff doesn't fall through
         # at_bottom = (vs.kbot - 1) == k
         at_bottom = (vs.kbot == k + 1) # TODO only calculate this once
-        temporary_tracers["po4"][at_bottom, k] += export["detritus"][at_bottom] * vs.redfield_ratio_PN
+        vs.temporary_tracers["po4"][at_bottom, k] += export["detritus"][at_bottom] * vs.redfield_ratio_PN
 
         if vs.enable_carbon:  # TODO remove ifs - maybe create common nutrient rule
-            temporary_tracers["DIC"][at_bottom, k] += export["detritus"][at_bottom] * vs.redfield_ratio_CN
+            vs.temporary_tracers["DIC"][at_bottom, k] += export["detritus"][at_bottom] * vs.redfield_ratio_CN
 
         for sinker in export:
             export[sinker][:, :] -= at_bottom * export[sinker]
@@ -179,26 +184,32 @@ def biogeochemistry(vs):
         # for sinker in export:
             export[sinker][:, :] *= vs.dzt[k] / nbio
 
-        if vs.enable_carbon:  # TODO remove ifs in process code
-            # dprca = export["caco3"] * 1e-3
-            dprca = vs.calpro / nbio #* 1e-3
-            vs.prca += dprca * vs.dzt[k]
-            temporary_tracers["DIC"][:, :, k] -= dprca
+        # if vs.enable_carbon:  # TODO remove ifs in process code
+        #     # dprca = export["caco3"] * 1e-3
+        #     dprca = vs.calpro / nbio #* 1e-3
+        #     vs.prca += dprca * vs.dzt[k]
+        #     vs.temporary_tracers["DIC"][:, :, k] -= dprca
 
-            if not vs.enable_calcifiers:
-                temporary_tracers["alkalinity"][:, :, k] -= 2 * dprca
+        #     if not vs.enable_calcifiers:
+        #         vs.temporary_tracers["alkalinity"][:, :, k] -= 2 * dprca
 
-            vs.calpro[:, :] = 0
+        #     vs.calpro[:, :] = 0
 
     ## Remineralization of calcite - NOTE: Why can't this be in the main loop?
-    if vs.enable_carbon:
+    # if vs.enable_carbon:
 
-        temporary_tracers["DIC"][:, :, :] += vs.prca[:, :, np.newaxis] * vs.rcak
-        temporary_tracers["alkalinity"][:, :, :] += vs.prca[:, :, np.newaxis] * vs.rcak
-        vs.prca[:, :] = 0
+    #     vs.temporary_tracers["DIC"][:, :, :] += vs.prca[:, :, np.newaxis] * vs.rcak
+    #     vs.temporary_tracers["alkalinity"][:, :, :] += vs.prca[:, :, np.newaxis] * vs.rcak
+    #     vs.prca[:, :] = 0
 
 
-    return {tracer: temporary_tracers[tracer] - vs.npzd_tracers[tracer][:, :, :, vs.tau] for tracer in vs.npzd_tracers}
+    post_results = [rule[0](vs, rule[1], rule[2]) for rule in vs.npzd_post_rules]
+    for result in post_results:
+        for key, value in result.items():
+            vs.temporary_tracers[key][:, :, :] += value #* vs.dt_mom #/ vs.dzt[-1]
+
+
+    return {tracer: vs.temporary_tracers[tracer] - vs.npzd_tracers[tracer][:, :, :, vs.tau] for tracer in vs.npzd_tracers}
 
 # TODO additional k-loops
 
@@ -291,7 +302,7 @@ def update_flags_and_tracers(vs, flags, tracers, k, refresh=False):
         tracers[key] = np.maximum(tracers[key] * vs.maskT[:, :, k], vs.trcmin)
 
 @veros_method
-def register_npzd_data(vs, name, value=0):
+def register_npzd_data(vs, name, value=None):
 
     if name not in vs.npzd_tracers:
         if vs.show_npzd_graph:
@@ -299,6 +310,9 @@ def register_npzd_data(vs, name, value=0):
             vs.npzd_graph.node(name)
     else:
         print(name, "has already been added to the NPZD data set, value has been updated")
+
+    if value is None:
+        value = np.zeros_like(vs.phytoplankton)
 
     vs.npzd_tracers[name] = value
 
@@ -368,7 +382,6 @@ def excretion(vs, zooplankton, nutrient):
 @veros_method
 def primary_production_from_DIC(vs, nutrient, plankton):
     """ Only using DIC, because plankton is handled by po4 ... shitty design right now """
-    # print( (vs.redfield_ratio_CN * vs.net_primary_production[plankton]).mean())
     return {nutrient: - vs.redfield_ratio_CN * vs.net_primary_production[plankton]}
 
 @veros_method
@@ -393,29 +406,86 @@ def excretion_dic(vs, zooplankton, nutrient):
     #return {zooplankton: - vs.excretion_total, nutrient: vs.redfield_ratio_CN * vs.excretion_total}
     return {nutrient: vs.redfield_ratio_CN * vs.excretion_total}
 
-@veros_method
-def calpro(vs, plankton, cal):
-    # return {cal: (vs.mortality[plankton] + vs.sloppy_feeding[plankton]) * vs.capr * vs.redfield_ratio_CN * 1e3}
+# @veros_method
+# def calpro(vs, plankton, calcite):
+#     # return {cal: (vs.mortality[plankton] + vs.sloppy_feeding[plankton]) * vs.capr * vs.redfield_ratio_CN * 1e3}
 
-    vs.calpro += (vs.mortality[plankton] + vs.grazing[plankton] * (1 - vs.assimilation_efficiency)) * vs.capr * vs.redfield_ratio_CN #* 1.e3
-    # return {cal: vs.calpro}
-    return {}
+#     vs.calpro += (vs.mortality[plankton] + vs.grazing[plankton] * (1 - vs.assimilation_efficiency)) * vs.capr * vs.redfield_ratio_CN #* 1.e3
+#     # return {cal: vs.calpro}
+
+@veros_method
+def calcite_production(vs, plankton, DIC, calcite):
+    """ Calcite is produced at a rate similar to detritus"""
+    # calprod = (vs.sloppy_feeding[plankton] + vs.mortality[plankton] + vs.sloppy_feeding["zooplankton"] + vs.mortality["zooplankton"]) * vs.capr * vs.redfield_ratio_CN
+    #nbio = int(vs.dt_mom // vs.dt_bio)
+    #dprca = calprod / nbio
+
+    dprca = (vs.mortality[plankton] + vs.grazing[plankton] * (1 - vs.assimilation_efficiency))  * vs.capr * vs.redfield_ratio_CN #/ vs.dt_mom
+
+    return {DIC: -dprca, calcite: dprca}
+
+@veros_method
+def calcite_production_alk(vs, plankton, alkalinity, calcite):
+    return {alkalinity: 2 * calcite_production(vs, plankton, "DIC", calcite)["DIC"]}
+
+@veros_method
+def calcite_production_phyto(vs, DIC, calcite):
+    return calcite_production(vs, "phytoplankton", DIC, calcite)
+
+@veros_method
+def calcite_production_phyto_alk(vs, alkalinity, calcite):
+    return calcite_production_alk(vs, "phytoplankton", alkalinity, calcite)
+
+@veros_method
+def post_redistribute_calcite(vs, calcite, tracer):
+    total_production = (vs.temporary_tracers[calcite] * vs.dzt).sum(axis=2)
+    redistributed_production = total_production[:, :, np.newaxis] * vs.rcak
+    return {tracer: redistributed_production}
+
+@veros_method
+def pre_reset_calcite(vs, tracer, calcite):
+    return {calcite: - vs.npzd_tracers[calcite]}
+
+@veros_method
+def recycling_to_alk(vs, detritus, alkalinity):
+    """ This should be turned into a combined rule with DIC, as they just have opposite terms, but only withdraw from detritus once """
+    return {alkalinity: - recycling_to_dic(vs, detritus, "DIC")["DIC"]}
+
+@veros_method
+def primary_production_from_alk(vs, alkalinity, plankton):
+    """ Single entry, should be merged with DIC """
+    return {alkalinity: - primary_production_from_DIC(vs, "DIC", plankton)["DIC"]}
+
+@veros_method
+def recycling_phyto_to_alk(vs, plankton, alkalinity):
+    """ Single entry should be merged with DIC """
+    return {alkalinity: - recycling_phyto_to_dic(vs, plankton, "DIC")["DIC"]}
+
+@veros_method
+def excretion_alk(vs, plankton, alkalinity):
+    """ Single entry, should be merged with DIC """
+    return {alkalinity: -excretion_dic(vs, plankton, "DIC")["DIC"]}
 
 @veros_method
 def co2_surface_flux(vs, co2, dic):
     # TODO not global please
     vs.cflux[...] = atmospherefluxes.carbon_flux(vs)
-    return {dic: vs.cflux}
+    flux = np.zeros((vs.cflux.shape[0], vs.cflux.shape[1], vs.nz))
+    flux[:, :, -1] = vs.cflux * vs.dt_mom / vs.dzt[-1]
+    return {dic: flux}
 
 @veros_method
 def setupNPZD(vs):
     """Taking veros variables and packaging them up into iterables"""
     vs.npzd_tracers = {}  # Dictionary keeping track of plankton, nutrients etc.
     vs.npzd_rules = []  # List of rules describing the interaction between tracers
-    vs.nutrient_surface_fluxes = []
+    vs.npzd_pre_rules = []
+    vs.npzd_post_rules = []
+
     if vs.show_npzd_graph:
         from graphviz import Digraph
         vs.npzd_graph = Digraph("npzd_dynamics", filename="npzd_dynamics.gv", format="png")  # graph for visualizing interactions - usefull for debugging
+
     vs.plankton_growth_functions = {}  # Dictionary containing functions describing growth of plankton
     vs.limiting_functions = {}  # Contains descriptions of how nutrients put a limit on growth
 
@@ -459,7 +529,7 @@ def setupNPZD(vs):
     if vs.enable_carbon:
         # Preparation of some variables for remineralization of caco3
         # vs.prca = np.zeros_like(vs.dic[:, :, 0])
-        vs.prca = np.zeros_like(vs.dic[:, :, 0, 0])
+        #vs.prca = np.zeros_like(vs.dic[:, :, 0, 0])
         dcaco3 = 6500.0 # remineralization depth of calcite [m]
 
         # vs.rcak = np.empty_like(vs.dic)
@@ -479,7 +549,10 @@ def setupNPZD(vs):
         # Need to track dissolved inorganic carbon, alkalinity and calcium carbonate
         register_npzd_data(vs, "DIC", vs.dic)
         register_npzd_data(vs, "alkalinity", vs.alkalinity)
-        vs.nutrient_surface_fluxes.append((co2_surface_flux, "co2", "DIC"))
+
+
+
+        vs.npzd_pre_rules.append((co2_surface_flux, "co2", "DIC"))
 
         register_npzd_rule(vs, recycling_to_dic, "detritus", "DIC", label="Remineralization")
         register_npzd_rule(vs, primary_production_from_DIC, "DIC", "phytoplankton", label="Primary production")
@@ -487,14 +560,22 @@ def setupNPZD(vs):
         register_npzd_rule(vs, excretion_dic, "zooplankton", "DIC", label="Excretion")
 
 
+        register_npzd_rule(vs, recycling_to_alk, "detritus", "alkalinity", label="Remineralization")
+        register_npzd_rule(vs, primary_production_from_alk, "alkalinity", "phytoplankton", label="Primary production")
+        register_npzd_rule(vs, recycling_phyto_to_alk, "phytoplankton", "alkalinity", label="Fast recycling")
+        register_npzd_rule(vs, excretion_alk, "zooplankton", "alkalinity", label="Excretion")
+
+
         # These rules will be different if we track coccolithophores
         if not vs.enable_calcifiers:
-            register_npzd_rule(vs, calpro, "phytoplankton", "caco3", label="Production of calcite")
-            register_npzd_rule(vs, calpro, "zooplankton", "caco3", label="Production of calcite")
+            register_npzd_data(vs, "caco3", vs.caco3)
 
-            # rules below do nothing. They are just here for show..
-            register_npzd_rule(vs, empty_rule, "alkalinity", "caco3", label="Production")
-            register_npzd_rule(vs, empty_rule, "caco3", "alkalinity", label="Dissolution")
+            register_npzd_rule(vs, calcite_production_phyto, "DIC", "caco3", label="Production of calcite")
+            register_npzd_rule(vs, calcite_production_phyto_alk, "alkalinity", "caco3", label="Production of calcite")
+            vs.npzd_post_rules.append((post_redistribute_calcite, "caco3", "alkalinity"))
+            vs.npzd_post_rules.append((post_redistribute_calcite, "caco3", "DIC"))
+            vs.npzd_pre_rules.append((pre_reset_calcite, "caco3", "caco3"))
+
 
 
     # Add nitrogen cycling to the model
@@ -615,6 +696,11 @@ def npzd(vs):
         diffusion.biharmonic(vs, tracer_data[:, :, :, vs.tau], np.sqrt(abs(vs.K_hbi)), diffusion_change)
 
         tracer_data[:, :, :, vs.taup1] += vs.dt_mom * diffusion_change
+
+        """
+        Isopycnal diffusion
+        """
+
 
         """
         Vertical mixing of tracers
