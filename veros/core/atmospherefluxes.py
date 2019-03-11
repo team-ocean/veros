@@ -12,10 +12,8 @@ from . import cyclic
 def carbon_flux(vs):
     t_in = vs.temp[:, :, -1, vs.tau]  # [degree C] TODO rename variable
     s_in = vs.salt[:, :, -1, vs.tau]  # [g/kg = PSU] TODO rename variable
-    # dic_in = vs.dic[:, :, -1] #* 1e-3# [mmol -> mol] TODO rename variable
-    # ta_in = vs.alkalinity[:, :, -1] #* 1e-3 # [mmol -> mol] TODO rename variable
-    dic_in = vs.dic[:, :, -1, vs.tau] #* 1e-3# [mmol -> mol] TODO rename variable
-    ta_in = vs.alkalinity[:, :, -1, vs.tau] #* 1e-3 # [mmol -> mol] TODO rename variable
+    dic_in = vs.dic[:, :, -1, vs.tau] * 1e-3# [mmol -> mol] TODO rename variable
+    ta_in = vs.alkalinity[:, :, -1, vs.tau] * 1e-3 # [mmol -> mol] TODO rename variable
     co2_in = vs.atmospheric_co2 # [ppmv] TODO rename variable
 
     ao = 1  # 1 - ice fraction coverage
