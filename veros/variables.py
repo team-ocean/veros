@@ -801,25 +801,20 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ])),
     ("enable_carbon", OrderedDict([
     ("dic", Variable(
-        "??", T_GRID + TIMESTEPS, "mmol/m^3?",
-        "??",
+        "Dissolved Inorganic Carbon", T_GRID + TIMESTEPS, "mmol/m^3",
+        "Concentration of inorganic carbon ions and molecule",
         output=True
     )),
     ("alkalinity", Variable(
-        "??", T_GRID + TIMESTEPS, "mmol/m^3",
-        "??",
+        "Alkalinity", T_GRID + TIMESTEPS, "mmol/m^3",
+        "Combined bases and acids",
         output=True
     )),
-    # ("dic", Variable(
-    #     "??", T_GRID, "mmol/m^3?",
-    #     "??",
-    #     output=True
-    # )),
-    # ("alkalinity", Variable(
-    #     "??", T_GRID, "mmol/m^3",
-    #     "??",
-    #     output=True
-    # )),
+    ("caco3", Variable(
+        "CaCO3 production by plankton", T_GRID + TIMESTEPS, "mmol/m^3",
+        "Temporary storage of CaCO3 produced by plankton. For redistribution - remove timesteps when supported by the bgc module",
+        output=True
+    )),
     ("atmospheric_co2", Variable(
         "Atmospheric co2 concentration", T_HOR, "ppmv",
         "???")),
@@ -836,6 +831,7 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ("dpCO2", Variable("dpCO2", T_HOR, "?????", "?", output=True)),
     ("co2star", Variable("co2star", T_HOR, "?????", "?", output=True)),
     ("dco2star", Variable("dco2star", T_HOR, "?????", "?", output=True)),
+
     ])),
 ])
 
