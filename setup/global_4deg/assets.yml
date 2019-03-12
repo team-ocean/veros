@@ -1,0 +1,7 @@
+forcing:
+  url: https://sid.erda.dk/share_redirect/gsdZADr8to/global_4deg/forcing_4deg_global.nc
+  md5: ef3be0a58782771c8ee5a6d0206b87f5
+  
+ecmwf:
+  url: https://sid.erda.dk/share_redirect/gsdZADr8to/global_4deg/ecmwf_4deg_monthly.nc
+  md5: 98e484580a5eed362af29593461ada42
