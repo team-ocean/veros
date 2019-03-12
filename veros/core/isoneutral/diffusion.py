@@ -100,6 +100,45 @@ def _calc_implicit_part(vs, tr):
 
 
 @veros_method
+def isoneutral_diffusion_decoupled(vs, tr, dtracer_iso, iso=True, skew=False):
+    """
+    Like isoneutral_diffusion but for general tracers
+    """
+    if iso:
+        K_iso = vs.K_iso
+    else:
+        K_iso = np.zeros_like(vs.K_iso)
+    if skew:
+        K_skew = vs.K_gm
+    else:
+        K_skew = np.zeros_like(vs.K_gm)
+
+    _calc_tracer_fluxes(vs, tr, K_iso, K_skew)
+
+    """
+    add explicit part
+    """
+    aloc = _calc_explicit_part(vs)
+    dtracer_iso += aloc[...]
+    tr[2:-2, 2:-2, :, vs.taup1] += vs.dt_tracer * aloc[2:-2, 2:-2]
+
+    """
+    add implicit part
+    """
+    if iso:
+        aloc[...] = tr[:, :, :, vs.taup1]
+        _calc_implicit_part(vs, tr)
+        dtracer_iso += (tr[:, :, :, vs.taup1] - aloc) / vs.dt_tracer
+
+    """
+    dissipation by isopycnal mixing
+    """
+    # TODO
+    # NOTE drhodS, drhodT are calculated in isoneutral.py. The rest in there is additional stuff
+
+
+
+@veros_method
 def isoneutral_diffusion(vs, tr, istemp, iso=True, skew=False):
     """
     Isopycnal diffusion for tracer,

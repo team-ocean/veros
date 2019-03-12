@@ -54,7 +54,7 @@ def carbon_flux(vs):
     # Sweeney et al. 2007
 
     # 1e3 added to convert to mmol / m^2 / s
-    co2_flux = piston_vel * dco2star * vs.maskT[:, :, -1] # * 1e3
+    co2_flux = piston_vel * dco2star * vs.maskT[:, :, -1]  * 1e3
     # NOTE Is this Fick's First law? https://www.ocean.washington.edu/courses/oc400/Lecture_Notes/CHPT11.pdf
 
     # TODO set boundary condictions

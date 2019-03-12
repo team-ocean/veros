@@ -226,8 +226,8 @@ def check_setting_conflicts(vs):
                            "(set enable_implicit_vert_fricton)")
 
     if vs.enable_npzd:
-        if vs.dt_bio > vs.dt_mom:
-            raise RuntimeError("Biological timestep must be smaller than or equal to momentum timestep (ensure dt_bio > dt_mom)")
+        if vs.dt_bio > vs.dt_tracer:
+            raise RuntimeError("Biological timestep must be smaller than or equal to tracer timestep (ensure dt_bio > dt_tracer)")
 
-        if ((vs.dt_mom / vs.dt_bio) % 1 != 0.0):
-            raise RuntimeError("Momentum timestep must be divisible by biological timestep, ratio was", vs.dt_mom / vs.dt_bio)
+        if ((vs.dt_tracer / vs.dt_bio) % 1 != 0.0):
+            raise RuntimeError("Tracer timestep must be divisible by biological timestep, ratio was", vs.dt_tracer / vs.dt_bio)
