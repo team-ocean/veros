@@ -1,17 +1,16 @@
 import logging
 
-TRACE = 5
-
 
 class MyLogger(logging.getLoggerClass()):
-        def __init__(self, name, level=logging.NOTSET):
-            super(MyLogger, self).__init__(name, level)
+    TRACE = 5
 
-            logging.addLevelName(TRACE, "TRACE")
+    def __init__(self, name, level=logging.NOTSET):
+        super(MyLogger, self).__init__(name, level)
+        logging.addLevelName(MyLogger.TRACE, "TRACE")
 
-        def trace(self, msg, *args, **kwargs):
-            if self.isEnabledFor(TRACE):
-                self._log(TRACE, msg, args, **kwargs)
+    def trace(self, msg, *args, **kwargs):
+        if self.isEnabledFor(MyLogger.TRACE):
+            self._log(MyLogger.TRACE, msg, args, **kwargs)
 
 
 logging.setLoggerClass(MyLogger)
@@ -21,6 +20,7 @@ def setup_logging(loglevel="info", logfile=None):
     from . import runtime_state
 
     if runtime_state.proc_rank != 0:
+        logging.basicConfig(level="ERROR")
         return
 
     try: # python 2
