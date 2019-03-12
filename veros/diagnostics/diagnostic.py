@@ -106,7 +106,7 @@ class VerosDiagnostic(object):
                     variables[key] = var
                     continue
 
-                local_shape = distributed.get_local_size(vs, var, var_meta[key].dims)
+                local_shape = distributed.get_local_size(vs, var.shape, var_meta[key].dims, include_overlap=True)
                 gidx, lidx = distributed.get_chunk_slices(vs, var_meta[key].dims[:var.ndim], include_overlap=True)
 
                 variables[key] = np.empty(local_shape, dtype=str(var.dtype))
@@ -127,16 +127,21 @@ class VerosDiagnostic(object):
             except AttributeError:
                 pass
 
-            global_shape = distributed.get_global_size(vs, var, var_meta[key].dims)
+            global_shape = distributed.get_global_size(vs, var.shape, var_meta[key].dims, include_overlap=True)
             gidx, lidx = distributed.get_chunk_slices(vs, var_meta[key].dims, include_overlap=True)
 
-            kwargs = {}
+            kwargs = dict(
+                exact=True,
+                chunks=tuple(
+                    distributed.get_local_size(vs, var.shape, var_meta[key].dims, include_overlap=False)
+                )
+            )
             if vs.enable_hdf5_gzip_compression and runtime_state.proc_num == 1:
                 kwargs.update(
                     compression="gzip",
                     compression_opts=9
                 )
-            group.require_dataset(key, global_shape, var.dtype, exact=True, **kwargs)
+            group.require_dataset(key, global_shape, var.dtype, **kwargs)
             group[key][gidx] = var[lidx]
 
         for key, val in attributes.items():

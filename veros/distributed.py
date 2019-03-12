@@ -59,25 +59,27 @@ def get_chunk_size(vs):
     return (vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1])
 
 
-def get_global_size(vs, arr, dim_grid):
+def get_global_size(vs, arr_shp, dim_grid, include_overlap=False):
+    ovl = 4 if include_overlap else 0
     shape = []
-    for s, dim in zip(arr.shape, dim_grid):
+    for s, dim in zip(arr_shp, dim_grid):
         if dim in SCATTERED_DIMENSIONS[0]:
-            shape.append(vs.nx + 4)
+            shape.append(vs.nx + ovl)
         elif dim in SCATTERED_DIMENSIONS[1]:
-            shape.append(vs.ny + 4)
+            shape.append(vs.ny + ovl)
         else:
             shape.append(s)
     return shape
 
 
-def get_local_size(vs, arr, dim_grid):
+def get_local_size(vs, arr_shp, dim_grid, include_overlap=False):
+    ovl = 4 if include_overlap else 0
     shape = []
-    for s, dim in zip(arr.shape, dim_grid):
+    for s, dim in zip(arr_shp, dim_grid):
         if dim in SCATTERED_DIMENSIONS[0]:
-            shape.append(vs.nx // rs.num_proc[0] + 4)
+            shape.append(vs.nx // rs.num_proc[0] + ovl)
         elif dim in SCATTERED_DIMENSIONS[1]:
-            shape.append(vs.ny // rs.num_proc[1] + 4)
+            shape.append(vs.ny // rs.num_proc[1] + ovl)
         else:
             shape.append(s)
     return shape
