@@ -70,7 +70,7 @@ def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
         from .distributed import broadcast
 
         if not inline:
-            logger.trace("entering %s:%s", inspect.getmodule(function).__name__, function.__name__)
+            logger.trace("entering {}:{}", inspect.getmodule(function).__name__, function.__name__)
 
         veros_state = args[narg]
 

@@ -298,6 +298,20 @@ def _reduce(vs, arr, op):
 
 @dist_context_only
 @veros_method
+def global_and(vs, arr):
+    from mpi4py import MPI
+    return _reduce(vs, arr, MPI.LAND)
+
+
+@dist_context_only
+@veros_method
+def global_or(vs, arr):
+    from mpi4py import MPI
+    return _reduce(vs, arr, MPI.LOR)
+
+
+@dist_context_only
+@veros_method
 def global_max(vs, arr):
     from mpi4py import MPI
     return _reduce(vs, arr, MPI.MAX)

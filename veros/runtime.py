@@ -17,7 +17,7 @@ AVAILABLE_SETTINGS = (
     ("num_proc", twoints, (1, 1)),
     ("profile_mode", bool, False),
     ("loglevel", loglevel, "info"),
-    ("logfile", str, None),
+    ("logfile", None, None),
 )
 
 
@@ -41,14 +41,10 @@ class RuntimeSettings(object):
         if attr not in self.__settings__:
             raise AttributeError("Unknown runtime setting %s" % attr)
 
-        # check type
+        # coerce type
         stype = self.__setting_types__.get(attr)
         if stype is not None:
-            # types are either callables or proper types
-            if callable(stype):
-                val = stype(val)
-            elif not isinstance(val, stype):
-                raise TypeError("invalid type for setting %s" % attr)
+            val = stype(val)
 
         return super(RuntimeSettings, self).__setattr__(attr, val)
 

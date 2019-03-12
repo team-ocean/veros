@@ -14,7 +14,8 @@ def create_diagnostics(vs):
 
 @veros_method
 def sanity_check(vs):
-    return np.all(np.isfinite(vs.u))
+    from ..distributed import global_and
+    return global_and(vs, np.all(np.isfinite(vs.u)))
 
 
 @veros_method
