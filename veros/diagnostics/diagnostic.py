@@ -106,18 +106,20 @@ class VerosDiagnostic(object):
                     variables[key] = var
                     continue
 
-                if runtime_settings.backend == "bohrium":
-                    var = np.array(var, dtype=str(var.dtype))
-
                 local_shape = distributed.get_local_size(vs, var.shape, var_meta[key].dims, include_overlap=True)
                 gidx, lidx = distributed.get_chunk_slices(vs, var_meta[key].dims[:var.ndim], include_overlap=True)
 
                 variables[key] = np.empty(local_shape, dtype=str(var.dtype))
-                variables[key][lidx] = var[gidx]
+
+                if runtime_settings.backend == "bohrium":
+                    variables[key][lidx] = var[gidx].astype(variables[key].dtype)
+                else:
+                    variables[key][lidx] = var[gidx]
 
                 distributed.exchange_overlap(vs, variables[key], var_meta[key].dims)
 
-            attributes = {key: var for key, var in infile[self.name].attrs.items()}
+            attributes = {key: var.item() for key, var in infile[self.name].attrs.items()}
+
         return attributes, variables
 
     @do_not_disturb

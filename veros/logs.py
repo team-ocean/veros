@@ -14,7 +14,7 @@ def setup_logging(loglevel="info", logfile=None):
         "handlers": [
             dict(
                 sink=sys.stderr,
-                colorize=True,
+                colorize=sys.stderr.isatty(),
                 level=loglevel.upper(),
                 format="<level>{message}</level>"
             )
