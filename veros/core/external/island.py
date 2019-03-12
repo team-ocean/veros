@@ -3,7 +3,7 @@ try: # python 2.x
 except ImportError: # python 3.x
     import queue
 
-import logging
+from loguru import logger
 
 from .. import utilities
 from ... import veros_method, runtime_settings as rs
@@ -11,8 +11,6 @@ from ... import veros_method, runtime_settings as rs
 OFFMAP = -1
 LAND = 1
 OCEAN = 0
-
-logger = logging.getLogger("veros")
 
 
 @veros_method

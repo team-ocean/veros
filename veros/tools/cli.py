@@ -50,12 +50,13 @@ def cli(run):
     def wrapped(*args, **kwargs):
         from veros import runtime_settings
 
+        kwargs["override"] = dict(kwargs["override"])
+
         for setting in ("backend", "profile_mode", "num_proc", "loglevel", "logfile"):
             if setting not in kwargs:
                 continue
             setattr(runtime_settings, setting, kwargs.pop(setting))
 
-        kwargs["override"] = dict(kwargs["override"])
         run(*args, **kwargs)
 
     return wrapped

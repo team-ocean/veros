@@ -61,6 +61,9 @@ def fill_holes(data):
             slcs1[i] = slice(0, -1)
             slcs2[i] = slice(1, None)
 
+            slcs1 = tuple(slcs1)
+            slcs2 = tuple(slcs2)
+
             # replace from the right
             repmask = np.logical_and(~flag[slcs1], flag[slcs2])
             data[slcs1][repmask] = data[slcs2][repmask]
@@ -70,6 +73,7 @@ def fill_holes(data):
             repmask = np.logical_and(~flag[slcs2], flag[slcs1])
             data[slcs2][repmask] = data[slcs1][repmask]
             flag[slcs2][repmask] = True
+
     return data
 
 
@@ -182,12 +186,14 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
 
     distance = np.zeros(coords[0].shape)
     if spherical:
+
         def spherical_distance(coords1, coords2):
             """Calculate great circle distance from latitude and longitude"""
             coords1 *= np.pi / 180.
             coords2 *= np.pi / 180.
             lon1, lon2, lat1, lat2 = coords1[..., 0], coords2[..., 0], coords1[..., 1], coords2[..., 1]
             return radius * np.arccos(np.sin(lat1) * np.sin(lat2) + np.cos(lat1) * np.cos(lat2) * np.cos(lon1 - lon2))
+
         if not num_candidates:
             num_candidates = int(np.sqrt(np.count_nonzero(~coast_mask)))
         i_nearest = coast_kdtree.query(watercoords, k=num_candidates, n_jobs=n_jobs)[1]

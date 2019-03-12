@@ -1,9 +1,8 @@
 import imp
-import logging
+
+from loguru import logger
 
 from . import veros, settings, runtime_settings
-
-logger = logging.getLogger("veros")
 
 
 class LowercaseAttributeWrapper(object):

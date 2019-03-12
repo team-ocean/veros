@@ -2,13 +2,13 @@ import functools
 import signal
 import inspect
 import threading
-import logging
+
+from loguru import logger
+
 
 CONTEXT = threading.local()
 CONTEXT.is_dist_safe = True
 CONTEXT.wrapped_methods = []
-
-logger = logging.getLogger("veros")
 
 
 def veros_method(function=None, **kwargs):
@@ -155,14 +155,18 @@ def do_not_disturb(function):
 
     @functools.wraps(function)
     def dnd_wrapper(*args, **kwargs):
+        old_handlers = {s: signal.getsignal(s) for s in signals}
         signal_received = {"sig": None, "frame": None}
 
         def handler(sig, frame):
-            signal_received["sig"] = sig
-            signal_received["frame"] = frame
-            logger.error("{} received - cleaning up before exit".format(sig))
+            if signal_received["sig"] is None:
+                signal_received["sig"] = sig
+                signal_received["frame"] = frame
+                logger.error("signal {} received - cleaning up before exit", sig)
+            else:
+                # force quit if more than one signal is received
+                old_handlers[sig](sig, frame)
 
-        old_handlers = {s: signal.getsignal(s) for s in signals}
         for s in signals:
             signal.signal(s, handler)
 

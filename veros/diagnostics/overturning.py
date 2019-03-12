@@ -1,14 +1,13 @@
 from collections import OrderedDict
-import logging
 import os
+
+from loguru import logger
 
 from .. import veros_method, runtime_settings as rs
 from .diagnostic import VerosDiagnostic
 from ..core import density
 from ..variables import Variable
 from ..distributed import global_sum
-
-logger = logging.getLogger("veros")
 
 
 SIGMA = Variable(
@@ -107,9 +106,9 @@ class Overturning(VerosDiagnostic):
         # sigma at p_ref
         sig_loc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz))
         sig_loc[2:-2, 2:-1, :] = density.get_rho(vs,
-                                                 vs.salt[2:-2, 2:-1, :, vs.tau],
-                                                 vs.temp[2:-2, 2:-1, :, vs.tau],
-                                                 self.p_ref)
+                                                vs.salt[2:-2, 2:-1, :, vs.tau],
+                                                vs.temp[2:-2, 2:-1, :, vs.tau],
+                                                self.p_ref)
 
         # transports below isopycnals and area below isopycnals
         sig_loc_face = 0.5 * (sig_loc[2:-2, 2:-2, :] + sig_loc[2:-2, 3:-1, :])
@@ -173,14 +172,15 @@ class Overturning(VerosDiagnostic):
                 * vs.B1_gm[2:-2, 2:-2, :], axis=0))
         # interpolate from isopycnals to depth
         self.vsf_iso[2:-2, :] += self._interpolate_along_axis(vs,
-                                                              z_sig[2:-2, :], trans[2:-2, :],
-                                                              self.zarea[2:-2, :], 1)
+                                                            z_sig[2:-2, :], trans[2:-2, :],
+                                                            self.zarea[2:-2, :], 1)
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
             self.bolus_iso[2:-2, :] += self._interpolate_along_axis(vs,
                                                                     z_sig[2:-2, :], bolus_trans[2:-2, :],
                                                                     self.zarea[2:-2, :], 1)
 
         self.nitts += 1
+
 
     @veros_method
     def _interpolate_along_axis(self, vs, coords, arr, interp_coords, axis=0):

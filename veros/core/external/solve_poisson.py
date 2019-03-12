@@ -29,7 +29,7 @@ def initialize_solver(vs):
     def scipy_solver(rhs, x0):
         rhs = rhs.flatten() * preconditioner.diagonal()
         solution, info = spalg.bicgstab(matrix, rhs,
-                                        x0=x0.flatten(), tol=vs.congr_epsilon,
+                                        x0=x0.flatten(), atol=vs.congr_epsilon,
                                         maxiter=vs.congr_max_iterations,
                                         **extra_args)
         if info > 0:
@@ -116,11 +116,13 @@ def _assemble_poisson_matrix(vs):
         east_diag[-3, 2:-2] = 0.
 
     # construct sparse matrix
-    cf = tuple(diag.flatten() for diag in (boundary_mask * main_diag + (1 - boundary_mask),
-                                           boundary_mask * east_diag,
-                                           boundary_mask * west_diag,
-                                           boundary_mask * north_diag,
-                                           boundary_mask * south_diag))
+    cf = tuple(diag.flatten() for diag in (
+        boundary_mask * main_diag + (1 - boundary_mask),
+        boundary_mask * east_diag,
+        boundary_mask * west_diag,
+        boundary_mask * north_diag,
+        boundary_mask * south_diag
+    ))
     offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1)
 
     if vs.enable_cyclic_x:

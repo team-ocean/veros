@@ -1,7 +1,8 @@
-import logging
+
 import abc
 
 from future.utils import with_metaclass
+from loguru import logger
 
 from . import (settings, diagnostics, time, handlers, logs,
                distributed, runtime_settings as rs)
@@ -9,8 +10,6 @@ from .state import VerosState
 from .timer import Timer
 from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
                    isoneutral, external, advection, utilities)
-
-logger = logging.getLogger("veros")
 
 
 class VerosSetup(with_metaclass(abc.ABCMeta)):
@@ -54,7 +53,6 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
 
         if state is None:
             self.state = VerosState()
-            settings.set_default_settings(self.state)
 
         self.state.timers = {k: Timer(k) for k in (
             "setup", "main", "momentum", "temperature", "eke", "idemix",
@@ -219,6 +217,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
 
         start_time, start_iteration = vs.time, vs.itt
         profiler = None
+
         with handlers.signals_to_exception():
             try:
                 while vs.time - start_time < vs.runlen:
@@ -296,7 +295,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
                     vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
             except:
-                logger.critical("stopping integration at iteration {}".format(vs.itt))
+                logger.critical("stopping integration at iteration {}", vs.itt)
                 raise
 
             finally:
@@ -322,4 +321,4 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
                 if profiler is not None:
                     diagnostics.stop_profiler(profiler)
 
-                logging.shutdown()
+                logger.disable("veros")

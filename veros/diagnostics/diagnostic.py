@@ -1,11 +1,10 @@
 import os
-import logging
+
+from loguru import logger
 
 from .io_tools import netcdf as nctools, hdf5 as h5tools
 from ..decorators import veros_method, do_not_disturb
-from .. import time, runtime_state, distributed
-
-logger = logging.getLogger("veros")
+from .. import time, runtime_state, distributed, runtime_settings
 
 
 class VerosDiagnostic(object):
@@ -97,14 +96,18 @@ class VerosDiagnostic(object):
         if not os.path.isfile(restart_filename):
             raise IOError("restart file {} not found".format(restart_filename))
 
-        logger.info(" reading restart data for diagnostic {} from {}"
-                    .format(self.name, restart_filename))
+        logger.info(" reading restart data for diagnostic {} from {}",
+                    self.name, restart_filename)
+
         with h5tools.threaded_io(vs, restart_filename, "r") as infile:
             variables = {}
             for key, var in infile[self.name].items():
                 if np.isscalar(var):
                     variables[key] = var
                     continue
+
+                if runtime_settings.backend == "bohrium":
+                    var = np.array(var, dtype=str(var.dtype))
 
                 local_shape = distributed.get_local_size(vs, var.shape, var_meta[key].dims, include_overlap=True)
                 gidx, lidx = distributed.get_chunk_slices(vs, var_meta[key].dims[:var.ndim], include_overlap=True)

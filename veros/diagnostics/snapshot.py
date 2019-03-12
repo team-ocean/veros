@@ -1,11 +1,10 @@
-import logging
 import os
 import warnings
 
+from loguru import logger
+
 from .. import veros_method, time
 from .diagnostic import VerosDiagnostic
-
-logger = logging.getLogger("veros")
 
 
 class Snapshot(VerosDiagnostic):

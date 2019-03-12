@@ -1,9 +1,7 @@
-import logging
+from loguru import logger
 
 from .. import density, utilities
 from ... import veros_method, runtime_settings as rs
-
-logger = logging.getLogger("veros")
 
 
 @veros_method

@@ -1,10 +1,11 @@
 import os
 import shutil
-import logging
+
 import hashlib
 
 import requests
 import ruamel.yaml as yaml
+from loguru import logger
 
 try:
     import urlparse
@@ -12,8 +13,6 @@ except ImportError:
     import urllib.parse as urlparse
 
 ASSET_DIRECTORY = os.environ.get("VEROS_ASSET_DIR") or os.path.join(os.path.expanduser("~"), ".veros", "assets")
-
-logger = logging.getLogger("veros")
 
 
 class AssetError(Exception):

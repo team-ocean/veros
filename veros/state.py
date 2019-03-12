@@ -1,6 +1,6 @@
 import math
 
-from . import variables
+from . import variables, settings
 
 
 class VerosState(object):
@@ -20,6 +20,8 @@ class VerosState(object):
         self.nisle = 0 # to be overriden during streamfunction_init
         self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
         self.time, self.itt = 0., 1 # current time and iteration
+
+        settings.set_default_settings(self)
 
     def allocate_variables(self):
         self.variables.update(variables.get_standard_variables(self))

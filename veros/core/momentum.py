@@ -126,16 +126,16 @@ def vertical_velocity(vs):
     # integrate from bottom to surface to see error in w
     fxa[:, :, 0] = -vs.maskW[1:, 1:, 0] * vs.dzt[0] * \
         ((vs.u[1:, 1:, 0, vs.taup1] - vs.u[:-1, 1:, 0, vs.taup1])
-         / (vs.cost[np.newaxis, 1:] * vs.dxt[1:, np.newaxis])
-         + (vs.cosu[np.newaxis, 1:] * vs.v[1:, 1:, 0, vs.taup1]
+        / (vs.cost[np.newaxis, 1:] * vs.dxt[1:, np.newaxis])
+        + (vs.cosu[np.newaxis, 1:] * vs.v[1:, 1:, 0, vs.taup1]
             - vs.cosu[np.newaxis, :-1] * vs.v[1:, :-1, 0, vs.taup1])
-         / (vs.cost[np.newaxis, 1:] * vs.dyt[np.newaxis, 1:]))
+        / (vs.cost[np.newaxis, 1:] * vs.dyt[np.newaxis, 1:]))
     fxa[:, :, 1:] = -vs.maskW[1:, 1:, 1:] * vs.dzt[np.newaxis, np.newaxis, 1:] \
         * ((vs.u[1:, 1:, 1:, vs.taup1] - vs.u[:-1, 1:, 1:, vs.taup1])
-           / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])
-           + (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.v[1:, 1:, 1:, vs.taup1]
-              - vs.cosu[np.newaxis, :-1, np.newaxis] * vs.v[1:, :-1, 1:, vs.taup1])
-           / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis]))
+        / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])
+        + (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.v[1:, 1:, 1:, vs.taup1]
+            - vs.cosu[np.newaxis, :-1, np.newaxis] * vs.v[1:, :-1, 1:, vs.taup1])
+        / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis]))
     vs.w[1:, 1:, :, vs.taup1] = np.cumsum(fxa, axis=2)
 
 

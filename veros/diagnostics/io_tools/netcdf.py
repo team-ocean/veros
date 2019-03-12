@@ -1,11 +1,10 @@
 import threading
 import contextlib
-import logging
 import warnings
 
-from ... import veros_method, variables, runtime_state, runtime_settings as rs, distributed
+from loguru import logger
 
-logger = logging.getLogger("veros")
+from ... import veros_method, variables, runtime_state, runtime_settings as rs, distributed
 
 """
 netCDF output is designed to follow the COARDS guidelines from

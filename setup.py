@@ -35,7 +35,8 @@ INSTALL_REQUIRES = [
     "h5py",
     "pillow",
     "ruamel.yaml",
-    "future"
+    "future",
+    "loguru"
 ]
 
 EXTRAS_REQUIRE = {

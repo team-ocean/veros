@@ -1,10 +1,8 @@
-import logging
+from loguru import logger
 
 from .diagnostic import VerosDiagnostic
 from .. import veros_method
 from ..distributed import global_sum
-
-logger = logging.getLogger("veros")
 
 
 class TracerMonitor(VerosDiagnostic):

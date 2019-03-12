@@ -1,10 +1,9 @@
 import threading
 import contextlib
-import logging
+
+from loguru import logger
 
 from ... import runtime_state
-
-logger = logging.getLogger("veros")
 
 
 @contextlib.contextmanager

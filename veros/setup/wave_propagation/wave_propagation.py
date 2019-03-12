@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-import logging
+
 
 import numpy as np
 import h5netcdf

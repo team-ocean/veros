@@ -308,6 +308,7 @@ def gsw_dyn_enthalpy(vs, sa, ct, p):
 def gsw_dHdT1(vs, sa, ct, p):
     """
      d/dT of dynamic enthalpy, numerical derivative
+
      sa     : Absolute Salinity                               [g/kg]
      ct     : Conservative Temperature                        [deg C]
      p      : sea pressure                                    [dbar]
@@ -322,6 +323,7 @@ def gsw_dHdT1(vs, sa, ct, p):
 def gsw_dHdS1(vs, sa, ct, p):
     """
      d/dS of dynamic enthalpy, numerical derivative
+
      sa     : Absolute Salinity                               [g/kg]
      ct     : Conservative Temperature                        [deg C]
      p      : sea pressure                                    [dbar]
@@ -335,9 +337,8 @@ def gsw_dHdS1(vs, sa, ct, p):
 @veros_method
 def gsw_dHdT(vs, sa_in, ct_in, p):
     """
-    Code should not look like this, but I am not 100% sure what this does.
-
     d/dT of dynamic enthalpy, analytical derivative
+
     sa     : Absolute Salinity                               [g/kg]
     ct     : Conservative Temperature                        [deg C]
     p      : sea pressure                                    [dbar]
@@ -384,7 +385,7 @@ def gsw_dHdT(vs, sa_in, ct_in, p):
     t92 = v01 + ct * (v02 + t76) + sa * (v05 + ct * (v06 + t79) + t82 * (v08 + ct * (v09 + t85)))
     t93 = v48 * t92
     t105 = v02 + t76 + ct * (v03 + 2.0 * t74) + sa * (v06 + 2.0 * t79 +
-                                                      t82 * (v09 + t85 + ct * (v10 + 2.0 * t83)))
+                                                    t82 * (v09 + t85 + ct * (v10 + 2.0 * t83)))
     t106 = t24 * t105
     t107 = v44 + t2 + t3
     t110 = v43 + t48
@@ -413,7 +414,7 @@ def gsw_dHdT(vs, sa_in, ct_in, p):
     t199 = t13 * t20
     t217 = 2.0 * t117 * t199 - t110 * t92
     t234 = v21 + ct * (v22 + t169) + sa * (v26 + ct * (v27 + t179) + v36 *
-                                           sa + t82 * (v31 + ct * (v32 + t189))) + t217 * t20
+                                        sa + t82 * (v31 + ct * (v32 + t189))) + t217 * t20
     t241 = t64 - t92 * t19
     t242 = np.sqrt(t241)
     t243 = 1.0 / t242
@@ -440,15 +441,16 @@ def gsw_dHdT(vs, sa_in, ct_in, p):
                                 - t130 / t156 * t105) / t133 \
         + 0.5e4 * ((v22 + t169 + ct * (v23 + t167 + ct * (v24 + 2.0 * t165))
                     + sa * (v27 + t179 + ct * (v28 + t177 + ct * (v29 + 2.0 * t175)) + t82 * (v32 + t189
-                                                                                              + ct * (v33 + t187 + ct * (v34 + 2.0 * t185)))) + (2.0 * t93 * t199 + 2.0 * t106 *
-                                                                                                                                                 t199 + 2.0 * t117 * t68 - 2.0 * t117 * t13 * t35 * t37 - t107
-                                                                                                                                                 * t92 - t110 * t105) * t20 - t217 * t35 * t37) * t19 + t234 * t37
-                   - t123 * t13 - t143 * t29) * t20 * t254 - 0.5e4 * t259 * \
+                                                                                            + ct * (v33 + t187 + ct * (v34 + 2.0 * t185)))) + (2.0 * t93 * t199 + 2.0 * t106 *
+                                                                                                                                                t199 + 2.0 * t117 * t68 - 2.0 * t117 * t13 * t35 * t37 - t107
+                                                                                                                                                * t92 - t110 * t105) * t20 - t217 * t35 * t37) * t19 + t234 * t37
+                - t123 * t13 - t143 * t29) * t20 * t254 - 0.5e4 * t259 * \
         t35 * t254 * t37 - 0.25e4 * t264 / t242 / t241 * t253 * t272 \
         + 0.5e4 * t264 * t243 * (2.0 * t152 * t249 + t128 *
-                                 t243 * t245 * t248 * t272 - 2.0 * t282 /
-                                 t283 * t248 * (t25 + t26 + t28 - t287)
-                                 - 2.0 * t282 * t245 / t292 * (t25 + t26 + t28 + t287 + t152)) / t252
+                                t243 * t245 * t248 * t272 - 2.0 * t282 /
+                                t283 * t248 * (t25 + t26 + t28 - t287)
+                                - 2.0 * t282 * t245 / t292 * (t25 + t26 + t28 + t287 + t152)) / t252
+
     return t305
 
 

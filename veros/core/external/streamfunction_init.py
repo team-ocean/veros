@@ -1,10 +1,8 @@
-import logging
+from loguru import logger
 
 from ... import veros_method, runtime_settings as rs
 from .. import utilities as mainutils
 from . import island, utilities, solve_poisson
-
-logger = logging.getLogger("veros")
 
 
 @veros_method(inline=True, dist_safe=False, local_variables=["kbot", "land_map"])
