@@ -189,7 +189,8 @@ SETTINGS = OrderedDict([
     ("saturation_constant_NC", Setting(0.7, float, "Half saturation constant for N uptake for coccolitiophores [mmol N / m^3]")),
     ("capr", Setting(0.022, float, "Carbonate to carbon production ratio")),
     # Ballast
-    ("bapr", Setting(0.05, float, "detritus to carbonate ratio [mg POC/mg PIC]")),
+    ("bapr", Setting(0.05, float, "Detritus to carbonate ratio [mg POC/mg PIC]")),
+    ("dcaco3", Setting(6500.0, float, "Calcite remineralization depth")),
 
     # NPZD with iron
     ("enable_iron", Setting(False, bool, "")),
