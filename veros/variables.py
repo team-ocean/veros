@@ -813,7 +813,7 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ("caco3", Variable(
         "CaCO3 production by plankton", T_GRID + TIMESTEPS, "mmol/m^3",
         "Temporary storage of CaCO3 produced by plankton. For redistribution - remove timesteps when supported by the bgc module",
-        output=True
+        output=False
     )),
     ("atmospheric_co2", Variable(
         "Atmospheric co2 concentration", T_HOR, "ppmv",
