@@ -4,7 +4,7 @@ Contains veros methods for handling bio- and geochemistry
 """
 import numpy as np  # NOTE np is already defined somehow
 from .. import veros_method
-from . import advection, diffusion, thermodynamics, cyclic, atmospherefluxes, utilities, isoneutral
+from . import diffusion, thermodynamics, cyclic, utilities, isoneutral
 
 
 @veros_method
@@ -23,9 +23,11 @@ def biogeochemistry(vs):
         bottom_mask[:, :, k] = (k == vs.kbot - 1)
 
     # temporary tracer object to store differences
-    vs.temporary_tracers = {tracer: val[:, :, :, vs.tau].copy() for tracer, val in vs.npzd_tracers.items()}
+    vs.temporary_tracers = {tracer: val[:, :, :, vs.tau].copy()\
+            for tracer, val in vs.npzd_tracers.items()}
     # Flags enable us to only work on tracers with a minimum available concentration
-    flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=np.bool) for tracer in vs.temporary_tracers}
+    flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=np.bool)\
+            for tracer in vs.temporary_tracers}
 
     # Ensure positive data and keep flags of where
     for tracer, data in vs.temporary_tracers.items():
@@ -70,7 +72,8 @@ def biogeochemistry(vs):
 
     # TODO is light_attenuation a bad name?
     # TODO we are doing almost the same cumsum as above, could we do it just once?
-    light_attenuation = vs.dzt * vs.light_attenuation_water + vs.light_attenuation_phytoplankton * np.cumsum(plankton_total[:, :, ::-1], axis=2)[:, :, ::-1]
+    light_attenuation = vs.dzt * vs.light_attenuation_water + vs.light_attenuation_phytoplankton\
+            * np.cumsum(plankton_total[:, :, ::-1], axis=2)[:, :, ::-1]
 
     # recycling rate determined according to b ** (cT)
     # zooplankton growth rate maxes out at 20C, TODO remove magic number
@@ -103,23 +106,29 @@ def biogeochemistry(vs):
 
             # Fast recycling of plankton
             # TODO Could this be moved to individual rules?
-            vs.recycled[plankton] = flags[plankton] * vs.nupt0 * bct * vs.temporary_tracers[plankton]  # TODO check nupt0 for other plankton types
+            # TODO check nupt0 for other plankton types
+            vs.recycled[plankton] = flags[plankton] * vs.nupt0 * bct\
+                    * vs.temporary_tracers[plankton]
 
             # Mortality of plankton
             # Would probably be easier to handle as rules
-            vs.mortality[plankton] = flags[plankton] * vs.specific_mortality_phytoplankton * vs.temporary_tracers[plankton] # TODO proper mortality rates for other plankton
+            # TODO proper mortality for other plankton
+            vs.mortality[plankton] = flags[plankton] * vs.specific_mortality_phytoplankton\
+                    * vs.temporary_tracers[plankton]
 
 
         # Detritus is recycled
-        vs.recycled["detritus"] = flags["detritus"] * vs.nud0 * bct * vs.temporary_tracers["detritus"]
+        vs.recycled["detritus"] = flags["detritus"] * vs.nud0 * bct\
+                * vs.temporary_tracers["detritus"]
 
         # zooplankton displays quadric mortality rates
-        vs.mortality["zooplankton"] = flags["zooplankton"] * vs.quadric_mortality_zooplankton * vs.temporary_tracers["zooplankton"] ** 2
+        vs.mortality["zooplankton"] = flags["zooplankton"] * vs.quadric_mortality_zooplankton\
+                * vs.temporary_tracers["zooplankton"] ** 2
 
         # TODO: move these to rules except grazing
         vs.grazing, vs.digestion, vs.excretion, vs.sloppy_feeding = \
                 zooplankton_grazing(vs, vs.temporary_tracers, flags, gmax)
-        vs.excretion_total = sum(vs.excretion.values())  # TODO this one should not be necessary with the rules
+        vs.excretion_total = sum(vs.excretion.values())
 
 
         # Fetch exported sinking material and calculate difference between layers
@@ -159,7 +168,8 @@ def biogeochemistry(vs):
     vs.temporary_tracers["po4"][bottom_mask] += bottom_export["detritus"] * vs.redfield_ratio_PN
     if vs.enable_carbon:
         vs.temporary_tracers["DIC"][bottom_mask] += bottom_export["detritus"] * vs.redfield_ratio_CN
-        vs.temporary_tracers["alkalinity"][bottom_mask] -= bottom_export["detritus"] * vs.redfield_ratio_CN
+        vs.temporary_tracers["alkalinity"][bottom_mask] -= bottom_export["detritus"]\
+                * vs.redfield_ratio_CN
 
     # Post processesing or smoothing rules
     post_results = [rule[0](vs, rule[1], rule[2]) for rule in vs.npzd_post_rules]
@@ -172,8 +182,11 @@ def biogeochemistry(vs):
         flag_mask = np.logical_and(flags[tracer], data > vs.trcmin) * vs.maskT
         data[:, :, :] = np.where(flag_mask.astype(np.bool), data, vs.trcmin)
 
-    # Return only the difference, as we may not override the results to be used in transport or elsewhere
-    return {tracer: vs.temporary_tracers[tracer] - vs.npzd_tracers[tracer][:, :, :, vs.tau] for tracer in vs.npzd_tracers}
+    """
+    Only return the difference. Will be added to timestep taup1
+    """
+    return {tracer: vs.temporary_tracers[tracer] - vs.npzd_tracers[tracer][:, :, :, vs.tau]\
+            for tracer in vs.npzd_tracers}
 
 
 @veros_method
@@ -250,22 +263,27 @@ def avg_J(vs, f1, gd, grid_light, light_attenuation):
     return gd * (phi1 - phi2) / light_attenuation
 
 def general_nutrient_limitation(nutrient, saturation_constant):
+    """ Nutrient limitation form for all nutrients """
     return nutrient / (saturation_constant + nutrient)
 
 @veros_method
 def phosphate_limitation_phytoplankton(vs, tracers):
+    """ Phytoplankton limit to growth by phosphate limitation """
     return general_nutrient_limitation(tracers["po4"], vs.saturation_constant_N / vs.redfield_ratio_PN)
 
 @veros_method
 def phosphate_limitation_coccolitophore(vs, tracers):
+    """ Coccolitophore limit to growth by phosphate limitation """
     return general_nutrient_limitation(tracers["po4"], vs.saturation_constant_NC / vs.redfield_ratio_PN)
 
 @veros_method
 def phosphate_limitation_diazotroph(vs, tracers):
+    """ Diazotroph limit to growth by phosphate limitation """
     return general_nutrient_limitation(tracers["po4"], vs.saturation_constant_N / vs.redfield_ratio_PN)
 
 @veros_method
 def nitrate_limitation_diazotroph(vs, tracers):
+    """ Diazotroph limit to growth by nitrate limitation """
     return general_nutrient_limitation(tracers["no3"], vs.saturation_constant_N)
 
 @veros_method
@@ -416,7 +434,9 @@ def setup_nitrogen_npzd_rules(vs):
     vs.zprefs["diazotroph"] = vs.zprefD  # Add preference for zooplankton to graze on diazotrophs
     vs.plankton_types.append("diazotroph")  # Diazotroph behaces like plankton
     vs.plankton_growth_functions["diazotroph"] = phytoplankton_potential_growth  # growth function
-    vs.limiting_functions["diazotroph"] = [phosphate_limitation_diazotroph, nitrate_limitation_diazotroph]  # Limited in nutrients by both phosphate and nitrate
+
+    # Limited in nutrients by both phosphate and nitrate
+    vs.limiting_functions["diazotroph"] = [phosphate_limitation_diazotroph, nitrate_limitation_diazotroph]
 
     register_npzd_rule(vs, grazing, "diazotroph", "zooplankton", label="Grazing")
     register_npzd_rule(vs, recycling_to_po4, "diazotroph", "po4", label="Fast recycling")
@@ -441,12 +461,11 @@ def setup_calcifying_npzd_rules(vs):
     """
     # TODO: complete rules: Should be trivial if nitrogen is working
     from .npzd_rules import primary_production, recycling_to_po4, mortality, grazing,\
-            recycling_phyto_to_dic, primary_production_from_DIC, grazing#, calpro
+            recycling_phyto_to_dic, primary_production_from_DIC #, calpro
 
     vs.zprefs["coccolitophore"] = vs.zprefC
     vs.plankton_types.append("coccolitophore")
 
-    # TODO correct growth function
     vs.plankton_growth_functions["coccolitophore"] = coccolitophore_potential_growth
     vs.limiting_functions["coccolitophore"] = [phosphate_limitation_coccolitophore]
 
@@ -536,8 +555,9 @@ def npzd(vs):
 
     npzd_changes = biogeochemistry(vs)
 
+    # TODO remove this outside the loop or ensure, it is called by thermodynamics first
     if vs.enable_neutral_diffusion:
-        isoneutral.isoneutral_diffusion_pre(vs)  # TODO remove this outside the loop or ensure, it is called by thermodynamics first
+        isoneutral.isoneutral_diffusion_pre(vs)
 
     # TODO: move to function. This is essentially the same as vmix in thermodynamics
 
@@ -551,7 +571,8 @@ def npzd(vs):
     delta = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
 
     ks = vs.kbot[2:-2, 2:-2] - 1
-    delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.kappaH[2:-2, 2:-2, :-1]
+    delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1]\
+            * vs.kappaH[2:-2, 2:-2, :-1]
     delta[:, :, -1] = 0
     a_tri[:, :, 1:] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
     b_tri[:, :, 1:] = 1 + (delta[:, :, 1:] + delta[:, :, :-1]) / vs.dzt[np.newaxis, np.newaxis, 1:]
@@ -564,14 +585,16 @@ def npzd(vs):
         Advection of tracers
         """
         # TODO: Rename npzd_tracer_derivatives to npzd_advection_derivates? or something like that
-        thermodynamics.advect_tracer(vs, tracer_data[:, :, :, vs.tau], vs.npzd_tracer_derivatives[tracer][:, :, :, vs.tau])
+        thermodynamics.advect_tracer(vs, tracer_data[:, :, :, vs.tau],
+                                     vs.npzd_tracer_derivatives[tracer][:, :, :, vs.tau])
 
         # TODO vs.dt_tracer ??
         # Adam-Bashforth timestepping
         # tracer_data[:, :, :, vs.taup1] = tracer_data[:, :, :, vs.tau] + vs.dt_mom \
         tracer_data[:, :, :, vs.taup1] = tracer_data[:, :, :, vs.tau] + vs.dt_tracer \
                 * ((1.5 + vs.AB_eps) * vs.npzd_tracer_derivatives[tracer][:, :, :, vs.tau]
-                - (0.5 + vs.AB_eps) * vs.npzd_tracer_derivatives[tracer][:, :, :, vs.taum1]) * vs.maskT
+                   - (0.5 + vs.AB_eps) * vs.npzd_tracer_derivatives[tracer][:, :, :, vs.taum1])\
+                        * vs.maskT
 
         """
         Diffusion of tracers
@@ -579,7 +602,8 @@ def npzd(vs):
 
         # TODO distinguish between biharmonic mixing and simple diffusion like in thermodynamics
         diffusion_change = np.empty_like(tracer_data[:, :, :, 0])
-        diffusion.biharmonic(vs, tracer_data[:, :, :, vs.tau], np.sqrt(abs(vs.K_hbi)), diffusion_change)
+        diffusion.biharmonic(vs, tracer_data[:, :, :, vs.tau],
+                             np.sqrt(abs(vs.K_hbi)), diffusion_change)
 
         # tracer_data[:, :, :, vs.taup1] += vs.dt_mom * diffusion_change
         tracer_data[:, :, :, vs.taup1] += vs.dt_tracer * diffusion_change
@@ -591,12 +615,15 @@ def npzd(vs):
         if vs.enable_neutral_diffusion:
             dtracer_iso = np.zeros_like(tracer_data[..., 0])
 
-            # NOTE isoneutral_diffusion_decoupled is a temporary solution to splitting the explicit dependence on time and salinity from the function isoneutral_diffusion
-            isoneutral.isoneutral_diffusion_decoupled(vs, tracer_data, dtracer_iso, iso=True, skew=False)
+            # NOTE isoneutral_diffusion_decoupled is a temporary solution to splitting the explicit
+            # dependence on time and salinity from the function isoneutral_diffusion
+            isoneutral.isoneutral_diffusion_decoupled(vs, tracer_data, dtracer_iso,
+                                                      iso=True, skew=False)
 
             if vs.enable_skew_diffusion:
                 dtracer_skew = np.zeros_like(tracer_data[..., 0])
-                isoneutral.isoneutral_diffusion_decoupled(vs, tracer_data, dtracer_skew, iso=False, skew=True)
+                isoneutral.isoneutral_diffusion_decoupled(vs, tracer_data, dtracer_skew,
+                                                          iso=False, skew=True)
 
 
         """
@@ -607,7 +634,8 @@ def npzd(vs):
         # d_tri[:, :, -1] += surface_forcing
         sol, mask = utilities.solve_implicit(vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
 
-        tracer_data[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, mask, sol, tracer_data[2:-2, 2:-2, :, vs.taup1])
+        tracer_data[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, mask, sol,
+                                                               tracer_data[2:-2, 2:-2, :, vs.taup1])
 
     for tracer, change in npzd_changes.items():
         vs.npzd_tracers[tracer][:, :, :, vs.taup1] += change
