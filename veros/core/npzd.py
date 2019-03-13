@@ -244,8 +244,8 @@ def coccolitophore_potential_growth(vs, bct, grid_light, light_attenuation):
 def diazotroph_potential_growth(vs, bct, grid_light, light_attenuation):
     """ Potential growth of diazotroph is limited by a minimum temperature """
     f1 = np.exp(-light_attenuation)
-    jmax = np.maximum(0, vs.abio_P * vs.jdiar * (bct - 2.6))
-    gd = np.maximum(1e-14, jmax * vs.dt_tracer)
+    jmax = np.maximum(0, vs.abio_P * vs.jdiar * (bct - vs.bct_min_diaz))
+    gd = np.maximum(vs.gd_min_diaz, jmax * vs.dt_tracer)
     avej = avg_J(vs, f1, gd, grid_light, light_attenuation)
 
     return jmax, avej
@@ -253,10 +253,10 @@ def diazotroph_potential_growth(vs, bct, grid_light, light_attenuation):
 @veros_method
 def avg_J(vs, f1, gd, grid_light, light_attenuation):
     """Average J"""
-    u1 = np.maximum(grid_light / gd, 1e-6)  # TODO remove magic number 1e-6
+    u1 = np.maximum(grid_light / gd, vs.u1_min)
     u2 = u1 * f1
 
-    # NOTE: There is an approximation here: u1 < 20 WTF? Why 20?
+    # NOTE: There is an approximation here: u1 < 20
     phi1 = np.log(u1 + np.sqrt(1 + u1**2)) - (np.sqrt(1 + u1**2) - 1) / u1
     phi2 = np.log(u2 + np.sqrt(1 + u2**2)) - (np.sqrt(1 + u2**2) - 1) / u2
 

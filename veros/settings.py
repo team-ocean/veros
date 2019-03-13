@@ -160,6 +160,8 @@ SETTINGS = OrderedDict([
     ("redfield_ratio_ON", Setting(10.6, float, "Redfield ratio for O/N")),
     ("redfield_ratio_CN", Setting(7.1, float, "Redfield ratio for C/N")),
     ("trcmin", Setting(0, float, "Minimum npzd tracer value")),
+    ("u1_min", Setting(1e-6, float, "Minimum u1 value for calculating avg J")),
+    ("gd_min_diaz", Setting(1e-14, float, "Minimum value for gd for diazotroph growth")),
 
     # NPZD with N
     ("enable_nitrogen", Setting(False, bool, "")),
@@ -173,6 +175,7 @@ SETTINGS = OrderedDict([
     ("diazotroph_NP", Setting(28, float, "Diazotroph N:P ratio")),
     ("dfr", Setting(0.08, float, "phtoplankton mortality refactory/semi-labile DOM fraction")),
     ("dfrt", Setting(0.08, float, "phtoplankton fast recycling refactory/semi-labile DOM fraction")),
+    ("bct_min_diaz", Setting(2.6, float, "Minmum value for b*c^T for calculating diazotroph growth")),
 
     # NPZD with caco3
     ("enable_calcifiers", Setting(False, bool, "")),
