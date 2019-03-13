@@ -19,19 +19,19 @@ def biogeochemistry(vs):
 
     # Used to remineralize at the bottom - TODO calculate once elsewhere
     # Is there a better way to find the bottom?
-    bottom_mask = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=bool)
+    bottom_mask = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=np.bool)
     for k in range(vs.nz):
         bottom_mask[:, :, k] = (k == vs.kbot - 1)
 
     # temporary tracer object to store differences
     vs.temporary_tracers = {tracer: val[:, :, :, vs.tau].copy() for tracer, val in vs.npzd_tracers.items()}
     # Flags enable us to only work on tracers with a minimum available concentration
-    flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=bool) for tracer in vs.temporary_tracers}
+    flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=np.bool) for tracer in vs.temporary_tracers}
 
     # Ensure positive data and keep flags of where
     for tracer, data in vs.temporary_tracers.items():
         flag_mask = (data > vs.trcmin) * vs.maskT
-        flags[tracer][:, :, :] = flag_mask
+        flags[tracer][:, :, :] = flag_mask.astype(np.bool)
         data[:, :, :] = np.where(flag_mask, data, vs.trcmin)
 
     # Pre rules: Changes that need to be applied before running npzd dynamics
@@ -154,7 +154,7 @@ def biogeochemistry(vs):
         # Prepare temporary tracers for next bio iteration
         for tracer, data in vs.temporary_tracers.items():
             flag_mask = np.logical_and(flags[tracer], data > vs.trcmin) * vs.maskT
-            flags[tracer] = flag_mask  # np.where(flag_mask, True, False)
+            flags[tracer] = flag_mask.astype(np.bool)  # np.where(flag_mask, True, False)
             data[:, :, :] = np.where(flag_mask, data, vs.trcmin)
 
 
@@ -173,7 +173,7 @@ def biogeochemistry(vs):
     # Reset before returning
     for tracer, data in vs.temporary_tracers.items():
         flag_mask = np.logical_and(flags[tracer], data > vs.trcmin) * vs.maskT
-        data[:, :, :] = np.where(flag_mask, data, vs.trcmin)
+        data[:, :, :] = np.where(flag_mask.astype(np.bool), data, vs.trcmin)
 
     # Return only the difference, as we may not override the results to be used in transport or elsewhere
     return {tracer: vs.temporary_tracers[tracer] - vs.npzd_tracers[tracer][:, :, :, vs.tau] for tracer in vs.npzd_tracers}
@@ -657,6 +657,12 @@ def co2_surface_flux(vs, co2, dic):
     return {dic: flux}
 
 @veros_method
+def co2_surface_flux_alk(vs, co2, alk):
+    flux = np.zeros((vs.cflux.shape[0], vs.cflux.shape[1], vs.nz))
+    flux[:, :, -1] = - vs.cflux * vs.dt_tracer / vs.dzt[-1]
+    return {alk: flux}
+
+@veros_method
 def setupNPZD(vs):
     """Taking veros variables and packaging them up into iterables"""
     vs.npzd_tracers = {}  # Dictionary keeping track of plankton, nutrients etc.
@@ -735,6 +741,7 @@ def setupNPZD(vs):
 
 
         vs.npzd_pre_rules.append((co2_surface_flux, "co2", "DIC"))
+        vs.npzd_pre_rules.append((co2_surface_flux_alk, "co2", "alkalinity"))
 
         register_npzd_rule(vs, recycling_to_dic, "detritus", "DIC", label="Remineralization")
         register_npzd_rule(vs, primary_production_from_DIC, "DIC", "phytoplankton", label="Primary production")
@@ -858,6 +865,27 @@ def npzd(vs):
     if vs.enable_neutral_diffusion:
         isoneutral.isoneutral_diffusion_pre(vs)  # TODO remove this outside the loop or ensure, it is called by thermodynamics first
 
+
+
+    # TODO: move to function. This is essentially the same as vmix in thermodynamics
+
+    """
+    For vertical mixing
+    """
+    a_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+    b_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+    c_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+    d_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+    delta = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+
+    ks = vs.kbot[2:-2, 2:-2] - 1
+    delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.kappaH[2:-2, 2:-2, :-1]
+    delta[:, :, -1] = 0
+    a_tri[:, :, 1:] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
+    b_tri[:, :, 1:] = 1 + (delta[:, :, 1:] + delta[:, :, :-1]) / vs.dzt[np.newaxis, np.newaxis, 1:]
+    b_tri_edge = 1 + delta / vs.dzt[np.newaxis, np.newaxis, :]
+    c_tri[:, :, :-1] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, :-1]
+
     for tracer, tracer_data in vs.npzd_tracers.items():
 
         """
@@ -905,25 +933,7 @@ def npzd(vs):
         """
         Vertical mixing of tracers
         """
-        # TODO: move to function. This is essentially the same as vmix in thermodynamics
-
-        a_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        b_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        c_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        d_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        delta = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-
-        ks = vs.kbot[2:-2, 2:-2] - 1
-        # TODO: dt_tracer
-        # delta[:, :, :-1] = vs.dt_mom / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.kappaH[2:-2, 2:-2, :-1]
-        delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.kappaH[2:-2, 2:-2, :-1]
-        delta[:, :, -1] = 0
-        a_tri[:, :, 1:] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
-        b_tri[:, :, 1:] = 1 + (delta[:, :, 1:] + delta[:, :, :-1]) / vs.dzt[np.newaxis, np.newaxis, 1:]
-        b_tri_edge = 1 + delta / vs.dzt[np.newaxis, np.newaxis, :]
-        c_tri[:, :, :-1] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, :-1]
         d_tri[:, :, :] = tracer_data[2:-2, 2:-2, :, vs.taup1]
-        # TODO: dt_tracer
         # TODO: surface flux?
         # d_tri[:, :, -1] += surface_forcing
         sol, mask = utilities.solve_implicit(vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
