@@ -162,6 +162,7 @@ SETTINGS = OrderedDict([
     ("trcmin", Setting(0, float, "Minimum npzd tracer value")),
     ("u1_min", Setting(1e-6, float, "Minimum u1 value for calculating avg J")),
     ("gd_min_diaz", Setting(1e-14, float, "Minimum value for gd for diazotroph growth")),
+    ("zooplankton_max_growth_temp", Setting(20.0, float, "Temperature for which zooplankton growth rate no longer grows with temperature")),
 
     # NPZD with N
     ("enable_nitrogen", Setting(False, bool, "")),

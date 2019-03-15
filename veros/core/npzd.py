@@ -23,11 +23,11 @@ def biogeochemistry(vs):
         bottom_mask[:, :, k] = (k == vs.kbot - 1)
 
     # temporary tracer object to store differences
-    vs.temporary_tracers = {tracer: val[:, :, :, vs.tau].copy()\
-            for tracer, val in vs.npzd_tracers.items()}
+    vs.temporary_tracers = {tracer: val[:, :, :, vs.tau].copy()
+                            for tracer, val in vs.npzd_tracers.items()}
     # Flags enable us to only work on tracers with a minimum available concentration
-    flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=np.bool)\
-            for tracer in vs.temporary_tracers}
+    flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=np.bool)
+             for tracer in vs.temporary_tracers}
 
     # Ensure positive data and keep flags of where
     for tracer, data in vs.temporary_tracers.items():
@@ -76,9 +76,9 @@ def biogeochemistry(vs):
             * np.cumsum(plankton_total[:, :, ::-1], axis=2)[:, :, ::-1]
 
     # recycling rate determined according to b ** (cT)
-    # zooplankton growth rate maxes out at 20C, TODO remove magic number
     bct = vs.bbio ** (vs.cbio * vs.temp[:, :, :, vs.taum1])
-    bctz = vs.bbio ** (vs.cbio * np.minimum(vs.temp[:, :, :, vs.taum1], 20))
+    bctz = vs.bbio ** (vs.cbio * np.minimum(vs.temp[:, :, :, vs.taum1],
+                                            vs.zooplankton_max_growth_temp))
 
     # Maximum grazing rate is a function of temperature
     # bctz sets an upper limit on effects of temperature on grazing
