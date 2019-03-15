@@ -106,19 +106,17 @@ def biogeochemistry(vs):
 
             # Fast recycling of plankton
             # TODO Could this be moved to individual rules?
-            # TODO check nupt0 for other plankton types
-            vs.recycled[plankton] = flags[plankton] * vs.nupt0 * bct\
+            vs.recycled[plankton] = flags[plankton] * vs.recycling_rates[plankton] * bct\
                     * vs.temporary_tracers[plankton]
 
             # Mortality of plankton
             # Would probably be easier to handle as rules
-            # TODO proper mortality for other plankton
-            vs.mortality[plankton] = flags[plankton] * vs.specific_mortality_phytoplankton\
+            vs.mortality[plankton] = flags[plankton] * vs.mortality_rates[plankton]\
                     * vs.temporary_tracers[plankton]
 
 
         # Detritus is recycled
-        vs.recycled["detritus"] = flags["detritus"] * vs.nud0 * bct\
+        vs.recycled["detritus"] = flags["detritus"] * vs.recycling_rates["detritus"] * bct\
                 * vs.temporary_tracers["detritus"]
 
         # zooplankton displays quadric mortality rates
@@ -338,6 +336,9 @@ def setup_basic_npzd_rules(vs):
     vs.plankton_types = ["phytoplankton"]  # Phytoplankton types in the model. For blocking light
     vs.plankton_growth_functions["phytoplankton"] = phytoplankton_potential_growth
     vs.limiting_functions["phytoplankton"] = [phosphate_limitation_phytoplankton]
+    vs.recycling_rates["phytoplankton"] = vs.nupt0
+    vs.recycling_rates["detritus"] = vs.nud0
+    vs.mortality_rates["phytoplankton"] = vs.specific_mortality_phytoplankton
 
     # Zooplankton preferences for grazing on keys
     # Values are scaled automatically at the end of this function
@@ -431,6 +432,11 @@ def setup_nitrogen_npzd_rules(vs):
     register_npzd_data(vs, "DOP", vs.dop)
     register_npzd_data(vs, "DON", vs.don)
 
+    vs.mortality_rates["diazotroph"] = vs.specific_mortality_diazotroph
+    vs.recycling_rates["diazotroph"] = vs.nupt0_D
+    vs.recycling_rates["DOP"] = vs.nudop0
+    vs.recycling_rates["DON"] = vs.nudon0
+
     vs.zprefs["diazotroph"] = vs.zprefD  # Add preference for zooplankton to graze on diazotrophs
     vs.plankton_types.append("diazotroph")  # Diazotroph behaces like plankton
     vs.plankton_growth_functions["diazotroph"] = phytoplankton_potential_growth  # growth function
@@ -466,6 +472,9 @@ def setup_calcifying_npzd_rules(vs):
     vs.zprefs["coccolitophore"] = vs.zprefC
     vs.plankton_types.append("coccolitophore")
 
+    vs.mortality_rates["coccolitophore"] = vs.specific_mortality_coccolitophore
+    vs.recycling_rates["coccolitophore"] = vs.nuct0
+
     vs.plankton_growth_functions["coccolitophore"] = coccolitophore_potential_growth
     vs.limiting_functions["coccolitophore"] = [phosphate_limitation_coccolitophore]
 
@@ -494,6 +503,7 @@ def setupNPZD(vs):
     vs.npzd_pre_rules = []
     vs.npzd_post_rules = []
 
+
     if vs.show_npzd_graph:
         from graphviz import Digraph
         # graph for visualizing interactions - usefull for debugging
@@ -503,6 +513,8 @@ def setupNPZD(vs):
     vs.limiting_functions = {}  # Contains descriptions of how nutrients put a limit on growth
 
     vs.sinking_speeds = {}  # Dictionary of sinking objects with their sinking speeds
+    vs.recycling_rates = {}
+    vs.mortality_rates = {}
 
     setup_basic_npzd_rules(vs)
 
