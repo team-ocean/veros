@@ -5,9 +5,8 @@ with Dirichlet boundary conditions
 used for streamfunction
 """
 
-from . import utilities, solve_poisson
+from . import utilities, solve_poisson_petsc_full
 from .. import utilities as mainutils
-from ...distributed import gather, scatter
 from ... import veros_method, runtime_settings as rs
 
 
@@ -53,13 +52,13 @@ def solve_streamfunction(vs):
     # solve for interior streamfunction
     vs.dpsi[:, :, vs.taup1] = 2 * vs.dpsi[:, :, vs.tau] - vs.dpsi[:, :, vs.taum1]
 
-    dpsi_global = gather(vs, vs.dpsi[..., vs.taup1], ("xt", "yt"))
-    solve_poisson.solve(
+    # dpsi_global = gather(vs, vs.dpsi[..., vs.taup1], ("xt", "yt"))
+    solve_poisson_petsc_full.solve(
         vs,
-        gather(vs, forc, ("xt", "yt")),
-        dpsi_global
+        forc,
+        vs.dpsi[..., vs.taup1]
     )
-    vs.dpsi[..., vs.taup1] = scatter(vs, dpsi_global, ("xt", "yt"))
+    # vs.dpsi[..., vs.taup1] = scatter(vs, dpsi_global, ("xt", "yt"))
 
     mainutils.enforce_boundaries(vs, vs.dpsi[:, :, vs.taup1])
 

@@ -2,7 +2,7 @@ from loguru import logger
 
 from ... import veros_method, runtime_settings as rs
 from .. import utilities as mainutils
-from . import island, utilities, solve_poisson
+from . import island, utilities, solve_poisson, solve_poisson_petsc_full
 
 
 @veros_method(inline=True, dist_safe=False, local_variables=["kbot", "land_map"])
@@ -42,6 +42,55 @@ def streamfunction_init(vs):
     vs.line_dir_west_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
 
     do_streamfunction_init(vs)
+
+    # solve_poisson.initialize_solver(vs)
+    solve_poisson_petsc_full.initialize_solver(vs)
+
+    """
+    precalculate time independent boundary components of streamfunction
+    """
+    forc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4), dtype=vs.default_float_type)
+
+    # initialize with random noise to achieve uniform convergence
+    vs.psin[...] = np.random.rand(*vs.psin.shape) * vs.maskZ[..., -1, np.newaxis]
+
+    for isle in range(vs.nisle):
+        logger.info(" solving for boundary contribution by island {:d}".format(isle))
+        # old_res = vs.psin[:, :, isle].copy()
+        # solve_poisson.solve(vs, forc, old_res,
+        #                     boundary_val=vs.boundary_mask[:, :, isle])
+        solve_poisson_petsc_full.solve(vs, forc, vs.psin[:, :, isle],
+                                  boundary_val=vs.boundary_mask[:, :, isle])
+
+        from ... import distributed, runtime_state as rst
+        global_sol = distributed.gather(vs, vs.psin[:, :, isle], ("xt", "yt"))
+
+        if rst.proc_rank == 0:
+            import matplotlib.pyplot as plt
+            plt.imshow(global_sol)
+            plt.show()
+        # if not np.allclose(old_res, vs.psin[:, :, isle]):
+        #     import matplotlib.pyplot as plt
+        #     plt.imshow(old_res - vs.psin[..., isle])
+        #     plt.show()
+        #     raise
+
+    mainutils.enforce_boundaries(vs, vs.psin)
+
+    """
+    precalculate time independent island integrals
+    """
+    fpx = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=vs.default_float_type)
+    fpy = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=vs.default_float_type)
+
+    fpx[1:, 1:, :] = -vs.maskU[1:, 1:, -1, np.newaxis] \
+        * (vs.psin[1:, 1:, :] - vs.psin[1:, :-1, :]) \
+        / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.hur[1:, 1:, np.newaxis]
+    fpy[1:, 1:, ...] = vs.maskV[1:, 1:, -1, np.newaxis] \
+        * (vs.psin[1:, 1:, :] - vs.psin[:-1, 1:, :]) \
+        / (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
+        * vs.hvr[1:, 1:, np.newaxis]
+    vs.line_psin[...] = utilities.line_integrals(vs, fpx, fpy, kind="full")
 
 
 @veros_method(dist_safe=False, local_variables=[
@@ -177,38 +226,6 @@ def do_streamfunction_init(vs):
         vs.line_dir_north_mask = np.asarray(vs.line_dir_north_mask)
         vs.line_dir_east_mask = np.asarray(vs.line_dir_east_mask)
         vs.line_dir_west_mask = np.asarray(vs.line_dir_west_mask)
-
-    solve_poisson.initialize_solver(vs)
-
-    """
-    precalculate time independent boundary components of streamfunction
-    """
-    forc = np.zeros((vs.nx+4, vs.ny+4), dtype=vs.default_float_type)
-
-    # initialize with random noise to achieve uniform convergence
-    vs.psin[...] = np.random.rand(*vs.psin.shape) * vs.maskZ[..., -1, np.newaxis]
-
-    for isle in range(vs.nisle):
-        logger.info(" solving for boundary contribution by island {:d}".format(isle))
-        solve_poisson.solve(vs, forc, vs.psin[:, :, isle],
-                            boundary_val=vs.boundary_mask[:, :, isle])
-
-    mainutils.enforce_boundaries(vs, vs.psin)
-
-    """
-    precalculate time independent island integrals
-    """
-    fpx = np.zeros((vs.nx + 4, vs.ny + 4, vs.nisle), dtype=vs.default_float_type)
-    fpy = np.zeros((vs.nx + 4, vs.ny + 4, vs.nisle), dtype=vs.default_float_type)
-
-    fpx[1:, 1:, :] = -vs.maskU[1:, 1:, -1, np.newaxis] \
-        * (vs.psin[1:, 1:, :] - vs.psin[1:, :-1, :]) \
-        / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.hur[1:, 1:, np.newaxis]
-    fpy[1:, 1:, ...] = vs.maskV[1:, 1:, -1, np.newaxis] \
-        * (vs.psin[1:, 1:, :] - vs.psin[:-1, 1:, :]) \
-        / (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
-        * vs.hvr[1:, 1:, np.newaxis]
-    vs.line_psin[...] = utilities.line_integrals(vs, fpx, fpy, kind="full")
 
 
 @veros_method

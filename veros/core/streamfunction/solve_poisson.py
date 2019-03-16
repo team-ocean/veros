@@ -29,7 +29,7 @@ def initialize_solver(vs):
     def scipy_solver(rhs, x0):
         rhs = rhs.flatten() * preconditioner.diagonal()
         solution, info = spalg.bicgstab(matrix, rhs,
-                                        x0=x0.flatten(), atol=vs.congr_epsilon,
+                                        x0=x0.flatten(), tol=0, atol=vs.congr_epsilon,
                                         maxiter=vs.congr_max_iterations,
                                         **extra_args)
         if info > 0:
