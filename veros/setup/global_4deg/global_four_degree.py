@@ -2,7 +2,6 @@
 
 import os
 
-
 import h5netcdf
 
 from veros import VerosSetup, veros_method
@@ -153,7 +152,7 @@ class GlobalFourDegree(VerosSetup):
 
         fxa = np.sum(vs.qnet[2:-2, 2:-2, :] * vs.area_t[2:-2, 2:-2, np.newaxis]) \
               / 12 / np.sum(vs.area_t[2:-2, 2:-2])
-        logging.info(" removing an annual mean heat flux imbalance of %e W/m^2" % fxa)
+        print(" removing an annual mean heat flux imbalance of %e W/m^2" % fxa)
         vs.qnet[...] = (vs.qnet - fxa) * vs.maskT[:, :, -1, np.newaxis]
 
         # SST and SSS
