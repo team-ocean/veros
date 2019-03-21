@@ -83,7 +83,7 @@ class StreamfunctionBenchmark(VerosLegacy):
                 rhs[2:-2, 2:-2] = np.random.randn(vs.nx, vs.ny)
                 sol = np.zeros_like(rhs)
                 start = time.time()
-                core.external.solve_poisson.solve(vs, rhs, sol)
+                core.streamfunction.solve_poisson.solve(vs, rhs, sol)
             barrier()
             end = time.time()
             logging.info("Time step took {}s".format(end - start))

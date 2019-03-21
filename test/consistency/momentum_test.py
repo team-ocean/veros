@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 
 from test_base import VerosPyOMUnitTest
-from veros.core import momentum, external, numerics
+from veros.core import momentum, streamfunction, numerics
 
 
 class MomentumTest(VerosPyOMUnitTest):
@@ -66,7 +66,7 @@ class MomentumTest(VerosPyOMUnitTest):
         self.veros_legacy.call_fortran_routine("calc_topo")
 
         if self.first:
-            external.streamfunction_init(self.veros_new)
+            streamfunction.streamfunction_init(self.veros_new)
             self.veros_legacy.call_fortran_routine("streamfunction_init")
             self.first = False
 

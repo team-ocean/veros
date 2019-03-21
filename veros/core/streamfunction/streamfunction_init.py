@@ -1,8 +1,8 @@
 from loguru import logger
 
-from ... import veros_method, runtime_settings as rs
+from ... import veros_method, runtime_settings as rs, runtime_state as rst
 from .. import utilities as mainutils
-from . import island, utilities, solve_poisson, solve_poisson_petsc_full
+from . import island, utilities
 
 
 @veros_method(inline=True, dist_safe=False, local_variables=["kbot", "land_map"])
@@ -11,6 +11,43 @@ def get_isleperim(vs):
     vs.land_map[...] = island.isleperim(vs, vs.kbot, verbose=vs.verbose_island_routines)
     logger.info(_ascii_map(vs, vs.land_map))
     return int(vs.land_map.max())
+
+
+def _get_solver_class():
+    ls = rs.linear_solver
+
+    def _get_best_solver():
+        if rst.proc_num > 1:
+            try:
+                from .solvers.petsc import PETScSolver
+            except ImportError:
+                logger.warning("PETSc linear solver not available, falling back to pyAMG")
+            else:
+                return PETScSolver
+
+        try:
+            from .solvers.pyamg import PyAMGSolver
+        except ImportError:
+            logger.warning("pyAMG linear solver not available, falling back to SciPy")
+        else:
+            return PyAMGSolver
+
+        from .solvers.scipy import SciPySolver
+        return SciPySolver
+
+    if ls == 'best':
+        return _get_best_solver()
+    elif ls == 'petsc':
+        from .solvers.petsc import PETScSolver
+        return PETScSolver
+    elif ls == 'pyamg':
+        from .solvers.pyamg import PyAMGSolver
+        return PyAMGSolver
+    elif ls == 'scipy':
+        from .solvers.scipy import SciPySolver
+        return SciPySolver
+
+    raise ValueError("unrecognized linear solver %s" % ls)
 
 
 @veros_method
@@ -43,8 +80,7 @@ def streamfunction_init(vs):
 
     do_streamfunction_init(vs)
 
-    # solve_poisson.initialize_solver(vs)
-    solve_poisson_petsc_full.initialize_solver(vs)
+    vs.linear_solver = _get_solver_class()(vs)
 
     """
     precalculate time independent boundary components of streamfunction
@@ -56,24 +92,8 @@ def streamfunction_init(vs):
 
     for isle in range(vs.nisle):
         logger.info(" solving for boundary contribution by island {:d}".format(isle))
-        # old_res = vs.psin[:, :, isle].copy()
-        # solve_poisson.solve(vs, forc, old_res,
-        #                     boundary_val=vs.boundary_mask[:, :, isle])
-        solve_poisson_petsc_full.solve(vs, forc, vs.psin[:, :, isle],
-                                  boundary_val=vs.boundary_mask[:, :, isle])
-
-        from ... import distributed, runtime_state as rst
-        global_sol = distributed.gather(vs, vs.psin[:, :, isle], ("xt", "yt"))
-
-        if rst.proc_rank == 0:
-            import matplotlib.pyplot as plt
-            plt.imshow(global_sol)
-            plt.show()
-        # if not np.allclose(old_res, vs.psin[:, :, isle]):
-        #     import matplotlib.pyplot as plt
-        #     plt.imshow(old_res - vs.psin[..., isle])
-        #     plt.show()
-        #     raise
+        vs.linear_solver.solve(vs, forc, vs.psin[:, :, isle],
+                               boundary_val=vs.boundary_mask[:, :, isle])
 
     mainutils.enforce_boundaries(vs, vs.psin)
 
@@ -94,9 +114,8 @@ def streamfunction_init(vs):
 
 
 @veros_method(dist_safe=False, local_variables=[
-    "psin", "dpsin", "line_psin", "boundary_mask", "land_map",
-    "line_dir_south_mask", "line_dir_north_mask", "line_dir_east_mask", "line_dir_west_mask",
-    "maskU", "maskV", "maskT", "maskZ", "hur", "hvr", "dxu", "dxt", "dyu", "dyt", "cosu", "cost"
+    "boundary_mask", "land_map", "line_dir_south_mask", "line_dir_north_mask",
+    "line_dir_east_mask", "line_dir_west_mask",
 ])
 def do_streamfunction_init(vs):
     if rs.backend == "bohrium":
@@ -246,6 +265,7 @@ def _avoid_cyclic_boundaries(vs, boundary_map, isle, n, x_range):
                 vs.line_dir_west_mask[i, j, isle] = 1
                 vs.boundary_mask[i, j, isle] = 1
                 return cont, (i - 1, j), Dir, (i, j)
+
     return False, None, [0, 0], [0, 0]
 
 

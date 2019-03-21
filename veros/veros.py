@@ -9,7 +9,7 @@ from . import (settings, diagnostics, time, handlers, logs,
 from .state import VerosState
 from .timer import Timer
 from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
-                   isoneutral, external, advection, utilities)
+                   isoneutral, streamfunction, advection, utilities)
 
 
 class VerosSetup(with_metaclass(abc.ABCMeta)):
@@ -196,7 +196,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
 
             self.set_initial_conditions(vs)
             numerics.calc_initial_conditions(vs)
-            external.streamfunction_init(vs)
+            streamfunction.streamfunction_init(vs)
             eke.init_eke(vs)
 
             vs.diagnostics = diagnostics.create_diagnostics(vs)

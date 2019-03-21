@@ -438,11 +438,7 @@ def gather(vs, arr, var_grid):
 @dist_context_only
 @veros_method
 def broadcast(vs, obj):
-    if isinstance(obj, np.ndarray):
-        obj = ascontiguousarray(obj)
-        return rst.mpi_comm.Bcast(get_array_buffer(vs, obj), root=0)
-    else:
-        return rst.mpi_comm.bcast(obj, root=0)
+    return rst.mpi_comm.bcast(obj, root=0)
 
 
 @dist_context_only

@@ -1,5 +1,4 @@
 
-
 def twoints(v):
     return (int(v[0]), int(v[1]))
 
@@ -14,6 +13,7 @@ def loglevel(v):
 AVAILABLE_SETTINGS = (
     # (name, type, default)
     ("backend", str, "numpy"),
+    ("linear_solver", str, "best"),
     ("num_proc", twoints, (1, 1)),
     ("profile_mode", bool, False),
     ("loglevel", loglevel, "info"),

@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 
 from test_base import VerosPyOMUnitTest
-from veros.core import numerics, external
+from veros.core import numerics, streamfunction
 
 
 class StreamfunctionTest(VerosPyOMUnitTest):
@@ -50,11 +50,11 @@ class StreamfunctionTest(VerosPyOMUnitTest):
             self.veros_legacy.call_fortran_routine(r)
 
         if self.first:
-            external.streamfunction_init(self.veros_new)
+            streamfunction.streamfunction_init(self.veros_new)
             self.veros_legacy.call_fortran_routine("streamfunction_init")
             self.first = False
 
-        self.test_module = external
+        self.test_module = streamfunction
         veros_args = (self.veros_new, )
         veros_legacy_args = dict()
         self.test_routines = OrderedDict()

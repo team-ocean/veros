@@ -1,5 +1,5 @@
 from .. import veros_method, runtime_settings as rs
-from . import friction, isoneutral, external
+from . import friction, isoneutral, streamfunction
 
 
 @veros_method
@@ -112,7 +112,7 @@ def momentum(vs):
     external mode
     """
     with vs.timers["pressure"]:
-        external.solve_streamfunction(vs)
+        streamfunction.solve_streamfunction(vs)
 
 
 @veros_method
