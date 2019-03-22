@@ -2,7 +2,7 @@ import time
 
 import click
 
-from veros import VerosLegacy, veros_method, core, tools
+from veros import VerosLegacy, veros_method, core, tools, runtime_state as rst
 from veros.distributed import barrier
 
 
@@ -85,7 +85,8 @@ class StreamfunctionBenchmark(VerosLegacy):
                 core.streamfunction.solve_poisson.solve(vs, rhs, sol)
             barrier()
             end = time.time()
-            print("Time step took {}s".format(end - start))
+            if rst.proc_rank == 0:
+                print("Time step took {:.2e}s".format(time.time() - start))
 
     @veros_method
     def after_timestep(self, vs):
