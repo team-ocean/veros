@@ -152,7 +152,6 @@ class GlobalFourDegree(VerosLegacyDummy):
         fxb = 12. * np.sum(m.area_t[2:-2, 2:-2])
 
         fxa = float(fxa / fxb)
-        logging.info(" removing an annual mean heat flux imbalance of {:.3e} W/m^2".format(fxa))
         try:
             maskT = m.maskT[:, :, -1, np.newaxis].copy2numpy()
         except AttributeError:

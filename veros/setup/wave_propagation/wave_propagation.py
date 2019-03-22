@@ -2,11 +2,11 @@
 
 import os
 
-
 import numpy as np
 import h5netcdf
 from PIL import Image
 import scipy.ndimage
+from loguru import logger
 
 from veros import veros_method, VerosSetup
 from veros.variables import Variable
@@ -374,11 +374,11 @@ class WavePropagation(VerosSetup):
         if vs.time < 90 * 86400:
             if vs.dt_tracer != 1800.:
                 vs.dt_tracer = vs.dt_mom = 1800.
-                logging.info("Setting time step to 30m")
+                logger.info("Setting time step to 30m")
         else:
             if vs.dt_tracer != 3600.:
                 vs.dt_tracer = vs.dt_mom = 3600.
-                logging.info("Setting time step to 1h")
+                logger.info("Setting time step to 1h")
 
     def after_timestep(self, vs):
         pass

@@ -1,6 +1,5 @@
 import time
 
-
 import click
 
 from veros import VerosLegacy, veros_method, core, tools, runtime_settings as rs
@@ -100,7 +99,7 @@ class IsoneutralBenchmark(VerosLegacy):
             else:
                 core.isoneutral.isoneutral_diffusion_pre(vs)
             barrier()
-            logging.info("Time step took {:.2e}s".format(time.time() - start))
+            print("Time step took {:.2e}s".format(time.time() - start))
 
     @veros_method
     def after_timestep(self, vs):
