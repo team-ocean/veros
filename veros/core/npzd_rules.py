@@ -127,22 +127,22 @@ def pre_reset_calcite(vs, tracer, calcite):
 @veros_method
 def recycling_to_alk(vs, detritus, alkalinity):
     """ This should be turned into a combined rule with DIC, as they just have opposite terms, but only withdraw from detritus once """
-    return {alkalinity: - recycling_to_dic(vs, detritus, "DIC")["DIC"]}
+    return {alkalinity: - recycling_to_dic(vs, detritus, "DIC")["DIC"] / vs.redfield_ratio_CN}
 
 @veros_method
 def primary_production_from_alk(vs, alkalinity, plankton):
     """ Single entry, should be merged with DIC """
-    return {alkalinity: - primary_production_from_DIC(vs, "DIC", plankton)["DIC"]}
+    return {alkalinity: - primary_production_from_DIC(vs, "DIC", plankton)["DIC"] / vs.redfield_ratio_CN}
 
 @veros_method
 def recycling_phyto_to_alk(vs, plankton, alkalinity):
     """ Single entry should be merged with DIC """
-    return {alkalinity: - recycling_phyto_to_dic(vs, plankton, "DIC")["DIC"]}
+    return {alkalinity: - recycling_phyto_to_dic(vs, plankton, "DIC")["DIC"] / vs.redfield_ratio_CN}
 
 @veros_method
 def excretion_alk(vs, plankton, alkalinity):
     """ Single entry, should be merged with DIC """
-    return {alkalinity: -excretion_dic(vs, plankton, "DIC")["DIC"]}
+    return {alkalinity: -excretion_dic(vs, plankton, "DIC")["DIC"] / vs.redfield_ratio_CN}
 
 @veros_method
 def co2_surface_flux(vs, co2, dic):
@@ -161,3 +161,29 @@ def co2_surface_flux_alk(vs, co2, alk):
     flux = np.zeros((vs.cflux.shape[0], vs.cflux.shape[1], vs.nz))
     flux[:, :, -1] = - vs.cflux * vs.dt_tracer / vs.dzt[-1]
     return {alk: flux}
+
+@veros_method
+def primary_production_from_dop_po4(vs, DOP, plankton):
+    """
+    Plankton growth by DOP uptake.
+    """
+
+    return {DOP: - vs.primary_production[DOP] * vs.dop_consumption, plankton: vs.primary_production[plankton] * vs.dop_consumption}
+
+
+@veros_method
+def primary_production_from_po4_dop(vs, po4, plankton):
+    """
+    Plankton growth by po4 consumption
+    """
+
+    cons = np.logical_not(vs.dop_consumption)
+    return {po4: - vs.primary_production[plankton] * cons, plankton: vs.primary_production[plankton] * cons}
+
+@veros_method
+def diazotroph_growth_don(vs, DON, diazotroph):
+    """
+    Diazotroph growth by DON consumption
+    """
+
+    return {}

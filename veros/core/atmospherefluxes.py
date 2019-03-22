@@ -4,7 +4,6 @@ Functions calculating atmosphere-ocean fluxes
 """
 from veros import veros_method
 import numpy as np  # TODO remove this as veros handles it
-from scipy import optimize
 from . import cyclic
 
 
@@ -252,7 +251,8 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # print(np.min(dco2star), np.max(dco2star))
 
     pCO2 = co2star / (k0 * FugFac)
-    dpCO2 = pCO2 - co2starair
+    # dpCO2 = pCO2 - co2starair
+    dpCO2 = pCO2 - co2 * atmospheric_pressure
 
 
     # Convert units back
@@ -339,45 +339,3 @@ def drtsafe(vs, guess_low, guess_high, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, di
                 (x_low[mask], drtsafe_val[mask], f_low[mask], f[mask]))
 
     return drtsafe_val
-
-# def drtsafe(vs, guess_low, guess_high, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb, accuracy, max_iterations=100):
-# def drtsafe(guess_low, guess_high, ta_iter_SWS, accuracy, max_iterations=100):
-# def drtsafe(vs, guess_low, guess_high, accuracy, max_iterations=100):
-#     f_low, _ = ta_iter_SWS(guess_low)
-#     f_high, _ = ta_iter_SWS(guess_high)
-
-
-#     # Switch variables depending on value of f_low
-#     x_low, x_high, f_low, f_high = np.where(f_low < 0,
-#             (guess_low, guess_high, f_low, f_high),
-#             (guess_high, guess_low, f_high, f_low))
-
-
-#     drtsafe_val = 0.5 * (guess_low + guess_high)
-#     dx = np.abs(guess_high - guess_low)
-#     dx_old = dx.copy()
-#     f, df = ta_iter_SWS(drtsafe_val)
-
-#     mask = np.zeros_like(drtsafe_val, dtype=np.bool)
-
-#     for _ in range(max_iterations):
-#         # print(_, mask.sum())
-#         tmp_mask = ((drtsafe_val - x_high) * df - f) * ((drtsafe_val - x_low) * df - f) >= 0
-#         tmp_mask = np.logical_or(tmp_mask, (np.abs(2.0 * f) > np.abs(dx_old * df)))
-
-#         dx_old = dx.copy()
-#         dx = np.where(tmp_mask, 0.5 * (x_high - x_low), f/df)
-#         drtsafe_val = np.where(tmp_mask, x_low + dx, drtsafe_val - dx)
-
-#         mask = np.abs(dx) < accuracy
-
-#         if mask.all():
-#             break
-
-#         f, df = ta_iter_SWS(drtsafe_val)
-
-#         x_low, x_high, f_low, f_high = np.where(f < 0,
-#                 (drtsafe_val, x_high, f, f_high),
-#                 (x_low, drtsafe_val, f_low, f))
-
-#     return drtsafe_val

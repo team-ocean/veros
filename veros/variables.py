@@ -779,22 +779,22 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ])),
     ("enable_nitrogen", OrderedDict([
     ("no3", Variable(
-        "Nitrate concentration", T_GRID, "mmol/m^3?",
+        "Nitrate concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
         "Concentration of nitrate in grid box",
         output=True
     )),
     ("dop", Variable(
-        "Dissolved organic phosphorus", T_GRID, "mmol/m^3?",
+        "Dissolved organic phosphorus", T_GRID + TIMESTEPS, "mmol/m^3?",
         "Concentration of Dissolved organic phosphorus in grid box",
         output=True
     )),
     ("don", Variable(
-        "Dissolved organic nitrogen", T_GRID, "mmol/m^3?",
+        "Dissolved organic nitrogen", T_GRID + TIMESTEPS, "mmol/m^3?",
         "Concentration of dissolved organic nitrogen in grid box",
         output=True
     )),
     ("diazotroph", Variable(
-        "Diazotroph concentration", T_GRID, "mmol/m^3?",
+        "Diazotroph concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
         "Concentration of diazotrophs in grid box",
         output=True
     )),

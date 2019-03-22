@@ -71,12 +71,18 @@ class NPZDMonitor(VerosDiagnostic):
         cell_volume = vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzt[np.newaxis, np.newaxis, :]\
                 * vs.maskT[2:-2, 2:-2, :]
         volm = np.sum(cell_volume)
-        # po4_integrated = np.sum(cell_volume[vs.maskT] * vs.po4[2:-2, 2:-2, :][vs.maskT])
-        # phytoplankton_integrated = np.sum(cell_volume * vs.phytoplankton[2:-2, 2:-2, :])
+        po4_integrated = np.sum(cell_volume[vs.maskT] * vs.po4[2:-2, 2:-2, :, vs.tau][vs.maskT])
+        phytoplankton_integrated = np.sum(cell_volume * vs.phytoplankton[2:-2, 2:-2, :, vs.tau])
         # dic_integrated = np.sum(cell_volume[vs.maskT] * vs.dic[2:-2, 2:-2, :][vs.maskT])
         # alkalinity_integrated = np.sum(cell_volume * vs.alkalinity[2:-2, 2:-2, :])
 
-        # logging.warning("Phytoplankton integrated {}, change to last {}".format(phytoplankton_integrated / volm, (phytoplankton_integrated - self.phytoplankton_integrated) / volm))
+        logging.warning("Phytoplankton integrated {}, change to last {}".format(phytoplankton_integrated / volm, (phytoplankton_integrated - self.phytoplankton_integrated) / volm))
+
+        logging.warning("Phytoplankton recycle rate {}".format(vs.recycled["phytoplankton"][2:-2, 2:-2, -1].mean()))
+        logging.warning("Phytoplankton mortality rate {}".format(vs.mortality["phytoplankton"][2:-2, 2:-2, -1].mean()))
+        logging.warning("Phytoplankton primary production rate {}".format(vs.net_primary_production["phytoplankton"][2:-2, 2:-2, -1].mean()))
+
+        logging.warning("PO4 integrated {}, change to last {}".format(po4_integrated / volm, (po4_integrated - self.po4_integrated) / volm))
 
         # logging.warning("DIC integrated {}, change to last {}, min: {}, max: {}".format(dic_integrated / volm, (dic_integrated - self.dic_integrated) / volm, np.min(vs.dic), np.max(vs.dic)))
 
@@ -90,9 +96,9 @@ class NPZDMonitor(VerosDiagnostic):
         # logging.warning("prca mean: {}, surface mean: {}".format(vs.prca.mean(), vs.prca[:-1].mean()))
 
 
-        # self.phytoplankton_integrated = phytoplankton_integrated
+        self.phytoplankton_integrated = phytoplankton_integrated
         # self.dic_integrated = dic_integrated
-        # self.po4_integrated = po4_integrated
+        self.po4_integrated = po4_integrated
         # self.DIC_FLUX = vs.cflux[vs.maskT[:, :, -1]].mean()
         # self.dic[...] = vs.dic[...]
         # self.prca = vs.prca.mean()
