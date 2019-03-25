@@ -36,7 +36,7 @@ class SciPySolver(LinearSolver):
         rhs = rhs.flatten() * self._preconditioner.diagonal()
         linear_solution, info = spalg.bicgstab(
             self._matrix, rhs,
-            x0=x0, tol=0, atol=vs.congr_epsilon,
+            x0=x0, atol=0, tol=vs.congr_epsilon,
             maxiter=vs.congr_max_iterations,
             **self._extra_args
         )

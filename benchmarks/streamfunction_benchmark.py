@@ -2,7 +2,7 @@ import time
 
 import click
 
-from veros import VerosLegacy, veros_method, core, tools, runtime_state as rst
+from veros import VerosLegacy, veros_method, tools, runtime_settings as rs, runtime_state as rst
 from veros.distributed import barrier
 
 
@@ -78,13 +78,12 @@ class StreamfunctionBenchmark(VerosLegacy):
                     forc=rhs, iterations=m.congr_itts, sol=sol, converged=False
                 )
             else:
-                rhs = np.zeros((vs.nx+4, vs.ny+4), dtype=vs.default_float_type)
-                rhs[2:-2, 2:-2] = np.random.randn(vs.nx, vs.ny)
+                rhs = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4), dtype=vs.default_float_type)
+                rhs[2:-2, 2:-2] = np.random.randn(*rhs[2:-2, 2:-2].shape)
                 sol = np.zeros_like(rhs)
                 start = time.time()
-                core.streamfunction.solve_poisson.solve(vs, rhs, sol)
+                vs.linear_solver.solve(vs, rhs, sol)
             barrier()
-            end = time.time()
             if rst.proc_rank == 0:
                 print("Time step took {:.2e}s".format(time.time() - start))
 

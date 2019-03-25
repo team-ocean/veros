@@ -27,7 +27,7 @@ BENCHMARK_COMMANDS = {
     "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 {python} {filename} -b bohrium "  + STATIC_SETTINGS,
     "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 {python} {filename} -b bohrium " + STATIC_SETTINGS,
     "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 {python} {filename} -b bohrium " + STATIC_SETTINGS,
-    "bohrium-mpi": "OMP_NUM_THREADS=2 {mpiexec} -n {nproc} -- {python} {filename} -b bohrium -n {decomp} " + STATIC_SETTINGS,
+    "bohrium-mpi": "OMP_NUM_THREADS=1 {mpiexec} -n {nproc} -- {python} {filename} -b bohrium -n {decomp} " + STATIC_SETTINGS,
     "fortran": "{python} {filename} --fortran {fortran_library} " + STATIC_SETTINGS,
     "fortran-mpi": "{mpiexec} -n {nproc} -- {python} {filename} --fortran {fortran_library} -n {decomp} " + STATIC_SETTINGS
 }
@@ -37,7 +37,7 @@ SLURM_COMMANDS = {
     "bohrium": "OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium " + STATIC_SETTINGS,
     "bohrium-opencl": "BH_STACK=opencl BH_OPENCL_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium " + STATIC_SETTINGS,
     "bohrium-cuda": "BH_STACK=cuda BH_CUDA_PROF=1 srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b bohrium " + STATIC_SETTINGS,
-    "bohrium-mpi": "OMP_NUM_THREADS=2 srun --ntasks {nproc} --cpus-per-task 2 -- {python} {filename} -b bohrium -n {decomp} " + STATIC_SETTINGS,
+    "bohrium-mpi": "OMP_NUM_THREADS=1 srun --ntasks {nproc} --cpus-per-task 2 -- {python} {filename} -b bohrium -n {decomp} " + STATIC_SETTINGS,
     "fortran": "srun --ntasks 1 -- {python} {filename} --fortran {fortran_library} " + STATIC_SETTINGS,
     "fortran-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} --fortran {fortran_library} -n {decomp} " + STATIC_SETTINGS
 }
