@@ -29,12 +29,19 @@ class PETScSolver(LinearSolver):
 
         self._matrix, self._boundary_fac = self._assemble_poisson_matrix(vs)
 
+        petsc_options = PETSc.Options()
+
+        # setup krylov method
         self._ksp = PETSc.KSP()
         self._ksp.create(rst.mpi_comm)
         self._ksp.setOperators(self._matrix)
-        self._ksp.setType('bcgs')
-        self._ksp.getPC().setType('gamg')
+        self._ksp.setType('gmres')
         self._ksp.setTolerances(atol=0, rtol=vs.congr_epsilon, max_it=vs.congr_max_iterations)
+
+        # preconditioner
+        self._ksp.getPC().setType('hypre')
+        petsc_options['pc_hypre_type'] = 'boomeramg'
+        self._ksp.getPC().setFromOptions()
 
         self._rhs_petsc = self._da.createGlobalVec()
         self._sol_petsc = self._da.createGlobalVec()
@@ -67,7 +74,6 @@ class PETScSolver(LinearSolver):
         info = self._ksp.getConvergedReason()
         iterations = self._ksp.getIterationNumber()
 
-        logger.warning(info)
         if info < 0:
             logger.warning("Streamfunction solver did not converge after {} iterations (error code: {})", iterations, info)
 
@@ -116,9 +122,6 @@ class PETScSolver(LinearSolver):
             vs.dyt[np.newaxis, 3:-1] * vs.cost[np.newaxis, 3:-1] / vs.cosu[np.newaxis, 2:-2]
         south_diag = vs.hur[2:-2, 2:-2] / vs.dyu[np.newaxis, 2:-2] / \
             vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2]
-
-        # eliminate zeros on main diagonal
-        main_diag[main_diag == 0] = 1
 
         # construct sparse matrix
         cf = tuple(diag for diag in (
