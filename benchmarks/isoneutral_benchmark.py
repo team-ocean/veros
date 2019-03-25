@@ -21,7 +21,6 @@ class IsoneutralBenchmark(VerosLegacy):
         m.dt_tracer = m.dt_mom = 86400.
         m.enable_cyclic_x = True
         m.eq_of_state_type = 3
-        m.congr_epsilon = 1
         m.congr_max_iterations = 1
 
         im = self.isoneutral_module
