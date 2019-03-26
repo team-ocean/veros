@@ -25,7 +25,7 @@ class SciPySolver(LinearSolver):
         utilities.enforce_boundaries(vs, sol)
 
         boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
-        rhs[...] = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
+        rhs = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
         if rs.backend == "bohrium":
             rhs = rhs.copy2numpy()
@@ -47,8 +47,7 @@ class SciPySolver(LinearSolver):
         if rs.backend == "bohrium":
             linear_solution = np.asarray(linear_solution)
 
-        sol[...] = boundary_val
-        sol[2:-2, 2:-2] = linear_solution.reshape(vs.nx + 4, vs.ny + 4)[2:-2, 2:-2]
+        sol[...] = linear_solution.reshape(vs.nx + 4, vs.ny + 4)
 
     @veros_method
     def solve(self, vs, rhs, sol, boundary_val=None):
@@ -90,7 +89,7 @@ class SciPySolver(LinearSolver):
         return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
 
     @staticmethod
-    @veros_method(dist_safe=False, local_variables=[])
+    @veros_method(dist_safe=False, local_variables=["boundary_mask"])
     def _assemble_poisson_matrix(vs):
         """
         Construct a sparse matrix based on the stencil for the 2D Poisson equation.

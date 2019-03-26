@@ -35,7 +35,7 @@ class PETScSolver(LinearSolver):
         self._ksp = PETSc.KSP()
         self._ksp.create(rst.mpi_comm)
         self._ksp.setOperators(self._matrix)
-        self._ksp.setType('gmres')
+        self._ksp.setType('bcgs')
         self._ksp.setTolerances(atol=0, rtol=vs.congr_epsilon, max_it=vs.congr_max_iterations)
 
         # preconditioner
@@ -51,13 +51,13 @@ class PETScSolver(LinearSolver):
         # add dirichlet BC to rhs
         if not vs.enable_cyclic_x:
             if rst.proc_idx[0] == rs.num_proc[0] - 1:
-                rhs[-2, 2:-2] -= rhs[-1, 2:-2] * self._boundary_fac["east"]
+                rhs[-3, 2:-2] -= rhs[-2, 2:-2] * self._boundary_fac["east"]
 
             if rst.proc_idx[0] == 0:
                 rhs[2, 2:-2] -= rhs[1, 2:-2] * self._boundary_fac["west"]
 
         if rst.proc_idx[1] == rs.num_proc[1] - 1:
-            rhs[2:-2, -2] -= rhs[2:-2, -1] * self._boundary_fac["north"]
+            rhs[2:-2, -3] -= rhs[2:-2, -2] * self._boundary_fac["north"]
 
         if rst.proc_idx[1] == 0:
             rhs[2:-2, 2] -= rhs[2:-2, 1] * self._boundary_fac["south"]
@@ -93,9 +93,9 @@ class PETScSolver(LinearSolver):
         utilities.enforce_boundaries(vs, sol)
 
         boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
-        rhs[...] = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
+        rhs = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
-        sol[...] = boundary_val
+        sol[...] = rhs
         sol[2:-2, 2:-2] = self._petsc_solver(vs, rhs, sol)
 
     @veros_method

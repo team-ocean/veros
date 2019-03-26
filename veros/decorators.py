@@ -5,6 +5,11 @@ import threading
 
 from loguru import logger
 
+try:
+    getargspec = inspect.getfullargspec
+except AttributeError:  # python 2
+    getargspec = inspect.getargspec
+
 
 CONTEXT = threading.local()
 CONTEXT.is_dist_safe = True
@@ -53,7 +58,7 @@ def veros_method(function=None, **kwargs):
 
 
 def _is_method(function):
-    spec = inspect.getargspec(function)
+    spec = getargspec(function)
     return spec.args and spec.args[0] == 'self'
 
 
