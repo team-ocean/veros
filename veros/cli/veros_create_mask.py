@@ -23,9 +23,10 @@ def save_image(data, path):
 
 def create_mask(infile, outfile, variable="z", scale=None):
     """Creates a mask image from a given netCDF file"""
+    import numpy as np
     import h5netcdf
     with h5netcdf.File(infile, "r") as topo:
-        z = topo.variables[variable]
+        z = np.array(topo.variables[variable])
     if scale is not None:
         z = smooth_image(z, scale)
     data = get_mask_data(z)
@@ -40,7 +41,7 @@ def create_mask(infile, outfile, variable="z", scale=None):
               help="Standard deviation in grid cells for Gaussian smoother (default: disable smoother)")
 @functools.wraps(create_mask)
 def cli(*args, **kwargs):
-    pass
+    create_mask(**kwargs)
 
 
 if __name__ == "__main__":

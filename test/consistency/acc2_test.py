@@ -16,12 +16,12 @@ class ACC2(VerosLegacyDummy):
     A simple global model with a Southern Ocean and Atlantic part
     """
     @veros_method
-    def set_parameter(self):
-        self.identifier = "acc2_test"
-        self.diskless_mode = True
-        self.pyom_compatibility_mode = True
+    def set_parameter(self, vs):
+        vs.identifier = "acc2_test"
+        vs.diskless_mode = True
+        vs.pyom_compatibility_mode = True
 
-        m = self.main_module
+        m = vs.main_module
 
         (m.nx, m.ny, m.nz) = (30, 42, 15)
         m.dt_mom = 4800
@@ -48,7 +48,7 @@ class ACC2(VerosLegacyDummy):
         m.energint = 365 * 86400. / 48
         m.energfreq = m.dt_tracer * 10
 
-        i = self.isoneutral_module
+        i = vs.isoneutral_module
         i.enable_neutral_diffusion = 1
         i.K_iso_0 = 1000.0
         i.K_iso_steep = 500.0
@@ -65,7 +65,7 @@ class ACC2(VerosLegacyDummy):
         m.r_bot = 1e-5
 
         m.enable_implicit_vert_friction = 1
-        t = self.tke_module
+        t = vs.tke_module
         t.enable_tke = 1
         t.c_k = 0.1
         t.c_eps = 0.7
@@ -75,7 +75,7 @@ class ACC2(VerosLegacyDummy):
         # t.enable_tke_superbee_advection = 1
 
         i.K_gm_0 = 1000.0
-        e = self.eke_module
+        e = vs.eke_module
         e.enable_eke = 1
         e.eke_k_max = 1e4
         e.eke_c_k = 0.4
@@ -86,7 +86,7 @@ class ACC2(VerosLegacyDummy):
         e.enable_eke_superbee_advection = 1
         e.enable_eke_isopycnal_diffusion = 1
 
-        i = self.idemix_module
+        i = vs.idemix_module
         i.enable_idemix = 1
         i.enable_idemix_hor_diffusion = 1
         i.enable_eke_diss_surfbot = 1
