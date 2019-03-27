@@ -226,7 +226,7 @@ def biharmonic(vs, tr, f, dtr):
             / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] \
             * vs.cosu[np.newaxis, :-1, np.newaxis]
     flux_east[-1, :, :] = 0.
-    flux_east[:, -1, :] = 0.
+    flux_north[:, -1, :] = 0.
 
     dtr[1:, 1:, :] = vs.maskT[1:, 1:, :] * (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
             / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
@@ -247,13 +247,13 @@ def horizontal_diffusion(vs, tr, dtr_hmix):
     flux_east = np.zeros_like(tr, dtype=vs.default_float_type)
     flux_north = np.zeros_like(tr, dtype=vs.default_float_type)
 
-    # horizontal diffusion of temperature
-    flux_east[:-1, :, :] = vs.K_h * (tr[1:, :, :, vs.tau] - tr[:-1, :, :, vs.tau]) \
+    # horizontal diffusion of tracer
+    flux_east[:-1, :, :] = vs.K_h * (tr[1:, :, :] - tr[:-1, :, :]) \
         / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis])\
         * vs.maskU[:-1, :, :]
     flux_east[-1, :, :] = 0.
 
-    flux_north[:, :-1, :] = vs.K_h * (tr[:, 1:, :, vs.tau] - tr[:, :-1, :, vs.tau]) \
+    flux_north[:, :-1, :] = vs.K_h * (tr[:, 1:, :] - tr[:, :-1, :]) \
         / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :]\
         * vs.cosu[np.newaxis, :-1, np.newaxis]
     flux_north[:, -1, :] = 0.
@@ -265,9 +265,8 @@ def horizontal_diffusion(vs, tr, dtr_hmix):
     dtr_hmix[1:, 1:, :] = ((flux_east[1:, 1:, :] - flux_east[:-1, 1:, :])
                            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])
                            + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :])
-                           / (cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis]))\
+                           / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis]))\
                                 * vs.maskT[1:, 1:, :]
-    # vs.temp[:, :, :, vs.taup1] += vs.dt_tracer * vs.dtemp_hmix * vs.maskT
 
     # if vs.enable_conserve_energy:
     #     dissipation_on_wgrid(vs, vs.P_diss_hmix, int_drhodX=vs.int_drhodT[..., vs.tau])
