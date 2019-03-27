@@ -6,7 +6,7 @@ import numpy as np
 import h5netcdf
 import scipy.ndimage
 
-from veros import veros_method, VerosSetup
+from veros import veros_method, VerosSetup, runtime_state as rst
 from veros.variables import Variable
 import veros.tools
 from veros.core.utilities import enforce_boundaries
@@ -103,10 +103,19 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
     def _get_data(self, vs, var, idx=None):
         if idx is None:
             idx = Ellipsis
+        else:
+            idx = idx[::-1]
 
-        with h5netcdf.File(DATA_FILES["forcing"], "r") as forcing_file:
+        kwargs = {}
+        if rst.proc_num > 1:
+            kwargs.update(
+                driver='mpio',
+                comm=rst.mpi_comm,
+            )
+
+        with h5netcdf.File(DATA_FILES["forcing"], "r", **kwargs) as forcing_file:
             var_obj = forcing_file.variables[var]
-            return np.array(var_obj[idx], dtype=str(var_obj.dtype)).T
+            return np.array(var_obj[idx].astype(str(var_obj.dtype))).T
 
     @veros_method(dist_safe=False, local_variables=[
         "dxt", "dyt", "dzt"
@@ -188,8 +197,8 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         assert np.diff(yt_forc).all() > 0
 
         data_subset = (
-            slice(np.argmax(xt_forc >= vs.xt.min()), len(xt_forc) - np.argmax(xt_forc[::-1] <= vs.xt.max())),
-            slice(np.argmax(yt_forc >= vs.yt.min()), len(yt_forc) - np.argmax(yt_forc[::-1] <= vs.yt.max())),
+            slice(int(np.argmax(xt_forc >= vs.xt.min())), len(xt_forc) - int(np.argmax(xt_forc[::-1] <= vs.xt.max()))),
+            slice(int(np.argmax(yt_forc >= vs.yt.min())), len(yt_forc) - int(np.argmax(yt_forc[::-1] <= vs.yt.max()))),
             Ellipsis
         )
 
@@ -197,26 +206,26 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         yt_forc = yt_forc[data_subset[1]]
 
         # initial conditions
-        temp_raw = self._get_data(vs, "temperature", idx=data_subset[::-1])[..., ::-1]
+        temp_raw = self._get_data(vs, "temperature", idx=data_subset)[..., ::-1]
         temp_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), temp_raw,
                                             t_grid, missing_value=0.)
         vs.temp[2:-2, 2:-2, :, 0] = temp_data * vs.maskT[2:-2, 2:-2, :]
         vs.temp[2:-2, 2:-2, :, 1] = temp_data * vs.maskT[2:-2, 2:-2, :]
 
-        salt_raw = self._get_data(vs, "salinity", idx=data_subset[::-1])[..., ::-1]
+        salt_raw = self._get_data(vs, "salinity", idx=data_subset)[..., ::-1]
         salt_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), salt_raw,
-                                             t_grid, missing_value=0.)
+                                            t_grid, missing_value=0.)
         vs.salt[2:-2, 2:-2, :, 0] = salt_data * vs.maskT[2:-2, 2:-2, :]
         vs.salt[2:-2, 2:-2, :, 1] = salt_data * vs.maskT[2:-2, 2:-2, :]
 
         # wind stress on MIT grid
         time_grid = (vs.xt[2:-2], vs.yt[2:-2], np.arange(12))
-        taux_raw = self._get_data(vs, "tau_x", idx=data_subset[::-1])[..., ::-1]
+        taux_raw = self._get_data(vs, "tau_x", idx=data_subset)
         taux_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             taux_raw, time_grid, missing_value=0.)
         vs.taux[2:-2, 2:-2, :] = taux_data / vs.rho_0
 
-        tauy_raw = self._get_data(vs, "tau_y", idx=data_subset[::-1])[..., ::-1]
+        tauy_raw = self._get_data(vs, "tau_y", idx=data_subset)
         tauy_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             tauy_raw, time_grid, missing_value=0.)
         vs.tauy[2:-2, 2:-2, :] = tauy_data / vs.rho_0
@@ -225,34 +234,34 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         enforce_boundaries(vs, vs.tauy)
 
         # Qnet and dQ/dT and Qsol
-        qnet_raw = self._get_data(vs, "q_net", idx=data_subset[::-1])[..., ::-1]
+        qnet_raw = self._get_data(vs, "q_net", idx=data_subset)
         qnet_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             qnet_raw, time_grid, missing_value=0.)
         vs.qnet[2:-2, 2:-2, :] = -qnet_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qnec_raw = self._get_data(vs, "dqdt", idx=data_subset[::-1])[..., ::-1]
+        qnec_raw = self._get_data(vs, "dqdt", idx=data_subset)
         qnec_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             qnec_raw, time_grid, missing_value=0.)
         vs.qnec[2:-2, 2:-2, :] = qnec_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qsol_raw = self._get_data(vs, "swf", idx=data_subset[::-1])[..., ::-1]
+        qsol_raw = self._get_data(vs, "swf", idx=data_subset)
         qsol_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             qsol_raw, time_grid, missing_value=0.)
         vs.qsol[2:-2, 2:-2, :] = -qsol_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         # SST and SSS
-        sst_raw = self._get_data(vs, "sst", idx=data_subset[::-1])[..., ::-1]
+        sst_raw = self._get_data(vs, "sst", idx=data_subset)
         sst_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                            sst_raw, time_grid, missing_value=0.)
         vs.t_star[2:-2, 2:-2, :] = sst_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        sss_raw = self._get_data(vs, "sss", idx=data_subset[::-1])[..., ::-1]
+        sss_raw = self._get_data(vs, "sss", idx=data_subset)
         sss_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                            sss_raw, time_grid, missing_value=0.)
         vs.s_star[2:-2, 2:-2, :] = sss_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         if vs.enable_idemix:
-            tida_energy_raw = self._get_data(vs, "tidal_energy", idx=data_subset[::-1])[..., ::-1]
+            tida_energy_raw = self._get_data(vs, "tidal_energy", idx=data_subset)
             tidal_energy_data = veros.tools.interpolate(
                 (xt_forc, yt_forc), tida_energy_raw, t_grid[:-1], missing_value=0.
             )
