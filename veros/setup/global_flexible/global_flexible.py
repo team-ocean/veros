@@ -167,7 +167,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         z_interp[marginal] = 0
 
         depth_levels = 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - vs.zt[np.newaxis, np.newaxis, :]), axis=2)
-        vs.kbot = np.where(z_interp < 0., depth_levels, 0)
+        vs.kbot[2:-2, 2:-2] = np.where(z_interp < 0., depth_levels, 0)[2:-2, 2:-2]
         vs.kbot *= vs.kbot < vs.nz
 
     @veros_method(dist_safe=False, local_variables=[
