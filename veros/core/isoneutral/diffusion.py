@@ -119,8 +119,8 @@ def isoneutral_diffusion_decoupled(vs, tr, dtracer_iso, iso=True, skew=False):
     add explicit part
     """
     aloc = _calc_explicit_part(vs)
-    dtracer_iso += aloc[...]
-    tr[2:-2, 2:-2, :, vs.taup1] += vs.dt_tracer * aloc[2:-2, 2:-2]
+    dtracer_iso[...] += aloc[...]
+    tr[2:-2, 2:-2, :, vs.taup1] += vs.dt_tracer * aloc[2:-2, 2:-2, :]
 
     """
     add implicit part
@@ -128,7 +128,7 @@ def isoneutral_diffusion_decoupled(vs, tr, dtracer_iso, iso=True, skew=False):
     if iso:
         aloc[...] = tr[:, :, :, vs.taup1]
         _calc_implicit_part(vs, tr)
-        dtracer_iso += (tr[:, :, :, vs.taup1] - aloc) / vs.dt_tracer
+        dtracer_iso[...] += (tr[:, :, :, vs.taup1] - aloc) / vs.dt_tracer
 
     """
     dissipation by isopycnal mixing
