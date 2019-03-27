@@ -144,10 +144,10 @@ def do_streamfunction_init(vs):
         n = 0
         # avoid starting close to cyclic bondaries
         cont, ij, Dir, startPos = _avoid_cyclic_boundaries(
-            vs, boundary_map, isle, n, (vs.nx // 2 + 1, vs.nx + 2))
+            vs, boundary_map, isle, n, (vs.nx // 2 + 2, vs.nx + 2))
         if not cont:
             cont, ij, Dir, startPos = _avoid_cyclic_boundaries(
-                vs, boundary_map, isle, n, (vs.nx // 2, -1, -1))
+                vs, boundary_map, isle, n, (vs.nx // 2 + 2, 1, -1))
             if not cont:
                 raise RuntimeError("found no starting point for line integral")
 
@@ -250,7 +250,7 @@ def do_streamfunction_init(vs):
 @veros_method
 def _avoid_cyclic_boundaries(vs, boundary_map, isle, n, x_range):
     for i in range(*x_range):
-        for j in range(1, vs.ny + 2):
+        for j in range(2, vs.ny + 2):
             if boundary_map[i, j] == 1 and boundary_map[i, j + 1] == -1:
                 # initial direction is eastward, we come from the west
                 cont = True

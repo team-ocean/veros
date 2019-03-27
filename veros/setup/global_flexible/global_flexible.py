@@ -170,11 +170,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.kbot[2:-2, 2:-2] = np.where(z_interp < 0., depth_levels, 0)[2:-2, 2:-2]
         vs.kbot *= vs.kbot < vs.nz
 
-    @veros_method(dist_safe=False, local_variables=[
-        "qnet", "temp", "salt", "maskT", "taux", "tauy", "xt", "yt", "zt",
-        "qnec", "qsol", "t_star", "s_star",
-        "maskW", "divpen_shortwave", "dzt", "zw",
-    ])
+    @veros_method
     def set_initial_conditions(self, vs):
         rpart_shortwave = 0.58
         efold1_shortwave = 0.35
