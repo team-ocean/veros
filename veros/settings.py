@@ -136,7 +136,7 @@ SETTINGS = OrderedDict([
     ("enable_npzd", Setting(False, bool, "")),
     ("light_attenuation_phytoplankton", Setting(0.047, float, "Light attenuation of phytoplankton")),
     ("light_attenuation_water", Setting(0.04, float, "Light attenuation of water")),
-    ("rctheta", Setting(1.33, float, "Angle of incidence")), # TODO what angle?
+    # ("rctheta", Setting(1.33, float, "Angle of incidence")), # TODO what angle?
     ("nud0", Setting(0.07 / 86400, float, "Remineralization rate of detritus [1/sec]")),
     ("bbio", Setting(1.066, float, "??????")),
     ("cbio", Setting(1.0, float, "???????")),
@@ -152,6 +152,7 @@ SETTINGS = OrderedDict([
     ("wd0", Setting(16. / 86400, float, "Sinking speed of detritus at surface [m/s]")),
     ("mwz", Setting(1000, float, "Depth below which sinking speed of detritus remains constant [m]")),
     ("mw", Setting(0.02 / 86400, float, "Increase in sinking speed with depth [1/sec]")),
+    # ("mw", Setting(0.02 / 100, float, "Increase in sinking speed with depth [1/sec]")),
     ("zprefP", Setting(1, float, "Zooplankton preference for grazing on Phytoplankton")),
     ("zprefZ", Setting(1, float, "Zooplankton preference for grazing on other zooplankton")),
     ("zprefDet", Setting(1, float, "Zooplankton preference for grazing on detritus")),
@@ -194,7 +195,7 @@ SETTINGS = OrderedDict([
     ("capr", Setting(0.022, float, "Carbonate to carbon production ratio")),
     # Ballast
     ("bapr", Setting(0.05, float, "Detritus to carbonate ratio [mg POC/mg PIC]")),
-    ("dcaco3", Setting(6500.0, float, "Calcite remineralization depth")),
+    ("dcaco3", Setting(6500.0, float, "Calcite remineralization depth [m]")),
 
     # NPZD with iron
     ("enable_iron", Setting(False, bool, "")),

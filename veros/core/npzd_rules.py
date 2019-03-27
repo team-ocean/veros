@@ -33,7 +33,7 @@ def sloppy_feeding(vs, plankton, detritus):
 
 @veros_method
 def grazing(vs, eaten, zooplankton):
-    """ Zooplankton grows by amount digested, eaten decreases by amount eaten """
+    """ Zooplankton grows by amount digested, eaten decreases by amount grazed """
     return {eaten: - vs.grazing[eaten], zooplankton: vs.digestion[eaten]}
 
 @veros_method
@@ -49,6 +49,7 @@ def zooplankton_self_grazing(vs, zooplankton1, zoooplankton2):
 def excretion(vs, zooplankton, nutrient):
     """ Zooplankton excretes nutrients after eating. Poop, breathing... """
     return {zooplankton: - vs.excretion_total, nutrient: vs.redfield_ratio_PN * vs.excretion_total}
+    # return {nutrient: vs.redfield_ratio_PN * vs.excretion_total}
 
 @veros_method
 def primary_production_from_DIC(vs, nutrient, plankton):
@@ -63,17 +64,17 @@ def recycling_to_po4(vs, plankton, phosphate):
 @veros_method
 def recycling_to_no3(vs, plankton, no3):
     """ Recycling to nitrate needs no scaling """
-    return recycling(vs, plankton, no3, 1)
+    return {no3: recycling(vs, plankton, no3, 1)[no3]}
 
 @veros_method
 def recycling_to_dic(vs, plankton, dic):
-    """ Recycling to carbon is scaled by redfield ratio C to N """
-    return recycling(vs, plankton, dic, vs.redfield_ratio_CN)
+    """ Recycling to carbon is scaled by redfield ratio C to N removing plankton has already been done by po4"""
+    return {dic: recycling(vs, plankton, dic, vs.redfield_ratio_CN)[dic]}
 
 @veros_method
 def recycling_phyto_to_dic(vs, plankton, dic):
     """ Fast recycling of phytoplankton to DIC """
-    return recycling(vs, plankton, dic, (1 - vs.dfrt) * vs.redfield_ratio_CN)
+    return {dic: recycling(vs, plankton, dic, (1 - vs.dfrt) * vs.redfield_ratio_CN)[dic]}
 
 @veros_method
 def excretion_dic(vs, zooplankton, nutrient):
@@ -127,22 +128,22 @@ def pre_reset_calcite(vs, tracer, calcite):
 @veros_method
 def recycling_to_alk(vs, detritus, alkalinity):
     """ This should be turned into a combined rule with DIC, as they just have opposite terms, but only withdraw from detritus once """
-    return {alkalinity: - recycling_to_dic(vs, detritus, "DIC")["DIC"] / vs.redfield_ratio_CN}
+    return {alkalinity: - recycling_to_dic(vs, detritus, "DIC")["DIC"] / vs.redfield_ratio_CN * 1e-3}
 
 @veros_method
 def primary_production_from_alk(vs, alkalinity, plankton):
     """ Single entry, should be merged with DIC """
-    return {alkalinity: - primary_production_from_DIC(vs, "DIC", plankton)["DIC"] / vs.redfield_ratio_CN}
+    return {alkalinity: - primary_production_from_DIC(vs, "DIC", plankton)["DIC"] / vs.redfield_ratio_CN * 1e-3}
 
 @veros_method
 def recycling_phyto_to_alk(vs, plankton, alkalinity):
     """ Single entry should be merged with DIC """
-    return {alkalinity: - recycling_phyto_to_dic(vs, plankton, "DIC")["DIC"] / vs.redfield_ratio_CN}
+    return {alkalinity: - recycling_phyto_to_dic(vs, plankton, "DIC")["DIC"] / vs.redfield_ratio_CN * 1e-3}
 
 @veros_method
 def excretion_alk(vs, plankton, alkalinity):
     """ Single entry, should be merged with DIC """
-    return {alkalinity: -excretion_dic(vs, plankton, "DIC")["DIC"] / vs.redfield_ratio_CN}
+    return {alkalinity: -excretion_dic(vs, plankton, "DIC")["DIC"] / vs.redfield_ratio_CN * 1e-3}
 
 @veros_method
 def co2_surface_flux(vs, co2, dic):
@@ -159,7 +160,7 @@ def co2_surface_flux_alk(vs, co2, alk):
     assumes co2_surface_flux has been run for the current timestep
     """
     flux = np.zeros((vs.cflux.shape[0], vs.cflux.shape[1], vs.nz))
-    flux[:, :, -1] = - vs.cflux * vs.dt_tracer / vs.dzt[-1]
+    flux[:, :, -1] = - vs.cflux * vs.dt_tracer / vs.dzt[-1] / vs.redfield_ratio_CN
     return {alk: flux}
 
 @veros_method
@@ -187,3 +188,8 @@ def diazotroph_growth_don(vs, DON, diazotroph):
     """
 
     return {}
+
+@veros_method
+def dic_alk_scale(vs, DIC, alkalinity):
+    """ Redistribute change in DIC as change in alkalinity """
+    return {alkalinity: (vs.temporary_tracers[DIC] - vs.npzd_tracers[DIC][:, :, :, vs.tau]) / vs.redfield_ratio_CN}# * 1e-3}
