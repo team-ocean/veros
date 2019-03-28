@@ -62,7 +62,6 @@ def streamfunction_init(vs):
     """
     vs.land_map = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4), dtype='int')
     nisle = get_isleperim(vs)
-    mainutils.enforce_boundaries(vs, vs.land_map)
 
     """
     now that the number of islands is known we can allocate the rest of the variables

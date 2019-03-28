@@ -45,10 +45,10 @@ def isleperim(vs, kmt, verbose=False):
     nippts = [0]
     jnorth = jmt - 1
     if vs.enable_cyclic_x:
-        iwest = 1
+        iwest = 2
         ieast = imt - 2
     else:
-        iwest = 0
+        iwest = 1
         ieast = imt - 1
 
     for j in range(jnorth, -1, -1):
@@ -64,9 +64,7 @@ def isleperim(vs, kmt, verbose=False):
     nisle = label - 2
 
     boundary_map[iwest:ieast + 1, :jnorth + 1] += -np.sign(boundary_map[iwest:ieast + 1, :jnorth + 1])
-    if vs.enable_cyclic_x:
-        boundary_map[0, :] = boundary_map[imt - 2, :]
-        boundary_map[imt - 1, :] = boundary_map[1, :]
+    utilities.enforce_boundaries(vs, boundary_map)
 
     if verbose:
         logger.info(" Island perimeter statistics:")
@@ -137,13 +135,13 @@ def js_isl(j):
 
 def ie_isl(vs, i, imt):
     if vs.enable_cyclic_x:
-        return i + 1 if i < imt - 2 else i + 1 - imt + 2
+        return i + 1 if i < imt - 3 else i + 1 - imt + 2
     else:
         return i + 1 if i < imt - 1 else OFFMAP
 
 
 def iw_isl(vs, i, imt):
     if vs.enable_cyclic_x:
-        return i - 1 if i > 1 else i - 1 + imt - 2
+        return i - 1 if i > 2 else i - 1 + imt - 2
     else:
         return i - 1 if i > 0 else OFFMAP
