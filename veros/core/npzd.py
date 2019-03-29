@@ -14,21 +14,8 @@ def biogeochemistry(vs):
     Integrate biochemistry: phytoplankton, zooplankton, detritus, po4
     """
 
-    # declination and fraction of day with daylight
-    declin = np.sin((np.mod(vs.time * time.SECONDS_TO_X["years"], 1) - 0.22) * 2.0 * np.pi) * 0.4
-    rctheta = np.maximum(-1.5, np.minimum(1.5, np.radians(vs.yt) - declin))
-
-    # 1.33 is derived from Snells law for the air-sea barrier
-    vs.rctheta = vs.light_attenuation_water / np.sqrt(1.0 - (1.0 - np.cos(rctheta)**2.0) / 1.33**2)
-    dayfrac = np.minimum(1.0, -np.tan(np.radians(vs.yt)) * np.tan(declin))
-    vs.dayfrac = np.maximum(1e-12, np.arccos(np.maximum(-1.0, dayfrac)) / np.pi)
-
     # Number of timesteps to do for bio tracers
     nbio = int(vs.dt_tracer // vs.dt_bio)
-
-    # Used to remineralize at the bottom - TODO calculate once elsewhere
-    bottom_mask = np.empty((vs.nx + 4, vs.ny + 4, vs.nz), dtype=np.bool)
-    bottom_mask[:, :, :] = np.arange(vs.nz)[np.newaxis, np.newaxis, :] == (vs.kbot - 1)[:, :, np.newaxis]
 
     # temporary tracer object to store differences
     vs.temporary_tracers = {tracer: val[:, :, :, vs.tau].copy()
@@ -71,6 +58,16 @@ def biogeochemistry(vs):
     # incomming shortwave radiation at top layer
     swr = vs.swr[:, :, np.newaxis] * np.exp(-vs.light_attenuation_phytoplankton
                                             * np.cumsum(phyto_integrated[:, :, ::-1], axis=2)[:, :, ::-1])
+
+    # declination and fraction of day with daylight
+    # TODO describe magic numbers
+    declin = np.sin((np.mod(vs.time * time.SECONDS_TO_X["years"], 1) - 0.22) * 2.0 * np.pi) * 0.4
+    rctheta = np.maximum(-1.5, np.minimum(1.5, np.radians(vs.yt) - declin))
+
+    # 1.33 is derived from Snells law for the air-sea barrier
+    vs.rctheta[:] = vs.light_attenuation_water / np.sqrt(1.0 - (1.0 - np.cos(rctheta)**2.0) / 1.33**2)
+    dayfrac = np.minimum(1.0, -np.tan(np.radians(vs.yt)) * np.tan(declin))
+    vs.dayfrac[:] = np.maximum(1e-12, np.arccos(np.maximum(-1.0, dayfrac)) / np.pi)
 
     # light at top of grid box
     grid_light = swr * np.exp(vs.zw[np.newaxis, np.newaxis, :]
@@ -138,9 +135,9 @@ def biogeochemistry(vs):
         # impo is import from layer above. Only used to calculate difference
         for sinker, speed in vs.sinking_speeds.items():
             export[sinker] = speed * vs.temporary_tracers[sinker] * flags[sinker] / vs.dzt
-            bottom_export[sinker] = export[sinker] * bottom_mask
+            bottom_export[sinker] = export[sinker] * vs.bottom_mask
             export[sinker][...] -= bottom_export[sinker]
-            # vs.temporary_tracers[sinker][bottom_mask] = 0
+            # vs.temporary_tracers[sinker][vs.bottom_mask] = 0
             # vs.temporary_tracers[sinker][...] -= bottom_export[sinker]
 
             impo[sinker] = np.empty_like(export[sinker])
@@ -450,10 +447,10 @@ def setup_carbon_npzd_rules(vs):
     rcab[:, : -1] = 1 / vs.dzt[-1]
     rcab[:, :, :-1] = np.exp(zw[:-1] / vs.dcaco3) / vs.dzt[1:]
 
-    bottom_mask = np.empty((vs.nx + 4, vs.ny + 4, vs.nz), dtype=np.bool)
-    bottom_mask[:, :, :] = np.arange(vs.nz)[np.newaxis, np.newaxis, :] == (vs.kbot - 1)[:, :, np.newaxis]
+    vs.bottom_mask = np.empty((vs.nx + 4, vs.ny + 4, vs.nz), dtype=np.bool)
+    vs.bottom_mask[:, :, :] = np.arange(vs.nz)[np.newaxis, np.newaxis, :] == (vs.kbot - 1)[:, :, np.newaxis]
 
-    vs.rcak[bottom_mask] = rcab[bottom_mask]
+    vs.rcak[vs.bottom_mask] = rcab[vs.bottom_mask]
     vs.rcak[...] *= vs.maskT
 
     # Need to track dissolved inorganic carbon, alkalinity

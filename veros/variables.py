@@ -719,63 +719,15 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "Concentration of phosphate in grid box",
             output=True
         )),
-        # ("phytoplankton", Variable(
-        #     "Phytoplankton concentration", T_GRID, "mmol/m^3?",
-        #     "Concentration of phytoplankton in grid box",
-        #     output=True,
-        # )),
-        # ("zooplankton", Variable(
-        #     "Zooplankton concentration", T_GRID, "mmol/m^3?",
-        #     "Concentration of zooplankton in grid box",
-        #     output=True
-        # )),
-        # ("detritus", Variable(
-        #     "Detritus concentration", T_GRID, "mmol/m^3?",
-        #     "Concentration of detritus in grid box",
-        #     output=True
-        # )),
-        # ("po4", Variable(
-        #     "Phosphate concentration", T_GRID, "mmol/m^3?",
-        #     "Concentration of phosphate in grid box",
-        #     output=True
-        # )),
         ("swr", Variable(
             "Shortwave radiation", T_HOR, "W/m^3?",
             "Incomming solar radiation at sea level")),
-        # ("o2", Variable(
-        #     "O2 concentration", T_GRID, "mmol/m^3?",
-        #     "Concentration of O2 in grid box",
-        #     output=True
-        # )),
-        # ("caco3", Variable(
-        #     "CaCO3 concentration", T_GRID, "mmol/m^3?",
-        #     "Concentration of CaCO3 in grid box",
-        #     output=True
-        # )),
-        ("caco3", Variable(
-            "CaCO3 concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
-            "Concentration of CaCO3 in grid box",
-            output=True
-        )),
-        # ("coccolitophore", Variable(
-        #     "coccolitophore concentration", T_GRID, "mmol/m^3?",
-        #     "Concentration of coccolitophore in grid box",
-        #     output=True
-        # )),
-        # ("fe", Variable(
-        #     "Iron concentration", T_GRID, "mmol/m^3?",
-        #     "Concentration of iron in grid box",
-        #     output=True
-        # )),
-        # ("particulate_fe", Variable(
-        #     "particulate iron concentration", T_GRID, "mmol/m^3?",
-        #     "Concentration of particulate iron in grid box",
-        #     output=True
-        # )),
-        # ("ballast", Variable(
-        #     "??", T_GRID, "mmol/m^3?",
-        #     "??"
-        # )),
+        ("rctheta", Variable(
+            "Effective vertical coordinate for incoming solar radiation", YT, "1",
+            "Effective vertical coordinate for incoming solar radiation")),
+        ("dayfrac", Variable(
+            "Fraction of day with sunlight", YT, "1",
+            "Fraction of day with sunlight")),
     ])),
     ("enable_nitrogen", OrderedDict([
     ("no3", Variable(
@@ -817,10 +769,10 @@ CONDITIONAL_VARIABLES = OrderedDict([
     )),
     ("atmospheric_co2", Variable(
         "Atmospheric co2 concentration", T_HOR, "ppmv",
-        "???")),
+        "Atmospheric co2 concentration")),
     ("cflux", Variable(
-        "DIC Flux", T_HOR, "?mmol/m^3/s?",
-        "???",
+        "DIC Flux", T_HOR, "mmol/m^3/s",
+        "Flux of CO2 over the ocean-atmosphere bounday",
         output=True)),
     ("wind_speed", Variable(
         "Debugging wind speed", T_HOR, "m/s",
