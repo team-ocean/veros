@@ -325,19 +325,14 @@ def maximized_dop_po4_limitation_coccolitophre(vs, tracers):
 
 
 @veros_method
-def register_npzd_data(vs, name, value=None, cluster=None):
+def register_npzd_data(vs, name, value=None):
     """
     Add tracer to the NPZD data set and create node in interaction graph
     Tracers added are available in the npzd dynamics and is automatically
     included in transport equations
     """
 
-    if name not in vs.npzd_tracers:
-        if vs.show_npzd_graph:
-            with vs.npzd_graph.subgraph(name="cluster_"+cluster if cluster else None) as graph:
-                graph.attr('node', shape='square')
-                graph.node(name)
-    else:
+    if name in vs.npzd_tracers:
         print(name, "has already been added to the NPZD data set, value has been updated")
 
     if value is None:
@@ -357,23 +352,16 @@ def register_npzd_rule(vs, function, source, destination, label="?"):
         label: A description for graph
         ...
     """
-    vs.npzd_rules.append((function, source, destination))
-    if vs.show_npzd_graph:
-        vs.npzd_graph.edge(source, destination, xlabel=label, lblstyle="above, sloped")
-        # it is also possible to add tooltiplabels for more explanation
+    vs.npzd_rules.append((function, source, destination, label))
 
 @veros_method
 def register_npzd_post_rule(vs, function, source, destination, label="?"):
-    vs.npzd_post_rules.append((function, source, destination))
-    if vs.show_npzd_graph:
-        vs.npzd_graph.edge(source, destination, style='dotted', xlabel=label)
+    vs.npzd_post_rules.append((function, source, destination, label))
 
 
 @veros_method
 def register_npzd_pre_rule(vs, function, source, destination, label="?"):
-    vs.npzd_pre_rules.append((function, source, destination))
-    if vs.show_npzd_graph:
-        vs.npzd_graph.edge(source, destination, style='dotted', xlabel=label)
+    vs.npzd_pre_rules.append((function, source, destination, label))
 
 
 @veros_method
@@ -402,9 +390,9 @@ def setup_basic_npzd_rules(vs):
 
     # Register for basic model
     register_npzd_data(vs, "detritus", vs.detritus)
-    register_npzd_data(vs, "phytoplankton", vs.phytoplankton, cluster="plankton")
-    register_npzd_data(vs, "zooplankton", vs.zooplankton, cluster="plankton")
-    register_npzd_data(vs, "po4", vs.po4, cluster="nutrients")
+    register_npzd_data(vs, "phytoplankton", vs.phytoplankton)
+    register_npzd_data(vs, "zooplankton", vs.zooplankton)
+    register_npzd_data(vs, "po4", vs.po4)
 
     # Describe interactions between elements in model
     # function describing interaction, from, to, description for graph
@@ -454,11 +442,11 @@ def setup_carbon_npzd_rules(vs):
     vs.rcak[...] *= vs.maskT
 
     # Need to track dissolved inorganic carbon, alkalinity
-    register_npzd_data(vs, "DIC", vs.dic, cluster="nutrients")
+    register_npzd_data(vs, "DIC", vs.dic)
     register_npzd_data(vs, "alkalinity", vs.alkalinity)
 
     # Exchange of CO2 with the atmosphere
-    vs.npzd_pre_rules.append((co2_surface_flux, "co2", "DIC"))
+    register_npzd_pre_rule(vs, co2_surface_flux, "co2", "DIC")
 
     # Common rule set for nutrient
     register_npzd_rule(vs, recycling_to_dic, "detritus", "DIC", label="Remineralization")
@@ -586,15 +574,6 @@ def setupNPZD(vs):
     vs.recycled = {}
     vs.mortality = {}
 
-    # TODO move elsewhere - maybe diagnostics
-    if vs.show_npzd_graph:
-        from graphviz import Digraph
-        # graph for visualizing interactions - usefull for debugging
-        vs.npzd_graph = Digraph("npzd_dynamics", filename="npzd_dynamics.gv", format="png")
-
-        vs.npzd_graph.graph_attr['splines'] = 'ortho'
-        vs.npzd_graph.graph_attr['nodesep'] = '1'
-
     vs.plankton_growth_functions = {}  # Contains functions describing growth of plankton
     vs.limiting_functions = {}  # Contains descriptions of how nutrients put a limit on growth
 
@@ -632,11 +611,6 @@ def setupNPZD(vs):
     # Keep derivatives of everything for advection
     vs.npzd_tracer_derivatives = {tracer: np.zeros_like(data)
                                   for tracer, data in vs.npzd_tracers.items()}
-
-    # Whether or not to display a graph of the intended dynamics to the user
-    # TODO move this to diagnostics or something
-    if vs.show_npzd_graph:
-        vs.npzd_graph.view()
 
 
 @veros_method
