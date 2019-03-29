@@ -344,7 +344,7 @@ class Veros(with_metaclass(abc.ABCMeta)):
                     "     EKE                  = {:.2f}s".format(self.timers["eke"].get_time()),
                     "     IDEMIX               = {:.2f}s".format(self.timers["idemix"].get_time()),
                     "     TKE                  = {:.2f}s".format(self.timers["tke"].get_time()),
-                    "     npzd            = {:.2f}s".format(self.timers["npzd"].get_time()),
+                    "     npzd                 = {:.2f}s".format(self.timers["npzd"].get_time()),
                     " diagnostics and I/O      = {:.2f}s".format(self.timers["diagnostics"].get_time()),
                 ]))
                 if profiler is not None:
