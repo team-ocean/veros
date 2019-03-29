@@ -14,12 +14,15 @@ class NPZDMonitor(VerosDiagnostic):
     restart_attributes = []
     output_variables = []
 
+    def __init__(self, setup):
+            self.save_graph = False
+            self.npzd_graph = Digraph("npzd_dynamics", filename="npzd_dynamics.gv")
+            self.npzd_graph.graph_attr["splines"] = "ortho"
+            self.npzd_graph.graph_attr["nodesep"] = "1"
+            self.npzd_graph.graph_attr["node"] = "square"
+
     def initialize(self, vs):
-        self.npzd_graph = Digraph("npzd_dynamics", filename="npzd_dynamics.gv", format="png")
-        self.npzd_graph.graph_attr["splines"] = "ortho"
-        self.npzd_graph.graph_attr["nodesep"] = "1"
-        self.npzd_graph.graph_attr["node"] = "square"
-        self.graph_saved = False
+        pass
 
 
     def diagnose(self, vs):
@@ -30,7 +33,6 @@ class NPZDMonitor(VerosDiagnostic):
     def output(self, vs):
         """Print NPZD interaction graph
         """
-
         for tracer in vs.npzd_tracers:
             self.npzd_graph.node(tracer)
 
@@ -48,9 +50,10 @@ class NPZDMonitor(VerosDiagnostic):
             for sinker in vs.sinking_speeds:
                 self.npzd_graph.edge(sinker, "Bottom", xlabel="sinking")
 
-        if not self.graph_saved:
-            self.graph_saved = True
-            self.npzd_graph.view()
+        if self.save_graph:
+            self.save_graph = False
+            self.npzd_graph.save()
+
 
 
     def read_restart(self, vs):
