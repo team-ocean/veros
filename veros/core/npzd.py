@@ -639,9 +639,7 @@ def setupNPZD(vs):
     # Whether or not to display a graph of the intended dynamics to the user
     # TODO move this to diagnostics or something
     if vs.show_npzd_graph:
-        # vs.npzd_graph.node("phytoplankton", shape="star")
         vs.npzd_graph.view()
-        exit()
 
 
 @veros_method
