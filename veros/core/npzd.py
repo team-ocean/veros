@@ -4,6 +4,7 @@ Contains veros methods for handling bio- and geochemistry
 """
 import numpy as np  # NOTE np is already defined somehow
 from .. import veros_method
+from .. import time
 from . import diffusion, thermodynamics, cyclic, utilities, isoneutral
 
 
@@ -13,15 +14,11 @@ def biogeochemistry(vs):
     Integrate biochemistry: phytoplankton, zooplankton, detritus, po4
     """
 
-    # declination and 
-    # radian = 720 * np.pi
-    radian = 2 * np.pi / 360
-    declin = np.sin((np.mod(vs.time / (86400 * 360), 1) - 0.22) * 2.0 * np.pi) * 0.4
-    # rctheta = np.maximum(-1.5, np.minimum(1.5, vs.yt / radian - declin))
-    rctheta = np.maximum(-1.5, np.minimum(1.5, vs.yt * - declin))
+    # declination and fraction of day with daylight
+    declin = np.sin((np.mod(vs.time * time.SECONDS_TO_X["years"], 1) - 0.22) * 2.0 * np.pi) * 0.4
+    rctheta = np.maximum(-1.5, np.minimum(1.5, np.radians(vs.yt) - declin))
     vs.rctheta = vs.light_attenuation_water / np.sqrt(1.0 - (1.0 - np.cos(rctheta)**2.0) / 1.33**2)
-    # dayfrac = np.minimum(1.0, -np.tan(vs.yt / radian) * np.tan(declin))
-    dayfrac = np.minimum(1.0, -np.tan(vs.yt * radian) * np.tan(declin))
+    dayfrac = np.minimum(1.0, -np.tan(np.radians(vs.yt)) * np.tan(declin))
     vs.dayfrac = np.maximum(1e-12, np.arccos(np.maximum(-1.0, dayfrac)) / np.pi)
 
     # Number of timesteps to do for bio tracers
@@ -168,12 +165,6 @@ def biogeochemistry(vs):
             flags[tracer] = flag_mask.astype(np.bool)
             data[:, :, :] = np.where(flag_mask, data, vs.trcmin)
 
-        # print(vs.temporary_tracers["detritus"][50,23, :])
-        # print(vs.temporary_tracers["po4"][50,23,:])
-        # print(vs.temporary_tracers["alkalinity"][50,23,:])
-        # print()
-
-
         # Remineralize material fallen to the ocean floor
         vs.temporary_tracers["po4"][...] += bottom_export["detritus"] * vs.redfield_ratio_PN * vs.dt_bio
         if vs.enable_carbon:
@@ -190,8 +181,6 @@ def biogeochemistry(vs):
         flag_mask = np.logical_and(flags[tracer], data > vs.trcmin) * vs.maskT
         data[:, :, :] = np.where(flag_mask.astype(np.bool), data, vs.trcmin)
 
-
-    # vs.temporary_tracers["detritus"][...] = 0
     """
     Only return the difference. Will be added to timestep taup1
     """
@@ -478,7 +467,6 @@ def setup_carbon_npzd_rules(vs):
     register_npzd_rule(vs, recycling_phyto_to_dic, "phytoplankton", "DIC", label="Fast recycling")
     register_npzd_rule(vs, excretion_dic, "zooplankton", "DIC", label="Excretion")
 
-    # vs.npzd_post_rules.append((dic_alk_scale, "DIC", "alkalinity"))
     register_npzd_post_rule(vs, dic_alk_scale, "DIC", "alkalinity")
     # These rules will be different if we track coccolithophores
     if not vs.enable_calcifiers:
@@ -491,9 +479,6 @@ def setup_carbon_npzd_rules(vs):
         register_npzd_rule(vs, calcite_production_phyto, "DIC", "caco3", label="Production of calcite")
         register_npzd_rule(vs, calcite_production_phyto_alk, "alkalinity", "caco3", label="Production of calcite")
         # TODO create register_post_rule and register_pre_rule
-        # vs.npzd_post_rules.append((post_redistribute_calcite, "caco3", "alkalinity"))
-        # vs.npzd_post_rules.append((post_redistribute_calcite, "caco3", "DIC"))
-        # vs.npzd_pre_rules.append((pre_reset_calcite, "caco3", "caco3"))
         register_npzd_post_rule(vs, post_redistribute_calcite, "caco3", "alkalinity", label="dissolution")
         register_npzd_post_rule(vs, post_redistribute_calcite, "caco3", "DIC", label="dissolution")
         register_npzd_pre_rule(vs, pre_reset_calcite, "caco3", "caco3", "reset")
@@ -718,18 +703,18 @@ def npzd(vs):
         Diffusion of tracers
         """
 
-        # if vs.enable_hor_diffusion:
-        #     horizontal_diffusion_change = np.zeros_like(tracer_data[:, :, :, 0])
-        #     diffusion.horizontal_diffusion(vs, tracer_data[:, :, :, vs.tau], horizontal_diffusion_change)
+        if vs.enable_hor_diffusion:
+            horizontal_diffusion_change = np.zeros_like(tracer_data[:, :, :, 0])
+            diffusion.horizontal_diffusion(vs, tracer_data[:, :, :, vs.tau], horizontal_diffusion_change)
 
-        #     tracer_data[:, :, :, vs.taup1] += vs.dt_tracer * horizontal_diffusion_change
+            tracer_data[:, :, :, vs.taup1] += vs.dt_tracer * horizontal_diffusion_change
 
-        # if vs.enable_biharmonic_mixing:
-        #     biharmonic_diffusion_change = np.empty_like(tracer_data[:, :, :, 0])
-        #     diffusion.biharmonic(vs, tracer_data[:, :, :, vs.tau],
-        #                          np.sqrt(abs(vs.K_hbi)), biharmonic_diffusion_change)
+        if vs.enable_biharmonic_mixing:
+            biharmonic_diffusion_change = np.empty_like(tracer_data[:, :, :, 0])
+            diffusion.biharmonic(vs, tracer_data[:, :, :, vs.tau],
+                                 np.sqrt(abs(vs.K_hbi)), biharmonic_diffusion_change)
 
-        #     tracer_data[:, :, :, vs.taup1] += vs.dt_tracer * biharmonic_diffusion_change
+            tracer_data[:, :, :, vs.taup1] += vs.dt_tracer * biharmonic_diffusion_change
 
         """
         Restoring zones
@@ -766,16 +751,11 @@ def npzd(vs):
         tracer_data[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, mask, sol,
                                                                tracer_data[2:-2, 2:-2, :, vs.taup1])
 
-    # print("transport", vs.npzd_tracers["detritus"][50,23,-2,vs.taup1] - vs.npzd_tracers["detritus"][50,23,-2, vs.tau])
-    # print("npzd", npzd_changes["detritus"][50,23,-2])
-
     for tracer, change in npzd_changes.items():
         vs.npzd_tracers[tracer][:, :, :, vs.taup1] += change
 
     for tracer in vs.npzd_tracers.values():
         tracer[:, :, :, vs.taup1] = np.maximum(tracer[:, :, :, vs.taup1], vs.trcmin * vs.maskT)
-
-    # print(((vs.npzd_tracers["phytoplankton"][..., vs.taup1] + vs.npzd_tracers["zooplankton"][..., vs.taup1] + vs.npzd_tracers["detritus"][..., vs.taup1] + vs.npzd_tracers["po4"][..., vs.taup1] / vs.redfield_ratio_PN) * vs.dzt[np.newaxis, np.newaxis, :] * vs.area_t[:, :, np.newaxis]).sum())
 
     if vs.enable_cyclic_x:
         for tracer in vs.npzd_tracers.values():
