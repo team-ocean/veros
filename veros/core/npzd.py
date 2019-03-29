@@ -17,6 +17,8 @@ def biogeochemistry(vs):
     # declination and fraction of day with daylight
     declin = np.sin((np.mod(vs.time * time.SECONDS_TO_X["years"], 1) - 0.22) * 2.0 * np.pi) * 0.4
     rctheta = np.maximum(-1.5, np.minimum(1.5, np.radians(vs.yt) - declin))
+
+    # 1.33 is derived from Snells law for the air-sea barrier
     vs.rctheta = vs.light_attenuation_water / np.sqrt(1.0 - (1.0 - np.cos(rctheta)**2.0) / 1.33**2)
     dayfrac = np.minimum(1.0, -np.tan(np.radians(vs.yt)) * np.tan(declin))
     vs.dayfrac = np.maximum(1e-12, np.arccos(np.maximum(-1.0, dayfrac)) / np.pi)
