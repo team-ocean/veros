@@ -232,6 +232,9 @@ class Veros(with_metaclass(abc.ABCMeta)):
             self.set_forcing()
             isoneutral.check_isoneutral_slope_crit(self)
 
+            if self.enable_npzd:
+                npzd.setupNPZD(self)
+
     def run(self):
         """Main routine of the simulation.
         """
@@ -239,10 +242,6 @@ class Veros(with_metaclass(abc.ABCMeta)):
 
         start_time, start_iteration = self.time, self.itt
         profiler = None
-
-        if self.enable_npzd:
-            # Prepare iterables - should be moved out of here
-            npzd.setupNPZD(self)
 
         with handlers.signals_to_exception():
             try:
