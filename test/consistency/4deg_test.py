@@ -15,10 +15,10 @@ DATA_FILES = tools.get_assets("global_4deg", pkg_resources.resource_filename("ve
 class GlobalFourDegree(VerosLegacyDummy):
     """ global 4 deg model with 15 levels
     """
-    def set_parameter(self):
-        self.identifier = "4deg_test"
-        self.diskless_mode = True
-        self.pyom_compatibility_mode = True
+    def set_parameter(self, vs):
+        vs.identifier = "4deg_test"
+        vs.diskless_mode = True
+        vs.pyom_compatibility_mode = True
 
         M = self.main_module
 
@@ -80,15 +80,15 @@ class GlobalFourDegree(VerosLegacyDummy):
         M.eq_of_state_type = 5
 
     @veros_method
-    def _read_forcing(self, var):
+    def _read_forcing(self, vs, var):
         with h5netcdf.File(DATA_FILES["forcing"], "r") as infile:
-            return infile.variables[var][...].T
+            return np.array(infile.variables[var][...].T.astype(str(infile.variables[var].dtype)))
 
     @veros_method
-    def set_grid(self):
+    def set_grid(self, vs):
         create_args = {}
-        if self.backend_name == "bohrium":
-            create_args = dict(bohrium=False)
+        # if self.backend_name == "bohrium":
+        #     create_args = dict(bohrium=False)
 
         m = self.main_module
         ddz = np.array([50., 70., 100., 140., 190., 240., 290., 340.,
@@ -100,15 +100,15 @@ class GlobalFourDegree(VerosLegacyDummy):
         m.x_origin = 4.0
 
     @veros_method
-    def set_coriolis(self):
+    def set_coriolis(self, vs):
         m = self.main_module
         m.coriolis_t[...] = 2 * m.omega * np.sin(m.yt[np.newaxis, :] / 180. * m.pi)
 
     @veros_method
-    def set_topography(self):
+    def set_topography(self, vs):
         m = self.main_module
-        bathymetry_data = self._read_forcing("bathymetry")
-        salt_data = self._read_forcing("salinity")[:, :, ::-1]
+        bathymetry_data = self._read_forcing(vs, "bathymetry")
+        salt_data = self._read_forcing(vs, "salinity")[:, :, ::-1]
         mask_salt = salt_data == 0.
         m.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
         mask_bathy = bathymetry_data == 0
@@ -116,35 +116,35 @@ class GlobalFourDegree(VerosLegacyDummy):
         m.kbot[m.kbot == m.nz] = 0
 
     @veros_method
-    def set_initial_conditions(self):
+    def set_initial_conditions(self, vs):
         m = self.main_module
 
         create_args = {}
-        if self.backend_name == "bohrium":
-            create_args = dict(bohrium=False)
+        # if self.backend_name == "bohrium":
+        #     create_args = dict(bohrium=False)
 
         self.taux, self.tauy, self.qnec, self.qnet, self.sss_clim, self.sst_clim = (
             np.zeros((m.nx + 4, m.ny + 4, 12), **create_args) for _ in range(6))
 
         # initial conditions for T and S
-        temp_data = self._read_forcing("temperature")[:, :, ::-1]
+        temp_data = self._read_forcing(vs, "temperature")[:, :, ::-1]
         m.temp[2:-2, 2:-2, :, :] = (temp_data[:, :, :, np.newaxis]
                                     * m.maskT[2:-2, 2:-2, :, np.newaxis])
 
-        salt_data = self._read_forcing("salinity")[:, :, ::-1]
+        salt_data = self._read_forcing(vs, "salinity")[:, :, ::-1]
         m.salt[2:-2, 2:-2, :, :] = (salt_data[..., np.newaxis]
                                     * m.maskT[2:-2, 2:-2, :, np.newaxis])
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
-        self.taux[2:-2, 2:-2, :] = self._read_forcing("tau_x") / m.rho_0
-        self.tauy[2:-2, 2:-2, :] = self._read_forcing("tau_y") / m.rho_0
+        self.taux[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_x") / m.rho_0
+        self.tauy[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_y") / m.rho_0
 
         # heat flux
-        with Dataset(DATA_FILES["ecmwf"], "r") as ecmwf_data:
+        with h5netcdf.File(DATA_FILES["ecmwf"], "r") as ecmwf_data:
             self.qnec[2:-2, 2:-2, :] = np.array(ecmwf_data.variables["Q3"], **create_args).transpose()
             self.qnec[self.qnec <= -1e10] = 0.0
 
-        q = self._read_forcing("q_net")
+        q = self._read_forcing(vs, "q_net")
         self.qnet[2:-2, 2:-2, :] = -q
         self.qnet[self.qnet <= -1e10] = 0.0
 
@@ -159,20 +159,20 @@ class GlobalFourDegree(VerosLegacyDummy):
         self.qnet[...] = (self.qnet - fxa) * maskT
 
         # SST and SSS
-        self.sst_clim[2:-2, 2:-2, :] = self._read_forcing("sst")
-        self.sss_clim[2:-2, 2:-2, :] = self._read_forcing("sss")
+        self.sst_clim[2:-2, 2:-2, :] = self._read_forcing(vs, "sst")
+        self.sss_clim[2:-2, 2:-2, :] = self._read_forcing(vs, "sss")
 
         idm = self.idemix_module
         if idm.enable_idemix:
-            idm.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing("tidal_energy") / m.rho_0
-            idm.forc_iw_surface[2:-2, 2:-2] = self._read_forcing("wind_energy") / m.rho_0 * 0.2
+            idm.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing(vs, "tidal_energy") / m.rho_0
+            idm.forc_iw_surface[2:-2, 2:-2] = self._read_forcing(vs, "wind_energy") / m.rho_0 * 0.2
 
     @veros_method
-    def set_forcing(self):
+    def set_forcing(self, vs):
         m = self.main_module
 
         year_in_seconds = 360 * 86400.
-        (n1, f1), (n2, f2) = tools.get_periodic_interval(self.time, year_in_seconds,
+        (n1, f1), (n2, f2) = tools.get_periodic_interval(vs.time, year_in_seconds,
                                                          year_in_seconds / 12., 12)
 
         # wind stress
@@ -214,10 +214,10 @@ class GlobalFourDegree(VerosLegacyDummy):
                 (f1 * self.s_star[:, :, :, n1] + f2 * self.s_star[:, :, :, n2] \
                 - m.salt[:, :, :, self.get_tau()])
 
-    def set_diagnostics(self):
+    def set_diagnostics(self, vs):
         pass
 
-    def after_timestep(self):
+    def after_timestep(self, vs):
         pass
 
 

@@ -3,7 +3,7 @@ import os
 import numpy as np
 np.random.seed(17)
 
-from veros import VerosLegacy, variables
+from veros import VerosLegacy, variables, runtime_settings as rs
 from veros.timer import Timer
 
 
@@ -76,7 +76,8 @@ class VerosPyOMUnitTest(object):
     test_routines = None
 
     def __init__(self, fortran, backend, dims=None):
-        self.veros_new = VerosLegacyDummy(backend=backend)
+        rs.backend = backend
+        self.veros_new = VerosLegacyDummy()
         self.veros_new.pyom_compatibility_mode = True
 
         self.veros_legacy = VerosLegacyDummy(fortran=fortran)
@@ -93,7 +94,7 @@ class VerosPyOMUnitTest(object):
                 self.set_attribute(attribute, value)
 
         self.veros_new.set_legacy_parameter()
-        variables.allocate_variables(self.veros_new)
+        self.veros_new.state.allocate_variables()
 
         self.veros_legacy.call_fortran_routine("my_mpi_init", 0)
         self.veros_legacy.call_fortran_routine("pe_decomposition")
@@ -106,15 +107,15 @@ class VerosPyOMUnitTest(object):
 
     def set_attribute(self, attribute, value):
         if isinstance(value, np.ndarray):
-            getattr(self.veros_new, attribute)[...] = value
+            getattr(self.veros_new.state, attribute)[...] = value
         else:
-            setattr(self.veros_new, attribute, value)
+            setattr(self.veros_new.state, attribute, value)
 
         self.veros_legacy.set_fortran_attribute(attribute, value)
 
     def get_attribute(self, attribute):
         try:
-            veros_attr = getattr(self.veros_new, attribute)
+            veros_attr = getattr(self.veros_new.state, attribute)
         except AttributeError:
             veros_attr = None
         try:
@@ -213,7 +214,8 @@ class VerosPyOMSystemTest(VerosPyOMUnitTest):
                 raise AttributeError("attribute '{}' must be set".format(attr))
 
     def run(self):
-        self.veros_new = self.Testclass(backend=self.backend)
+        rs.backend = self.backend
+        self.veros_new = self.Testclass()
         self.veros_new.setup()
 
         self.veros_legacy = self.Testclass(fortran=self.fortran)
@@ -225,10 +227,10 @@ class VerosPyOMSystemTest(VerosPyOMUnitTest):
 
         # integrate for some time steps and compare
         if self.timesteps > 0:
-            self.veros_new.runlen = self.timesteps * self.veros_new.dt_tracer
+            self.veros_new.state.runlen = self.timesteps * self.veros_new.state.dt_tracer
             self.veros_new.run()
 
-            self.veros_legacy.set_fortran_attribute("runlen", self.timesteps * self.veros_new.dt_tracer)
+            self.veros_legacy.set_fortran_attribute("runlen", self.timesteps * self.veros_new.state.dt_tracer)
             self.veros_legacy.run()
 
         return self.test_passed()

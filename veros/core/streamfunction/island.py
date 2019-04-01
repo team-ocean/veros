@@ -1,147 +1,59 @@
-try: # python 2.x
-    import Queue as queue
-except ImportError: # python 3.x
-    import queue
+import numpy
+import scipy.ndimage
 
-from loguru import logger
-
-from .. import utilities
 from ... import veros_method, runtime_settings as rs
-
-OFFMAP = -1
-LAND = 1
-OCEAN = 0
+from .. import utilities
 
 
 @veros_method
 def isleperim(vs, kmt, verbose=False):
-    """
-    Island and Island Perimeter boundary mapping routines
-    """
-    if verbose:
-        logger.info(" Finding perimeters of all land masses")
-        if vs.enable_cyclic_x:
-            logger.info(" using cyclic boundary conditions")
+    utilities.enforce_boundaries(vs, kmt)
 
-    """
-    copy kmt to map changing notation
-    initially, 0 means ocean and 1 means unassigned land in map
-    as land masses are found, they are labeled 2, 3, 4, ...,
-    and their perimeter ocean cells -2, -3, -4, ...,
-    when no land points remain unassigned, land mass numbers are
-    reduced by 1 and their perimeter ocean points relabelled accordingly
-    """
-    boundary_map = utilities.where(vs, kmt > 0, OCEAN, LAND)
-    if rs.backend == "bohrium":
-        np.flush()
-        boundary_map = boundary_map.copy2numpy()
+    if rs.backend == 'bohrium':
+        kmt = kmt.copy2numpy()
 
-    """
-    find unassigned land points and expand them to continents
-    """
-    imt, jmt = vs.nx + 4, vs.ny + 4
-    island_queue = queue.Queue()
-    label = 2
-    nippts = [0]
-    jnorth = jmt - 1
+    structure = numpy.ones((3, 3))  # merge diagonally connected land masses
+
+    # find all land masses
+    labelled, _ = scipy.ndimage.label(kmt == 0, structure=structure)
+
+    # find and set perimeter
+    land_masses = labelled > 0
+    inner = scipy.ndimage.binary_dilation(land_masses, structure=structure)
+    perimeter = numpy.logical_xor(inner, land_masses)
+    labelled[perimeter] = -1
+
+    # match wrapping periodic land masses
     if vs.enable_cyclic_x:
-        iwest = 2
-        ieast = imt - 2
-    else:
-        iwest = 1
-        ieast = imt - 1
+        west_slice = labelled[2]
+        east_slice = labelled[-2]
 
-    for j in range(jnorth, -1, -1):
-        for i in range(iwest, ieast):
-            if boundary_map[i, j] == LAND:
-                island_queue.put((i, j))
-                expand(vs, boundary_map, label, island_queue, nippts)
-                if verbose:
-                    logger.debug(" found island {} with {} perimeter points"
-                                  .format(label - 1, nippts[-1]))
-                label += 1
-                nippts.append(0)
-    nisle = label - 2
+        for west_label in numpy.unique(west_slice[west_slice > 0]):
+            east_labels = numpy.unique(east_slice[west_slice == west_label])
+            east_labels = east_labels[~numpy.isin(east_labels, [west_label, -1])]
+            if not east_labels.size:
+                # already labelled correctly
+                continue
+            assert len(numpy.unique(east_labels)) == 1, (west_label, east_labels)
+            labelled[labelled == east_labels[0]] = west_label
 
-    boundary_map[iwest:ieast + 1, :jnorth + 1] += -np.sign(boundary_map[iwest:ieast + 1, :jnorth + 1])
-    utilities.enforce_boundaries(vs, boundary_map)
+    utilities.enforce_boundaries(vs, labelled)
 
-    if verbose:
-        logger.info(" Island perimeter statistics:")
-        logger.info("  number of land masses is {}".format(nisle))
-        logger.info("  number of total island perimeter points is {}".format(sum(nippts)))
+    # label landmasses in a way that is consistent with pyom
+    labels = numpy.unique(labelled[labelled > 0])
 
-    return np.asarray(boundary_map)
+    label_idx = {}
+    for label in labels:
+        # find index of first island cell, scanning west to east, north to south
+        label_idx[label] = np.argmax(labelled[:, ::-1].T == label)
 
+    sorted_labels = list(sorted(labels, key=lambda i: label_idx[i]))
 
-@veros_method
-def expand(vs, boundary_map, label, island_queue, nippts):
-    """
-    This function uses a "flood fill" algorithm
-    to expand one previously unmarked land
-    point to its entire connected land mass and its perimeter
-    ocean points. Diagonally adjacent land points are
-    considered connected. Perimeter "collisions" (i.e.,
-    ocean points that are adjacent to two unconnected
-    land masses) are detected and error messages generated.
-    """
-    imt, jmt = vs.nx + 4, vs.ny + 4
-
-    # main loop: pop a candidate point off the queue and process it
-    while not island_queue.empty():
-        (i, j) = island_queue.get()
-        # case: (i,j) is off the map
-        if i == OFFMAP or j == OFFMAP:
+    # ensure labels are numbered consecutively
+    relabelled = labelled.copy()
+    for new_label, label in enumerate(sorted_labels, 1):
+        if label == new_label:
             continue
-        # case: (i,j) is already labeled for this land mass
-        elif boundary_map[i, j] == label:
-            continue
-        # case: (i,j) is an ocean perimeter point of this land mass
-        elif boundary_map[i, j] == -label:
-            continue
-        # case: (i,j) is an unassigned land point
-        elif boundary_map[i, j] == LAND:
-            boundary_map[i, j] = label
-            island_queue.put((i, jn_isl(j, jmt)))
-            island_queue.put((ie_isl(vs, i, imt), jn_isl(j, jmt)))
-            island_queue.put((ie_isl(vs, i, imt), j))
-            island_queue.put((ie_isl(vs, i, imt), js_isl(j)))
-            island_queue.put((i, js_isl(j)))
-            island_queue.put((iw_isl(vs, i, imt), js_isl(j)))
-            island_queue.put((iw_isl(vs, i, imt), j))
-            island_queue.put((iw_isl(vs, i, imt), jn_isl(j, jmt)))
-            continue
-        # case: (i,j) is a perimeter ocean point of another mass
-        elif boundary_map[i, j] < 0:
-            continue
-        # case: (i,j) is an unflagged ocean point adjacent to this land mass
-        elif boundary_map[i, j] == OCEAN:
-            boundary_map[i, j] = -label
-            nippts[-1] += 1
-        # case: (i,j) is probably labeled for another land mass
-        # ************ this case should not happen ************
-        else:
-            raise RuntimeError("point ({},{}) is labeled for both land masses {} and {}"
-                               .format(i, j, boundary_map[i, j] - 1, label - 1))
+        relabelled[labelled == label] = new_label
 
-
-def jn_isl(j, jmt):
-    return j + 1 if j < jmt - 1 else OFFMAP
-
-
-def js_isl(j):
-    return j - 1 if j > 0 else OFFMAP
-
-
-def ie_isl(vs, i, imt):
-    if vs.enable_cyclic_x:
-        return i + 1 if i < imt - 3 else i + 1 - imt + 2
-    else:
-        return i + 1 if i < imt - 1 else OFFMAP
-
-
-def iw_isl(vs, i, imt):
-    if vs.enable_cyclic_x:
-        return i - 1 if i > 2 else i - 1 + imt - 2
-    else:
-        return i - 1 if i > 0 else OFFMAP
+    return np.asarray(relabelled)

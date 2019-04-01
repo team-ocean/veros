@@ -5,6 +5,7 @@ import os
 import numpy as np
 import h5netcdf
 import scipy.ndimage
+import scipy.interpolate
 
 from veros import veros_method, VerosSetup, runtime_state as rst
 from veros.variables import Variable
@@ -196,9 +197,16 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         assert np.diff(xt_forc).all() > 0
         assert np.diff(yt_forc).all() > 0
 
+        # determine slice to read from forcing file
         data_subset = (
-            slice(int(np.argmax(xt_forc >= vs.xt.min())), len(xt_forc) - int(np.argmax(xt_forc[::-1] <= vs.xt.max()))),
-            slice(int(np.argmax(yt_forc >= vs.yt.min())), len(yt_forc) - int(np.argmax(yt_forc[::-1] <= vs.yt.max()))),
+            slice(
+                int(np.argmax(xt_forc >= vs.xt.min())),
+                len(xt_forc) - int(np.argmax(xt_forc[::-1] <= vs.xt.max()))
+            ),
+            slice(
+                int(np.argmax(yt_forc >= vs.yt.min())),
+                len(yt_forc) - int(np.argmax(yt_forc[::-1] <= vs.yt.max()))
+            ),
             Ellipsis
         )
 
@@ -328,7 +336,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
     def set_diagnostics(self, vs):
         vs.diagnostics["cfl_monitor"].output_frequency = 86400.
         vs.diagnostics["tracer_monitor"].output_frequency = 86400.
-        vs.diagnostics["snapshot"].output_frequency = 10 * 86400.
+        vs.diagnostics["snapshot"].output_frequency = 1
         vs.diagnostics["overturning"].output_frequency = 360 * 86400
         vs.diagnostics["overturning"].sampling_frequency = 10 * 86400
         vs.diagnostics["energy"].output_frequency = 360 * 86400
@@ -356,8 +364,8 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
     @veros_method
     def set_timestep(self, vs):
         if vs.time < 90 * 86400:
-            if vs.dt_tracer != 1800.:
-                vs.dt_tracer = vs.dt_mom = 1800.
+            if vs.dt_tracer != 900.:
+                vs.dt_tracer = vs.dt_mom = 900.
                 print("Setting time step to 30m")
         else:
             if vs.dt_tracer != 3600.:

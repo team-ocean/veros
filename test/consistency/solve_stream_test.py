@@ -46,16 +46,16 @@ class StreamfunctionTest(VerosPyOMUnitTest):
         self.set_attribute("kbot", kbot)
 
         for r in ("calc_grid", "calc_topo"):
-            getattr(numerics, r)(self.veros_new)
+            getattr(numerics, r)(self.veros_new.state)
             self.veros_legacy.call_fortran_routine(r)
 
         if self.first:
-            streamfunction.streamfunction_init(self.veros_new)
+            streamfunction.streamfunction_init(self.veros_new.state)
             self.veros_legacy.call_fortran_routine("streamfunction_init")
             self.first = False
 
         self.test_module = streamfunction
-        veros_args = (self.veros_new, )
+        veros_args = (self.veros_new.state, )
         veros_legacy_args = dict()
         self.test_routines = OrderedDict()
         self.test_routines["solve_streamfunction"] = (veros_args, veros_legacy_args)

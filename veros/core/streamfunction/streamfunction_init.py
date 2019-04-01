@@ -133,46 +133,50 @@ def do_streamfunction_init(vs):
         land map for island number isle: 1 is land, -1 is perimeter, 0 is ocean
         """
         boundary_map = island.isleperim(vs, vs.land_map != isle + 1)
+        assert np.any(boundary_map > 0)
+
         if rs.backend == "bohrium":
             boundary_map = boundary_map.copy2numpy()
-        _print_verbose(vs, _ascii_map(vs, boundary_map))
+
+        if vs.verbose_island_routines:
+            _print_verbose(vs, _ascii_map(vs, boundary_map))
 
         """
         find a starting point
         """
         n = 0
         # avoid starting close to cyclic bondaries
-        cont, ij, Dir, startPos = _avoid_cyclic_boundaries(
+        ij, direction = _find_starting_point(
             vs, boundary_map, isle, n, (vs.nx // 2 + 2, vs.nx + 2))
-        if not cont:
-            cont, ij, Dir, startPos = _avoid_cyclic_boundaries(
-                vs, boundary_map, isle, n, (vs.nx // 2 + 2, 1, -1))
-            if not cont:
-                raise RuntimeError("found no starting point for line integral")
 
-        _print_verbose(vs, " starting point of line integral is {!r}".format(startPos))
-        _print_verbose(vs, " starting direction is {!r}".format(Dir))
+        start_pos = (ij[0], ij[1])
+        start_dir = (direction[0], direction[1])
+
+        _print_verbose(vs, " starting point of line integral is {!r}".format(start_pos))
+        _print_verbose(vs, " starting direction is {!r}".format(start_dir))
 
         """
         now find connecting lines
         """
-        n = 1
-        vs.boundary_mask[ij[0], ij[1], isle] = 1
-        cont = True
-        while cont:
+        n = 0
+
+        while True:
+            n += 1
+            vs.boundary_mask[ij[0], ij[1], isle] = 1
+
             """
             consider map in front of line direction and to the right and decide where to go
             """
-            if Dir[0] == 0 and Dir[1] == 1:  # north
+            if direction[0] == 0 and direction[1] == 1:  # north
                 ijp = [ij[0], ij[1] + 1]
                 ijp_right = [ij[0] + 1, ij[1] + 1]
-            elif Dir[0] == -1 and Dir[1] == 0:  # west
+            elif direction[0] == -1 and direction[1] == 0:  # west
                 ijp = [ij[0], ij[1]]
                 ijp_right = [ij[0], ij[1] + 1]
-            elif Dir[0] == 0 and Dir[1] == -1:  # south
+            elif direction[0] == 0 and direction[1] == -1:  # south
                 ijp = [ij[0] + 1, ij[1]]
                 ijp_right = [ij[0], ij[1]]
-            elif Dir[0] == 1 and Dir[1] == 0:  # east
+            elif direction[0] == 1 and direction[1] == 0:  # east
                 ijp = [ij[0] + 1, ij[1] + 1]
                 ijp_right = [ij[0] + 1, ij[1]]
 
@@ -182,7 +186,7 @@ def do_streamfunction_init(vs):
 
             _print_verbose(vs, " ")
             _print_verbose(vs, " position is {!r}".format(ij))
-            _print_verbose(vs, " direction is {!r}".format(Dir))
+            _print_verbose(vs, " direction is {!r}".format(direction))
             _print_verbose(vs, " map ahead is {} {}"
                            .format(boundary_map[ijp[0], ijp[1]], boundary_map[ijp_right[0], ijp_right[1]]))
 
@@ -190,13 +194,13 @@ def do_streamfunction_init(vs):
                 _print_verbose(vs, " go forward")
             elif boundary_map[ijp[0], ijp[1]] == -1 and boundary_map[ijp_right[0], ijp_right[1]] == -1:
                 _print_verbose(vs, " turn right")
-                Dir = [Dir[1], -Dir[0]]
+                direction = [direction[1], -direction[0]]
             elif boundary_map[ijp[0], ijp[1]] == 1 and boundary_map[ijp_right[0], ijp_right[1]] == 1:
                 _print_verbose(vs, " turn left")
-                Dir = [-Dir[1], Dir[0]]
+                direction = [-direction[1], direction[0]]
             elif boundary_map[ijp[0], ijp[1]] == 1 and boundary_map[ijp_right[0], ijp_right[1]] == -1:
                 _print_verbose(vs, " turn left")
-                Dir = [-Dir[1], Dir[0]]
+                direction = [-direction[1], direction[0]]
             else:
                 _print_verbose(vs, " map ahead is {} {}"
                                .format(boundary_map[ijp[0], ijp[1]], boundary_map[ijp_right[0], ijp_right[1]]))
@@ -205,33 +209,32 @@ def do_streamfunction_init(vs):
             """
             go forward in direction
             """
-            if Dir[0] == 0 and Dir[1] == 1:  # north
+            if direction[0] == 0 and direction[1] == 1:  # north
                 vs.line_dir_north_mask[ij[0], ij[1], isle] = 1
-            elif Dir[0] == -1 and Dir[1] == 0:  # west
+            elif direction[0] == -1 and direction[1] == 0:  # west
                 vs.line_dir_west_mask[ij[0], ij[1], isle] = 1
-            elif Dir[0] == 0 and Dir[1] == -1:  # south
+            elif direction[0] == 0 and direction[1] == -1:  # south
                 vs.line_dir_south_mask[ij[0], ij[1], isle] = 1
-            elif Dir[0] == 1 and Dir[1] == 0:  # east
+            elif direction[0] == 1 and direction[1] == 0:  # east
                 vs.line_dir_east_mask[ij[0], ij[1], isle] = 1
-            ij = [ij[0] + Dir[0], ij[1] + Dir[1]]
-            if startPos[0] == ij[0] and startPos[1] == ij[1]:
-                cont = False
+
+            ij = [ij[0] + direction[0], ij[1] + direction[1]]
 
             """
             account for cyclic boundary conditions
             """
-            if vs.enable_cyclic_x and Dir[0] == 1 and Dir[1] == 0 and ij[0] > vs.nx + 1:
+            if vs.enable_cyclic_x and direction[0] == 1 and direction[1] == 0 and ij[0] > vs.nx + 1:
                 _print_verbose(vs, " shifting to western cyclic boundary")
                 ij[0] -= vs.nx
-            if vs.enable_cyclic_x and Dir[0] == -1 and Dir[1] == 0 and ij[0] < 2:
+            if vs.enable_cyclic_x and direction[0] == -1 and direction[1] == 0 and ij[0] < 2:
                 _print_verbose(vs, " shifting to eastern cyclic boundary")
                 ij[0] += vs.nx
-            if startPos[0] == ij[0] and startPos[1] == ij[1]:
-                cont = False
 
-            if cont:
-                n += 1
-                vs.boundary_mask[ij[0], ij[1], isle] = 1
+            if start_pos == tuple(ij) and start_dir == tuple(direction):
+                break
+
+            if n > boundary_map.size:
+                raise RuntimeError("walk around island perimeter {} did not terminate".format(isle))
 
         _print_verbose(vs, " number of points is {:d}".format(n + 1))
         _print_verbose(vs, " ")
@@ -247,25 +250,31 @@ def do_streamfunction_init(vs):
 
 
 @veros_method
-def _avoid_cyclic_boundaries(vs, boundary_map, isle, n, x_range):
-    for i in range(*x_range):
-        for j in range(2, vs.ny + 2):
-            if boundary_map[i, j] == 1 and boundary_map[i, j + 1] == -1:
-                # initial direction is eastward, we come from the west
-                cont = True
-                Dir = [1, 0]
-                vs.line_dir_east_mask[i - 1, j, isle] = 1
-                vs.boundary_mask[i - 1, j, isle] = 1
-                return cont, (i, j), Dir, (i - 1, j)
-            if boundary_map[i, j] == -1 and boundary_map[i, j + 1] == 1:
-                # initial direction is westward, we come from the east
-                cont = True
-                Dir = [-1, 0]
-                vs.line_dir_west_mask[i, j, isle] = 1
-                vs.boundary_mask[i, j, isle] = 1
-                return cont, (i - 1, j), Dir, (i, j)
+def _find_starting_point(vs, boundary_map, isle, n, x_range):
+    edges = boundary_map[2:-2, 1:-1]
 
-    return False, None, [0, 0], [0, 0]
+    edge_east = (edges[:, :-1] == 1) & (edges[:, 1:] == -1)
+    if np.any(edge_east):
+        start = np.argmax(edge_east)
+        go_east = True
+    else:
+        edge_west = (edges[:, :-1] == -1) & (edges[:, 1:] == 1)
+        if not np.any(edge_west):
+            raise ValueError("found no starting point for isle {}".format(isle))
+
+        start = np.argmax(edge_west)
+        go_east = False
+
+    i, j = map(int, np.unravel_index([start], edges[:, 1:].shape))
+    i += 2  # re-apply overlap
+    j += 1
+
+    if go_east:
+        direction = [1, 0]
+    else:
+        direction = [-1, 0]
+
+    return (i, j), direction
 
 
 def _print_verbose(vs, message):

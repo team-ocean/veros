@@ -21,7 +21,7 @@ class ACC2(VerosLegacyDummy):
         vs.diskless_mode = True
         vs.pyom_compatibility_mode = True
 
-        m = vs.main_module
+        m = self.main_module
 
         (m.nx, m.ny, m.nz) = (30, 42, 15)
         m.dt_mom = 4800
@@ -48,7 +48,7 @@ class ACC2(VerosLegacyDummy):
         m.energint = 365 * 86400. / 48
         m.energfreq = m.dt_tracer * 10
 
-        i = vs.isoneutral_module
+        i = self.isoneutral_module
         i.enable_neutral_diffusion = 1
         i.K_iso_0 = 1000.0
         i.K_iso_steep = 500.0
@@ -65,7 +65,7 @@ class ACC2(VerosLegacyDummy):
         m.r_bot = 1e-5
 
         m.enable_implicit_vert_friction = 1
-        t = vs.tke_module
+        t = self.tke_module
         t.enable_tke = 1
         t.c_k = 0.1
         t.c_eps = 0.7
@@ -75,7 +75,7 @@ class ACC2(VerosLegacyDummy):
         # t.enable_tke_superbee_advection = 1
 
         i.K_gm_0 = 1000.0
-        e = vs.eke_module
+        e = self.eke_module
         e.enable_eke = 1
         e.eke_k_max = 1e4
         e.eke_c_k = 0.4
@@ -86,7 +86,7 @@ class ACC2(VerosLegacyDummy):
         e.enable_eke_superbee_advection = 1
         e.enable_eke_isopycnal_diffusion = 1
 
-        i = vs.idemix_module
+        i = self.idemix_module
         i.enable_idemix = 1
         i.enable_idemix_hor_diffusion = 1
         i.enable_eke_diss_surfbot = 1
@@ -96,7 +96,7 @@ class ACC2(VerosLegacyDummy):
         m.eq_of_state_type = 3
 
     @veros_method
-    def set_grid(self):
+    def set_grid(self, vs):
         m = self.main_module
         ddz = [50., 70., 100., 140., 190., 240., 290., 340.,
                390., 440., 490., 540., 590., 640., 690.]
@@ -108,12 +108,12 @@ class ACC2(VerosLegacyDummy):
         m.dzt[:] *= 1 / 2.5
 
     @veros_method
-    def set_coriolis(self):
+    def set_coriolis(self, vs):
         m = self.main_module
         m.coriolis_t[:, :] = 2 * m.omega * np.sin(m.yt[None, :] / 180. * np.pi)
 
     @veros_method
-    def set_topography(self):
+    def set_topography(self, vs):
         m = self.main_module
         (X, Y) = np.meshgrid(m.xt, m.yt)
         X = X.transpose()
@@ -121,7 +121,7 @@ class ACC2(VerosLegacyDummy):
         m.kbot[...] = (X > 1.0) | (Y < -20)
 
     @veros_method
-    def set_initial_conditions(self):
+    def set_initial_conditions(self, vs):
         m = self.main_module
 
         # initial conditions
@@ -129,7 +129,7 @@ class ACC2(VerosLegacyDummy):
         m.salt[:, :, :, 0:2] = 35.0 * m.maskT[..., None]
 
         # wind stress forcing
-        taux = np.zeros(m.ny + 1, dtype=self.default_float_type)
+        taux = np.zeros(m.ny + 1, dtype=vs.default_float_type)
         yt = m.yt[2:m.ny + 3]
         taux = (.1e-3 * np.sin(np.pi * (m.yu[2:m.ny + 3] - yu_start) / (-20.0 - yt_start))) * (yt < -20) \
             + (.1e-3 * (1 - np.cos(2 * np.pi *
@@ -153,16 +153,16 @@ class ACC2(VerosLegacyDummy):
             i.forc_iw_surface[:] = 0.1e-6 * m.maskW[:, :, -1]
 
     @veros_method
-    def set_forcing(self):
+    def set_forcing(self, vs):
         m = self.main_module
         m.forc_temp_surface[:] = self.t_rest * (self.t_star - m.temp[:, :, -1, self.get_tau()])
 
     @veros_method
-    def set_diagnostics(self):
+    def set_diagnostics(self, vs):
         pass
 
     @veros_method
-    def after_timestep(self):
+    def after_timestep(self, vs):
         pass
 
 
