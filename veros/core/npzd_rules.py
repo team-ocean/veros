@@ -169,7 +169,7 @@ def primary_production_from_dop_po4(vs, DOP, plankton):
     Plankton growth by DOP uptake.
     """
 
-    return {DOP: - vs.primary_production[DOP] * vs.dop_consumption, plankton: vs.primary_production[plankton] * vs.dop_consumption}
+    return {DOP: - vs.net_primary_production[DOP] * vs.dop_consumption, plankton: vs.net_primary_production[plankton] * vs.dop_consumption}
 
 
 @veros_method
@@ -179,7 +179,7 @@ def primary_production_from_po4_dop(vs, po4, plankton):
     """
 
     cons = np.logical_not(vs.dop_consumption)
-    return {po4: - vs.primary_production[plankton] * cons, plankton: vs.primary_production[plankton] * cons}
+    return {po4: - vs.net_primary_production[plankton] * cons, plankton: vs.net_primary_production[plankton] * cons}
 
 @veros_method
 def diazotroph_growth_don(vs, DON, diazotroph):
