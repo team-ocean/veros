@@ -18,8 +18,8 @@ def biogeochemistry(vs):
     nbio = int(vs.dt_tracer // vs.dt_bio)
 
     # temporary tracer object to store differences
-    vs.temporary_tracers = {tracer: val[:, :, :, vs.tau].copy()
-                            for tracer, val in vs.npzd_tracers.items()}
+    for tracer, val in vs.npzd_tracers.items():
+        vs.temporary_tracers[tracer][:, :, :] = val[:, :, :, vs.tau].copy()
 
     # Flags enable us to only work on tracers with a minimum available concentration
     flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=np.bool)
@@ -136,7 +136,7 @@ def biogeochemistry(vs):
         for sinker, speed in vs.sinking_speeds.items():
             export[sinker] = speed * vs.temporary_tracers[sinker] * flags[sinker] / vs.dzt
             bottom_export[sinker] = export[sinker] * vs.bottom_mask
-            export[sinker][...] -= bottom_export[sinker]
+            # export[sinker][...] -= bottom_export[sinker]
             # vs.temporary_tracers[sinker][vs.bottom_mask] = 0
             # vs.temporary_tracers[sinker][...] -= bottom_export[sinker]
 
@@ -210,7 +210,9 @@ def zooplankton_grazing(vs, tracers, flags, gmax):
 
     # excretion = {preference: vs.assimilation_efficiency * (1 - vs.zooplankton_growth_efficiency)
     #              * amount_grazed for preference, amount_grazed in grazing.items()}
-    excretion = {preference: (1 - vs.assimilation_efficiency) * amount_digested
+    # excretion = {preference: (1 - vs.assimilation_efficiency) * amount_digested
+    #              for preference, amount_digested in digestion.items()}
+    excretion = {preference: (1 - vs.zooplankton_growth_efficiency) * amount_digested
                  for preference, amount_digested in digestion.items()}
 
     # sloppy_feeding = {preference: (1 - vs.assimilation_efficiency) * amount_grazed
@@ -299,13 +301,13 @@ def nitrate_limitation_diazotroph(vs, tracers):
 @veros_method
 def dop_limitation_phytoplankton(vs, tracers):
     """ Phytoplankton limit to growth by DOP limitation """
-    return vs.hdop * general_nutrient_limitation("DOP", vs.saturation_constant_N / vs.redfield_ratio_PN)
+    return vs.hdop * general_nutrient_limitation(tracers["DOP"], vs.saturation_constant_N / vs.redfield_ratio_PN)
 
 
 @veros_method
 def dop_limitation_coccolitophore(vs, tracers):
     """ Phytoplankton limit to growth by DOP limitation """
-    return vs.hdop * general_nutrient_limitation("DOP", vs.saturation_constant_NC / vs.redfield_ratio_PN)
+    return vs.hdop * general_nutrient_limitation(tracers["DOP"], vs.saturation_constant_NC / vs.redfield_ratio_PN)
 
 
 @veros_method
@@ -372,6 +374,9 @@ def setup_basic_npzd_rules(vs):
     from .npzd_rules import grazing, mortality, sloppy_feeding, recycling_to_po4, \
         zooplankton_self_grazing, excretion, primary_production
 
+    vs.bottom_mask = np.empty((vs.nx + 4, vs.ny + 4, vs.nz), dtype=np.bool)
+    vs.bottom_mask[:, :, :] = np.arange(vs.nz)[np.newaxis, np.newaxis, :] == (vs.kbot - 1)[:, :, np.newaxis]
+
     zw = vs.zw - vs.dzt  # bottom of grid box using dzt because dzw is weird
     vs.sinking_speeds["detritus"] = (vs.wd0 + vs.mw * np.where(-zw < vs.mwz, -zw, vs.mwz)) \
         # * vs.maskT
@@ -424,9 +429,7 @@ def setup_carbon_npzd_rules(vs):
         primary_production_from_alk, recycling_to_alk, recycling_phyto_to_alk, excretion_alk, \
         dic_alk_scale
 
-    # vs.dcaco3 = 3500 
     # TODO create as variable
-    vs.rcak = np.empty_like(vs.dic[..., 0])
     zw = vs.zw - vs.dzt  # bottom of grid box using dzt because dzw is weird
     vs.rcak[:, :, :-1] = (- np.exp(zw[:-1] / vs.dcaco3) + np.exp(zw[1:] / vs.dcaco3)) / vs.dzt[:-1]
     vs.rcak[:, :, -1] = - (np.exp(zw[-1] / vs.dcaco3) - 1.0) / vs.dzt[-1]
@@ -434,9 +437,6 @@ def setup_carbon_npzd_rules(vs):
     rcab = np.empty_like(vs.dic[..., 0])
     rcab[:, : -1] = 1 / vs.dzt[-1]
     rcab[:, :, :-1] = np.exp(zw[:-1] / vs.dcaco3) / vs.dzt[1:]
-
-    vs.bottom_mask = np.empty((vs.nx + 4, vs.ny + 4, vs.nz), dtype=np.bool)
-    vs.bottom_mask[:, :, :] = np.arange(vs.nz)[np.newaxis, np.newaxis, :] == (vs.kbot - 1)[:, :, np.newaxis]
 
     vs.rcak[vs.bottom_mask] = rcab[vs.bottom_mask]
     vs.rcak[...] *= vs.maskT
@@ -508,17 +508,17 @@ def setup_nitrogen_npzd_rules(vs):
     register_npzd_rule(vs, recycling_to_no3, "diazotroph", "no3", label="Fast recycling")
     register_npzd_rule(vs, empty_rule, "diazotroph", "DON", label="Fast recycling")
     register_npzd_rule(vs, empty_rule, "diazotroph", "DOP", label="Fast recycling")
-    register_npzd_rule(vs, primary_production_from_po4_dop, "po4", "diazotroph", label="Primary production")
+    register_npzd_rule(vs, empty_rule, "po4", "diazotroph", label="Primary production")
     register_npzd_rule(vs, empty_rule, "no3", "diazotroph", label="Primary production")
-    register_npzd_rule(vs, primary_production_from_dop_po4, "DOP", "diazotroph", label="Primary production")
+    register_npzd_rule(vs, empty_rule, "DOP", "diazotroph", label="Primary production")
     register_npzd_rule(vs, empty_rule, "DON", "diazotroph", label="Primary production")
     register_npzd_rule(vs, mortality, "diazotroph", "detritus", label="Mortality")
     register_npzd_rule(vs, recycling_to_no3, "detritus", "no3", label="Remineralization")
     register_npzd_rule(vs, excretion, "zooplankton", "no3", label="Excretion")
     register_npzd_rule(vs, empty_rule, "DOP", "po4", label="Remineralization??")
     register_npzd_rule(vs, empty_rule, "DON", "no3", label="Remineralization??")
-    register_npzd_rule(vs, primary_production_from_dop_po4, "DOP", "phytoplankton", label="Primary production")
-    register_npzd_rule(vs, primary_production_from_po4_dop, "po4", "phytoplankton", label="Primary production")
+    register_npzd_rule(vs, empty_rule, "DOP", "phytoplankton", label="Primary production")
+    register_npzd_rule(vs, empty_rule, "po4", "phytoplankton", label="Primary production")
 
 
 @veros_method
@@ -528,8 +528,10 @@ def setup_calcifying_npzd_rules(vs):
     """
     # TODO: complete rules: Should be trivial if nitrogen is working
     from .npzd_rules import primary_production, recycling_to_po4, mortality, grazing,\
-        recycling_phyto_to_dic, primary_production_from_DIC  # , calpro
+        recycling_phyto_to_dic, primary_production_from_DIC, empty_rule  # , calpro
 
+    register_npzd_data(vs, "caco3", vs.caco3)
+    register_npzd_data(vs, "coccolitophore", vs.coccolitophore)
     vs.zprefs["coccolitophore"] = vs.zprefC
     vs.plankton_types.append("coccolitophore")
 
@@ -542,9 +544,6 @@ def setup_calcifying_npzd_rules(vs):
     vs.sinking_speeds["caco3"] = (vs.wc0 + vs.mw_c * np.where(-vs.zw < vs.mwz, -vs.zw, vs.mwz))\
         * vs.maskT
 
-    register_npzd_data(vs, "caco3", vs.caco3)
-    register_npzd_data(vs, "coccolitophore", vs.coccolitophore)
-
     register_npzd_rule(vs, primary_production, "po4", "coccolitophore", label="Primary production")
     register_npzd_rule(vs, recycling_to_po4, "coccolitophore", "po4", label="Fast recycling")
     register_npzd_rule(vs, mortality, "coccolitophore", "detritus", label="Mortality")
@@ -553,8 +552,8 @@ def setup_calcifying_npzd_rules(vs):
     register_npzd_rule(vs, grazing, "coccolitophore", "zooplankton", label="Grazing")
 
     # TODO add calcifying rules.
-    # register_npzd_rule(vs, calpro, "coccolitophore", "caco3", label="Calcite production due to sloppy feeding???")
-    # register_npzd_rule(vs, calpro, "zooplankton", "caco3", label="Calcite production due to sloppy feeding???")
+    register_npzd_rule(vs, empty_rule, "coccolitophore", "caco3", label="Production")
+    register_npzd_rule(vs, empty_rule, "zooplankton", "caco3", label="Production")
 
 
 @veros_method
@@ -611,6 +610,8 @@ def setupNPZD(vs):
     # Keep derivatives of everything for advection
     vs.npzd_tracer_derivatives = {tracer: np.zeros_like(data)
                                   for tracer, data in vs.npzd_tracers.items()}
+
+    vs.temporary_tracers = {tracer: np.empty_like(data[..., 0]) for tracer, data in vs.npzd_tracers.items()}
 
 
 @veros_method

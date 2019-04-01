@@ -762,11 +762,6 @@ CONDITIONAL_VARIABLES = OrderedDict([
         "Combined bases and acids",
         output=True
     )),
-    ("caco3", Variable(
-        "CaCO3 production by plankton", T_GRID + TIMESTEPS, "mmol/m^3",
-        "Temporary storage of CaCO3 produced by plankton. For redistribution - remove timesteps when supported by the bgc module",
-        output=False
-    )),
     ("atmospheric_co2", Variable(
         "Atmospheric co2 concentration", T_HOR, "ppmv",
         "Atmospheric co2 concentration")),
@@ -783,8 +778,16 @@ CONDITIONAL_VARIABLES = OrderedDict([
     ("dpCO2", Variable("dpCO2", T_HOR, "?????", "?", output=True)),
     ("co2star", Variable("co2star", T_HOR, "?????", "?", output=True)),
     ("dco2star", Variable("dco2star", T_HOR, "?????", "?", output=True)),
-
+    ("rcak", Variable("Calcite redistribution share", T_GRID, "1", "Calcite is redistributed after production by dissolution varying by depth")),
     ])),
+    ("enable_calcifiers", OrderedDict([
+    ("coccolitophore", Variable(
+        "Coccolitophore concentration", T_GRID + TIMESTEPS, "mmol/m^3",
+        "")),
+    ("caco3", Variable(
+        "Calcite concentration", T_GRID + TIMESTEPS, "mmol/m^3",
+        ""))
+        ])),
 ])
 
 
