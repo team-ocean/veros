@@ -177,23 +177,24 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         z_interp[2:-2, 2:-2] = veros.tools.interpolate(
             (topo_x_shifted, topo_y), topo_z_shifted, coords, kind="nearest", fill=False
         )
-        enforce_boundaries(vs, z_interp)
 
         depth_levels = 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - vs.zt[np.newaxis, np.newaxis, :]), axis=2)
         vs.kbot[2:-2, 2:-2] = np.where(z_interp < 0., depth_levels, 0)[2:-2, 2:-2]
         vs.kbot *= vs.kbot < vs.nz
+
+        enforce_boundaries(vs, vs.kbot)
 
         # remove marginal seas
         # (dilate to close 1-cell passages, fill holes, undo dilation)
         marginal = (
             scipy.ndimage.binary_erosion(
                 scipy.ndimage.binary_fill_holes(
-                    scipy.ndimage.binary_dilation(vs.kbot[2:-2, 2:-2] == 0)
+                    scipy.ndimage.binary_dilation(vs.kbot == 0)
                 )
             )
         )
 
-        vs.kbot[2:-2, 2:-2][marginal] = 0
+        vs.kbot[marginal] = 0
 
     @veros_method
     def set_initial_conditions(self, vs):
