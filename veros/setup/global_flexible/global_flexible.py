@@ -22,8 +22,8 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
     """
     # global settings
     max_depth = 5600.
-    equatorial_grid_spacing = 0.5
-    polar_grid_spacing = None
+    equatorial_grid_spacing_factor = 0.25
+    polar_grid_spacing_factor = None
 
     @veros_method
     def set_parameter(self, vs):
@@ -32,7 +32,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.nx = 360
         vs.ny = 160
         vs.nz = 60
-        vs.dt_mom = vs.dt_tracer = 0
+        vs.dt_mom = vs.dt_tracer = 900
         vs.runlen = 86400 * 10
 
         vs.coord_degree = True
@@ -124,9 +124,21 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
     def set_grid(self, vs):
         if vs.ny % 2:
             raise ValueError("ny has to be an even number of grid cells")
+
         vs.dxt[...] = 360. / vs.nx
+
+        if self.equatorial_grid_spacing_factor is not None:
+            eq_spacing = self.equatorial_grid_spacing_factor * 160. / vs.ny
+        else:
+            eq_spacing = None
+
+        if self.polar_grid_spacing_factor is not None:
+            polar_spacing = self.polar_grid_spacing_factor * 160. / vs.ny
+        else:
+            polar_spacing = None
+
         vs.dyt[2:-2] = veros.tools.get_vinokur_grid_steps(
-            vs.ny, 160., self.equatorial_grid_spacing, upper_stepsize=self.polar_grid_spacing, two_sided_grid=True
+            vs.ny, 160., eq_spacing, upper_stepsize=polar_spacing, two_sided_grid=True
         )
         vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, self.max_depth, 10., refine_towards="lower")
         vs.y_origin = -80.
@@ -292,8 +304,6 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
     @veros_method
     def set_forcing(self, vs):
-        self.set_timestep(vs)
-
         t_rest = 30. * 86400.
         cp_0 = 3991.86795711963  # J/kg /K
 
@@ -360,17 +370,6 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         if vs.enable_eke:
             average_vars += ["eke", "K_gm", "L_rossby", "L_rhines"]
         vs.diagnostics["averages"].output_variables = average_vars
-
-    @veros_method
-    def set_timestep(self, vs):
-        if vs.time < 90 * 86400:
-            if vs.dt_tracer != 900.:
-                vs.dt_tracer = vs.dt_mom = 900.
-                print("Setting time step to 30m")
-        else:
-            if vs.dt_tracer != 3600.:
-                vs.dt_tracer = vs.dt_mom = 3600.
-                print("Setting time step to 1h")
 
     @veros_method
     def after_timestep(self, vs):
