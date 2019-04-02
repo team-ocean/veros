@@ -43,9 +43,6 @@ class PETScSolver(LinearSolver):
         petsc_options['pc_hypre_type'] = 'boomeramg'
         self._ksp.getPC().setFromOptions()
 
-        self._rhs_petsc = self._da.createGlobalVec()
-        self._sol_petsc = self._da.createGlobalVec()
-
     @veros_method
     def _petsc_solver(self, vs, rhs, x0):
         # add dirichlet BC to rhs
@@ -61,6 +58,9 @@ class PETScSolver(LinearSolver):
 
         if rst.proc_idx[1] == 0:
             rhs[2:-2, 2] -= rhs[2:-2, 1] * self._boundary_fac["south"]
+
+        self._rhs_petsc = self._da.createGlobalVec()
+        self._sol_petsc = self._da.createGlobalVec()
 
         if rs.backend == "bohrium":
             self._da.getVecArray(self._rhs_petsc)[...] = np.interop_numpy.get_array(rhs[2:-2, 2:-2].copy())
