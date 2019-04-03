@@ -142,10 +142,10 @@ def biogeochemistry(vs):
             import_minus_export[sinker] = impo[sinker] - export[sinker]
 
         # Gather all state updates
-        npzd_updates = [rule[0](vs, rule[1], rule[2]) for rule in vs.npzd_rules]
+        npzd_updates = [(rule[0](vs, rule[1], rule[2]), rule[4]) for rule in vs.npzd_rules]
 
         # perform updates
-        for update in npzd_updates:
+        for update, boundary in npzd_updates:
             for key, value in update.items():
                 # vs.temporary_tracers[key][:, :, :] += value * vs.dt_bio
                 vs.temporary_tracers[key][boundary] += value * vs.dt_bio
@@ -166,10 +166,9 @@ def biogeochemistry(vs):
             vs.temporary_tracers["DIC"][...] += bottom_export["detritus"] * vs.redfield_ratio_CN * vs.dt_bio
 
     # Post processesing or smoothing rules
-    post_results = [rule[0](vs, rule[1], rule[2]) for rule in vs.npzd_post_rules]
-    for result in post_results:
+    post_results = [(rule[0](vs, rule[1], rule[2]), rule[4]) for rule in vs.npzd_post_rules]
+    for result, boundary in post_results:
         for key, value in result.items():
-            # vs.temporary_tracers[key][:, :, :] += value
             vs.temporary_tracers[key][boundary] += value
 
     # Reset before returning
