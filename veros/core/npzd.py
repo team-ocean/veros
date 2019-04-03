@@ -19,7 +19,7 @@ def biogeochemistry(vs):
 
     # temporary tracer object to store differences
     for tracer, val in vs.npzd_tracers.items():
-        vs.temporary_tracers[tracer][:, :, :] = val[:, :, :, vs.tau].copy()
+        vs.temporary_tracers[tracer][:, :, :] = val[:, :, :, vs.tau]#.copy()
 
     # Flags enable us to only work on tracers with a minimum available concentration
     flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=np.bool)
@@ -99,7 +99,6 @@ def biogeochemistry(vs):
             # Nutrient limiting growth - if no limit, growth is determined by avej
             u = 1
 
-            # TODO Could this somehow be turned into a single rule? I think it would be possible
             for growth_limiting_function in vs.limiting_functions[plankton]:
                 u = np.minimum(u, growth_limiting_function(vs, vs.temporary_tracers))
 
@@ -107,7 +106,6 @@ def biogeochemistry(vs):
                 * np.minimum(avej[plankton], u * jmax[plankton]) * vs.temporary_tracers[plankton]
 
             # Fast recycling of plankton
-            # TODO Could this be moved to individual rules?
             vs.recycled[plankton] = flags[plankton] * vs.recycling_rates[plankton] * bct\
                 * vs.temporary_tracers[plankton]
 
@@ -136,9 +134,6 @@ def biogeochemistry(vs):
         for sinker, speed in vs.sinking_speeds.items():
             export[sinker] = speed * vs.temporary_tracers[sinker] * flags[sinker] / vs.dzt
             bottom_export[sinker] = export[sinker] * vs.bottom_mask
-            # export[sinker][...] -= bottom_export[sinker]
-            # vs.temporary_tracers[sinker][vs.bottom_mask] = 0
-            # vs.temporary_tracers[sinker][...] -= bottom_export[sinker]
 
             impo[sinker] = np.empty_like(export[sinker])
             impo[sinker][:, :, -1] = 0
@@ -208,15 +203,9 @@ def zooplankton_grazing(vs, tracers, flags, gmax):
     digestion = {preference: vs.assimilation_efficiency * amount_grazed
                  for preference, amount_grazed in grazing.items()}
 
-    # excretion = {preference: vs.assimilation_efficiency * (1 - vs.zooplankton_growth_efficiency)
-    #              * amount_grazed for preference, amount_grazed in grazing.items()}
-    # excretion = {preference: (1 - vs.assimilation_efficiency) * amount_digested
-    #              for preference, amount_digested in digestion.items()}
     excretion = {preference: (1 - vs.zooplankton_growth_efficiency) * amount_digested
                  for preference, amount_digested in digestion.items()}
 
-    # sloppy_feeding = {preference: (1 - vs.assimilation_efficiency) * amount_grazed
-    #                   for preference, amount_grazed in grazing.items()}
     sloppy_feeding = {preference: grazing[preference] - digestion[preference] for preference in grazing}
 
     return grazing, digestion, excretion, sloppy_feeding
@@ -273,7 +262,7 @@ def general_nutrient_limitation(nutrient, saturation_constant):
     """ Nutrient limitation form for all nutrients """
     return nutrient / (saturation_constant + nutrient)
 
-# TODO replace vs.saturation_constant with something, that makes sense
+
 @veros_method
 def phosphate_limitation_phytoplankton(vs, tracers):
     """ Phytoplankton limit to growth by phosphate limitation """
@@ -327,7 +316,7 @@ def maximized_dop_po4_limitation_coccolitophre(vs, tracers):
 
 
 @veros_method
-def register_npzd_data(vs, name, value=None):
+def register_npzd_data(vs, name, transport=True, vmin=None, vmax=None):
     """
     Add tracer to the NPZD data set and create node in interaction graph
     Tracers added are available in the npzd dynamics and is automatically
@@ -337,10 +326,9 @@ def register_npzd_data(vs, name, value=None):
     if name in vs.npzd_tracers:
         print(name, "has already been added to the NPZD data set, value has been updated")
 
-    if value is None:
-        value = np.zeros_like(vs.phytoplankton)
-
     vs.npzd_tracers[name] = value
+
+    vs.npzd_transported_tracers.append(name)
 
 
 @veros_method
@@ -379,7 +367,7 @@ def setup_basic_npzd_rules(vs):
 
     zw = vs.zw - vs.dzt  # bottom of grid box using dzt because dzw is weird
     vs.sinking_speeds["detritus"] = (vs.wd0 + vs.mw * np.where(-zw < vs.mwz, -zw, vs.mwz)) \
-        # * vs.maskT
+        * vs.maskT
 
     # Add "regular" phytoplankton to the model
     vs.plankton_types = ["phytoplankton"]  # Phytoplankton types in the model. For blocking light
@@ -422,14 +410,12 @@ def setup_carbon_npzd_rules(vs):
     """
     Rules for including a carbon cycle
     """
-    # TODO should alkalinity rules be moved to a post rule?
     # The actual action is on DIC, but the to variables overlap
     from .npzd_rules import co2_surface_flux, co2_surface_flux_alk, recycling_to_dic, \
         primary_production_from_DIC, excretion_dic, recycling_phyto_to_dic, \
         primary_production_from_alk, recycling_to_alk, recycling_phyto_to_alk, excretion_alk, \
         dic_alk_scale
 
-    # TODO create as variable
     zw = vs.zw - vs.dzt  # bottom of grid box using dzt because dzw is weird
     vs.rcak[:, :, :-1] = (- np.exp(zw[:-1] / vs.dcaco3) + np.exp(zw[1:] / vs.dcaco3)) / vs.dzt[:-1]
     vs.rcak[:, :, -1] = - (np.exp(zw[-1] / vs.dcaco3) - 1.0) / vs.dzt[-1]
@@ -460,12 +446,12 @@ def setup_carbon_npzd_rules(vs):
         from .npzd_rules import calcite_production_phyto, calcite_production_phyto_alk, \
                 post_redistribute_calcite, pre_reset_calcite
 
-        register_npzd_data(vs, "caco3", np.zeros_like(vs.dic))  # Only for collection purposes
+        # Only for collection purposes - to be redistributed in post rules
+        register_npzd_data(vs, "caco3", np.zeros_like(vs.dic), transport=False)
 
         # Collect calcite produced by phytoplankton and zooplankton and redistribute it
         register_npzd_rule(vs, calcite_production_phyto, "DIC", "caco3", label="Production of calcite")
         register_npzd_rule(vs, calcite_production_phyto_alk, "alkalinity", "caco3", label="Production of calcite")
-        # TODO create register_post_rule and register_pre_rule
         register_npzd_post_rule(vs, post_redistribute_calcite, "caco3", "alkalinity", label="dissolution")
         register_npzd_post_rule(vs, post_redistribute_calcite, "caco3", "DIC", label="dissolution")
         register_npzd_pre_rule(vs, pre_reset_calcite, "caco3", "caco3", "reset")
@@ -528,7 +514,7 @@ def setup_calcifying_npzd_rules(vs):
     """
     # TODO: complete rules: Should be trivial if nitrogen is working
     from .npzd_rules import primary_production, recycling_to_po4, mortality, grazing,\
-        recycling_phyto_to_dic, primary_production_from_DIC, empty_rule  # , calpro
+        recycling_phyto_to_dic, primary_production_from_DIC, empty_rule
 
     register_npzd_data(vs, "caco3", vs.caco3)
     register_npzd_data(vs, "coccolitophore", vs.coccolitophore)
@@ -563,12 +549,16 @@ def setupNPZD(vs):
     # TODO can we create the dictionaries in variables or something like that?
     vs.npzd_tracers = {}  # Dictionary keeping track of plankton, nutrients etc.
     vs.npzd_rules = []  # List of rules describing the interaction between tracers
-    vs.npzd_pre_rules = []
-    vs.npzd_post_rules = []
+    vs.npzd_pre_rules = []  # Rules to be executed before bio loop
+    vs.npzd_post_rules = []  # Rules to be executed after bio loop
+
+    # Which tracers should be transported
+    # In some cases it may be desirable to not transport a tracer. In that
+    # case you should ensure, it is updated or reset appropriately using pre and post rules
+    vs.npzd_transported_tracers = []
 
 
     # Temporary storage of mortality and recycled - to be used in rules
-    # TODO make these local somehow or prefarably produce the results directly in the rules
     vs.net_primary_production = {}
     vs.recycled = {}
     vs.mortality = {}
@@ -629,8 +619,8 @@ def npzd(vs):
     npzd_changes = biogeochemistry(vs)
 
     # # TODO if this is called by thermodynamics first, then we don't have to do it again
-    if vs.enable_neutral_diffusion:
-        isoneutral.isoneutral_diffusion_pre(vs)
+    # if vs.enable_neutral_diffusion:
+    #     isoneutral.isoneutral_diffusion_pre(vs)
 
 
     """
@@ -654,8 +644,10 @@ def npzd(vs):
     c_tri[:, :, :-1] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, :-1]
 
 
-    for tracer, tracer_data in vs.npzd_tracers.items():
-        vs.npzd_tracers[tracer][:, :, :, vs.taup1] = vs.npzd_tracers[tracer][:, :, :, vs.tau]
+    # for tracer, tracer_data in vs.npzd_tracers.items():
+    for tracer in vs.npzd_transported_tracers:
+        tracer_data = vs.npzd_tracers[tracer]
+        # vs.npzd_tracers[tracer][:, :, :, vs.taup1] = vs.npzd_tracers[tracer][:, :, :, vs.tau]
 
         """
         Advection of tracers
