@@ -334,6 +334,14 @@ def register_npzd_data(vs, name, value, transport=True, vmin=None, vmax=None):
 
 @veros_method
 def get_boundary(vs, boundary_string):
+    """
+    Return slice representing boundary
+
+    surface:       [:, :, -1] only the top layer
+    bottom:        bottom_mask as set by veros
+    else:          [:, :, :] everything
+    """
+
     if boundary_string == "SURFACE":
         return tuple([slice(None, None, None), slice(None, None, None), -1])
 
@@ -612,8 +620,8 @@ def setupNPZD(vs):
         vs.zprefs[preference] /= zprefsum
 
     # Keep derivatives of everything for advection
-    vs.npzd_tracer_derivatives = {tracer: np.zeros_like(data)
-                                  for tracer, data in vs.npzd_tracers.items()}
+    vs.npzd_advection_derivatives = {tracer: np.zeros_like(data)
+                                     for tracer, data in vs.npzd_tracers.items()}
 
     vs.temporary_tracers = {tracer: np.empty_like(data[..., 0]) for tracer, data in vs.npzd_tracers.items()}
 
@@ -666,15 +674,13 @@ def npzd(vs):
         """
         Advection of tracers
         """
-        # TODO: Rename npzd_tracer_derivatives to npzd_advection_derivates? or something like that
         thermodynamics.advect_tracer(vs, tracer_data[:, :, :, vs.tau],
-                                     vs.npzd_tracer_derivatives[tracer][:, :, :, vs.tau])
+                                     vs.npzd_advection_derivatives[tracer][:, :, :, vs.tau])
 
         # Adam-Bashforth timestepping
-        # TODO I might not need 3 timestep values of the tracers. Just the derivatives
         tracer_data[:, :, :, vs.taup1] = tracer_data[:, :, :, vs.tau] + vs.dt_tracer \
-            * ((1.5 + vs.AB_eps) * vs.npzd_tracer_derivatives[tracer][:, :, :, vs.tau]
-               - (0.5 + vs.AB_eps) * vs.npzd_tracer_derivatives[tracer][:, :, :, vs.taum1])\
+            * ((1.5 + vs.AB_eps) * vs.npzd_advection_derivatives[tracer][:, :, :, vs.tau]
+               - (0.5 + vs.AB_eps) * vs.npzd_advection_derivatives[tracer][:, :, :, vs.taum1])\
             * vs.maskT
 
         """
