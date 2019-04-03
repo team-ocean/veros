@@ -316,7 +316,7 @@ def maximized_dop_po4_limitation_coccolitophre(vs, tracers):
 
 
 @veros_method
-def register_npzd_data(vs, name, transport=True, vmin=None, vmax=None):
+def register_npzd_data(vs, name, value, transport=True, vmin=None, vmax=None):
     """
     Add tracer to the NPZD data set and create node in interaction graph
     Tracers added are available in the npzd dynamics and is automatically
