@@ -21,8 +21,8 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
     Global model with flexible resolution.
     """
     # global settings
-    max_depth = 5600.
-    equatorial_grid_spacing_factor = 0.25
+    max_depth = 5400.
+    equatorial_grid_spacing_factor = 0.5
     polar_grid_spacing_factor = None
 
     @veros_method
@@ -213,12 +213,12 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         # determine slice to read from forcing file
         data_subset = (
             slice(
-                int(np.argmax(xt_forc >= vs.xt.min())),
-                len(xt_forc) - int(np.argmax(xt_forc[::-1] <= vs.xt.max()))
+                max(0, int(np.argmax(xt_forc >= vs.xt.min())) - 1),
+                len(xt_forc) - max(0, int(np.argmax(xt_forc[::-1] <= vs.xt.max())) - 1)
             ),
             slice(
-                int(np.argmax(yt_forc >= vs.yt.min())),
-                len(yt_forc) - int(np.argmax(yt_forc[::-1] <= vs.yt.max()))
+                max(0, int(np.argmax(yt_forc >= vs.yt.min())) - 1),
+                len(yt_forc) - max(0, int(np.argmax(yt_forc[::-1] <= vs.yt.max())) - 1)
             ),
             Ellipsis
         )
@@ -345,19 +345,18 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
     @veros_method
     def set_diagnostics(self, vs):
-        vs.diagnostics["cfl_monitor"].output_frequency = 86400.
+        vs.diagnostics["cfl_monitor"].output_frequency = vs.dt_tracer
         vs.diagnostics["tracer_monitor"].output_frequency = 86400.
-        vs.diagnostics["snapshot"].output_frequency = 1
+        vs.diagnostics["snapshot"].output_frequency = 86400.
         vs.diagnostics["overturning"].output_frequency = 360 * 86400
-        vs.diagnostics["overturning"].sampling_frequency = 10 * 86400
+        vs.diagnostics["overturning"].sampling_frequency = 86400.
         vs.diagnostics["energy"].output_frequency = 360 * 86400
         vs.diagnostics["energy"].sampling_frequency = 86400.
-        vs.diagnostics["averages"].output_frequency = 360 * 86400
-        vs.diagnostics["averages"].sampling_frequency = 86400.
+        vs.diagnostics["averages"].output_frequency = 10 * 86400
+        vs.diagnostics["averages"].sampling_frequency = 3600.
 
         average_vars = ["surface_taux", "surface_tauy", "forc_temp_surface", "forc_salt_surface",
-                        "psi", "temp", "salt", "u", "v", "w", "Nsqr", "Hd", "rho",
-                        "K_diss_v", "P_diss_v", "P_diss_nonlin", "P_diss_iso", "kappaH"]
+                        "psi", "temp", "salt", "u", "v", "w", "Nsqr", "Hd", "rho", "kappaH"]
         if vs.enable_skew_diffusion:
             average_vars += ["B1_gm", "B2_gm"]
         if vs.enable_TEM_friction:
