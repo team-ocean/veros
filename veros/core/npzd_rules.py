@@ -149,8 +149,9 @@ def excretion_alk(vs, plankton, alkalinity):
 def co2_surface_flux(vs, co2, dic):
     """ Pre rule to add or remove DIC from surface layer """
     vs.cflux[:, :] = atmospherefluxes.carbon_flux(vs)  # TODO move this somewhere else
-    flux = np.zeros((vs.cflux.shape[0], vs.cflux.shape[1], vs.nz))
-    flux[:, :, -1] = vs.cflux * vs.dt_tracer / vs.dzt[-1]
+    # flux = np.zeros((vs.cflux.shape[0], vs.cflux.shape[1], vs.nz))
+    # flux[:, :, -1] = vs.cflux * vs.dt_tracer / vs.dzt[-1]
+    flux = vs.cflux * vs.dt_tracer / vs.dzt[-1]
     return {dic: flux}
 
 @veros_method

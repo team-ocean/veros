@@ -19,7 +19,7 @@ def biogeochemistry(vs):
 
     # temporary tracer object to store differences
     for tracer, val in vs.npzd_tracers.items():
-        vs.temporary_tracers[tracer][:, :, :] = val[:, :, :, vs.tau]#.copy()
+        vs.temporary_tracers[tracer][:, :, :] = val[:, :, :, vs.tau]
 
     # Flags enable us to only work on tracers with a minimum available concentration
     flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=np.bool)
@@ -32,10 +32,10 @@ def biogeochemistry(vs):
         data[:, :, :] = np.where(flag_mask, data, vs.trcmin)
 
     # Pre rules: Changes that need to be applied before running npzd dynamics
-    pre_rules = [rule[0](vs, rule[1], rule[2]) for rule in vs.npzd_pre_rules]
-    for rule in pre_rules:
+    pre_rules = [(rule[0](vs, rule[1], rule[2]), rule[4]) for rule in vs.npzd_pre_rules]
+    for rule, boundary in pre_rules:
         for key, value in rule.items():
-            vs.temporary_tracers[key][:, :, :] += value
+            vs.temporary_tracers[key][boundary] += value
 
     # How much plankton is blocking light
     plankton_total = sum([vs.temporary_tracers[plankton] for plankton in vs.plankton_types]) * vs.dzt
@@ -147,7 +147,8 @@ def biogeochemistry(vs):
         # perform updates
         for update in npzd_updates:
             for key, value in update.items():
-                vs.temporary_tracers[key][:, :, :] += value * vs.dt_bio
+                # vs.temporary_tracers[key][:, :, :] += value * vs.dt_bio
+                vs.temporary_tracers[key][boundary] += value * vs.dt_bio
 
         # Import and export between layers
         for tracer in vs.sinking_speeds:
@@ -168,7 +169,8 @@ def biogeochemistry(vs):
     post_results = [rule[0](vs, rule[1], rule[2]) for rule in vs.npzd_post_rules]
     for result in post_results:
         for key, value in result.items():
-            vs.temporary_tracers[key][:, :, :] += value
+            # vs.temporary_tracers[key][:, :, :] += value
+            vs.temporary_tracers[key][boundary] += value
 
     # Reset before returning
     for tracer, data in vs.temporary_tracers.items():
@@ -332,7 +334,18 @@ def register_npzd_data(vs, name, value, transport=True, vmin=None, vmax=None):
 
 
 @veros_method
-def register_npzd_rule(vs, function, source, destination, label="?"):
+def get_boundary(vs, boundary_string):
+    if boundary_string == "SURFACE":
+        return tuple([slice(None, None, None), slice(None, None, None), -1])
+
+    if boundary_string == "BOTTOM":
+        return vs.bottom_mask
+ 
+    return tuple([slice(None, None, None)] * 3)
+
+
+@veros_method
+def register_npzd_rule(vs, function, source, destination, label="?", boundary=None):
     """ Add rule to the npzd dynamics e.g. phytoplankkton being eaten by zooplankton
 
         ...
@@ -342,16 +355,18 @@ def register_npzd_rule(vs, function, source, destination, label="?"):
         label: A description for graph
         ...
     """
-    vs.npzd_rules.append((function, source, destination, label))
+    vs.npzd_rules.append((function, source, destination, label, get_boundary(vs, boundary)))
 
 @veros_method
-def register_npzd_post_rule(vs, function, source, destination, label="?"):
-    vs.npzd_post_rules.append((function, source, destination, label))
+def register_npzd_post_rule(vs, function, source, destination, label="?", boundary=None):
+    vs.npzd_post_rules.append((function, source, destination, label, get_boundary(vs,boundary)))
 
 
 @veros_method
-def register_npzd_pre_rule(vs, function, source, destination, label="?"):
-    vs.npzd_pre_rules.append((function, source, destination, label))
+def register_npzd_pre_rule(vs, function, source, destination, label="?", boundary=None):
+    vs.npzd_pre_rules.append((function, source, destination, label, get_boundary(vs,boundary)))
+
+
 
 
 @veros_method
@@ -432,7 +447,7 @@ def setup_carbon_npzd_rules(vs):
     register_npzd_data(vs, "alkalinity", vs.alkalinity)
 
     # Exchange of CO2 with the atmosphere
-    register_npzd_pre_rule(vs, co2_surface_flux, "co2", "DIC")
+    register_npzd_pre_rule(vs, co2_surface_flux, "co2", "DIC", boundary="SURFACE")
 
     # Common rule set for nutrient
     register_npzd_rule(vs, recycling_to_dic, "detritus", "DIC", label="Remineralization")
