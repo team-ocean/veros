@@ -21,6 +21,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
     Global model with flexible resolution.
     """
     # global settings
+    min_depth = 10.
     max_depth = 5400.
     equatorial_grid_spacing_factor = 0.5
     polar_grid_spacing_factor = None
@@ -140,7 +141,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.dyt[2:-2] = veros.tools.get_vinokur_grid_steps(
             vs.ny, 160., eq_spacing, upper_stepsize=polar_spacing, two_sided_grid=True
         )
-        vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, self.max_depth, 10., refine_towards="lower")
+        vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, self.max_depth, self.min_depth, refine_towards="lower")
         vs.y_origin = -80.
         vs.x_origin = 90.
 

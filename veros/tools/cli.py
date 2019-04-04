@@ -2,9 +2,9 @@ import functools
 
 import click
 
-from veros.backend import BACKENDS
 from veros.settings import SETTINGS
 
+BACKENDS = ["numpy", "bohrium"]
 LOGLEVELS = ["trace", "debug", "info", "warning", "error", "critical"]
 
 

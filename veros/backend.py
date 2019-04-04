@@ -1,28 +1,47 @@
 import warnings
 
-import numpy
+BACKENDS = None
 
-# populate available backend modules
-BACKENDS = {}
 
-if numpy.__name__ == "bohrium":
-    warnings.warn("Running veros with 'python -m bohrium' is discouraged "
-                  "(use '--backend bohrium' instead)")
-    import numpy_force
-    numpy = numpy_force
+def init_environment():
+    import os
+    from . import runtime_state as rst
 
-BACKENDS["numpy"] = numpy
+    if rst.proc_rank > 0:
+        os.environ.update(
+            BH_OPENMP_CACHE_READONLY="true",
+        )
 
-try:
-    import bohrium
-except ImportError:
-    warnings.warn("Could not import Bohrium (Bohrium backend will be unavailable)")
-    BACKENDS["bohrium"] = None
-else:
-    BACKENDS["bohrium"] = bohrium
+
+def init_backends():
+    init_environment()
+
+    # populate available backend modules
+    global BACKENDS
+    BACKENDS = {}
+
+    import numpy
+    if numpy.__name__ == "bohrium":
+        warnings.warn("Running veros with 'python -m bohrium' is discouraged "
+                      "(use '--backend bohrium' instead)")
+        import numpy_force
+        numpy = numpy_force
+
+    BACKENDS["numpy"] = numpy
+
+    try:
+        import bohrium
+    except ImportError:
+        warnings.warn("Could not import Bohrium (Bohrium backend will be unavailable)")
+        BACKENDS["bohrium"] = None
+    else:
+        BACKENDS["bohrium"] = bohrium
 
 
 def get_backend(backend_name):
+    if BACKENDS is None:
+        init_backends()
+
     if backend_name not in BACKENDS:
         raise ValueError("unrecognized backend {} (must be either of: {!r})"
                          .format(backend_name, list(BACKENDS.keys())))
