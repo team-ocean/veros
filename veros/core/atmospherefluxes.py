@@ -483,7 +483,7 @@ def drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accura
                     dx[i] = f[i] / df[i];
                     drtsafe_val[i] = drtsafe_val[i] - dx[i];
                 }
-                mask[i] = fabs(dx[i]) > 1e-10;
+                mask[i] = fabs(dx[i]) > %(accuracy)E;
             }
         }
         """ % {'shape0': mask.size, 'accuracy': accuracy}  # TODO actually use accuracy
