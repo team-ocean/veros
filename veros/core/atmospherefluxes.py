@@ -37,23 +37,20 @@ def carbon_flux(vs):
     xconv *= 0.75  # NOTE: This seems like an approximation I don't where they got it
 
     # co2star, dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
-    dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
-    #vs.dco2star = dco2star
+    vs.dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
 
     # Schmidt number for CO2
     # t_in wasn't actually used but sst was, however they are the same...
     scco2 = 2073.1 - 125.62 * t_in + 3.6276 * t_in ** 2 - 0.043219 * t_in ** 3
     # Wanninkhof, 1992, table A
 
-    # piston_vel = ao * xconv * ((sbc[i, j, iws]) * 0.01) ** 2 * ((scco2/660.0)**(-0.5))
-    # piston_vel = ao * xconv * (wind_speed * 0.01) ** 2 * ((scco2/660.0)**(-0.5))
     piston_vel = ao * xconv * (wind_speed) ** 2 * ((scco2/660.0)**(-0.5))
     # NOTE: According to https://www.soest.hawaii.edu/oceanography/courses/OCN623/Spring%202015/Gas_Exchange_2015_one-lecture1.pdf there are 3 regimes we are looking at the wavy surface
     # NOTE: https://aslopubs.onlinelibrary.wiley.com/doi/pdf/10.4319/lom.2014.12.351 uses the correct form for scco2
     # Sweeney et al. 2007
 
     # 1e3 added to convert to mmol / m^2 / s
-    co2_flux = piston_vel * dco2star * vs.maskT[:, :, -1]  * 1e3
+    co2_flux = piston_vel * vs.dco2star * vs.maskT[:, :, -1] * 1e3
     # NOTE Is this Fick's First law? https://www.ocean.washington.edu/courses/oc400/Lecture_Notes/CHPT11.pdf
 
     # TODO set boundary condictions
@@ -79,8 +76,11 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # Hardwire constants
     ph_high = 6.0
     ph_low = 10.0
-    sit_in = 7.6875e-3  # mol / m^3 TODO: What is this?
-    pt_in = 0.5125e-3  # mol / m^3  TODO: What is this?
+    # sit_in = 7.6875e-3  # mol / m^3 TODO: What is this?
+    # pt_in = 0.5125e-3  # mol / m^3  TODO: What is this?
+
+    sit_in = np.ones_like(temperature) * 7.6875e-3
+    pt_in = np.ones_like(temperature) * 0.5125e-3
 
     temperature_in_kelvin = temperature + 273.15
 
@@ -237,9 +237,11 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
     in1 = np.ones_like(co2_in) * x1
     in2 = np.ones_like(co2_in) * x2
-    # hSWS = drtsafe(in1, in2, ta_iter_SWS, xacc)
-    vs.hSWS = drtsafe(vs, in1, in2, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb, xacc)
-    # vs.hSWS[...] = hSWS
+
+    iter_mask = np.empty_like(in1, dtype=np.bool)
+    iter_mask[...] = vs.maskT[:, :, -1]
+
+    vs.hSWS = drtsafe(vs, iter_mask, ta_iter_SWS, in1, in2, args=(k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb), accuracy=xacc)
 
 
     # Calculate [CO2*] as defined in DOE Methods Handbook 1993 Ver. 2,
@@ -247,11 +249,8 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     co2star = dic * vs.hSWS**2 / (vs.hSWS**2 + k1 * vs.hSWS + k1 * k2)
     co2starair = co2 * ff * atmospheric_pressure
     dco2star = co2starair - co2star
-    # ph = -np.log10(hSWS)
-    # print(np.min(dco2star), np.max(dco2star))
 
     pCO2 = co2star / (k0 * FugFac)
-    # dpCO2 = pCO2 - co2starair
     dpCO2 = pCO2 - co2 * atmospheric_pressure
 
 
@@ -264,7 +263,9 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
     return vs.dco2star
 
-def ta_iter_SWS(x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb):
+
+@veros_method
+def ta_iter_SWS_numpy(vs, x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb):
     x2 = x * x
     x3 = x2 * x
     k12 = k1 * k2
@@ -293,49 +294,240 @@ def ta_iter_SWS(x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt,
          st * (1.0 + ks / (x / c))**(-2.0) * (ks * c / x2) - ft * (1.0 + kf / (x / c))**(-2.0) * \
          (kf * c / x2) - pt * x2 * (3.0 * a - x * da) / a2
 
+    return fn, df
 
+@veros_method
+def ta_iter_SWS_bohrium(*args):
+
+    vs = args[0]
+    arg_behaving = [np.user_kernel.make_behaving(args[1], dtype=np.int32)]
+
+    for i, arg in enumerate(args[2:]):
+        arg_behaving.append(np.user_kernel.make_behaving(arg, dtype=np.double))
+
+    mask, x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb = arg_behaving
+
+    fn = np.empty_like(x)
+    df = np.empty_like(x)
+
+    kernel = """
+    #include <stdint.h>
+    #include <stdlib.h>
+
+    void execute(int *mask, double *x, double *k1, double *k2, double *k1p, double *k2p, double *k3p, double *st, double *ks, double *kf, double *ft, double *dic, double *ta, double *sit, double *ksi, double *pt, double *bt, double *kw, double *kb, double *fn, double *df) {
+
+        for (uint64_t i=0; i<%(shape)d; ++i) {
+            if (!mask[i]) {
+                continue;
+            }
+            double x2 = x[i] * x[i];
+            double x3 = x2 * x[i];
+            double k12 = k1[i] * k2[i];
+            double k12p = k1p[i] * k2p[i];
+            double k123p = k12p * k3p[i];
+            double c = 1.0 + st[i] / ks[i] + ft[i] / kf[i];
+            double a = x3 + k1p[i] * x2 + k12p * x[i] + k123p;
+            double a2 = a * a;
+            double da = 3.0 * x2 + 2.0 * k1p[i] * x[i] + k12p;
+            double b = x2 + k1[i] * x[i] + k12;
+            double b2 = b * b;
+            double db = 2.0 * x[i] + k1[i];
+
+
+            fn[i] = k1[i] * x[i] * dic[i] / b
+                    + 2.0 * dic[i] * k12 / b
+                    + bt[i] / (1.0 + x[i] / kb[i])
+                    + kw[i] / x[i]
+                    + pt[i] * k12p * x[i] / a
+                    + 2.0 * pt[i] * k123p / a
+                    + sit[i] / (1.0 + x[i] / ksi[i])
+                    - x[i] / c
+                    - st[i] / (1.0 + ks[i] / (x[i] / c))
+                    - ft[i] / (1.0 + kf[i] / (x[i] / c))
+                    - pt[i] * x3 / a - ta[i];
+
+            double t1 = (1.0 + x[i] / kb[i]);
+            double t2 = (1.0 + x[i] / ksi[i]);
+            double t3 = (1.0 + ks[i] / (x[i] / c));
+            double t4 = (1.0 + kf[i] / (x[i] / c));
+
+            df[i] = (k1[i] * dic[i] * b - k1[i] * x[i] * dic[i] * db) / b2
+                    - 2.0 * dic[i] * k12 * db / b2
+                    - bt[i] / kb[i] / (t1 * t1)
+                    - kw[i] / x2
+                    + (pt[i] * k12p * (a - x[i] * da)) / a2
+                    - 2.0 * pt[i] * k123p * da / a2
+                    - sit[i] / ksi[i] / (t2 * t2)
+                    - 1.0 / c
+                    - st[i] / (t3 * t3) * ks[i] * c / x2
+                    - ft[i] / (t4 * t4) * kf[i] * c / x2
+                    - pt[i] * x2 * (3.0 * a - x[i] * da) / a2;
+
+
+        }
+    }
+
+    """ % {"shape": x.size}
+
+    np.user_kernel.execute(kernel, arg_behaving + [fn , df])
 
     return fn, df
 
-def drtsafe(vs, guess_low, guess_high, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb, accuracy, max_iterations=100):
-    f_low, _ = ta_iter_SWS(guess_low, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb)
-    f_high, _ = ta_iter_SWS(guess_high, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb)
 
+@veros_method
+def ta_iter_SWS(*args):
+    vs = args[0]
+    mask = args[1]
+
+    if vs.backend_name == "bohrium" and 0:
+        return ta_iter_SWS_bohrium(vs, mask, *args[2:])
+    else:
+        return ta_iter_SWS_numpy(vs, *args[2:])
+
+
+@veros_method
+def swap_values_bohrium(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_val):
+
+    if vs.backend_name == "bohrium" and 0:
+        mask_input = np.user_kernel.make_behaving(mask, dtype=np.bool)
+        x_low_input = np.user_kernel.make_behaving(x_low, dtype=np.float64)
+        x_high_input = np.user_kernel.make_behaving(x_high, dtype=np.float64)
+        df_input = np.user_kernel.make_behaving(df, dtype=np.float64)
+        f_input = np.user_kernel.make_behaving(f, dtype=np.float64)
+        f_low_input = np.user_kernel.make_behaving(f_low, dtype=np.float64)
+        f_high_input = np.user_kernel.make_behaving(f_high, dtype=np.float64)
+        drtsafe_val_input = np.user_kernel.make_behaving(drtsafe_val, dtype=np.float64)
+
+        kernel = """
+        #include <stdint.h>
+        #include <stdlib.h>
+        #include <stdbool.h>
+        void execute(bool *mask, double *x_low, double *x_high, double *df, double *f, double *f_low, double *f_high, double *drtsafe_val) {
+            for (uint64_t i=0; i<%(shape0)d; ++i) {
+
+                    if (!mask[i]) {
+                        continue;
+                    }
+                    if (f[i] < 0.0) {
+                        x_low[i] = drtsafe_val[i];
+                        f_low[i] = f[i];
+                    } else {
+                        x_high[i] = drtsafe_val[i];
+                        f_high[i] = f[i];
+                    }
+            }
+        }
+        """ % {'shape0': mask.shape[0] * mask.shape[1]}
+        np.user_kernel.execute(kernel, [mask_input, x_low_input, x_high_input, df_input, f_input, f_low_input, f_high_input, drtsafe_val_input])
+
+        # copy result back into variables - why is this needed?
+        x_low[...] = x_low_input[...]
+        f_low[...] = f_low_input[...]
+        x_high[...] = x_high_input[...]
+        f_high[...] = f_high_input[...]
+
+    else:
+        x_low[mask], x_high[mask], f_low[mask], f_high[mask] = np.where(f[mask] < 0,
+                (drtsafe_val[mask], x_high[mask], f[mask], f_high[mask]),
+                (x_low[mask], drtsafe_val[mask], f_low[mask], f[mask]))
+
+
+@veros_method
+def masked_thing(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accuracy):
+
+    if vs.backend_name == "bohrium" and 0:
+        mask_input = np.user_kernel.make_behaving(mask, dtype=np.int32)
+        drtsafe_val_input = np.user_kernel.make_behaving(drtsafe_val, dtype=vs.default_float_type)
+        x_high_input = np.user_kernel.make_behaving(x_high, dtype=vs.default_float_type)
+        df_input = np.user_kernel.make_behaving(df, dtype=vs.default_float_type)
+        f_input = np.user_kernel.make_behaving(f, dtype=vs.default_float_type)
+        x_low_input = np.user_kernel.make_behaving(x_low, dtype=vs.default_float_type)
+        dx_input = np.user_kernel.make_behaving(dx, dtype=vs.default_float_type)
+        dx_old_input = np.user_kernel.make_behaving(dx_old, dtype=vs.default_float_type)
+
+        kernel = """
+        #include <stdint.h>
+        #include <stdlib.h>
+        #include <stdbool.h>
+        #include <math.h>
+        void execute(int *mask, double *drtsafe_val, double *x_high, double *df, double *f, double *x_low, double *dx, double *dx_old) {
+            for (uint64_t i=0; i<%(shape0)d; ++i) {
+                if (!mask[i]) {
+                    continue;
+                }
+
+                double step1 = (drtsafe_val[i] - x_high[i]) * df[i] - f[i];
+                double step2 = (drtsafe_val[i] - x_low[i]) * df[i] - f[i]; 
+                bool step_inside = (step1 * step2) >= 0;
+                bool tmp_mask = step_inside || (abs(2.0 * f[i]) > abs(dx_old[i] * df[i]));
+
+                dx_old[i] = dx[i];
+                if (tmp_mask) {
+                    dx[i] = 0.5 * (x_high[i] - x_low[i]);
+                    drtsafe_val[i] = x_low[i] + dx[i];
+                } else {
+                    dx[i] = f[i] / df[i];
+                    drtsafe_val[i] = drtsafe_val[i] - dx[i];
+                }
+                mask[i] = fabs(dx[i]) > 1e-10;
+            }
+        }
+        """ % {'shape0': mask.size, 'accuracy': accuracy}  # TODO actually use accuracy
+        np.user_kernel.execute(kernel, [mask_input, drtsafe_val_input, x_high_input, df_input, f_input, x_low_input, dx_input, dx_old_input])
+
+        # Copy results back out
+        mask[...] = mask_input[...]
+        drtsafe_val[...] = drtsafe_val_input[...]
+        dx[...] = dx_input[...]
+        dx_old[...] = dx_old_input[...]
+
+    else:
+        tmp_mask = ((drtsafe_val[mask] - x_high[mask]) * df[mask] - f[mask]) * (
+                    (drtsafe_val[mask] - x_low[mask]) * df[mask] - f[mask]) >= 0
+        tmp_mask = np.logical_or(tmp_mask, (np.abs(2.0 * f[mask]) > np.abs(dx_old[mask] * df[mask])))
+
+        dx_old[:] = dx.copy()
+        dx[mask] = np.where(tmp_mask, 0.5 * (x_high[mask] - x_low[mask]), f[mask] / df[mask])
+        drtsafe_val[mask] = np.where(tmp_mask, x_low[mask] + dx[mask], drtsafe_val[mask] - dx[mask])
+
+        mask[mask] = np.abs(dx[mask]) > accuracy
+
+
+@veros_method
+def drtsafe(vs, mask, function, guess_low, guess_high, args=None, accuracy=1e-10, max_iterations=100):
+    """
+    Masked version of drtsafe
+    the function given should return a function value and derivative.
+    It will be given the updated mask as first argument and guess as second.
+    Any further arguments will be what is stored in args.
+    The initial guess will be the mean value of guess_low and guess_high
+    """
+
+    f_low, _ = function(vs, mask, guess_low, *args)
+    f_high, _ = function(vs, mask, guess_high, *args)
 
     # Switch variables depending on value of f_low
     x_low, x_high, f_low, f_high = np.where(f_low < 0,
             (guess_low, guess_high, f_low, f_high),
             (guess_high, guess_low, f_high, f_low))
 
-
     drtsafe_val = 0.5 * (guess_low + guess_high)
-    #drtsafe_val = vs.hSWS[:, :]
     dx = np.abs(guess_high - guess_low)
     dx_old = dx.copy()
-    f, df = ta_iter_SWS(drtsafe_val, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb)
+    f, df = function(vs, mask, drtsafe_val, *args)
 
-    mask = np.empty_like(drtsafe_val, dtype=np.bool)
-    mask[...] = vs.maskT[:, :, -1]
 
     for _ in range(max_iterations):
-        # print(_, mask.sum())
-        # mask[...] = True
-        tmp_mask = ((drtsafe_val[mask] - x_high[mask]) * df[mask] - f[mask]) * ((drtsafe_val[mask] - x_low[mask]) * df[mask] - f[mask]) >= 0
-        tmp_mask = np.logical_or(tmp_mask, (np.abs(2.0 * f[mask]) > np.abs(dx_old[mask] * df[mask])))
 
-        dx_old = dx.copy()
-        dx[mask] = np.where(tmp_mask, 0.5 * (x_high[mask] - x_low[mask]), f[mask]/df[mask])
-        drtsafe_val[mask] = np.where(tmp_mask, x_low[mask] + dx[mask], drtsafe_val[mask] - dx[mask])
-
-        mask[mask] = np.abs(dx[mask]) > accuracy
+        masked_thing(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accuracy)
 
         if not mask.any():
+            print("Completed in %d iterations" % _)
             break
 
-        f[mask], df[mask] = ta_iter_SWS(drtsafe_val[mask], k1[mask], k2[mask], k1p[mask], k2p[mask], k3p[mask], st[mask], ks[mask], kf[mask], ft[mask], dic[mask], ta[mask], sit, ksi[mask], pt, bt[mask], kw[mask], kb[mask])
+        f, df = function(vs, mask, drtsafe_val, *args)
 
-        x_low[mask], x_high[mask], f_low[mask], f_high[mask] = np.where(f[mask] < 0,
-                (drtsafe_val[mask], x_high[mask], f[mask], f_high[mask]),
-                (x_low[mask], drtsafe_val[mask], f_low[mask], f[mask]))
+        swap_values_bohrium(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_val)
 
     return drtsafe_val
+
