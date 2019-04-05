@@ -399,13 +399,13 @@ def drtsafe_boundary_update(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsa
 
     if vs.backend_name == "bohrium":
         mask_input = np.user_kernel.make_behaving(mask, dtype=np.bool)
-        x_low_input = np.user_kernel.make_behaving(x_low, dtype=np.float64)
-        x_high_input = np.user_kernel.make_behaving(x_high, dtype=np.float64)
-        df_input = np.user_kernel.make_behaving(df, dtype=np.float64)
-        f_input = np.user_kernel.make_behaving(f, dtype=np.float64)
-        f_low_input = np.user_kernel.make_behaving(f_low, dtype=np.float64)
-        f_high_input = np.user_kernel.make_behaving(f_high, dtype=np.float64)
-        drtsafe_val_input = np.user_kernel.make_behaving(drtsafe_val, dtype=np.float64)
+        x_low_input = np.user_kernel.make_behaving(x_low, dtype=vs.default_float_type)
+        x_high_input = np.user_kernel.make_behaving(x_high, dtype=vs.default_float_type)
+        df_input = np.user_kernel.make_behaving(df, dtype=vs.default_float_type)
+        f_input = np.user_kernel.make_behaving(f, dtype=vs.default_float_type)
+        f_low_input = np.user_kernel.make_behaving(f_low, dtype=vs.default_float_type)
+        f_high_input = np.user_kernel.make_behaving(f_high, dtype=vs.default_float_type)
+        drtsafe_val_input = np.user_kernel.make_behaving(drtsafe_val, dtype=vs.default_float_type)
 
         kernel = """
         #include <stdint.h>
