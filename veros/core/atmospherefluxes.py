@@ -15,15 +15,14 @@ def carbon_flux(vs):
     ta_in = vs.alkalinity[:, :, -1, vs.tau] * 1e-3 # [mmol -> mol] TODO rename variable
     co2_in = vs.atmospheric_co2 # [ppmv] TODO rename variable
 
-    ao = 1  # 1 - ice fraction coverage
-    # icemask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
-    #         vs.forc_temp_surface < 0.0)
-    # ao = np.logical_not(icemask)
+    # ao = 1  # 1 - ice fraction coverage
+    icemask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
+            vs.forc_temp_surface < 0.0)
+    ao = np.logical_not(icemask)
 
 
     atmospheric_pressure = 1  # atm  NOTE: We don't have an atmosphere yet, hence constant pressure
 
-    # sbc(i, j, isw) = surface wind speed direction is specified by angle
     # TODO get actual wind speed rather than deriving from wind stress
     wind_speed = np.sqrt(np.abs(vs.surface_taux) + np.abs(vs.surface_tauy)) * 500 # mult for scale?
     vs.wind_speed = wind_speed
@@ -36,13 +35,11 @@ def carbon_flux(vs):
     xconv = 0.337 / 3.6e5
     xconv *= 0.75  # NOTE: This seems like an approximation I don't where they got it
 
-    # co2star, dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
     vs.dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
 
     # Schmidt number for CO2
-    # t_in wasn't actually used but sst was, however they are the same...
-    scco2 = 2073.1 - 125.62 * t_in + 3.6276 * t_in ** 2 - 0.043219 * t_in ** 3
     # Wanninkhof, 1992, table A
+    scco2 = 2073.1 - 125.62 * t_in + 3.6276 * t_in ** 2 - 0.043219 * t_in ** 3
 
     piston_vel = ao * xconv * (wind_speed) ** 2 * ((scco2/660.0)**(-0.5))
     # NOTE: According to https://www.soest.hawaii.edu/oceanography/courses/OCN623/Spring%202015/Gas_Exchange_2015_one-lecture1.pdf there are 3 regimes we are looking at the wavy surface
@@ -76,11 +73,9 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # Hardwire constants
     ph_high = 6.0
     ph_low = 10.0
-    # sit_in = 7.6875e-3  # mol / m^3 TODO: What is this?
-    # pt_in = 0.5125e-3  # mol / m^3  TODO: What is this?
 
-    sit_in = np.ones_like(temperature) * 7.6875e-3
-    pt_in = np.ones_like(temperature) * 0.5125e-3
+    sit_in = np.ones_like(temperature) * 7.6875e-3 # mol / m^3 TODO: What is this?
+    pt_in = np.ones_like(temperature) * 0.5125e-3 # mol / m^3 TODO: What is this?
 
     temperature_in_kelvin = temperature + 273.15
 
@@ -99,7 +94,7 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     co2 = co2_in * permeg
 
     scl = salinity / 1.80655
-    _is = 19.924 * salinity / (1000.0 - 1.005 * salinity)  # TODO What is this supposed to be?
+    _is = 19.924 * salinity / (1000.0 - 1.005 * salinity)  # ionic _strength
 
     # Concentrations for borate, sulfate, and flouride
     bt = 0.000232 * scl / 10.811 # Uppstrom (1974)
@@ -229,8 +224,7 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
 
     ph = np.log10(vs.hSWS) # negativ ph
-    # x1 = 10.0 ** (-ph_high)
-    # x2 = 10.0 ** (-ph_low)
+
     x1 = 10.0 ** (ph + 0.5)
     x2 = 10.0 ** (ph - 0.5)
     xacc = 1e-10
@@ -241,8 +235,8 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     iter_mask = np.empty_like(in1, dtype=np.bool)
     iter_mask[...] = vs.maskT[:, :, -1]
 
+    # Find hSWS by root finding algorithm
     vs.hSWS = drtsafe(vs, iter_mask, ta_iter_SWS, in1, in2, args=(k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb), accuracy=xacc)
-
 
     # Calculate [CO2*] as defined in DOE Methods Handbook 1993 Ver. 2,
     # ORNL/CDIC-74, Dickson and Goyet, eds. (Ch 2 p 1+, Eq A.49)
@@ -252,7 +246,6 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
     pCO2 = co2star / (k0 * FugFac)
     dpCO2 = pCO2 - co2 * atmospheric_pressure
-
 
     # Convert units back
     vs.co2star[:, :] = co2star / permil
@@ -266,6 +259,9 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
 @veros_method
 def ta_iter_SWS_numpy(vs, x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb):
+    """
+    Sum of free protons calculated from saturation constants
+    """
     x2 = x * x
     x3 = x2 * x
     k12 = k1 * k2
@@ -298,6 +294,11 @@ def ta_iter_SWS_numpy(vs, x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit
 
 @veros_method
 def ta_iter_SWS_bohrium(*args):
+    """
+    Sum of free proton calculated from saturation constants
+    For bohrium, making use of a mask to limit the number of calculations
+    """
+
 
     vs = args[0]
     arg_behaving = [np.user_kernel.make_behaving(args[1], dtype=np.int32)]
@@ -376,19 +377,27 @@ def ta_iter_SWS_bohrium(*args):
 
 @veros_method
 def ta_iter_SWS(*args):
+    """
+    Function to be optimized for free protons, calls Bohrium version
+    if required
+    """
     vs = args[0]
     mask = args[1]
 
-    if vs.backend_name == "bohrium" and 0:
+    if vs.backend_name == "bohrium":
         return ta_iter_SWS_bohrium(vs, mask, *args[2:])
     else:
         return ta_iter_SWS_numpy(vs, *args[2:])
 
 
 @veros_method
-def swap_values_bohrium(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_val):
+def drtsafe_boundary_update(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_val):
+    """
+    For drtsafe: Moves the search boundary based on current result.
+    Masked to avoid syncs to numpy
+    """
 
-    if vs.backend_name == "bohrium" and 0:
+    if vs.backend_name == "bohrium":
         mask_input = np.user_kernel.make_behaving(mask, dtype=np.bool)
         x_low_input = np.user_kernel.make_behaving(x_low, dtype=np.float64)
         x_high_input = np.user_kernel.make_behaving(x_high, dtype=np.float64)
@@ -420,7 +429,7 @@ def swap_values_bohrium(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_v
         """ % {'shape0': mask.shape[0] * mask.shape[1]}
         np.user_kernel.execute(kernel, [mask_input, x_low_input, x_high_input, df_input, f_input, f_low_input, f_high_input, drtsafe_val_input])
 
-        # copy result back into variables - why is this needed?
+        # copy result back into variables
         x_low[...] = x_low_input[...]
         f_low[...] = f_low_input[...]
         x_high[...] = x_high_input[...]
@@ -433,9 +442,14 @@ def swap_values_bohrium(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_v
 
 
 @veros_method
-def masked_thing(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accuracy):
+def drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accuracy):
+    """
+    Update step size: If step size would take us out of bounds,
+    set step size to half the interval length, else f/df
+    and update step accordingly
+    """
 
-    if vs.backend_name == "bohrium" and 0:
+    if vs.backend_name == "bohrium":
         mask_input = np.user_kernel.make_behaving(mask, dtype=np.int32)
         drtsafe_val_input = np.user_kernel.make_behaving(drtsafe_val, dtype=vs.default_float_type)
         x_high_input = np.user_kernel.make_behaving(x_high, dtype=vs.default_float_type)
@@ -503,31 +517,36 @@ def drtsafe(vs, mask, function, guess_low, guess_high, args=None, accuracy=1e-10
     The initial guess will be the mean value of guess_low and guess_high
     """
 
+    # Initial guess and step size
+    drtsafe_val = 0.5 * (guess_low + guess_high)
+    dx = np.abs(guess_high - guess_low)
+    dx_old = dx.copy()
+
+    # Function value at boundaries and guess
     f_low, _ = function(vs, mask, guess_low, *args)
     f_high, _ = function(vs, mask, guess_high, *args)
+    f, df = function(vs, mask, drtsafe_val, *args)
 
-    # Switch variables depending on value of f_low
+    # Ensure low values have negative function value
+    # and high has positive
     x_low, x_high, f_low, f_high = np.where(f_low < 0,
             (guess_low, guess_high, f_low, f_high),
             (guess_high, guess_low, f_high, f_low))
 
-    drtsafe_val = 0.5 * (guess_low + guess_high)
-    dx = np.abs(guess_high - guess_low)
-    dx_old = dx.copy()
-    f, df = function(vs, mask, drtsafe_val, *args)
-
 
     for _ in range(max_iterations):
 
-        masked_thing(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accuracy)
+        # update step size, step and mask
+        drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accuracy)
 
-        if not mask.any():
-            print("Completed in %d iterations" % _)
+        if not mask.any():  # complete
             break
 
+        # Update function for next step
         f, df = function(vs, mask, drtsafe_val, *args)
 
-        swap_values_bohrium(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_val)
+        # Update search boundaries
+        drtsafe_boundary_update(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_val)
 
     return drtsafe_val
 
