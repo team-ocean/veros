@@ -329,7 +329,8 @@ def register_npzd_data(vs, name, value, transport=True, vmin=None, vmax=None):
 
     vs.npzd_tracers[name] = value
 
-    vs.npzd_transported_tracers.append(name)
+    if transport:
+        vs.npzd_transported_tracers.append(name)
 
 
 @veros_method
