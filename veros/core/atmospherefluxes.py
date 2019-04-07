@@ -200,8 +200,6 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
        + 0.053105 * np.sqrt(salinity) * temperature_in_kelvin \
        + np.log((1 + (st / ks) + (ft / kf)) / (1 + (st / ks))))
 
-
-
     # From UVic ESCM comments
     # Calculate [H+] SWS when DIC and TA are known at T, S and 1 atm.
     # The solution converges to err of xacc. The solution must be within
@@ -221,7 +219,6 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # setting of xacc will result in co2star accurate to 3 significant figures
     # (xx.y). Making xacc bigger will result in faster convergence also, but this
     # is not recommended (xacc of 10**-9 drops precision to 2 significant figures).
-
 
     ph = np.log10(vs.hSWS) # negativ ph
 
@@ -275,7 +272,6 @@ def ta_iter_SWS_numpy(vs, x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit
     b2 = b * b
     db = 2.0 * x + k1
 
-
     # fn = hco3+co3+borate+oh+hpo4+2*po4+silicate-hfree-hso4-hf-h3po4-ta
     fn = k1 * x * dic / b + 2.0 * dic * k12 / b + \
          bt / (1.0 + x / kb) + kw / x + pt * k12p * x / a + \
@@ -292,6 +288,7 @@ def ta_iter_SWS_numpy(vs, x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit
 
     return fn, df
 
+
 @veros_method
 def ta_iter_SWS_bohrium(*args):
     """
@@ -299,8 +296,6 @@ def ta_iter_SWS_bohrium(*args):
     For bohrium, making use of a mask to limit the number of calculations
     """
 
-
-    vs = args[0]
     arg_behaving = [np.user_kernel.make_behaving(args[1], dtype=np.int32)]
 
     for i, arg in enumerate(args[2:]):
@@ -370,7 +365,7 @@ def ta_iter_SWS_bohrium(*args):
 
     """ % {"shape": x.size}
 
-    np.user_kernel.execute(kernel, arg_behaving + [fn , df])
+    np.user_kernel.execute(kernel, arg_behaving + [fn, df])
 
     return fn, df
 
@@ -486,7 +481,7 @@ def drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accura
                 mask[i] = fabs(dx[i]) > %(accuracy)E;
             }
         }
-        """ % {'shape0': mask.size, 'accuracy': accuracy}  # TODO actually use accuracy
+        """ % {'shape0': mask.size, 'accuracy': accuracy}
         np.user_kernel.execute(kernel, [mask_input, drtsafe_val_input, x_high_input, df_input, f_input, x_low_input, dx_input, dx_old_input])
 
         # Copy results back out
@@ -532,7 +527,6 @@ def drtsafe(vs, mask, function, guess_low, guess_high, args=None, accuracy=1e-10
     x_low, x_high, f_low, f_high = np.where(f_low < 0,
             (guess_low, guess_high, f_low, f_high),
             (guess_high, guess_low, f_high, f_low))
-
 
     for _ in range(max_iterations):
 
