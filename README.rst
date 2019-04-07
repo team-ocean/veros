@@ -60,13 +60,9 @@ Installation
 Dependencies
 ~~~~~~~~~~~~
 
-Currently, the only officially supported Python version for Veros is
-Python 2.7 (64-bit), which should be the standard Python interpreter on
-most systems.
-
 Veros only has two external library dependencies, namely ``HDF5`` and
 ``netCDF``. The installation procedure of those libraries varies between
-platforms. Probably the easiest way to install Veros and its
+platforms. The easiest way to install Veros and its
 dependencies (including Bohrium) is `Anaconda
 Python <https://www.continuum.io/downloads>`__ that ships with a package
 manager (``conda``).
@@ -116,8 +112,7 @@ and model domain you want to use. This is done by subclassing the
 should have a look at the pre-implemented model setups in the
 repository's ``setup`` folder, or use the ``veros copy-setup`` command
 to copy one into your current folder. A good place to start is the
-```ACC``
-model <https://github.com/dionhaefner/veros/blob/master/setup/acc/acc.py>`__.
+`ACC model <https://github.com/dionhaefner/veros/blob/master/setup/acc/acc.py>`__.
 
 After setting up your model, all you need to do is call the ``setup``
 and ``run`` methods on your setup class. The pre-implemented setups can

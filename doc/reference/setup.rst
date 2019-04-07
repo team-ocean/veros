@@ -14,7 +14,10 @@ Idealized configurations
 |                                           |                                           |
 | |acc|                                     | |eady|                                    |
 +-------------------------------------------+-------------------------------------------+
-
+| :doc:`/reference/setups/acc_sector`       |                                           |
+|                                           |                                           |
+| |acc_sector|                              |                                           |
++-------------------------------------------+-------------------------------------------+
 
 .. |acc| image:: /_images/gallery/acc.png
   :width: 100%
@@ -28,12 +31,19 @@ Idealized configurations
   :target: setups/eady.html
   :alt: Baroclinic instabilities (in temperature)
 
+.. |acc_sector| image:: /_images/gallery/acc_sector.png
+  :width: 100%
+  :scale: 90%
+  :align: middle 
+  :target: setups/acc_sector.html
+  :alt: Steady-state stream function
+
 .. toctree::
    :hidden:
 
    setups/acc
    setups/eady
-
+   setups/acc_sector
 
 Realistic configurations
 ------------------------

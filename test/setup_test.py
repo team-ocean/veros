@@ -7,6 +7,15 @@ def test_setup_acc(backend):
     sim.run()
 
 
+def test_setup_acc_sector(backend):
+    from veros.setup.acc_sector import ACCSector
+    sim = ACCSector(backend=backend)
+    sim.diskless_mode = True
+    sim.setup()
+    sim.runlen = sim.dt_tracer * 20
+    sim.run()
+
+
 def test_setup_eady(backend):
     from veros.setup.eady import Eady
     sim = Eady(backend=backend)

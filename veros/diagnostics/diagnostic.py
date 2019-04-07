@@ -103,8 +103,9 @@ class VerosDiagnostic(object):
         logging.info(" reading restart data for diagnostic {} from {}"
                      .format(self.name, restart_filename))
         with h5tools.threaded_io(vs, restart_filename, "r") as infile:
-            variables = {key: np.array(var[...])
-                         for key, var in infile[self.name].items()}
+            # cast dtype to str to prevent custom types from leaking
+            to_arr = lambda v: np.array(v, dtype=str(v.dtype))
+            variables = {key: to_arr(var) for key, var in infile[self.name].items()}
             attributes = {key: var for key, var in infile[self.name].attrs.items()}
         return attributes, variables
 
