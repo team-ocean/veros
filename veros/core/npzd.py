@@ -325,7 +325,7 @@ def register_npzd_data(vs, name, value, transport=True, vmin=None, vmax=None):
     """
 
     if name in vs.npzd_tracers:
-        print(name, "has already been added to the NPZD data set, value has been updated")
+        raise ValueError(name, "has already been added to the NPZD data set")
 
     vs.npzd_tracers[name] = value
 
@@ -334,7 +334,7 @@ def register_npzd_data(vs, name, value, transport=True, vmin=None, vmax=None):
 
 
 @veros_method
-def get_boundary(vs, boundary_string):
+def _get_boundary(vs, boundary_string):
     """
     Return slice representing boundary
 
@@ -348,31 +348,75 @@ def get_boundary(vs, boundary_string):
 
     if boundary_string == "BOTTOM":
         return vs.bottom_mask
- 
+
     return tuple([slice(None, None, None)] * 3)
 
 
 @veros_method
-def register_npzd_rule(vs, function, source, destination, label="?", boundary=None):
+def register_npzd_rule(vs, name, rule, label=None, boundary=None, group="PRIMARY"):
+# def register_npzd_rule(vs, name, function, source, destination, label="?", boundary=None):
     """ Add rule to the npzd dynamics e.g. phytoplankkton being eaten by zooplankton
 
         ...
-        function: function to be called
-        source: what is being consumed
-        destination: what is growing from consuming
+        name: Unique identifier for the rule
+        rule: a list of rule names or tuple containing:
+            function: function to be called
+            source: what is being consumed
+            destination: what is growing from consuming
         label: A description for graph
+        boundary: "SURFACE", "BOTTOM" or None
         ...
     """
-    vs.npzd_rules.append((function, source, destination, label, get_boundary(vs, boundary)))
+    # vs.npzd_rules.append((function, source, destination, label, get_boundary(vs, boundary)))
+    if name in vs.npzd_available_rules:
+        raise ValueError("Rule %s already exists, please verify the rule has not already been added and replace the chosen name" % name)
+
+    if type(rule) is list:
+        if label or boundary:
+            raise ValueError("Cannot add labels or boundaries to rule groups")
+        vs.npzd_available_rules[name] = rule
+
+    else:
+        label = label or "?"
+        vs.npzd_available_rules[name] = (*rule, label, _get_boundary(vs, boundary), group)
+
 
 @veros_method
-def register_npzd_post_rule(vs, function, source, destination, label="?", boundary=None):
-    vs.npzd_post_rules.append((function, source, destination, label, get_boundary(vs,boundary)))
+def select_npzd_rule(vs, name):
+    """ Select rule for the NPZD model """
+
+    rule = vs.npzd_available_rules[name]
+    if name in vs.npzd_selected_rule_names:
+        raise ValueError("Rules must have unique names, %s defined multiple times" % name)
+
+    vs.npzd_selected_rule_names.append(name)
+
+    if type(rule) is list:
+        for r in rule:
+            select_npzd_rule(vs, r)
+
+    elif type(rule) is tuple:
+
+        group = rule[-1]
+
+        if group == "PRIMARY":
+            vs.npzd_rules.append(rule)
+        elif group == "PRE":
+            vs.npzd_pre_rules.append(rule)
+        elif group == "POST":
+            vs.npzd_post_rules.append(rule)
+
+    else:
+        raise TypeError("Rule must be of type tuple or list")
+
+# @veros_method
+# def register_npzd_post_rule(vs, function, source, destination, label="?", boundary=None):
+#     vs.npzd_post_rules.append((function, source, destination, label, get_boundary(vs,boundary)))
 
 
-@veros_method
-def register_npzd_pre_rule(vs, function, source, destination, label="?", boundary=None):
-    vs.npzd_pre_rules.append((function, source, destination, label, get_boundary(vs,boundary)))
+# @veros_method
+# def register_npzd_pre_rule(vs, function, source, destination, label="?", boundary=None):
+#     vs.npzd_pre_rules.append((function, source, destination, label, get_boundary(vs,boundary)))
 
 
 
@@ -412,20 +456,60 @@ def setup_basic_npzd_rules(vs):
 
     # Describe interactions between elements in model
     # function describing interaction, from, to, description for graph
-    register_npzd_rule(vs, grazing, "phytoplankton", "zooplankton", label="Grazing")
-    register_npzd_rule(vs, mortality, "phytoplankton", "detritus", label="Mortality")
-    register_npzd_rule(vs, sloppy_feeding, "phytoplankton", "detritus", label="Sloppy feeding")
-    register_npzd_rule(vs, recycling_to_po4, "phytoplankton", "po4", label="Fast recycling")
-    register_npzd_rule(vs, zooplankton_self_grazing, "zooplankton", "zooplankton", label="Grazing")
-    register_npzd_rule(vs, excretion, "zooplankton", "po4", label="Excretion")
-    register_npzd_rule(vs, mortality, "zooplankton", "detritus", label="Mortality")
-    register_npzd_rule(vs, sloppy_feeding, "zooplankton", "detritus", label="Sloppy feeding")
-    register_npzd_rule(vs, sloppy_feeding, "detritus", "detritus", label="Sloppy feeding")
-    register_npzd_rule(vs, grazing, "detritus", "zooplankton", label="Grazing")
-    register_npzd_rule(vs, recycling_to_po4, "detritus", "po4", label="Remineralization")
+    # register_npzd_rule(vs, grazing, "phytoplankton", "zooplankton", label="Grazing")
+    # register_npzd_rule(vs, mortality, "phytoplankton", "detritus", label="Mortality")
+    # register_npzd_rule(vs, sloppy_feeding, "phytoplankton", "detritus", label="Sloppy feeding")
+    # register_npzd_rule(vs, recycling_to_po4, "phytoplankton", "po4", label="Fast recycling")
+    # register_npzd_rule(vs, zooplankton_self_grazing, "zooplankton", "zooplankton", label="Grazing")
+    # register_npzd_rule(vs, excretion, "zooplankton", "po4", label="Excretion")
+    # register_npzd_rule(vs, mortality, "zooplankton", "detritus", label="Mortality")
+    # register_npzd_rule(vs, sloppy_feeding, "zooplankton", "detritus", label="Sloppy feeding")
+    # register_npzd_rule(vs, sloppy_feeding, "detritus", "detritus", label="Sloppy feeding")
+    # register_npzd_rule(vs, grazing, "detritus", "zooplankton", label="Grazing")
+    # register_npzd_rule(vs, recycling_to_po4, "detritus", "po4", label="Remineralization")
 
-    if not vs.enable_nitrogen:
-        register_npzd_rule(vs, primary_production, "po4", "phytoplankton", label="Primary production")
+    # if not vs.enable_nitrogen:
+    #     register_npzd_rule(vs, primary_production, "po4", "phytoplankton", label="Primary production")
+    register_npzd_rule(vs, "npzd_basic_phytoplankton_grazing",
+            (grazing, "phytoplankton", "zooplankton"), label="Grazing")
+    register_npzd_rule(vs, "npzd_basic_phytoplankton_mortality",
+            (mortality, "phytoplankton", "detritus"), label="Mortality")
+    register_npzd_rule(vs, "npzd_basic_phytoplankton_sloppy_feeding",
+            (sloppy_feeding, "phytoplankton", "detritus"), label="Sloppy feeding")
+    register_npzd_rule(vs, "npzd_basic_phytoplankton_fast_recycling",
+            (recycling_to_po4, "phytoplankton", "po4"), label="Fast recycling")
+    register_npzd_rule(vs, "npzd_basic_zooplankton_grazing",
+            (zooplankton_self_grazing, "zooplankton", "zooplankton"), label="Grazing")
+    register_npzd_rule(vs, "npzd_basic_zooplankton_excretion",
+            (excretion, "zooplankton", "po4"), label="Excretion")
+    register_npzd_rule(vs, "npzd_basic_zooplankton_mortality",
+            (mortality, "zooplankton", "detritus"), label="Mortality")
+    register_npzd_rule(vs, "npzd_basic_zooplankton_sloppy_feeding",
+            (sloppy_feeding, "zooplankton", "detritus"), label="Sloppy feeding")
+    register_npzd_rule(vs, "npzd_basic_detritus_sloppy_feeding",
+            (sloppy_feeding, "detritus", "detritus"), label="Sloppy feeding")
+    register_npzd_rule(vs, "npzd_basic_detritus_grazing",
+            (grazing, "detritus", "zooplankton"), label="Grazing")
+    register_npzd_rule(vs, "npzd_basic_detritus_remineralization",
+            (recycling_to_po4, "detritus", "po4"), label="Remineralization")
+    register_npzd_rule(vs, "npzd_basic_phytoplankton_primary_production",
+            (primary_production, "po4", "phytoplankton"), label="Primary production")
+
+    register_npzd_rule(vs, "group_npzd_basic", [
+        "npzd_basic_phytoplankton_grazing",
+        "npzd_basic_phytoplankton_mortality",
+        "npzd_basic_phytoplankton_sloppy_feeding",
+        "npzd_basic_phytoplankton_fast_recycling",
+        "npzd_basic_phytoplankton_primary_production",
+        "npzd_basic_zooplankton_grazing",
+        "npzd_basic_zooplankton_excretion",
+        "npzd_basic_zooplankton_mortality",
+        "npzd_basic_zooplankton_sloppy_feeding",
+        "npzd_basic_detritus_sloppy_feeding",
+        "npzd_basic_detritus_remineralization",
+        "npzd_basic_detritus_grazing",
+        ])
+
 
 
 @veros_method
@@ -438,6 +522,10 @@ def setup_carbon_npzd_rules(vs):
         primary_production_from_DIC, excretion_dic, recycling_phyto_to_dic, \
         primary_production_from_alk, recycling_to_alk, recycling_phyto_to_alk, excretion_alk, \
         dic_alk_scale
+
+
+    from .npzd_rules import calcite_production_phyto, calcite_production_phyto_alk, \
+            post_redistribute_calcite, pre_reset_calcite
 
     zw = vs.zw - vs.dzt  # bottom of grid box using dzt because dzw is weird
     vs.rcak[:, :, :-1] = (- np.exp(zw[:-1] / vs.dcaco3) + np.exp(zw[1:] / vs.dcaco3)) / vs.dzt[:-1]
@@ -454,31 +542,69 @@ def setup_carbon_npzd_rules(vs):
     register_npzd_data(vs, "DIC", vs.dic)
     register_npzd_data(vs, "alkalinity", vs.alkalinity)
 
-    # Exchange of CO2 with the atmosphere
-    register_npzd_pre_rule(vs, co2_surface_flux, "co2", "DIC", boundary="SURFACE")
-
-    # Common rule set for nutrient
-    register_npzd_rule(vs, recycling_to_dic, "detritus", "DIC", label="Remineralization")
-    register_npzd_rule(vs, primary_production_from_DIC, "DIC", "phytoplankton", label="Primary production")
-    register_npzd_rule(vs, recycling_phyto_to_dic, "phytoplankton", "DIC", label="Fast recycling")
-    register_npzd_rule(vs, excretion_dic, "zooplankton", "DIC", label="Excretion")
-
-    register_npzd_post_rule(vs, dic_alk_scale, "DIC", "alkalinity")
-    # These rules will be different if we track coccolithophores
     if not vs.enable_calcifiers:
-        from .npzd_rules import calcite_production_phyto, calcite_production_phyto_alk, \
-                post_redistribute_calcite, pre_reset_calcite
-
         # Only for collection purposes - to be redistributed in post rules
         register_npzd_data(vs, "caco3", np.zeros_like(vs.dic), transport=False)
 
-        # Collect calcite produced by phytoplankton and zooplankton and redistribute it
-        register_npzd_rule(vs, calcite_production_phyto, "DIC", "caco3", label="Production of calcite")
-        register_npzd_rule(vs, calcite_production_phyto_alk, "alkalinity", "caco3", label="Production of calcite")
-        register_npzd_post_rule(vs, post_redistribute_calcite, "caco3", "alkalinity", label="dissolution")
-        register_npzd_post_rule(vs, post_redistribute_calcite, "caco3", "DIC", label="dissolution")
-        register_npzd_pre_rule(vs, pre_reset_calcite, "caco3", "caco3", "reset")
+    # Exchange of CO2 with the atmosphere
+    # register_npzd_pre_rule(vs, co2_surface_flux, "co2", "DIC", boundary="SURFACE")
 
+    # # Common rule set for nutrient
+    # register_npzd_rule(vs, recycling_to_dic, "detritus", "DIC", label="Remineralization")
+    # register_npzd_rule(vs, primary_production_from_DIC, "DIC", "phytoplankton", label="Primary production")
+    # register_npzd_rule(vs, recycling_phyto_to_dic, "phytoplankton", "DIC", label="Fast recycling")
+    # register_npzd_rule(vs, excretion_dic, "zooplankton", "DIC", label="Excretion")
+
+    # register_npzd_post_rule(vs, dic_alk_scale, "DIC", "alkalinity")
+    # # These rules will be different if we track coccolithophores
+    # if not vs.enable_calcifiers:
+    #     from .npzd_rules import calcite_production_phyto, calcite_production_phyto_alk, \
+    #             post_redistribute_calcite, pre_reset_calcite
+
+    #     # Only for collection purposes - to be redistributed in post rules
+    #     register_npzd_data(vs, "caco3", np.zeros_like(vs.dic), transport=False)
+
+    #     # Collect calcite produced by phytoplankton and zooplankton and redistribute it
+    #     register_npzd_rule(vs, calcite_production_phyto, "DIC", "caco3", label="Production of calcite")
+    #     register_npzd_rule(vs, calcite_production_phyto_alk, "alkalinity", "caco3", label="Production of calcite")
+
+
+
+    #     register_npzd_post_rule(vs, post_redistribute_calcite, "caco3", "alkalinity", label="dissolution")
+    #     register_npzd_post_rule(vs, post_redistribute_calcite, "caco3", "DIC", label="dissolution")
+    #     register_npzd_pre_rule(vs, pre_reset_calcite, "caco3", "caco3", "reset")
+
+
+
+    register_npzd_rule(vs, "npzd_carbon_flux", (co2_surface_flux, "co2", "DIC"), boundary="SURFACE", group="PRE")
+
+    # Common rule set for nutrient
+    register_npzd_rule(vs, "npzd_carbon_recycling_detritus_dic", (recycling_to_dic, "detritus", "DIC"), label="Remineralization")
+    register_npzd_rule(vs, "npzd_carbon_primary_production_dic", (primary_production_from_DIC, "DIC", "phytoplankton"), label="Primary production")
+    register_npzd_rule(vs, "npzd_carbon_recycling_phyto_dic", (recycling_phyto_to_dic, "phytoplankton", "DIC"), label="Fast recycling")
+    register_npzd_rule(vs, "npzd_carbon_excretion_dic", (excretion_dic, "zooplankton", "DIC"), label="Excretion")
+    register_npzd_rule(vs, "npzd_carbon_dic_alk", (dic_alk_scale, "DIC", "alkalinity"), group="POST")
+    register_npzd_rule(vs, "npzd_carbon_calcite_production_dic", (calcite_production_phyto, "DIC", "caco3"), label="Production of calcite")
+
+
+    register_npzd_rule(vs, "npzd_carbon_calcite_production_alk", (calcite_production_phyto_alk, "alkalinity", "caco3"), label="Production of calcite")
+    register_npzd_rule(vs, "npzd_carbon_post_distribute_calcite_alk", (post_redistribute_calcite, "caco3", "alkalinity"), label="dissolution", group="POST")
+    register_npzd_rule(vs, "npzd_carbon_post_distribute_calcite_dic", (post_redistribute_calcite, "caco3", "DIC"), label="dissolution", group="POST")
+    register_npzd_rule(vs, "pre_reset_calcite", (pre_reset_calcite, "caco3", "caco3"), label="reset", group="PRE")
+
+    register_npzd_rule(vs, "group_carbon_implicit_caco3", [
+        "npzd_carbon_flux",
+        "npzd_carbon_recycling_detritus_dic",
+        "npzd_carbon_primary_production_dic",
+        "npzd_carbon_recycling_phyto_dic",
+        "npzd_carbon_excretion_dic",
+        "npzd_carbon_dic_alk",
+        "npzd_carbon_calcite_production_dic",
+        "npzd_carbon_calcite_production_alk",
+        "npzd_carbon_post_distribute_calcite_alk",
+        "npzd_carbon_post_distribute_calcite_dic",
+        "pre_reset_calcite",
+        ])
 
 @veros_method
 def setup_nitrogen_npzd_rules(vs):
@@ -512,22 +638,22 @@ def setup_nitrogen_npzd_rules(vs):
     vs.limiting_functions["phytoplankton"] = list(filter(lambda lim: lim != phosphate_limitation_phytoplankton, vs.limiting_functions["phytoplankton"]))
     vs.limiting_functions["phytoplankton"] += [maximized_dop_po4_limitation_phytoplankton]
 
-    register_npzd_rule(vs, grazing, "diazotroph", "zooplankton", label="Grazing")
-    register_npzd_rule(vs, recycling_to_po4, "diazotroph", "po4", label="Fast recycling")
-    register_npzd_rule(vs, recycling_to_no3, "diazotroph", "no3", label="Fast recycling")
-    register_npzd_rule(vs, empty_rule, "diazotroph", "DON", label="Fast recycling")
-    register_npzd_rule(vs, empty_rule, "diazotroph", "DOP", label="Fast recycling")
-    register_npzd_rule(vs, empty_rule, "po4", "diazotroph", label="Primary production")
-    register_npzd_rule(vs, empty_rule, "no3", "diazotroph", label="Primary production")
-    register_npzd_rule(vs, empty_rule, "DOP", "diazotroph", label="Primary production")
-    register_npzd_rule(vs, empty_rule, "DON", "diazotroph", label="Primary production")
-    register_npzd_rule(vs, mortality, "diazotroph", "detritus", label="Mortality")
-    register_npzd_rule(vs, recycling_to_no3, "detritus", "no3", label="Remineralization")
-    register_npzd_rule(vs, excretion, "zooplankton", "no3", label="Excretion")
-    register_npzd_rule(vs, empty_rule, "DOP", "po4", label="Remineralization??")
-    register_npzd_rule(vs, empty_rule, "DON", "no3", label="Remineralization??")
-    register_npzd_rule(vs, empty_rule, "DOP", "phytoplankton", label="Primary production")
-    register_npzd_rule(vs, empty_rule, "po4", "phytoplankton", label="Primary production")
+    # register_npzd_rule(vs, grazing, "diazotroph", "zooplankton", label="Grazing")
+    # register_npzd_rule(vs, recycling_to_po4, "diazotroph", "po4", label="Fast recycling")
+    # register_npzd_rule(vs, recycling_to_no3, "diazotroph", "no3", label="Fast recycling")
+    # register_npzd_rule(vs, empty_rule, "diazotroph", "DON", label="Fast recycling")
+    # register_npzd_rule(vs, empty_rule, "diazotroph", "DOP", label="Fast recycling")
+    # register_npzd_rule(vs, empty_rule, "po4", "diazotroph", label="Primary production")
+    # register_npzd_rule(vs, empty_rule, "no3", "diazotroph", label="Primary production")
+    # register_npzd_rule(vs, empty_rule, "DOP", "diazotroph", label="Primary production")
+    # register_npzd_rule(vs, empty_rule, "DON", "diazotroph", label="Primary production")
+    # register_npzd_rule(vs, mortality, "diazotroph", "detritus", label="Mortality")
+    # register_npzd_rule(vs, recycling_to_no3, "detritus", "no3", label="Remineralization")
+    # register_npzd_rule(vs, excretion, "zooplankton", "no3", label="Excretion")
+    # register_npzd_rule(vs, empty_rule, "DOP", "po4", label="Remineralization??")
+    # register_npzd_rule(vs, empty_rule, "DON", "no3", label="Remineralization??")
+    # register_npzd_rule(vs, empty_rule, "DOP", "phytoplankton", label="Primary production")
+    # register_npzd_rule(vs, empty_rule, "po4", "phytoplankton", label="Primary production")
 
 
 @veros_method
@@ -553,16 +679,16 @@ def setup_calcifying_npzd_rules(vs):
     vs.sinking_speeds["caco3"] = (vs.wc0 + vs.mw_c * np.where(-vs.zw < vs.mwz, -vs.zw, vs.mwz))\
         * vs.maskT
 
-    register_npzd_rule(vs, primary_production, "po4", "coccolitophore", label="Primary production")
-    register_npzd_rule(vs, recycling_to_po4, "coccolitophore", "po4", label="Fast recycling")
-    register_npzd_rule(vs, mortality, "coccolitophore", "detritus", label="Mortality")
-    register_npzd_rule(vs, recycling_phyto_to_dic, "coccolitophore", "DIC", label="Fast recycling")
-    register_npzd_rule(vs, primary_production_from_DIC, "DIC", "coccolitophore", label="Primary production")
-    register_npzd_rule(vs, grazing, "coccolitophore", "zooplankton", label="Grazing")
+    # register_npzd_rule(vs, primary_production, "po4", "coccolitophore", label="Primary production")
+    # register_npzd_rule(vs, recycling_to_po4, "coccolitophore", "po4", label="Fast recycling")
+    # register_npzd_rule(vs, mortality, "coccolitophore", "detritus", label="Mortality")
+    # register_npzd_rule(vs, recycling_phyto_to_dic, "coccolitophore", "DIC", label="Fast recycling")
+    # register_npzd_rule(vs, primary_production_from_DIC, "DIC", "coccolitophore", label="Primary production")
+    # register_npzd_rule(vs, grazing, "coccolitophore", "zooplankton", label="Grazing")
 
-    # TODO add calcifying rules.
-    register_npzd_rule(vs, empty_rule, "coccolitophore", "caco3", label="Production")
-    register_npzd_rule(vs, empty_rule, "zooplankton", "caco3", label="Production")
+    # # TODO add calcifying rules.
+    # register_npzd_rule(vs, empty_rule, "coccolitophore", "caco3", label="Production")
+    # register_npzd_rule(vs, empty_rule, "zooplankton", "caco3", label="Production")
 
 
 @veros_method
@@ -574,6 +700,8 @@ def setupNPZD(vs):
     vs.npzd_rules = []  # List of rules describing the interaction between tracers
     vs.npzd_pre_rules = []  # Rules to be executed before bio loop
     vs.npzd_post_rules = []  # Rules to be executed after bio loop
+    vs.npzd_available_rules = {}  # Every rule created is stored here
+    vs.npzd_selected_rule_names = []  # name of selected rules
 
     # Which tracers should be transported
     # In some cases it may be desirable to not transport a tracer. In that
@@ -614,6 +742,10 @@ def setupNPZD(vs):
     # TODO add oxygen back into the model
     if vs.enable_oxygen:
         pass
+
+    # vs.npzd_selected_rules = ["group_npzd_basic", "group_carbon_implicit_caco3"]
+    for rule in vs.npzd_selected_rules:
+        select_npzd_rule(vs, rule)
 
     # Update Zooplankton preferences dynamically
     zprefsum = sum(vs.zprefs.values())
