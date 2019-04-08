@@ -1,4 +1,4 @@
-import warnings
+from loguru import logger
 
 BACKENDS = None
 
@@ -10,6 +10,7 @@ def init_environment():
     if rst.proc_rank > 0:
         os.environ.update(
             BH_OPENMP_CACHE_READONLY="true",
+            BH_UNSUP_WARN="false",
         )
 
 
@@ -22,8 +23,8 @@ def init_backends():
 
     import numpy
     if numpy.__name__ == "bohrium":
-        warnings.warn("Running veros with 'python -m bohrium' is discouraged "
-                      "(use '--backend bohrium' instead)")
+        logger.warning("Running veros with 'python -m bohrium' is discouraged "
+                       "(use '--backend bohrium' instead)")
         import numpy_force
         numpy = numpy_force
 
@@ -32,7 +33,7 @@ def init_backends():
     try:
         import bohrium
     except ImportError:
-        warnings.warn("Could not import Bohrium (Bohrium backend will be unavailable)")
+        logger.warning("Could not import Bohrium (Bohrium backend will be unavailable)")
         BACKENDS["bohrium"] = None
     else:
         BACKENDS["bohrium"] = bohrium

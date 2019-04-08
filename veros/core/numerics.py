@@ -1,13 +1,13 @@
 from scipy.linalg import lapack
 
-from .. import veros_method, backend, runtime_settings as rs, runtime_state as rst
+from .. import veros_method, runtime_settings as rs, runtime_state as rst
 from . import density, diffusion, utilities
 
 try:
     from .special import tdma_opencl
 except ImportError:
-    import warnings
-    warnings.warn("Special OpenCL implementations could not be imported")
+    from loguru import logger
+    logger.warning("Special OpenCL implementations could not be imported")
 
 
 @veros_method(dist_safe=False, local_variables=(

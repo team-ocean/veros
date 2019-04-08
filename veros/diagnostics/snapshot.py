@@ -1,5 +1,4 @@
 import os
-import warnings
 
 from loguru import logger
 
@@ -57,23 +56,23 @@ class Snapshot(VerosDiagnostic):
             try:
                 restart_var = variables[key]
             except KeyError:
-                warnings.warn("not reading restart data for variable {}: "
-                              "no matching data found in restart file"
-                              .format(key))
+                logger.warning("not reading restart data for variable {}: "
+                               "no matching data found in restart file"
+                               .format(key))
                 continue
             if not arr.shape == restart_var.shape:
-                warnings.warn("not reading restart data for variable {}: "
-                              "restart data dimensions do not match model "
-                              "grid".format(key))
+                logger.warning("not reading restart data for variable {}: "
+                               "restart data dimensions do not match model "
+                               "grid".format(key))
                 continue
             arr[...] = restart_var
         for attr in self.restart_attributes:
             try:
                 setattr(vs, attr, attributes[attr])
             except KeyError:
-                warnings.warn("not reading restart data for attribute {}: "
-                              "attribute not found in restart file"
-                              .format(attr))
+                logger.warning("not reading restart data for attribute {}: "
+                               "attribute not found in restart file"
+                               .format(attr))
 
     def write_restart(self, vs, outfile):
         restart_attributes = {key: getattr(vs, key) for key in self.restart_attributes}

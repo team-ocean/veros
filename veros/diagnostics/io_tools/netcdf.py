@@ -49,7 +49,7 @@ def initialize_variable(vs, key, var, ncfile):
         dims += ("Time",)
 
     if key in ncfile.variables:
-        warnings.warn("Variable {} already initialized".format(key))
+        logger.warning("Variable {} already initialized".format(key))
         return
 
     kwargs = {}
