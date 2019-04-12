@@ -59,9 +59,11 @@ def carbon_flux(vs):
     # call co2forc
     return co2_flux
 
+
 @veros_method
 def oxygen_flux(vs):
     pass
+
 
 @veros_method
 def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pressure):
@@ -70,12 +72,8 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
         temperature, salinity and atmosphere total pressure
     """
 
-    # Hardwire constants
-    ph_high = 6.0
-    ph_low = 10.0
-
-    sit_in = np.ones_like(temperature) * 7.6875e-3 # mol / m^3 TODO: What is this?
-    pt_in = np.ones_like(temperature) * 0.5125e-3 # mol / m^3 TODO: What is this?
+    sit_in = np.ones_like(temperature) * 7.6875e-3  # mol / m^3 TODO: What is this?
+    pt_in = np.ones_like(temperature) * 0.5125e-3  # mol / m^3 TODO: What is this?
 
     temperature_in_kelvin = temperature + 273.15
 
@@ -97,20 +95,20 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     _is = 19.924 * salinity / (1000.0 - 1.005 * salinity)  # ionic _strength
 
     # Concentrations for borate, sulfate, and flouride
-    bt = 0.000232 * scl / 10.811 # Uppstrom (1974)
+    bt = 0.000232 * scl / 10.811  # Uppstrom (1974)
     st = 0.14 * scl / 96.062  # Morris & Riley (1966)
     ft = 0.000067 * scl / 18.9984  # Riley (1965)
 
     # f = k0(1-pH20) * correction term for non-ideality
     # Weiss & Price (1980, Mar. Chem., 8, 347-359; Eq 13 with table 6 values)
-    ff = np.exp(-162.8301 + 218.2968 / (temperature_in_kelvin / 100) \
-            + 90.9241 * np.log(temperature_in_kelvin / 100) \
-            - 1.47696 * (temperature_in_kelvin / 100)**2 \
-            + salinity * (0.025695 - 0.025225 * temperature_in_kelvin / 100 \
+    ff = np.exp(-162.8301 + 218.2968 / (temperature_in_kelvin / 100)
+            + 90.9241 * np.log(temperature_in_kelvin / 100)
+            - 1.47696 * (temperature_in_kelvin / 100)**2
+            + salinity * (0.025695 - 0.025225 * temperature_in_kelvin / 100
             + 0.0049867 * (temperature_in_kelvin / 100)**2))
 
     # K0 from Weiss 1974
-    k0 = np.exp(93.4517 / (temperature_in_kelvin / 100) - 60.2409 + 23.3585 \
+    k0 = np.exp(93.4517 / (temperature_in_kelvin / 100) - 60.2409 + 23.3585
             * np.log(temperature_in_kelvin / 100) + salinity * (
                 0.023517 - 0.023656 * temperature_in_kelvin / 100 + 0.0047036 * (temperature_in_kelvin / 100) ** 2))
 
@@ -150,7 +148,6 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
             + (17.27039 / temperature_in_kelvin + 2.81197) * np.sqrt(salinity) \
             + (-44.99486 / temperature_in_kelvin - 0.09984) * salinity)
 
-
     # ksi = [H][SiO(OH)3]/[Si(OH)4] on hSWS
     # Millero p.671 (1995) using data from Yao and Millero (1995)
     # change to (mol/ kg soln)
@@ -161,7 +158,6 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
           + (188.74 / temperature_in_kelvin - 1.5998) * _is \
           + (-12.1652 / temperature_in_kelvin + 0.07871) * _is**2 \
           + np.log(1.0 - 0.001005 * salinity))
-
 
     # kw = [H][OH] on hSWS
     # Millero p.670 (1995) using composite data
@@ -176,7 +172,6 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # ks = [H][SO4]/[HSO4] on free H scale
     # Dickson (1990, J. chem. Thermodynamics 22, 113)
     # change to (mol/ kg soln)
-
     ks = np.exp(-4276.1 / temperature_in_kelvin + 141.328 - 23.093 * np.log(temperature_in_kelvin) \
        + (-13856 / temperature_in_kelvin + 324.57 - 47.986 * np.log(temperature_in_kelvin)) * np.sqrt(_is) \
        + (35474 / temperature_in_kelvin - 771.54 + 114.723 * np.log(temperature_in_kelvin)) * _is \
@@ -192,15 +187,12 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # Dickson p.673 (1990)
     # change from htotal to hSWS
     # typo in Millero 1994 corrected in sign of 0.1622
-
     kb = np.exp((-8966.90 - 2890.53 * np.sqrt(salinity) - 77.942 * salinity \
        + 1.728 * salinity**1.5 - 0.0996 * salinity**2) / temperature_in_kelvin \
        + (148.0248 + 137.1942 * np.sqrt(salinity) + 1.62142 * salinity) \
        + (-24.4344 - 25.085 * np.sqrt(salinity) - 0.2474 * salinity) * np.log(temperature_in_kelvin) \
        + 0.053105 * np.sqrt(salinity) * temperature_in_kelvin \
        + np.log((1 + (st / ks) + (ft / kf)) / (1 + (st / ks))))
-
-
 
     # From UVic ESCM comments
     # Calculate [H+] SWS when DIC and TA are known at T, S and 1 atm.
@@ -222,8 +214,7 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # (xx.y). Making xacc bigger will result in faster convergence also, but this
     # is not recommended (xacc of 10**-9 drops precision to 2 significant figures).
 
-
-    ph = np.log10(vs.hSWS) # negativ ph
+    ph = np.log10(vs.hSWS)  # negativ ph
 
     x1 = 10.0 ** (ph + 0.5)
     x2 = 10.0 ** (ph - 0.5)
@@ -275,7 +266,6 @@ def ta_iter_SWS_numpy(vs, x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit
     b2 = b * b
     db = 2.0 * x + k1
 
-
     # fn = hco3+co3+borate+oh+hpo4+2*po4+silicate-hfree-hso4-hf-h3po4-ta
     fn = k1 * x * dic / b + 2.0 * dic * k12 / b + \
          bt / (1.0 + x / kb) + kw / x + pt * k12p * x / a + \
@@ -292,6 +282,7 @@ def ta_iter_SWS_numpy(vs, x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit
 
     return fn, df
 
+
 @veros_method
 def ta_iter_SWS_bohrium(*args):
     """
@@ -299,8 +290,6 @@ def ta_iter_SWS_bohrium(*args):
     For bohrium, making use of a mask to limit the number of calculations
     """
 
-
-    vs = args[0]
     arg_behaving = [np.user_kernel.make_behaving(args[1], dtype=np.int32)]
 
     for i, arg in enumerate(args[2:]):
@@ -370,7 +359,7 @@ def ta_iter_SWS_bohrium(*args):
 
     """ % {"shape": x.size}
 
-    np.user_kernel.execute(kernel, arg_behaving + [fn , df])
+    np.user_kernel.execute(kernel, arg_behaving + [fn, df])
 
     return fn, df
 
@@ -486,7 +475,7 @@ def drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accura
                 mask[i] = fabs(dx[i]) > %(accuracy)E;
             }
         }
-        """ % {'shape0': mask.size, 'accuracy': accuracy}  # TODO actually use accuracy
+        """ % {'shape0': mask.size, 'accuracy': accuracy}
         np.user_kernel.execute(kernel, [mask_input, drtsafe_val_input, x_high_input, df_input, f_input, x_low_input, dx_input, dx_old_input])
 
         # Copy results back out
@@ -532,7 +521,6 @@ def drtsafe(vs, mask, function, guess_low, guess_high, args=None, accuracy=1e-10
     x_low, x_high, f_low, f_high = np.where(f_low < 0,
             (guess_low, guess_high, f_low, f_high),
             (guess_high, guess_low, f_high, f_low))
-
 
     for _ in range(max_iterations):
 
