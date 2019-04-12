@@ -3,7 +3,7 @@ Functions calculating atmosphere-ocean fluxes
 
 """
 from veros import veros_method
-import numpy as np  # TODO remove this as veros handles it
+#import numpy as np  # TODO remove this as veros handles it
 from . import cyclic
 
 
