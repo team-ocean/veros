@@ -3,7 +3,6 @@ Functions calculating atmosphere-ocean fluxes
 
 """
 from veros import veros_method
-#import numpy as np  # TODO remove this as veros handles it
 from . import cyclic
 
 
@@ -15,7 +14,7 @@ def carbon_flux(vs):
     ta_in = vs.alkalinity[:, :, -1, vs.tau] * 1e-3 # [mmol -> mol] TODO rename variable
     co2_in = vs.atmospheric_co2 # [ppmv] TODO rename variable
 
-    # ao = 1  # 1 - ice fraction coverage
+#    ao = 1  # 1 - ice fraction coverage
     icemask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
             vs.forc_temp_surface < 0.0)
     ao = np.logical_not(icemask)
@@ -57,7 +56,8 @@ def carbon_flux(vs):
     # TODO land fluxes?
 
     # call co2forc
-    return co2_flux
+    vs.cflux = co2_flux
+    return vs.cflux
 
 
 @veros_method
@@ -102,10 +102,10 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # f = k0(1-pH20) * correction term for non-ideality
     # Weiss & Price (1980, Mar. Chem., 8, 347-359; Eq 13 with table 6 values)
     ff = np.exp(-162.8301 + 218.2968 / (temperature_in_kelvin / 100)
-            + 90.9241 * np.log(temperature_in_kelvin / 100)
-            - 1.47696 * (temperature_in_kelvin / 100)**2
-            + salinity * (0.025695 - 0.025225 * temperature_in_kelvin / 100
-            + 0.0049867 * (temperature_in_kelvin / 100)**2))
+                + 90.9241 * np.log(temperature_in_kelvin / 100)
+                - 1.47696 * (temperature_in_kelvin / 100)**2
+                + salinity * (0.025695 - 0.025225 * temperature_in_kelvin / 100
+                + 0.0049867 * (temperature_in_kelvin / 100)**2))
 
     # K0 from Weiss 1974
     k0 = np.exp(93.4517 / (temperature_in_kelvin / 100) - 60.2409 + 23.3585
@@ -123,76 +123,75 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 
 
     # k1 = [H][HCO3]/[H2CO3]
-    # k2 = [H][CO3]/[HCO3]     on hSWS TODO what does on hSWS mean?
+    # k2 = [H][CO3]/[HCO3]
     # Millero p.664 (1995) using Mehrbach et al. data on SEAWATER scale
     # (Original reference: Dickson and Millero, DSR, 1987)
-    k1 = 10 ** (-1.0 * (3670.7 / temperature_in_kelvin - 62.088 + 9.7944 * np.log(temperature_in_kelvin) \
-            - 0.0118 * salinity + 0.000116 * salinity**2))
+    k1 = 10 ** (-1.0 * (3670.7 / temperature_in_kelvin - 62.088 + 9.7944 * np.log(temperature_in_kelvin)
+                - 0.0118 * salinity + 0.000116 * salinity**2))
 
     k2 = 10 ** (-1 * (1394.7 / temperature_in_kelvin + 4.777 - 0.0184 * salinity + 0.000118 * salinity**2))
 
-    # k1p = [H][H2PO4]/[H3PO4] on hSWS TODO: hSWS?
+    # k1p = [H][H2PO4]/[H3PO4]
     # Millero p.670 (1995)
-    k1p = np.exp(-4576.752 / temperature_in_kelvin + 115.540 - 18.453 * np.log(temperature_in_kelvin) \
-            + (-106.736 / temperature_in_kelvin + 0.69171) * np.sqrt(salinity) \
-            + (-0.65643 / temperature_in_kelvin - 0.01844) * salinity)
+    k1p = np.exp(-4576.752 / temperature_in_kelvin + 115.540 - 18.453 * np.log(temperature_in_kelvin)
+                 + (-106.736 / temperature_in_kelvin + 0.69171) * np.sqrt(salinity)
+                 + (-0.65643 / temperature_in_kelvin - 0.01844) * salinity)
 
-    # k2p = [H][HPO3]/[H2PO4] on hSWS TODO:...
-    k2p = np.exp(-8814.715 / temperature_in_kelvin + 172.1033 - 27.927 * np.log(temperature_in_kelvin) \
-            + (-160.340 / temperature_in_kelvin + 1.3566) * np.sqrt(salinity) \
-            + (0.37335 / temperature_in_kelvin - 0.05778) * salinity)
+    # k2p = [H][HPO3]/[H2PO4]
+    k2p = np.exp(-8814.715 / temperature_in_kelvin + 172.1033 - 27.927 * np.log(temperature_in_kelvin)
+                 + (-160.340 / temperature_in_kelvin + 1.3566) * np.sqrt(salinity)
+                 + (0.37335 / temperature_in_kelvin - 0.05778) * salinity)
 
+    # k3p = [H][PO4]/[HPO4]
+    k3p = np.exp(-3070.75 / temperature_in_kelvin - 18.126
+                 + (17.27039 / temperature_in_kelvin + 2.81197) * np.sqrt(salinity)
+                 + (-44.99486 / temperature_in_kelvin - 0.09984) * salinity)
 
-    # k3p = [H][PO4]/[HPO4] on hSWS TODO
-    k3p = np.exp(-3070.75 / temperature_in_kelvin - 18.126 \
-            + (17.27039 / temperature_in_kelvin + 2.81197) * np.sqrt(salinity) \
-            + (-44.99486 / temperature_in_kelvin - 0.09984) * salinity)
-
-    # ksi = [H][SiO(OH)3]/[Si(OH)4] on hSWS
+    # ksi = [H][SiO(OH)3]/[Si(OH)4]
     # Millero p.671 (1995) using data from Yao and Millero (1995)
     # change to (mol/ kg soln)
     # depth dependancy assumed to be the same as boric acid
     # typo in Millero 1994 corrected in sign of 0.1622
-    ksi = np.exp(-8904.2 / temperature_in_kelvin + 117.400 - 19.334*np.log(temperature_in_kelvin) \
-          + (-458.79 / temperature_in_kelvin + 3.5913) * np.sqrt(_is) \
-          + (188.74 / temperature_in_kelvin - 1.5998) * _is \
-          + (-12.1652 / temperature_in_kelvin + 0.07871) * _is**2 \
-          + np.log(1.0 - 0.001005 * salinity))
+    ksi = np.exp(-8904.2 / temperature_in_kelvin + 117.400 - 19.334*np.log(temperature_in_kelvin)
+                 + (-458.79 / temperature_in_kelvin + 3.5913) * np.sqrt(_is)
+                 + (188.74 / temperature_in_kelvin - 1.5998) * _is
+                 + (-12.1652 / temperature_in_kelvin + 0.07871) * _is**2
+                 + np.log(1.0 - 0.001005 * salinity))
 
-    # kw = [H][OH] on hSWS
+    # kw = [H][OH]
     # Millero p.670 (1995) using composite data
     # pressure dependancy in Millero 1994 corrected for sea water from
     # Millero 1983
 
-    kw = np.exp(-13847.26 / temperature_in_kelvin + 148.9802 \
-                - 23.6521 * np.log(temperature_in_kelvin) \
-                + (118.67 / temperature_in_kelvin - 5.977 \
-                + 1.0495 * np.log(temperature_in_kelvin)) * np.sqrt(salinity) - 0.01615 * salinity)
+    kw = np.exp(-13847.26 / temperature_in_kelvin + 148.9802
+                - 23.6521 * np.log(temperature_in_kelvin)
+                + (118.67 / temperature_in_kelvin - 5.977
+                   + 1.0495 * np.log(temperature_in_kelvin)) * np.sqrt(salinity) - 0.01615 * salinity)
 
     # ks = [H][SO4]/[HSO4] on free H scale
     # Dickson (1990, J. chem. Thermodynamics 22, 113)
     # change to (mol/ kg soln)
-    ks = np.exp(-4276.1 / temperature_in_kelvin + 141.328 - 23.093 * np.log(temperature_in_kelvin) \
-       + (-13856 / temperature_in_kelvin + 324.57 - 47.986 * np.log(temperature_in_kelvin)) * np.sqrt(_is) \
-       + (35474 / temperature_in_kelvin - 771.54 + 114.723 * np.log(temperature_in_kelvin)) * _is \
-       - 2698 / temperature_in_kelvin * _is**1.5 + 1776 / temperature_in_kelvin * _is**2 \
-       + np.log(1.0 - 0.001005 * salinity))
+    ks = np.exp(-4276.1 / temperature_in_kelvin + 141.328 - 23.093 * np.log(temperature_in_kelvin)
+                + (-13856 / temperature_in_kelvin + 324.57 - 47.986 * np.log(temperature_in_kelvin)) * np.sqrt(_is)
+                + (35474 / temperature_in_kelvin - 771.54 + 114.723 * np.log(temperature_in_kelvin)) * _is
+                - 2698 / temperature_in_kelvin * _is**1.5 + 1776 / temperature_in_kelvin * _is**2
+                + np.log(1.0 - 0.001005 * salinity))
 
     # kf = [H][F]/[HF] on free H scale
     # Dickson and Riley (1979)
     # change to (mol/ kg soln)
     kf = np.exp(1590.2 / temperature_in_kelvin - 12.641 + 1.525 * np.sqrt(_is) + np.log(1.0 - 0.001005 * salinity))
 
-    # kb = [H][BO2]/[HBO2] on hSWS
+    # kb = [H][BO2]/[HBO2]
     # Dickson p.673 (1990)
     # change from htotal to hSWS
     # typo in Millero 1994 corrected in sign of 0.1622
-    kb = np.exp((-8966.90 - 2890.53 * np.sqrt(salinity) - 77.942 * salinity \
-       + 1.728 * salinity**1.5 - 0.0996 * salinity**2) / temperature_in_kelvin \
-       + (148.0248 + 137.1942 * np.sqrt(salinity) + 1.62142 * salinity) \
-       + (-24.4344 - 25.085 * np.sqrt(salinity) - 0.2474 * salinity) * np.log(temperature_in_kelvin) \
-       + 0.053105 * np.sqrt(salinity) * temperature_in_kelvin \
-       + np.log((1 + (st / ks) + (ft / kf)) / (1 + (st / ks))))
+    kb = np.exp((-8966.90 - 2890.53 * np.sqrt(salinity) - 77.942 * salinity
+                 + 1.728 * salinity**1.5 - 0.0996 * salinity**2) / temperature_in_kelvin
+                 + (148.0248 + 137.1942 * np.sqrt(salinity) + 1.62142 * salinity)
+                 + (-24.4344 - 25.085 * np.sqrt(salinity) - 0.2474 * salinity) * np.log(temperature_in_kelvin)
+                 + 0.053105 * np.sqrt(salinity) * temperature_in_kelvin
+                 + np.log((1 + (st / ks) + (ft / kf)) / (1 + (st / ks))))
 
     # From UVic ESCM comments
     # Calculate [H+] SWS when DIC and TA are known at T, S and 1 atm.
@@ -214,20 +213,35 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # (xx.y). Making xacc bigger will result in faster convergence also, but this
     # is not recommended (xacc of 10**-9 drops precision to 2 significant figures).
 
-    ph = np.log10(vs.hSWS)  # negativ ph
+    # ph = np.log10(vs.hSWS)  # negativ ph
 
-    x1 = 10.0 ** (ph + 0.5)
-    x2 = 10.0 ** (ph - 0.5)
+    # x1 = 10.0 ** (ph + 0.5)
+    # x2 = 10.0 ** (ph - 0.5)
     xacc = 1e-10
 
-    in1 = np.ones_like(co2_in) * x1
-    in2 = np.ones_like(co2_in) * x2
+    # in1 = np.ones_like(co2_in) * x1
+    # in2 = np.ones_like(co2_in) * x2
+
+    # print(0.5 * (in1 + in2) - vs.hSWS)
+    # boundary = np.minimum(np.sqrt(vs.hSWS), vs.hSWS - vs.trcmin)
+
+    # NOTE hSWS should never exceed the safe values, but we can check it
+    limit_min = 1e-10
+    boundary = np.minimum(np.maximum(1e-6 - vs.hSWS, limit_min),
+                          np.maximum(vs.hSWS - 1e-10, limit_min))
+    in1 = vs.hSWS + boundary
+    in2 = vs.hSWS - boundary
 
     iter_mask = np.empty_like(in1, dtype=np.bool)
     iter_mask[...] = vs.maskT[:, :, -1]
 
     # Find hSWS by root finding algorithm
-    vs.hSWS = drtsafe(vs, iter_mask, ta_iter_SWS, in1, in2, args=(k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb), accuracy=xacc)
+    vs.hSWS = drtsafe_masked(vs, iter_mask, ta_iter_SWS, in1, in2,
+                             args=(k1, k2, k1p, k2p, k3p, st, ks, kf, ft,
+                                   dic, ta, sit, ksi, pt, bt, kw, kb), accuracy=xacc)
+    # vs.hSWS = drtsafe(vs, ta_iter_SWS_numpy, in1, in2,
+    #                   args=(k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic,
+    #                         ta, sit, ksi, pt, bt, kw, kb), accuracy=xacc)
 
     # Calculate [CO2*] as defined in DOE Methods Handbook 1993 Ver. 2,
     # ORNL/CDIC-74, Dickson and Goyet, eds. (Ch 2 p 1+, Eq A.49)
@@ -373,7 +387,7 @@ def ta_iter_SWS(*args):
     vs = args[0]
     mask = args[1]
 
-    if vs.backend_name == "bohrium":
+    if vs.backend_name == "bohrium" and 0:
         return ta_iter_SWS_bohrium(vs, mask, *args[2:])
     else:
         return ta_iter_SWS_numpy(vs, *args[2:])
@@ -386,7 +400,7 @@ def drtsafe_boundary_update(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsa
     Masked to avoid syncs to numpy
     """
 
-    if vs.backend_name == "bohrium":
+    if vs.backend_name == "bohrium" and 0:
         mask_input = np.user_kernel.make_behaving(mask, dtype=np.bool)
         x_low_input = np.user_kernel.make_behaving(x_low, dtype=vs.default_float_type)
         x_high_input = np.user_kernel.make_behaving(x_high, dtype=vs.default_float_type)
@@ -438,7 +452,7 @@ def drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accura
     and update step accordingly
     """
 
-    if vs.backend_name == "bohrium":
+    if vs.backend_name == "bohrium" and 0:
         mask_input = np.user_kernel.make_behaving(mask, dtype=np.int32)
         drtsafe_val_input = np.user_kernel.make_behaving(drtsafe_val, dtype=vs.default_float_type)
         x_high_input = np.user_kernel.make_behaving(x_high, dtype=vs.default_float_type)
@@ -460,7 +474,7 @@ def drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accura
                 }
 
                 double step1 = (drtsafe_val[i] - x_high[i]) * df[i] - f[i];
-                double step2 = (drtsafe_val[i] - x_low[i]) * df[i] - f[i]; 
+                double step2 = (drtsafe_val[i] - x_low[i]) * df[i] - f[i];
                 bool step_inside = (step1 * step2) >= 0;
                 bool tmp_mask = step_inside || (abs(2.0 * f[i]) > abs(dx_old[i] * df[i]));
 
@@ -476,7 +490,8 @@ def drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accura
             }
         }
         """ % {'shape0': mask.size, 'accuracy': accuracy}
-        np.user_kernel.execute(kernel, [mask_input, drtsafe_val_input, x_high_input, df_input, f_input, x_low_input, dx_input, dx_old_input])
+        np.user_kernel.execute(kernel, [mask_input, drtsafe_val_input, x_high_input, df_input,
+                                        f_input, x_low_input, dx_input, dx_old_input])
 
         # Copy results back out
         mask[...] = mask_input[...]
@@ -497,7 +512,8 @@ def drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accura
 
 
 @veros_method
-def drtsafe(vs, mask, function, guess_low, guess_high, args=None, accuracy=1e-10, max_iterations=100):
+def drtsafe_masked(vs, mask, function, guess_low, guess_high, args=None,
+                   accuracy=1e-10, max_iterations=100):
     """
     Masked version of drtsafe
     the function given should return a function value and derivative.
@@ -519,8 +535,8 @@ def drtsafe(vs, mask, function, guess_low, guess_high, args=None, accuracy=1e-10
     # Ensure low values have negative function value
     # and high has positive
     x_low, x_high, f_low, f_high = np.where(f_low < 0,
-            (guess_low, guess_high, f_low, f_high),
-            (guess_high, guess_low, f_high, f_low))
+                                            (guess_low, guess_high, f_low, f_high),
+                                            (guess_high, guess_low, f_high, f_low))
 
     for _ in range(max_iterations):
 
@@ -529,12 +545,61 @@ def drtsafe(vs, mask, function, guess_low, guess_high, args=None, accuracy=1e-10
 
         if not mask.any():  # complete
             break
+        # print(_, mask.sum())
 
         # Update function for next step
         f, df = function(vs, mask, drtsafe_val, *args)
 
         # Update search boundaries
         drtsafe_boundary_update(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_val)
+
+    return drtsafe_val
+
+
+@veros_method
+def drtsafe(vs, function, guess_low, guess_high, args=None, accuracy=1e-10, max_iterations=100):
+    # Initial guess and step size
+    drtsafe_val = 0.5 * (guess_low + guess_high)
+    dx = np.abs(guess_high - guess_low)
+    dx_old = dx.copy()
+
+    # Function value at boundaries and guess
+    f_low, _ = function(vs, guess_low, *args)
+    f_high, _ = function(vs, guess_high, *args)
+    f, df = function(vs, drtsafe_val, *args)
+
+    # Ensure low values have negative function value
+    # and high has positive
+    x_low, x_high, f_low, f_high = np.where(f_low < 0,
+                                            (guess_low, guess_high, f_low, f_high),
+                                            (guess_high, guess_low, f_high, f_low))
+
+    for _ in range(max_iterations):
+
+        # update step size, step and mask
+        # drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accuracy)
+        step_mask = ((drtsafe_val - x_high) * df - f) * (
+                    (drtsafe_val - x_low) * df - f) >= 0
+        step_mask = np.logical_or(step_mask, (np.abs(2.0 * f) > np.abs(dx_old * df)))
+
+        dx_old[:] = dx.copy()
+        dx = np.where(step_mask, 0.5 * (x_high - x_low), f / df)
+
+        if not (np.abs(dx) > accuracy).any():
+            break
+        # print(_, (np.abs(dx) > accuracy).sum())
+
+        # NOTE this was above the accuracy check
+        drtsafe_val = np.where(step_mask, x_low + dx, drtsafe_val - dx)
+
+        # Update function for next step
+        f, df = function(vs, drtsafe_val, *args)
+
+        # Update search boundaries
+        # drtsafe_boundary_update(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_val)
+        x_low, x_high, f_low, f_high = np.where(f < 0,
+                                                (drtsafe_val, x_high, f, f_high),
+                                                (x_low, drtsafe_val, f_low, f))
 
     return drtsafe_val
 
