@@ -91,15 +91,17 @@ def calcite_production(vs, plankton, DIC, calcite):
     """
 
     # changes to production of calcite
-    dprca = (vs.mortality[plankton] + vs.grazing[plankton] *\
-            (1 - vs.assimilation_efficiency))  * vs.capr * vs.redfield_ratio_CN
+    dprca = (vs.mortality[plankton] + vs.grazing[plankton] *
+             (1 - vs.assimilation_efficiency)) * vs.capr * vs.redfield_ratio_CN * 1e-3
 
     return {DIC: -dprca, calcite: dprca}
+
 
 @veros_method
 def calcite_production_alk(vs, plankton, alkalinity, calcite):
     """ alkalinity is scaled by DIC consumption """
     return {alkalinity: 2 * calcite_production(vs, plankton, "DIC", calcite)["DIC"]}
+
 
 @veros_method
 def calcite_production_phyto(vs, DIC, calcite):
@@ -108,10 +110,12 @@ def calcite_production_phyto(vs, DIC, calcite):
     """
     return calcite_production(vs, "phytoplankton", DIC, calcite)
 
+
 @veros_method
 def calcite_production_phyto_alk(vs, alkalinity, calcite):
     """ sclaed version off calcite_production_phyto for alkalinity """
     return calcite_production_alk(vs, "phytoplankton", alkalinity, calcite)
+
 
 @veros_method
 def post_redistribute_calcite(vs, calcite, tracer):
@@ -120,49 +124,57 @@ def post_redistribute_calcite(vs, calcite, tracer):
     redistributed_production = total_production[:, :, np.newaxis] * vs.rcak
     return {tracer: redistributed_production}
 
+
 @veros_method
 def pre_reset_calcite(vs, tracer, calcite):
     """ Pre rule to reset calcite production """
     return {calcite: - vs.temporary_tracers[calcite]}
 
-@veros_method
-def recycling_to_alk(vs, detritus, alkalinity):
-    """ This should be turned into a combined rule with DIC, as they just have opposite terms, but only withdraw from detritus once """
-    return {alkalinity: - recycling_to_dic(vs, detritus, "DIC")["DIC"] / vs.redfield_ratio_CN * 1e-3}
 
-@veros_method
-def primary_production_from_alk(vs, alkalinity, plankton):
-    """ Single entry, should be merged with DIC """
-    return {alkalinity: - primary_production_from_DIC(vs, "DIC", plankton)["DIC"] / vs.redfield_ratio_CN * 1e-3}
+# @veros_method
+# def recycling_to_alk(vs, detritus, alkalinity):
+#     """ This should be turned into a combined rule with DIC, as they just have opposite terms, but only withdraw from detritus once """
+#     return {alkalinity: - recycling_to_dic(vs, detritus, "DIC")["DIC"] / vs.redfield_ratio_CN * 1e-3}
 
-@veros_method
-def recycling_phyto_to_alk(vs, plankton, alkalinity):
-    """ Single entry should be merged with DIC """
-    return {alkalinity: - recycling_phyto_to_dic(vs, plankton, "DIC")["DIC"] / vs.redfield_ratio_CN * 1e-3}
 
-@veros_method
-def excretion_alk(vs, plankton, alkalinity):
-    """ Single entry, should be merged with DIC """
-    return {alkalinity: -excretion_dic(vs, plankton, "DIC")["DIC"] / vs.redfield_ratio_CN * 1e-3}
+# @veros_method
+# def primary_production_from_alk(vs, alkalinity, plankton):
+#     """ Single entry, should be merged with DIC """
+#     return {alkalinity: - primary_production_from_DIC(vs, "DIC", plankton)["DIC"] / vs.redfield_ratio_CN * 1e-3}
+
+
+# @veros_method
+# def recycling_phyto_to_alk(vs, plankton, alkalinity):
+#     """ Single entry should be merged with DIC """
+#     return {alkalinity: - recycling_phyto_to_dic(vs, plankton, "DIC")["DIC"] / vs.redfield_ratio_CN * 1e-3}
+
+
+# @veros_method
+# def excretion_alk(vs, plankton, alkalinity):
+#     """ Single entry, should be merged with DIC """
+#     return {alkalinity: -excretion_dic(vs, plankton, "DIC")["DIC"] / vs.redfield_ratio_CN * 1e-3}
+
 
 @veros_method
 def co2_surface_flux(vs, co2, dic):
     """ Pre rule to add or remove DIC from surface layer """
-    vs.cflux[:, :] = atmospherefluxes.carbon_flux(vs)  # TODO move this somewhere else
+    atmospherefluxes.carbon_flux(vs)
+#    vs.cflux[:, :] = atmospherefluxes.carbon_flux(vs)  # TODO move this somewhere else
     # flux = np.zeros((vs.cflux.shape[0], vs.cflux.shape[1], vs.nz))
     # flux[:, :, -1] = vs.cflux * vs.dt_tracer / vs.dzt[-1]
     flux = vs.cflux * vs.dt_tracer / vs.dzt[-1]
-    return {dic: flux}
+    return {dic: flux}  # NOTE we don't have an atmosphere, so this rules is a stub
 
-@veros_method
-def co2_surface_flux_alk(vs, co2, alk):
-    """
-    Pre rule to add or remove alkalinity from surface layer
-    assumes co2_surface_flux has been run for the current timestep
-    """
-    flux = np.zeros((vs.cflux.shape[0], vs.cflux.shape[1], vs.nz))
-    flux[:, :, -1] = - vs.cflux * vs.dt_tracer / vs.dzt[-1] / vs.redfield_ratio_CN
-    return {alk: flux}
+
+# @veros_method
+# def co2_surface_flux_alk(vs, co2, alk):
+#     """
+#     Pre rule to add or remove alkalinity from surface layer
+#     assumes co2_surface_flux has been run for the current timestep
+#     """
+#     flux = np.zeros((vs.cflux.shape[0], vs.cflux.shape[1], vs.nz))
+#     flux[:, :, -1] = - vs.cflux * vs.dt_tracer / vs.dzt[-1] / vs.redfield_ratio_CN
+#     return {alk: flux}
 
 @veros_method
 def primary_production_from_dop_po4(vs, DOP, plankton):
