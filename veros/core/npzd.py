@@ -61,7 +61,8 @@ def biogeochemistry(vs):
 
     # declination and fraction of day with daylight
     # TODO describe magic numbers
-    declin = np.sin((np.mod(vs.time * time.SECONDS_TO_X["years"], 1) - 0.22) * 2.0 * np.pi) * 0.4
+    # declin = np.sin((np.mod(vs.time * time.SECONDS_TO_X["years"], 1) - 0.22) * 2.0 * np.pi) * 0.4
+    declin = np.sin((np.mod(vs.time * time.SECONDS_TO_X["years"], 1) - 0.72) * 2.0 * np.pi) * 0.4
     rctheta = np.maximum(-1.5, np.minimum(1.5, np.radians(vs.yt) - declin))
 
     # 1.33 is derived from Snells law for the air-sea barrier
@@ -517,11 +518,11 @@ def setup_carbon_npzd_rules(vs):
     """
     Rules for including a carbon cycle
     """
-    # The actual action is on DIC, but the to variables overlap
-    from .npzd_rules import co2_surface_flux, co2_surface_flux_alk, recycling_to_dic, \
+    # The actual action is on DIC, but the to variables overlap# co2_surface_flux_alk, 
+    from .npzd_rules import co2_surface_flux, recycling_to_dic, \
         primary_production_from_DIC, excretion_dic, recycling_phyto_to_dic, \
-        primary_production_from_alk, recycling_to_alk, recycling_phyto_to_alk, excretion_alk, \
         dic_alk_scale
+#        primary_production_from_alk, recycling_to_alk, recycling_phyto_to_alk, excretion_alk, \
 
 
     from .npzd_rules import calcite_production_phyto, calcite_production_phyto_alk, \
@@ -822,7 +823,8 @@ def npzd(vs):
 
         if vs.enable_hor_diffusion:
             horizontal_diffusion_change = np.zeros_like(tracer_data[:, :, :, 0])
-            diffusion.horizontal_diffusion(vs, tracer_data[:, :, :, vs.tau], horizontal_diffusion_change)
+            diffusion.horizontal_diffusion(vs, tracer_data[:, :, :, vs.tau],
+                                           horizontal_diffusion_change)
 
             tracer_data[:, :, :, vs.taup1] += vs.dt_tracer * horizontal_diffusion_change
 
@@ -837,7 +839,6 @@ def npzd(vs):
         Restoring zones
         """
         # TODO add restoring zones to general tracers
-
 
         """
         Isopycnal diffusion
@@ -855,8 +856,6 @@ def npzd(vs):
                 dtracer_skew = np.zeros_like(tracer_data[..., 0])
                 isoneutral.isoneutral_diffusion_decoupled(vs, tracer_data, dtracer_skew,
                                                           iso=False, skew=True)
-
-
         """
         Vertical mixing of tracers
         """
@@ -877,3 +876,4 @@ def npzd(vs):
     if vs.enable_cyclic_x:
         for tracer in vs.npzd_tracers.values():
             cyclic.setcyclic_x(tracer)
+
