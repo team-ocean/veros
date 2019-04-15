@@ -22,14 +22,17 @@ def biogeochemistry(vs):
         vs.temporary_tracers[tracer][:, :, :] = val[:, :, :, vs.tau]
 
     # Flags enable us to only work on tracers with a minimum available concentration
-    flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=np.bool)
-             for tracer in vs.temporary_tracers}
+    # flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=np.bool)
+    #          for tracer in vs.temporary_tracers}
+    flags = {tracer: vs.maskT[...].astype(np.bool) for tracer in vs.temporary_tracers}
 
     # Ensure positive data and keep flags of where
-    for tracer, data in vs.temporary_tracers.items():
-        flag_mask = (data > vs.trcmin) * vs.maskT
-        flags[tracer][:, :, :] = flag_mask.astype(np.bool)
-        data[:, :, :] = np.where(flag_mask, data, vs.trcmin)
+    #for tracer, data in vs.temporary_tracers.items():  # TODO may we assume, these values are safe?
+    #    # flag_mask = (data > vs.trcmin) * vs.maskT
+    #    #flags[tracer][:, :, :] = flag_mask.astype(np.bool)
+    #    #data[:, :, :] = np.where(flag_mask, data, vs.trcmin)
+    #    flags[tracer][:, :, :] = (data > vs.trcmin) * vs.maskT
+    #    data[:, :, :] = utilities.where(vs, flags[tracer], data, vs.trcmin)
 
     # Pre rules: Changes that need to be applied before running npzd dynamics
     pre_rules = [(rule[0](vs, rule[1], rule[2]), rule[4]) for rule in vs.npzd_pre_rules]
@@ -54,7 +57,6 @@ def biogeochemistry(vs):
     impo = {}
     import_minus_export = {}
 
-
     # incomming shortwave radiation at top layer
     swr = vs.swr[:, :, np.newaxis] * np.exp(-vs.light_attenuation_phytoplankton
                                             * np.cumsum(phyto_integrated[:, :, ::-1], axis=2)[:, :, ::-1])
@@ -63,18 +65,21 @@ def biogeochemistry(vs):
     # TODO describe magic numbers
     # declin = np.sin((np.mod(vs.time * time.SECONDS_TO_X["years"], 1) - 0.22) * 2.0 * np.pi) * 0.4
     declin = np.sin((np.mod(vs.time * time.SECONDS_TO_X["years"], 1) - 0.72) * 2.0 * np.pi) * 0.4
-    rctheta = np.maximum(-1.5, np.minimum(1.5, np.radians(vs.yt) - declin))
+    # rctheta = np.maximum(-1.5, np.minimum(1.5, np.radians(vs.yt) - declin))
+    radian = 2 * np.pi / 360
+    rctheta = np.maximum(-1.5, np.minimum(1.5, vs.yt * radian - declin))
 
     # 1.33 is derived from Snells law for the air-sea barrier
     vs.rctheta[:] = vs.light_attenuation_water / np.sqrt(1.0 - (1.0 - np.cos(rctheta)**2.0) / 1.33**2)
-    dayfrac = np.minimum(1.0, -np.tan(np.radians(vs.yt)) * np.tan(declin))
+    # dayfrac = np.minimum(1.0, -np.tan(np.radians(vs.yt)) * np.tan(declin))
+    dayfrac = np.minimum(1.0, -np.tan(radian * vs.yt) * np.tan(declin))
     vs.dayfrac[:] = np.maximum(1e-12, np.arccos(np.maximum(-1.0, dayfrac)) / np.pi)
 
     # light at top of grid box
     grid_light = swr * np.exp(vs.zw[np.newaxis, np.newaxis, :]
                               * vs.rctheta[np.newaxis, :, np.newaxis])
 
-    # TODO is light_attenuation a bad name?
+    # TODO is light_attenuation a bad name? TODO shouldn't we multiply by the light attenuation?
     light_attenuation = vs.dzt * vs.light_attenuation_water + plankton_total
 
     # recycling rate determined according to b ** (cT)
@@ -114,7 +119,6 @@ def biogeochemistry(vs):
             vs.mortality[plankton] = flags[plankton] * vs.mortality_rates[plankton]\
                 * vs.temporary_tracers[plankton]
 
-
         # Detritus is recycled
         vs.recycled["detritus"] = flags["detritus"] * vs.recycling_rates["detritus"] * bct\
             * vs.temporary_tracers["detritus"]
@@ -148,7 +152,6 @@ def biogeochemistry(vs):
         # perform updates
         for update, boundary in npzd_updates:
             for key, value in update.items():
-                # vs.temporary_tracers[key][:, :, :] += value * vs.dt_bio
                 vs.temporary_tracers[key][boundary] += value * vs.dt_bio
 
         # Import and export between layers
@@ -157,9 +160,12 @@ def biogeochemistry(vs):
 
         # Prepare temporary tracers for next bio iteration
         for tracer, data in vs.temporary_tracers.items():
-            flag_mask = np.logical_and(flags[tracer], data > vs.trcmin) * vs.maskT
-            flags[tracer] = flag_mask.astype(np.bool)
-            data[:, :, :] = np.where(flag_mask, data, vs.trcmin)
+            # flag_mask = np.logical_and(flags[tracer], data > vs.trcmin) * vs.maskT
+            # flags[tracer] = flag_mask.astype(np.bool)
+            # data[:, :, :] = np.where(flag_mask, data, vs.trcmin)
+
+            flags[tracer][:, :, :] = np.logical_and(flags[tracer], (data > vs.trcmin))# * vs.maskT
+            data[:, :, :] = utilities.where(vs, flags[tracer], data, vs.trcmin)
 
         # Remineralize material fallen to the ocean floor
         vs.temporary_tracers["po4"][...] += bottom_export["detritus"] * vs.redfield_ratio_PN * vs.dt_bio
@@ -168,14 +174,21 @@ def biogeochemistry(vs):
 
     # Post processesing or smoothing rules
     post_results = [(rule[0](vs, rule[1], rule[2]), rule[4]) for rule in vs.npzd_post_rules]
+    post_modified = []  # we only want to reset values, which have acutally changed
     for result, boundary in post_results:
         for key, value in result.items():
             vs.temporary_tracers[key][boundary] += value
+            post_modified.append(key)
 
     # Reset before returning
-    for tracer, data in vs.temporary_tracers.items():
-        flag_mask = np.logical_and(flags[tracer], data > vs.trcmin) * vs.maskT
-        data[:, :, :] = np.where(flag_mask.astype(np.bool), data, vs.trcmin)
+    for tracer in set(post_modified):
+        data = vs.temporary_tracers[tracer]
+    # for tracer, data in vs.temporary_tracers.items():  # TODO limit this to calues, that have actually been changed
+        # flag_mask = np.logical_and(flags[tracer], data > vs.trcmin) * vs.maskT
+        # data[:, :, :] = np.where(flag_mask.astype(np.bool), data, vs.trcmin)
+
+        flags[tracer][:, :, :] = np.logical_and(flags[tracer], (data > vs.trcmin))# * vs.maskT
+        data[:, :, :] = utilities.where(vs, flags[tracer], data, vs.trcmin)
 
     """
     Only return the difference. Will be added to timestep taup1
