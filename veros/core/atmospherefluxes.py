@@ -387,7 +387,7 @@ def ta_iter_SWS(*args):
     vs = args[0]
     mask = args[1]
 
-    if vs.backend_name == "bohrium" and 0:
+    if vs.backend_name == "bohrium":# and 0:
         return ta_iter_SWS_bohrium(vs, mask, *args[2:])
     else:
         return ta_iter_SWS_numpy(vs, *args[2:])
@@ -400,7 +400,7 @@ def drtsafe_boundary_update(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsa
     Masked to avoid syncs to numpy
     """
 
-    if vs.backend_name == "bohrium" and 0:
+    if vs.backend_name == "bohrium":# and 0:
         mask_input = np.user_kernel.make_behaving(mask, dtype=np.bool)
         x_low_input = np.user_kernel.make_behaving(x_low, dtype=vs.default_float_type)
         x_high_input = np.user_kernel.make_behaving(x_high, dtype=vs.default_float_type)
@@ -452,7 +452,7 @@ def drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accura
     and update step accordingly
     """
 
-    if vs.backend_name == "bohrium" and 0:
+    if vs.backend_name == "bohrium":# and 0:
         mask_input = np.user_kernel.make_behaving(mask, dtype=np.int32)
         drtsafe_val_input = np.user_kernel.make_behaving(drtsafe_val, dtype=vs.default_float_type)
         x_high_input = np.user_kernel.make_behaving(x_high, dtype=vs.default_float_type)
