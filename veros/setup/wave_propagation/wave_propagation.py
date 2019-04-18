@@ -19,7 +19,7 @@ TOPO_MASK_FILE = os.path.join(BASE_PATH, "topography_idealized.png")
 NA_MASK_FILE = os.path.join(BASE_PATH, "na_mask.png")
 
 
-class WavePropagation(VerosSetup):
+class WavePropagationSetup(VerosSetup):
     """
     Global model with flexible resolution and idealized geometry in the
     Atlantic to examine coastal wave propagation.
@@ -386,7 +386,7 @@ class WavePropagation(VerosSetup):
 
 @veros.tools.cli
 def run(*args, **kwargs):
-    simulation = WavePropagation(*args, **kwargs)
+    simulation = WavePropagationSetup(*args, **kwargs)
     simulation.setup()
     simulation.run()
 

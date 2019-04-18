@@ -12,7 +12,7 @@ from veros import veros_method, tools
 DATA_FILES = tools.get_assets("global_4deg", pkg_resources.resource_filename("veros", "setup/global_4deg/assets.yml"))
 
 
-class GlobalFourDegree(VerosLegacyDummy):
+class GlobalFourDegreeSetup(VerosLegacyDummy):
     """ global 4 deg model with 15 levels
     """
     def set_parameter(self, vs):
@@ -222,7 +222,7 @@ class GlobalFourDegree(VerosLegacyDummy):
 
 
 class FourDegreeTest(VerosPyOMSystemTest):
-    Testclass = GlobalFourDegree
+    Testclass = GlobalFourDegreeSetup
     timesteps = 100
 
     def test_passed(self):

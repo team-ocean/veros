@@ -152,10 +152,10 @@ class RestartTest(object):
         self.acc_no_restart.run()
 
         self.acc_restart.setup()
-        self.acc_restart.state.runlen = (self.timesteps - 1) * self.acc_no_restart.state.dt_tracer
+        self.acc_restart.state.runlen = (self.timesteps - 5) * self.acc_no_restart.state.dt_tracer
         self.acc_restart.run()
 
-        self.acc_restart.restart_input_filename = self.restart_file
+        self.acc_restart.state.restart_input_filename = self.restart_file
         self.acc_restart.setup()
         self.acc_restart.state.runlen = self.acc_no_restart.state.time - self.acc_restart.state.time
         self.acc_restart.run()
@@ -170,7 +170,7 @@ class RestartTest(object):
             if s_1 != s_2:
                 print(setting, s_1, s_2)
         for var in sorted(self.acc_no_restart.state.variables.keys()):
-            if "salt" in var:
+            if "salt" in var:  # salt is not used by this setup, contains only noise
                 continue
             arr_1, arr_2 = (getattr(obj, var) for obj in (self.acc_no_restart.state, self.acc_restart.state))
             try:
@@ -181,10 +181,6 @@ class RestartTest(object):
                 arr_2 = arr_2.copy2numpy()
             except AttributeError:
                 pass
-            # if "psi" in var:
-            #     arr_1 = arr_1[3:-2, 2:-2]
-            #     arr_2 = arr_2[3:-2, 2:-2]
-            print(var)
             np.testing.assert_allclose(*self._normalize(arr_1, arr_2), atol=1e-7)
         return passed
 

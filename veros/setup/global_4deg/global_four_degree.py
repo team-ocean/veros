@@ -15,7 +15,7 @@ DATA_FILES = veros.tools.get_assets(
 )
 
 
-class GlobalFourDegree(VerosSetup):
+class GlobalFourDegreeSetup(VerosSetup):
     """Global 4 degree model with 15 vertical levels.
 
     This setup demonstrates:
@@ -221,7 +221,7 @@ class GlobalFourDegree(VerosSetup):
 
 @veros.tools.cli
 def run(*args, **kwargs):
-    simulation = GlobalFourDegree(*args, **kwargs)
+    simulation = GlobalFourDegreeSetup(*args, **kwargs)
     simulation.setup()
     simulation.run()
 

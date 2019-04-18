@@ -4,7 +4,7 @@ from veros import VerosSetup, veros_method, runtime_settings as rs
 import veros.tools
 
 
-class ACCSector(VerosSetup):
+class ACCSectorSetup(VerosSetup):
     """A model using spherical coordinates with a partially closed domain representing the narrow sector of Atlantic and ACC.
 
     The bathymetry of the model is idealized to a flat-bottom (with depth of 4000 m) over the majority of the domain,
@@ -184,7 +184,7 @@ class ACCSector(VerosSetup):
 
 @veros.tools.cli
 def run(*args, **kwargs):
-    simulation = ACCSector(*args, **kwargs)
+    simulation = ACCSectorSetup(*args, **kwargs)
     simulation.setup()
     simulation.run()
 

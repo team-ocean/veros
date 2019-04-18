@@ -28,8 +28,9 @@ def runner():
 
 def test_veros_copy_setup(runner):
     with TemporaryDirectory() as tempdir:
-        for setup in ("acc", "acc_sector", "eady", "global_4deg", "global_1deg", "north_atlantic", "wave_propagation"):
-            result = runner.invoke(veros.cli.veros_copy_setup.cli, [setup, "--to", tempdir])
+        for setup in ("acc", "acc_sector", "eady", "global_4deg", "global_1deg",
+                      "global_flexible", "north_atlantic", "wave_propagation"):
+            result = runner.invoke(veros.cli.veros_copy_setup.cli, [setup, "--to", os.path.join(tempdir, setup)])
             assert result.exit_code == 0
             assert not result.output
 

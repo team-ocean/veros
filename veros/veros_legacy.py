@@ -35,7 +35,7 @@ class VerosLegacy(veros.VerosSetup):
         """
         To use the pyOM2 legacy interface point the fortran argument to the Veros fortran library:
 
-        > simulation = GlobalOneDegree(fortran="pyOM_code.so")
+        > simulation = GlobalOneDegreeSetup(fortran="pyOM_code.so")
 
         """
         super(VerosLegacy, self).__init__(*args, **kwargs)

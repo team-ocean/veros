@@ -1,1 +1,1 @@
-from veros.setup.global_1deg.global_one_degree import GlobalOneDegree
+from veros.setup.global_1deg.global_one_degree import GlobalOneDegreeSetup

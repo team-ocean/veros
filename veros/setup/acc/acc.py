@@ -4,7 +4,7 @@ from veros import VerosSetup, veros_method, runtime_settings as rs
 from veros.tools import cli
 
 
-class ACC(VerosSetup):
+class ACCSetup(VerosSetup):
     """A model using spherical coordinates with a partially closed domain representing the Atlantic and ACC.
 
     Wind forcing over the channel part and buoyancy relaxation drive a large-scale meridional overturning circulation.
@@ -151,7 +151,7 @@ class ACC(VerosSetup):
 
 @cli
 def run(*args, **kwargs):
-    simulation = ACC(*args, **kwargs)
+    simulation = ACCSetup(*args, **kwargs)
     simulation.setup()
     simulation.run()
 

@@ -1,62 +1,97 @@
 def test_setup_acc(backend):
-    from veros.setup.acc import ACC
-    sim = ACC(backend=backend)
-    sim.diskless_mode = True
+    from veros import runtime_settings as rs
+    from veros.setup.acc import ACCSetup
+    rs.backend = backend
+
+    sim = ACCSetup()
+    sim.state.diskless_mode = True
     sim.setup()
-    sim.runlen = sim.dt_tracer * 20
+    sim.state.runlen = sim.state.dt_tracer * 20
     sim.run()
 
 
 def test_setup_acc_sector(backend):
-    from veros.setup.acc_sector import ACCSector
-    sim = ACCSector(backend=backend)
-    sim.diskless_mode = True
+    from veros import runtime_settings as rs
+    from veros.setup.acc_sector import ACCSectorSetup
+    rs.backend = backend
+
+    sim = ACCSectorSetup()
+    sim.state.diskless_mode = True
     sim.setup()
-    sim.runlen = sim.dt_tracer * 20
+    sim.state.runlen = sim.state.dt_tracer * 20
     sim.run()
 
 
 def test_setup_eady(backend):
-    from veros.setup.eady import Eady
-    sim = Eady(backend=backend)
-    sim.diskless_mode = True
+    from veros import runtime_settings as rs
+    from veros.setup.eady import EadySetup
+    rs.backend = backend
+
+    sim = EadySetup()
+    sim.state.diskless_mode = True
     sim.setup()
-    sim.runlen = sim.dt_tracer * 20
+    sim.state.runlen = sim.state.dt_tracer * 20
     sim.run()
 
 
 def test_setup_4deg(backend):
-    from veros.setup.global_4deg import GlobalFourDegree
-    sim = GlobalFourDegree(backend=backend)
-    sim.diskless_mode = True
+    from veros import runtime_settings as rs
+    from veros.setup.global_4deg import GlobalFourDegreeSetup
+    rs.backend = backend
+
+    sim = GlobalFourDegreeSetup()
+    sim.state.diskless_mode = True
     sim.setup()
-    sim.runlen = sim.dt_tracer * 20
+    sim.state.runlen = sim.state.dt_tracer * 20
+    sim.run()
+
+
+def test_setup_flexible(backend):
+    from veros import runtime_settings as rs
+    from veros.setup.global_flexible import GlobalFlexibleResolutionSetup
+    rs.backend = backend
+
+    sim = GlobalFlexibleResolutionSetup(override=dict(
+        nx=100, ny=50, dt_tracer=3600, dt_mom=3600,
+    ))
+    sim.state.diskless_mode = True
+    sim.setup()
+    sim.state.runlen = sim.state.dt_tracer * 20
     sim.run()
 
 
 # too big to test
-# def test_setup_1deg():
-#     from veros.setup.global_1deg import GlobalOneDegree
-#     sim = GlobalOneDegree()
-#     sim.diskless_mode = True
+# def test_setup_1deg(backend):
+#     from veros import runtime_settings as rs
+#     from veros.setup.global_1deg import GlobalOneDegreeSetup
+#     rs.backend = backend
+#
+#     sim = GlobalOneDegreeSetup()
+#     sim.state.diskless_mode = True
 #     sim.setup()
-#     sim.runlen = sim.dt_tracer
+#     sim.state.runlen = sim.state.dt_tracer
 #     sim.run()
 
 
 def test_setup_north_atlantic(backend):
-    from veros.setup.north_atlantic import NorthAtlantic
-    sim = NorthAtlantic(backend=backend, override=dict(nx=100, ny=100, nz=50))
-    sim.diskless_mode = True
+    from veros import runtime_settings as rs
+    from veros.setup.north_atlantic import NorthAtlanticSetup
+    rs.backend = backend
+
+    sim = NorthAtlanticSetup(override=dict(nx=100, ny=100, nz=50))
+    sim.state.diskless_mode = True
     sim.setup()
-    sim.runlen = sim.dt_tracer
+    sim.state.runlen = sim.state.dt_tracer
     sim.run()
 
 
 def test_setup_wave_propagation(backend):
-    from veros.setup.wave_propagation import WavePropagation
-    sim = WavePropagation(backend=backend, override=dict(nx=100, ny=100, nz=50))
-    sim.diskless_mode = True
+    from veros import runtime_settings as rs
+    from veros.setup.wave_propagation import WavePropagationSetup
+    rs.backend = backend
+
+    sim = WavePropagationSetup(override=dict(nx=100, ny=100, nz=50))
+    sim.state.diskless_mode = True
     sim.setup()
-    sim.runlen = sim.dt_tracer
+    sim.state.runlen = sim.state.dt_tracer
     sim.run()

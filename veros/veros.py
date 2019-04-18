@@ -320,5 +320,3 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
 
                 if profiler is not None:
                     diagnostics.stop_profiler(profiler)
-
-                logger.disable("veros")

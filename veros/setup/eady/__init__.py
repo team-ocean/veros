@@ -1,1 +1,1 @@
-from veros.setup.eady.eady import Eady
+from veros.setup.eady.eady import EadySetup
