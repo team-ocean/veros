@@ -226,9 +226,11 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # boundary = np.minimum(np.sqrt(vs.hSWS), vs.hSWS - vs.trcmin)
 
     # NOTE hSWS should never exceed the safe values, but we can check it
-    limit_min = 1e-10
-    boundary = np.minimum(np.maximum(1e-6 - vs.hSWS, limit_min),
-                          np.maximum(vs.hSWS - 1e-10, limit_min))
+    limit_min = 1e-8
+    # boundary = np.minimum(np.maximum(1e-6 - vs.hSWS, limit_min),
+    #                       np.maximum(vs.hSWS - 1e-10, limit_min))
+    boundary = np.maximum(limit_min,
+                          np.minimum(1e-6 - vs.hSWS, vs.hSWS - 1e-10))
     in1 = vs.hSWS + boundary
     in2 = vs.hSWS - boundary
 
