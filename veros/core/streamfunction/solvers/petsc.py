@@ -18,7 +18,7 @@ class PETScSolver(LinearSolver):
             [vs.nx, vs.ny],
             stencil_width=1,
             stencil_type="star",
-            comm=rst.mpi_comm,
+            comm=rs.mpi_comm,
             proc_sizes=rs.num_proc,
             boundary_type=boundary_type,
             ownership_ranges=[
@@ -33,7 +33,7 @@ class PETScSolver(LinearSolver):
 
         # setup krylov method
         self._ksp = PETSc.KSP()
-        self._ksp.create(rst.mpi_comm)
+        self._ksp.create(rs.mpi_comm)
         self._ksp.setOperators(self._matrix)
         self._ksp.setType('bcgs')
         self._ksp.setTolerances(atol=0, rtol=vs.congr_epsilon, max_it=vs.congr_max_iterations)

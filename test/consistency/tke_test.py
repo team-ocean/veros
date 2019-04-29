@@ -57,7 +57,7 @@ class TKETest(VerosPyOMUnitTest):
         self.set_attribute("kbot", np.random.randint(0, self.nz, size=(self.nx + 4, self.ny + 4)))
 
         self.test_module = tke
-        veros_args = (self.veros_new, )
+        veros_args = (self.veros_new.state, )
         veros_legacy_args = dict()
         self.test_routines = OrderedDict()
         self.test_routines["set_tke_diffusivities"] = (veros_args, veros_legacy_args)

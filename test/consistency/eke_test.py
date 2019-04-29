@@ -60,7 +60,7 @@ class EKETest(VerosPyOMUnitTest):
         self.set_attribute("kbot", kbot)
 
         self.test_module = eke
-        veros_args = (self.veros_new, )
+        veros_args = (self.veros_new.state, )
         veros_legacy_args = dict()
         self.test_routines = OrderedDict()
         self.test_routines["init_eke"] = (veros_args, veros_legacy_args)

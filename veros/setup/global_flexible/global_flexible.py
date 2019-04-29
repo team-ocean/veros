@@ -7,7 +7,7 @@ import h5netcdf
 import scipy.ndimage
 import scipy.interpolate
 
-from veros import veros_method, VerosSetup, runtime_state as rst
+from veros import veros_method, VerosSetup, runtime_settings as rs, runtime_state as rst
 from veros.variables import Variable
 import veros.tools
 from veros.core.utilities import enforce_boundaries
@@ -112,7 +112,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         if rst.proc_num > 1:
             kwargs.update(
                 driver='mpio',
-                comm=rst.mpi_comm,
+                comm=rs.mpi_comm,
             )
 
         with h5netcdf.File(DATA_FILES["forcing"], "r", **kwargs) as forcing_file:

@@ -1,11 +1,10 @@
 import os
 
-import numpy as np
-np.random.seed(17)
-
-from veros import VerosLegacy, variables, runtime_settings as rs
+from veros import VerosLegacy, runtime_settings as rs
 from veros.timer import Timer
 
+import numpy as np
+np.random.seed(17)
 
 here = os.path.dirname(os.path.realpath(__file__))
 
@@ -78,7 +77,7 @@ class VerosPyOMUnitTest(object):
     def __init__(self, fortran, backend, dims=None):
         rs.backend = backend
         self.veros_new = VerosLegacyDummy()
-        self.veros_new.pyom_compatibility_mode = True
+        self.veros_new.state.pyom_compatibility_mode = True
 
         self.veros_legacy = VerosLegacyDummy(fortran=fortran)
 

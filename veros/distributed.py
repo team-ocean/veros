@@ -38,12 +38,12 @@ def get_array_buffer(vs, arr):
 
 @veros_method
 def validate_decomposition(vs):
-    if rst.mpi_comm is None:
+    if rs.mpi_comm is None:
         if (rs.num_proc[0] > 1 or rs.num_proc[1] > 1):
             raise RuntimeError("mpi4py is required for distributed execution")
         return
 
-    comm_size = rst.mpi_comm.Get_size()
+    comm_size = rs.mpi_comm.Get_size()
     if rst.proc_num != comm_size:
         raise RuntimeError("number of processes ({}) does not match size of communicator ({})"
                            .format(rst.proc_num, comm_size))
@@ -222,7 +222,7 @@ def exchange_overlap(vs, arr, var_grid):
         recv_idx = overlap_slices_to[i_s]
         recv_arr = np.empty_like(arr[recv_idx])
 
-        future = rst.mpi_comm.Irecv(get_array_buffer(vs, recv_arr), source=other_proc, tag=i_r)
+        future = rs.mpi_comm.Irecv(get_array_buffer(vs, recv_arr), source=other_proc, tag=i_r)
         receive_futures.append((future, recv_idx, recv_arr))
 
     for i_s, other_proc in enumerate(proc_neighbors):
@@ -232,7 +232,7 @@ def exchange_overlap(vs, arr, var_grid):
         send_idx = overlap_slices_from[i_s]
         send_arr = ascontiguousarray(arr[send_idx])
 
-        rst.mpi_comm.Send(get_array_buffer(vs, send_arr), dest=other_proc, tag=i_s)
+        rs.mpi_comm.Send(get_array_buffer(vs, send_arr), dest=other_proc, tag=i_s)
 
     for future, recv_idx, recv_arr in receive_futures:
         future.wait()
@@ -264,7 +264,7 @@ def exchange_cyclic_boundaries(vs, arr):
     recv_arr = np.empty_like(arr[recv_idx])
     send_arr = ascontiguousarray(arr[send_idx])
 
-    rst.mpi_comm.Sendrecv(
+    rs.mpi_comm.Sendrecv(
         sendbuf=get_array_buffer(vs, send_arr), dest=other_proc, sendtag=10,
         recvbuf=get_array_buffer(vs, recv_arr), source=other_proc, recvtag=10
     )
@@ -284,7 +284,7 @@ def _reduce(vs, arr, op):
     arr = ascontiguousarray(arr)
     res = np.empty_like(arr)
 
-    rst.mpi_comm.Allreduce(
+    rs.mpi_comm.Allreduce(
         get_array_buffer(vs, arr),
         get_array_buffer(vs, res),
         op=op
@@ -353,7 +353,7 @@ def _gather_1d(vs, arr, dim):
                 continue
             idx_g, idx_l = get_chunk_slices(vs, dim_grid, include_overlap=True, proc_idx=pi)
             recvbuf = np.empty_like(arr[idx_l])
-            future = rst.mpi_comm.Irecv(get_array_buffer(vs, recvbuf), source=proc, tag=20)
+            future = rs.mpi_comm.Irecv(get_array_buffer(vs, recvbuf), source=proc, tag=20)
             buffer_list.append((future, idx_g, recvbuf))
 
         out_shape = ((vs.nx + 4, vs.ny + 4)[dim],) + arr.shape[1:]
@@ -367,7 +367,7 @@ def _gather_1d(vs, arr, dim):
         return out
 
     else:
-        rst.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=0, tag=20)
+        rs.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=0, tag=20)
         return arr
 
 
@@ -389,7 +389,7 @@ def _gather_xy(vs, arr):
                 proc_idx=proc_rank_to_index(proc)
             )
             recvbuf = np.empty_like(arr[idx_l])
-            future = rst.mpi_comm.Irecv(get_array_buffer(vs, recvbuf), source=proc, tag=30)
+            future = rs.mpi_comm.Irecv(get_array_buffer(vs, recvbuf), source=proc, tag=30)
             buffer_list.append((future, idx_g, recvbuf))
 
         out_shape = (vs.nx + 4, vs.ny + 4) + arr.shape[2:]
@@ -402,7 +402,7 @@ def _gather_xy(vs, arr):
 
         return out
     else:
-        rst.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=0, tag=30)
+        rs.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=0, tag=30)
 
     return arr
 
@@ -438,14 +438,14 @@ def gather(vs, arr, var_grid):
 @dist_context_only
 @veros_method
 def broadcast(vs, obj):
-    return rst.mpi_comm.bcast(obj, root=0)
+    return rs.mpi_comm.bcast(obj, root=0)
 
 
 @dist_context_only
 @veros_method(inline=True)
 def _scatter_constant(vs, arr):
     arr = ascontiguousarray(arr)
-    rst.mpi_comm.Bcast(get_array_buffer(vs, arr), root=0)
+    rs.mpi_comm.Bcast(get_array_buffer(vs, arr), root=0)
     return arr
 
 
@@ -464,13 +464,13 @@ def _scatter_1d(vs, arr, dim):
         for proc in range(1, rst.proc_num):
             global_slice, _ = get_chunk_slices(vs, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
             sendbuf = ascontiguousarray(arr[global_slice])
-            rst.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=proc, tag=40)
+            rs.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=proc, tag=40)
 
         # arr changes shape in main process
         arr = np.zeros((nx + 4,) + arr.shape[1:], dtype=arr.dtype)
     else:
         recvbuf = np.empty_like(arr[local_slice])
-        rst.mpi_comm.Recv(get_array_buffer(vs, recvbuf), source=0, tag=40)
+        rs.mpi_comm.Recv(get_array_buffer(vs, recvbuf), source=0, tag=40)
 
     arr[local_slice] = recvbuf
 
@@ -493,13 +493,13 @@ def _scatter_xy(vs, arr):
         for proc in range(1, rst.proc_num):
             global_slice, _ = get_chunk_slices(vs, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
             sendbuf = ascontiguousarray(arr[global_slice])
-            rst.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=proc, tag=50)
+            rs.mpi_comm.Send(get_array_buffer(vs, sendbuf), dest=proc, tag=50)
 
         # arr changes shape in main process
         arr = np.empty((nxi + 4, nyi + 4) + arr.shape[2:], dtype=arr.dtype)
     else:
         recvbuf = np.empty_like(arr[local_slice])
-        rst.mpi_comm.Recv(get_array_buffer(vs, recvbuf), source=0, tag=50)
+        rs.mpi_comm.Recv(get_array_buffer(vs, recvbuf), source=0, tag=50)
 
     arr[local_slice] = recvbuf
 
@@ -539,8 +539,8 @@ def scatter(vs, arr, var_grid):
 
 
 def barrier():
-    rst.mpi_comm.barrier()
+    rs.mpi_comm.barrier()
 
 
 def abort():
-    rst.mpi_comm.Abort()
+    rs.mpi_comm.Abort()

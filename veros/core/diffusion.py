@@ -1,6 +1,6 @@
 import math
 
-from .. import veros_method
+from .. import veros_method, runtime_settings as rs
 from . import utilities
 
 
@@ -38,7 +38,6 @@ def tempsalt_biharmonic(vs):
     biharmonic mixing of temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
-    aloc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
     del2 = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
 
     fxa = math.sqrt(abs(vs.K_hbi))

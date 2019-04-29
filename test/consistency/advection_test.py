@@ -34,12 +34,12 @@ class AdvectionTest(VerosPyOMUnitTest):
 
         self.set_attribute("kbot", np.random.randint(0, self.nz, size=(self.nx + 4, self.ny + 4)).astype(np.float))
 
-        numerics.calc_topo(self.veros_new)
+        numerics.calc_topo(self.veros_new.state)
         self.veros_legacy.call_fortran_routine("calc_topo")
 
         self.test_module = advection
-        veros_args = (self.veros_new, self.veros_new.flux_east, self.veros_new.flux_north,
-                      self.veros_new.flux_top, self.veros_new.Hd[..., 1])
+        veros_args = (self.veros_new.state, self.veros_new.state.flux_east, self.veros_new.state.flux_north,
+                      self.veros_new.state.flux_top, self.veros_new.state.Hd[..., 1])
         veros_legacy_args = dict(
             is_=-1, ie_=self.nx + 2, js_=-1, je_=self.ny + 2, nz_=self.nz,
             adv_fe=self.veros_legacy.get_fortran_attribute("flux_east"),
@@ -48,7 +48,7 @@ class AdvectionTest(VerosPyOMUnitTest):
             var=self.veros_legacy.get_fortran_attribute("Hd")[..., 1]
         )
         self.test_routines = OrderedDict()
-        self.test_routines["calculate_velocity_on_wgrid"] = ((self.veros_new, ), dict())
+        self.test_routines["calculate_velocity_on_wgrid"] = ((self.veros_new.state, ), dict())
         self.test_routines.update(
             adv_flux_2nd=(veros_args, veros_legacy_args),
             adv_flux_superbee=(veros_args, veros_legacy_args),

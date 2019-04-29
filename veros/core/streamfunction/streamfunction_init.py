@@ -220,6 +220,9 @@ def do_streamfunction_init(vs):
 
             ij = [ij[0] + direction[0], ij[1] + direction[1]]
 
+            if start_pos == tuple(ij) and start_dir == tuple(direction):
+                break
+
             """
             account for cyclic boundary conditions
             """
@@ -233,7 +236,7 @@ def do_streamfunction_init(vs):
             if start_pos == tuple(ij) and start_dir == tuple(direction):
                 break
 
-            if n > boundary_map.size:
+            if n > 50: #boundary_map.size:
                 raise RuntimeError("walk around island perimeter {} did not terminate".format(isle))
 
         _print_verbose(vs, " number of points is {:d}".format(n + 1))

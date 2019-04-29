@@ -50,16 +50,16 @@ class IsoneutralTest(VerosPyOMUnitTest):
 
         istemp = bool(np.random.randint(0, 2))
 
-        veros_args = (self.veros_new, self.veros_new.temp, istemp)
+        veros_args = (self.veros_new.state, self.veros_new.state.temp, istemp)
         veros_legacy_args = dict(is_=-1, ie_=self.nx + 2, js_=-1, je_=self.ny + 2, nz_=self.nz,
                                  tr=self.veros_legacy.get_fortran_attribute("temp"), istemp=istemp)
 
         self.test_routines = OrderedDict()
-        self.test_routines["isoneutral_diffusion_pre"] = ((self.veros_new, ), dict())
-        self.test_routines["isoneutral_diag_streamfunction"] = ((self.veros_new, ), dict())
+        self.test_routines["isoneutral_diffusion_pre"] = ((self.veros_new.state, ), dict())
+        self.test_routines["isoneutral_diag_streamfunction"] = ((self.veros_new.state, ), dict())
         self.test_routines["isoneutral_diffusion"] = (veros_args, veros_legacy_args)
         self.test_routines["isoneutral_skew_diffusion"] = (veros_args, veros_legacy_args)
-        self.test_routines["isoneutral_friction"] = ((self.veros_new, ), dict())
+        self.test_routines["isoneutral_friction"] = ((self.veros_new.state, ), dict())
         # unused in PyOM
         #self.test_routines["isoneutral_diffusion_all"] = (veros_args, veros_legacy_args)
 

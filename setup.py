@@ -41,11 +41,12 @@ INSTALL_REQUIRES = [
 
 EXTRAS_REQUIRE = {
     "fast": ["bohrium", "pyamg"],
+    "mpi": ["mpi4py", "petsc4py"],
     "bohrium": ["bohrium"],
     "gpu": ["bohrium", "pyopencl"],
     "postprocessing": ["xarray", "matplotlib"],
     "dev": ["pyinstrument", "versioneer"],
-    "test": ["pytest", "pytest-cov", "pytest-xdist", "codecov", "pyopencl", "pyamg"]
+    "test": ["pytest", "pytest-cov", "pytest-xdist", "codecov", "pyopencl", "pyamg", "petsc4py", "mpi4py"]
 }
 EXTRAS_REQUIRE["all"] = sorted(set(sum(EXTRAS_REQUIRE.values(), [])))
 

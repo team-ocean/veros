@@ -61,7 +61,7 @@ class ThermodynamicsTest(VerosPyOMUnitTest):
         self.set_attribute("kbot", np.random.randint(0, self.nz, size=(self.nx + 4, self.ny + 4)))
 
         self.test_module = thermodynamics
-        veros_args = (self.veros_new, )
+        veros_args = (self.veros_new.state, )
         veros_legacy_args = dict()
         self.test_routines = OrderedDict()
         self.test_routines.update(thermodynamics=(veros_args, veros_legacy_args), )

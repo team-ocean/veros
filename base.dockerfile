@@ -47,6 +47,23 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
+# Build PETSc
+ENV PETSC_ARCH=arch-linux2-c-opt
+ENV PETSC_DIR="/tmp/petsc-3.11.1"
+
+WORKDIR /tmp
+RUN curl -L http://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-lite-3.11.1.tar.gz > /tmp/petsc.tar.gz && \
+    tar xzf petsc.tar.gz && \
+    rm petsc.tar.gz
+WORKDIR /tmp/petsc-3.11.1
+RUN ./configure \
+      --prefix=/usr/local \
+      --download-hypre && \
+    make -j 4 && \
+    make install
+
+ENV PETSC_DIR="/usr/local"
+
 # Install OpenCL
 RUN apt-get update && apt-get install -y \
     'ocl-icd-opencl-dev' \

@@ -1,3 +1,11 @@
+def _default_mpi_comm():
+    try:
+        from mpi4py import MPI
+    except ImportError:
+        return None
+    else:
+        return MPI.COMM_WORLD
+
 
 def twoints(v):
     return (int(v[0]), int(v[1]))
@@ -18,6 +26,7 @@ AVAILABLE_SETTINGS = (
     ("profile_mode", bool, False),
     ("loglevel", loglevel, "info"),
     ("logfile", None, None),
+    ("mpi_comm", None, _default_mpi_comm())
 )
 
 
@@ -49,10 +58,10 @@ class RuntimeSettings(object):
         return super(RuntimeSettings, self).__setattr__(attr, val)
 
     def __repr__(self):
-        setval = ",".join(
-            "%s=%s" % (key, getattr(self, key)) for key in self.__settings__
+        setval = ", ".join(
+            "%s=%s" % (key, repr(getattr(self, key))) for key in self.__settings__
         )
-        return "{clsname}({setval}".format(
+        return "{clsname}({setval})".format(
             clsname=self.__class__.__name__,
             setval=setval
         )
@@ -64,17 +73,9 @@ class RuntimeState(object):
     __slots__ = []
 
     @property
-    def mpi_comm(self):
-        try:
-            from mpi4py import MPI
-        except ImportError:
-            return None
-        else:
-            return MPI.COMM_WORLD
-
-    @property
     def proc_rank(self):
-        comm = self.mpi_comm
+        from . import runtime_settings
+        comm = runtime_settings.mpi_comm
 
         if comm is None:
             return 0

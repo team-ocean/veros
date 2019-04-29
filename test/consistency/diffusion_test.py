@@ -43,12 +43,12 @@ class DiffusionTest(VerosPyOMUnitTest):
             self.set_attribute(a, np.random.randn(self.nx + 4, self.ny + 4, self.nz, 3))
 
         self.set_attribute("kbot", np.random.randint(0, self.nz, size=(self.nx + 4, self.ny + 4)))
-        numerics.calc_topo(self.veros_new)
+        numerics.calc_topo(self.veros_new.state)
         self.veros_legacy.call_fortran_routine("calc_topo")
 
-        self.set_attribute("P_diss_hmix", np.random.randn(self.nx + 4, self.ny + 4, self.nz) * self.veros_new.maskT)
+        self.set_attribute("P_diss_hmix", np.random.randn(self.nx + 4, self.ny + 4, self.nz) * self.veros_new.state.maskT)
         self.test_module = diffusion
-        veros_args = (self.veros_new, )
+        veros_args = (self.veros_new.state, )
         veros_legacy_args = dict()
         self.test_routines = OrderedDict()
         self.test_routines.update(

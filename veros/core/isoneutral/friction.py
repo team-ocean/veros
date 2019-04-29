@@ -1,4 +1,4 @@
-from ... import veros_method
+from ... import veros_method, runtime_settings as rs
 from .. import numerics, utilities
 
 
@@ -19,8 +19,9 @@ def isoneutral_friction(vs):
     ks = np.maximum(vs.kbot[1:-2, 1:-2], vs.kbot[2:-1, 1:-2]) - 1
     fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :] + vs.kappa_gm[2:-1, 1:-2, :])
     delta, a_tri, b_tri, c_tri = (
-            np.zeros((vs.nx + 1, vs.ny + 1, vs.nz), dtype=vs.default_float_type)
-        for _ in range(4))
+        np.zeros((vs.nx + 1, vs.ny + 1, vs.nz), dtype=vs.default_float_type)
+        for _ in range(4)
+    )
     delta[:, :, :-1] = vs.dt_mom / vs.dzw[np.newaxis, np.newaxis, :-1] * \
         fxa[:, :, :-1] * vs.maskU[1:-2, 1:-2, 1:] * vs.maskU[1:-2, 1:-2, :-1]
     delta[-1] = 0.

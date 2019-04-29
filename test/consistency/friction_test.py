@@ -55,13 +55,13 @@ class FrictionTest(VerosPyOMUnitTest):
         kbot[3:-3, 3:-3].flat[np.random.randint(0, (self.nx - 2) * (self.ny - 2), size=10)] = 0
         self.set_attribute("kbot", kbot)
 
-        numerics.calc_grid(self.veros_new)
-        numerics.calc_topo(self.veros_new)
+        numerics.calc_grid(self.veros_new.state)
+        numerics.calc_topo(self.veros_new.state)
         self.veros_legacy.call_fortran_routine("calc_grid")
         self.veros_legacy.call_fortran_routine("calc_topo")
 
         self.test_module = friction
-        veros_args = (self.veros_new, )
+        veros_args = (self.veros_new.state, )
         veros_legacy_args = dict()
         self.test_routines = {k: (veros_args, veros_legacy_args) for k in (
             "explicit_vert_friction", "implicit_vert_friction", "rayleigh_friction",

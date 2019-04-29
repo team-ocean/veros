@@ -56,8 +56,8 @@ class IdemixTest(VerosPyOMUnitTest):
         self.set_attribute("kbot", np.random.randint(0, self.nz, size=(self.nx + 4, self.ny + 4)))
 
         self.test_routines = OrderedDict()
-        self.test_routines["set_idemix_parameter"] = ((self.veros_new, ), dict())
-        self.test_routines["integrate_idemix"] = ((self.veros_new, ), dict())
+        self.test_routines["set_idemix_parameter"] = ((self.veros_new.state, ), dict())
+        self.test_routines["integrate_idemix"] = ((self.veros_new.state, ), dict())
 
     def test_passed(self, routine):
         if routine == "set_idemix_parameter":

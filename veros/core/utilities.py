@@ -1,9 +1,9 @@
-from .. import veros_method, runtime_settings as rs
+from .. import veros_method, runtime_settings as rs, runtime_state as rst
 
 
 @veros_method
 def enforce_boundaries(vs, arr, local=False):
-    from ..distributed import exchange_cyclic_boundaries
+    from ..distributed import exchange_cyclic_boundaries, exchange_overlap
     from ..decorators import CONTEXT
 
     if vs.enable_cyclic_x:
@@ -13,10 +13,9 @@ def enforce_boundaries(vs, arr, local=False):
         else:
             exchange_cyclic_boundaries(vs, arr)
 
-    if local or (rs.num_proc[0] == 1 and rs.num_proc[1] == 1):
+    if local or rst.proc_num == 1:
         return
 
-    from ..distributed import exchange_overlap
     exchange_overlap(vs, arr, ["xt", "yt"])
 
 

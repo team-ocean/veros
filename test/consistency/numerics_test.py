@@ -41,7 +41,7 @@ class NumericsTest(VerosPyOMUnitTest):
         self.set_attribute("kbot", kbot)
 
         self.test_module = numerics
-        veros_args = (self.veros_new, )
+        veros_args = (self.veros_new.state, )
         veros_legacy_args = dict()
         self.test_routines = OrderedDict()
         for r in ("calc_grid", "calc_topo", "calc_beta", "calc_initial_conditions"):

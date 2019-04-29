@@ -6,6 +6,7 @@ import numpy as np
 
 from test_base import VerosPyOMUnitTest
 from veros.core import numerics
+from veros import runtime_settings as rs
 
 
 class TridiagTest(VerosPyOMUnitTest):
@@ -24,11 +25,11 @@ class TridiagTest(VerosPyOMUnitTest):
                     "solve_tridiag", a=a[i, j], b=b[i, j], c=c[i, j], d=d[i, j], n=self.nz
                 )
 
-        if self.veros_new.backend_name == "bohrium":
+        if rs.backend == "bohrium":
             import bohrium as bh
             a, b, c, d = (bh.array(v) for v in (a, b, c, d))
 
-        out_new = numerics.solve_tridiag(self.veros_new, a, b, c, d)
+        out_new = numerics.solve_tridiag(self.veros_new.state, a, b, c, d)
         np.testing.assert_allclose(out_legacy, out_new)
 
 

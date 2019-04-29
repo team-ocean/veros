@@ -56,16 +56,18 @@ def adv_flux_2nd(vs, adv_fe, adv_fn, adv_ft, var):
 
 @veros_method
 def adv_flux_superbee(vs, adv_fe, adv_fn, adv_ft, var):
-    """
+    r"""
     from MITgcm
     Calculates advection of a tracer
     using second-order interpolation with a flux limiter:
+
     \begin{equation*}
     F^x_{adv} = U \overline{ \theta }^i
     - \frac{1}{2} \left([ 1 - \psi(C_r) ] |U|
        + U \frac{u \Delta t}{\Delta x_c} \psi(C_r)
                  \right) \delta_i \theta
     \end{equation*}
+
     where the $\psi(C_r)$ is the limiter function and $C_r$ is
     the slope ratio.
     """
