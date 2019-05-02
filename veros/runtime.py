@@ -85,7 +85,12 @@ class RuntimeState(object):
     @property
     def proc_num(self):
         from . import runtime_settings
-        return runtime_settings.num_proc[0] * runtime_settings.num_proc[1]
+        comm = runtime_settings.mpi_comm
+
+        if comm is None:
+            return 1
+
+        return comm.Get_size()
 
     @property
     def proc_idx(self):
