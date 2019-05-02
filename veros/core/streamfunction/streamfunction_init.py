@@ -78,19 +78,18 @@ def streamfunction_init(vs):
     vs.line_dir_west_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
 
     for isle in range(vs.nisle):
-        isle_mask = np.isin(vs.land_map, [-1, isle + 1])
-        boundary_map = np.where(isle_mask, np.sign(vs.land_map), 0)
+        boundary_map = vs.land_map == (isle + 1)
 
         if vs.enable_cyclic_x:
-            vs.line_dir_east_mask[2:-2, 1:-1, isle] = (boundary_map[3:-1, 1:-1] == 1) & (boundary_map[3:-1, 2:] == -1)
-            vs.line_dir_west_mask[2:-2, 1:-1, isle] = (boundary_map[2:-2, 2:] == 1) & (boundary_map[2:-2, 1:-1] == -1)
-            vs.line_dir_south_mask[2:-2, 1:-1, isle] = (boundary_map[2:-2, 1:-1] == 1) & (boundary_map[3:-1, 1:-1] == -1)
-            vs.line_dir_north_mask[2:-2, 1:-1, isle] = (boundary_map[3:-1, 2:] == 1) & (boundary_map[2:-2, 2:] == -1)
+            vs.line_dir_east_mask[2:-2, 1:-1, isle] = boundary_map[3:-1, 1:-1] & ~boundary_map[3:-1, 2:]
+            vs.line_dir_west_mask[2:-2, 1:-1, isle] = boundary_map[2:-2, 2:] & ~boundary_map[2:-2, 1:-1]
+            vs.line_dir_south_mask[2:-2, 1:-1, isle] = boundary_map[2:-2, 1:-1] & ~boundary_map[3:-1, 1:-1]
+            vs.line_dir_north_mask[2:-2, 1:-1, isle] = boundary_map[3:-1, 2:] & ~boundary_map[2:-2, 2:]
         else:
-            vs.line_dir_east_mask[1:-1, 1:-1, isle] = (boundary_map[2:, 1:-1] == 1) & (boundary_map[2:, 2:] == -1)
-            vs.line_dir_west_mask[1:-1, 1:-1, isle] = (boundary_map[1:-1, 2:] == 1) & (boundary_map[1:-1, 1:-1] == -1)
-            vs.line_dir_south_mask[1:-1, 1:-1, isle] = (boundary_map[1:-1, 1:-1] == 1) & (boundary_map[2:, 1:-1] == -1)
-            vs.line_dir_north_mask[1:-1, 1:-1, isle] = (boundary_map[2:, 2:] == 1) & (boundary_map[1:-1, 2:] == -1)
+            vs.line_dir_east_mask[1:-1, 1:-1, isle] = boundary_map[2:, 1:-1] & ~boundary_map[2:, 2:]
+            vs.line_dir_west_mask[1:-1, 1:-1, isle] = boundary_map[1:-1, 2:] & ~boundary_map[1:-1, 1:-1]
+            vs.line_dir_south_mask[1:-1, 1:-1, isle] = boundary_map[1:-1, 1:-1] & ~boundary_map[2:, 1:-1]
+            vs.line_dir_north_mask[1:-1, 1:-1, isle] = boundary_map[2:, 2:] & ~boundary_map[1:-1, 2:]
 
         vs.boundary_mask[..., isle] = (
             vs.line_dir_east_mask[..., isle]
