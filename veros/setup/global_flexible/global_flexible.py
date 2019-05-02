@@ -346,7 +346,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
     @veros_method
     def set_diagnostics(self, vs):
-        vs.diagnostics["cfl_monitor"].output_frequency = vs.dt_tracer
+        vs.diagnostics["cfl_monitor"].output_frequency = vs.dt_tracer * 100
         vs.diagnostics["tracer_monitor"].output_frequency = 86400.
         vs.diagnostics["snapshot"].output_frequency = 86400.
         vs.diagnostics["overturning"].output_frequency = 360 * 86400

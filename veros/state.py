@@ -1,6 +1,6 @@
 import math
 
-from . import variables, settings
+from . import variables, settings, veros_method
 
 
 class VerosState(object):
@@ -23,6 +23,52 @@ class VerosState(object):
 
         settings.set_default_settings(self)
 
+    # @veros_method
+    # def allocate_variable(self, dimensions):
+    #     return np.array()
+
     def allocate_variables(self):
         self.variables.update(variables.get_standard_variables(self))
         variables.allocate_variables(self)
+
+    def to_xarray(self):
+        import xarray as xr
+
+        coords = {}
+        data_vars = {}
+
+        for var_name, var in self.variables.items():
+            data = variables.remove_ghosts(
+                getattr(self, var_name), var.dims
+            )
+            data_vars[var_name] = xr.DataArray(
+                data,
+                dims=var.dims,
+                name=var_name,
+                attrs=dict(
+                    long_description=var.long_description,
+                    units=var.units,
+                    scale=var.scale,
+                )
+            )
+
+            for dim in var.dims:
+                if dim not in coords:
+                    if hasattr(self, dim):
+                        dim_val = getattr(self, dim)
+                        if isinstance(dim_val, int):
+                            coords[dim] = range(dim_val)
+                        else:
+                            coords[dim] = variables.remove_ghosts(dim_val, (dim,))
+                    else:
+                        coords[dim] = range(variables.get_dimensions(self, (dim,))[0])
+
+        data_vars = {k: v for k, v in data_vars.items() if k not in coords}
+
+        attrs = dict(
+            time=self.time,
+            iteration=self.itt,
+            tau=self.tau,
+        )
+
+        return xr.Dataset(data_vars, coords=coords, attrs=attrs)

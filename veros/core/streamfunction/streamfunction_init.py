@@ -8,7 +8,7 @@ from . import island, utilities
 @veros_method(inline=True, dist_safe=False, local_variables=["kbot", "land_map"])
 def get_isleperim(vs):
     logger.info(" determining number of land masses")
-    vs.land_map[...] = island.isleperim(vs, vs.kbot, verbose=vs.verbose_island_routines)
+    vs.land_map[...] = island.isleperim(vs, vs.kbot)
     logger.info(_ascii_map(vs, vs.land_map))
     return int(vs.land_map.max())
 
@@ -134,7 +134,7 @@ def streamfunction_init(vs):
 @veros_method
 def _ascii_map(vs, boundary_map):
     map_string = ""
-    linewidth = 125
+    linewidth = 100
     imt = vs.nx + 4
     iremain = imt
     istart = 0
@@ -149,15 +149,11 @@ def _ascii_map(vs, boundary_map):
             map_string += "".join(["{:5d}".format(istart + i + 1 - 2) for i in range(1, iline + 1, 5)])
             map_string += "\n"
             for j in range(vs.ny + 3, -1, -1):
-                map_string += "{:3d} ".format(j) + "".join([str(int(_mod10(boundary_map[istart + i - 2, j]))) if _mod10(
-                    boundary_map[istart + i - 2, j]) >= 0 else "*" for i in range(2, iline + 2)])
+                map_string += "{:3d} ".format(j) + "".join([str(boundary_map[istart + i - 2, j] % 10)
+                                                            if boundary_map[istart + i - 2, j] >= 0 else "*" for i in range(2, iline + 2)])
                 map_string += "\n"
             map_string += "".join(["{:5d}".format(istart + i + 1 - 2) for i in range(1, iline + 1, 5)])
             map_string += "\n"
             istart = istart + iline
     map_string += "\n"
     return map_string
-
-
-def _mod10(m):
-    return m % 10 if m > 0 else m

@@ -4,7 +4,8 @@ from .state import VerosState
 class DistributedVerosState(VerosState):
     """A proxy wrapper to temporarily synchronize a distributed state.
     
-    
+    Use `gather_arrays` to retrieve distributed variables from parent VerosState object,
+    and `scatter_arrays` to sync changes back.
     """
     def __init__(self, parent_state):
         object.__setattr__(self, "_vs", parent_state)

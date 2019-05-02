@@ -222,23 +222,23 @@ MAIN_VARIABLES = OrderedDict([
 
     ("maskT", Variable(
         "Mask for tracer points", T_GRID, "",
-        "Mask in physical space for tracer points", dtype="int", time_dependent=False
+        "Mask in physical space for tracer points", dtype="int8", time_dependent=False
     )),
     ("maskU", Variable(
         "Mask for U points", U_GRID, "",
-        "Mask in physical space for U points", dtype="int", time_dependent=False
+        "Mask in physical space for U points", dtype="int8", time_dependent=False
     )),
     ("maskV", Variable(
         "Mask for V points", V_GRID, "",
-        "Mask in physical space for V points", dtype="int", time_dependent=False
+        "Mask in physical space for V points", dtype="int8", time_dependent=False
     )),
     ("maskW", Variable(
         "Mask for W points", W_GRID, "",
-        "Mask in physical space for W points", dtype="int", time_dependent=False
+        "Mask in physical space for W points", dtype="int8", time_dependent=False
     )),
     ("maskZ", Variable(
         "Mask for Zeta points", ZETA_GRID, "",
-        "Mask in physical space for Zeta points", dtype="int", time_dependent=False
+        "Mask in physical space for Zeta points", dtype="int8", time_dependent=False
     )),
 
     ("rho", Variable(
@@ -401,7 +401,7 @@ MAIN_VARIABLES = OrderedDict([
     )),
 
     ("psi", Variable(
-        "Streamfunction", ZETA_HOR + TIMESTEPS, "m^3/s", "Streamfunction",
+        "Streamfunction", ZETA_HOR + TIMESTEPS, "m^3/s", "Barotropic streamfunction",
         output=True, write_to_restart=True
     )),
     ("dpsi", Variable(
