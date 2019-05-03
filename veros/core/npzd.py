@@ -58,8 +58,11 @@ def biogeochemistry(vs):
     import_minus_export = {}
 
     # incomming shortwave radiation at top layer
-    swr = vs.swr[:, :, np.newaxis] * np.exp(-vs.light_attenuation_phytoplankton
-                                            * np.cumsum(phyto_integrated[:, :, ::-1], axis=2)[:, :, ::-1])
+    swr = vs.swr[:, :, np.newaxis] * \
+          np.exp(-vs.light_attenuation_phytoplankton
+                 * np.cumsum(phyto_integrated[:, :, ::-1],
+                             axis=2)[:, :, ::-1]
+                 )
 
     # declination and fraction of day with daylight
     # TODO describe magic numbers
@@ -80,7 +83,7 @@ def biogeochemistry(vs):
                               * vs.rctheta[np.newaxis, :, np.newaxis])
 
     # TODO is light_attenuation a bad name? TODO shouldn't we multiply by the light attenuation?
-    light_attenuation = vs.dzt * vs.light_attenuation_water + plankton_total
+    light_attenuation = vs.dzt * vs.light_attenuation_water + plankton_total * vs.light_attenuation_phytoplankton
 
     # recycling rate determined according to b ** (cT)
     bct = vs.bbio ** (vs.cbio * vs.temp[:, :, :, vs.tau])
@@ -139,6 +142,7 @@ def biogeochemistry(vs):
         for sinker, speed in vs.sinking_speeds.items():
             export[sinker] = speed * vs.temporary_tracers[sinker] * flags[sinker] / vs.dzt
             bottom_export[sinker] = export[sinker] * vs.bottom_mask
+            export[sinker][...] -= bottom_export[sinker]
 
             impo[sinker] = np.empty_like(export[sinker])
             impo[sinker][:, :, -1] = 0
@@ -312,6 +316,7 @@ def dop_limitation_phytoplankton(vs, tracers):
 def dop_limitation_coccolitophore(vs, tracers):
     """ Phytoplankton limit to growth by DOP limitation """
     return vs.hdop * general_nutrient_limitation(tracers["DOP"], vs.saturation_constant_NC / vs.redfield_ratio_PN)
+
 
 
 @veros_method
@@ -525,21 +530,18 @@ def setup_basic_npzd_rules(vs):
         ])
 
 
-
 @veros_method
 def setup_carbon_npzd_rules(vs):
     """
     Rules for including a carbon cycle
     """
-    # The actual action is on DIC, but the to variables overlap# co2_surface_flux_alk, 
+    # The actual action is on DIC, but the to variables overlap
     from .npzd_rules import co2_surface_flux, recycling_to_dic, \
         primary_production_from_DIC, excretion_dic, recycling_phyto_to_dic, \
         dic_alk_scale
-#        primary_production_from_alk, recycling_to_alk, recycling_phyto_to_alk, excretion_alk, \
-
 
     from .npzd_rules import calcite_production_phyto, calcite_production_phyto_alk, \
-            post_redistribute_calcite, pre_reset_calcite
+        post_redistribute_calcite, pre_reset_calcite
 
     zw = vs.zw - vs.dzt  # bottom of grid box using dzt because dzw is weird
     vs.rcak[:, :, :-1] = (- np.exp(zw[:-1] / vs.dcaco3) + np.exp(zw[1:] / vs.dcaco3)) / vs.dzt[:-1]

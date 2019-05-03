@@ -135,25 +135,33 @@ SETTINGS = OrderedDict([
 
     # NPZD
     ("enable_npzd", Setting(False, bool, "")),
-    ("light_attenuation_phytoplankton", Setting(0.047, float, "Light attenuation of phytoplankton")),
+    # ("light_attenuation_phytoplankton", Setting(0.047, float, "Light attenuation of phytoplankton")),
+    ("light_attenuation_phytoplankton", Setting(0.03, float, "Light attenuation of phytoplankton")),
     ("light_attenuation_water", Setting(0.04, float, "Light attenuation of water")),
-    # ("rctheta", Setting(1.33, float, "Angle of incidence")), # TODO what angle?
     ("nud0", Setting(0.07 / 86400, float, "Remineralization rate of detritus [1/sec]")),
-    ("bbio", Setting(1.066, float, "??????")),
-    ("cbio", Setting(1.0, float, "???????")),
-    ("abio_P", Setting(0.6 / 86400, float, "Maximum growth rate parameter in [1/sec]")),  # TODO of what?
-    ("gbio", Setting(0.08 / 86400, float, "Maximum grazing rate at 0 deg C [1/sec]")),
+    # ("bbio", Setting(1.066, float, "the b in b ** (c*T)")),
+    ("bbio", Setting(1.028, float, "the b in b ** (c*T)")),
+    ("cbio", Setting(1.0, float, "the c in b ** (c*T)")),
+    # ("abio_P", Setting(0.6 / 86400, float, "Maximum growth rate parameter for phytoplankton in [1/sec]")),
+    ("abio_P", Setting(0.21 / 86400, float, "Maximum growth rate parameter for phytoplankton in [1/sec]")),
+    # ("gbio", Setting(0.38 / 86400, float, "Maximum grazing rate at 0 deg C [1/sec]")),
+    ("gbio", Setting(0.13 / 86400, float, "Maximum grazing rate at 0 deg C [1/sec]")),
+    # ("nupt0", Setting(0.015 / 86400, float, "Fast-recycling mortality rate of phytoplankton [1/sec]")),
     ("nupt0", Setting(0.015 / 86400, float, "Fast-recycling mortality rate of phytoplankton [1/sec]")),
     ("saturation_constant_N", Setting(0.7, float, "Half saturation constant for N uptate [mmol N / m^3]")),
     ("saturation_constant_Z_grazing", Setting(0.15, float, "Half saturation constant for Z grazing [mmol/m^3]")),
-    ("specific_mortality_phytoplankton", Setting(0.03 / 86400, float, "Specific mortality rate of phytoplankton")),
+    # ("specific_mortality_phytoplankton", Setting(0.03 / 86400, float, "Specific mortality rate of phytoplankton")),
+    ("specific_mortality_phytoplankton", Setting(0.025 / 86400, float, "Specific mortality rate of phytoplankton")),
+    # ("quadric_mortality_zooplankton", Setting(0.06 / 86400, float, "Quadric mortality rate of zooplankton [???]")),
     ("quadric_mortality_zooplankton", Setting(0.06 / 86400, float, "Quadric mortality rate of zooplankton [???]")),
-    ("assimilation_efficiency", Setting(0.70, float, "gamma1")),  # TODO comment
+    # ("assimilation_efficiency", Setting(0.70, float, "gamma1")),  # TODO comment
+    ("assimilation_efficiency", Setting(0.7, float, "gamma1")),  # TODO comment
+    # ("zooplankton_growth_efficiency", Setting(0.6, float, "Zooplankton growth efficiency")),
     ("zooplankton_growth_efficiency", Setting(0.6, float, "Zooplankton growth efficiency")),
-    ("wd0", Setting(16. / 86400, float, "Sinking speed of detritus at surface [m/s]")),
+    # ("wd0", Setting(16. / 86400, float, "Sinking speed of detritus at surface [m/s]")),
+    ("wd0", Setting(7. / 86400, float, "Sinking speed of detritus at surface [m/s]")),
     ("mwz", Setting(1000, float, "Depth below which sinking speed of detritus remains constant [m]")),
     ("mw", Setting(0.02 / 86400, float, "Increase in sinking speed with depth [1/sec]")),
-    # ("mw", Setting(0.02 / 100, float, "Increase in sinking speed with depth [1/sec]")),
     ("zprefP", Setting(1, float, "Zooplankton preference for grazing on Phytoplankton")),
     ("zprefZ", Setting(1, float, "Zooplankton preference for grazing on other zooplankton")),
     ("zprefDet", Setting(1, float, "Zooplankton preference for grazing on detritus")),
@@ -161,13 +169,13 @@ SETTINGS = OrderedDict([
     ("redfield_ratio_CP", Setting(7.1 * 16, float, "Refield ratio for C/P")),
     ("redfield_ratio_ON", Setting(10.6, float, "Redfield ratio for O/N")),
     ("redfield_ratio_CN", Setting(7.1, float, "Redfield ratio for C/N")),
-    ("trcmin", Setting(0, float, "Minimum npzd tracer value")),
+    ("trcmin", Setting(1e-13, float, "Minimum npzd tracer value")),
     ("u1_min", Setting(1e-6, float, "Minimum u1 value for calculating avg J")),
-    ("gd_min_diaz", Setting(1e-14, float, "Minimum value for gd for diazotroph growth")),
     ("zooplankton_max_growth_temp", Setting(20.0, float, "Temperature for which zooplankton growth rate no longer grows with temperature")),
 
     # NPZD with N
     ("enable_nitrogen", Setting(False, bool, "")),
+    ("gd_min_diaz", Setting(1e-14, float, "Minimum value for gd for diazotroph growth")),
     ("jdiar", Setting(0.08, float, "Factor reducing the growth rate of diazotrophs")),
     ("nudon0", Setting(2.33e-5 / 86400, float, "DON remineralization rate [1/sec]")),
     ("nudop0", Setting(7e-5 / 86400, float, "DOP remineralization rate [1/sec]")),
@@ -183,7 +191,7 @@ SETTINGS = OrderedDict([
     # NPZD with caco3
     ("enable_calcifiers", Setting(False, bool, "")),
     ("light_attenuation_caco3", Setting(0.047, float, "Calcite light attenuation [1/(m * mmol/m^3)")),
-    ("zprefC", Setting(1, float, "Zooplankton preference for calcite")),
+    ("zprefC", Setting(1, float, "Zooplankton preference for coccoliths")),
     ("alpha_C", Setting(0.06 / 86400, float, "Initial slope P-I curve [(W/m^2)^-1/sec]")),
     ("abio_C", Setting(0.52 / 86400, float, "a; Maximum growth rate parameter coccolithophore [1/sec]")),
     ("specific_mortality_coccolitophore", Setting(0.03 / 86400, float, "Specific mortality rate coccolithophores [1/sec]")),
