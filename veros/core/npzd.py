@@ -57,12 +57,17 @@ def biogeochemistry(vs):
     impo = {}
     import_minus_export = {}
 
-    # incomming shortwave radiation at top layer
+    # incomming shortwave radiation at top of layer
     swr = vs.swr[:, :, np.newaxis] * \
           np.exp(-vs.light_attenuation_phytoplankton
                  * np.cumsum(phyto_integrated[:, :, ::-1],
                              axis=2)[:, :, ::-1]
                  )
+
+    # Reduce incomming light where there is ice
+    # For some configurations, this is necessary
+    icemask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8, vs.forc_temp_surface < 0.0)
+    swr[:, :] *= np.exp(-5 * icemask[:, :, np.newaxis])
 
     # declination and fraction of day with daylight
     # TODO describe magic numbers
@@ -142,7 +147,6 @@ def biogeochemistry(vs):
         for sinker, speed in vs.sinking_speeds.items():
             export[sinker] = speed * vs.temporary_tracers[sinker] * flags[sinker] / vs.dzt
             bottom_export[sinker] = export[sinker] * vs.bottom_mask
-            export[sinker][...] -= bottom_export[sinker]
 
             impo[sinker] = np.empty_like(export[sinker])
             impo[sinker][:, :, -1] = 0
@@ -175,6 +179,8 @@ def biogeochemistry(vs):
         vs.temporary_tracers["po4"][...] += bottom_export["detritus"] * vs.redfield_ratio_PN * vs.dt_bio
         if vs.enable_carbon:
             vs.temporary_tracers["DIC"][...] += bottom_export["detritus"] * vs.redfield_ratio_CN * vs.dt_bio
+
+        vs.detritus_export[..., vs.tau] = export["detritus"][...]  # Diagnostics
 
     # Post processesing or smoothing rules
     post_results = [(rule[0](vs, rule[1], rule[2]), rule[4]) for rule in vs.npzd_post_rules]
