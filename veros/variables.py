@@ -714,6 +714,8 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "Concentration of detritus in grid box",
             output=True
         )),
+        ("detritus_export", Variable(
+            "Exported detritus", T_GRID + TIMESTEPS, "mmol/m^3", "", output=True)),
         ("po4", Variable(
             "Phosphate concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
             "Concentration of phosphate in grid box",
