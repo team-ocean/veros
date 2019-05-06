@@ -22,8 +22,6 @@ def biogeochemistry(vs):
         vs.temporary_tracers[tracer][:, :, :] = val[:, :, :, vs.tau]
 
     # Flags enable us to only work on tracers with a minimum available concentration
-    # flags = {tracer: np.ones_like(vs.temporary_tracers[tracer], dtype=np.bool)
-    #          for tracer in vs.temporary_tracers}
     flags = {tracer: vs.maskT[...].astype(np.bool) for tracer in vs.temporary_tracers}
 
     # Ensure positive data and keep flags of where
@@ -67,7 +65,7 @@ def biogeochemistry(vs):
     # Reduce incomming light where there is ice
     # For some configurations, this is necessary
     icemask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8, vs.forc_temp_surface < 0.0)
-    swr[:, :] *= np.exp(-5 * icemask[:, :, np.newaxis])
+    swr[:, :] *= np.exp(-vs.light_attenuation_ice * icemask[:, :, np.newaxis])
 
     # declination and fraction of day with daylight
     # TODO describe magic numbers
