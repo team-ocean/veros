@@ -24,14 +24,6 @@ def biogeochemistry(vs):
     # Flags enable us to only work on tracers with a minimum available concentration
     flags = {tracer: vs.maskT[...].astype(np.bool) for tracer in vs.temporary_tracers}
 
-    # Ensure positive data and keep flags of where
-    #for tracer, data in vs.temporary_tracers.items():  # TODO may we assume, these values are safe?
-    #    # flag_mask = (data > vs.trcmin) * vs.maskT
-    #    #flags[tracer][:, :, :] = flag_mask.astype(np.bool)
-    #    #data[:, :, :] = np.where(flag_mask, data, vs.trcmin)
-    #    flags[tracer][:, :, :] = (data > vs.trcmin) * vs.maskT
-    #    data[:, :, :] = utilities.where(vs, flags[tracer], data, vs.trcmin)
-
     # Pre rules: Changes that need to be applied before running npzd dynamics
     pre_rules = [(rule[0](vs, rule[1], rule[2]), rule[4]) for rule in vs.npzd_pre_rules]
     for rule, boundary in pre_rules:
@@ -62,22 +54,24 @@ def biogeochemistry(vs):
                              axis=2)[:, :, ::-1]
                  )
 
-    # Reduce incomming light where there is ice
-    # For some configurations, this is necessary
+    # Reduce incomming light where there is ice - as veros doesn't currently
+    # have an ice model, we get temperatures below -1.8 and decreasing temperature forcing
+    # as recommended by the 4deg model from the setup gallery
     icemask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8, vs.forc_temp_surface < 0.0)
     swr[:, :] *= np.exp(-vs.light_attenuation_ice * icemask[:, :, np.newaxis])
 
     # declination and fraction of day with daylight
-    # TODO describe magic numbers
-    # declin = np.sin((np.mod(vs.time * time.SECONDS_TO_X["years"], 1) - 0.22) * 2.0 * np.pi) * 0.4
+    # TODO describe magic numbers or create veros settings for them
+    # 0.72 is fraction of year at aphelion
+    # 0.4 is scaling based on angle of rotation
     declin = np.sin((np.mod(vs.time * time.SECONDS_TO_X["years"], 1) - 0.72) * 2.0 * np.pi) * 0.4
-    # rctheta = np.maximum(-1.5, np.minimum(1.5, np.radians(vs.yt) - declin))
-    radian = 2 * np.pi / 360
+    radian = 2 * np.pi / 360  # bohrium doesn't support np.radians, so this is faster
     rctheta = np.maximum(-1.5, np.minimum(1.5, vs.yt * radian - declin))
 
     # 1.33 is derived from Snells law for the air-sea barrier
     vs.rctheta[:] = vs.light_attenuation_water / np.sqrt(1.0 - (1.0 - np.cos(rctheta)**2.0) / 1.33**2)
-    # dayfrac = np.minimum(1.0, -np.tan(np.radians(vs.yt)) * np.tan(declin))
+
+    # fraction of day with photosynthetically active radiation with a minimum value
     dayfrac = np.minimum(1.0, -np.tan(radian * vs.yt) * np.tan(declin))
     vs.dayfrac[:] = np.maximum(1e-12, np.arccos(np.maximum(-1.0, dayfrac)) / np.pi)
 
@@ -85,7 +79,7 @@ def biogeochemistry(vs):
     grid_light = swr * np.exp(vs.zw[np.newaxis, np.newaxis, :]
                               * vs.rctheta[np.newaxis, :, np.newaxis])
 
-    # TODO is light_attenuation a bad name? TODO shouldn't we multiply by the light attenuation?
+    # amount of PAR absorbed by water and plankton in each grid cell
     light_attenuation = vs.dzt * vs.light_attenuation_water + plankton_total * vs.light_attenuation_phytoplankton
 
     # recycling rate determined according to b ** (cT)
@@ -97,8 +91,8 @@ def biogeochemistry(vs):
     # bctz sets an upper limit on effects of temperature on grazing
     gmax = vs.gbio * bctz
 
+    # light saturated growth and non-saturated growth
     jmax, avej = {}, {}
-
     for plankton, growth_function in vs.plankton_growth_functions.items():
         jmax[plankton], avej[plankton] = growth_function(vs, bct, grid_light, light_attenuation)
 
@@ -106,14 +100,17 @@ def biogeochemistry(vs):
     for _ in range(nbio):
 
         # Plankton is recycled, dying and growing
+        # pre compute amounts for use in rules
         for plankton in vs.plankton_types:
 
             # Nutrient limiting growth - if no limit, growth is determined by avej
             u = 1
 
+            # limit maximum growth, usually by nutrient deficiency
             for growth_limiting_function in vs.limiting_functions[plankton]:
                 u = np.minimum(u, growth_limiting_function(vs, vs.temporary_tracers))
 
+            # increase in plankton population by nutrient consumption
             vs.net_primary_production[plankton] = flags[plankton] * flags["po4"]\
                 * np.minimum(avej[plankton], u * jmax[plankton]) * vs.temporary_tracers[plankton]
 
@@ -133,7 +130,7 @@ def biogeochemistry(vs):
         vs.mortality["zooplankton"] = flags["zooplankton"] * vs.quadric_mortality_zooplankton\
             * vs.temporary_tracers["zooplankton"] ** 2
 
-        # TODO: move these to rules except grazing
+        # Zooplankton growth parameters for use in rules and diagnostics
         vs.grazing, vs.digestion, vs.excretion, vs.sloppy_feeding = \
             zooplankton_grazing(vs, vs.temporary_tracers, flags, gmax)
         vs.excretion_total = sum(vs.excretion.values())
@@ -153,6 +150,7 @@ def biogeochemistry(vs):
             import_minus_export[sinker] = impo[sinker] - export[sinker]
 
         # Gather all state updates
+        # TODO use named tuple? Indeces will be confusing
         npzd_updates = [(rule[0](vs, rule[1], rule[2]), rule[4]) for rule in vs.npzd_rules]
 
         # perform updates
@@ -166,14 +164,11 @@ def biogeochemistry(vs):
 
         # Prepare temporary tracers for next bio iteration
         for tracer, data in vs.temporary_tracers.items():
-            # flag_mask = np.logical_and(flags[tracer], data > vs.trcmin) * vs.maskT
-            # flags[tracer] = flag_mask.astype(np.bool)
-            # data[:, :, :] = np.where(flag_mask, data, vs.trcmin)
-
-            flags[tracer][:, :, :] = np.logical_and(flags[tracer], (data > vs.trcmin))# * vs.maskT
+            flags[tracer][:, :, :] = np.logical_and(flags[tracer], (data > vs.trcmin))
             data[:, :, :] = utilities.where(vs, flags[tracer], data, vs.trcmin)
 
         # Remineralize material fallen to the ocean floor
+        # TODO these can now be rules with the BOTTOM boundary
         vs.temporary_tracers["po4"][...] += bottom_export["detritus"] * vs.redfield_ratio_PN * vs.dt_bio
         if vs.enable_carbon:
             vs.temporary_tracers["DIC"][...] += bottom_export["detritus"] * vs.redfield_ratio_CN * vs.dt_bio
@@ -182,25 +177,20 @@ def biogeochemistry(vs):
 
     # Post processesing or smoothing rules
     post_results = [(rule[0](vs, rule[1], rule[2]), rule[4]) for rule in vs.npzd_post_rules]
-    post_modified = []  # we only want to reset values, which have acutally changed
+    post_modified = []  # we only want to reset values, which have acutally changed for performance
     for result, boundary in post_results:
         for key, value in result.items():
             vs.temporary_tracers[key][boundary] += value
             post_modified.append(key)
 
     # Reset before returning
+    # using set for unique modifications is faster than resetting all tracers
     for tracer in set(post_modified):
         data = vs.temporary_tracers[tracer]
-    # for tracer, data in vs.temporary_tracers.items():  # TODO limit this to calues, that have actually been changed
-        # flag_mask = np.logical_and(flags[tracer], data > vs.trcmin) * vs.maskT
-        # data[:, :, :] = np.where(flag_mask.astype(np.bool), data, vs.trcmin)
-
-        flags[tracer][:, :, :] = np.logical_and(flags[tracer], (data > vs.trcmin))# * vs.maskT
+        flags[tracer][:, :, :] = np.logical_and(flags[tracer], (data > vs.trcmin))
         data[:, :, :] = utilities.where(vs, flags[tracer], data, vs.trcmin)
 
-    """
-    Only return the difference. Will be added to timestep taup1
-    """
+    # Only return the difference from the current time step. Will be added to timestep taup1
     return {tracer: vs.temporary_tracers[tracer] - vs.npzd_tracers[tracer][:, :, :, vs.tau]
             for tracer in vs.npzd_tracers}
 
@@ -237,10 +227,10 @@ def zooplankton_grazing(vs, tracers, flags, gmax):
 @veros_method
 def potential_growth(vs, bct, grid_light, light_attenuation, growth_parameter):
     """ Potential growth of phytoplankton """
-    f1 = np.exp(-light_attenuation)
-    jmax = growth_parameter * bct
+    f1 = np.exp(-light_attenuation)  # available light
+    jmax = growth_parameter * bct  # maximum growth
     gd = jmax * vs.dayfrac[np.newaxis, :, np.newaxis]  # growth in fraction of day
-    avej = avg_J(vs, f1, gd, grid_light, light_attenuation)
+    avej = avg_J(vs, f1, gd, grid_light, light_attenuation)  # light limited growth
 
     return jmax, avej
 
@@ -408,19 +398,22 @@ def register_npzd_rule(vs, name, rule, label=None, boundary=None, group="PRIMARY
 def select_npzd_rule(vs, name):
     """ Select rule for the NPZD model """
 
+    # activate rule by selecting from available rules
     rule = vs.npzd_available_rules[name]
     if name in vs.npzd_selected_rule_names:
         raise ValueError("Rules must have unique names, %s defined multiple times" % name)
 
     vs.npzd_selected_rule_names.append(name)
 
+    # we may activate each rule in a list of rules
     if type(rule) is list:
         for r in rule:
             select_npzd_rule(vs, r)
 
+    # or activate a single rule
     elif type(rule) is tuple:
 
-        group = rule[-1]
+        group = rule[-1]  # TODO we should probably use named tuples
 
         if group == "PRIMARY":
             vs.npzd_rules.append(rule)
@@ -431,17 +424,6 @@ def select_npzd_rule(vs, name):
 
     else:
         raise TypeError("Rule must be of type tuple or list")
-
-# @veros_method
-# def register_npzd_post_rule(vs, function, source, destination, label="?", boundary=None):
-#     vs.npzd_post_rules.append((function, source, destination, label, get_boundary(vs,boundary)))
-
-
-# @veros_method
-# def register_npzd_pre_rule(vs, function, source, destination, label="?", boundary=None):
-#     vs.npzd_pre_rules.append((function, source, destination, label, get_boundary(vs,boundary)))
-
-
 
 
 @veros_method
@@ -477,22 +459,7 @@ def setup_basic_npzd_rules(vs):
     register_npzd_data(vs, "zooplankton", vs.zooplankton)
     register_npzd_data(vs, "po4", vs.po4)
 
-    # Describe interactions between elements in model
-    # function describing interaction, from, to, description for graph
-    # register_npzd_rule(vs, grazing, "phytoplankton", "zooplankton", label="Grazing")
-    # register_npzd_rule(vs, mortality, "phytoplankton", "detritus", label="Mortality")
-    # register_npzd_rule(vs, sloppy_feeding, "phytoplankton", "detritus", label="Sloppy feeding")
-    # register_npzd_rule(vs, recycling_to_po4, "phytoplankton", "po4", label="Fast recycling")
-    # register_npzd_rule(vs, zooplankton_self_grazing, "zooplankton", "zooplankton", label="Grazing")
-    # register_npzd_rule(vs, excretion, "zooplankton", "po4", label="Excretion")
-    # register_npzd_rule(vs, mortality, "zooplankton", "detritus", label="Mortality")
-    # register_npzd_rule(vs, sloppy_feeding, "zooplankton", "detritus", label="Sloppy feeding")
-    # register_npzd_rule(vs, sloppy_feeding, "detritus", "detritus", label="Sloppy feeding")
-    # register_npzd_rule(vs, grazing, "detritus", "zooplankton", label="Grazing")
-    # register_npzd_rule(vs, recycling_to_po4, "detritus", "po4", label="Remineralization")
-
-    # if not vs.enable_nitrogen:
-    #     register_npzd_rule(vs, primary_production, "po4", "phytoplankton", label="Primary production")
+    # Register rules for interactions between active tracers
     register_npzd_rule(vs, "npzd_basic_phytoplankton_grazing",
             (grazing, "phytoplankton", "zooplankton"), label="Grazing")
     register_npzd_rule(vs, "npzd_basic_phytoplankton_mortality",
@@ -542,19 +509,21 @@ def setup_carbon_npzd_rules(vs):
     # The actual action is on DIC, but the to variables overlap
     from .npzd_rules import co2_surface_flux, recycling_to_dic, \
         primary_production_from_DIC, excretion_dic, recycling_phyto_to_dic, \
-        dic_alk_scale
-
-    from .npzd_rules import calcite_production_phyto, calcite_production_phyto_alk, \
+        dic_alk_scale, calcite_production_phyto, calcite_production_phyto_alk, \
         post_redistribute_calcite, pre_reset_calcite
 
     zw = vs.zw - vs.dzt  # bottom of grid box using dzt because dzw is weird
+
+    # redistribution fraction for calcite at level k
     vs.rcak[:, :, :-1] = (- np.exp(zw[:-1] / vs.dcaco3) + np.exp(zw[1:] / vs.dcaco3)) / vs.dzt[:-1]
     vs.rcak[:, :, -1] = - (np.exp(zw[-1] / vs.dcaco3) - 1.0) / vs.dzt[-1]
 
+    # redistribution fraction at bottom
     rcab = np.empty_like(vs.dic[..., 0])
     rcab[:, : -1] = 1 / vs.dzt[-1]
     rcab[:, :, :-1] = np.exp(zw[:-1] / vs.dcaco3) / vs.dzt[1:]
 
+    # merge bottom into level k and reset every cell outside ocean
     vs.rcak[vs.bottom_mask] = rcab[vs.bottom_mask]
     vs.rcak[...] *= vs.maskT
 
@@ -886,9 +855,11 @@ def npzd(vs):
         tracer_data[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, mask, sol,
                                                                tracer_data[2:-2, 2:-2, :, vs.taup1])
 
+    # update by biogeochemical changes
     for tracer, change in npzd_changes.items():
         vs.npzd_tracers[tracer][:, :, :, vs.taup1] += change
 
+    # prepare next timestep with minimum tracer values
     for tracer in vs.npzd_tracers.values():
         tracer[:, :, :, vs.taup1] = np.maximum(tracer[:, :, :, vs.taup1], vs.trcmin * vs.maskT)
 
