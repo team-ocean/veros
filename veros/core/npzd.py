@@ -2,7 +2,7 @@
 Contains veros methods for handling bio- and geochemistry
 (currently only simple bio)
 """
-import numpy as np  # NOTE np is already defined somehow
+import numpy as np  # NOTE np is already defined by Veros and should be removed
 from .. import veros_method
 from .. import time
 from . import diffusion, thermodynamics, cyclic, utilities, isoneutral
@@ -11,7 +11,15 @@ from . import diffusion, thermodynamics, cyclic, utilities, isoneutral
 @veros_method
 def biogeochemistry(vs):
     """
-    Integrate biochemistry: phytoplankton, zooplankton, detritus, po4
+    Control function for integration of biogeochemistry
+
+    Implements a rule based strategy. Any interaction between tracers should be
+    described by registering a rule for the interaction.
+    This routine ensures minimum tracer concentrations,
+    calculates primary production, mortality, recyclability, vertical export for
+    general tracers. Tracers should be registered to be used.
+
+    TODO: More description or link to documentation
     """
 
     # Number of timesteps to do for bio tracers
@@ -50,9 +58,7 @@ def biogeochemistry(vs):
     # incomming shortwave radiation at top of layer
     swr = vs.swr[:, :, np.newaxis] * \
           np.exp(-vs.light_attenuation_phytoplankton
-                 * np.cumsum(phyto_integrated[:, :, ::-1],
-                             axis=2)[:, :, ::-1]
-                 )
+                 * np.cumsum(phyto_integrated[:, :, ::-1], axis=2)[:, :, ::-1])
 
     # Reduce incomming light where there is ice - as veros doesn't currently
     # have an ice model, we get temperatures below -1.8 and decreasing temperature forcing
@@ -367,7 +373,6 @@ def _get_boundary(vs, boundary_string):
 
 @veros_method
 def register_npzd_rule(vs, name, rule, label=None, boundary=None, group="PRIMARY"):
-# def register_npzd_rule(vs, name, function, source, destination, label="?", boundary=None):
     """ Add rule to the npzd dynamics e.g. phytoplankkton being eaten by zooplankton
 
         ...
@@ -380,7 +385,6 @@ def register_npzd_rule(vs, name, rule, label=None, boundary=None, group="PRIMARY
         boundary: "SURFACE", "BOTTOM" or None
         ...
     """
-    # vs.npzd_rules.append((function, source, destination, label, get_boundary(vs, boundary)))
     if name in vs.npzd_available_rules:
         raise ValueError("Rule %s already exists, please verify the rule has not already been added and replace the chosen name" % name)
 
@@ -390,7 +394,8 @@ def register_npzd_rule(vs, name, rule, label=None, boundary=None, group="PRIMARY
         vs.npzd_available_rules[name] = rule
 
     else:
-        label = label or "?"
+        label = label or "?"  # label is just for the interaction graph
+        # TODO python2 compatibility..... why tho?
         vs.npzd_available_rules[name] = (*rule, label, _get_boundary(vs, boundary), group)
 
 
