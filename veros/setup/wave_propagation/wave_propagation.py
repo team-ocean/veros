@@ -293,8 +293,8 @@ class WavePropagation(veros.Veros):
         self.surface_tauy[...] = f1 * self._tauy[:, :, n1] + f2 * self._tauy[:, :, n2]
 
         if self.enable_tke:
-            self.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (self.surface_taux[1:-1, 1:-1] + self.surface_taux[:-2, 1:-1])) ** 2
-                                                      + (0.5 * (self.surface_tauy[1:-1, 1:-1] + self.surface_tauy[1:-1, :-2])) ** 2) ** (3. / 2.)
+            self.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (self.surface_taux[1:-1, 1:-1] + self.surface_taux[:-2, 1:-1]) / self.rho_0) ** 2
+                                                        + (0.5 * (self.surface_tauy[1:-1, 1:-1] + self.surface_tauy[1:-1, :-2]) / self.rho_0) ** 2) ** (3. / 2.)
 
         # W/m^2 K kg/J m^3/kg = K m/s
         fxa = f1 * self._t_star[..., n1] + f2 * self._t_star[..., n2]

@@ -113,8 +113,8 @@ class ACC(veros.Veros):
         self._t_rest = self.dzt[None, -1] / (30. * 86400.) * self.maskT[:, :, -1]
 
         if self.enable_tke:
-            self.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (self.surface_taux[2:-2, 2:-2] + self.surface_taux[1:-3, 2:-2]))**2
-                                                      + (0.5 * (self.surface_tauy[2:-2, 2:-2] + self.surface_tauy[2:-2, 1:-3]))**2)**(1.5)
+            self.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (self.surface_taux[2:-2, 2:-2] + self.surface_taux[1:-3, 2:-2]) / self.rho_0)**2
+                                                        + (0.5 * (self.surface_tauy[2:-2, 2:-2] + self.surface_tauy[2:-2, 1:-3]) / self.rho_0)**2)**(1.5)
 
         if self.enable_idemix:
             self.forc_iw_bottom[...] = 1e-6 * self.maskW[:, :, -1]

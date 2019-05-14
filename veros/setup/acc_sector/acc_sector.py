@@ -128,13 +128,13 @@ class ACCSector(veros.Veros):
         subequatorial_south_s = (self.yt <= -15) & (self.yt > -30)
         south = self.yt < -30
 
-        taux[north] = -5e-5 * np.sin(np.pi * (self.yu[north] - self.yu.max()) / (self.yt.max() - 30.))
-        taux[subequatorial_north_s] =  5e-5 * np.sin(np.pi * (self.yu[subequatorial_north_s] - 30.) / 30.)
-        taux[subequatorial_north_n] = 5e-5 * np.sin(np.pi * (self.yt[subequatorial_north_n] - 30.) / 30.)
-        taux[subequatorial_south_n] =  -5e-5 * np.sin(np.pi * (self.yu[subequatorial_south_n] - 30.) / 30.)
-        taux[subequatorial_south_s] = -5e-5 * np.sin(np.pi * (self.yt[subequatorial_south_s] - 30.) / 30.)
-        taux[equator] = -1.5e-5 * np.cos(np.pi * (self.yu[equator] - 10.) / 10.) - 2.5e-5
-        taux[south] = 15e-5 * np.sin(np.pi * (self.yu[south] - self.yu.min()) / (-30. - self.yt.min()))
+        taux[north] = -5e-2 * np.sin(np.pi * (self.yu[north] - self.yu.max()) / (self.yt.max() - 30.))
+        taux[subequatorial_north_s] =  5e-2 * np.sin(np.pi * (self.yu[subequatorial_north_s] - 30.) / 30.)
+        taux[subequatorial_north_n] = 5e-2 * np.sin(np.pi * (self.yt[subequatorial_north_n] - 30.) / 30.)
+        taux[subequatorial_south_n] =  -5e-2 * np.sin(np.pi * (self.yu[subequatorial_south_n] - 30.) / 30.)
+        taux[subequatorial_south_s] = -5e-2 * np.sin(np.pi * (self.yt[subequatorial_south_s] - 30.) / 30.)
+        taux[equator] = -1.5e-2 * np.cos(np.pi * (self.yu[equator] - 10.) / 10.) - 2.5e-2
+        taux[south] = 15e-2 * np.sin(np.pi * (self.yu[south] - self.yu.min()) / (-30. - self.yt.min()))
         self.surface_taux[:, :] = taux * self.maskU[:, :, -1]
 
         # surface heatflux forcing
@@ -142,11 +142,11 @@ class ACCSector(veros.Veros):
         self._t_star = DELTA_T * np.ones(self.ny + 4, dtype=self.default_float_type)
         self._t_star[self.yt<0] = TS + DELTA_T * np.sin(np.pi * (self.yt[self.yt<0] + 60.) / np.abs(2 * self.y_origin))
         self._t_star[self.yt>0] = TN + (DELTA_T + TS - TN) * np.sin(np.pi * (self.yt[self.yt>0] + 60.) / np.abs(2 * self.y_origin))
-        self._t_rest = self.dzt[None, -1] / (10. * 86400.) * self.maskT[:, :, -1]
+        self._t_rest = self.dzt[np.newaxis, -1] / (10. * 86400.) * self.maskT[:, :, -1]
 
         if self.enable_tke:
-            self.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (self.surface_taux[2:-2, 2:-2] + self.surface_taux[1:-3, 2:-2]))**2
-                                                      + (0.5 * (self.surface_tauy[2:-2, 2:-2] + self.surface_tauy[2:-2, 1:-3]))**2)**(1.5)
+            self.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (self.surface_taux[2:-2, 2:-2] + self.surface_taux[1:-3, 2:-2]) / self.rho_0)**2
+                                                        + (0.5 * (self.surface_tauy[2:-2, 2:-2] + self.surface_tauy[2:-2, 1:-3]) / self.rho_0)**2)**(1.5)
 
         if self.enable_idemix:
             self.forc_iw_bottom[...] = 1e-6 * self.maskW[:, :, -1]

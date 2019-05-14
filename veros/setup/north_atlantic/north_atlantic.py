@@ -188,8 +188,8 @@ class NorthAtlantic(veros.Veros):
         self.surface_tauy[...] = (f1 * self._tauy[:, :, n1] + f2 * self._tauy[:, :, n2])
 
         if self.enable_tke:
-            self.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (self.surface_taux[1:-1, 1:-1] + self.surface_taux[:-2, 1:-1]))**2
-                                                        + (0.5 * (self.surface_tauy[1:-1, 1:-1] + self.surface_tauy[1:-1, :-2]))**2
+            self.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (self.surface_taux[1:-1, 1:-1] + self.surface_taux[:-2, 1:-1]) / self.rho_0)**2
+                                                        + (0.5 * (self.surface_tauy[1:-1, 1:-1] + self.surface_tauy[1:-1, :-2]) / self.rho_0)**2
                                                         ) ** (3. / 2.)
         cp_0 = 3991.86795711963
         self.forc_temp_surface[...] = (f1 * self._sst_rest[:, :, n1] + f2 * self._sst_rest[:, :, n2]) * \
