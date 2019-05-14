@@ -183,15 +183,15 @@ class GlobalFourDegree(veros.Veros):
     @veros.veros_method
     def set_diagnostics(self):
         self.diagnostics["cfl_monitor"].output_frequency = 360 * 86400. / 24.
-        self.diagnostics["snapshot"].output_frequency = 360 * 86400. / 24.
-        self.diagnostics["overturning"].output_frequency = 360 * 86400. / 24.
+        self.diagnostics["snapshot"].output_frequency = 360 * 86400.
+        self.diagnostics["overturning"].output_frequency = 360 * 86400.
         self.diagnostics["overturning"].sampling_frequency = self.dt_tracer
-        self.diagnostics["energy"].output_frequency = 360 * 86400. / 24.
+        self.diagnostics["energy"].output_frequency = 360 * 86400.
         self.diagnostics["energy"].sampling_frequency = 86400
         average_vars = ["temp", "salt", "u", "v", "w", "surface_taux",
                         "surface_tauy", "psi"]
         self.diagnostics["averages"].output_variables = average_vars
-        self.diagnostics["averages"].output_frequency = 86400. * 30
+        self.diagnostics["averages"].output_frequency = 360 * 86400.
         self.diagnostics["averages"].sampling_frequency = 86400
 
     @veros.veros_method

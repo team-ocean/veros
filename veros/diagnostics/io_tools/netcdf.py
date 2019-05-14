@@ -71,14 +71,17 @@ def advance_time(vs, time_step, time_value, ncfile):
 
 @veros_method
 def write_variable(vs, key, var, var_data, ncfile, time_step=None):
+    var_data = var_data * var.scale
+
     gridmask = variables.get_grid_mask(vs, var.dims)
     if gridmask is not None:
         newaxes = (slice(None),) * gridmask.ndim + (np.newaxis,) * (var_data.ndim - gridmask.ndim)
         var_data = np.where(gridmask.astype(np.bool)[newaxes], var_data, variables.FILL_VALUE)
+
     if not np.isscalar(var_data):
         tmask = tuple(vs.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
         var_data = variables.remove_ghosts(var_data, var.dims)[tmask].T
-    var_data = var_data * var.scale
+
     if "Time" in ncfile.variables[key].dimensions:
         if time_step is None:
             raise ValueError("time step must be given for non-constant data")

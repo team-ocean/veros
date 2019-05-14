@@ -65,8 +65,9 @@ class Veros(with_metaclass(abc.ABCMeta)):
                                 level=getattr(logging, loglevel.upper()),
                                 format="%(message)s")
         except ValueError: # python 3
-            logging.basicConfig(filename=logfile, filemode="w",
-                                level=getattr(logging, loglevel.upper()),
+            if logfile is not None:
+                raise NotImplementedError("logfile argument is not supported in Python 3")
+            logging.basicConfig(level=getattr(logging, loglevel.upper()),
                                 format="%(message)s")
 
         settings.set_default_settings(self)
