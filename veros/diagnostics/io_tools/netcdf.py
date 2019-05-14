@@ -1,6 +1,5 @@
 import threading
 import contextlib
-import warnings
 
 from loguru import logger
 
@@ -133,7 +132,7 @@ def threaded_io(vs, filepath, mode):
     if runtime_state.proc_num > 1:
         kwargs.update(
             driver='mpio',
-            comm=runtime_state.mpi_comm
+            comm=rs.mpi_comm
         )
 
     nc_dataset = h5netcdf.File(filepath, mode, **kwargs)

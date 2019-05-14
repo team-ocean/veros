@@ -3,7 +3,7 @@ import contextlib
 
 from loguru import logger
 
-from ... import runtime_state
+from ... import runtime_settings, runtime_state
 
 
 @contextlib.contextmanager
@@ -19,7 +19,7 @@ def threaded_io(vs, filepath, mode):
     if runtime_state.proc_num > 1:
         kwargs.update(
             driver='mpio',
-            comm=runtime_state.mpi_comm
+            comm=runtime_settings.mpi_comm
         )
     h5file = h5py.File(filepath, mode, **kwargs)
     try:
