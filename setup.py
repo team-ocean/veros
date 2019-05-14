@@ -36,7 +36,8 @@ INSTALL_REQUIRES = [
     "pillow",
     "ruamel.yaml",
     "future",
-    "loguru"
+    "loguru",
+    "tqdm",
 ]
 
 EXTRAS_REQUIRE = {

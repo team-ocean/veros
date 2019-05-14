@@ -1,8 +1,10 @@
 
 import abc
+import sys
 
 from future.utils import with_metaclass
 from loguru import logger
+import tqdm
 
 from . import (settings, diagnostics, time, handlers, logs,
                distributed, runtime_settings as rs)
@@ -218,10 +220,18 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
         start_time, start_iteration = vs.time, vs.itt
         profiler = None
 
-        with handlers.signals_to_exception():
+        total_runlen, time_unit = time.format_time(vs.runlen + start_time)
+        pbar = tqdm.tqdm(
+            total=total_runlen,
+            unit='(model {})'.format(time_unit.rstrip('s')),
+            desc='Integrating',
+            file=sys.stdout
+        )
+
+        with handlers.signals_to_exception(), pbar:
             try:
                 while vs.time - start_time < vs.runlen:
-                    logger.info("Current iteration: {}".format(vs.itt))
+                    logger.debug("Current iteration: {}".format(vs.itt))
 
                     with vs.timers["diagnostics"]:
                         diagnostics.write_restart(vs)
@@ -276,6 +286,9 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
 
                     vs.itt += 1
                     vs.time += vs.dt_tracer
+
+                    pbar.update(time.convert_time(vs.dt_tracer, 'seconds', time_unit))
+                    pbar.set_postfix(dict(iteration=vs.itt))
 
                     self.after_timestep(vs)
 
