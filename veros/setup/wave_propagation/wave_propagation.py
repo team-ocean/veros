@@ -212,7 +212,7 @@ class WavePropagation(veros.Veros):
         taux_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                       self._get_data("tau_x"), time_grid,
                                       missing_value=0.)
-        self._taux[2:-2, 2:-2, :] = taux_data / self.rho_0
+        self._taux[2:-2, 2:-2, :] = taux_data
         mask = np.logical_and(self.yt > self.so_wind_interval[0], self.yt < self.so_wind_interval[1])[..., np.newaxis]
         self._taux *= 1. + mask * (self.so_wind_factor - 1.) * np.sin(np.pi * (self.yt[np.newaxis, :, np.newaxis] - self.so_wind_interval[0]) \
                                                                             / (self.so_wind_interval[1] - self.so_wind_interval[0]))
@@ -220,7 +220,7 @@ class WavePropagation(veros.Veros):
         tauy_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                       self._get_data("tau_y"), time_grid,
                                       missing_value=0.)
-        self._tauy[2:-2, 2:-2, :] = tauy_data / self.rho_0
+        self._tauy[2:-2, 2:-2, :] = tauy_data
 
         if self.enable_cyclic_x:
             veros.core.cyclic.setcyclic_x(self._taux)

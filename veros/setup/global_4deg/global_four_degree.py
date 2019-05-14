@@ -118,8 +118,8 @@ class GlobalFourDegree(veros.Veros):
         self.salt[2:-2, 2:-2, :, :2] = salt_data[..., np.newaxis] * self.maskT[2:-2, 2:-2, :, np.newaxis]
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
-        self.taux[2:-2, 2:-2, :] = self._read_forcing("tau_x") / self.rho_0
-        self.tauy[2:-2, 2:-2, :] = self._read_forcing("tau_y") / self.rho_0
+        self.taux[2:-2, 2:-2, :] = self._read_forcing("tau_x")
+        self.tauy[2:-2, 2:-2, :] = self._read_forcing("tau_y")
 
         # heat flux
         with Dataset(DATA_FILES["ecmwf"], "r") as ecmwf_data:
@@ -182,14 +182,12 @@ class GlobalFourDegree(veros.Veros):
 
     @veros.veros_method
     def set_diagnostics(self):
-        self.diagnostics["cfl_monitor"].output_frequency = 360 * 86400. / 24.
         self.diagnostics["snapshot"].output_frequency = 360 * 86400.
         self.diagnostics["overturning"].output_frequency = 360 * 86400.
         self.diagnostics["overturning"].sampling_frequency = self.dt_tracer
         self.diagnostics["energy"].output_frequency = 360 * 86400.
         self.diagnostics["energy"].sampling_frequency = 86400
-        average_vars = ["temp", "salt", "u", "v", "w", "surface_taux",
-                        "surface_tauy", "psi"]
+        average_vars = ["temp", "salt", "u", "v", "w", "surface_taux", "surface_tauy", "psi"]
         self.diagnostics["averages"].output_variables = average_vars
         self.diagnostics["averages"].output_frequency = 360 * 86400.
         self.diagnostics["averages"].sampling_frequency = 86400

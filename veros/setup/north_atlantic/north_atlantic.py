@@ -129,10 +129,10 @@ class NorthAtlantic(veros.Veros):
             for k in range(12):
                 self._taux[2:-2, 2:-2, k] = veros.tools.interpolate(
                     forc_u_coords_hor, forcing_file.variables["taux"][k, ...].T, t_hor, missing_value=-1e20
-                ) / 10. / self.rho_0
+                ) / 10.
                 self._tauy[2:-2, 2:-2, k] = veros.tools.interpolate(
                     forc_u_coords_hor, forcing_file.variables["tauy"][k, ...].T, t_hor, missing_value=-1e20
-                ) / 10. / self.rho_0
+                ) / 10.
 
             # heat flux and salinity restoring
             self._sst_clim = np.zeros((self.nx + 4, self.ny + 4, 12), dtype=self.default_float_type)

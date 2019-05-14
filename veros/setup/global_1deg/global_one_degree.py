@@ -148,11 +148,8 @@ class GlobalOneDegree(veros.Veros):
         self.salt[2:-2, 2:-2, :, 1] = salt_data[..., ::-1] * self.maskT[2:-2, 2:-2, :]
 
         # wind stress on MIT grid
-        taux_data = self._read_forcing("tau_x")
-        self.taux[2:-2, 2:-2, :] = taux_data / self.rho_0
-
-        tauy_data = self._read_forcing("tau_y")
-        self.tauy[2:-2, 2:-2, :] = tauy_data / self.rho_0
+        self.taux[2:-2, 2:-2, :] = self._read_forcing("tau_x")
+        self.tauy[2:-2, 2:-2, :] = self._read_forcing("tau_y")
 
         # Qnet and dQ/dT and Qsol
         qnet_data = self._read_forcing("q_net")
