@@ -176,7 +176,7 @@ texinfo_documents = [
 
 # -- Options for autodoc --------------------------------------------------
 autodoc_member_order = "bysource"
-autodoc_default_options = ["show-inheritance"]
+autodoc_default_options = {"show-inheritance": None}
 
 # -- Custom exec directive ------------------------------------------------
 
