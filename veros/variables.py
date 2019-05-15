@@ -391,10 +391,10 @@ MAIN_VARIABLES = OrderedDict([
         "Vertical diffusivity", W_GRID, "m^2/s", "Vertical diffusivity", output=True
     )),
     ("surface_taux", Variable(
-        "Surface wind stress", U_HOR, "m^2/s^2", "Zonal surface wind stress", output=True
+        "Surface wind stress", U_HOR, "N/s^2", "Zonal surface wind stress", output=True,
     )),
     ("surface_tauy", Variable(
-        "Surface wind stress", V_HOR, "m^2/s^2", "Meridional surface wind stress", output=True
+        "Surface wind stress", V_HOR, "N/s^2", "Meridional surface wind stress", output=True,
     )),
     ("forc_rho_surface", Variable(
         "Surface density flux", T_HOR, "?", "Surface potential density flux", output=True

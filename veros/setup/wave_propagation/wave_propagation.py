@@ -233,15 +233,15 @@ class WavePropagationSetup(VerosSetup):
         taux_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                       self._get_data(vs, "tau_x"), time_grid,
                                       missing_value=0.)
-        vs.taux[2:-2, 2:-2, :] = taux_data / vs.rho_0
+        vs._taux[2:-2, 2:-2, :] = taux_data
         mask = np.logical_and(vs.yt > self.so_wind_interval[0], vs.yt < self.so_wind_interval[1])[..., np.newaxis]
-        vs.taux *= 1. + mask * (self.so_wind_factor - 1.) * np.sin(vs.pi * (vs.yt[np.newaxis, :, np.newaxis] - self.so_wind_interval[0]) \
+        vs._taux *= 1. + mask * (self.so_wind_factor - 1.) * np.sin(np.pi * (vs.yt[np.newaxis, :, np.newaxis] - self.so_wind_interval[0]) \
                                                                             / (self.so_wind_interval[1] - self.so_wind_interval[0]))
 
         tauy_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                       self._get_data(vs, "tau_y"), time_grid,
                                       missing_value=0.)
-        vs.tauy[2:-2, 2:-2, :] = tauy_data / vs.rho_0
+        vs._tauy[2:-2, 2:-2, :] = tauy_data
 
         enforce_boundaries(vs, vs.taux)
         enforce_boundaries(vs, vs.tauy)
@@ -312,8 +312,8 @@ class WavePropagationSetup(VerosSetup):
         vs.surface_tauy[...] = f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2]
 
         if vs.enable_tke:
-            vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1])) ** 2
-                                                      + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2])) ** 2) ** (3. / 2.)
+            vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / vs.rho_0) ** 2
+                                                        + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / vs.rho_0) ** 2) ** (3. / 2.)
 
         # W/m^2 K kg/J m^3/kg = K m/s
         fxa = f1 * vs.t_star[..., n1] + f2 * vs.t_star[..., n2]

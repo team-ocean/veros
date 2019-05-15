@@ -136,13 +136,13 @@ class ACCSectorSetup(VerosSetup):
         subequatorial_south_s = (vs.yt <= -15) & (vs.yt > -30)
         south = vs.yt < -30
 
-        taux[north] = -5e-5 * np.sin(np.pi * (vs.yu[north] - yu_max) / (yt_max - 30.))
-        taux[subequatorial_north_s] =  5e-5 * np.sin(np.pi * (vs.yu[subequatorial_north_s] - 30.) / 30.)
-        taux[subequatorial_north_n] = 5e-5 * np.sin(np.pi * (vs.yt[subequatorial_north_n] - 30.) / 30.)
-        taux[subequatorial_south_n] =  -5e-5 * np.sin(np.pi * (vs.yu[subequatorial_south_n] - 30.) / 30.)
-        taux[subequatorial_south_s] = -5e-5 * np.sin(np.pi * (vs.yt[subequatorial_south_s] - 30.) / 30.)
-        taux[equator] = -1.5e-5 * np.cos(np.pi * (vs.yu[equator] - 10.) / 10.) - 2.5e-5
-        taux[south] = 15e-5 * np.sin(np.pi * (vs.yu[south] - yu_min) / (-30. - yt_min))
+        taux[north] = -5e-2 * np.sin(np.pi * (vs.yu[north] - yu_max) / (yt_max - 30.))
+        taux[subequatorial_north_s] =  5e-2 * np.sin(np.pi * (vs.yu[subequatorial_north_s] - 30.) / 30.)
+        taux[subequatorial_north_n] = 5e-2 * np.sin(np.pi * (vs.yt[subequatorial_north_n] - 30.) / 30.)
+        taux[subequatorial_south_n] =  -5e-2 * np.sin(np.pi * (vs.yu[subequatorial_south_n] - 30.) / 30.)
+        taux[subequatorial_south_s] = -5e-2 * np.sin(np.pi * (vs.yt[subequatorial_south_s] - 30.) / 30.)
+        taux[equator] = -1.5e-2 * np.cos(np.pi * (vs.yu[equator] - 10.) / 10.) - 2.5e-2
+        taux[south] = 15e-2 * np.sin(np.pi * (vs.yu[south] - yu_min) / (-30. - yt_min))
         vs.surface_taux[:, :] = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing
@@ -153,8 +153,8 @@ class ACCSectorSetup(VerosSetup):
         vs._t_rest = vs.dzt[None, -1] / (10. * 86400.) * vs.maskT[:, :, -1]
 
         if vs.enable_tke:
-            vs.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]))**2
-                                                      + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]))**2)**(1.5)
+            vs.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / vs.rho_0)**2
+                                                      + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / vs.rho_0)**2)**(1.5)
 
         if vs.enable_idemix:
             vs.forc_iw_bottom[...] = 1e-6 * vs.maskW[:, :, -1]

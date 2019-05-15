@@ -103,8 +103,8 @@ class ACC2(VerosSetup):
         # wind stress forcing
         taux = np.zeros(vs.ny + 1, dtype=vs.default_float_type)
         yt = vs.yt[2:vs.ny + 3]
-        taux = (.1e-3 * np.sin(np.pi * (vs.yu[2:vs.ny + 3] - yu_start) / (-20.0 - yt_start))) * (yt < -20) \
-            + (.1e-3 * (1 - np.cos(2 * np.pi * (vs.yu[2:vs.ny + 3] - 10.0) / (yu_end - 10.0)))) * (yt > 10)
+        taux = (.1 * np.sin(np.pi * (vs.yu[2:vs.ny + 3] - yu_start) / (-20.0 - yt_start))) * (yt < -20) \
+            + (.1 * (1 - np.cos(2 * np.pi * (vs.yu[2:vs.ny + 3] - 10.0) / (yu_end - 10.0)))) * (yt > 10)
         vs.surface_taux[:, 2:vs.ny + 3] = taux * vs.maskU[:, 2:vs.ny + 3, -1]
 
         # surface heatflux forcing

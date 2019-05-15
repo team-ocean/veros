@@ -137,8 +137,8 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.salt[2:-2, 2:-2, :, :2] = salt_data[..., np.newaxis] * vs.maskT[2:-2, 2:-2, :, np.newaxis]
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
-        vs.taux[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_x") / vs.rho_0
-        vs.tauy[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_y") / vs.rho_0
+        vs.taux[2:-2, 2:-2, :] = self._read_forcing("tau_x")
+        vs.tauy[2:-2, 2:-2, :] = self._read_forcing("tau_y")
 
         # heat flux
         with h5netcdf.File(DATA_FILES["ecmwf"], "r") as ecmwf_data:
@@ -177,9 +177,9 @@ class GlobalFourDegreeSetup(VerosSetup):
         # tke flux
         if vs.enable_tke:
             vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] \
-                                                                + vs.surface_taux[:-2, 1:-1]))**2
+                                                                + vs.surface_taux[:-2, 1:-1]) / vs.rho_0)**2
                                                       + (0.5 * (vs.surface_tauy[1:-1, 1:-1] \
-                                                                + vs.surface_tauy[1:-1, :-2]))**2)**(3. / 2.)
+                                                                + vs.surface_tauy[1:-1, :-2]) / vs.rho_0)**2)**(3. / 2.)
         # heat flux : W/m^2 K kg/J m^3/kg = K m/s
         cp_0 = 3991.86795711963
         sst = f1 * vs.sst_clim[:, :, n1] + f2 * vs.sst_clim[:, :, n2]
@@ -200,18 +200,16 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.forc_temp_surface[mask] = 0.0
         vs.forc_salt_surface[mask] = 0.0
 
-    @veros_method
+    @veros.veros_method
     def set_diagnostics(self, vs):
-        vs.diagnostics["cfl_monitor"].output_frequency = 360 * 86400. / 24.
-        vs.diagnostics["snapshot"].output_frequency = 360 * 86400. / 24.
-        vs.diagnostics["overturning"].output_frequency = 360 * 86400. / 24.
+        vs.diagnostics["snapshot"].output_frequency = 360 * 86400.
+        vs.diagnostics["overturning"].output_frequency = 360 * 86400.
         vs.diagnostics["overturning"].sampling_frequency = vs.dt_tracer
-        vs.diagnostics["energy"].output_frequency = 360 * 86400. / 24.
+        vs.diagnostics["energy"].output_frequency = 360 * 86400.
         vs.diagnostics["energy"].sampling_frequency = 86400
-        average_vars = ["temp", "salt", "u", "v", "w", "surface_taux",
-                        "surface_tauy", "psi"]
+        average_vars = ["temp", "salt", "u", "v", "w", "surface_taux", "surface_tauy", "psi"]
         vs.diagnostics["averages"].output_variables = average_vars
-        vs.diagnostics["averages"].output_frequency = 86400. * 30
+        vs.diagnostics["averages"].output_frequency = 360 * 86400.
         vs.diagnostics["averages"].sampling_frequency = 86400
 
     @veros_method

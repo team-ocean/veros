@@ -114,14 +114,14 @@ class ACCSetup(VerosSetup):
         vs.surface_taux[:, :] = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing
-        vs._t_star = 15 * np.ones(vs.ny // rs.num_proc[1] + 4, dtype=vs.default_float_type)
+        vs._t_star = 15 * np.ones(vs.ny + 4, dtype=vs.default_float_type)
         vs._t_star[vs.yt < -20] = 15 * (vs.yt[vs.yt < -20] - yt_min) / (-20 - yt_min)
         vs._t_star[vs.yt > 20] = 15 * (1 - (vs.yt[vs.yt > 20] - 20) / (yt_max - 20))
         vs._t_rest = vs.dzt[None, -1] / (30. * 86400.) * vs.maskT[:, :, -1]
 
         if vs.enable_tke:
-            vs.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]))**2
-                                                      + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]))**2)**(1.5)
+            vs.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / vs.rho_0)**2
+                                                      + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / vs.rho_0)**2)**(1.5)
 
         if vs.enable_idemix:
             vs.forc_iw_bottom[...] = 1e-6 * vs.maskW[:, :, -1]

@@ -55,10 +55,12 @@ def momentum(vs):
     """
     wind stress forcing
     """
-    vs.du[2:-2, 2:-2, -1, vs.tau] += vs.maskU[2:-2, 2:-2, -1] * \
-        vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1]
-    vs.dv[2:-2, 2:-2, -1, vs.tau] += vs.maskV[2:-2, 2:-2, -1] * \
-        vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1]
+    if vs.pyom_compatibility_mode:
+        vs.du[2:-2, 2:-2, -1, vs.tau] += vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1]
+        vs.dv[2:-2, 2:-2, -1, vs.tau] += vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1]
+    else:
+        vs.du[2:-2, 2:-2, -1, vs.tau] += vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1] / vs.rho_0
+        vs.dv[2:-2, 2:-2, -1, vs.tau] += vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1] / vs.rho_0
 
     """
     advection

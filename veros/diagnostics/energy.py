@@ -209,12 +209,20 @@ class Energy(VerosDiagnostic):
         )
 
         # wind work
-        wind = global_sum(vs, 
-            np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2]
-                      * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
-                      + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2]
-                      * vs.maskV[2:-2, 2:-2, -1] * vs.area_v[2:-2, 2:-2])
-        )
+        if vs.pyom_compatibility_mode:
+            wind = global_sum(
+                np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2]
+                       * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
+                       + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2]
+                       * vs.maskV[2:-2, 2:-2, -1] * vs.area_v[2:-2, 2:-2])
+            )
+        else:
+            wind = global_sum(
+                np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2] / vs.rho_0
+                       * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
+                       + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2] / vs.rho_0
+                       * vs.maskV[2:-2, 2:-2, -1] * vs.area_v[2:-2, 2:-2])
+            )
 
         # meso-scale energy
         if vs.enable_eke:

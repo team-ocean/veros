@@ -154,10 +154,10 @@ class NorthAtlanticSetup(VerosSetup):
         for k in range(12):
             vs._taux[2:-2, 2:-2, k] = veros.tools.interpolate(
                 forc_u_coords_hor, forcing_file.variables["taux"][k, ...].T, t_hor, missing_value=-1e20
-            ) / 10. / vs.rho_0
+            ) / 10.
             vs._tauy[2:-2, 2:-2, k] = veros.tools.interpolate(
                 forc_u_coords_hor, forcing_file.variables["tauy"][k, ...].T, t_hor, missing_value=-1e20
-            ) / 10. / vs.rho_0
+            ) / 10.
 
         # heat flux and salinity restoring
         vs._sst_clim = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
@@ -213,9 +213,9 @@ class NorthAtlanticSetup(VerosSetup):
         vs.surface_tauy[...] = (f1 * vs._tauy[:, :, n1] + f2 * vs._tauy[:, :, n2])
 
         if vs.enable_tke:
-            vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]))**2
-                                                      + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]))**2
-                                                      ) ** (3. / 2.)
+            vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / vs.rho_0)**2
+                                                        + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / vs.rho_0)**2
+                                                        ) ** (3. / 2.)
         cp_0 = 3991.86795711963
         vs.forc_temp_surface[...] = (f1 * vs._sst_rest[:, :, n1] + f2 * vs._sst_rest[:, :, n2]) * \
                                     (f1 * vs._sst_clim[:, :, n1] + f2 * vs._sst_clim[:, :, n2]

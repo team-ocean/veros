@@ -20,6 +20,7 @@ class ACC2Benchmark(VerosLegacy):
     def set_parameter(self, vs):
         vs.identifier = "acc2_benchmark"
         vs.diskless_mode = True
+        vs.pyom_compatibility_mode = True
 
         m = self.main_module
         m.dt_mom = 480

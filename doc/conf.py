@@ -176,7 +176,7 @@ texinfo_documents = [
 
 # -- Options for autodoc --------------------------------------------------
 autodoc_member_order = "bysource"
-autodoc_default_flags = ["show-inheritance"]
+autodoc_default_options = {"show-inheritance": None}
 
 # -- Custom exec directive ------------------------------------------------
 
@@ -187,8 +187,9 @@ try:
 except ImportError:
     from io import StringIO
 
-from sphinx.util.compat import Directive
+# from sphinx.util.compat import Directive
 from docutils import nodes, statemachine
+from docutils.parsers.rst import Directive
 
 class ExecDirective(Directive):
     """Execute the specified python code and insert the output into the document"""

@@ -157,15 +157,8 @@ class GlobalOneDegreeSetup(VerosSetup):
         vs.salt[2:-2, 2:-2, :, 1] = salt_data[..., ::-1] * vs.maskT[2:-2, 2:-2, :]
 
         # wind stress on MIT grid
-        taux_data = self._read_forcing(vs, "tau_x")
-        vs.taux[2:-2, 2:-2, :] = taux_data / vs.rho_0
-
-        tauy_data = self._read_forcing(vs, "tau_y")
-        vs.tauy[2:-2, 2:-2, :] = tauy_data / vs.rho_0
-
-        # Qnet and dQ/dT and Qsol
-        qnet_data = self._read_forcing(vs, "q_net")
-        vs.qnet[2:-2, 2:-2, :] = -qnet_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
+        vs.taux[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_x")
+        vs.tauy[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_y")
 
         qnec_data = self._read_forcing(vs, "dqdt")
         vs.qnec[2:-2, 2:-2, :] = qnec_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
@@ -218,9 +211,9 @@ class GlobalOneDegreeSetup(VerosSetup):
 
         if vs.enable_tke:
             vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] \
-                                                              + vs.surface_taux[:-2, 1:-1])) ** 2 \
+                                                                + vs.surface_taux[:-2, 1:-1]) / vs.rho_0) ** 2
                                                       + (0.5 * (vs.surface_tauy[1:-1, 1:-1] \
-                                                              + vs.surface_tauy[1:-1, :-2])) ** 2) ** (3. / 2.)
+                                                                + vs.surface_tauy[1:-1, :-2]) / vs.rho_0) ** 2) ** (3. / 2.)
 
         # W/m^2 K kg/J m^3/kg = K m/s
         t_star_cur = f1 * vs.t_star[..., n1] + f2 * vs.t_star[..., n2]
