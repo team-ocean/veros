@@ -6,4 +6,5 @@ scipy
 future
 mock
 pillow
+ruamel.yaml
 sphinxcontrib-programoutput
