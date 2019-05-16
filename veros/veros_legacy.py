@@ -234,13 +234,13 @@ class VerosLegacy(veros.VerosSetup):
             m.tau = m.taup1
             m.taup1 = otaum1
 
-            logger.debug("Time step took {}s".format(vs.timers["main"].get_last_time()))
+            logger.debug("Time step took {}s", vs.timers["main"].get_last_time())
 
         logger.debug("Timing summary:")
-        logger.debug(" setup time summary       = {}s".format(vs.timers["setup"].get_time()))
-        logger.debug(" main loop time summary   = {}s".format(vs.timers["main"].get_time()))
-        logger.debug("     momentum             = {}s".format(vs.timers["momentum"].get_time()))
-        logger.debug("     thermodynamics       = {}s".format(vs.timers["temperature"].get_time()))
-        logger.debug("     EKE                  = {}s".format(vs.timers["eke"].get_time()))
-        logger.debug("     IDEMIX               = {}s".format(vs.timers["idemix"].get_time()))
-        logger.debug("     TKE                  = {}s".format(vs.timers["tke"].get_time()))
+        logger.debug(" setup time summary       = {}s", vs.timers["setup"].get_time())
+        logger.debug(" main loop time summary   = {}s", vs.timers["main"].get_time())
+        logger.debug("     momentum             = {}s", vs.timers["momentum"].get_time())
+        logger.debug("     thermodynamics       = {}s", vs.timers["temperature"].get_time())
+        logger.debug("     EKE                  = {}s", vs.timers["eke"].get_time())
+        logger.debug("     IDEMIX               = {}s", vs.timers["idemix"].get_time())
+        logger.debug("     TKE                  = {}s", vs.timers["tke"].get_time())

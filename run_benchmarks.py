@@ -148,9 +148,9 @@ def run(**kwargs):
             print("running benchmark {} ".format(f))
             for size in kwargs["sizes"]:
                 n = int(size ** (1. / 3.)) + 1
-                nx = _round_to_multiple(int(2. ** 0.5 * n), proc_decom[0])
-                ny = _round_to_multiple(int(2. ** 0.5 * n), proc_decom[1])
-                nz = n // 2
+                nx = _round_to_multiple(2 * n, proc_decom[0])
+                ny = _round_to_multiple(2 * n, proc_decom[1])
+                nz = n // 4
                 real_size = nx * ny * nz
                 print(" current size: {}".format(real_size))
 
