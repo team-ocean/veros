@@ -98,8 +98,10 @@ def write_variable(vs, key, var, var_data, ncfile, time_step=None):
         tmask = tuple(vs.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
         var_data = variables.remove_ghosts(var_data, var.dims)[tmask].T
 
-    if rs.backend == "bohrium" and not np.isscalar(var_data):
-        var_data = np.interop_numpy.get_array(var_data)
+    try:
+        var_data = var_data.copy2numpy()
+    except AttributeError:
+        pass
 
     var_obj = ncfile.variables[key]
 

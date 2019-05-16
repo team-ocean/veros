@@ -1,4 +1,5 @@
 import sys
+import warnings
 
 from loguru import logger
 
@@ -30,6 +31,17 @@ def setup_logging(loglevel="info", stream_sink=sys.stdout):
             )
         ]
     }
+
+    def showwarning(message, cls, source, lineno, *args):
+        logger.warning(
+            '{warning}: {message} ({source}:{lineno})',
+            message=message,
+            warning=cls.__name__,
+            source=source,
+            lineno=lineno
+        )
+
+    warnings.showwarning = showwarning
 
     logger.enable("veros")
     return logger.configure(**config)
