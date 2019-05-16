@@ -1,13 +1,11 @@
 
 import abc
-import sys
 
 from future.utils import with_metaclass
 from loguru import logger
-import tqdm
 
 from . import (settings, diagnostics, time, handlers, logs,
-               distributed, runtime_settings as rs)
+               distributed, progress, runtime_settings as rs)
 from .state import VerosState
 from .timer import Timer
 from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
@@ -31,9 +29,6 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
         loglevel (one of {debug, info, warning, error, critical}, optional): Verbosity
             of the model. Tries to read value from command line if not given
             (``-v``/``--loglevel``). Defaults to ``info``.
-        logfile (path, optional): Path to a log file to write output to. Tries to
-            read value from command line if not given (``-l``/``--logfile``). Defaults
-            to stdout.
 
     Example:
         >>> import matplotlib.pyplot as plt
@@ -51,7 +46,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
 
     def __init__(self, state=None, override=None):
         self.override_settings = override or {}
-        logs.setup_logging(loglevel=rs.loglevel, logfile=rs.logfile)
+        logs.setup_logging(loglevel=rs.loglevel)
 
         if state is None:
             self.state = VerosState()
@@ -209,111 +204,110 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
             self.set_forcing(vs)
             isoneutral.check_isoneutral_slope_crit(vs)
 
-    def run(self):
+    def run(self, show_progress_bar=None):
         """Main routine of the simulation.
+
+        Arguments:
+            show_progress_bar:
         """
         from . import runtime_settings as rs, runtime_state as rst
         vs = self.state
 
-        logger.info("Starting integration for {0[0]:.1f} {0[1]}".format(time.format_time(vs.runlen)))
+        logger.info("\nStarting integration for {0[0]:.1f} {0[1]}".format(time.format_time(vs.runlen)))
 
         start_time, start_iteration = vs.time, vs.itt
         profiler = None
 
-        total_runlen, time_unit = time.format_time(vs.runlen + start_time)
-        
+        pbar = progress.get_progress_bar(vs, use_tqdm=show_progress_bar)
 
         with handlers.signals_to_exception():
             try:
-                while vs.time - start_time < vs.runlen:
-                    if not use_pbar:
-                        logger.info("Current iteration: {}".format(vs.itt))
+                with pbar:
+                    while vs.time - start_time < vs.runlen:
+                        with vs.timers["diagnostics"]:
+                            diagnostics.write_restart(vs)
 
-                    with vs.timers["diagnostics"]:
-                        diagnostics.write_restart(vs)
+                        if vs.itt - start_iteration == 3 and rs.profile_mode and rst.proc_rank == 0:
+                            # when using bohrium, most kernels should be pre-compiled by now
+                            profiler = diagnostics.start_profiler()
 
-                    if vs.itt - start_iteration == 3 and rs.profile_mode and rst.proc_rank == 0:
-                        # when using bohrium, most kernels should be pre-compiled by now
-                        profiler = diagnostics.start_profiler()
+                        with vs.timers["main"]:
+                            self.set_forcing(vs)
 
-                    with vs.timers["main"]:
-                        self.set_forcing(vs)
-
-                        if vs.enable_idemix:
-                            idemix.set_idemix_parameter(vs)
-
-                        with vs.timers["eke"]:
-                            eke.set_eke_diffusivities(vs)
-
-                        with vs.timers["tke"]:
-                            tke.set_tke_diffusivities(vs)
-
-                        with vs.timers["momentum"]:
-                            momentum.momentum(vs)
-
-                        with vs.timers["temperature"]:
-                            thermodynamics.thermodynamics(vs)
-
-                        if vs.enable_eke or vs.enable_tke or vs.enable_idemix:
-                            advection.calculate_velocity_on_wgrid(vs)
-
-                        with vs.timers["eke"]:
-                            if vs.enable_eke:
-                                eke.integrate_eke(vs)
-
-                        with vs.timers["idemix"]:
                             if vs.enable_idemix:
-                                idemix.integrate_idemix(vs)
+                                idemix.set_idemix_parameter(vs)
 
-                        with vs.timers["tke"]:
+                            with vs.timers["eke"]:
+                                eke.set_eke_diffusivities(vs)
+
+                            with vs.timers["tke"]:
+                                tke.set_tke_diffusivities(vs)
+
+                            with vs.timers["momentum"]:
+                                momentum.momentum(vs)
+
+                            with vs.timers["temperature"]:
+                                thermodynamics.thermodynamics(vs)
+
+                            if vs.enable_eke or vs.enable_tke or vs.enable_idemix:
+                                advection.calculate_velocity_on_wgrid(vs)
+
+                            with vs.timers["eke"]:
+                                if vs.enable_eke:
+                                    eke.integrate_eke(vs)
+
+                            with vs.timers["idemix"]:
+                                if vs.enable_idemix:
+                                    idemix.integrate_idemix(vs)
+
+                            with vs.timers["tke"]:
+                                if vs.enable_tke:
+                                    tke.integrate_tke(vs)
+
+                            utilities.enforce_boundaries(vs, vs.u[:, :, :, vs.taup1])
+                            utilities.enforce_boundaries(vs, vs.v[:, :, :, vs.taup1])
                             if vs.enable_tke:
-                                tke.integrate_tke(vs)
+                                utilities.enforce_boundaries(vs, vs.tke[:, :, :, vs.taup1])
+                            if vs.enable_eke:
+                                utilities.enforce_boundaries(vs, vs.eke[:, :, :, vs.taup1])
+                            if vs.enable_idemix:
+                                utilities.enforce_boundaries(vs, vs.E_iw[:, :, :, vs.taup1])
 
-                        utilities.enforce_boundaries(vs, vs.u[:, :, :, vs.taup1])
-                        utilities.enforce_boundaries(vs, vs.v[:, :, :, vs.taup1])
-                        if vs.enable_tke:
-                            utilities.enforce_boundaries(vs, vs.tke[:, :, :, vs.taup1])
-                        if vs.enable_eke:
-                            utilities.enforce_boundaries(vs, vs.eke[:, :, :, vs.taup1])
-                        if vs.enable_idemix:
-                            utilities.enforce_boundaries(vs, vs.E_iw[:, :, :, vs.taup1])
+                            momentum.vertical_velocity(vs)
 
-                        momentum.vertical_velocity(vs)
+                        vs.itt += 1
+                        vs.time += vs.dt_tracer
+                        pbar.advance_time(vs.dt_tracer)
 
-                    vs.itt += 1
-                    vs.time += vs.dt_tracer
+                        self.after_timestep(vs)
 
-                    if use_pbar:
-                        pbar.update(time.convert_time(vs.dt_tracer, 'seconds', time_unit))
-                        pbar.set_postfix(dict(iteration=vs.itt))
+                        with vs.timers["diagnostics"]:
+                            if not diagnostics.sanity_check(vs):
+                                raise RuntimeError("solution diverged at iteration {}".format(vs.itt))
 
-                    self.after_timestep(vs)
+                            if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
+                                isoneutral.isoneutral_diag_streamfunction(vs)
 
-                    with vs.timers["diagnostics"]:
-                        if not diagnostics.sanity_check(vs):
-                            raise RuntimeError("solution diverged at iteration {}".format(vs.itt))
+                            diagnostics.diagnose(vs)
+                            diagnostics.output(vs)
 
-                        if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-                            isoneutral.isoneutral_diag_streamfunction(vs)
+                        logger.trace("Time step took {:.2e}s".format(vs.timers["main"].get_last_time()))
 
-                        diagnostics.diagnose(vs)
-                        diagnostics.output(vs)
-
-                    logger.debug("Time step took {:.2e}s".format(vs.timers["main"].get_last_time()))
-
-                    # permutate time indices
-                    vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
+                        # permutate time indices
+                        vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
             except:
-                if use_pbar:
-                    pbar.close()
-                logger.critical("stopping integration at iteration {}", vs.itt)
+                logger.critical("Stopping integration at iteration {}", vs.itt)
                 raise
+
+            else:
+                logger.success("Integration done")
 
             finally:
                 diagnostics.write_restart(vs, force=True)
 
                 logger.debug("\n".join([
+                    "",
                     "Timing summary:",
                     " setup time               = {:.2f}s".format(vs.timers["setup"].get_time()),
                     " main loop time           = {:.2f}s".format(vs.timers["main"].get_time()),

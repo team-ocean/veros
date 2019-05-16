@@ -25,7 +25,6 @@ AVAILABLE_SETTINGS = (
     ("num_proc", twoints, (1, 1)),
     ("profile_mode", bool, False),
     ("loglevel", loglevel, "info"),
-    ("logfile", None, None),
     ("mpi_comm", None, _default_mpi_comm())
 )
 

@@ -114,7 +114,7 @@ class ACCSetup(VerosSetup):
         vs.surface_taux[:, :] = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing
-        vs._t_star = 15 * np.ones(vs.ny + 4, dtype=vs.default_float_type)
+        vs._t_star = 15 * np.ones(vs.ny // rs.num_proc[1] + 4, dtype=vs.default_float_type)
         vs._t_star[vs.yt < -20] = 15 * (vs.yt[vs.yt < -20] - yt_min) / (-20 - yt_min)
         vs._t_star[vs.yt > 20] = 15 * (1 - (vs.yt[vs.yt > 20] - 20) / (yt_max - 20))
         vs._t_rest = vs.dzt[None, -1] / (30. * 86400.) * vs.maskT[:, :, -1]

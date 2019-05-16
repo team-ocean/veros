@@ -19,13 +19,13 @@ class VerosState(object):
         self.poisson_solver = None
         self.nisle = 0 # to be overriden during streamfunction_init
         self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
-        self.time, self.itt = 0., 1 # current time and iteration
+        self.time, self.itt = 0., 0 # current time and iteration
 
         settings.set_default_settings(self)
 
-    # @veros_method
-    # def allocate_variable(self, dimensions):
-    #     return np.array()
+    @veros_method
+    def allocate_variable(self, dimensions):
+        return np.zeros()
 
     def allocate_variables(self):
         self.variables.update(variables.get_standard_variables(self))

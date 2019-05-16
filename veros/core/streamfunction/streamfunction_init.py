@@ -7,7 +7,7 @@ from . import island, utilities
 
 @veros_method(inline=True, dist_safe=False, local_variables=["kbot", "land_map"])
 def get_isleperim(vs):
-    logger.info(" determining number of land masses")
+    logger.debug(" determining number of land masses")
     vs.land_map[...] = island.isleperim(vs, vs.kbot)
     logger.info(_ascii_map(vs, vs.land_map))
     return int(vs.land_map.max())
@@ -109,7 +109,7 @@ def streamfunction_init(vs):
     vs.psin[...] = np.random.rand(*vs.psin.shape) * vs.maskZ[..., -1, np.newaxis]
 
     for isle in range(vs.nisle):
-        logger.info(" solving for boundary contribution by island {:d}".format(isle))
+        logger.debug(" solving for boundary contribution by island {:d}".format(isle))
         vs.linear_solver.solve(vs, forc, vs.psin[:, :, isle],
                                boundary_val=vs.boundary_mask[:, :, isle])
 

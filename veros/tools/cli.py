@@ -37,8 +37,6 @@ def cli(run):
                   help="Backend to use for computations (default: numpy)", envvar="VEROS_BACKEND")
     @click.option("-v", "--loglevel", default="info", type=click.Choice(LOGLEVELS),
                   help="Log level used for output (default: info)", envvar="VEROS_LOGLEVEL")
-    @click.option("-l", "--logfile", default=None, envvar="VEROS_LOGFILE",
-                  help="Log file to write to (default: write to stdout)")
     @click.option("-s", "--override", nargs=2, multiple=True, metavar="SETTING VALUE",
                   type=VerosSetting(), default=tuple(),
                   help="Override default setting, may be specified multiple times")
@@ -52,7 +50,7 @@ def cli(run):
 
         kwargs["override"] = dict(kwargs["override"])
 
-        for setting in ("backend", "profile_mode", "num_proc", "loglevel", "logfile"):
+        for setting in ("backend", "profile_mode", "num_proc", "loglevel"):
             if setting not in kwargs:
                 continue
             setattr(runtime_settings, setting, kwargs.pop(setting))

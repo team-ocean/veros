@@ -137,8 +137,8 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.salt[2:-2, 2:-2, :, :2] = salt_data[..., np.newaxis] * vs.maskT[2:-2, 2:-2, :, np.newaxis]
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
-        vs.taux[2:-2, 2:-2, :] = self._read_forcing("tau_x")
-        vs.tauy[2:-2, 2:-2, :] = self._read_forcing("tau_y")
+        vs.taux[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_x")
+        vs.tauy[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_y")
 
         # heat flux
         with h5netcdf.File(DATA_FILES["ecmwf"], "r") as ecmwf_data:

@@ -1,11 +1,9 @@
 import sys
-import functools
 
-import tqdm
 from loguru import logger
 
 
-def setup_logging(loglevel="info", logfile=None):
+def setup_logging(loglevel="info", stream_sink=sys.stdout):
     from . import runtime_state
 
     if runtime_state.proc_rank != 0:
@@ -15,18 +13,17 @@ def setup_logging(loglevel="info", logfile=None):
     kwargs = {}
     if sys.stdout.isatty():
         kwargs.update(
-            sink=functools.partial(tqdm.tqdm.write, end=""),
             colorize=True
         )
     else:
         kwargs.update(
-            sink=sys.stdout,
             colorize=False
         )
 
     config = {
         "handlers": [
             dict(
+                sink=stream_sink,
                 level=loglevel.upper(),
                 format="<level>{message}</level>",
                 **kwargs
@@ -34,10 +31,5 @@ def setup_logging(loglevel="info", logfile=None):
         ]
     }
 
-    if logfile is not None:
-        config["handlers"].append(
-            dict(sink=logfile, serialize=True)
-        )
-
-    logger.configure(**config)
     logger.enable("veros")
+    return logger.configure(**config)

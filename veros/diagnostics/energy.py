@@ -211,6 +211,7 @@ class Energy(VerosDiagnostic):
         # wind work
         if vs.pyom_compatibility_mode:
             wind = global_sum(
+                vs,
                 np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2]
                        * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
                        + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2]
@@ -218,6 +219,7 @@ class Energy(VerosDiagnostic):
             )
         else:
             wind = global_sum(
+                vs,
                 np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2] / vs.rho_0
                        * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
                        + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2] / vs.rho_0
