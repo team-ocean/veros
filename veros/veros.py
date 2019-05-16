@@ -21,7 +21,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
         :meth:`set_coriolis`, :meth:`set_initial_conditions`, :meth:`set_forcing`,
         and :meth:`set_diagnostics`.
 
-    Args:
+    Arguments:
         backend (:obj:`bool`, optional): Backend to use for array operations.
             Possible values are ``numpy`` and ``bohrium``. Defaults to ``None``, which
             tries to read the backend from the command line (set via a flag
@@ -207,8 +207,13 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
     def run(self, show_progress_bar=None):
         """Main routine of the simulation.
 
+        Note:
+            Make sure to call :meth:`setup` prior to this function.
+
         Arguments:
-            show_progress_bar:
+            show_progress_bar (:obj:`bool`, optional): Whether to show fancy progress bar via tqdm.
+                By default, only show if stdout is a terminal and Veros is running on a single process.
+
         """
         from . import runtime_settings as rs, runtime_state as rst
         vs = self.state
@@ -291,7 +296,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
                             diagnostics.diagnose(vs)
                             diagnostics.output(vs)
 
-                        logger.trace("Time step took {:.2e}s".format(vs.timers["main"].get_last_time()))
+                        logger.debug(" Time step took {:.2f}s", vs.timers["main"].get_last_time())
 
                         # permutate time indices
                         vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
