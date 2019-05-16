@@ -96,7 +96,7 @@ class VerosDiagnostic(object):
         if not os.path.isfile(restart_filename):
             raise IOError("restart file {} not found".format(restart_filename))
 
-        logger.info(" reading restart data for diagnostic {} from {}",
+        logger.info(" Reading restart data for diagnostic {} from {}",
                     self.name, restart_filename)
 
         with h5tools.threaded_io(vs, restart_filename, "r") as infile:

@@ -37,8 +37,7 @@ class Snapshot(VerosDiagnostic):
 
     @veros_method
     def output(self, vs):
-        logger.info(" writing snapshot at {0[0]:.2f} {0[1]}".format(
-            time.format_time(vs.time)))
+        logger.info(" Writing snapshot at {0[0]:.2f} {0[1]}", time.format_time(vs.time))
 
         if not os.path.isfile(self.get_output_file_name(vs)):
             self.initialize(vs)
@@ -56,12 +55,12 @@ class Snapshot(VerosDiagnostic):
             try:
                 restart_var = variables[key]
             except KeyError:
-                logger.warning("not reading restart data for variable {}: "
+                logger.warning("Not reading restart data for variable {}: "
                                "no matching data found in restart file"
                                .format(key))
                 continue
             if not arr.shape == restart_var.shape:
-                logger.warning("not reading restart data for variable {}: "
+                logger.warning("Not reading restart data for variable {}: "
                                "restart data dimensions do not match model "
                                "grid".format(key))
                 continue
@@ -70,7 +69,7 @@ class Snapshot(VerosDiagnostic):
             try:
                 setattr(vs, attr, attributes[attr])
             except KeyError:
-                logger.warning("not reading restart data for attribute {}: "
+                logger.warning("Not reading restart data for attribute {}: "
                                "attribute not found in restart file"
                                .format(attr))
 

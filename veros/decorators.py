@@ -75,7 +75,7 @@ def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
         from .distributed import broadcast
 
         if not inline:
-            logger.trace("entering {}:{}", inspect.getmodule(function).__name__, function.__name__)
+            logger.trace("Entering {}:{}", inspect.getmodule(function).__name__, function.__name__)
 
         veros_state = args[narg]
 
@@ -167,7 +167,7 @@ def do_not_disturb(function):
             if signal_received["sig"] is None:
                 signal_received["sig"] = sig
                 signal_received["frame"] = frame
-                logger.error("signal {} received - cleaning up before exit", sig)
+                logger.error("Signal {} received - cleaning up before exit", sig)
             else:
                 # force quit if more than one signal is received
                 old_handlers[sig](sig, frame)

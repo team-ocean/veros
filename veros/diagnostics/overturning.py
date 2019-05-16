@@ -71,12 +71,12 @@ class Overturning(VerosDiagnostic):
         self.sigs = float(density.get_rho(vs, 35., 30., self.p_ref))
         self.dsig = (self.sige - self.sigs) / (self.nlevel - 1)
 
-        logger.debug(" sigma ranges for overturning diagnostic:")
-        logger.debug(" start sigma0 = {:.1f}".format(self.sigs))
-        logger.debug(" end sigma0 = {:.1f}".format(self.sige))
+        logger.debug(" Sigma ranges for overturning diagnostic:")
+        logger.debug(" Start sigma0 = {:.1f}".format(self.sigs))
+        logger.debug(" End sigma0 = {:.1f}".format(self.sige))
         logger.debug(" Delta sigma0 = {:.1e}".format(self.dsig))
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-            logger.debug(" also calculating overturning by eddy-driven velocities")
+            logger.debug(" Also calculating overturning by eddy-driven velocities")
 
         self.sigma[...] = self.sigs + self.dsig * np.arange(self.nlevel)
 

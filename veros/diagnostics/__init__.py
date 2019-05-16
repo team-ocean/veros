@@ -44,10 +44,10 @@ def initialize(vs):
     for name, diagnostic in vs.diagnostics.items():
         diagnostic.initialize(vs)
         if diagnostic.sampling_frequency:
-            logger.info(" running diagnostic '{0}' every {1[0]:.1f} {1[1]}"
+            logger.info(" Running diagnostic '{0}' every {1[0]:.1f} {1[1]}"
                          .format(name, time.format_time(diagnostic.sampling_frequency)))
         if diagnostic.output_frequency:
-            logger.info(" writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]}"
+            logger.info(" Writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]}"
                          .format(name, time.format_time(diagnostic.output_frequency)))
 
 
