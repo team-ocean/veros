@@ -2,7 +2,7 @@ name: veros
 channels:
     - conda-forge
 dependencies:
-    - python=3.6
+    - python=3.7
     - numpy
     - click
     - requests>=2.18
@@ -13,9 +13,10 @@ dependencies:
     - pillow
     - ruamel.yaml
     - future
-    - pyopencl
     - pyamg
     - gcc
+    - loguru
+    - tqdm
     - pip:
         - bohrium
         - -e .
