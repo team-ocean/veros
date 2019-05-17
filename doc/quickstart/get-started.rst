@@ -64,11 +64,11 @@ On bare metal (Ubuntu / Debian)
 
 3. Install Veros (preferably in a virtual environment) via::
 
-      $ pip3 install -e ./veros
+      $ pip3 install -e ./veros --user
 
 4. Optionally, install Bohrium via::
 
-      $ pip3 install bohrium
+      $ pip3 install bohrium --user
 
 
 Setting up a model
@@ -169,6 +169,37 @@ Restart data (in HDF5 format) is written at the end of each simulation or after 
 
    $ python my_setup.py -s restart_input_filename /path/to/restart_file.h5
 
+Running Veros on multiple processes via MPI
++++++++++++++++++++++++++++++++++++++++++++
+
+.. note::
+
+  This assumes that you are familiar with running applications through MPI, and is most useful on large architectures like a compute cluster. For smaller architectures, it is usually easier to stick to Bohrium.
+
+Running Veros through MPI requires some addititonal dependencies:
+
+- A recent MPI implementation, such as OpenMPI or MPICH
+- ``mpi4py`` that is linked to the correct MPI library
+- A parallel-enabled version of the HDF5 library
+- ``h5py`` built against this parallel version of HDF5
+- For optimal performance, PETSc and ``petsc4py``, linked to the rest of the stack
+
+After you have installed everything, you can start Veros on multiple processes like so:::
+
+   $ mpirun -n 4 python my_setup.py -n 2 2
+
+In this case, Veros would run on 4 processes, each process computing one-quarter of the domain. The arguments of the `-n` flag specify the number of chunks in x and y-direction, respectively.
+
+You can combine MPI and Bohrium like so:::
+
+   $ OMP_NUM_THREADS=2 mpirun -n 2 python my_setup.py -n 2 1 -b bohrium
+
+This starts 2 independent processes, each being parallelized by Bohrium using 2 threads (hybrid run).
+
+.. seealso::
+
+   For more information, see :doc:`/tutorial/cluster`.
+
 Enhancing Veros
 ---------------
 
@@ -180,56 +211,6 @@ In case you want to add additional output capabilities or compute additional qua
 
 A convenient way to implement your modifications is to create your own fork of Veros on GitHub, and submit a `pull request <https://github.com/dionhaefner/veros/pulls>`_ if you think your modifications could be useful for the Veros community.
 
-Code conventions
-++++++++++++++++
+.. seealso::
 
-When contributing to Veros, please adhere to the following general guidelines:
-
-- Your first guide should be the surrounding Veros code. Look around, and be consistent with your modifications.
-- Unless you have a very good reason not to do so, please stick to `the PEP8 style guide <https://www.python.org/dev/peps/pep-0008/>`_ throughout your code. One exception we make in Veros is in regard to the maximum line length - since numerical operations can take up quite a lot of horizontal space, you may use longer lines if it increases readability.
-- Please follow the PEP8 naming conventions, and use meaningful, telling names for your variables, functions, and classes. The variable name :data:`stretching_factor` is infinitely more meaningful than :data:`k`. This is especially important for settings and generic helper functions.
-- "Private" helper functions that are not meant to be called from outside the current source file should be prefixed with an underscore (``_``).
-- Use double quotes (``"``) for all strings longer than a single character.
-- Document your functions using `Google-style docstrings <http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html>`_. This is especially important if you are implementing a user-facing API (such as a diagnostic, a setup, or tools that are meant to be called from setups).
-
-Running tests and benchmarks
-++++++++++++++++++++++++++++
-
-If you want to make sure that your changes did not break anything, you can run our test suite that compares the results of each subroutine to pyOM2.
-To do that, you will need to compile the Python interface of pyOM2 on your machine, and then point the testing suite to the library location, e.g. through::
-
-   $ pytest -v . --pyom2-lib /path/to/pyOM2/py_src/pyOM_code.so
-
-from the main folder of the Veros repository.
-
-If you deliberately introduced breaking changes, you can disable them during testing by prefixing them with::
-
-   if not vs.pyom_compatibility_mode:
-       # your changes
-
-Automated benchmarks are provided in a similar fashion. The benchmarks run some dummy problems with varying problem sizes and all available computational backends: ``numpy``, ``bohrium-openmp``, ``bohrium-opencl``, ``bohrium-cuda``, ``fortran`` (pyOM2), and ``fortran-mpi`` (parallel pyOM2). For options and further information run::
-
-   $ python run_benchmarks.py --help
-
-from the :file:`test` folder. Timings are written in YAML format.
-
-Performance tweaks
-++++++++++++++++++
-
-If your changes to Veros turn out to have a negative effect on the runtime of the model, there several ways to investigate and solve performance problems:
-
-- Run your model with the :option:`-v debug` option to get additional debugging output (such as timings for each time step, and a timing summary after the run has finished).
-- Run your model with the :option:`-p` option to profile Veros with pyinstrument. You may have to run :command:`pip install pyinstrument` before being able to do so. After completion of the run, a file :file:`profile.html` will be written that can be opened with a web browser and contains timings for the entire call stack.
-- You should try and avoid explicit loops over arrays at all cost (even more so when using Bohrium). You should always try to work on the whole array at once.
-- When using Bohrium, it is sometimes beneficial to copy an array to NumPy before passing it to an external module or performing an operation that cannot be vectorized efficiently. Just don't forget to copy it back to Bohrium after you are finished, e.g. like so: ::
-
-      from veros import runtime_settings as rs
-
-      if rs.backend == "bohrium":
-          u_np = vs.u.copy2numpy()
-      else:
-          u_np = vs.u
-
-      vs.u[...] = np.asarray(external_function(u_np))
-
-- If you are still having trouble, don't hesitate to ask for help (e.g. `on GitHub <https://github.com/dionhaefner/veros/issues>`_).
+   More information is available in :doc:`our developer guide </tutorial/dev>`.

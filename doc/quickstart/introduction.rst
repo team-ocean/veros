@@ -73,7 +73,6 @@ At its core, Veros currently offers the following solvers, numerical schemes, pa
 **TKE model** (turbulent kinetic energy):
  - prognostic TKE model for vertical mixing as introduced in [Gaspar1990]_ (optional)
 
-
 Diagnostics
 +++++++++++
 
@@ -81,11 +80,10 @@ Diagnostics are responsible for handling all model output, runtime checks of the
 
 For more information, see :doc:`/reference/diagnostics`.
 
-
 Pre-configured model setups
 +++++++++++++++++++++++++++
 
-Veros supports a wide range of model configurations. Several setups are already implemented that highlight some of the capabilities of Veros, and that serve as a basis for users to set up their own configuration: :doc:`/reference/setup`.
+Veros supports a wide range of model configurations. Several setups are already implemented that highlight some of the capabilities of Veros, and that serve as a basis for users to set up their own configuration: :doc:`/reference/setup-gallery`.
 
 Current limitations
 +++++++++++++++++++
@@ -98,7 +96,7 @@ Veros is still in early development. There are several open issues that we would
  - There is currently no ice sheet model in Veros. Some realistic setups employ a simple ice mask that cut off atmospheric forcing for water that gets too cold instead.
 
 **Technical issues**:
-- For the time being, Veros' dynamical core is still more or less a direct port of PyOM2. This means that numerics and physics are still tightly coupled, which makes for a far from optimal user experience. In a future version of Veros, we would like to introduce additional abstraction to make the core routines a lot more readable than they are now.
+ - For the time being, Veros' dynamical core is still more or less a direct port of PyOM2. This means that numerics and physics are still tightly coupled, which makes for a far from optimal user experience. In a future version of Veros, we would like to introduce additional abstraction to make the core routines a lot more readable than they are now.
 
 References
 ++++++++++

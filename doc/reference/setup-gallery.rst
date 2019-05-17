@@ -23,8 +23,8 @@ Idealized configurations
 
 .. |acc_sector| image:: /_images/gallery/acc_sector.png
   :width: 100%
-  :scale: 90%
-  :align: middle 
+  :scale: 75%
+  :align: middle
   :target: setups/acc_sector.html
   :alt: Steady-state stream function
 
@@ -38,14 +38,24 @@ Realistic configurations
 ------------------------
 
 +--------------------------------------------+-------------------------------------------+
-| :doc:`/reference/setups/wave-propagation`  | :doc:`/reference/setups/north-atlantic`   |
+| :doc:`/reference/setups/flexible`          | :doc:`/reference/setups/wave-propagation` |
 |                                            |                                           |
-| |wave-propagation|                         | |northatlantic|                           |
+| |flexible|                                 | |wave-propagation|                        |
 +--------------------------------------------+-------------------------------------------+
 | :doc:`/reference/setups/4deg`              | :doc:`/reference/setups/1deg`             |
 |                                            |                                           |
 | |4deg|                                     | |1deg|                                    |
 +--------------------------------------------+-------------------------------------------+
+| :doc:`/reference/setups/north-atlantic`    |                                           |
+|                                            |                                           |
+| |northatlantic|                            |                                           |
++--------------------------------------------+-------------------------------------------+
+
+.. |flexible| image:: /_images/gallery/flexible.png
+   :width: 100%
+   :align: middle
+   :target: setups/flexible.html
+   :alt: Surface velocity at 0.25x0.25 degree resolution
 
 .. |wave-propagation| image:: /_images/gallery/wave-propagation.png
    :width: 100%
@@ -76,7 +86,8 @@ Realistic configurations
 .. toctree::
    :hidden:
 
+   setups/flexible
    setups/wave-propagation
-   setups/north-atlantic
    setups/4deg
    setups/1deg
+   setups/north-atlantic

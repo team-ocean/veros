@@ -39,7 +39,7 @@ Attributes:
 .. exec::
   from veros.variables import MAIN_VARIABLES, CONDITIONAL_VARIABLES
   first_condition = True
-  for condition, vardict in [(None, MAIN_VARIABLES)] + CONDITIONAL_VARIABLES.items():
+  for condition, vardict in [(None, MAIN_VARIABLES)] + list(CONDITIONAL_VARIABLES.items()):
       if condition:
           if first_condition:
               print("Conditional variables")
