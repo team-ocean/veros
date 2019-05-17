@@ -1,13 +1,14 @@
 import math
 
-from .. import veros_method, runtime_settings as rs
+from .. import veros_method
+from ..variables import allocate
 from . import utilities
 
 
 @veros_method(inline=True)
-def dissipation_on_wgrid(vs, p_arr, int_drhodX=None, aloc=None, ks=None):
+def dissipation_on_wgrid(vs, out, int_drhodX=None, aloc=None, ks=None):
     if aloc is None:
-        aloc = np.zeros_like(p_arr)
+        aloc = allocate(vs, ("xt", "yt", "zw"))
         aloc[1:-1, 1:-1, :] = 0.5 * vs.grav / vs.rho_0 \
             * ((int_drhodX[2:, 1:-1, :] - int_drhodX[1:-1, 1:-1, :]) * vs.flux_east[1:-1, 1:-1, :]
              + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[:-2, 1:-1, :]) * vs.flux_east[:-2, 1:-1, :]) \
@@ -15,6 +16,7 @@ def dissipation_on_wgrid(vs, p_arr, int_drhodX=None, aloc=None, ks=None):
             + 0.5 * vs.grav / vs.rho_0 * ((int_drhodX[1:-1, 2:, :] - int_drhodX[1:-1, 1:-1, :]) * vs.flux_north[1:-1, 1:-1, :]
                                         + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[1:-1, :-2, :]) * vs.flux_north[1:-1, :-2, :]) \
             / (vs.dyt[np.newaxis, 1:-1, np.newaxis] * vs.cost[np.newaxis, 1:-1, np.newaxis])
+
     if ks is None:
         ks = vs.kbot[:, :] - 1
 
@@ -25,11 +27,11 @@ def dissipation_on_wgrid(vs, p_arr, int_drhodX=None, aloc=None, ks=None):
         np.arange(vs.nz - 1)[np.newaxis, np.newaxis, :] > ks[:, :, np.newaxis])
 
     dzw_pad = utilities.pad_z_edges(vs, vs.dzw)
-    p_arr[:, :, :-1] += (0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:])
+    out[:, :, :-1] += (0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:])
                        + 0.5 * (aloc[:, :, :-1] * dzw_pad[np.newaxis, np.newaxis, :-3]
                                / vs.dzw[np.newaxis, np.newaxis, :-1])) * edge_mask
-    p_arr[:, :, :-1] += 0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:]) * water_mask
-    p_arr[:, :, -1] += aloc[:, :, -1] * land_mask
+    out[:, :, :-1] += 0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:]) * water_mask
+    out[:, :, -1] += aloc[:, :, -1] * land_mask
 
 
 @veros_method
@@ -38,7 +40,7 @@ def tempsalt_biharmonic(vs):
     biharmonic mixing of temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
-    del2 = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+    del2 = allocate(vs, ("xt", "yt", "zt"))
 
     fxa = math.sqrt(abs(vs.K_hbi))
 
@@ -119,8 +121,6 @@ def tempsalt_diffusion(vs):
     Diffusion of temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
-    aloc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
-
     # horizontal diffusion of temperature
     vs.flux_east[:-1, :, :] = vs.K_h * (vs.temp[1:, :, :, vs.tau] - vs.temp[:-1, :, :, vs.tau]) \
         / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) * vs.maskU[:-1, :, :]

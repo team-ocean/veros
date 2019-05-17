@@ -1,5 +1,6 @@
 from . import advection, utilities
 from .. import veros_method, runtime_settings as rs
+from ..variables import allocate
 
 """
 IDEMIX as in Olbers and Eden, 2013
@@ -29,9 +30,9 @@ def integrate_idemix(vs):
     """
     integrate idemix on W grid
     """
-    a_tri, b_tri, c_tri, d_tri, delta = (np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type) for _ in range(5))
-    forc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
-    maxE_iw = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+    a_tri, b_tri, c_tri, d_tri, delta = (allocate(vs, ("xt", "yt", "zw"), include_ghosts=False) for _ in range(5))
+    forc = allocate(vs, ("xt", "yt", "zw"))
+    maxE_iw = allocate(vs, ("xt", "yt", "zw"))
 
     """
     forcing by EKE dissipation

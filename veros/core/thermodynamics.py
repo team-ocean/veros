@@ -1,5 +1,6 @@
-from .. import veros_method, runtime_settings as rs
+from .. import veros_method
 from ..distributed import global_sum
+from ..variables import allocate
 from . import advection, diffusion, isoneutral, density, utilities
 
 
@@ -35,7 +36,7 @@ def thermodynamics(vs):
         """
         changes in dyn. Enthalpy due to advection
         """
-        aloc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+        aloc = allocate(vs, ("xt", "yt", "zt"))
         aloc[2:-2, 2:-2, :] = vs.grav / vs.rho_0 * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau] * vs.dtemp[2:-2, 2:-2, :, vs.tau]
                                                 - vs.int_drhodS[2:-2, 2:-2, :, vs.tau] * vs.dsalt[2:-2, 2:-2, :, vs.tau]) \
                             - vs.dHd[2:-2, 2:-2, :, vs.tau]
@@ -122,11 +123,11 @@ def thermodynamics(vs):
         vs.dtemp_vmix[...] = vs.temp[:, :, :, vs.taup1]
         vs.dsalt_vmix[...] = vs.salt[:, :, :, vs.taup1]
 
-        a_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
-        b_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
-        c_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
-        d_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
-        delta = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
+        a_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
+        b_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
+        c_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
+        d_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
+        delta = allocate(vs, ("xt", "yt", "zw"), include_ghosts=False)
 
         ks = vs.kbot[2:-2, 2:-2] - 1
         delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1] \

@@ -1,4 +1,5 @@
 from .. import veros_method, runtime_settings as rs
+from ..variables import allocate
 from . import friction, isoneutral, streamfunction
 
 
@@ -124,7 +125,7 @@ def vertical_velocity(vs):
            \int_0^z w_z dz = w(z)-w(0) = - \int dz (u_x + v_y)
            w(z) = -int dz u_x + v_y
     """
-    fxa = np.zeros((vs.nx // rs.num_proc[0] + 3, vs.ny // rs.num_proc[1] + 3, vs.nz), dtype=vs.default_float_type)
+    fxa = allocate(vs, ("xt", "yt", "zw"))[1:, 1:]
     # integrate from bottom to surface to see error in w
     fxa[:, :, 0] = -vs.maskW[1:, 1:, 0] * vs.dzt[0] * \
         ((vs.u[1:, 1:, 0, vs.taup1] - vs.u[:-1, 1:, 0, vs.taup1])

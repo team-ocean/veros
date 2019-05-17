@@ -3,10 +3,10 @@ import os
 
 from loguru import logger
 
-from .. import veros_method, runtime_settings as rs
+from .. import veros_method
 from .diagnostic import VerosDiagnostic
 from ..core import density
-from ..variables import Variable
+from ..variables import Variable, allocate
 from ..distributed import global_sum
 
 
@@ -92,28 +92,28 @@ class Overturning(VerosDiagnostic):
 
     @veros_method
     def _allocate(self, vs):
-        self.sigma = np.zeros(self.nlevel, dtype=vs.default_float_type)
-        self.zarea = np.zeros((vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
-        self.trans = np.zeros((vs.ny // rs.num_proc[1] + 4, self.nlevel), dtype=vs.default_float_type)
-        self.vsf_iso = np.zeros((vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
-        self.vsf_depth = np.zeros((vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+        self.sigma = allocate(vs, (self.nlevel,))
+        self.zarea = allocate(vs, ("yu", "zt"))
+        self.trans = allocate(vs, ("yu", self.nlevel))
+        self.vsf_iso = allocate(vs, ("yu", "zt"))
+        self.vsf_depth = allocate(vs, ("yu", "zt"))
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-            self.bolus_iso = np.zeros((vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
-            self.bolus_depth = np.zeros((vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+            self.bolus_iso = allocate(vs, ("yu", "zt"))
+            self.bolus_depth = allocate(vs, ("yu", "zt"))
 
     @veros_method
     def diagnose(self, vs):
         # sigma at p_ref
-        sig_loc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz))
+        sig_loc = allocate(vs, ("xt", "yt", "zt"))
         sig_loc[2:-2, 2:-1, :] = density.get_rho(vs,
-                                                vs.salt[2:-2, 2:-1, :, vs.tau],
-                                                vs.temp[2:-2, 2:-1, :, vs.tau],
-                                                self.p_ref)
+                                                 vs.salt[2:-2, 2:-1, :, vs.tau],
+                                                 vs.temp[2:-2, 2:-1, :, vs.tau],
+                                                 self.p_ref)
 
         # transports below isopycnals and area below isopycnals
         sig_loc_face = 0.5 * (sig_loc[2:-2, 2:-2, :] + sig_loc[2:-2, 3:-1, :])
-        trans = np.zeros((vs.ny // rs.num_proc[1] + 4, self.nlevel), dtype=vs.default_float_type)
-        z_sig = np.zeros((vs.ny // rs.num_proc[1] + 4, self.nlevel), dtype=vs.default_float_type)
+        trans = allocate(vs, ("yu", self.nlevel))
+        z_sig = allocate(vs, ("yu", self.nlevel))
 
         for m in range(self.nlevel):
             # NOTE: vectorized version would be O(N^4) in memory
@@ -133,7 +133,7 @@ class Overturning(VerosDiagnostic):
         self.trans += trans
 
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-            bolus_trans = np.zeros((vs.ny // rs.num_proc[1] + 4, self.nlevel), dtype=vs.default_float_type)
+            bolus_trans = allocate(vs, ("yu", self.nlevel))
             # eddy-driven transports below isopycnals
             for m in range(self.nlevel):
                 # NOTE: see above
@@ -146,7 +146,7 @@ class Overturning(VerosDiagnostic):
                         * vs.maskV[2:-2, 2:-2, 1:]
                         * mask[:, :, 1:],
                         axis=(0, 2)
-                    ) \
+                    )
                     + np.sum(
                         vs.B1_gm[2:-2, 2:-2, 0]
                         * vs.dxt[2:-2, np.newaxis]
@@ -172,8 +172,8 @@ class Overturning(VerosDiagnostic):
                 * vs.B1_gm[2:-2, 2:-2, :], axis=0))
         # interpolate from isopycnals to depth
         self.vsf_iso[2:-2, :] += self._interpolate_along_axis(vs,
-                                                            z_sig[2:-2, :], trans[2:-2, :],
-                                                            self.zarea[2:-2, :], 1)
+                                                              z_sig[2:-2, :], trans[2:-2, :],
+                                                              self.zarea[2:-2, :], 1)
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
             self.bolus_iso[2:-2, :] += self._interpolate_along_axis(vs,
                                                                     z_sig[2:-2, :], bolus_trans[2:-2, :],
@@ -184,6 +184,8 @@ class Overturning(VerosDiagnostic):
 
     @veros_method
     def _interpolate_along_axis(self, vs, coords, arr, interp_coords, axis=0):
+        # TODO: clean up this mess
+
         if coords.ndim == 1:
             if len(coords) != arr.shape[axis]:
                 raise ValueError("Coordinate shape must match array shape along axis")

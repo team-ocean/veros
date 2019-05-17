@@ -8,6 +8,7 @@ used for streamfunction
 from . import utilities
 from .. import utilities as mainutils
 from ... import veros_method, runtime_settings as rs
+from ...variables import allocate
 
 
 @veros_method
@@ -43,7 +44,7 @@ def solve_streamfunction(vs):
     mainutils.enforce_boundaries(vs, fpx)
     mainutils.enforce_boundaries(vs, fpy)
 
-    forc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4), dtype=vs.default_float_type)
+    forc = allocate(vs, ("xu", "yu"))
     forc[2:-2, 2:-2] = (fpy[3:-1, 2:-2] - fpy[2:-2, 2:-2]) \
         / (vs.cosu[2:-2] * vs.dxu[2:-2, np.newaxis]) \
         - (vs.cost[3:-1] * fpx[2:-2, 3:-1] - vs.cost[2:-2] * fpx[2:-2, 2:-2]) \
@@ -60,7 +61,7 @@ def solve_streamfunction(vs):
 
     mainutils.enforce_boundaries(vs, vs.dpsi[:, :, vs.taup1])
 
-    line_forc = np.zeros(vs.nisle, dtype=vs.default_float_type)
+    line_forc = allocate(vs, ("isle",))
 
     if vs.nisle > 1:
         # calculate island integrals of forcing, keep psi constant on island 1

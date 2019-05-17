@@ -1,6 +1,6 @@
 import math
 
-from . import variables, settings, veros_method
+from . import variables, settings
 
 
 class VerosState(object):
@@ -23,13 +23,11 @@ class VerosState(object):
 
         settings.set_default_settings(self)
 
-    @veros_method
-    def allocate_variable(self, dimensions):
-        return np.zeros()
-
     def allocate_variables(self):
         self.variables.update(variables.get_standard_variables(self))
-        variables.allocate_variables(self)
+
+        for key, var in self.variables.items():
+            setattr(self, key, variables.allocate(self, var.dims, dtype=var.dtype))
 
     def to_xarray(self):
         import xarray as xr

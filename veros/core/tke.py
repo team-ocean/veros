@@ -1,9 +1,8 @@
 import math
 
-from builtins import range
-
 from .. import veros_method, runtime_settings as rs
-from . import advection, utilities, numerics
+from ..variables import allocate
+from . import advection, utilities
 
 
 @veros_method
@@ -11,7 +10,7 @@ def set_tke_diffusivities(vs):
     """
     set vertical diffusivities based on TKE model
     """
-    Rinumber = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1]  + 4, vs.nz), dtype=vs.default_float_type)
+    Rinumber = allocate(vs, ("xt", "yt", "zw"))
 
     if vs.enable_tke:
         vs.sqrttke[...] = np.sqrt(np.maximum(0., vs.tke[:, :, :, vs.tau]))
@@ -122,11 +121,11 @@ def integrate_tke(vs):
     """
     ks = vs.kbot[2:-2, 2:-2] - 1
 
-    a_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
-    b_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
-    c_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
-    d_tri = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
-    delta = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
+    a_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
+    b_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
+    c_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
+    d_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
+    delta = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
 
     delta[:, :, :-1] = vs.dt_tke / vs.dzt[np.newaxis, np.newaxis, 1:] * vs.alpha_tke * 0.5 \
         * (vs.kappaM[2:-2, 2:-2, :-1] + vs.kappaM[2:-2, 2:-2, 1:])

@@ -1,6 +1,7 @@
 import math
 
 from .. import veros_method, runtime_settings as rs
+from ..variables import allocate
 from . import utilities, advection
 
 
@@ -20,7 +21,7 @@ def set_eke_diffusivities(vs):
     set skew diffusivity K_gm and isopycnal diffusivity K_iso
     set also vertical viscosity if TEM formalism is chosen
     """
-    C_rossby = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4), dtype=vs.default_float_type)
+    C_rossby = allocate(vs, ("xt", "yt"))
 
     if vs.enable_eke:
         """
@@ -59,7 +60,7 @@ def integrate_eke(vs):
     """
     integrate EKE equation on W grid
     """
-    c_int = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+    c_int = allocate(vs, ("xt", "yt", "zw"))
 
     """
     forcing by dissipation by lateral friction and GM using TRM formalism or skew diffusion
@@ -142,7 +143,7 @@ def integrate_eke(vs):
     vertical diffusion of EKE,forcing and dissipation
     """
     ks = vs.kbot[2:-2, 2:-2] - 1
-    delta, a_tri, b_tri, c_tri, d_tri = (np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type) for _ in range(5))
+    delta, a_tri, b_tri, c_tri, d_tri = (allocate(vs, ("xt", "yt", "zt"), include_ghosts=False) for _ in range(5))
     delta[:, :, :-1] = vs.dt_tracer / vs.dzt[np.newaxis, np.newaxis, 1:] * 0.5 \
         * (vs.kappaM[2:-2, 2:-2, :-1] + vs.kappaM[2:-2, 2:-2, 1:]) * vs.alpha_eke
     a_tri[:, :, 1:-1] = -delta[:, :, :-2] / vs.dzw[1:-1]

@@ -1,7 +1,8 @@
 from loguru import logger
 
 from .. import density, utilities
-from ... import veros_method, runtime_settings as rs
+from ... import veros_method
+from ...variables import allocate
 
 
 @veros_method
@@ -13,12 +14,12 @@ def isoneutral_diffusion_pre(vs):
     """
     epsln = 1e-20
 
-    dTdx = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
-    dSdx = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
-    dTdy = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
-    dSdy = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
-    dTdz = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
-    dSdz = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+    dTdx = allocate(vs, ("xu", "yt", "zt"))
+    dSdx = allocate(vs, ("xu", "yt", "zt"))
+    dTdy = allocate(vs, ("xt", "yu", "zt"))
+    dSdy = allocate(vs, ("xt", "yu", "zt"))
+    dTdz = allocate(vs, ("xt", "yt", "zw"))
+    dSdz = allocate(vs, ("xt", "yt", "zw"))
 
     """
     drho_dt and drho_ds at centers of T cells
@@ -67,12 +68,12 @@ def isoneutral_diffusion_pre(vs):
     """
     Compute Ai_ez and K11 on center of east face of T cell.
     """
-    diffloc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nz), dtype=vs.default_float_type)
+    diffloc = allocate(vs, ("xt", "yt", "zt"))
     diffloc[1:-2, 2:-2, 1:] = 0.25 * (vs.K_iso[1:-2, 2:-2, 1:] + vs.K_iso[1:-2, 2:-2, :-1]
                                       + vs.K_iso[2:-1, 2:-2, 1:] + vs.K_iso[2:-1, 2:-2, :-1])
     diffloc[1:-2, 2:-2, 0] = 0.5 * (vs.K_iso[1:-2, 2:-2, 0] + vs.K_iso[2:-1, 2:-2, 0])
 
-    sumz = np.zeros((vs.nx // rs.num_proc[0] + 1, vs.ny // rs.num_proc[1], vs.nz), dtype=vs.default_float_type)
+    sumz = allocate(vs, ("xu", "yt", "zw"))[1:-2, 2:-2]
     for kr in range(2):
         ki = 0 if kr == 1 else 1
         for ip in range(2):
@@ -95,7 +96,7 @@ def isoneutral_diffusion_pre(vs):
                                       + vs.K_iso[2:-2, 2:-1, 1:] + vs.K_iso[2:-2, 2:-1, :-1])
     diffloc[2:-2, 1:-2, 0] = 0.5 * (vs.K_iso[2:-2, 1:-2, 0] + vs.K_iso[2:-2, 2:-1, 0])
 
-    sumz = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1] + 1, vs.nz), dtype=vs.default_float_type)
+    sumz = allocate(vs, ("xt", "yu", "zw"))[2:-2, 1:-2]
     for kr in range(2):
         ki = 0 if kr == 1 else 1
         for jp in range(2):
@@ -113,8 +114,8 @@ def isoneutral_diffusion_pre(vs):
     """
     compute Ai_bx, Ai_by and K33 on top face of T cell.
     """
-    sumx = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz - 1), dtype=vs.default_float_type)
-    sumy = np.zeros((vs.nx // rs.num_proc[0], vs.ny // rs.num_proc[1], vs.nz - 1), dtype=vs.default_float_type)
+    sumx = allocate(vs, ("xt", "yt", "zt"))[2:-2, 2:-2, :-1]
+    sumy = allocate(vs, ("xt", "yt", "zt"))[2:-2, 2:-2, :-1]
 
     for kr in range(2):
         drodzb = drdT[2:-2, 2:-2, kr:-1 + kr or None] * dTdz[2:-2, 2:-2, :-1] \

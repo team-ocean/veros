@@ -80,11 +80,12 @@ def get_dimensions(vs, grid, include_ghosts=True, local=True):
     for grid_dim in grid:
         if grid_dim in dimensions:
             dims.append(dimensions[grid_dim])
+        elif isinstance(grid_dim, int):
+            dims.append(grid_dim)
+        elif hasattr(vs, grid_dim):
+            dims.append(getattr(vs, grid_dim))
         else:
-            if hasattr(vs, grid_dim):
-                dims.append(getattr(vs, grid_dim))
-            else:
-                raise ValueError("unrecognized dimension %s" % grid_dim)
+            raise ValueError("unrecognized dimension %s" % grid_dim)
 
     return tuple(dims)
 
@@ -746,11 +747,9 @@ def get_standard_variables(vs):
 
 
 @veros_method
-def allocate_variables(vs):
-    for key, var in vs.variables.items():
-        shape = get_dimensions(vs, var.dims)
+def allocate(vs, dimensions, dtype=None, include_ghosts=True, local=False, fill=0):
+    if dtype is None:
+        dtype = vs.default_float_type
 
-        kwargs = {}
-        kwargs["dtype"] = var.dtype or vs.default_float_type
-
-        setattr(vs, key, np.zeros(shape, **kwargs))
+    shape = get_dimensions(vs, dimensions, include_ghosts=include_ghosts, local=local)
+    return np.full(shape, fill, dtype=dtype)

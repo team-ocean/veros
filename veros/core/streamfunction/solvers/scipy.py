@@ -5,6 +5,7 @@ import scipy.sparse.linalg as spalg
 from .base import LinearSolver
 from ... import utilities
 from .... import veros_method, runtime_settings as rs, distributed
+from ....variables import allocate
 
 
 class SciPySolver(LinearSolver):
@@ -79,7 +80,7 @@ class SciPySolver(LinearSolver):
         Construct a simple Jacobi preconditioner
         """
         eps = 1e-20
-        Z = np.ones((vs.nx + 4, vs.ny + 4))
+        Z = allocate(vs, ("xu", "yu"), fill=1, local=True)
         Y = np.reshape(matrix.diagonal().copy(), (vs.nx + 4, vs.ny + 4))[2:-2, 2:-2]
         Z[2:-2, 2:-2] = utilities.where(vs, np.abs(Y) > eps, 1. / (Y + eps), 1.)
 
@@ -97,9 +98,8 @@ class SciPySolver(LinearSolver):
         boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
 
         # assemble diagonals
-        main_diag = np.ones((vs.nx + 4, vs.ny + 4))
-        east_diag, west_diag, north_diag, south_diag = (
-            np.zeros((vs.nx + 4, vs.ny + 4)) for _ in range(4))
+        main_diag = allocate(vs, ("xu", "yu"), fill=1, local=True)
+        east_diag, west_diag, north_diag, south_diag = (allocate(vs, ("xu", "yu"), local=True) for _ in range(4))
         main_diag[2:-2, 2:-2] = -vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, np.newaxis] / vs.dxt[3:-1, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2 \
             - vs.hvr[2:-2, 2:-2] / vs.dxu[2:-2, np.newaxis] / vs.dxt[2:-2, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2 \
             - vs.hur[2:-2, 2:-2] / vs.dyu[np.newaxis, 2:-2] / vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2] \
@@ -115,7 +115,7 @@ class SciPySolver(LinearSolver):
 
         if vs.enable_cyclic_x:
             # couple edges of the domain
-            wrap_diag_east, wrap_diag_west = (np.zeros((vs.nx + 4, vs.ny + 4)) for _ in range(2))
+            wrap_diag_east, wrap_diag_west = (allocate(vs, ("xu", "yu")) for _ in range(2))
             wrap_diag_east[2, 2:-2] = west_diag[2, 2:-2] * boundary_mask[2, 2:-2]
             wrap_diag_west[-3, 2:-2] = east_diag[-3, 2:-2] * boundary_mask[-3, 2:-2]
             west_diag[2, 2:-2] = 0.

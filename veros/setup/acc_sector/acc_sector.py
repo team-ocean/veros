@@ -2,6 +2,8 @@
 
 from veros import VerosSetup, veros_method, runtime_settings as rs
 import veros.tools
+from veros.variables import allocate
+from veros.distributed import global_min, global_max
 
 
 class ACCSectorSetup(VerosSetup):
@@ -115,8 +117,6 @@ class ACCSectorSetup(VerosSetup):
 
     @veros_method
     def set_initial_conditions(self, vs):
-        from veros.distributed import global_min, global_max
-
         # initial conditions
         vs.temp[:, :, :, 0:2] = ((1 - vs.zt[None, None, :] / vs.zw[0]) * 15 * vs.maskT)[..., None]
         vs.salt[:, :, :, 0:2] = 35.0 * vs.maskT[..., None]
@@ -127,7 +127,7 @@ class ACCSectorSetup(VerosSetup):
         yt_max = global_max(vs, vs.yt.max())
         yu_max = global_max(vs, vs.yu.max())
 
-        taux = np.zeros(vs.ny // rs.num_proc[1] + 4, dtype=vs.default_float_type)
+        taux = allocate(vs, ("yt",))
         north = vs.yt > 30
         subequatorial_north_n = (vs.yt >= 15) & (vs.yt < 30)
         subequatorial_north_s = (vs.yt > 0) & (vs.yt < 15)
@@ -147,7 +147,7 @@ class ACCSectorSetup(VerosSetup):
 
         # surface heatflux forcing
         DELTA_T, TS, TN = 25., 0., 5.
-        vs._t_star = DELTA_T * np.ones(vs.ny // rs.num_proc[1] + 4, dtype=vs.default_float_type)
+        vs._t_star = allocate(vs, ("yt",), fill=DELTA_T)
         vs._t_star[vs.yt<0] = TS + DELTA_T * np.sin(np.pi * (vs.yt[vs.yt<0] + 60.) / np.abs(2 * vs.y_origin))
         vs._t_star[vs.yt>0] = TN + (DELTA_T + TS - TN) * np.sin(np.pi * (vs.yt[vs.yt>0] + 60.) / np.abs(2 * vs.y_origin))
         vs._t_rest = vs.dzt[None, -1] / (10. * 86400.) * vs.maskT[:, :, -1]

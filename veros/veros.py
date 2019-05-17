@@ -309,7 +309,9 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
                 logger.success("Integration done")
 
             finally:
+                logger.info("Writing restart files...", end=" ")
                 diagnostics.write_restart(vs, force=True)
+                logger.success("done")
 
                 logger.debug("\n".join([
                     "",

@@ -1,6 +1,7 @@
 from loguru import logger
 
 from ... import veros_method, runtime_settings as rs, runtime_state as rst
+from ...variables import allocate
 from .. import utilities as mainutils
 from . import island, utilities
 
@@ -60,22 +61,22 @@ def streamfunction_init(vs):
     """
     preprocess land map using MOMs algorithm for B-grid to determine number of islands
     """
-    vs.land_map = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4), dtype='int')
+    vs.land_map = allocate(vs, ("xt", "yt"), dtype="int")
     nisle = get_isleperim(vs)
 
     """
     now that the number of islands is known we can allocate the rest of the variables
     """
     vs.nisle = nisle
-    vs.isle = np.arange(vs.nisle) + 1
-    vs.psin = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=vs.default_float_type)
-    vs.dpsin = np.zeros((vs.nisle, 3), dtype=vs.default_float_type)
-    vs.line_psin = np.zeros((vs.nisle, vs.nisle), dtype=vs.default_float_type)
-    vs.boundary_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
-    vs.line_dir_south_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
-    vs.line_dir_north_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
-    vs.line_dir_east_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
-    vs.line_dir_west_mask = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=np.bool)
+    vs.isle = np.arange(1, vs.nisle + 1)
+    vs.psin = allocate(vs, ("xu", "yu", "isle"))
+    vs.dpsin = allocate(vs, ("isle", "timesteps"))
+    vs.line_psin = allocate(vs, ("isle", "isle"))
+    vs.boundary_mask = allocate(vs, ("xt", "yt", "isle"), dtype="bool")
+    vs.line_dir_south_mask = allocate(vs, ("xt", "yt", "isle"), dtype="bool")
+    vs.line_dir_north_mask = allocate(vs, ("xt", "yt", "isle"), dtype="bool")
+    vs.line_dir_east_mask = allocate(vs, ("xt", "yt", "isle"), dtype="bool")
+    vs.line_dir_west_mask = allocate(vs, ("xt", "yt", "isle"), dtype="bool")
 
     for isle in range(vs.nisle):
         boundary_map = vs.land_map == (isle + 1)
@@ -103,13 +104,13 @@ def streamfunction_init(vs):
     """
     precalculate time independent boundary components of streamfunction
     """
-    forc = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4), dtype=vs.default_float_type)
+    forc = allocate(vs, ("xu", "yu"))
 
     # initialize with random noise to achieve uniform convergence
     vs.psin[...] = np.random.rand(*vs.psin.shape) * vs.maskZ[..., -1, np.newaxis]
 
     for isle in range(vs.nisle):
-        logger.debug(" Solving for boundary contribution by island {:d}".format(isle))
+        logger.info(" Solving for boundary contribution by island {:d}".format(isle))
         vs.linear_solver.solve(vs, forc, vs.psin[:, :, isle],
                                boundary_val=vs.boundary_mask[:, :, isle])
 
@@ -118,8 +119,8 @@ def streamfunction_init(vs):
     """
     precalculate time independent island integrals
     """
-    fpx = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=vs.default_float_type)
-    fpy = np.zeros((vs.nx // rs.num_proc[0] + 4, vs.ny // rs.num_proc[1] + 4, vs.nisle), dtype=vs.default_float_type)
+    fpx = allocate(vs, ("xu", "yu", "isle"))
+    fpy = allocate(vs, ("xu", "yu", "isle"))
 
     fpx[1:, 1:, :] = -vs.maskU[1:, 1:, -1, np.newaxis] \
         * (vs.psin[1:, 1:, :] - vs.psin[1:, :-1, :]) \

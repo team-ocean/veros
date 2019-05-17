@@ -1,4 +1,5 @@
 from .. import veros_method
+from ..variables import allocate
 from .utilities import pad_z_edges, where
 
 
@@ -130,15 +131,15 @@ def adv_flux_superbee_wgrid(vs, adv_fe, adv_fn, adv_ft, var):
     """
     Calculates advection of a tracer defined on Wgrid
     """
-    maskUtr = np.zeros_like(adv_fe)
+    maskUtr = allocate(vs, ("xt", "yt", "zw"))
     maskUtr[:-1, :, :] = vs.maskW[1:, :, :] * vs.maskW[:-1, :, :]
     adv_fe[1:-2, 2:-2, :] = _adv_superbee(vs, vs.u_wgrid, var, maskUtr, vs.dxt, 0)
 
-    maskVtr = np.zeros_like(adv_fn)
+    maskVtr = allocate(vs, ("xt", "yt", "zw"))
     maskVtr[:, :-1, :] = vs.maskW[:, 1:, :] * vs.maskW[:, :-1, :]
     adv_fn[2:-2, 1:-2, :] = _adv_superbee(vs, vs.v_wgrid, var, maskVtr, vs.dyt, 1)
 
-    maskWtr = np.zeros_like(adv_ft)
+    maskWtr = allocate(vs, ("xt", "yt", "zw"))
     maskWtr[:, :, :-1] = vs.maskW[:, :, 1:] * vs.maskW[:, :, :-1]
     adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(vs, vs.w_wgrid, var, maskWtr, vs.dzw, 2)
     adv_ft[..., -1] = 0.0

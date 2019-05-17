@@ -4,7 +4,7 @@ import os
 import h5netcdf
 
 from veros import VerosSetup, tools, veros_method, time
-from veros.variables import Variable
+from veros.variables import Variable, allocate
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = tools.get_assets("global_1deg", os.path.join(BASE_PATH, "assets.yml"))
@@ -192,7 +192,7 @@ class GlobalOneDegreeSetup(VerosSetup):
         swarg2 = vs.zw / efold2_shortwave
         pen = rpart_shortwave * np.exp(swarg1) + (1.0 - rpart_shortwave) * np.exp(swarg2)
         pen[-1] = 0.
-        vs.divpen_shortwave = np.zeros(vs.nz, dtype=vs.default_float_type)
+        vs.divpen_shortwave = allocate(vs, ("zt",))
         vs.divpen_shortwave[1:] = (pen[1:] - pen[:-1]) / vs.dzt[1:]
         vs.divpen_shortwave[0] = pen[0] / vs.dzt[0]
 
