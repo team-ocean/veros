@@ -19,8 +19,8 @@ def signals_to_exception(signals=(signal.SIGINT, signal.SIGTERM)):
        >>>         # graceful exit even upon receiving interrupt signal
     """
     def signal_to_exception(sig, frame):
-        logger.critical("Received interrupt signal {}", sig)
-        raise SystemExit("Aborted")
+        logger.critical('Received interrupt signal {}', sig)
+        raise SystemExit('Aborted')
 
     old_signals = {}
     for s in signals:

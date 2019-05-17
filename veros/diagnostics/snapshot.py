@@ -10,12 +10,12 @@ class Snapshot(VerosDiagnostic):
     """Writes snapshots of the current solution. Also reads and writes the main restart
     data required for restarting a Veros simulation.
     """
-    output_path = "{identifier}.snapshot.nc"
+    output_path = '{identifier}.snapshot.nc'
     """File to write to. May contain format strings that are replaced with Veros attributes."""
-    name = "snapshot" #:
+    name = 'snapshot' #:
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     #: Attributes to be written to restart file.
-    restart_attributes = ("itt", "time", "tau", "taum1", "taup1")
+    restart_attributes = ('itt', 'time', 'tau', 'taum1', 'taup1')
 
     def __init__(self, vs):
         self.output_variables = [key for key, val in vs.variables.items() if val.output]
@@ -37,7 +37,7 @@ class Snapshot(VerosDiagnostic):
 
     @veros_method
     def output(self, vs):
-        logger.info(" Writing snapshot at {0[0]:.2f} {0[1]}", time.format_time(vs.time))
+        logger.info(' Writing snapshot at {0[0]:.2f} {0[1]}', time.format_time(vs.time))
 
         if not os.path.isfile(self.get_output_file_name(vs)):
             self.initialize(vs)
@@ -55,22 +55,22 @@ class Snapshot(VerosDiagnostic):
             try:
                 restart_var = variables[key]
             except KeyError:
-                logger.warning("Not reading restart data for variable {}: "
-                               "no matching data found in restart file"
+                logger.warning('Not reading restart data for variable {}: '
+                               'no matching data found in restart file'
                                .format(key))
                 continue
             if not arr.shape == restart_var.shape:
-                logger.warning("Not reading restart data for variable {}: "
-                               "restart data dimensions do not match model "
-                               "grid".format(key))
+                logger.warning('Not reading restart data for variable {}: '
+                               'restart data dimensions do not match model '
+                               'grid'.format(key))
                 continue
             arr[...] = restart_var
         for attr in self.restart_attributes:
             try:
                 setattr(vs, attr, attributes[attr])
             except KeyError:
-                logger.warning("Not reading restart data for attribute {}: "
-                               "attribute not found in restart file"
+                logger.warning('Not reading restart data for attribute {}: '
+                               'attribute not found in restart file'
                                .format(attr))
 
     def write_restart(self, vs, outfile):

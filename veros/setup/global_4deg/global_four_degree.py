@@ -10,8 +10,8 @@ import veros.tools
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = veros.tools.get_assets(
-    "global_4deg",
-    os.path.join(BASE_PATH, "assets.yml")
+    'global_4deg',
+    os.path.join(BASE_PATH, 'assets.yml')
 )
 
 
@@ -28,7 +28,7 @@ class GlobalFourDegreeSetup(VerosSetup):
     """
     @veros_method
     def set_parameter(self, vs):
-        vs.identifier = "4deg"
+        vs.identifier = '4deg'
 
         vs.nx, vs.ny, vs.nz = 90, 40, 15
         vs.dt_mom = 1800.0
@@ -82,17 +82,17 @@ class GlobalFourDegreeSetup(VerosSetup):
         # custom variables
         vs.nmonths = 12
         vs.variables.update(
-            sss_clim=Variable("sss_clim", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            sst_clim=Variable("sst_clim", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            qnec=Variable("qnec", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            qnet=Variable("qnet", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            taux=Variable("taux", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            tauy=Variable("tauy", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            sss_clim=Variable('sss_clim', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            sst_clim=Variable('sst_clim', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            qnec=Variable('qnec', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            qnet=Variable('qnet', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            taux=Variable('taux', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            tauy=Variable('tauy', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
         )
 
     @veros_method
     def _read_forcing(self, vs, var):
-        with h5netcdf.File(DATA_FILES["forcing"], "r") as infile:
+        with h5netcdf.File(DATA_FILES['forcing'], 'r') as infile:
             var_obj = infile.variables[var]
             return np.array(var_obj, dtype=str(var_obj.dtype)).T
 
@@ -111,11 +111,11 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.coriolis_t[...] = 2 * vs.omega * np.sin(vs.yt[np.newaxis, :] / 180. * vs.pi)
 
     @veros_method(dist_safe=False, local_variables=[
-        "kbot"
+        'kbot'
     ])
     def set_topography(self, vs):
-        bathymetry_data = self._read_forcing(vs, "bathymetry")
-        salt_data = self._read_forcing(vs, "salinity")[:, :, ::-1]
+        bathymetry_data = self._read_forcing(vs, 'bathymetry')
+        salt_data = self._read_forcing(vs, 'salinity')[:, :, ::-1]
         mask_salt = salt_data == 0.
         vs.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
         mask_bathy = bathymetry_data == 0
@@ -123,45 +123,45 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.kbot[vs.kbot == vs.nz] = 0
 
     @veros_method(dist_safe=False, local_variables=[
-        "taux", "tauy", "qnec", "qnet", "sss_clim", "sst_clim",
-        "temp", "salt", "taux", "tauy", "area_t", "maskT",
-        "forc_iw_bottom", "forc_iw_surface"
+        'taux', 'tauy', 'qnec', 'qnet', 'sss_clim', 'sst_clim',
+        'temp', 'salt', 'taux', 'tauy', 'area_t', 'maskT',
+        'forc_iw_bottom', 'forc_iw_surface'
     ])
     def set_initial_conditions(self, vs):
         # initial conditions for T and S
-        temp_data = self._read_forcing(vs, "temperature")[:, :, ::-1]
+        temp_data = self._read_forcing(vs, 'temperature')[:, :, ::-1]
         vs.temp[2:-2, 2:-2, :, :2] = temp_data[:, :, :, np.newaxis] * \
             vs.maskT[2:-2, 2:-2, :, np.newaxis]
 
-        salt_data = self._read_forcing(vs, "salinity")[:, :, ::-1]
+        salt_data = self._read_forcing(vs, 'salinity')[:, :, ::-1]
         vs.salt[2:-2, 2:-2, :, :2] = salt_data[..., np.newaxis] * vs.maskT[2:-2, 2:-2, :, np.newaxis]
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
-        vs.taux[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_x")
-        vs.tauy[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_y")
+        vs.taux[2:-2, 2:-2, :] = self._read_forcing(vs, 'tau_x')
+        vs.tauy[2:-2, 2:-2, :] = self._read_forcing(vs, 'tau_y')
 
         # heat flux
-        with h5netcdf.File(DATA_FILES["ecmwf"], "r") as ecmwf_data:
-            qnec_var = ecmwf_data.variables["Q3"]
+        with h5netcdf.File(DATA_FILES['ecmwf'], 'r') as ecmwf_data:
+            qnec_var = ecmwf_data.variables['Q3']
             vs.qnec[2:-2, 2:-2, :] = np.array(qnec_var, dtype=str(qnec_var.dtype)).transpose()
             vs.qnec[vs.qnec <= -1e10] = 0.0
 
-        q = self._read_forcing(vs, "q_net")
+        q = self._read_forcing(vs, 'q_net')
         vs.qnet[2:-2, 2:-2, :] = -q
         vs.qnet[vs.qnet <= -1e10] = 0.0
 
         fxa = np.sum(vs.qnet[2:-2, 2:-2, :] * vs.area_t[2:-2, 2:-2, np.newaxis]) \
               / 12 / np.sum(vs.area_t[2:-2, 2:-2])
-        print(" removing an annual mean heat flux imbalance of %e W/m^2" % fxa)
+        print(' removing an annual mean heat flux imbalance of %e W/m^2' % fxa)
         vs.qnet[...] = (vs.qnet - fxa) * vs.maskT[:, :, -1, np.newaxis]
 
         # SST and SSS
-        vs.sst_clim[2:-2, 2:-2, :] = self._read_forcing(vs, "sst")
-        vs.sss_clim[2:-2, 2:-2, :] = self._read_forcing(vs, "sss")
+        vs.sst_clim[2:-2, 2:-2, :] = self._read_forcing(vs, 'sst')
+        vs.sss_clim[2:-2, 2:-2, :] = self._read_forcing(vs, 'sss')
 
         if vs.enable_idemix:
-            vs.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing(vs, "tidal_energy") / vs.rho_0
-            vs.forc_iw_surface[2:-2, 2:-2] = self._read_forcing(vs, "wind_energy") / vs.rho_0 * 0.2
+            vs.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing(vs, 'tidal_energy') / vs.rho_0
+            vs.forc_iw_surface[2:-2, 2:-2] = self._read_forcing(vs, 'wind_energy') / vs.rho_0 * 0.2
 
     @veros_method
     def set_forcing(self, vs):
@@ -202,15 +202,15 @@ class GlobalFourDegreeSetup(VerosSetup):
 
     @veros.veros_method
     def set_diagnostics(self, vs):
-        vs.diagnostics["snapshot"].output_frequency = 360 * 86400.
-        vs.diagnostics["overturning"].output_frequency = 360 * 86400.
-        vs.diagnostics["overturning"].sampling_frequency = vs.dt_tracer
-        vs.diagnostics["energy"].output_frequency = 360 * 86400.
-        vs.diagnostics["energy"].sampling_frequency = 86400
-        average_vars = ["temp", "salt", "u", "v", "w", "surface_taux", "surface_tauy", "psi"]
-        vs.diagnostics["averages"].output_variables = average_vars
-        vs.diagnostics["averages"].output_frequency = 360 * 86400.
-        vs.diagnostics["averages"].sampling_frequency = 86400
+        vs.diagnostics['snapshot'].output_frequency = 360 * 86400.
+        vs.diagnostics['overturning'].output_frequency = 360 * 86400.
+        vs.diagnostics['overturning'].sampling_frequency = vs.dt_tracer
+        vs.diagnostics['energy'].output_frequency = 360 * 86400.
+        vs.diagnostics['energy'].sampling_frequency = 86400
+        average_vars = ['temp', 'salt', 'u', 'v', 'w', 'surface_taux', 'surface_tauy', 'psi']
+        vs.diagnostics['averages'].output_variables = average_vars
+        vs.diagnostics['averages'].output_frequency = 360 * 86400.
+        vs.diagnostics['averages'].sampling_frequency = 86400
 
     @veros_method
     def after_timestep(self, vs):
@@ -224,5 +224,5 @@ def run(*args, **kwargs):
     simulation.run()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     run()

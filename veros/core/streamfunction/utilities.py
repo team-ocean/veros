@@ -3,16 +3,16 @@ from veros.distributed import global_sum
 
 
 @veros_method
-def line_integrals(vs, uloc, vloc, kind="same"):
+def line_integrals(vs, uloc, vloc, kind='same'):
     """
     calculate line integrals along all islands
 
     Arguments:
-        kind: "same" calculates only line integral contributions of an island with itself,
-               while "full" calculates all possible pairings between all islands.
+        kind: 'same' calculates only line integral contributions of an island with itself,
+               while 'full' calculates all possible pairings between all islands.
     """
     if kind not in ('same', 'full'):
-        raise ValueError("kind must be 'same' or 'full'")
+        raise ValueError('kind must be "same" or "full"')
 
     east = vloc[1:-2, 1:-2, :] * vs.dyu[np.newaxis, 1:-2, np.newaxis] \
         + uloc[1:-2, 2:-1, :] \

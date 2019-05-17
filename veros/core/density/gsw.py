@@ -568,7 +568,7 @@ GSW_TEOS10_CONSTANTS = dict(
     deg2rad=3.141592653589793 / 180.0,
     rad2deg=180.0 / 3.141592653589793,
     gamma=2.26e-7,
-    #  cp0  =  The "specific heat" for use                         [ J/(kg K) ]
+    #  cp0  =  The 'specific heat' for use                         [ J/(kg K) ]
     #          with Conservative Temperature
     gsw_cp0=3991.86795711963,
     #  T0  =  the Celcius zero point.                                     [ K ]
@@ -900,8 +900,8 @@ def gsw_gibbs(vs, nsd, ntd, npd, sa, t, p):
 
     else:
 
-        raise ValueError("nsd, ntd and npd values do not match "
-                         + "(given: {}, {}, {})".format(nsd, ntd, npd))
+        raise ValueError('nsd, ntd and npd values do not match '
+                         + '(given: {}, {}, {})'.format(nsd, ntd, npd))
 
 
 @veros_method

@@ -30,9 +30,9 @@ def integrate_idemix(vs):
     """
     integrate idemix on W grid
     """
-    a_tri, b_tri, c_tri, d_tri, delta = (allocate(vs, ("xt", "yt", "zw"), include_ghosts=False) for _ in range(5))
-    forc = allocate(vs, ("xt", "yt", "zw"))
-    maxE_iw = allocate(vs, ("xt", "yt", "zw"))
+    a_tri, b_tri, c_tri, d_tri, delta = (allocate(vs, ('xt', 'yt', 'zw'), include_ghosts=False) for _ in range(5))
+    forc = allocate(vs, ('xt', 'yt', 'zw'))
+    maxE_iw = allocate(vs, ('xt', 'yt', 'zw'))
 
     """
     forcing by EKE dissipation

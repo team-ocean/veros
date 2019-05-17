@@ -3,15 +3,15 @@ from .decorators import veros_method, dist_context_only
 
 
 SCATTERED_DIMENSIONS = (
-    ("xt", "xu"),
-    ("yt", "yu")
+    ('xt', 'xu'),
+    ('yt', 'yu')
 )
 
 
 def ascontiguousarray(arr):
-    if not arr.flags["C_CONTIGUOUS"] and not arr.flags["F_CONTIGUOUS"]:
+    if not arr.flags['C_CONTIGUOUS'] and not arr.flags['F_CONTIGUOUS']:
         return arr.copy()
-    if not arr.flags["OWNDATA"]:
+    if not arr.flags['OWNDATA']:
         return arr.copy()
     return arr
 
@@ -31,8 +31,11 @@ def get_array_buffer(vs, arr):
         'bool': MPI.BOOL,
     }
 
-    if rs.backend == "bohrium":
-        buf = np.interop_numpy.get_array(arr)
+    if rs.backend == 'bohrium':
+        if np.check(arr):
+            buf = np.interop_numpy.get_array(arr)
+        else:
+            buf = arr
     else:
         buf = arr
 
@@ -43,19 +46,19 @@ def get_array_buffer(vs, arr):
 def validate_decomposition(vs):
     if rs.mpi_comm is None:
         if (rs.num_proc[0] > 1 or rs.num_proc[1] > 1):
-            raise RuntimeError("mpi4py is required for distributed execution")
+            raise RuntimeError('mpi4py is required for distributed execution')
         return
 
     comm_size = rs.mpi_comm.Get_size()
     if rst.proc_num != comm_size:
-        raise RuntimeError("number of processes ({}) does not match size of communicator ({})"
+        raise RuntimeError('number of processes ({}) does not match size of communicator ({})'
                            .format(rst.proc_num, comm_size))
 
     if vs.nx % rs.num_proc[0]:
-        raise ValueError("processes do not divide domain evenly in x-direction")
+        raise ValueError('processes do not divide domain evenly in x-direction')
 
     if vs.ny % rs.num_proc[1]:
-        raise ValueError("processes do not divide domain evenly in y-direction")
+        raise ValueError('processes do not divide domain evenly in y-direction')
 
 
 def get_chunk_size(vs):
@@ -344,7 +347,7 @@ def _gather_1d(vs, arr, dim):
     if pi[otherdim] != 0:
         return arr
 
-    dim_grid = ["xt" if dim == 0 else "yt"] + [None] * (arr.ndim - 1)
+    dim_grid = ['xt' if dim == 0 else 'yt'] + [None] * (arr.ndim - 1)
     gidx, idx = get_chunk_slices(vs, dim_grid, include_overlap=True)
     sendbuf = ascontiguousarray(arr[idx])
 
@@ -378,9 +381,9 @@ def _gather_1d(vs, arr, dim):
 @veros_method(inline=True)
 def _gather_xy(vs, arr):
     nxi, nyi = get_chunk_size(vs)
-    assert arr.shape[:2] == (nxi + 4, nyi + 4)
+    assert arr.shape[:2] == (nxi + 4, nyi + 4), arr.shape
 
-    dim_grid = ["xt", "yt"] + [None] * (arr.ndim - 2)
+    dim_grid = ['xt', 'yt'] + [None] * (arr.ndim - 2)
     gidx, idx = get_chunk_slices(vs, dim_grid, include_overlap=True)
     sendbuf = ascontiguousarray(arr[idx])
 
@@ -458,7 +461,7 @@ def _scatter_1d(vs, arr, dim):
     assert dim in (0, 1)
 
     nx = get_chunk_size(vs)[dim]
-    dim_grid = ["xt" if dim == 0 else "yt"] + [None] * (arr.ndim - 1)
+    dim_grid = ['xt' if dim == 0 else 'yt'] + [None] * (arr.ndim - 1)
     _, local_slice = get_chunk_slices(vs, dim_grid, include_overlap=True)
 
     if rst.proc_rank == 0:
@@ -487,7 +490,7 @@ def _scatter_1d(vs, arr, dim):
 def _scatter_xy(vs, arr):
     nxi, nyi = get_chunk_size(vs)
 
-    dim_grid = ["xt", "yt"] + [None] * (arr.ndim - 2)
+    dim_grid = ['xt', 'yt'] + [None] * (arr.ndim - 2)
     _, local_slice = get_chunk_slices(vs, dim_grid, include_overlap=True)
 
     if rst.proc_rank == 0:
@@ -506,7 +509,7 @@ def _scatter_xy(vs, arr):
 
     arr[local_slice] = recvbuf
 
-    exchange_overlap(vs, arr, ["xt", "yt"])
+    exchange_overlap(vs, arr, ['xt', 'yt'])
 
     return arr
 

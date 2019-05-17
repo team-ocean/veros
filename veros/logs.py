@@ -4,11 +4,11 @@ import warnings
 from loguru import logger
 
 
-def setup_logging(loglevel="info", stream_sink=sys.stdout):
+def setup_logging(loglevel='info', stream_sink=sys.stdout):
     from . import runtime_state
 
     if runtime_state.proc_rank != 0:
-        logger.disable("veros")
+        logger.disable('veros')
         return
 
     kwargs = {}
@@ -22,11 +22,11 @@ def setup_logging(loglevel="info", stream_sink=sys.stdout):
         )
 
     config = {
-        "handlers": [
+        'handlers': [
             dict(
                 sink=stream_sink,
                 level=loglevel.upper(),
-                format="<level>{message}</level>",
+                format='<level>{message}</level>',
                 **kwargs
             )
         ]
@@ -43,5 +43,5 @@ def setup_logging(loglevel="info", stream_sink=sys.stdout):
 
     warnings.showwarning = showwarning
 
-    logger.enable("veros")
+    logger.enable('veros')
     return logger.configure(**config)

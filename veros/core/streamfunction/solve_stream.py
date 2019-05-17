@@ -44,7 +44,7 @@ def solve_streamfunction(vs):
     mainutils.enforce_boundaries(vs, fpx)
     mainutils.enforce_boundaries(vs, fpy)
 
-    forc = allocate(vs, ("xu", "yu"))
+    forc = allocate(vs, ('xu', 'yu'))
     forc[2:-2, 2:-2] = (fpy[3:-1, 2:-2] - fpy[2:-2, 2:-2]) \
         / (vs.cosu[2:-2] * vs.dxu[2:-2, np.newaxis]) \
         - (vs.cost[3:-1] * fpx[2:-2, 3:-1] - vs.cost[2:-2] * fpx[2:-2, 2:-2]) \
@@ -61,12 +61,12 @@ def solve_streamfunction(vs):
 
     mainutils.enforce_boundaries(vs, vs.dpsi[:, :, vs.taup1])
 
-    line_forc = allocate(vs, ("isle",))
+    line_forc = allocate(vs, ('isle',))
 
     if vs.nisle > 1:
         # calculate island integrals of forcing, keep psi constant on island 1
         line_forc[1:] = utilities.line_integrals(vs, fpx[..., np.newaxis],
-                                                 fpy[..., np.newaxis], kind="same")[1:]
+                                                 fpy[..., np.newaxis], kind='same')[1:]
 
         # calculate island integrals of interior streamfunction
         fpx[...] = 0.
@@ -78,10 +78,10 @@ def solve_streamfunction(vs):
             * (vs.dpsi[1:, 1:, vs.taup1] - vs.dpsi[:-1, 1:, vs.taup1]) \
             / (vs.cosu[np.newaxis, 1:] * vs.dxt[1:, np.newaxis]) * vs.hvr[1:, 1:]
         line_forc[1:] += -utilities.line_integrals(vs, fpx[..., np.newaxis],
-                                                   fpy[..., np.newaxis], kind="same")[1:]
+                                                   fpy[..., np.newaxis], kind='same')[1:]
 
         # solve for time dependent boundary values
-        if rs.backend == "bohrium":
+        if rs.backend == 'bohrium':
             import numpy.linalg
             line_forc = line_forc.copy2numpy()
             line_psin = vs.line_psin.copy2numpy()

@@ -19,7 +19,7 @@ def initialize_file(vs, ncfile, create_time_dimension=True):
     import h5netcdf
 
     if not isinstance(ncfile, h5netcdf.File):
-        raise TypeError("Argument needs to be a netCDF4 Dataset")
+        raise TypeError('Argument needs to be a netCDF4 Dataset')
 
     for dim in variables.BASE_DIMENSIONS:
         var = vs.variables[dim]
@@ -29,11 +29,11 @@ def initialize_file(vs, ncfile, create_time_dimension=True):
         write_variable(vs, dim, var, getattr(vs, dim), ncfile)
 
     if create_time_dimension:
-        ncfile.dimensions["Time"] = None
-        nc_dim_var_time = ncfile.create_variable("Time", ("Time",), float)
-        nc_dim_var_time.long_name = "Time"
-        nc_dim_var_time.units = "days"
-        nc_dim_var_time.time_origin = "01-JAN-1900 00:00:00"
+        ncfile.dimensions['Time'] = None
+        nc_dim_var_time = ncfile.create_variable('Time', ('Time',), float)
+        nc_dim_var_time.long_name = 'Time'
+        nc_dim_var_time.units = 'days'
+        nc_dim_var_time.time_origin = '01-JAN-1900 00:00:00'
 
 
 @veros_method
@@ -44,17 +44,17 @@ def add_dimension(vs, identifier, size, ncfile):
 @veros_method
 def initialize_variable(vs, key, var, ncfile):
     dims = tuple(d for d in var.dims if d in ncfile.dimensions)
-    if var.time_dependent and "Time" in ncfile.dimensions:
-        dims += ("Time",)
+    if var.time_dependent and 'Time' in ncfile.dimensions:
+        dims += ('Time',)
 
     if key in ncfile.variables:
-        logger.warning("Variable {} already initialized".format(key))
+        logger.warning('Variable {} already initialized'.format(key))
         return
 
     kwargs = {}
     if vs.enable_hdf5_gzip_compression and runtime_state.proc_num == 1:
         kwargs.update(
-            compression="gzip",
+            compression='gzip',
             compression_opts=9
         )
 
@@ -76,13 +76,13 @@ def initialize_variable(vs, key, var, ncfile):
 
 @veros_method
 def get_current_timestep(vs, ncfile):
-    return len(ncfile.variables["Time"])
+    return len(ncfile.variables['Time'])
 
 
 @veros_method
 def advance_time(vs, time_step, time_value, ncfile):
-    ncfile.resize_dimension("Time", time_step + 1)
-    ncfile.variables["Time"][time_step] = time_value
+    ncfile.resize_dimension('Time', time_step + 1)
+    ncfile.variables['Time'][time_step] = time_value
 
 
 @veros_method
@@ -107,11 +107,11 @@ def write_variable(vs, key, var, var_data, ncfile, time_step=None):
 
     chunk, _ = distributed.get_chunk_slices(vs, var_obj.dimensions)
 
-    if "Time" in var_obj.dimensions:
-        assert var_obj.dimensions[0] == "Time"
+    if 'Time' in var_obj.dimensions:
+        assert var_obj.dimensions[0] == 'Time'
 
         if time_step is None:
-            raise ValueError("time step must be given for non-constant data")
+            raise ValueError('time step must be given for non-constant data')
 
         chunk = (time_step,) + chunk[1:]
 
@@ -163,11 +163,11 @@ def _wait_for_disk(vs, file_id):
     """
     Wait for the lock of file_id to be released
     """
-    logger.debug("Waiting for lock {} to be released".format(file_id))
+    logger.debug('Waiting for lock {} to be released'.format(file_id))
     _add_to_locks(file_id)
     lock_released = _io_locks[file_id].wait(vs.io_timeout)
     if not lock_released:
-        raise RuntimeError("Timeout while waiting for disk IO to finish")
+        raise RuntimeError('Timeout while waiting for disk IO to finish')
 
 
 def _write_to_disk(vs, ncfile, file_id):

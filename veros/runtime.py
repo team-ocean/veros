@@ -12,20 +12,20 @@ def twoints(v):
 
 
 def loglevel(v):
-    loglevels = ("trace", "debug", "info", "warning", "error")
+    loglevels = ('trace', 'debug', 'info', 'warning', 'error')
     if v not in loglevels:
-        raise ValueError("loglevel must be one of %r" % loglevels)
+        raise ValueError('loglevel must be one of %r' % loglevels)
     return v
 
 
 AVAILABLE_SETTINGS = (
     # (name, type, default)
-    ("backend", str, "numpy"),
-    ("linear_solver", str, "best"),
-    ("num_proc", twoints, (1, 1)),
-    ("profile_mode", bool, False),
-    ("loglevel", loglevel, "info"),
-    ("mpi_comm", None, _default_mpi_comm())
+    ('backend', str, 'numpy'),
+    ('linear_solver', str, 'best'),
+    ('num_proc', twoints, (1, 1)),
+    ('profile_mode', bool, False),
+    ('loglevel', loglevel, 'info'),
+    ('mpi_comm', None, _default_mpi_comm())
 )
 
 
@@ -42,12 +42,12 @@ class RuntimeSettings(object):
         self.__locked__ = True
 
     def __setattr__(self, attr, val):
-        if attr == "__locked__" or not self.__locked__:
+        if attr == '__locked__' or not self.__locked__:
             return super(RuntimeSettings, self).__setattr__(attr, val)
 
         # prevent adding new settings
         if attr not in self.__settings__:
-            raise AttributeError("Unknown runtime setting %s" % attr)
+            raise AttributeError('Unknown runtime setting %s' % attr)
 
         # coerce type
         stype = self.__setting_types__.get(attr)
@@ -57,10 +57,10 @@ class RuntimeSettings(object):
         return super(RuntimeSettings, self).__setattr__(attr, val)
 
     def __repr__(self):
-        setval = ", ".join(
-            "%s=%s" % (key, repr(getattr(self, key))) for key in self.__settings__
+        setval = ', '.join(
+            '%s=%s' % (key, repr(getattr(self, key))) for key in self.__settings__
         )
-        return "{clsname}({setval})".format(
+        return '{clsname}({setval})'.format(
             clsname=self.__class__.__name__,
             setval=setval
         )
@@ -107,4 +107,4 @@ class RuntimeState(object):
         return backend.get_vector_engine(self.backend_module)
 
     def __setattr__(self, attr, val):
-        raise TypeError("Cannot modify runtime state objects")
+        raise TypeError('Cannot modify runtime state objects')

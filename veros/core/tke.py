@@ -10,7 +10,7 @@ def set_tke_diffusivities(vs):
     """
     set vertical diffusivities based on TKE model
     """
-    Rinumber = allocate(vs, ("xt", "yt", "zw"))
+    Rinumber = allocate(vs, ('xt', 'yt', 'zw'))
 
     if vs.enable_tke:
         vs.sqrttke[...] = np.sqrt(np.maximum(0., vs.tke[:, :, :, vs.tau]))
@@ -47,7 +47,7 @@ def set_tke_diffusivities(vs):
                 vs.mxl[:, :, k] = np.minimum(vs.mxl[:, :, k], vs.mxl[:, :, k - 1] + vs.dzt[k])
             vs.mxl[...] = np.maximum(vs.mxl, vs.mxl_min)
         else:
-            raise ValueError("unknown mixing length choice in tke_mxl_choice")
+            raise ValueError('unknown mixing length choice in tke_mxl_choice')
 
         """
         calculate viscosity and diffusivity based on Prandtl number
@@ -121,11 +121,11 @@ def integrate_tke(vs):
     """
     ks = vs.kbot[2:-2, 2:-2] - 1
 
-    a_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
-    b_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
-    c_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
-    d_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
-    delta = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
+    a_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    b_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    c_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    d_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    delta = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
 
     delta[:, :, :-1] = vs.dt_tke / vs.dzt[np.newaxis, np.newaxis, 1:] * vs.alpha_tke * 0.5 \
         * (vs.kappaM[2:-2, 2:-2, :-1] + vs.kappaM[2:-2, 2:-2, 1:])

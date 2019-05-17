@@ -16,7 +16,7 @@ def enforce_boundaries(vs, arr, local=False):
     if local or rst.proc_num == 1:
         return
 
-    exchange_overlap(vs, arr, ["xt", "yt"])
+    exchange_overlap(vs, arr, ['xt', 'yt'])
 
 
 @veros_method(inline=True)
@@ -43,7 +43,7 @@ def pad_z_edges(vs, array):
         newarray[:, :, 0, ...] = array[:, :, 0, ...]
         newarray[:, :, -1, ...] = array[:, :, -1, ...]
     else:
-        raise ValueError("Array to pad needs to have 1 or at least 3 dimensions")
+        raise ValueError('Array to pad needs to have 1 or at least 3 dimensions')
     return newarray
 
 

@@ -8,7 +8,7 @@ from . import utilities
 @veros_method(inline=True)
 def dissipation_on_wgrid(vs, out, int_drhodX=None, aloc=None, ks=None):
     if aloc is None:
-        aloc = allocate(vs, ("xt", "yt", "zw"))
+        aloc = allocate(vs, ('xt', 'yt', 'zw'))
         aloc[1:-1, 1:-1, :] = 0.5 * vs.grav / vs.rho_0 \
             * ((int_drhodX[2:, 1:-1, :] - int_drhodX[1:-1, 1:-1, :]) * vs.flux_east[1:-1, 1:-1, :]
              + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[:-2, 1:-1, :]) * vs.flux_east[:-2, 1:-1, :]) \
@@ -40,7 +40,7 @@ def tempsalt_biharmonic(vs):
     biharmonic mixing of temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
-    del2 = allocate(vs, ("xt", "yt", "zt"))
+    del2 = allocate(vs, ('xt', 'yt', 'zt'))
 
     fxa = math.sqrt(abs(vs.K_hbi))
 

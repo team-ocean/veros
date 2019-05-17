@@ -10,10 +10,10 @@ class TracerMonitor(VerosDiagnostic):
 
     Writes output to stdout (no binary output).
     """
-    name = "tracer_monitor" #:
+    name = 'tracer_monitor' #:
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     #: internal attributes to write to restart file
-    restart_attributes = ("tempm1", "vtemp1", "saltm1", "vsalt1")
+    restart_attributes = ('tempm1', 'vtemp1', 'saltm1', 'vsalt1')
 
     def initialize(self, vs):
         self.tempm1 = 0.
@@ -37,13 +37,13 @@ class TracerMonitor(VerosDiagnostic):
         vtemp = global_sum(vs, np.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau]**2))
         vsalt = global_sum(vs, np.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau]**2))
 
-        logger.warning(" Mean temperature {} change to last {}"
+        logger.warning(' Mean temperature {} change to last {}'
                        .format(float(tempm / volm), float((tempm - self.tempm1) / volm)))
-        logger.warning(" Mean salinity    {} change to last {}"
+        logger.warning(' Mean salinity    {} change to last {}'
                        .format(float(saltm / volm), float((saltm - self.saltm1) / volm)))
-        logger.warning(" Temperature var. {} change to last {}"
+        logger.warning(' Temperature var. {} change to last {}'
                        .format(float(vtemp / volm), float((vtemp - self.vtemp1) / volm)))
-        logger.warning(" Salinity var.    {} change to last {}"
+        logger.warning(' Salinity var.    {} change to last {}'
                        .format(float(vsalt / volm), float((vsalt - self.vsalt1) / volm)))
 
         self.tempm1 = tempm

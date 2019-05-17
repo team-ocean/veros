@@ -20,7 +20,7 @@ class ACCSetup(VerosSetup):
     """
     @veros_method
     def set_parameter(self, vs):
-        vs.identifier = "acc"
+        vs.identifier = 'acc'
 
         vs.nx, vs.ny, vs.nz = 30, 42, 15
         vs.dt_mom = 4800
@@ -93,7 +93,7 @@ class ACCSetup(VerosSetup):
 
     @veros_method
     def set_topography(self, vs):
-        x, y = np.meshgrid(vs.xt, vs.yt, indexing="ij")
+        x, y = np.meshgrid(vs.xt, vs.yt, indexing='ij')
         vs.kbot[...] = np.logical_or(x > 1.0, y < -20).astype(np.int)
 
     @veros_method
@@ -108,13 +108,13 @@ class ACCSetup(VerosSetup):
         yt_max = global_max(vs, vs.yt.max())
         yu_max = global_max(vs, vs.yu.max())
 
-        taux = allocate(vs, ("yt",))
+        taux = allocate(vs, ('yt',))
         taux[vs.yt < -20] = 1e-4 * np.sin(vs.pi * (vs.yu[vs.yt < -20] - yu_min) / (-20.0 - yt_min))
         taux[vs.yt > 10] = 1e-4 * (1 - np.cos(2 * vs.pi * (vs.yu[vs.yt > 10] - 10.0) / (yu_max - 10.0)))
         vs.surface_taux[:, :] = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing
-        vs._t_star = allocate(vs, ("yt",), fill=15)
+        vs._t_star = allocate(vs, ('yt',), fill=15)
         vs._t_star[vs.yt < -20] = 15 * (vs.yt[vs.yt < -20] - yt_min) / (-20 - yt_min)
         vs._t_star[vs.yt > 20] = 15 * (1 - (vs.yt[vs.yt > 20] - 20) / (yt_max - 20))
         vs._t_rest = vs.dzt[None, -1] / (30. * 86400.) * vs.maskT[:, :, -1]
@@ -133,17 +133,17 @@ class ACCSetup(VerosSetup):
 
     @veros_method
     def set_diagnostics(self, vs):
-        vs.diagnostics["snapshot"].output_frequency = 86400 * 10
-        vs.diagnostics["averages"].output_variables = (
-            "salt", "temp", "u", "v", "w", "psi", "surface_taux", "surface_tauy"
+        vs.diagnostics['snapshot'].output_frequency = 86400 * 10
+        vs.diagnostics['averages'].output_variables = (
+            'salt', 'temp', 'u', 'v', 'w', 'psi', 'surface_taux', 'surface_tauy'
         )
-        vs.diagnostics["averages"].output_frequency = 365 * 86400.
-        vs.diagnostics["averages"].sampling_frequency = vs.dt_tracer * 10
-        vs.diagnostics["overturning"].output_frequency = 365 * 86400. / 48.
-        vs.diagnostics["overturning"].sampling_frequency = vs.dt_tracer * 10
-        vs.diagnostics["tracer_monitor"].output_frequency = 365 * 86400. / 12.
-        vs.diagnostics["energy"].output_frequency = 365 * 86400. / 48
-        vs.diagnostics["energy"].sampling_frequency = vs.dt_tracer * 10
+        vs.diagnostics['averages'].output_frequency = 365 * 86400.
+        vs.diagnostics['averages'].sampling_frequency = vs.dt_tracer * 10
+        vs.diagnostics['overturning'].output_frequency = 365 * 86400. / 48.
+        vs.diagnostics['overturning'].sampling_frequency = vs.dt_tracer * 10
+        vs.diagnostics['tracer_monitor'].output_frequency = 365 * 86400. / 12.
+        vs.diagnostics['energy'].output_frequency = 365 * 86400. / 48
+        vs.diagnostics['energy'].sampling_frequency = vs.dt_tracer * 10
 
     def after_timestep(self, vs):
         pass
@@ -156,5 +156,5 @@ def run(*args, **kwargs):
     simulation.run()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     run()

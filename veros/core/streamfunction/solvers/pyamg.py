@@ -11,4 +11,4 @@ class PyAMGSolver(SciPySolver):
 
         if rst.proc_rank == 0:
             ml = pyamg.smoothed_aggregation_solver(self._matrix)
-            self._extra_args["M"] = ml.aspreconditioner()
+            self._extra_args['M'] = ml.aspreconditioner()

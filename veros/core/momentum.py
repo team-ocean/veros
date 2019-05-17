@@ -70,7 +70,7 @@ def momentum(vs):
     vs.du[:, :, :, vs.tau] += vs.du_adv
     vs.dv[:, :, :, vs.tau] += vs.dv_adv
 
-    with vs.timers["friction"]:
+    with vs.timers['friction']:
         """
         vertical friction
         """
@@ -114,7 +114,7 @@ def momentum(vs):
     """
     external mode
     """
-    with vs.timers["pressure"]:
+    with vs.timers['pressure']:
         streamfunction.solve_streamfunction(vs)
 
 
@@ -125,7 +125,7 @@ def vertical_velocity(vs):
            \int_0^z w_z dz = w(z)-w(0) = - \int dz (u_x + v_y)
            w(z) = -int dz u_x + v_y
     """
-    fxa = allocate(vs, ("xt", "yt", "zw"))[1:, 1:]
+    fxa = allocate(vs, ('xt', 'yt', 'zw'))[1:, 1:]
     # integrate from bottom to surface to see error in w
     fxa[:, :, 0] = -vs.maskW[1:, 1:, 0] * vs.dzt[0] * \
         ((vs.u[1:, 1:, 0, vs.taup1] - vs.u[:-1, 1:, 0, vs.taup1])

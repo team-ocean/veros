@@ -10,10 +10,10 @@ from ....variables import allocate
 
 class SciPySolver(LinearSolver):
     @veros_method(dist_safe=False, local_variables=[
-        "hvr", "hur",
-        "dxu", "dxt", "dyu", "dyt",
-        "cosu", "cost",
-        "boundary_mask"
+        'hvr', 'hur',
+        'dxu', 'dxt', 'dyu', 'dyt',
+        'cosu', 'cost',
+        'boundary_mask'
     ])
     def __init__(self, vs):
         self._extra_args = {}
@@ -21,14 +21,14 @@ class SciPySolver(LinearSolver):
         self._preconditioner = self._jacobi_preconditioner(vs, self._matrix)
         self._matrix = self._preconditioner * self._matrix
 
-    @veros_method(dist_safe=False, local_variables=["boundary_mask"])
+    @veros_method(dist_safe=False, local_variables=['boundary_mask'])
     def _scipy_solver(self, vs, rhs, sol, boundary_val):
         utilities.enforce_boundaries(vs, sol)
 
         boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
         rhs = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
-        if rs.backend == "bohrium":
+        if rs.backend == 'bohrium':
             rhs = rhs.copy2numpy()
             x0 = sol.copy2numpy().flatten()
         else:
@@ -43,9 +43,9 @@ class SciPySolver(LinearSolver):
         )
 
         if info > 0:
-            logger.warning("Streamfunction solver did not converge after {} iterations", info)
+            logger.warning('Streamfunction solver did not converge after {} iterations', info)
 
-        if rs.backend == "bohrium":
+        if rs.backend == 'bohrium':
             linear_solution = np.asarray(linear_solution)
 
         sol[...] = linear_solution.reshape(vs.nx + 4, vs.ny + 4)
@@ -61,17 +61,17 @@ class SciPySolver(LinearSolver):
             sol: Initial guess, gets overwritten with solution
             boundary_val: Array containing values to set on boundary elements. Defaults to `sol`.
         """
-        rhs_global = distributed.gather(vs, rhs, ("xt", "yt"))
-        sol_global = distributed.gather(vs, sol, ("xt", "yt"))
+        rhs_global = distributed.gather(vs, rhs, ('xt', 'yt'))
+        sol_global = distributed.gather(vs, sol, ('xt', 'yt'))
 
         if boundary_val is None:
             boundary_val = sol_global
         else:
-            boundary_val = distributed.gather(vs, boundary_val, ("xt", "yt"))
+            boundary_val = distributed.gather(vs, boundary_val, ('xt', 'yt'))
 
         self._scipy_solver(vs, rhs_global, sol_global, boundary_val=boundary_val)
 
-        sol[...] = distributed.scatter(vs, sol_global, ("xt", "yt"))
+        sol[...] = distributed.scatter(vs, sol_global, ('xt', 'yt'))
 
     @staticmethod
     @veros_method(dist_safe=False, local_variables=[])
@@ -80,17 +80,17 @@ class SciPySolver(LinearSolver):
         Construct a simple Jacobi preconditioner
         """
         eps = 1e-20
-        Z = allocate(vs, ("xu", "yu"), fill=1, local=True)
+        Z = allocate(vs, ('xu', 'yu'), fill=1, local=False)
         Y = np.reshape(matrix.diagonal().copy(), (vs.nx + 4, vs.ny + 4))[2:-2, 2:-2]
         Z[2:-2, 2:-2] = utilities.where(vs, np.abs(Y) > eps, 1. / (Y + eps), 1.)
 
-        if rs.backend == "bohrium":
+        if rs.backend == 'bohrium':
             Z = Z.copy2numpy()
 
         return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
 
     @staticmethod
-    @veros_method(dist_safe=False, local_variables=["boundary_mask"])
+    @veros_method(dist_safe=False, local_variables=['boundary_mask'])
     def _assemble_poisson_matrix(vs):
         """
         Construct a sparse matrix based on the stencil for the 2D Poisson equation.
@@ -98,8 +98,8 @@ class SciPySolver(LinearSolver):
         boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
 
         # assemble diagonals
-        main_diag = allocate(vs, ("xu", "yu"), fill=1, local=True)
-        east_diag, west_diag, north_diag, south_diag = (allocate(vs, ("xu", "yu"), local=True) for _ in range(4))
+        main_diag = allocate(vs, ('xu', 'yu'), fill=1, local=False)
+        east_diag, west_diag, north_diag, south_diag = (allocate(vs, ('xu', 'yu'), local=False) for _ in range(4))
         main_diag[2:-2, 2:-2] = -vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, np.newaxis] / vs.dxt[3:-1, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2 \
             - vs.hvr[2:-2, 2:-2] / vs.dxu[2:-2, np.newaxis] / vs.dxt[2:-2, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2 \
             - vs.hur[2:-2, 2:-2] / vs.dyu[np.newaxis, 2:-2] / vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2] \
@@ -115,7 +115,7 @@ class SciPySolver(LinearSolver):
 
         if vs.enable_cyclic_x:
             # couple edges of the domain
-            wrap_diag_east, wrap_diag_west = (allocate(vs, ("xu", "yu")) for _ in range(2))
+            wrap_diag_east, wrap_diag_west = (allocate(vs, ('xu', 'yu'), local=False) for _ in range(2))
             wrap_diag_east[2, 2:-2] = west_diag[2, 2:-2] * boundary_mask[2, 2:-2]
             wrap_diag_west[-3, 2:-2] = east_diag[-3, 2:-2] * boundary_mask[-3, 2:-2]
             west_diag[2, 2:-2] = 0.
@@ -137,7 +137,7 @@ class SciPySolver(LinearSolver):
 
         cf = np.array(cf)
 
-        if rs.backend == "bohrium":
+        if rs.backend == 'bohrium':
             cf = cf.copy2numpy()
 
         return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()

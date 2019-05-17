@@ -3,11 +3,11 @@ from . import density, diffusion, utilities
 
 
 @veros_method(dist_safe=False, local_variables=(
-    "dxt", "dxu", "xt", "xu",
-    "dyt", "dyu", "yt", "yu",
-    "dzt", "dzw", "zt", "zw",
-    "cost", "cosu", "tantr",
-    "area_t", "area_u", "area_v",
+    'dxt', 'dxu', 'xt', 'xu',
+    'dyt', 'dyu', 'yt', 'yu',
+    'dzt', 'dzw', 'zt', 'zw',
+    'cost', 'cosu', 'tantr',
+    'area_t', 'area_u', 'area_v',
 ))
 def calc_grid(vs):
     """
@@ -164,7 +164,7 @@ def calc_initial_conditions(vs):
     calculate dyn. enthalp, etc
     """
     if np.sum(vs.salt < 0.0):
-        raise RuntimeError("encountered negative salinity")
+        raise RuntimeError('encountered negative salinity')
 
     utilities.enforce_boundaries(vs, vs.temp)
     utilities.enforce_boundaries(vs, vs.salt)
@@ -210,7 +210,7 @@ def solve_tridiag(vs, a, b, c, d):
     """
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
 
-    if rs.backend == "bohrium" and rst.vector_engine in ("opencl", "openmp"):
+    if rs.backend == 'bohrium' and rst.vector_engine in ('opencl', 'openmp'):
         return np.linalg.solve_tridiagonal(a, b, c, d)
 
     # fall back to scipy
@@ -223,13 +223,13 @@ def solve_tridiag(vs, a, b, c, d):
 def calc_diss(vs, diss, tag):
     diss_u = np.zeros_like(diss)
     ks = np.zeros_like(vs.kbot)
-    if tag == "U":
+    if tag == 'U':
         ks[1:-2, 2:-2] = np.maximum(vs.kbot[1:-2, 2:-2], vs.kbot[2:-1, 2:-2]) - 1
         interpolator = ugrid_to_tgrid
-    elif tag == "V":
+    elif tag == 'V':
         ks[2:-2, 1:-2] = np.maximum(vs.kbot[2:-2, 1:-2], vs.kbot[2:-2, 2:-1]) - 1
         interpolator = vgrid_to_tgrid
     else:
-        raise ValueError("unknown tag {} (must be \"U\" or \"V\")".format(tag))
+        raise ValueError('unknown tag {} (must be \'U\' or \'V\')'.format(tag))
     diffusion.dissipation_on_wgrid(vs, diss_u, aloc=diss, ks=ks)
     return interpolator(vs, diss_u)

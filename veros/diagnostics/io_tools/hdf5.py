@@ -47,11 +47,11 @@ def _wait_for_disk(vs, file_id):
     """
     Wait for the lock of file_id to be released
     """
-    logger.debug("Waiting for lock {} to be released".format(file_id))
+    logger.debug('Waiting for lock {} to be released'.format(file_id))
     _add_to_locks(file_id)
     lock_released = _io_locks[file_id].wait(vs.io_timeout)
     if not lock_released:
-        raise RuntimeError("Timeout while waiting for disk IO to finish")
+        raise RuntimeError('Timeout while waiting for disk IO to finish')
 
 
 def _write_to_disk(vs, h5file, file_id):

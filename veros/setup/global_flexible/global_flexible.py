@@ -13,7 +13,7 @@ import veros.tools
 from veros.core.utilities import enforce_boundaries
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
-DATA_FILES = veros.tools.get_assets("global_flexible", os.path.join(BASE_PATH, "assets.yml"))
+DATA_FILES = veros.tools.get_assets('global_flexible', os.path.join(BASE_PATH, 'assets.yml'))
 
 
 class GlobalFlexibleResolutionSetup(VerosSetup):
@@ -28,7 +28,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
     @veros_method
     def set_parameter(self, vs):
-        vs.identifier = "UNNAMED"
+        vs.identifier = 'UNNAMED'
 
         vs.nx = 360
         vs.ny = 160
@@ -91,14 +91,14 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         # custom variables
         vs.nmonths = 12
         vs.variables.update(
-            t_star=Variable("t_star", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            s_star=Variable("s_star", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            qnec=Variable("qnec", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            qnet=Variable("qnet", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            qsol=Variable("qsol", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            divpen_shortwave=Variable("divpen_shortwave", ("zt",), "", "", time_dependent=False),
-            taux=Variable("taux", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            tauy=Variable("tauy", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            t_star=Variable('t_star', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            s_star=Variable('s_star', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            qnec=Variable('qnec', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            qnet=Variable('qnet', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            qsol=Variable('qsol', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            divpen_shortwave=Variable('divpen_shortwave', ('zt',), '', '', time_dependent=False),
+            taux=Variable('taux', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            tauy=Variable('tauy', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
         )
 
     @veros_method(inline=True)
@@ -115,16 +115,16 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
                 comm=rs.mpi_comm,
             )
 
-        with h5netcdf.File(DATA_FILES["forcing"], "r", **kwargs) as forcing_file:
+        with h5netcdf.File(DATA_FILES['forcing'], 'r', **kwargs) as forcing_file:
             var_obj = forcing_file.variables[var]
             return np.array(var_obj[idx].astype(str(var_obj.dtype))).T
 
     @veros_method(dist_safe=False, local_variables=[
-        "dxt", "dyt", "dzt"
+        'dxt', 'dyt', 'dzt'
     ])
     def set_grid(self, vs):
         if vs.ny % 2:
-            raise ValueError("ny has to be an even number of grid cells")
+            raise ValueError('ny has to be an even number of grid cells')
 
         vs.dxt[...] = 360. / vs.nx
 
@@ -141,7 +141,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.dyt[2:-2] = veros.tools.get_vinokur_grid_steps(
             vs.ny, 160., eq_spacing, upper_stepsize=polar_spacing, two_sided_grid=True
         )
-        vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, self.max_depth, self.min_depth, refine_towards="lower")
+        vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, self.max_depth, self.min_depth, refine_towards='lower')
         vs.y_origin = -80.
         vs.x_origin = 90.
 
@@ -157,13 +157,13 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         return new_lon, new_arr
 
     @veros_method(dist_safe=False, local_variables=[
-        "kbot", "xt", "yt", "zt"
+        'kbot', 'xt', 'yt', 'zt'
     ])
     def set_topography(self, vs):
-        with h5netcdf.File(DATA_FILES["topography"], "r") as topography_file:
+        with h5netcdf.File(DATA_FILES['topography'], 'r') as topography_file:
             topo_x, topo_y, topo_z = (
                 np.array(topography_file.variables[k], dtype='float').T
-                for k in ("x", "y", "z")
+                for k in ('x', 'y', 'z')
             )
         topo_z[topo_z > 0] = 0.
 
@@ -174,9 +174,9 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
         topo_x_shifted, topo_z_shifted = self._shift_longitude_array(vs, topo_x, topo_z_smoothed)
         coords = (vs.xt[2:-2], vs.yt[2:-2])
-        z_interp = allocate(vs, ("xt", "yt"))
+        z_interp = allocate(vs, ('xt', 'yt'))
         z_interp[2:-2, 2:-2] = veros.tools.interpolate(
-            (topo_x_shifted, topo_y), topo_z_shifted, coords, kind="nearest", fill=False
+            (topo_x_shifted, topo_y), topo_z_shifted, coords, kind='nearest', fill=False
         )
 
         depth_levels = 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - vs.zt[np.newaxis, np.newaxis, :]), axis=2)
@@ -204,7 +204,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         efold2_shortwave = 23.0
 
         t_grid = (vs.xt[2:-2], vs.yt[2:-2], vs.zt)
-        xt_forc, yt_forc, zt_forc = (self._get_data(vs, k) for k in ("xt", "yt", "zt"))
+        xt_forc, yt_forc, zt_forc = (self._get_data(vs, k) for k in ('xt', 'yt', 'zt'))
         zt_forc = zt_forc[::-1]
 
         # coordinates must be monotonous for this to work
@@ -228,13 +228,13 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         yt_forc = yt_forc[data_subset[1]]
 
         # initial conditions
-        temp_raw = self._get_data(vs, "temperature", idx=data_subset)[..., ::-1]
+        temp_raw = self._get_data(vs, 'temperature', idx=data_subset)[..., ::-1]
         temp_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), temp_raw,
                                             t_grid)
         vs.temp[2:-2, 2:-2, :, 0] = temp_data * vs.maskT[2:-2, 2:-2, :]
         vs.temp[2:-2, 2:-2, :, 1] = temp_data * vs.maskT[2:-2, 2:-2, :]
 
-        salt_raw = self._get_data(vs, "salinity", idx=data_subset)[..., ::-1]
+        salt_raw = self._get_data(vs, 'salinity', idx=data_subset)[..., ::-1]
         salt_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), salt_raw,
                                             t_grid)
         vs.salt[2:-2, 2:-2, :, 0] = salt_data * vs.maskT[2:-2, 2:-2, :]
@@ -242,12 +242,12 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
         # wind stress on MIT grid
         time_grid = (vs.xt[2:-2], vs.yt[2:-2], np.arange(12))
-        taux_raw = self._get_data(vs, "tau_x", idx=data_subset)
+        taux_raw = self._get_data(vs, 'tau_x', idx=data_subset)
         taux_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             taux_raw, time_grid)
         vs.taux[2:-2, 2:-2, :] = taux_data / vs.rho_0
 
-        tauy_raw = self._get_data(vs, "tau_y", idx=data_subset)
+        tauy_raw = self._get_data(vs, 'tau_y', idx=data_subset)
         tauy_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             tauy_raw, time_grid)
         vs.tauy[2:-2, 2:-2, :] = tauy_data / vs.rho_0
@@ -256,34 +256,34 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         enforce_boundaries(vs, vs.tauy)
 
         # Qnet and dQ/dT and Qsol
-        qnet_raw = self._get_data(vs, "q_net", idx=data_subset)
+        qnet_raw = self._get_data(vs, 'q_net', idx=data_subset)
         qnet_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             qnet_raw, time_grid)
         vs.qnet[2:-2, 2:-2, :] = -qnet_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qnec_raw = self._get_data(vs, "dqdt", idx=data_subset)
+        qnec_raw = self._get_data(vs, 'dqdt', idx=data_subset)
         qnec_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             qnec_raw, time_grid)
         vs.qnec[2:-2, 2:-2, :] = qnec_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        qsol_raw = self._get_data(vs, "swf", idx=data_subset)
+        qsol_raw = self._get_data(vs, 'swf', idx=data_subset)
         qsol_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             qsol_raw, time_grid)
         vs.qsol[2:-2, 2:-2, :] = -qsol_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         # SST and SSS
-        sst_raw = self._get_data(vs, "sst", idx=data_subset)
+        sst_raw = self._get_data(vs, 'sst', idx=data_subset)
         sst_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                            sst_raw, time_grid)
         vs.t_star[2:-2, 2:-2, :] = sst_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        sss_raw = self._get_data(vs, "sss", idx=data_subset)
+        sss_raw = self._get_data(vs, 'sss', idx=data_subset)
         sss_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                            sss_raw, time_grid)
         vs.s_star[2:-2, 2:-2, :] = sss_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         if vs.enable_idemix:
-            tidal_energy_raw = self._get_data(vs, "tidal_energy", idx=data_subset)
+            tidal_energy_raw = self._get_data(vs, 'tidal_energy', idx=data_subset)
             tidal_energy_data = veros.tools.interpolate(
                 (xt_forc, yt_forc), tidal_energy_raw, t_grid[:-1]
             )
@@ -346,31 +346,31 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
     @veros_method
     def set_diagnostics(self, vs):
-        vs.diagnostics["cfl_monitor"].output_frequency = vs.dt_tracer * 100
-        vs.diagnostics["tracer_monitor"].output_frequency = 86400.
-        vs.diagnostics["snapshot"].output_frequency = 86400.
-        vs.diagnostics["overturning"].output_frequency = 360 * 86400
-        vs.diagnostics["overturning"].sampling_frequency = 86400.
-        vs.diagnostics["energy"].output_frequency = 360 * 86400
-        vs.diagnostics["energy"].sampling_frequency = 86400.
-        vs.diagnostics["averages"].output_frequency = 10 * 86400
-        vs.diagnostics["averages"].sampling_frequency = 3600.
+        vs.diagnostics['cfl_monitor'].output_frequency = vs.dt_tracer * 100
+        vs.diagnostics['tracer_monitor'].output_frequency = 86400.
+        vs.diagnostics['snapshot'].output_frequency = 86400.
+        vs.diagnostics['overturning'].output_frequency = 360 * 86400
+        vs.diagnostics['overturning'].sampling_frequency = 86400.
+        vs.diagnostics['energy'].output_frequency = 360 * 86400
+        vs.diagnostics['energy'].sampling_frequency = 86400.
+        vs.diagnostics['averages'].output_frequency = 10 * 86400
+        vs.diagnostics['averages'].sampling_frequency = 3600.
 
-        average_vars = ["surface_taux", "surface_tauy", "forc_temp_surface", "forc_salt_surface",
-                        "psi", "temp", "salt", "u", "v", "w", "Nsqr", "Hd", "rho", "kappaH"]
+        average_vars = ['surface_taux', 'surface_tauy', 'forc_temp_surface', 'forc_salt_surface',
+                        'psi', 'temp', 'salt', 'u', 'v', 'w', 'Nsqr', 'Hd', 'rho', 'kappaH']
         if vs.enable_skew_diffusion:
-            average_vars += ["B1_gm", "B2_gm"]
+            average_vars += ['B1_gm', 'B2_gm']
         if vs.enable_TEM_friction:
-            average_vars += ["kappa_gm", "K_diss_gm"]
+            average_vars += ['kappa_gm', 'K_diss_gm']
         if vs.enable_tke:
-            average_vars += ["tke", "Prandtlnumber", "mxl", "tke_diss",
-                             "forc_tke_surface", "tke_surf_corr"]
+            average_vars += ['tke', 'Prandtlnumber', 'mxl', 'tke_diss',
+                             'forc_tke_surface', 'tke_surf_corr']
         if vs.enable_idemix:
-            average_vars += ["E_iw", "forc_iw_surface", "iw_diss",
-                             "c0", "v0"]
+            average_vars += ['E_iw', 'forc_iw_surface', 'iw_diss',
+                             'c0', 'v0']
         if vs.enable_eke:
-            average_vars += ["eke", "K_gm", "L_rossby", "L_rhines"]
-        vs.diagnostics["averages"].output_variables = average_vars
+            average_vars += ['eke', 'K_gm', 'L_rossby', 'L_rhines']
+        vs.diagnostics['averages'].output_variables = average_vars
 
     @veros_method
     def after_timestep(self, vs):
@@ -384,5 +384,5 @@ def run(*args, **kwargs):
     simulation.run()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     run()

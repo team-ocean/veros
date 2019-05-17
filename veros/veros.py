@@ -37,7 +37,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
         >>> class MyModel(VerosSetup):
         >>>     ...
         >>>
-        >>> simulation = MyModel(backend="bohrium")
+        >>> simulation = MyModel(backend='bohrium')
         >>> simulation.run()
         >>> plt.imshow(simulation.state.psi[..., 0])
         >>> plt.show()
@@ -52,9 +52,9 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
             self.state = VerosState()
 
         self.state.timers = {k: Timer(k) for k in (
-            "setup", "main", "momentum", "temperature", "eke", "idemix",
-            "tke", "diagnostics", "pressure", "friction", "isoneutral",
-            "vmix", "eq_of_state"
+            'setup', 'main', 'momentum', 'temperature', 'eke', 'idemix',
+            'tke', 'diagnostics', 'pressure', 'friction', 'isoneutral',
+            'vmix', 'eq_of_state'
         )}
 
     @abc.abstractmethod
@@ -158,7 +158,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
         Example:
           >>> @veros_method
           >>> def set_diagnostics(self, vs):
-          >>>     vs.diagnostics["snapshot"].output_vars += ["drho", "dsalt", "dtemp"]
+          >>>     vs.diagnostics['snapshot'].output_vars += ['drho', 'dsalt', 'dtemp']
         """
         pass
 
@@ -172,8 +172,8 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
     def setup(self):
         vs = self.state
 
-        with vs.timers["setup"]:
-            logger.info("Setting up everything")
+        with vs.timers['setup']:
+            logger.info('Setting up everything')
 
             self.set_parameter(vs)
             for setting, value in self.override_settings.items():
@@ -218,7 +218,7 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
         from . import runtime_settings as rs, runtime_state as rst
         vs = self.state
 
-        logger.info("\nStarting integration for {0[0]:.1f} {0[1]}".format(time.format_time(vs.runlen)))
+        logger.info('\nStarting integration for {0[0]:.1f} {0[1]}'.format(time.format_time(vs.runlen)))
 
         start_time, start_iteration = vs.time, vs.itt
         profiler = None
@@ -229,43 +229,43 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
             try:
                 with pbar:
                     while vs.time - start_time < vs.runlen:
-                        with vs.timers["diagnostics"]:
+                        with vs.timers['diagnostics']:
                             diagnostics.write_restart(vs)
 
                         if vs.itt - start_iteration == 3 and rs.profile_mode and rst.proc_rank == 0:
                             # when using bohrium, most kernels should be pre-compiled by now
                             profiler = diagnostics.start_profiler()
 
-                        with vs.timers["main"]:
+                        with vs.timers['main']:
                             self.set_forcing(vs)
 
                             if vs.enable_idemix:
                                 idemix.set_idemix_parameter(vs)
 
-                            with vs.timers["eke"]:
+                            with vs.timers['eke']:
                                 eke.set_eke_diffusivities(vs)
 
-                            with vs.timers["tke"]:
+                            with vs.timers['tke']:
                                 tke.set_tke_diffusivities(vs)
 
-                            with vs.timers["momentum"]:
+                            with vs.timers['momentum']:
                                 momentum.momentum(vs)
 
-                            with vs.timers["temperature"]:
+                            with vs.timers['temperature']:
                                 thermodynamics.thermodynamics(vs)
 
                             if vs.enable_eke or vs.enable_tke or vs.enable_idemix:
                                 advection.calculate_velocity_on_wgrid(vs)
 
-                            with vs.timers["eke"]:
+                            with vs.timers['eke']:
                                 if vs.enable_eke:
                                     eke.integrate_eke(vs)
 
-                            with vs.timers["idemix"]:
+                            with vs.timers['idemix']:
                                 if vs.enable_idemix:
                                     idemix.integrate_idemix(vs)
 
-                            with vs.timers["tke"]:
+                            with vs.timers['tke']:
                                 if vs.enable_tke:
                                     tke.integrate_tke(vs)
 
@@ -286,9 +286,9 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
 
                         self.after_timestep(vs)
 
-                        with vs.timers["diagnostics"]:
+                        with vs.timers['diagnostics']:
                             if not diagnostics.sanity_check(vs):
-                                raise RuntimeError("solution diverged at iteration {}".format(vs.itt))
+                                raise RuntimeError('solution diverged at iteration {}'.format(vs.itt))
 
                             if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
                                 isoneutral.isoneutral_diag_streamfunction(vs)
@@ -296,39 +296,39 @@ class VerosSetup(with_metaclass(abc.ABCMeta)):
                             diagnostics.diagnose(vs)
                             diagnostics.output(vs)
 
-                        logger.debug(" Time step took {:.2f}s", vs.timers["main"].get_last_time())
+                        logger.debug(' Time step took {:.2f}s', vs.timers['main'].get_last_time())
 
                         # permutate time indices
                         vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
             except:
-                logger.critical("Stopping integration at iteration {}", vs.itt)
+                logger.critical('Stopping integration at iteration {}', vs.itt)
                 raise
 
             else:
-                logger.success("Integration done")
+                logger.success('Integration done')
 
             finally:
-                logger.info("Writing restart files...", end=" ")
+                logger.info('\nWriting restart file {}...', vs.restart_output_filename.format(**vars(vs)))
                 diagnostics.write_restart(vs, force=True)
-                logger.success("done")
+                logger.success('Done')
 
-                logger.debug("\n".join([
-                    "",
-                    "Timing summary:",
-                    " setup time               = {:.2f}s".format(vs.timers["setup"].get_time()),
-                    " main loop time           = {:.2f}s".format(vs.timers["main"].get_time()),
-                    "     momentum             = {:.2f}s".format(vs.timers["momentum"].get_time()),
-                    "       pressure           = {:.2f}s".format(vs.timers["pressure"].get_time()),
-                    "       friction           = {:.2f}s".format(vs.timers["friction"].get_time()),
-                    "     thermodynamics       = {:.2f}s".format(vs.timers["temperature"].get_time()),
-                    "       lateral mixing     = {:.2f}s".format(vs.timers["isoneutral"].get_time()),
-                    "       vertical mixing    = {:.2f}s".format(vs.timers["vmix"].get_time()),
-                    "       equation of state  = {:.2f}s".format(vs.timers["eq_of_state"].get_time()),
-                    "     EKE                  = {:.2f}s".format(vs.timers["eke"].get_time()),
-                    "     IDEMIX               = {:.2f}s".format(vs.timers["idemix"].get_time()),
-                    "     TKE                  = {:.2f}s".format(vs.timers["tke"].get_time()),
-                    " diagnostics and I/O      = {:.2f}s".format(vs.timers["diagnostics"].get_time()),
+                logger.debug('\n'.join([
+                    '',
+                    'Timing summary:',
+                    ' setup time               = {:.2f}s'.format(vs.timers['setup'].get_time()),
+                    ' main loop time           = {:.2f}s'.format(vs.timers['main'].get_time()),
+                    '   momentum               = {:.2f}s'.format(vs.timers['momentum'].get_time()),
+                    '     pressure             = {:.2f}s'.format(vs.timers['pressure'].get_time()),
+                    '     friction             = {:.2f}s'.format(vs.timers['friction'].get_time()),
+                    '   thermodynamics         = {:.2f}s'.format(vs.timers['temperature'].get_time()),
+                    '     lateral mixing       = {:.2f}s'.format(vs.timers['isoneutral'].get_time()),
+                    '     vertical mixing      = {:.2f}s'.format(vs.timers['vmix'].get_time()),
+                    '     equation of state    = {:.2f}s'.format(vs.timers['eq_of_state'].get_time()),
+                    '   EKE                    = {:.2f}s'.format(vs.timers['eke'].get_time()),
+                    '   IDEMIX                 = {:.2f}s'.format(vs.timers['idemix'].get_time()),
+                    '   TKE                    = {:.2f}s'.format(vs.timers['tke'].get_time()),
+                    ' diagnostics and I/O      = {:.2f}s'.format(vs.timers['diagnostics'].get_time()),
                 ]))
 
                 if profiler is not None:

@@ -11,7 +11,7 @@ class CFLMonitor(VerosDiagnostic):
 
     Writes output to stdout (no binary output).
     """
-    name = "cfl_monitor" #:
+    name = 'cfl_monitor' #:
     output_frequency = None  # :Frequency (in seconds) in which output is written.
 
     def initialize(self, vs):
@@ -38,10 +38,10 @@ class CFLMonitor(VerosDiagnostic):
         ))
 
         if np.isnan(cfl) or np.isnan(wcfl):
-            raise RuntimeError("CFL number is NaN at iteration {}".format(vs.itt))
+            raise RuntimeError('CFL number is NaN at iteration {}'.format(vs.itt))
 
-        logger.warning(" Maximal hor. CFL number = {}".format(float(cfl)))
-        logger.warning(" Maximal ver. CFL number = {}".format(float(wcfl)))
+        logger.warning(' Maximal hor. CFL number = {}'.format(float(cfl)))
+        logger.warning(' Maximal ver. CFL number = {}'.format(float(wcfl)))
 
         if vs.enable_eke or vs.enable_tke or vs.enable_idemix:
             cfl = global_max(vs, max(
@@ -55,8 +55,8 @@ class CFLMonitor(VerosDiagnostic):
                 np.abs(vs.w_wgrid[2:-2, 2:-2, :]) * vs.maskW[2:-2, 2:-2, :]
                     / vs.dzt[np.newaxis, np.newaxis, :] * vs.dt_tracer
             ))
-            logger.warning(" Maximal hor. CFL number on w grid = {}".format(float(cfl)))
-            logger.warning(" Maximal ver. CFL number on w grid = {}".format(float(wcfl)))
+            logger.warning(' Maximal hor. CFL number on w grid = {}'.format(float(cfl)))
+            logger.warning(' Maximal ver. CFL number on w grid = {}'.format(float(wcfl)))
 
     def read_restart(self, vs):
         pass

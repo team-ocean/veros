@@ -21,7 +21,7 @@ class VerosDiagnostic(object):
         pass
 
     def _not_implemented(self, vs):
-        raise NotImplementedError("must be implemented by subclass")
+        raise NotImplementedError('must be implemented by subclass')
 
     initialize = _not_implemented
     """Called at the end of setup. Use this to process user settings and handle setup."""
@@ -49,10 +49,10 @@ class VerosDiagnostic(object):
             return
         output_path = self.get_output_file_name(vs)
         if os.path.isfile(output_path) and not vs.force_overwrite:
-            raise IOError("output file {} for diagnostic '{}' exists "
-                          "(change output path or enable force_overwrite setting)"
+            raise IOError('output file {} for diagnostic "{}" exists '
+                          '(change output path or enable force_overwrite setting)'
                           .format(output_path, self.name))
-        with nctools.threaded_io(vs, output_path, "w") as outfile:
+        with nctools.threaded_io(vs, output_path, 'w') as outfile:
             nctools.initialize_file(vs, outfile)
             if extra_dimensions:
                 for dim_id, size in extra_dimensions.items():
@@ -62,7 +62,7 @@ class VerosDiagnostic(object):
                     nctools.initialize_variable(vs, key, var, outfile)
                 if not var.time_dependent:
                     if var_data is None or key not in var_data:
-                        raise ValueError("var_data argument must be given for constant variables")
+                        raise ValueError('var_data argument must be given for constant variables')
                     nctools.write_variable(vs, key, var, var_data[key], outfile)
 
     @do_not_disturb
@@ -70,9 +70,9 @@ class VerosDiagnostic(object):
     def write_output(self, vs, variables, variable_data):
         if vs.diskless_mode:
             return
-        with nctools.threaded_io(vs, self.get_output_file_name(vs), "r+") as outfile:
+        with nctools.threaded_io(vs, self.get_output_file_name(vs), 'r+') as outfile:
             time_step = nctools.get_current_timestep(vs, outfile)
-            current_days = time.convert_time(vs.time, "seconds", "days")
+            current_days = time.convert_time(vs.time, 'seconds', 'days')
             nctools.advance_time(vs, time_step, current_days, outfile)
             for key, var in variables.items():
                 nctools.write_variable(vs, key, var, variable_data[key],
@@ -94,12 +94,12 @@ class VerosDiagnostic(object):
     def read_h5_restart(self, vs, var_meta):
         restart_filename = self.get_restart_input_file_name(vs)
         if not os.path.isfile(restart_filename):
-            raise IOError("restart file {} not found".format(restart_filename))
+            raise IOError('restart file {} not found'.format(restart_filename))
 
-        logger.info(" Reading restart data for diagnostic {} from {}",
+        logger.info(' Reading restart data for diagnostic {} from {}',
                     self.name, restart_filename)
 
-        with h5tools.threaded_io(vs, restart_filename, "r") as infile:
+        with h5tools.threaded_io(vs, restart_filename, 'r') as infile:
             variables = {}
             for key, var in infile[self.name].items():
                 if np.isscalar(var):
@@ -111,7 +111,7 @@ class VerosDiagnostic(object):
 
                 variables[key] = np.empty(local_shape, dtype=str(var.dtype))
 
-                if runtime_settings.backend == "bohrium":
+                if runtime_settings.backend == 'bohrium':
                     variables[key][lidx] = var[gidx].astype(variables[key].dtype)
                 else:
                     variables[key][lidx] = var[gidx]
@@ -143,7 +143,7 @@ class VerosDiagnostic(object):
             )
             if vs.enable_hdf5_gzip_compression and runtime_state.proc_num == 1:
                 kwargs.update(
-                    compression="gzip",
+                    compression='gzip',
                     compression_opts=9
                 )
             group.require_dataset(key, global_shape, var.dtype, **kwargs)

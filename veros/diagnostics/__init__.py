@@ -23,8 +23,8 @@ def read_restart(vs):
     if not vs.restart_input_filename:
         return
     if vs.force_overwrite:
-        raise RuntimeError("to prevent data loss, force_overwrite cannot be used in restart runs")
-    logger.info("Reading restarts")
+        raise RuntimeError('to prevent data loss, force_overwrite cannot be used in restart runs')
+    logger.info('Reading restarts')
     for diagnostic in vs.diagnostics.values():
         diagnostic.read_restart(vs)
 
@@ -34,7 +34,7 @@ def write_restart(vs, force=False):
     if vs.diskless_mode:
         return
     if force or vs.restart_frequency and vs.time % vs.restart_frequency < vs.dt_tracer:
-        with h5tools.threaded_io(vs, vs.restart_output_filename.format(**vars(vs)), "w") as outfile:
+        with h5tools.threaded_io(vs, vs.restart_output_filename.format(**vars(vs)), 'w') as outfile:
             for diagnostic in vs.diagnostics.values():
                 diagnostic.write_restart(vs, outfile)
 
@@ -44,10 +44,10 @@ def initialize(vs):
     for name, diagnostic in vs.diagnostics.items():
         diagnostic.initialize(vs)
         if diagnostic.sampling_frequency:
-            logger.info(" Running diagnostic '{0}' every {1[0]:.1f} {1[1]}"
+            logger.info(' Running diagnostic "{0}" every {1[0]:.1f} {1[1]}'
                          .format(name, time.format_time(diagnostic.sampling_frequency)))
         if diagnostic.output_frequency:
-            logger.info(" Writing output for diagnostic '{0}' every {1[0]:.1f} {1[1]}"
+            logger.info(' Writing output for diagnostic "{0}" every {1[0]:.1f} {1[1]}'
                          .format(name, time.format_time(diagnostic.output_frequency)))
 
 
@@ -77,5 +77,5 @@ def stop_profiler(profiler):
         return
 
     profiler.stop()
-    with open("profile.html", "w") as f:
+    with open('profile.html', 'w') as f:
         f.write(profiler.output_html())

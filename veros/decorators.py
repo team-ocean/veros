@@ -38,14 +38,14 @@ def veros_method(function=None, **kwargs):
         narg = 1 if _is_method(function) else 0
         return _veros_method(function, narg=narg)
 
-    inline = kwargs.pop("inline", False)
-    dist_safe = kwargs.pop("dist_safe", True)
+    inline = kwargs.pop('inline', False)
+    dist_safe = kwargs.pop('dist_safe', True)
 
-    if not dist_safe and "local_variables" not in kwargs:
-        raise ValueError("local_variables argument must be given if dist_safe=False")
+    if not dist_safe and 'local_variables' not in kwargs:
+        raise ValueError('local_variables argument must be given if dist_safe=False')
 
-    local_vars = kwargs.pop("local_variables", [])
-    dist_only = kwargs.pop("dist_only", False)
+    local_vars = kwargs.pop('local_variables', [])
+    dist_only = kwargs.pop('dist_only', False)
 
     def inner_decorator(function):
         narg = 1 if _is_method(function) else 0
@@ -75,12 +75,12 @@ def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
         from .distributed import broadcast
 
         if not inline:
-            logger.trace("Entering {}:{}", inspect.getmodule(function).__name__, function.__name__)
+            logger.trace('Entering {}:{}', inspect.getmodule(function).__name__, function.__name__)
 
         veros_state = args[narg]
 
         if not isinstance(veros_state, VerosState):
-            raise TypeError("first argument to a veros_method must be subclass of VerosState")
+            raise TypeError('first argument to a veros_method must be subclass of VerosState')
 
         reset_dist_safe = False
         if not CONTEXT.is_dist_safe:
@@ -161,13 +161,13 @@ def do_not_disturb(function):
     @functools.wraps(function)
     def dnd_wrapper(*args, **kwargs):
         old_handlers = {s: signal.getsignal(s) for s in signals}
-        signal_received = {"sig": None, "frame": None}
+        signal_received = {'sig': None, 'frame': None}
 
         def handler(sig, frame):
-            if signal_received["sig"] is None:
-                signal_received["sig"] = sig
-                signal_received["frame"] = frame
-                logger.error("Signal {} received - cleaning up before exit", sig)
+            if signal_received['sig'] is None:
+                signal_received['sig'] = sig
+                signal_received['frame'] = frame
+                logger.error('Signal {} received - cleaning up before exit', sig)
             else:
                 # force quit if more than one signal is received
                 old_handlers[sig](sig, frame)
@@ -181,9 +181,9 @@ def do_not_disturb(function):
         finally:
             for s in signals:
                 signal.signal(s, old_handlers[s])
-            sig = signal_received["sig"]
+            sig = signal_received['sig']
             if sig is not None:
-                old_handlers[sig](signal_received["sig"], signal_received["frame"])
+                old_handlers[sig](signal_received['sig'], signal_received['frame'])
 
         return res
 

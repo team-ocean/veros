@@ -32,7 +32,7 @@ def _adv_superbee(vs, vel, var, mask, dx, axis):
                             for n in range(-1, 3))
         dx = dx[np.newaxis, np.newaxis, :-1]
     else:
-        raise ValueError("axis must be 0, 1, or 2")
+        raise ValueError('axis must be 0, 1, or 2')
     uCFL = np.abs(velfac * vel[s] * vs.dt_tracer / dx)
     rjp = (var[sp2] - var[sp1]) * mask[sp1]
     rj = (var[sp1] - var[s]) * mask[s]
@@ -131,15 +131,15 @@ def adv_flux_superbee_wgrid(vs, adv_fe, adv_fn, adv_ft, var):
     """
     Calculates advection of a tracer defined on Wgrid
     """
-    maskUtr = allocate(vs, ("xt", "yt", "zw"))
+    maskUtr = allocate(vs, ('xt', 'yt', 'zw'))
     maskUtr[:-1, :, :] = vs.maskW[1:, :, :] * vs.maskW[:-1, :, :]
     adv_fe[1:-2, 2:-2, :] = _adv_superbee(vs, vs.u_wgrid, var, maskUtr, vs.dxt, 0)
 
-    maskVtr = allocate(vs, ("xt", "yt", "zw"))
+    maskVtr = allocate(vs, ('xt', 'yt', 'zw'))
     maskVtr[:, :-1, :] = vs.maskW[:, 1:, :] * vs.maskW[:, :-1, :]
     adv_fn[2:-2, 1:-2, :] = _adv_superbee(vs, vs.v_wgrid, var, maskVtr, vs.dyt, 1)
 
-    maskWtr = allocate(vs, ("xt", "yt", "zw"))
+    maskWtr = allocate(vs, ('xt', 'yt', 'zw'))
     maskWtr[:, :, :-1] = vs.maskW[:, :, 1:] * vs.maskW[:, :, :-1]
     adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(vs, vs.w_wgrid, var, maskWtr, vs.dzw, 2)
     adv_ft[..., -1] = 0.0

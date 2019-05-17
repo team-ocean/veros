@@ -9,11 +9,12 @@ import scipy.spatial
 import scipy.ndimage
 
 from veros import VerosSetup, veros_method
+from veros.variables import Variable
 import veros.tools
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
-DATA_FILES = veros.tools.get_assets("north_atlantic", os.path.join(BASE_PATH, "assets.yml"))
-TOPO_MASK_FILE = os.path.join(BASE_PATH, "topo_mask.png")
+DATA_FILES = veros.tools.get_assets('north_atlantic', os.path.join(BASE_PATH, 'assets.yml'))
+TOPO_MASK_FILE = os.path.join(BASE_PATH, 'topo_mask.png')
 
 
 class NorthAtlanticSetup(VerosSetup):
@@ -33,7 +34,7 @@ class NorthAtlanticSetup(VerosSetup):
 
     @veros_method
     def set_parameter(self, vs):
-        vs.identifier = "na"
+        vs.identifier = 'na'
 
         vs.nx, vs.ny, vs.nz = 250, 350, 50
         vs.x_origin = -98.
@@ -44,8 +45,6 @@ class NorthAtlanticSetup(VerosSetup):
 
         vs.dt_mom = 3600. / 2.
         vs.dt_tracer = 3600. / 2.
-        vs.runlen = 0.
-
         vs.runlen = 86400 * 365. * 10.
 
         vs.coord_degree = True
@@ -78,130 +77,130 @@ class NorthAtlanticSetup(VerosSetup):
 
         vs.enable_eke = False
         vs.enable_idemix = False
-        vs.enable_idemix_hor_diffusion = True
 
         vs.eq_of_state_type = 5
+
+        vs.variables.update({
+            'sss_clim': Variable('sss_clim', ('xt', 'yt', 12), 'g/kg', 'Monthly sea surface salinity'),
+            'sst_clim': Variable('sst_clim', ('xt', 'yt', 12), 'deg C', 'Monthly sea surface temperature'),
+            'sss_rest': Variable('sss_rest', ('xt', 'yt', 12), 'g/kg', 'Monthly sea surface salinity restoring'),
+            'sst_rest': Variable('sst_rest', ('xt', 'yt', 12), 'deg C', 'Monthly sea surface temperature restoring'),
+            't_star': Variable('t_star', ('xt', 'yt', 'zt', 12), 'deg C', 'Temperature sponge layer forcing'),
+            's_star': Variable('s_star', ('xt', 'yt', 'zt', 12), 'g/kg', 'Salinity sponge layer forcing'),
+            'rest_tscl': Variable('rest_tscl', ('xt', 'yt', 'zt'), '1/s', 'Forcing restoration time scale'),
+            'taux': Variable('taux', ('xt', 'yt', 12), 'N/s^2', 'Monthly zonal wind stress'),
+            'tauy': Variable('tauy', ('xt', 'yt', 12), 'N/s^2', 'Monthly meridional wind stress'),
+        })
 
     @veros_method
     def set_grid(self, vs):
         vs.dxt[2:-2] = (vs._x_boundary - vs.x_origin) / vs.nx
         vs.dyt[2:-2] = (vs._y_boundary - vs.y_origin) / vs.ny
-        vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, vs._max_depth, 10., refine_towards="lower")
+        vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, vs._max_depth, 10., refine_towards='lower')
 
     @veros_method
     def set_coriolis(self, vs):
         vs.coriolis_t[:, :] = 2 * vs.omega * np.sin(vs.yt[np.newaxis, :] / 180. * vs.pi)
 
-    @veros_method(inline=True)
-    def _get_data(self, vs, data_file, var, idx=None):
-        if idx is None:
-            idx = Ellipsis
-        else:
-            idx = idx[::-1]
-
-        with h5netcdf.File(DATA_FILES[data_file], "r") as f:
-            var_obj = f.variables[var]
-            return np.array(var_obj[idx].astype(str(var_obj.dtype))).T
-
     @veros_method(dist_safe=False, local_variables=[
-        "kbot", "xt", "yt", "zt"
+        'kbot', 'xt', 'yt', 'zt'
     ])
     def set_topography(self, vs):
-        topo_x, topo_y, topo_bottom_depth = (
-            self._get_data(vs, "topography", k) for k in ("x", "y", "z")
-        )
+        with h5netcdf.File(DATA_FILES['topography'], 'r') as topo_file:
+            topo_x, topo_y, topo_bottom_depth = (
+                self._get_data(vs, topo_file, k) for k in ('x', 'y', 'z')
+            )
         topo_mask = np.flipud(np.asarray(Image.open(TOPO_MASK_FILE))).T
         topo_bottom_depth *= 1 - topo_mask
         topo_bottom_depth = scipy.ndimage.gaussian_filter(
             topo_bottom_depth, sigma=(len(topo_x) / vs.nx, len(topo_y) / vs.ny)
         )
-        interp_coords = np.meshgrid(vs.xt[2:-2], vs.yt[2:-2], indexing="ij")
+        interp_coords = np.meshgrid(vs.xt[2:-2], vs.yt[2:-2], indexing='ij')
         interp_coords = np.rollaxis(np.asarray(interp_coords), 0, 3)
         z_interp = scipy.interpolate.interpn((topo_x, topo_y), topo_bottom_depth, interp_coords,
-                                             method="nearest", bounds_error=False, fill_value=0)
+                                             method='nearest', bounds_error=False, fill_value=0)
         vs.kbot[2:-2, 2:-2] = np.where(z_interp < 0., 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis]
                                        - vs.zt[np.newaxis, np.newaxis, :]), axis=2), 0)
         vs.kbot *= vs.kbot < vs.nz
 
+    @veros_method(inline=True)
+    def _get_data(self, vs, f, var):
+        """Retrieve variable from h5netcdf file"""
+        var_obj = f.variables[var]
+        return np.array(var_obj[...].astype(str(var_obj.dtype))).T
+
     @veros_method(dist_safe=False, local_variables=[
-        "xt", "yt", "zt", "temp", "maskT", "salt", "taux", "tauy",
-        "sst_clim", "sss_clim", "sst_rest", "sss_rest", "t_star", "s_star", "rest_tscl"
+        'xt', 'yt', 'zt', 'temp', 'maskT', 'salt', 'taux', 'tauy',
+        'sst_clim', 'sss_clim', 'sst_rest', 'sss_rest', 't_star', 's_star', 'rest_tscl'
     ])
     def set_initial_conditions(self, vs):
-        t_hor = (vs.xt[2:-2], vs.yt[2:-2])
-        t_grid = (vs.xt[2:-2], vs.yt[2:-2], vs.zt)
+        with h5netcdf.File(DATA_FILES['forcing'], 'r') as forcing_file:
+            t_hor = (vs.xt[2:-2], vs.yt[2:-2])
+            t_grid = (vs.xt[2:-2], vs.yt[2:-2], vs.zt)
 
-        forc_coords = (self._get_data(vs, "forcing", k) for k in ("xt", "yt", "zt"))
-        forc_coords[0][...] += -360
-        forc_coords[2][...] = -0.01 * forc_coords[2][::-1]
+            forc_coords = [self._get_data(vs, forcing_file, k) for k in ('xt', 'yt', 'zt')]
+            forc_coords[0][...] += -360
+            forc_coords[2][...] = -0.01 * forc_coords[2][::-1]
 
-        temp_raw = self._get_data(vs, "forcing", "temp_ic")[..., ::-1]
-        temp = veros.tools.interpolate(
-            forc_coords, temp_raw, t_grid, missing_value=-1e20
-        )
-        vs.temp[2:-2, 2:-2, :, vs.tau] = vs.maskT[2:-2, 2:-2, :] * temp
+            temp_raw = self._get_data(vs, forcing_file, 'temp_ic')[..., ::-1]
+            temp = veros.tools.interpolate(
+                forc_coords, temp_raw, t_grid, missing_value=-1e20
+            )
+            vs.temp[2:-2, 2:-2, :, vs.tau] = vs.maskT[2:-2, 2:-2, :] * temp
 
-        salt_raw = self._get_data(vs, "forcing", "salt_ic")[..., ::-1]
-        salt = 35. + 1000 * veros.tools.interpolate(
-            forc_coords, salt_raw, t_grid, missing_value=-1e20
-        )
-        vs.salt[2:-2, 2:-2, :, vs.tau] = vs.maskT[2:-2, 2:-2, :] * salt
+            salt_raw = self._get_data(vs, forcing_file, 'salt_ic')[..., ::-1]
+            salt = 35. + 1000 * veros.tools.interpolate(
+                forc_coords, salt_raw, t_grid, missing_value=-1e20
+            )
+            vs.salt[2:-2, 2:-2, :, vs.tau] = vs.maskT[2:-2, 2:-2, :] * salt
 
-        vs._taux = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-        vs._tauy = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-        forc_u_coords_hor = [forcing_file.variables[k][...].T for k in ("xu", "yu")]
-        forc_u_coords_hor[0][...] += -360
+            forc_u_coords_hor = [self._get_data(vs, forcing_file, k) for k in ('xu', 'yu')]
+            forc_u_coords_hor[0][...] += -360
+
+            taux = self._get_data(vs, forcing_file, 'taux')
+            tauy = self._get_data(vs, forcing_file, 'tauy')
+            for k in range(12):
+                vs.taux[2:-2, 2:-2, k] = veros.tools.interpolate(
+                    forc_u_coords_hor, taux[..., k], t_hor, missing_value=-1e20
+                ) / 10.
+                vs.tauy[2:-2, 2:-2, k] = veros.tools.interpolate(
+                    forc_u_coords_hor, tauy[..., k], t_hor, missing_value=-1e20
+                ) / 10.
+
+            # heat flux and salinity restoring
+
+            sst_clim, sss_clim, sst_rest, sss_rest = [
+                forcing_file.variables[k][...].T for k in ('sst_clim', 'sss_clim', 'sst_rest', 'sss_rest')
+            ]
+
         for k in range(12):
-            vs._taux[2:-2, 2:-2, k] = veros.tools.interpolate(
-                forc_u_coords_hor, forcing_file.variables["taux"][k, ...].T, t_hor, missing_value=-1e20
-            ) / 10.
-            vs._tauy[2:-2, 2:-2, k] = veros.tools.interpolate(
-                forc_u_coords_hor, forcing_file.variables["tauy"][k, ...].T, t_hor, missing_value=-1e20
-            ) / 10.
-
-        # heat flux and salinity restoring
-        vs._sst_clim = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-        vs._sss_clim = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-        vs._sst_rest = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-        vs._sss_rest = np.zeros((vs.nx + 4, vs.ny + 4, 12), dtype=vs.default_float_type)
-
-        sst_clim, sss_clim, sst_rest, sss_rest = [
-            forcing_file.variables[k][...].T for k in ("sst_clim", "sss_clim", "sst_rest", "sss_rest")
-        ]
-        for k in range(12):
-            vs._sst_clim[2:-2, 2:-2, k] = veros.tools.interpolate(
+            vs.sst_clim[2:-2, 2:-2, k] = veros.tools.interpolate(
                 forc_coords[:-1], sst_clim[..., k], t_hor, missing_value=-1e20)
-            vs._sss_clim[2:-2, 2:-2, k] = veros.tools.interpolate(
+            vs.sss_clim[2:-2, 2:-2, k] = veros.tools.interpolate(
                 forc_coords[:-1], sss_clim[..., k], t_hor, missing_value=-1e20) * 1000 + 35
-            vs._sst_rest[2:-2, 2:-2, k] = veros.tools.interpolate(
+            vs.sst_rest[2:-2, 2:-2, k] = veros.tools.interpolate(
                 forc_coords[:-1], sst_rest[..., k], t_hor, missing_value=-1e20) * 41868.
-            vs._sss_rest[2:-2, 2:-2, k] = veros.tools.interpolate(
+            vs.sss_rest[2:-2, 2:-2, k] = veros.tools.interpolate(
                 forc_coords[:-1], sss_rest[..., k], t_hor, missing_value=-1e20) / 100.
 
-    with h5netcdf.File(DATA_FILES["restoring"], "r") as restoring_file:
-        rest_coords = [restoring_file.variables[k][...].T for k in ("xt", "yt", "zt")]
-        rest_coords[0][...] += -360
+        with h5netcdf.File(DATA_FILES['restoring'], 'r') as restoring_file:
+            rest_coords = [self._get_data(vs, restoring_file, k) for k in ('xt', 'yt', 'zt')]
+            rest_coords[0][...] += -360
 
-        # sponge layers
-        vs._t_star = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz, 12), dtype=vs.default_float_type)
-        vs._s_star = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz, 12), dtype=vs.default_float_type)
-        vs._rest_tscl = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+            # sponge layers
 
-        vs._rest_tscl[2:-2, 2:-2, :] = veros.tools.interpolate(
-            rest_coords, restoring_file.variables["tscl"][0, ...].T, t_grid)
-        for k in range(12):
-            vs._t_star[2:-2, 2:-2, :, k] = veros.tools.interpolate(
-                rest_coords, restoring_file.variables["t_star"][k, ...].T, t_grid, missing_value=0.
-            )
-            vs._s_star[2:-2, 2:-2, :, k] = veros.tools.interpolate(
-                rest_coords, restoring_file.variables["s_star"][k, ...].T, t_grid, missing_value=0.
-            )
+            vs.rest_tscl[2:-2, 2:-2, :] = veros.tools.interpolate(
+                rest_coords, self._get_data(vs, restoring_file, 'tscl')[..., 0], t_grid)
 
-        if vs.enable_idemix:
-            f = np.load("tidal_energy.npy") / vs.rho_0
-            vs.forc_iw_bottom[2:-2, 2:-2] = veros.tools.interpolate(forc_coords[:-1], f, t_hor)
-            f = np.load("wind_energy.npy") / vs.rho_0 * 0.2
-            vs.forc_iw_surface[2:-2, 2:-2] = veros.tools.interpolate(forc_coords[:-1], f, t_hor)
+            t_star = self._get_data(vs, restoring_file, 't_star')
+            s_star = self._get_data(vs, restoring_file, 's_star')
+            for k in range(12):
+                vs.t_star[2:-2, 2:-2, :, k] = veros.tools.interpolate(
+                    rest_coords, t_star[..., k], t_grid, missing_value=0.
+                )
+                vs.s_star[2:-2, 2:-2, :, k] = veros.tools.interpolate(
+                    rest_coords, s_star[..., k], t_grid, missing_value=0.
+                )
 
     @veros_method
     def set_forcing(self, vs):
@@ -209,19 +208,19 @@ class NorthAtlanticSetup(VerosSetup):
         (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(vs.time, year_in_seconds,
                                                                year_in_seconds / 12., 12)
 
-        vs.surface_taux[...] = (f1 * vs._taux[:, :, n1] + f2 * vs._taux[:, :, n2])
-        vs.surface_tauy[...] = (f1 * vs._tauy[:, :, n1] + f2 * vs._tauy[:, :, n2])
+        vs.surface_taux[...] = (f1 * vs.taux[:, :, n1] + f2 * vs.taux[:, :, n2])
+        vs.surface_tauy[...] = (f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2])
 
         if vs.enable_tke:
             vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / vs.rho_0)**2
-                                                        + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / vs.rho_0)**2
-                                                        ) ** (3. / 2.)
+                                                      + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / vs.rho_0)**2
+                                                      ) ** (3. / 2.)
         cp_0 = 3991.86795711963
-        vs.forc_temp_surface[...] = (f1 * vs._sst_rest[:, :, n1] + f2 * vs._sst_rest[:, :, n2]) * \
-                                    (f1 * vs._sst_clim[:, :, n1] + f2 * vs._sst_clim[:, :, n2]
+        vs.forc_temp_surface[...] = (f1 * vs.sst_rest[:, :, n1] + f2 * vs.sst_rest[:, :, n2]) * \
+                                    (f1 * vs.sst_clim[:, :, n1] + f2 * vs.sst_clim[:, :, n2]
                                      - vs.temp[:, :, -1, vs.tau]) * vs.maskT[:, :, -1] / cp_0 / vs.rho_0
-        vs.forc_salt_surface[...] = (f1 * vs._sss_rest[:, :, n1] + f2 * vs._sss_rest[:, :, n2]) * \
-                                    (f1 * vs._sss_clim[:, :, n1] + f2 * vs._sss_clim[:, :, n2]
+        vs.forc_salt_surface[...] = (f1 * vs.sss_rest[:, :, n1] + f2 * vs.sss_rest[:, :, n2]) * \
+                                    (f1 * vs.sss_clim[:, :, n1] + f2 * vs.sss_clim[:, :, n2]
                                      - vs.salt[:, :, -1, vs.tau]) * vs.maskT[:, :, -1]
 
         ice_mask = (vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] <= -1.8) & (vs.forc_temp_surface <= 0.0)
@@ -229,19 +228,19 @@ class NorthAtlanticSetup(VerosSetup):
         vs.forc_salt_surface[...] *= ~ice_mask
 
         if vs.enable_tempsalt_sources:
-            vs.temp_source[...] = vs.maskT * vs._rest_tscl \
-                * (f1 * vs._t_star[:, :, :, n1] + f2 * vs._t_star[:, :, :, n2] - vs.temp[:, :, :, vs.tau])
-            vs.salt_source[...] = vs.maskT * vs._rest_tscl \
-                * (f1 * vs._s_star[:, :, :, n1] + f2 * vs._s_star[:, :, :, n2] - vs.salt[:, :, :, vs.tau])
+            vs.temp_source[...] = vs.maskT * vs.rest_tscl \
+                * (f1 * vs.t_star[:, :, :, n1] + f2 * vs.t_star[:, :, :, n2] - vs.temp[:, :, :, vs.tau])
+            vs.salt_source[...] = vs.maskT * vs.rest_tscl \
+                * (f1 * vs.s_star[:, :, :, n1] + f2 * vs.s_star[:, :, :, n2] - vs.salt[:, :, :, vs.tau])
 
     @veros_method
     def set_diagnostics(self, vs):
-        vs.diagnostics["snapshot"].output_frequency = 3600. * 24 * 10
-        vs.diagnostics["averages"].output_frequency = 3600. * 24 * 10
-        vs.diagnostics["averages"].sampling_frequency = vs.dt_tracer
-        vs.diagnostics["averages"].output_variables = ["temp", "salt", "u", "v", "w",
-                                                       "surface_taux", "surface_tauy", "psi"]
-        vs.diagnostics["cfl_monitor"].output_frequency = vs.dt_tracer * 10
+        vs.diagnostics['snapshot'].output_frequency = 3600. * 24 * 10
+        vs.diagnostics['averages'].output_frequency = 3600. * 24 * 10
+        vs.diagnostics['averages'].sampling_frequency = vs.dt_tracer
+        vs.diagnostics['averages'].output_variables = ['temp', 'salt', 'u', 'v', 'w',
+                                                       'surface_taux', 'surface_tauy', 'psi']
+        vs.diagnostics['cfl_monitor'].output_frequency = vs.dt_tracer * 10
 
     @veros_method
     def after_timestep(self, vs):
@@ -255,5 +254,5 @@ def run(*args, **kwargs):
     simulation.run()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     run()

@@ -36,7 +36,7 @@ def thermodynamics(vs):
         """
         changes in dyn. Enthalpy due to advection
         """
-        aloc = allocate(vs, ("xt", "yt", "zt"))
+        aloc = allocate(vs, ('xt', 'yt', 'zt'))
         aloc[2:-2, 2:-2, :] = vs.grav / vs.rho_0 * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau] * vs.dtemp[2:-2, 2:-2, :, vs.tau]
                                                 - vs.int_drhodS[2:-2, 2:-2, :, vs.tau] * vs.dsalt[2:-2, 2:-2, :, vs.tau]) \
                             - vs.dHd[2:-2, 2:-2, :, vs.tau]
@@ -89,7 +89,7 @@ def thermodynamics(vs):
     """
     horizontal diffusion
     """
-    with vs.timers["isoneutral"]:
+    with vs.timers['isoneutral']:
         if vs.enable_hor_diffusion:
             diffusion.tempsalt_diffusion(vs)
         if vs.enable_biharmonic_mixing:
@@ -116,18 +116,18 @@ def thermodynamics(vs):
                 isoneutral.isoneutral_skew_diffusion(vs, vs.temp, True)
                 isoneutral.isoneutral_skew_diffusion(vs, vs.salt, False)
 
-    with vs.timers["vmix"]:
+    with vs.timers['vmix']:
         """
         vertical mixing of temperature and salinity
         """
         vs.dtemp_vmix[...] = vs.temp[:, :, :, vs.taup1]
         vs.dsalt_vmix[...] = vs.salt[:, :, :, vs.taup1]
 
-        a_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
-        b_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
-        c_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
-        d_tri = allocate(vs, ("xt", "yt", "zt"), include_ghosts=False)
-        delta = allocate(vs, ("xt", "yt", "zw"), include_ghosts=False)
+        a_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+        b_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+        c_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+        d_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+        delta = allocate(vs, ('xt', 'yt', 'zw'), include_ghosts=False)
 
         ks = vs.kbot[2:-2, 2:-2] - 1
         delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1] \
@@ -160,7 +160,7 @@ def thermodynamics(vs):
     utilities.enforce_boundaries(vs, vs.temp[..., vs.taup1])
     utilities.enforce_boundaries(vs, vs.salt[..., vs.taup1])
 
-    with vs.timers["eq_of_state"]:
+    with vs.timers['eq_of_state']:
         calc_eq_of_state(vs, vs.taup1)
 
     """
@@ -175,7 +175,7 @@ def thermodynamics(vs):
                             np.abs(vs.zt[-1])) * vs.forc_salt_surface
         )
 
-    with vs.timers["vmix"]:
+    with vs.timers['vmix']:
         vs.P_diss_v[...] = 0.0
         if vs.enable_conserve_energy:
             """

@@ -29,7 +29,7 @@ class ACCSectorSetup(VerosSetup):
 
     @veros_method
     def set_parameter(self, vs):
-        vs.identifier = "acc_sector"
+        vs.identifier = 'acc_sector'
 
         vs.nx, vs.ny, vs.nz = 15, 62, 40
         vs.dt_mom = 3600.
@@ -98,7 +98,7 @@ class ACCSectorSetup(VerosSetup):
         vs.x_origin = 0.0
         vs.y_origin = -60.0
 
-        vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, self.max_depth, 10., refine_towards="lower")
+        vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, self.max_depth, 10., refine_towards='lower')
 
     @veros_method
     def set_coriolis(self, vs):
@@ -106,7 +106,7 @@ class ACCSectorSetup(VerosSetup):
 
     @veros_method
     def set_topography(self, vs):
-        x, y = np.meshgrid(vs.xt, vs.yt, indexing="ij")
+        x, y = np.meshgrid(vs.xt, vs.yt, indexing='ij')
         vs.kbot = np.logical_or((x > 1.0) & (x < 27), y < -40).astype(np.int)
 
         # A half depth (ridge) is appended to the domain within the confines
@@ -127,7 +127,7 @@ class ACCSectorSetup(VerosSetup):
         yt_max = global_max(vs, vs.yt.max())
         yu_max = global_max(vs, vs.yu.max())
 
-        taux = allocate(vs, ("yt",))
+        taux = allocate(vs, ('yt',))
         north = vs.yt > 30
         subequatorial_north_n = (vs.yt >= 15) & (vs.yt < 30)
         subequatorial_north_s = (vs.yt > 0) & (vs.yt < 15)
@@ -147,7 +147,7 @@ class ACCSectorSetup(VerosSetup):
 
         # surface heatflux forcing
         DELTA_T, TS, TN = 25., 0., 5.
-        vs._t_star = allocate(vs, ("yt",), fill=DELTA_T)
+        vs._t_star = allocate(vs, ('yt',), fill=DELTA_T)
         vs._t_star[vs.yt<0] = TS + DELTA_T * np.sin(np.pi * (vs.yt[vs.yt<0] + 60.) / np.abs(2 * vs.y_origin))
         vs._t_star[vs.yt>0] = TN + (DELTA_T + TS - TN) * np.sin(np.pi * (vs.yt[vs.yt>0] + 60.) / np.abs(2 * vs.y_origin))
         vs._t_rest = vs.dzt[None, -1] / (10. * 86400.) * vs.maskT[:, :, -1]
@@ -166,17 +166,17 @@ class ACCSectorSetup(VerosSetup):
 
     @veros_method
     def set_diagnostics(self, vs):
-        vs.diagnostics["snapshot"].output_frequency = 86400 * 10
-        vs.diagnostics["averages"].output_variables = (
-            "salt", "temp", "u", "v", "w", "psi", "rho", "surface_taux", "surface_tauy"
+        vs.diagnostics['snapshot'].output_frequency = 86400 * 10
+        vs.diagnostics['averages'].output_variables = (
+            'salt', 'temp', 'u', 'v', 'w', 'psi', 'rho', 'surface_taux', 'surface_tauy'
         )
-        vs.diagnostics["averages"].output_frequency = 365 * 86400.
-        vs.diagnostics["averages"].sampling_frequency = vs.dt_tracer * 10
-        vs.diagnostics["overturning"].output_frequency = 365 * 86400. / 48.
-        vs.diagnostics["overturning"].sampling_frequency = vs.dt_tracer * 10
-        vs.diagnostics["tracer_monitor"].output_frequency = 365 * 86400. / 12.
-        vs.diagnostics["energy"].output_frequency = 365 * 86400. / 48
-        vs.diagnostics["energy"].sampling_frequency = vs.dt_tracer * 10
+        vs.diagnostics['averages'].output_frequency = 365 * 86400.
+        vs.diagnostics['averages'].sampling_frequency = vs.dt_tracer * 10
+        vs.diagnostics['overturning'].output_frequency = 365 * 86400. / 48.
+        vs.diagnostics['overturning'].sampling_frequency = vs.dt_tracer * 10
+        vs.diagnostics['tracer_monitor'].output_frequency = 365 * 86400. / 12.
+        vs.diagnostics['energy'].output_frequency = 365 * 86400. / 48
+        vs.diagnostics['energy'].sampling_frequency = vs.dt_tracer * 10
 
     def after_timestep(self, vs):
         pass
@@ -189,5 +189,5 @@ def run(*args, **kwargs):
     simulation.run()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     run()

@@ -6,7 +6,7 @@ from .diagnostic import VerosDiagnostic
 from .. import veros_method
 from ..variables import TIMESTEPS, allocate
 
-Running_sum = namedtuple("Running_sum", ("var", "sum"))
+Running_sum = namedtuple('Running_sum', ('var', 'sum'))
 
 
 class Averages(VerosDiagnostic):
@@ -15,8 +15,8 @@ class Averages(VerosDiagnostic):
     All registered variables are summed up when :meth:`diagnose` is called,
     and averaged and output upon calling :meth:`output`.
     """
-    name = "averages" #:
-    output_path = "{identifier}.averages.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
+    name = 'averages' #:
+    output_path = '{identifier}.averages.nc'  #: File to write to. May contain format strings that are replaced with Veros attributes.
     output_variables = None #: Iterable containing all variables to be averaged. Changes have no effect after ``initialize`` has been called.
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
@@ -68,7 +68,7 @@ class Averages(VerosDiagnostic):
     def read_restart(self, vs):
         attributes, variables = self.read_h5_restart(vs, vs.variables)
         if attributes:
-            self.average_nitts = attributes["average_nitts"]
+            self.average_nitts = attributes['average_nitts']
         if variables:
             self.average_vars = {key: Running_sum(copy.copy(vs.variables[key]), var)
                                  for key, var in variables.items()}
@@ -78,7 +78,7 @@ class Averages(VerosDiagnostic):
                 runsum.var.dims = runsum.var.dims[:-1]
 
     def write_restart(self, vs, outfile):
-        attributes = {"average_nitts": self.average_nitts}
+        attributes = {'average_nitts': self.average_nitts}
         variables = {key: runsum.sum for key, runsum in self.average_vars.items()}
         variable_metadata = {key: runsum.var for key, runsum in self.average_vars.items()}
         self.write_h5_restart(vs, attributes, variable_metadata, variables, outfile)

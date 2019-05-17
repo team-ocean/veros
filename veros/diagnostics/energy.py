@@ -8,90 +8,90 @@ from ..distributed import global_sum
 
 ENERGY_VARIABLES = dict(
     # mean energy content
-    k_m=Variable("Mean kinetic energy", [], "J", "Mean kinetic energy",
+    k_m=Variable('Mean kinetic energy', [], 'J', 'Mean kinetic energy',
                  output=True, write_to_restart=True),
-    Hd_m=Variable("Mean dynamic enthalpy", [], "J", "Mean dynamic enthalpy",
+    Hd_m=Variable('Mean dynamic enthalpy', [], 'J', 'Mean dynamic enthalpy',
                   output=True, write_to_restart=True),
-    eke_m=Variable("Meso-scale eddy energy", [], "J", "Meso-scale eddy energy",
+    eke_m=Variable('Meso-scale eddy energy', [], 'J', 'Meso-scale eddy energy',
                    output=True, write_to_restart=True),
-    iw_m=Variable("Internal wave energy", [], "J", "Internal wave energy",
+    iw_m=Variable('Internal wave energy', [], 'J', 'Internal wave energy',
                   output=True, write_to_restart=True),
-    tke_m=Variable("Turbulent kinetic energy", [], "J", "Turbulent kinetic energy",
+    tke_m=Variable('Turbulent kinetic energy', [], 'J', 'Turbulent kinetic energy',
                    output=True, write_to_restart=True),
 
     # energy changes
-    dE_tot_m=Variable("Change of total energy", [], "W", "Change of total energy",
+    dE_tot_m=Variable('Change of total energy', [], 'W', 'Change of total energy',
                       output=True, write_to_restart=True),
-    dk_m=Variable("Change of KE", [], "W", "Change of kinetic energy",
+    dk_m=Variable('Change of KE', [], 'W', 'Change of kinetic energy',
                   output=True, write_to_restart=True),
-    dHd_m=Variable("Change of Hd", [], "W", "Change of dynamic enthalpy",
+    dHd_m=Variable('Change of Hd', [], 'W', 'Change of dynamic enthalpy',
                    output=True, write_to_restart=True),
-    deke_m=Variable("Change of EKE", [], "W", "Change of meso-scale eddy energy",
+    deke_m=Variable('Change of EKE', [], 'W', 'Change of meso-scale eddy energy',
                     output=True, write_to_restart=True),
-    diw_m=Variable("Change of E_iw", [], "W", "Change of internal wave energy",
+    diw_m=Variable('Change of E_iw', [], 'W', 'Change of internal wave energy',
                    output=True, write_to_restart=True),
-    dtke_m=Variable("Change of TKE", [], "W", "Change of tubulent kinetic energy",
+    dtke_m=Variable('Change of TKE', [], 'W', 'Change of tubulent kinetic energy',
                     output=True, write_to_restart=True),
 
     # dissipation
-    ke_diss_m=Variable("Dissipation of KE", [], "W", "Dissipation of kinetic energy",
+    ke_diss_m=Variable('Dissipation of KE', [], 'W', 'Dissipation of kinetic energy',
                        output=True, write_to_restart=True),
-    Hd_diss_m=Variable("Dissipation of Hd", [], "W", "Dissipation of dynamic enthalpy",
+    Hd_diss_m=Variable('Dissipation of Hd', [], 'W', 'Dissipation of dynamic enthalpy',
                        output=True, write_to_restart=True),
-    eke_diss_m=Variable("Dissipation of EKE", [], "W", "Dissipation of meso-scale eddy energy",
+    eke_diss_m=Variable('Dissipation of EKE', [], 'W', 'Dissipation of meso-scale eddy energy',
                         output=True, write_to_restart=True),
-    iw_diss_m=Variable("Dissipation of E_iw", [], "W", "Dissipation of internal wave energy",
+    iw_diss_m=Variable('Dissipation of E_iw', [], 'W', 'Dissipation of internal wave energy',
                        output=True, write_to_restart=True),
-    tke_diss_m=Variable("Dissipation of TKE", [], "W", "Dissipation of turbulent kinetic energy",
+    tke_diss_m=Variable('Dissipation of TKE', [], 'W', 'Dissipation of turbulent kinetic energy',
                         output=True, write_to_restart=True),
-    adv_diss_m=Variable("Dissipation by advection", [], "W", "Dissipation by advection",
+    adv_diss_m=Variable('Dissipation by advection', [], 'W', 'Dissipation by advection',
                         output=True, write_to_restart=True),
 
     # external forcing
-    wind_m=Variable("Wind work", [], "W", "Wind work",
+    wind_m=Variable('Wind work', [], 'W', 'Wind work',
                     output=True, write_to_restart=True),
-    dHd_sources_m=Variable("Hd production by ext. sources", [], "W",
-                           "Dynamic enthalpy production through external sources",
+    dHd_sources_m=Variable('Hd production by ext. sources', [], 'W',
+                           'Dynamic enthalpy production through external sources',
                            output=True, write_to_restart=True),
-    iw_forc_m=Variable("External forcing of E_iw", [], "W",
-                       "External forcing of internal wave energy",
+    iw_forc_m=Variable('External forcing of E_iw', [], 'W',
+                       'External forcing of internal wave energy',
                        output=True, write_to_restart=True),
-    tke_forc_m=Variable("External forcing of TKE", [], "W",
-                        "External forcing of turbulent kinetic energy",
+    tke_forc_m=Variable('External forcing of TKE', [], 'W',
+                        'External forcing of turbulent kinetic energy',
                         output=True, write_to_restart=True),
 
     # exchange
-    ke_hd_m=Variable("Exchange KE -> Hd", [], "W",
-                     "Exchange between kinetic energy and dynamic enthalpy",
+    ke_hd_m=Variable('Exchange KE -> Hd', [], 'W',
+                     'Exchange between kinetic energy and dynamic enthalpy',
                      output=True, write_to_restart=True),
-    ke_tke_m=Variable("Exchange KE -> TKE by vert. friction", [], "W",
-                      "Exchange between kinetic energy and turbulent kinetic energy by vertical friction",
+    ke_tke_m=Variable('Exchange KE -> TKE by vert. friction', [], 'W',
+                      'Exchange between kinetic energy and turbulent kinetic energy by vertical friction',
                       output=True, write_to_restart=True),
-    ke_iw_m=Variable("Exchange KE -> IW by bottom friction", [], "W",
-                     "Exchange between kinetic energy and internal wave energy by bottom friction",
+    ke_iw_m=Variable('Exchange KE -> IW by bottom friction', [], 'W',
+                     'Exchange between kinetic energy and internal wave energy by bottom friction',
                      output=True, write_to_restart=True),
-    tke_hd_m=Variable("Exchange TKE -> Hd by vertical mixing", [], "W",
-                      "Exchange between turbulent kinetic energy and dynamic enthalpy by vertical mixing",
+    tke_hd_m=Variable('Exchange TKE -> Hd by vertical mixing', [], 'W',
+                      'Exchange between turbulent kinetic energy and dynamic enthalpy by vertical mixing',
                       output=True, write_to_restart=True),
-    ke_eke_m=Variable("Exchange KE -> EKE by lateral friction", [], "W",
-                      "Exchange between kinetic energy and eddy kinetic energy by lateral friction",
+    ke_eke_m=Variable('Exchange KE -> EKE by lateral friction', [], 'W',
+                      'Exchange between kinetic energy and eddy kinetic energy by lateral friction',
                       output=True, write_to_restart=True),
-    hd_eke_m=Variable("Exchange Hd -> EKE by GM and lateral mixing", [], "W",
-                      "Exchange between dynamic enthalpy and eddy kinetic energy by GM and lateral mixing",
+    hd_eke_m=Variable('Exchange Hd -> EKE by GM and lateral mixing', [], 'W',
+                      'Exchange between dynamic enthalpy and eddy kinetic energy by GM and lateral mixing',
                       output=True, write_to_restart=True),
-    eke_tke_m=Variable("Exchange EKE -> TKE", [], "W",
-                       "Exchange between eddy and turbulent kinetic energy",
+    eke_tke_m=Variable('Exchange EKE -> TKE', [], 'W',
+                       'Exchange between eddy and turbulent kinetic energy',
                        output=True, write_to_restart=True),
-    eke_iw_m=Variable("Exchange EKE -> IW", [], "W",
-                      "Exchange between eddy kinetic energy and internal wave energy",
+    eke_iw_m=Variable('Exchange EKE -> IW', [], 'W',
+                      'Exchange between eddy kinetic energy and internal wave energy',
                       output=True, write_to_restart=True),
 
     # cabbeling
-    cabb_m=Variable("Cabbeling by vertical mixing", [], "W",
-                    "Cabbeling by vertical mixing",
+    cabb_m=Variable('Cabbeling by vertical mixing', [], 'W',
+                    'Cabbeling by vertical mixing',
                     output=True, write_to_restart=True),
-    cabb_iso_m=Variable("Cabbeling by isopycnal mixing", [], "W",
-                        "Cabbeling by isopycnal mixing",
+    cabb_iso_m=Variable('Cabbeling by isopycnal mixing', [], 'W',
+                        'Cabbeling by isopycnal mixing',
                         output=True, write_to_restart=True),
 )
 
@@ -99,8 +99,8 @@ ENERGY_VARIABLES = dict(
 class Energy(VerosDiagnostic):
     """Diagnose globally averaged energy cycle. Also averages energy in time.
     """
-    name = "energy" #:
-    output_path = "{identifier}.energy.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
+    name = 'energy' #:
+    output_path = '{identifier}.energy.nc'  #: File to write to. May contain format strings that are replaced with Veros attributes.
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
     variables = ENERGY_VARIABLES
@@ -350,5 +350,5 @@ class Energy(VerosDiagnostic):
     def write_restart(self, vs, outfile):
         restart_data = {key: getattr(self, key)
                         for key, val in self.variables.items() if val.write_to_restart}
-        restart_data.update({"nitts": self.nitts})
+        restart_data.update({'nitts': self.nitts})
         self.write_h5_restart(vs, restart_data, {}, {}, outfile)

@@ -14,12 +14,12 @@ def isoneutral_diffusion_pre(vs):
     """
     epsln = 1e-20
 
-    dTdx = allocate(vs, ("xu", "yt", "zt"))
-    dSdx = allocate(vs, ("xu", "yt", "zt"))
-    dTdy = allocate(vs, ("xt", "yu", "zt"))
-    dSdy = allocate(vs, ("xt", "yu", "zt"))
-    dTdz = allocate(vs, ("xt", "yt", "zw"))
-    dSdz = allocate(vs, ("xt", "yt", "zw"))
+    dTdx = allocate(vs, ('xu', 'yt', 'zt'))
+    dSdx = allocate(vs, ('xu', 'yt', 'zt'))
+    dTdy = allocate(vs, ('xt', 'yu', 'zt'))
+    dSdy = allocate(vs, ('xt', 'yu', 'zt'))
+    dTdz = allocate(vs, ('xt', 'yt', 'zw'))
+    dSdz = allocate(vs, ('xt', 'yt', 'zw'))
 
     """
     drho_dt and drho_ds at centers of T cells
@@ -68,12 +68,12 @@ def isoneutral_diffusion_pre(vs):
     """
     Compute Ai_ez and K11 on center of east face of T cell.
     """
-    diffloc = allocate(vs, ("xt", "yt", "zt"))
+    diffloc = allocate(vs, ('xt', 'yt', 'zt'))
     diffloc[1:-2, 2:-2, 1:] = 0.25 * (vs.K_iso[1:-2, 2:-2, 1:] + vs.K_iso[1:-2, 2:-2, :-1]
                                       + vs.K_iso[2:-1, 2:-2, 1:] + vs.K_iso[2:-1, 2:-2, :-1])
     diffloc[1:-2, 2:-2, 0] = 0.5 * (vs.K_iso[1:-2, 2:-2, 0] + vs.K_iso[2:-1, 2:-2, 0])
 
-    sumz = allocate(vs, ("xu", "yt", "zw"))[1:-2, 2:-2]
+    sumz = allocate(vs, ('xu', 'yt', 'zw'))[1:-2, 2:-2]
     for kr in range(2):
         ki = 0 if kr == 1 else 1
         for ip in range(2):
@@ -96,7 +96,7 @@ def isoneutral_diffusion_pre(vs):
                                       + vs.K_iso[2:-2, 2:-1, 1:] + vs.K_iso[2:-2, 2:-1, :-1])
     diffloc[2:-2, 1:-2, 0] = 0.5 * (vs.K_iso[2:-2, 1:-2, 0] + vs.K_iso[2:-2, 2:-1, 0])
 
-    sumz = allocate(vs, ("xt", "yu", "zw"))[2:-2, 1:-2]
+    sumz = allocate(vs, ('xt', 'yu', 'zw'))[2:-2, 1:-2]
     for kr in range(2):
         ki = 0 if kr == 1 else 1
         for jp in range(2):
@@ -114,8 +114,8 @@ def isoneutral_diffusion_pre(vs):
     """
     compute Ai_bx, Ai_by and K33 on top face of T cell.
     """
-    sumx = allocate(vs, ("xt", "yt", "zt"))[2:-2, 2:-2, :-1]
-    sumy = allocate(vs, ("xt", "yt", "zt"))[2:-2, 2:-2, :-1]
+    sumx = allocate(vs, ('xt', 'yt', 'zt'))[2:-2, 2:-2, :-1]
+    sumy = allocate(vs, ('xt', 'yt', 'zt'))[2:-2, 2:-2, :-1]
 
     for kr in range(2):
         drodzb = drdT[2:-2, 2:-2, kr:-1 + kr or None] * dTdz[2:-2, 2:-2, :-1] \
@@ -155,7 +155,7 @@ def isoneutral_diag_streamfunction(vs):
     """
 
     """
-    meridional component at east face of "T" cells
+    meridional component at east face of 'T' cells
     """
     K_gm_pad = utilities.pad_z_edges(vs, vs.K_gm)
 
@@ -165,7 +165,7 @@ def isoneutral_diag_streamfunction(vs):
     vs.B2_gm[1:-2, 2:-2, :] = 0.25 * sumz
 
     """
-    zonal component at north face of "T" cells
+    zonal component at north face of 'T' cells
     """
     diffloc = 0.25 * (K_gm_pad[2:-2, 1:-2, 1:-1] + K_gm_pad[2:-2, 1:-2, :-2] +
                       K_gm_pad[2:-2, 2:-1, 1:-1] + K_gm_pad[2:-2, 2:-1, :-2])
@@ -174,7 +174,7 @@ def isoneutral_diag_streamfunction(vs):
 
 
 @veros_method(dist_safe=False, local_variables=[
-    "dxt", "dyt", "dzt", "cost"
+    'dxt', 'dyt', 'dzt', 'cost'
 ])
 def check_isoneutral_slope_crit(vs):
     """
@@ -192,10 +192,10 @@ def check_isoneutral_slope_crit(vs):
             min(delta1a, delta1b)
         )
 
-        logger.info("Diffusion grid factor delta_iso1 = {}", float(delta_iso1))
+        logger.info('Diffusion grid factor delta_iso1 = {}', float(delta_iso1))
         if delta_iso1 < vs.iso_slopec:
-            raise RuntimeError("Without latitudinal filtering, delta_iso1 is the steepest "
-                               "isoneutral slope available for linear stability of "
-                               "Redi and GM. Maximum allowable isoneutral slope is "
-                               "specified as iso_slopec = {}."
+            raise RuntimeError('Without latitudinal filtering, delta_iso1 is the steepest '
+                               'isoneutral slope available for linear stability of '
+                               'Redi and GM. Maximum allowable isoneutral slope is '
+                               'specified as iso_slopec = {}.'
                                .format(vs.iso_slopec))

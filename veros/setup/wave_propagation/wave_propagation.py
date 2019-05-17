@@ -14,9 +14,9 @@ import veros.tools
 from veros.core.utilities import enforce_boundaries
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
-DATA_FILES = veros.tools.get_assets("wave_propagation", os.path.join(BASE_PATH, "assets.yml"))
-TOPO_MASK_FILE = os.path.join(BASE_PATH, "topography_idealized.png")
-NA_MASK_FILE = os.path.join(BASE_PATH, "na_mask.png")
+DATA_FILES = veros.tools.get_assets('wave_propagation', os.path.join(BASE_PATH, 'assets.yml'))
+TOPO_MASK_FILE = os.path.join(BASE_PATH, 'topography_idealized.png')
+NA_MASK_FILE = os.path.join(BASE_PATH, 'na_mask.png')
 
 
 class WavePropagationSetup(VerosSetup):
@@ -41,7 +41,7 @@ class WavePropagationSetup(VerosSetup):
 
     @veros_method
     def set_parameter(self, vs):
-        vs.identifier = "wp"
+        vs.identifier = 'wp'
 
         vs.nx = 180
         vs.ny = 180
@@ -104,37 +104,37 @@ class WavePropagationSetup(VerosSetup):
         # custom variables
         vs.nmonths = 12
         vs.variables.update(
-            t_star=Variable("t_star", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            s_star=Variable("s_star", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            qnec=Variable("qnec", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            qnet=Variable("qnet", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            qsol=Variable("qsol", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            divpen_shortwave=Variable("divpen_shortwave", ("zt",), "", "", time_dependent=False),
-            taux=Variable("taux", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
-            tauy=Variable("tauy", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            t_star=Variable('t_star', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            s_star=Variable('s_star', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            qnec=Variable('qnec', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            qnet=Variable('qnet', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            qsol=Variable('qsol', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            divpen_shortwave=Variable('divpen_shortwave', ('zt',), '', '', time_dependent=False),
+            taux=Variable('taux', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
+            tauy=Variable('tauy', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
             na_mask=Variable(
-                "Mask for North Atlantic", ("xt", "yt"), "", "Mask for North Atlantic",
-                dtype="int", time_dependent=False, output=True
+                'Mask for North Atlantic', ('xt', 'yt'), '', 'Mask for North Atlantic',
+                dtype='int', time_dependent=False, output=True
             )
         )
 
     @veros_method(inline=True)
     def _get_data(self, vs, var):
-        with h5netcdf.File(DATA_FILES["forcing"], "r") as forcing_file:
+        with h5netcdf.File(DATA_FILES['forcing'], 'r') as forcing_file:
             var_obj = forcing_file.variables[var]
             return np.array(var_obj, dtype=str(var_obj.dtype)).T
 
     @veros_method(dist_safe=False, local_variables=[
-        "dxt", "dyt", "dzt"
+        'dxt', 'dyt', 'dzt'
     ])
     def set_grid(self, vs):
         if vs.ny % 2:
-            raise ValueError("ny has to be an even number of grid cells")
+            raise ValueError('ny has to be an even number of grid cells')
         vs.dxt[...] = 360. / vs.nx
         vs.dyt[2:-2] = veros.tools.get_vinokur_grid_steps(
             vs.ny, 160., self.equatorial_grid_spacing, upper_stepsize=self.polar_grid_spacing, two_sided_grid=True
         )
-        vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, self.max_depth, 10., refine_towards="lower")
+        vs.dzt[...] = veros.tools.get_vinokur_grid_steps(vs.nz, self.max_depth, 10., refine_towards='lower')
         vs.y_origin = -80.
         vs.x_origin = 90.
 
@@ -150,13 +150,13 @@ class WavePropagationSetup(VerosSetup):
         return new_lon, new_arr
 
     @veros_method(dist_safe=False, local_variables=[
-        "kbot", "xt", "yt", "zt", "na_mask"
+        'kbot', 'xt', 'yt', 'zt', 'na_mask'
     ])
     def set_topography(self, vs):
-        with h5netcdf.File(DATA_FILES["topography"], "r") as topography_file:
+        with h5netcdf.File(DATA_FILES['topography'], 'r') as topography_file:
             topo_x, topo_y, topo_z = (
                 np.array(topography_file.variables[k], dtype='float').T
-                for k in ("x", "y", "z")
+                for k in ('x', 'y', 'z')
             )
         topo_z[topo_z > 0] = 0.
         topo_mask = (np.flipud(Image.open(TOPO_MASK_FILE)).T / 255).astype(np.bool)
@@ -169,16 +169,16 @@ class WavePropagationSetup(VerosSetup):
         topo_x_shifted, na_mask_shifted = self._shift_longitude_array(vs, topo_x, na_mask_image)
         coords = (vs.xt[2:-2], vs.yt[2:-2])
         vs.na_mask[2:-2, 2:-2] = np.logical_not(veros.tools.interpolate(
-            (topo_x_shifted, topo_y), na_mask_shifted, coords, kind="nearest", fill=False
+            (topo_x_shifted, topo_y), na_mask_shifted, coords, kind='nearest', fill=False
         ).astype(np.bool))
 
         topo_x_shifted, topo_masked_shifted = self._shift_longitude_array(vs, topo_x, topo_masked)
         z_interp = veros.tools.interpolate(
-            (topo_x_shifted, topo_y), topo_masked_shifted, coords, kind="nearest", fill=False
+            (topo_x_shifted, topo_y), topo_masked_shifted, coords, kind='nearest', fill=False
         )
         z_interp[vs.na_mask[2:-2, 2:-2]] = -self.na_max_depth
 
-        grid_coords = np.meshgrid(*coords, indexing="ij")
+        grid_coords = np.meshgrid(*coords, indexing='ij')
         coastline_distance = veros.tools.get_coastline_distance(
             grid_coords, z_interp >= 0, spherical=True, radius=vs.radius
         )
@@ -204,9 +204,9 @@ class WavePropagationSetup(VerosSetup):
         return np.where(~arr_masked.mask, zonal_mean_na[np.newaxis, ...], arr)
 
     @veros_method(dist_safe=False, local_variables=[
-        "qnet", "temp", "salt", "maskT", "taux", "tauy", "xt", "yt", "zt",
-        "qnec", "qsol", "t_star", "s_star", "na_mask",
-        "maskW", "divpen_shortwave", "dzt", "zw",
+        'qnet', 'temp', 'salt', 'maskT', 'taux', 'tauy', 'xt', 'yt', 'zt',
+        'qnec', 'qsol', 't_star', 's_star', 'na_mask',
+        'maskW', 'divpen_shortwave', 'dzt', 'zw',
     ])
     def set_initial_conditions(self, vs):
         rpart_shortwave = 0.58
@@ -214,16 +214,16 @@ class WavePropagationSetup(VerosSetup):
         efold2_shortwave = 23.0
 
         t_grid = (vs.xt[2:-2], vs.yt[2:-2], vs.zt)
-        xt_forc, yt_forc, zt_forc = (self._get_data(vs, k) for k in ("xt", "yt", "zt"))
+        xt_forc, yt_forc, zt_forc = (self._get_data(vs, k) for k in ('xt', 'yt', 'zt'))
         zt_forc = zt_forc[::-1]
 
         # initial conditions
-        temp_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), self._get_data(vs, "temperature")[:, :, ::-1],
+        temp_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), self._get_data(vs, 'temperature')[:, :, ::-1],
                                       t_grid, missing_value=0.)
         vs.temp[2:-2, 2:-2, :, 0] = temp_data * vs.maskT[2:-2, 2:-2, :]
         vs.temp[2:-2, 2:-2, :, 1] = temp_data * vs.maskT[2:-2, 2:-2, :]
 
-        salt_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), self._get_data(vs, "salinity")[:, :, ::-1],
+        salt_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), self._get_data(vs, 'salinity')[:, :, ::-1],
                                        t_grid, missing_value=0.)
         vs.salt[2:-2, 2:-2, :, 0] = salt_data * vs.maskT[2:-2, 2:-2, :]
         vs.salt[2:-2, 2:-2, :, 1] = salt_data * vs.maskT[2:-2, 2:-2, :]
@@ -231,7 +231,7 @@ class WavePropagationSetup(VerosSetup):
         # wind stress on MIT grid
         time_grid = (vs.xt[2:-2], vs.yt[2:-2], np.arange(12))
         taux_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
-                                      self._get_data(vs, "tau_x"), time_grid,
+                                      self._get_data(vs, 'tau_x'), time_grid,
                                       missing_value=0.)
         vs._taux[2:-2, 2:-2, :] = taux_data
         mask = np.logical_and(vs.yt > self.so_wind_interval[0], vs.yt < self.so_wind_interval[1])[..., np.newaxis]
@@ -239,7 +239,7 @@ class WavePropagationSetup(VerosSetup):
                                                                             / (self.so_wind_interval[1] - self.so_wind_interval[0]))
 
         tauy_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
-                                      self._get_data(vs, "tau_y"), time_grid,
+                                      self._get_data(vs, 'tau_y'), time_grid,
                                       missing_value=0.)
         vs._tauy[2:-2, 2:-2, :] = tauy_data
 
@@ -248,29 +248,29 @@ class WavePropagationSetup(VerosSetup):
 
         # Qnet and dQ/dT and Qsol
         qnet_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
-                                      self._get_data(vs, "q_net"), time_grid, missing_value=0.)
+                                      self._get_data(vs, 'q_net'), time_grid, missing_value=0.)
         vs.qnet[2:-2, 2:-2, :] = -qnet_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         qnec_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
-                                       self._get_data(vs, "dqdt"), time_grid, missing_value=0.)
+                                       self._get_data(vs, 'dqdt'), time_grid, missing_value=0.)
         vs.qnec[2:-2, 2:-2, :] = qnec_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         qsol_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
-                                       self._get_data(vs, "swf"), time_grid, missing_value=0.)
+                                       self._get_data(vs, 'swf'), time_grid, missing_value=0.)
         vs.qsol[2:-2, 2:-2, :] = -qsol_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         # SST and SSS
         sst_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
-                                     self._get_data(vs, "sst"), time_grid, missing_value=0.)
+                                     self._get_data(vs, 'sst'), time_grid, missing_value=0.)
         vs.t_star[2:-2, 2:-2, :] = sst_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         sss_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
-                                     self._get_data(vs, "sss"), time_grid, missing_value=0.)
+                                     self._get_data(vs, 'sss'), time_grid, missing_value=0.)
         vs.s_star[2:-2, 2:-2, :] = sss_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
         if vs.enable_idemix:
             tidal_energy_data = veros.tools.interpolate(
-                (xt_forc, yt_forc), self._get_data(vs, "tidal_energy"), t_grid[:-1], missing_value=0.
+                (xt_forc, yt_forc), self._get_data(vs, 'tidal_energy'), t_grid[:-1], missing_value=0.
             )
             mask_x, mask_y = (i + 2 for i in np.indices((vs.nx, vs.ny)))
             mask_z = np.maximum(0, vs.kbot[2:-2, 2:-2] - 1)
@@ -340,45 +340,45 @@ class WavePropagationSetup(VerosSetup):
 
     @veros_method
     def set_diagnostics(self, vs):
-        vs.diagnostics["cfl_monitor"].output_frequency = 86400.
-        vs.diagnostics["tracer_monitor"].output_frequency = 86400.
-        vs.diagnostics["snapshot"].output_frequency = 10 * 86400.
-        vs.diagnostics["overturning"].output_frequency = 360 * 86400
-        vs.diagnostics["overturning"].sampling_frequency = 10 * 86400
-        vs.diagnostics["energy"].output_frequency = 360 * 86400
-        vs.diagnostics["energy"].sampling_frequency = 86400.
-        vs.diagnostics["averages"].output_frequency = 360 * 86400
-        vs.diagnostics["averages"].sampling_frequency = 86400.
+        vs.diagnostics['cfl_monitor'].output_frequency = 86400.
+        vs.diagnostics['tracer_monitor'].output_frequency = 86400.
+        vs.diagnostics['snapshot'].output_frequency = 10 * 86400.
+        vs.diagnostics['overturning'].output_frequency = 360 * 86400
+        vs.diagnostics['overturning'].sampling_frequency = 10 * 86400
+        vs.diagnostics['energy'].output_frequency = 360 * 86400
+        vs.diagnostics['energy'].sampling_frequency = 86400.
+        vs.diagnostics['averages'].output_frequency = 360 * 86400
+        vs.diagnostics['averages'].sampling_frequency = 86400.
 
-        average_vars = ["surface_taux", "surface_tauy", "forc_temp_surface", "forc_salt_surface",
-                        "psi", "temp", "salt", "u", "v", "w", "Nsqr", "Hd", "rho",
-                        "K_diss_v", "P_diss_v", "P_diss_nonlin", "P_diss_iso", "kappaH"]
+        average_vars = ['surface_taux', 'surface_tauy', 'forc_temp_surface', 'forc_salt_surface',
+                        'psi', 'temp', 'salt', 'u', 'v', 'w', 'Nsqr', 'Hd', 'rho',
+                        'K_diss_v', 'P_diss_v', 'P_diss_nonlin', 'P_diss_iso', 'kappaH']
         if vs.enable_skew_diffusion:
-            average_vars += ["B1_gm", "B2_gm"]
+            average_vars += ['B1_gm', 'B2_gm']
         if vs.enable_TEM_friction:
-            average_vars += ["kappa_gm", "K_diss_gm"]
+            average_vars += ['kappa_gm', 'K_diss_gm']
         if vs.enable_tke:
-            average_vars += ["tke", "Prandtlnumber", "mxl", "tke_diss",
-                             "forc_tke_surface", "tke_surf_corr"]
+            average_vars += ['tke', 'Prandtlnumber', 'mxl', 'tke_diss',
+                             'forc_tke_surface', 'tke_surf_corr']
         if vs.enable_idemix:
-            average_vars += ["E_iw", "forc_iw_surface", "iw_diss",
-                             "c0", "v0"]
+            average_vars += ['E_iw', 'forc_iw_surface', 'iw_diss',
+                             'c0', 'v0']
         if vs.enable_eke:
-            average_vars += ["eke", "K_gm", "L_rossby", "L_rhines"]
-        vs.diagnostics["averages"].output_variables = average_vars
+            average_vars += ['eke', 'K_gm', 'L_rossby', 'L_rhines']
+        vs.diagnostics['averages'].output_variables = average_vars
 
-        vs.diagnostics["snapshot"].output_variables.append("na_mask")
+        vs.diagnostics['snapshot'].output_variables.append('na_mask')
 
     @veros_method
     def set_timestep(self, vs):
         if vs.time < 90 * 86400:
             if vs.dt_tracer != 1800.:
                 vs.dt_tracer = vs.dt_mom = 1800.
-                logger.info("Setting time step to 30m")
+                logger.info('Setting time step to 30m')
         else:
             if vs.dt_tracer != 3600.:
                 vs.dt_tracer = vs.dt_mom = 3600.
-                logger.info("Setting time step to 1h")
+                logger.info('Setting time step to 1h')
 
     def after_timestep(self, vs):
         pass
@@ -391,5 +391,5 @@ def run(*args, **kwargs):
     simulation.run()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     run()

@@ -10,14 +10,14 @@ class PETScSolver(LinearSolver):
     @veros_method
     def __init__(self, vs):
         if vs.enable_cyclic_x:
-            boundary_type = ("periodic", "ghosted")
+            boundary_type = ('periodic', 'ghosted')
         else:
-            boundary_type = ("ghosted", "ghosted")
+            boundary_type = ('ghosted', 'ghosted')
 
         self._da = PETSc.DMDA().create(
             [vs.nx, vs.ny],
             stencil_width=1,
-            stencil_type="star",
+            stencil_type='star',
             comm=rs.mpi_comm,
             proc_sizes=rs.num_proc,
             boundary_type=boundary_type,
@@ -51,18 +51,18 @@ class PETScSolver(LinearSolver):
         # add dirichlet BC to rhs
         if not vs.enable_cyclic_x:
             if rst.proc_idx[0] == rs.num_proc[0] - 1:
-                rhs[-3, 2:-2] -= rhs[-2, 2:-2] * self._boundary_fac["east"]
+                rhs[-3, 2:-2] -= rhs[-2, 2:-2] * self._boundary_fac['east']
 
             if rst.proc_idx[0] == 0:
-                rhs[2, 2:-2] -= rhs[1, 2:-2] * self._boundary_fac["west"]
+                rhs[2, 2:-2] -= rhs[1, 2:-2] * self._boundary_fac['west']
 
         if rst.proc_idx[1] == rs.num_proc[1] - 1:
-            rhs[2:-2, -3] -= rhs[2:-2, -2] * self._boundary_fac["north"]
+            rhs[2:-2, -3] -= rhs[2:-2, -2] * self._boundary_fac['north']
 
         if rst.proc_idx[1] == 0:
-            rhs[2:-2, 2] -= rhs[2:-2, 1] * self._boundary_fac["south"]
+            rhs[2:-2, 2] -= rhs[2:-2, 1] * self._boundary_fac['south']
 
-        if rs.backend == "bohrium":
+        if rs.backend == 'bohrium':
             self._da.getVecArray(self._rhs_petsc)[...] = np.interop_numpy.get_array(rhs[2:-2, 2:-2].copy())
             self._da.getVecArray(self._sol_petsc)[...] = np.interop_numpy.get_array(x0[2:-2, 2:-2].copy())
         else:
@@ -75,7 +75,7 @@ class PETScSolver(LinearSolver):
         iterations = self._ksp.getIterationNumber()
 
         if info < 0:
-            logger.warning("Streamfunction solver did not converge after {} iterations (error code: {})", iterations, info)
+            logger.warning('Streamfunction solver did not converge after {} iterations (error code: {})', iterations, info)
 
         return np.array(self._da.getVecArray(self._sol_petsc)[...])
 
@@ -151,10 +151,10 @@ class PETScSolver(LinearSolver):
         matrix.assemble()
 
         boundary_scale = {
-            "east": cf[1][-1, :],
-            "west": cf[2][0, :],
-            "north": cf[3][:, -1],
-            "south": cf[4][:, 0]
+            'east': cf[1][-1, :],
+            'west': cf[2][0, :],
+            'north': cf[3][:, -1],
+            'south': cf[4][:, 0]
         }
 
         return matrix, boundary_scale

@@ -11,32 +11,32 @@ from ..distributed import global_sum
 
 
 SIGMA = Variable(
-    "Sigma axis", ("sigma",), "kg/m^3", "Sigma axis", output=True,
+    'Sigma axis', ('sigma',), 'kg/m^3', 'Sigma axis', output=True,
     time_dependent=False, write_to_restart=True
 )
 
 OVERTURNING_VARIABLES = OrderedDict([
-    ("trans", Variable(
-        "Meridional transport", ("yu", "sigma"), "m^3/s",
-        "Meridional transport", output=True, write_to_restart=True
+    ('trans', Variable(
+        'Meridional transport', ('yu', 'sigma'), 'm^3/s',
+        'Meridional transport', output=True, write_to_restart=True
     )),
-    ("vsf_iso", Variable(
-        "Meridional transport", ("yu", "zw"), "m^3/s",
-        "Meridional transport", output=True, write_to_restart=True
+    ('vsf_iso', Variable(
+        'Meridional transport', ('yu', 'zw'), 'm^3/s',
+        'Meridional transport', output=True, write_to_restart=True
     )),
-    ("vsf_depth", Variable(
-        "Meridional transport", ("yu", "zw"), "m^3/s",
-        "Meridional transport", output=True, write_to_restart=True
+    ('vsf_depth', Variable(
+        'Meridional transport', ('yu', 'zw'), 'm^3/s',
+        'Meridional transport', output=True, write_to_restart=True
     )),
 ])
 ISONEUTRAL_VARIABLES = OrderedDict([
-    ("bolus_iso", Variable(
-        "Meridional transport", ("yu", "zw"), "m^3/s",
-        "Meridional transport", output=True, write_to_restart=True
+    ('bolus_iso', Variable(
+        'Meridional transport', ('yu', 'zw'), 'm^3/s',
+        'Meridional transport', output=True, write_to_restart=True
     )),
-    ("bolus_depth", Variable(
-        "Meridional transport", ("yu", "zw"), "m^3/s",
-        "Meridional transport", output=True, write_to_restart=True
+    ('bolus_depth', Variable(
+        'Meridional transport', ('yu', 'zw'), 'm^3/s',
+        'Meridional transport', output=True, write_to_restart=True
     )),
 ])
 
@@ -46,8 +46,8 @@ class Overturning(VerosDiagnostic):
     (zonally averaged).
     """
 
-    name = "overturning"  #:
-    output_path = "{identifier}.overturning.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
+    name = 'overturning'  #:
+    output_path = '{identifier}.overturning.nc'  #: File to write to. May contain format strings that are replaced with Veros attributes.
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
     p_ref = 2000.  #: Reference pressure for isopycnals
@@ -58,7 +58,7 @@ class Overturning(VerosDiagnostic):
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
             self.mean_variables.update(ISONEUTRAL_VARIABLES)
         self.variables = self.mean_variables.copy()
-        self.variables.update({"sigma": self.sigma_var})
+        self.variables.update({'sigma': self.sigma_var})
 
     @veros_method
     def initialize(self, vs):
@@ -71,12 +71,12 @@ class Overturning(VerosDiagnostic):
         self.sigs = float(density.get_rho(vs, 35., 30., self.p_ref))
         self.dsig = (self.sige - self.sigs) / (self.nlevel - 1)
 
-        logger.debug(" Sigma ranges for overturning diagnostic:")
-        logger.debug(" Start sigma0 = {:.1f}".format(self.sigs))
-        logger.debug(" End sigma0 = {:.1f}".format(self.sige))
-        logger.debug(" Delta sigma0 = {:.1e}".format(self.dsig))
+        logger.debug(' Sigma ranges for overturning diagnostic:')
+        logger.debug(' Start sigma0 = {:.1f}'.format(self.sigs))
+        logger.debug(' End sigma0 = {:.1f}'.format(self.sige))
+        logger.debug(' Delta sigma0 = {:.1e}'.format(self.dsig))
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-            logger.debug(" Also calculating overturning by eddy-driven velocities")
+            logger.debug(' Also calculating overturning by eddy-driven velocities')
 
         self.sigma[...] = self.sigs + self.dsig * np.arange(self.nlevel)
 
@@ -87,24 +87,24 @@ class Overturning(VerosDiagnostic):
             * vs.maskV[2:-2, 2:-2, :], axis=0)) * vs.dzt[np.newaxis, :], axis=1)
 
         self.initialize_output(vs, self.variables,
-                               var_data={"sigma": self.sigma},
-                               extra_dimensions={"sigma": self.nlevel})
+                               var_data={'sigma': self.sigma},
+                               extra_dimensions={'sigma': self.nlevel})
 
     @veros_method
     def _allocate(self, vs):
         self.sigma = allocate(vs, (self.nlevel,))
-        self.zarea = allocate(vs, ("yu", "zt"))
-        self.trans = allocate(vs, ("yu", self.nlevel))
-        self.vsf_iso = allocate(vs, ("yu", "zt"))
-        self.vsf_depth = allocate(vs, ("yu", "zt"))
+        self.zarea = allocate(vs, ('yu', 'zt'))
+        self.trans = allocate(vs, ('yu', self.nlevel))
+        self.vsf_iso = allocate(vs, ('yu', 'zt'))
+        self.vsf_depth = allocate(vs, ('yu', 'zt'))
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-            self.bolus_iso = allocate(vs, ("yu", "zt"))
-            self.bolus_depth = allocate(vs, ("yu", "zt"))
+            self.bolus_iso = allocate(vs, ('yu', 'zt'))
+            self.bolus_depth = allocate(vs, ('yu', 'zt'))
 
     @veros_method
     def diagnose(self, vs):
         # sigma at p_ref
-        sig_loc = allocate(vs, ("xt", "yt", "zt"))
+        sig_loc = allocate(vs, ('xt', 'yt', 'zt'))
         sig_loc[2:-2, 2:-1, :] = density.get_rho(vs,
                                                  vs.salt[2:-2, 2:-1, :, vs.tau],
                                                  vs.temp[2:-2, 2:-1, :, vs.tau],
@@ -112,8 +112,8 @@ class Overturning(VerosDiagnostic):
 
         # transports below isopycnals and area below isopycnals
         sig_loc_face = 0.5 * (sig_loc[2:-2, 2:-2, :] + sig_loc[2:-2, 3:-1, :])
-        trans = allocate(vs, ("yu", self.nlevel))
-        z_sig = allocate(vs, ("yu", self.nlevel))
+        trans = allocate(vs, ('yu', self.nlevel))
+        z_sig = allocate(vs, ('yu', self.nlevel))
 
         for m in range(self.nlevel):
             # NOTE: vectorized version would be O(N^4) in memory
@@ -133,7 +133,7 @@ class Overturning(VerosDiagnostic):
         self.trans += trans
 
         if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-            bolus_trans = allocate(vs, ("yu", self.nlevel))
+            bolus_trans = allocate(vs, ('yu', self.nlevel))
             # eddy-driven transports below isopycnals
             for m in range(self.nlevel):
                 # NOTE: see above
@@ -188,12 +188,12 @@ class Overturning(VerosDiagnostic):
 
         if coords.ndim == 1:
             if len(coords) != arr.shape[axis]:
-                raise ValueError("Coordinate shape must match array shape along axis")
+                raise ValueError('Coordinate shape must match array shape along axis')
         elif coords.ndim == arr.ndim:
             if coords.shape != arr.shape:
-                raise ValueError("Coordinate shape must match array shape")
+                raise ValueError('Coordinate shape must match array shape')
         else:
-            raise ValueError("Coordinate shape must match array dimensions")
+            raise ValueError('Coordinate shape must match array dimensions')
 
         if axis != 0:
             arr = np.moveaxis(arr, axis, 0)
@@ -227,8 +227,8 @@ class Overturning(VerosDiagnostic):
     def output(self, vs):
         if not os.path.isfile(self.get_output_file_name(vs)):
             self.initialize_output(vs, self.variables,
-                                   var_data={"sigma": self.sigma},
-                                   extra_dimensions={"sigma": self.nlevel})
+                                   var_data={'sigma': self.sigma},
+                                   extra_dimensions={'sigma': self.nlevel})
 
         if self.nitts > 0:
             for var in self.mean_variables.keys():
@@ -248,7 +248,7 @@ class Overturning(VerosDiagnostic):
     def read_restart(self, vs):
         attributes, variables = self.read_h5_restart(vs, self.variables)
         if attributes:
-            self.nitts = attributes["nitts"]
+            self.nitts = attributes['nitts']
         if variables:
             for var, arr in variables.items():
                 getattr(self, var)[...] = arr
@@ -257,4 +257,4 @@ class Overturning(VerosDiagnostic):
     def write_restart(self, vs, outfile):
         var_data = {key: getattr(self, key)
                     for key, var in self.variables.items() if var.write_to_restart}
-        self.write_h5_restart(vs, {"nitts": self.nitts}, self.variables, var_data, outfile)
+        self.write_h5_restart(vs, {'nitts': self.nitts}, self.variables, var_data, outfile)
