@@ -10,13 +10,9 @@ Idealized configurations
 ------------------------
 
 +-------------------------------------------+-------------------------------------------+
-| :doc:`/reference/setups/acc`              | :doc:`/reference/setups/eady`             |
+| :doc:`/reference/setups/acc`              | :doc:`/reference/setups/acc_sector`       |
 |                                           |                                           |
-| |acc|                                     | |eady|                                    |
-+-------------------------------------------+-------------------------------------------+
-| :doc:`/reference/setups/acc_sector`       |                                           |
-|                                           |                                           |
-| |acc_sector|                              |                                           |
+| |acc|                                     | |acc_sector|                              |
 +-------------------------------------------+-------------------------------------------+
 
 .. |acc| image:: /_images/gallery/acc.png
@@ -24,12 +20,6 @@ Idealized configurations
   :align: middle
   :target: setups/acc.html
   :alt: Steady-state stream function
-
-.. |eady| image:: /_images/gallery/eady.png
-  :width: 100%
-  :align: middle
-  :target: setups/eady.html
-  :alt: Baroclinic instabilities (in temperature)
 
 .. |acc_sector| image:: /_images/gallery/acc_sector.png
   :width: 100%
@@ -42,7 +32,6 @@ Idealized configurations
    :hidden:
 
    setups/acc
-   setups/eady
    setups/acc_sector
 
 Realistic configurations
@@ -69,7 +58,6 @@ Realistic configurations
    :align: middle
    :target: setups/north-atlantic.html
    :alt: Resulting average surface speed
-
 
 .. |4deg| image:: /_images/gallery/4deg.png
    :width: 100%

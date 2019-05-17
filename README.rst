@@ -12,16 +12,18 @@ legacy code are finally over.
 Veros supports both a NumPy backend for small-scale problems and a fully
 parallelized high-performance backend `powered by
 Bohrium <https://github.com/bh107/bohrium>`__ using either OpenMP (CPU)
-or OpenCL (GPU). The underlying numerics are based on
-`pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2>`__, an ocean model
-developed by Carsten Eden (Institut für Meereskunde, Hamburg
-University). A good starting point to gain an overview of Veros' design,
+or OpenCL (GPU), and runs on distributed architectures via MPI.
+
+A good starting point to gain an overview of Veros' design,
 performance, and capabilities are `these slides of a talk on
 Veros <http://slides.com/dionhaefner/veros-ams>`__ held during the 98th
 Annual Meeting of the American Meteorological Society.
 
-Veros is currently being developed at Niels Bohr Institute, Copenhagen
-University.
+The underlying numerics are based on
+`pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2>`__, an ocean model
+developed by Carsten Eden (Institut für Meereskunde, Hamburg
+University). Veros is currently being developed at Niels Bohr Institute,
+Copenhagen University.
 
 Features
 --------
@@ -60,7 +62,7 @@ Installation
 Dependencies
 ~~~~~~~~~~~~
 
-Veros only has one external library dependency, ``HDF5``. 
+Veros only has one external library dependency, ``HDF5``.
 The installation procedure of this library varies between
 platforms. The easiest way to install Veros and its
 dependencies (including Bohrium) is `Anaconda

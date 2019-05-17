@@ -19,6 +19,7 @@ Features
 --------
 
 .. note::
+
   This section provides a quick overview of the capabilities and limitations of Veros. For a comprehensive description of the physics and numerics behind Veros, please refer to `the documentation of pyOM2 <https://wiki.zmaw.de/ifm/TO/pyOM2>`_. You can also obtain a copy of the PDF documentation :download:`here </_downloads/pyOM2.pdf>`.
 
 The model domain
@@ -40,7 +41,7 @@ Available parameterizations
 At its core, Veros currently offers the following solvers, numerical schemes, parameterizations, and closures:
 
 **Surface pressure**:
- - a streamfunction solver with MOM's island algorithm and an iterative Poisson solver
+ - a high-performance streamfunction solver via an iterative Poisson solver
 
 **Equation of state**:
  - the full 48-term TEOS equation of state
@@ -97,7 +98,7 @@ Veros is still in early development. There are several open issues that we would
  - There is currently no ice sheet model in Veros. Some realistic setups employ a simple ice mask that cut off atmospheric forcing for water that gets too cold instead.
 
 **Technical issues**:
- - Python 3.x is not yet fully supported due to some issues with Bohrium.
+- For the time being, Veros' dynamical core is still more or less a direct port of PyOM2. This means that numerics and physics are still tightly coupled, which makes for a far from optimal user experience. In a future version of Veros, we would like to introduce additional abstraction to make the core routines a lot more readable than they are now.
 
 References
 ++++++++++
@@ -110,6 +111,6 @@ References
 
 .. [Griffies1998] Griffies, Stephen M. "The Gent–McWilliams skew flux." Journal of Physical Oceanography 28.5 (1998): 831-841.
 
-.. [Vallis2006] Vallis, Geoffrey K. Atmospheric and oceanic fluid dynamics: fundamentals and large-scale circulation. Cambridge University Press, 2006.
+.. [Vallis2006] Vallis, Geoffrey K. "Atmospheric and oceanic fluid dynamics: fundamentals and large-scale circulation." Cambridge University Press, 2006.
 
 .. [Gaspar1990] Gaspar, Philippe, Yves Grégoris, and Jean‐Michel Lefevre. "A simple eddy kinetic energy model for simulations of the oceanic vertical mixing: Tests at station Papa and Long‐Term Upper Ocean Study site." Journal of Geophysical Research: Oceans 95.C9 (1990): 16179-16193.

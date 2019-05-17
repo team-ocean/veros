@@ -56,7 +56,7 @@ On bare metal (Ubuntu / Debian)
 
 1. Install some dependencies: ::
 
-      $ sudo apt-get install git python3-dev python3-pip libhdf5-dev libnetcdf-dev
+      $ sudo apt-get install git python3-dev python3-pip libhdf5-dev
 
 2. Clone our repository: ::
 
@@ -152,14 +152,15 @@ Using Bohrium
 
   While Bohrium yields significant speed-ups for large to very large setups, the overhead introduced by Bohrium often leads to (sometimes considerably) slower execution for problems below a certain threshold size (see also :ref:`when-to-use-bohrium`). You are thus advised to test carefully whether Bohrium is beneficial in your particular use case.
 
-For large simulations, it is often beneficial to use the Bohrium backend for computations. When using Bohrium, all number crunching will make full use of your available architecture, i.e., computations are executed in parallel on all of your CPU cores, or even GPU when using :envvar:`BH_STACK=opencl` or :envvar:`BH_STACK=cuda` (experimental). You may switch between NumPy and Bohrium with a simple command line switch: ::
+For large simulations, it is often beneficial to use the Bohrium backend for computations. When using Bohrium, all number crunching will make full use of your available architecture, i.e., computations are executed in parallel on all of your CPU cores, or even GPU when using :envvar:`BH_STACK=opencl` or :envvar:`BH_STACK=cuda`. You may switch between NumPy and Bohrium with a simple command line switch: ::
 
    $ python my_setup.py -b bohrium
 
-or, when running inside another Python module: ::
+or, when running inside another Python module: (must be done before initializing you setup)::
 
-   simulation = MyVerosSetup(backend="bohrium")
+   from veros import runtime_settings as rs
 
+   rs.backend = "bohrium"
 
 Re-starting from a previous run
 +++++++++++++++++++++++++++++++
@@ -228,6 +229,7 @@ If your changes to Veros turn out to have a negative effect on the runtime of th
           u_np = vs.u.copy2numpy()
       else:
           u_np = vs.u
+
       vs.u[...] = np.asarray(external_function(u_np))
 
 - If you are still having trouble, don't hesitate to ask for help (e.g. `on GitHub <https://github.com/dionhaefner/veros/issues>`_).
