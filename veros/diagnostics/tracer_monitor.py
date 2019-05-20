@@ -51,8 +51,8 @@ class TracerMonitor(VerosDiagnostic):
         self.saltm1 = saltm
         self.vsalt1 = vsalt
 
-    def read_restart(self, vs):
-        attributes, variables = self.read_h5_restart(vs, {})
+    def read_restart(self, vs, infile):
+        attributes, variables = self.read_h5_restart(vs, {}, infile)
         for attr in self.restart_attributes:
             setattr(self, attr, attributes[attr])
 

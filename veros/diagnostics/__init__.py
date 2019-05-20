@@ -23,18 +23,22 @@ def read_restart(vs):
     if not vs.restart_input_filename:
         return
     if vs.force_overwrite:
-        raise RuntimeError('to prevent data loss, force_overwrite cannot be used in restart runs')
+        raise RuntimeError('To prevent data loss, force_overwrite cannot be used in restart runs')
     logger.info('Reading restarts')
     for diagnostic in vs.diagnostics.values():
-        diagnostic.read_restart(vs)
+        diagnostic.read_restart(vs, vs.restart_input_filename.format(**vars(vs)))
 
 
 @veros_method
 def write_restart(vs, force=False):
     if vs.diskless_mode:
         return
+    if not vs.restart_output_filename:
+        return
     if force or vs.restart_frequency and vs.time % vs.restart_frequency < vs.dt_tracer:
-        with h5tools.threaded_io(vs, vs.restart_output_filename.format(**vars(vs)), 'w') as outfile:
+        output_filename = vs.restart_output_filename.format(**vars(vs))
+        logger.info('Writing restart file {}...', output_filename)
+        with h5tools.threaded_io(vs, output_filename, 'w') as outfile:
             for diagnostic in vs.diagnostics.values():
                 diagnostic.write_restart(vs, outfile)
 

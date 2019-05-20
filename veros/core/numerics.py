@@ -163,7 +163,7 @@ def calc_initial_conditions(vs):
     """
     calculate dyn. enthalp, etc
     """
-    if np.sum(vs.salt < 0.0):
+    if np.any(vs.salt < 0.0):
         raise RuntimeError('encountered negative salinity')
 
     utilities.enforce_boundaries(vs, vs.temp)

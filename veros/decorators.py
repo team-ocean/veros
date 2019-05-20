@@ -13,7 +13,7 @@ except AttributeError:  # python 2
 
 CONTEXT = threading.local()
 CONTEXT.is_dist_safe = True
-CONTEXT.wrapped_methods = []
+CONTEXT.stack_level = 0
 
 
 def veros_method(function=None, **kwargs):
@@ -64,8 +64,6 @@ def _is_method(function):
 
 def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
                   dist_only=False, narg=0):
-    CONTEXT.wrapped_methods.append(function)
-
     @functools.wraps(function)
     def veros_method_wrapper(*args, **kwargs):
         from . import runtime_settings as rs, runtime_state as rst
@@ -75,7 +73,13 @@ def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
         from .distributed import broadcast
 
         if not inline:
-            logger.trace('Entering {}:{}', inspect.getmodule(function).__name__, function.__name__)
+            logger.trace(
+                '{}> {}:{}',
+                '-' * CONTEXT.stack_level,
+                inspect.getmodule(function).__name__,
+                function.__name__
+            )
+            CONTEXT.stack_level += 1
 
         veros_state = args[narg]
 
@@ -129,6 +133,7 @@ def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
                 g['np'] = oldvalue
 
             if not inline:
+                CONTEXT.stack_level -= 1
                 flush()
 
         return res

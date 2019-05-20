@@ -179,8 +179,10 @@ class VerosSetup(metaclass=abc.ABCMeta):
             logger.info('Setting up everything')
 
             self.set_parameter(vs)
+
             for setting, value in self.override_settings.items():
                 setattr(vs, setting, value)
+
             settings.check_setting_conflicts(vs)
             distributed.validate_decomposition(vs)
             vs.allocate_variables()
@@ -298,7 +300,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                             diagnostics.diagnose(vs)
                             diagnostics.output(vs)
 
-                        # NOTE: benchmarks parse this, don't change / remove
+                        # NOTE: benchmarks parse this, do not change / remove
                         logger.debug(' Time step took {:.2f}s', vs.timers['main'].get_last_time())
 
                         # permutate time indices
@@ -309,12 +311,10 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 raise
 
             else:
-                logger.success('Integration done')
+                logger.success('Integration done\n')
 
             finally:
-                logger.info('\nWriting restart file {}...', vs.restart_output_filename.format(**vars(vs)))
                 diagnostics.write_restart(vs, force=True)
-                logger.success('Done')
 
                 logger.debug('\n'.join([
                     '',

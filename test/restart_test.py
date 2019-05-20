@@ -103,8 +103,8 @@ class ACC2(VerosSetup):
         # wind stress forcing
         taux = np.zeros(vs.ny + 1, dtype=vs.default_float_type)
         yt = vs.yt[2:vs.ny + 3]
-        taux = (.1 * np.sin(np.pi * (vs.yu[2:vs.ny + 3] - yu_start) / (-20.0 - yt_start))) * (yt < -20) \
-            + (.1 * (1 - np.cos(2 * np.pi * (vs.yu[2:vs.ny + 3] - 10.0) / (yu_end - 10.0)))) * (yt > 10)
+        taux[...] = (.1 * np.sin(np.pi * (vs.yu[2:vs.ny + 3] - yu_start) / (-20.0 - yt_start))) * (yt < -20) \
+                    + (.1 * (1 - np.cos(2 * np.pi * (vs.yu[2:vs.ny + 3] - 10.0) / (yu_end - 10.0)))) * (yt > 10)
         vs.surface_taux[:, 2:vs.ny + 3] = taux * vs.maskU[:, 2:vs.ny + 3, -1]
 
         # surface heatflux forcing
@@ -114,8 +114,10 @@ class ACC2(VerosSetup):
         vs.t_rest = vs.dzt[np.newaxis, -1] / (30. * 86400.) * vs.maskT[:, :, -1]
 
         if vs.enable_tke:
-            vs.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]))**2
-                                                        + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]))**2)**(1.5)
+            vs.forc_tke_surface[2:-2, 2:-2] = (
+                1 / vs.rho_0 * np.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]))**2
+                                       + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]))**2)
+            )**(1.5)
 
         if vs.enable_idemix:
             vs.forc_iw_bottom[:] = 1.0e-6 * vs.maskW[:, :, -1]
@@ -138,27 +140,28 @@ class RestartTest:
 
     def __init__(self, backend):
         rs.backend = backend
+        rs.linear_solver = 'scipy'
 
         self.restart_file = tempfile.NamedTemporaryFile(suffix='.h5', delete=False).name
 
         self.acc_no_restart = ACC2()
-        self.acc_no_restart.diskless_mode = True
+        self.acc_no_restart.state.restart_output_filename = self.restart_file
+
         self.acc_restart = ACC2()
-        self.acc_restart.state.restart_output_filename = self.restart_file
+        self.acc_restart.state.restart_input_filename = self.restart_file
+        self.acc_restart.state.restart_output_filename = None
 
     def run(self):
         self.acc_no_restart.setup()
-        self.acc_no_restart.state.runlen = self.acc_no_restart.state.dt_tracer * self.timesteps
+        self.acc_no_restart.state.runlen = self.acc_no_restart.state.dt_tracer * (self.timesteps - 5)
         self.acc_no_restart.run()
 
         self.acc_restart.setup()
-        self.acc_restart.state.runlen = (self.timesteps - 5) * self.acc_no_restart.state.dt_tracer
+        self.acc_restart.state.runlen = self.acc_no_restart.state.dt_tracer * self.timesteps - self.acc_no_restart.state.time
         self.acc_restart.run()
 
-        self.acc_restart.state.restart_input_filename = self.restart_file
-        self.acc_restart.setup()
-        self.acc_restart.state.runlen = self.acc_no_restart.state.time - self.acc_restart.state.time
-        self.acc_restart.run()
+        self.acc_no_restart.state.runlen = self.acc_no_restart.state.dt_tracer * self.timesteps - self.acc_no_restart.state.time
+        self.acc_no_restart.run()
 
         os.remove(self.restart_file)
         return self.test_passed()
@@ -166,7 +169,7 @@ class RestartTest:
     def test_passed(self):
         passed = True
 
-        for attr in ('time', 'itt'):
+        for attr in ('itt', 'time', 'tau', 'taum1', 'taup1'):
             a1, a2 = (getattr(obj, attr) for obj in (self.acc_no_restart.state, self.acc_restart.state))
             assert a1 == a2
 
@@ -174,9 +177,10 @@ class RestartTest:
             s_1, s_2 = (getattr(obj, setting) for obj in (self.acc_no_restart.state, self.acc_restart.state))
             if s_1 != s_2:
                 print(setting, s_1, s_2)
-        for var in sorted(self.acc_no_restart.state.variables.keys()):
-            if 'salt' in var:  # salt is not used by this setup, contains only noise
-                continue
+
+        for var in sorted(self.acc_no_restart.state.variables.keys()) + ['t_star', 't_rest']:
+            # if 'salt' in var:  # salt is not used by this setup, contains only noise
+            #     continue
             arr_1, arr_2 = (getattr(obj, var) for obj in (self.acc_no_restart.state, self.acc_restart.state))
             try:
                 arr_1 = arr_1.copy2numpy()
@@ -186,7 +190,9 @@ class RestartTest:
                 arr_2 = arr_2.copy2numpy()
             except AttributeError:
                 pass
-            np.testing.assert_allclose(*self._normalize(arr_1, arr_2), atol=1e-7)
+
+            np.testing.assert_allclose(*self._normalize(arr_1, arr_2), atol=1e-12, rtol=0)
+
         return passed
 
     def _normalize(self, *arrays):
@@ -199,4 +205,4 @@ class RestartTest:
 
 
 def test_restart(backend):
-    RestartTest(backend=backend).run()
+    assert RestartTest(backend=backend).run()

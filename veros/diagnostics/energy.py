@@ -170,17 +170,6 @@ class Energy(VerosDiagnostic):
                       + vs.v[2:-2, 2:-2, :, vs.tau] * vs.dv_mix[2:-2, 2:-2, :] * vol_v)
         )
 
-        corm = global_sum(vs,
-            np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du_cor[2:-2, 2:-2, :] * vol_u
-                      + vs.v[2:-2, 2:-2, :, vs.tau] * vs.dv_cor[2:-2, 2:-2, :] * vol_v)
-        )
-        k_e_adv = global_sum(vs,
-            np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du_adv[2:-2, 2:-2, :]
-                         * vol_u * vs.maskU[2:-2, 2:-2, :]
-                         + vs.v[2:-2, 2:-2, :, vs.tau] * vs.dv_adv[2:-2, 2:-2, :]
-                         * vol_v * vs.maskV[2:-2, 2:-2, :])
-        )
-
         # K*Nsqr and KE and dyn. enthalpy dissipation
         vol_w = vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzw[np.newaxis, np.newaxis, :] \
             * vs.maskW[2:-2, 2:-2, :]
@@ -244,10 +233,11 @@ class Energy(VerosDiagnostic):
 
         # small-scale energy
         if vs.enable_tke:
+            dt_tke = vs.dt_mom
             tke_m = mean_w(vs.tke[..., vs.tau])
             dtke_m = mean_w((vs.tke[..., vs.taup1]
                              - vs.tke[..., vs.tau])
-                            / vs.dt_tke)
+                            / dt_tke)
             tke_diss = mean_w(vs.tke_diss)
             tke_forc = global_sum(vs,
                 np.sum(vs.area_t[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
@@ -340,8 +330,8 @@ class Energy(VerosDiagnostic):
         self.nitts = 0
 
     @veros_method
-    def read_restart(self, vs):
-        attributes, variables = self.read_h5_restart(vs, self.variables)
+    def read_restart(self, vs, infile):
+        attributes, variables = self.read_h5_restart(vs, self.variables, infile)
         if attributes:
             for key, val in attributes.items():
                 setattr(self, key, val)

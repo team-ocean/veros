@@ -1,4 +1,4 @@
-from .. import veros_method, runtime_settings as rs
+from .. import veros_method
 from ..variables import allocate
 from . import friction, isoneutral, streamfunction
 
@@ -160,6 +160,7 @@ def momentum_advection(vs):
     """
     for zonal momentum
     """
+    vs.flux_top[...] = 0.
     vs.flux_east[1:-2, 2:-2] = 0.25 * (vs.u[1:-2, 2:-2, :, vs.tau] \
                                      + vs.u[2:-1, 2:-2, :, vs.tau]) \
                                     * (utr[2:-1, 2:-2] + utr[1:-2, 2:-2])
@@ -169,7 +170,6 @@ def momentum_advection(vs):
     vs.flux_top[2:-2, 2:-2, :-1] = 0.25 * (vs.u[2:-2, 2:-2, 1:, vs.tau] \
                                          + vs.u[2:-2, 2:-2, :-1, vs.tau]) \
                                         * (wtr[2:-2, 2:-2, :-1] + wtr[3:-1, 2:-2, :-1])
-    vs.flux_top[:, :, -1] = 0.0
     vs.du_adv[2:-2, 2:-2] = -vs.maskU[2:-2, 2:-2] * (vs.flux_east[2:-2, 2:-2] - vs.flux_east[1:-3, 2:-2]
                                                    + vs.flux_north[2:-2, 2:-2] - vs.flux_north[2:-2, 1:-3]) \
                             / (vs.dzt[np.newaxis, np.newaxis, :] * vs.area_u[2:-2, 2:-2, np.newaxis])
@@ -181,13 +181,13 @@ def momentum_advection(vs):
     """
     for meridional momentum
     """
+    vs.flux_top[...] = 0.
     vs.flux_east[1:-2, 2:-2] = 0.25 * (vs.v[1:-2, 2:-2, :, vs.tau]
                                      + vs.v[2:-1, 2:-2, :, vs.tau]) * (utr[1:-2, 3:-1] + utr[1:-2, 2:-2])
     vs.flux_north[2:-2, 1:-2] = 0.25 * (vs.v[2:-2, 1:-2, :, vs.tau]
                                       + vs.v[2:-2, 2:-1, :, vs.tau]) * (vtr[2:-2, 2:-1] + vtr[2:-2, 1:-2])
     vs.flux_top[2:-2, 2:-2, :-1] = 0.25 * (vs.v[2:-2, 2:-2, 1:, vs.tau]
                                          + vs.v[2:-2, 2:-2, :-1, vs.tau]) * (wtr[2:-2, 2:-2, :-1] + wtr[2:-2, 3:-1, :-1])
-    vs.flux_top[:, :, -1] = 0.0
     vs.dv_adv[2:-2, 2:-2] = -vs.maskV[2:-2, 2:-2] * (vs.flux_east[2:-2, 2:-2] - vs.flux_east[1:-3, 2:-2]
                                                    + vs.flux_north[2:-2, 2:-2] - vs.flux_north[2:-2, 1:-3]) \
                             / (vs.dzt * vs.area_v[2:-2, 2:-2, np.newaxis])

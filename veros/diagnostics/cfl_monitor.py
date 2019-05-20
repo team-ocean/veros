@@ -58,7 +58,7 @@ class CFLMonitor(VerosDiagnostic):
             logger.warning(' Maximal hor. CFL number on w grid = {}'.format(float(cfl)))
             logger.warning(' Maximal ver. CFL number on w grid = {}'.format(float(wcfl)))
 
-    def read_restart(self, vs):
+    def read_restart(self, vs, infile):
         pass
 
     def write_restart(self, vs, outfile):

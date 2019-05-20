@@ -79,20 +79,7 @@ class VerosDiagnostic:
                                        outfile, time_step=time_step)
 
     @veros_method
-    def get_restart_input_file_name(self, vs):
-        """ Returns the file name for input restart file.
-        """
-        return vs.restart_input_filename.format(**vars(vs))
-
-    @veros_method
-    def get_restart_output_file_name(self, vs):
-        """ Returns the file name for output restart file.
-        """
-        return vs.restart_output_filename.format(**vars(vs))
-
-    @veros_method
-    def read_h5_restart(self, vs, var_meta):
-        restart_filename = self.get_restart_input_file_name(vs)
+    def read_h5_restart(self, vs, var_meta, restart_filename):
         if not os.path.isfile(restart_filename):
             raise IOError('restart file {} not found'.format(restart_filename))
 

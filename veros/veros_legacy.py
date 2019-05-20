@@ -241,7 +241,7 @@ class VerosLegacy(veros.VerosSetup):
             m.tau = m.taup1
             m.taup1 = otaum1
 
-            # NOTE: benchmarks parse this, don't change / remove
+            # NOTE: benchmarks parse this, do not change / remove
             logger.debug('Time step took {}s', vs.timers['main'].get_last_time())
 
         logger.debug('Timing summary:')

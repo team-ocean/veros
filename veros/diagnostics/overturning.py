@@ -245,8 +245,8 @@ class Overturning(VerosDiagnostic):
             getattr(self, var)[...] = 0.
 
     @veros_method
-    def read_restart(self, vs):
-        attributes, variables = self.read_h5_restart(vs, self.variables)
+    def read_restart(self, vs, infile):
+        attributes, variables = self.read_h5_restart(vs, self.variables, infile)
         if attributes:
             self.nitts = attributes['nitts']
         if variables:

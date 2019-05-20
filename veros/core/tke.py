@@ -1,6 +1,6 @@
 import math
 
-from .. import veros_method, runtime_settings as rs
+from .. import veros_method
 from ..variables import allocate
 from . import advection, utilities
 
@@ -75,7 +75,7 @@ def integrate_tke(vs):
     """
     integrate Tke equation on W grid with surface flux boundary condition
     """
-    vs.dt_tke = vs.dt_mom  # use momentum time step to prevent spurious oscillations
+    dt_tke = vs.dt_mom  # use momentum time step to prevent spurious oscillations
 
     """
     Sources and sinks by vertical friction, vertical mixing, and non-conservative advection
@@ -127,24 +127,24 @@ def integrate_tke(vs):
     d_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
     delta = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
 
-    delta[:, :, :-1] = vs.dt_tke / vs.dzt[np.newaxis, np.newaxis, 1:] * vs.alpha_tke * 0.5 \
+    delta[:, :, :-1] = dt_tke / vs.dzt[np.newaxis, np.newaxis, 1:] * vs.alpha_tke * 0.5 \
         * (vs.kappaM[2:-2, 2:-2, :-1] + vs.kappaM[2:-2, 2:-2, 1:])
 
     a_tri[:, :, 1:-1] = -delta[:, :, :-2] / vs.dzw[np.newaxis, np.newaxis, 1:-1]
     a_tri[:, :, -1] = -delta[:, :, -2] / (0.5 * vs.dzw[-1])
 
     b_tri[:, :, 1:-1] = 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / vs.dzw[np.newaxis, np.newaxis, 1:-1] \
-        + vs.dt_tke * vs.c_eps \
+        + dt_tke * vs.c_eps \
         * vs.sqrttke[2:-2, 2:-2, 1:-1] / vs.mxl[2:-2, 2:-2, 1:-1]
     b_tri[:, :, -1] = 1 + delta[:, :, -2] / (0.5 * vs.dzw[-1]) \
-        + vs.dt_tke * vs.c_eps / vs.mxl[2:-2, 2:-2, -1] * vs.sqrttke[2:-2, 2:-2, -1]
+        + dt_tke * vs.c_eps / vs.mxl[2:-2, 2:-2, -1] * vs.sqrttke[2:-2, 2:-2, -1]
     b_tri_edge = 1 + delta / vs.dzw[np.newaxis, np.newaxis, :] \
-        + vs.dt_tke * vs.c_eps / vs.mxl[2:-2, 2:-2, :] * vs.sqrttke[2:-2, 2:-2, :]
+        + dt_tke * vs.c_eps / vs.mxl[2:-2, 2:-2, :] * vs.sqrttke[2:-2, 2:-2, :]
 
     c_tri[:, :, :-1] = -delta[:, :, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1]
 
-    d_tri[...] = vs.tke[2:-2, 2:-2, :, vs.tau] + vs.dt_tke * forc[2:-2, 2:-2, :]
-    d_tri[:, :, -1] += vs.dt_tke * vs.forc_tke_surface[2:-2, 2:-2] / (0.5 * vs.dzw[-1])
+    d_tri[...] = vs.tke[2:-2, 2:-2, :, vs.tau] + dt_tke * forc[2:-2, 2:-2, :]
+    d_tri[:, :, -1] += dt_tke * vs.forc_tke_surface[2:-2, 2:-2] / (0.5 * vs.dzw[-1])
 
     sol, water_mask = utilities.solve_implicit(vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
     vs.tke[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, water_mask, sol, vs.tke[2:-2, 2:-2, :, vs.taup1])
@@ -161,7 +161,7 @@ def integrate_tke(vs):
     vs.tke_surf_corr[...] = 0.
     vs.tke_surf_corr[2:-2, 2:-2] = utilities.where(vs, mask,
                                             -vs.tke[2:-2, 2:-2, -1, vs.taup1] * 0.5
-                                               * vs.dzw[-1] / vs.dt_tke,
+                                               * vs.dzw[-1] / dt_tke,
                                             0.)
     vs.tke[2:-2, 2:-2, -1, vs.taup1] = np.maximum(0., vs.tke[2:-2, 2:-2, -1, vs.taup1])
 
@@ -178,7 +178,7 @@ def integrate_tke(vs):
         vs.flux_north[:, :-1, :] = vs.K_h_tke * (vs.tke[:, 1:, :, vs.tau] - vs.tke[:, :-1, :, vs.tau]) \
             / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] * vs.cosu[np.newaxis, :-1, np.newaxis]
         vs.flux_north[:, -1, :] = 0.
-        vs.tke[2:-2, 2:-2, :, vs.taup1] += vs.dt_tke * vs.maskW[2:-2, 2:-2, :] * \
+        vs.tke[2:-2, 2:-2, :, vs.taup1] += dt_tke * vs.maskW[2:-2, 2:-2, :] * \
             ((vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :])
              / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
              + (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])

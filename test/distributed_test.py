@@ -163,7 +163,7 @@ def test_acc(backend):
     from veros.setup.acc import ACCSetup
 
     rs.backend = '{backend}'
-    rs.linear_solver = 'scipy'
+    rs.linear_solver = 'petsc'
 
     sim = ACCSetup(override=dict(
         diskless_mode=True,

@@ -17,7 +17,7 @@ def pytest_collection_modifyitems(config, items):
         return
     skip = pytest.mark.skip(reason="need --pyom2-lib option to run")
     for item in items:
-        if "pyom" in item.keywords:
+        if "pyom2_lib" in item.fixturenames:
             item.add_marker(skip)
 
 

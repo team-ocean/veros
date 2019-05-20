@@ -11,7 +11,6 @@ SETTINGS = OrderedDict([
     ('nz', Setting(0, int, 'Grid points in vertical (z,k) direction')),
     ('dt_mom', Setting(0., float, 'Time step in seconds for momentum')),
     ('dt_tracer', Setting(0., float, 'Time step for tracers, can be larger than dt_mom')),
-    ('dt_tke', Setting(0., float, 'Time step for TKE module, currently set to dt_mom (unused)')),
     ('runlen', Setting(0., float, 'Length of simulation in seconds')),
     ('AB_eps', Setting(0.1, float, 'Deviation from Adam-Bashforth weighting')),
 
