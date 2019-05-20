@@ -12,7 +12,6 @@ dependencies:
     - h5py
     - pillow
     - ruamel.yaml
-    - future
     - pyamg
     - loguru
     - tqdm

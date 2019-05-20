@@ -1,7 +1,6 @@
 Pygments>=2.0
 sphinx
 sphinx_rtd_theme
-future
 mock
 pillow
 sphinxcontrib-programoutput
