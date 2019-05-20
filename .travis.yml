@@ -18,15 +18,13 @@ install:
 
 env:
   global:
-    - PYOM_DIR=/usr/local/lib
+    - PYTHON_EXEC=python3
+    - PYOM2_LIB=/usr/local/lib/pyOM_code_py3.so
     - OMP_NUM_THREADS=1
   matrix:
-    - VEROS_BACKEND=numpy PYTHON_EXEC=python2 PYOM2_LIB=$PYOM_DIR/pyOM_code_py2.so
-    - VEROS_BACKEND=bohrium BH_STACK=openmp PYTHON_EXEC=python2 PYOM2_LIB=$PYOM_DIR/pyOM_code_py2.so
-    - VEROS_BACKEND=bohrium BH_STACK=opencl PYTHON_EXEC=python2 PYOM2_LIB=$PYOM_DIR/pyOM_code_py2.so
-    - VEROS_BACKEND=numpy PYTHON_EXEC=python3 PYOM2_LIB=$PYOM_DIR/pyOM_code_py3.so
-    - VEROS_BACKEND=bohrium BH_STACK=openmp PYTHON_EXEC=python3 PYOM2_LIB=$PYOM_DIR/pyOM_code_py3.so
-    - VEROS_BACKEND=bohrium BH_STACK=opencl PYTHON_EXEC=python3 PYOM2_LIB=$PYOM_DIR/pyOM_code_py3.so
+    - VEROS_BACKEND=numpy PYTHON_EXEC=$PYTHON_EXEC PYOM2_LIB=$PYOM2_LIB
+    - VEROS_BACKEND=bohrium BH_STACK=openmp PYTHON_EXEC=$PYTHON_EXEC PYOM2_LIB=$PYOM2_LIB
+    - VEROS_BACKEND=bohrium BH_STACK=opencl PYTHON_EXEC=$PYTHON_EXEC PYOM2_LIB=$PYOM2_LIB
 
 script:
   - docker run -e BH_STACK -t veros $PYTHON_EXEC -m bohrium_api --info

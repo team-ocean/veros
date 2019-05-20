@@ -6,8 +6,6 @@ MAINTAINER Dion Häfner <mail@dionhaefner.de>
 RUN apt-get update && apt-get install -y \
       'python-pip' \
       'python3-pip' \
-      'python-mpi4py' \
-      'python3-mpi4py' \
       'python-virtualenv' \
       'python3-virtualenv' \
       'locales' \
@@ -35,9 +33,8 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip install numpy -U && \
     mv /usr/local/bin/f2py /usr/local/bin/f2py2.7 && \
-    python -c "import numpy; print(numpy.__version__)"
-
-RUN pip3 install numpy -U && \
+    python -c "import numpy; print(numpy.__version__)" && \
+    pip3 install numpy -U && \
     mv /usr/local/bin/f2py /usr/local/bin/f2py3.6 && \
     python3 -c "import numpy; print(numpy.__version__)"
 
@@ -46,6 +43,12 @@ RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
+
+# Install mpi4py
+RUN pip install mpi4py --no-binary mpi4py -U && \
+    python -c "from mpi4py import MPI" && \
+    pip3 install mpi4py --no-binary mpi4py -U && \
+    python3 -c "from mpi4py import MPI"
 
 # Build PETSc
 ENV PETSC_ARCH=arch-linux2-c-opt
@@ -63,6 +66,9 @@ RUN ./configure \
     make install
 
 ENV PETSC_DIR="/usr/local"
+
+RUN pip install "petsc4py>=3.11.0,<3.12.0" -U && \
+    pip3 install "petsc4py>=3.11.0,<3.12.0" -U
 
 # Install OpenCL
 RUN apt-get update && apt-get install -y \
