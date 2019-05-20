@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from veros import VerosSetup, veros_method, runtime_settings as rs
+from veros import VerosSetup, veros_method
 from veros.tools import cli
 from veros.variables import allocate
 from veros.distributed import global_min, global_max

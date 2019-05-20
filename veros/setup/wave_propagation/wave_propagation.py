@@ -233,15 +233,15 @@ class WavePropagationSetup(VerosSetup):
         taux_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                       self._get_data(vs, 'tau_x'), time_grid,
                                       missing_value=0.)
-        vs._taux[2:-2, 2:-2, :] = taux_data
+        vs.taux[2:-2, 2:-2, :] = taux_data
         mask = np.logical_and(vs.yt > self.so_wind_interval[0], vs.yt < self.so_wind_interval[1])[..., np.newaxis]
-        vs._taux *= 1. + mask * (self.so_wind_factor - 1.) * np.sin(np.pi * (vs.yt[np.newaxis, :, np.newaxis] - self.so_wind_interval[0]) \
+        vs.taux *= 1. + mask * (self.so_wind_factor - 1.) * np.sin(np.pi * (vs.yt[np.newaxis, :, np.newaxis] - self.so_wind_interval[0]) \
                                                                             / (self.so_wind_interval[1] - self.so_wind_interval[0]))
 
         tauy_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                       self._get_data(vs, 'tau_y'), time_grid,
                                       missing_value=0.)
-        vs._tauy[2:-2, 2:-2, :] = tauy_data
+        vs.tauy[2:-2, 2:-2, :] = tauy_data
 
         enforce_boundaries(vs, vs.taux)
         enforce_boundaries(vs, vs.tauy)

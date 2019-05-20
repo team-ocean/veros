@@ -1,5 +1,3 @@
-import pytest
-
 import numpy as np
 
 from test_base import VerosPyOMSystemTest, VerosLegacyDummy
@@ -17,7 +15,7 @@ class ACC2(VerosLegacyDummy):
     """
     @veros_method
     def set_parameter(self, vs):
-        vs.identifier = "acc2_test"
+        vs.identifier = 'acc2_test'
         vs.diskless_mode = True
         vs.pyom_compatibility_mode = True
 
@@ -92,6 +90,9 @@ class ACC2(VerosLegacyDummy):
         i.enable_eke_diss_surfbot = 1
         i.eke_diss_surfbot_frac = 0.2
         i.enable_idemix_superbee_advection = 1
+        i.tau_v = 86400.
+        i.jstar = 10.
+        i.mu0 = 4. / 3.
 
         m.eq_of_state_type = 3
 
@@ -175,15 +176,14 @@ class ACC2Test(VerosPyOMSystemTest):
         differing_arrays = self.check_array_objects()
 
         if differing_scalars or differing_arrays:
-            print("The following attributes do not match between old and new veros:")
+            print('The following attributes do not match between old and new veros:')
             for s, (v1, v2) in differing_scalars.items():
-                print("{}, {}, {}".format(s, v1, v2))
+                print('{}, {}, {}'.format(s, v1, v2))
             for a, (v1, v2) in differing_arrays.items():
-                if "salt" in a or a in ("B1_gm", "B2_gm"): # salt and isoneutral streamfunctions aren't used by this example
+                if 'salt' in a or a in ('B1_gm', 'B2_gm'): # salt and isoneutral streamfunctions aren't used by this example
                     continue
                 self.check_variable(a, atol=1e-6, data=(v1, v2))
 
 
-@pytest.mark.pyom
 def test_acc2(pyom2_lib, backend):
     ACC2Test(fortran=pyom2_lib, backend=backend).run()

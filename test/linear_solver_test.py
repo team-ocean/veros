@@ -11,6 +11,9 @@ class SolverTestState(VerosState):
         self.nx = 400
         self.ny = 200
         self.nz = 1
+        self.nisle = 0
+
+        self.default_float_type = 'float64'
 
         self.congr_epsilon = 1e-12
         self.congr_max_iterations = 10000

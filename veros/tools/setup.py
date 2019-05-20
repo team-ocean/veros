@@ -341,17 +341,18 @@ def get_vinokur_grid_steps(n_cells, total_length, lower_stepsize, upper_stepsize
         raise ValueError('refine_towards must be "upper" or "lower"')
     if two_sided_grid:
         if n_cells % 2:
-            raise ValueError('number of grid points must be even integer number (given: {})'.format(n_cells))
-        n_cells = n_cells / 2
+            raise ValueError('number of grid points must be an even integer (given: {})'.format(n_cells))
+        n_cells = n_cells // 2
+
     n_cells += 1
 
     def approximate_sinc_inverse(y):
         """Approximate inverse of sin(y) / y"""
         if y < 0.26938972:
-            inv =  np.pi * (1 - y + y**2 - (1 + np.pi**2 / 6) * y**3 + 6.794732 * y**4 - 13.205501 * y**5 + 11.726095 * y**6)
+            inv = np.pi * (1 - y + y**2 - (1 + np.pi**2 / 6) * y**3 + 6.794732 * y**4 - 13.205501 * y**5 + 11.726095 * y**6)
         else:
             ybar = 1. - y
-            inv =  np.sqrt(6 * ybar) * (1 + .15 * ybar + 0.057321429 * ybar**2 + 0.048774238 * ybar**3 - 0.053337753 * ybar**4 + 0.075845134 * ybar**5)
+            inv = np.sqrt(6 * ybar) * (1 + .15 * ybar + 0.057321429 * ybar**2 + 0.048774238 * ybar**3 - 0.053337753 * ybar**4 + 0.075845134 * ybar**5)
         assert abs(1 - np.sin(inv) / inv / y) < 1e-2, 'precision error'
         return inv
 

@@ -16,7 +16,7 @@ class ACC2(VerosSetup):
     """
     @veros_method
     def set_parameter(self, vs):
-        vs.identifier = "acc2_restart_test"
+        vs.identifier = 'acc2_restart_test'
 
         vs.nx, vs.ny, vs.nz = 30, 42, 15
         vs.dt_mom = 4800
@@ -139,7 +139,7 @@ class RestartTest:
     def __init__(self, backend):
         rs.backend = backend
 
-        self.restart_file = tempfile.NamedTemporaryFile(suffix=".h5", delete=False).name
+        self.restart_file = tempfile.NamedTemporaryFile(suffix='.h5', delete=False).name
 
         self.acc_no_restart = ACC2()
         self.acc_no_restart.diskless_mode = True
@@ -165,12 +165,17 @@ class RestartTest:
 
     def test_passed(self):
         passed = True
+
+        for attr in ('time', 'itt'):
+            a1, a2 = (getattr(obj, attr) for obj in (self.acc_no_restart.state, self.acc_restart.state))
+            assert a1 == a2
+
         for setting in settings.SETTINGS:
             s_1, s_2 = (getattr(obj, setting) for obj in (self.acc_no_restart.state, self.acc_restart.state))
             if s_1 != s_2:
                 print(setting, s_1, s_2)
         for var in sorted(self.acc_no_restart.state.variables.keys()):
-            if "salt" in var:  # salt is not used by this setup, contains only noise
+            if 'salt' in var:  # salt is not used by this setup, contains only noise
                 continue
             arr_1, arr_2 = (getattr(obj, var) for obj in (self.acc_no_restart.state, self.acc_restart.state))
             try:

@@ -1,8 +1,15 @@
-import imp
+import importlib.util
 
 from loguru import logger
 
 from . import veros, settings, runtime_settings
+
+
+def _load_fortran_module(module, path):
+    spec = importlib.util.spec_from_file_location(module, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 class LowercaseAttributeWrapper:
@@ -43,10 +50,10 @@ class VerosLegacy(veros.VerosSetup):
         if fortran:
             self.legacy_mode = True
             try:
-                self.fortran = LowercaseAttributeWrapper(imp.load_dynamic('pyOM_code', fortran))
+                self.fortran = LowercaseAttributeWrapper(_load_fortran_module('pyOM_code', fortran))
                 self.use_mpi = False
             except ImportError:
-                self.fortran = LowercaseAttributeWrapper(imp.load_dynamic('pyOM_code_MPI', fortran))
+                self.fortran = LowercaseAttributeWrapper(_load_fortran_module('pyOM_code_MPI', fortran))
                 self.use_mpi = True
                 from mpi4py import MPI
                 self.mpi_comm = MPI.COMM_WORLD
@@ -234,6 +241,7 @@ class VerosLegacy(veros.VerosSetup):
             m.tau = m.taup1
             m.taup1 = otaum1
 
+            # NOTE: benchmarks parse this, don't change / remove
             logger.debug('Time step took {}s', vs.timers['main'].get_last_time())
 
         logger.debug('Timing summary:')

@@ -8,10 +8,10 @@ np.random.seed(17)
 
 here = os.path.dirname(os.path.realpath(__file__))
 
-with open(os.path.join(here, "array_attributes"), "r") as f:
+with open(os.path.join(here, 'array_attributes'), 'r') as f:
     ARRAY_ATTRIBUTES = [line for line in map(lambda l: l.strip(), f) if line]
 
-with open(os.path.join(here, "scalar_attributes"), "r") as f:
+with open(os.path.join(here, 'scalar_attributes'), 'r') as f:
     SCALAR_ATTRIBUTES = [line for line in map(lambda l: l.strip(), f) if line]
 
 
@@ -51,14 +51,14 @@ class VerosLegacyDummy(VerosLegacy):
                 setattr(module_handle, attribute, v)
                 break
         else:
-            raise AttributeError("Legacy pyOM has no attribute {}".format(attribute))
+            raise AttributeError('Legacy pyOM has no attribute {}'.format(attribute))
 
     def get_fortran_attribute(self, attribute):
         for module_handle in self.modules:
             if hasattr(module_handle, attribute):
                 return getattr(module_handle, attribute)
         else:
-            raise AttributeError("Legacy pyOM has no attribute {}".format(attribute))
+            raise AttributeError('Legacy pyOM has no attribute {}'.format(attribute))
 
     def call_fortran_routine(self, routine, *args, **kwargs):
         routine_handle = getattr(self.fortran, routine)
@@ -66,8 +66,8 @@ class VerosLegacyDummy(VerosLegacy):
 
 
 class VerosPyOMUnitTest:
-    legacy_modules = ("main_module", "isoneutral_module", "tke_module",
-                      "eke_module", "idemix_module")
+    legacy_modules = ('main_module', 'isoneutral_module', 'tke_module',
+                      'eke_module', 'idemix_module')
     array_attributes = ARRAY_ATTRIBUTES
     scalar_attributes = SCALAR_ATTRIBUTES
     extra_settings = None
@@ -84,9 +84,9 @@ class VerosPyOMUnitTest:
         if dims:
             self.nx, self.ny, self.nz = dims
 
-        self.set_attribute("nx", self.nx)
-        self.set_attribute("ny", self.ny)
-        self.set_attribute("nz", self.nz)
+        self.set_attribute('nx', self.nx)
+        self.set_attribute('ny', self.ny)
+        self.set_attribute('nz', self.nz)
 
         if self.extra_settings:
             for attribute, value in self.extra_settings.items():
@@ -95,14 +95,14 @@ class VerosPyOMUnitTest:
         self.veros_new.set_legacy_parameter()
         self.veros_new.state.allocate_variables()
 
-        self.veros_legacy.call_fortran_routine("my_mpi_init", 0)
-        self.veros_legacy.call_fortran_routine("pe_decomposition")
+        self.veros_legacy.call_fortran_routine('my_mpi_init', 0)
+        self.veros_legacy.call_fortran_routine('pe_decomposition')
         self.veros_legacy.set_legacy_parameter()
-        self.veros_legacy.call_fortran_routine("allocate_main_module")
-        self.veros_legacy.call_fortran_routine("allocate_isoneutral_module")
-        self.veros_legacy.call_fortran_routine("allocate_tke_module")
-        self.veros_legacy.call_fortran_routine("allocate_eke_module")
-        self.veros_legacy.call_fortran_routine("allocate_idemix_module")
+        self.veros_legacy.call_fortran_routine('allocate_main_module')
+        self.veros_legacy.call_fortran_routine('allocate_isoneutral_module')
+        self.veros_legacy.call_fortran_routine('allocate_tke_module')
+        self.veros_legacy.call_fortran_routine('allocate_eke_module')
+        self.veros_legacy.call_fortran_routine('allocate_idemix_module')
 
     def set_attribute(self, attribute, value):
         if isinstance(value, np.ndarray):
@@ -150,7 +150,7 @@ class VerosPyOMUnitTest:
         return differing_objects
 
     def initialize(self):
-        raise NotImplementedError("Must be implemented by test subclass")
+        raise NotImplementedError('Must be implemented by test subclass')
 
     def _normalize(self, *arrays):
         if any(a.size == 0 for a in arrays):
@@ -178,14 +178,14 @@ class VerosPyOMUnitTest:
         differing_scalars = self.check_scalar_objects()
         differing_arrays = self.check_array_objects()
         if differing_scalars or differing_arrays:
-            print("The following attributes do not match between old and new veros after initialization:")
+            print('The following attributes do not match between old and new veros after initialization:')
             for s, (v1, v2) in differing_scalars.items():
-                print("{}, {}, {}".format(s, v1, v2))
+                print('{}, {}, {}'.format(s, v1, v2))
             for a, (v1, v2) in differing_arrays.items():
-                print("{}, {!r}, {!r}".format(a, np.max(v1), np.max(v2)))
+                print('{}, {!r}, {!r}'.format(a, np.max(v1), np.max(v2)))
 
-        veros_timers = {k: Timer("veros " + k) for k in self.test_routines}
-        veros_legacy_timers = {k: Timer("veros legacy " + k) for k in self.test_routines}
+        veros_timers = {k: Timer('veros ' + k) for k in self.test_routines}
+        veros_legacy_timers = {k: Timer('veros legacy ' + k) for k in self.test_routines}
 
         for routine in self.test_routines.keys():
             veros_args, veros_legacy_args = self.test_routines[routine]
@@ -208,9 +208,9 @@ class VerosPyOMSystemTest(VerosPyOMUnitTest):
         self.backend = backend
         self.fortran = fortran
 
-        for attr in ("Testclass", "timesteps"):
+        for attr in ('Testclass', 'timesteps'):
             if getattr(self, attr) is None:
-                raise AttributeError("attribute '{}' must be set".format(attr))
+                raise AttributeError('attribute "{}" must be set'.format(attr))
 
     def run(self):
         rs.backend = self.backend
@@ -229,7 +229,7 @@ class VerosPyOMSystemTest(VerosPyOMUnitTest):
             self.veros_new.state.runlen = self.timesteps * self.veros_new.state.dt_tracer
             self.veros_new.run()
 
-            self.veros_legacy.set_fortran_attribute("runlen", self.timesteps * self.veros_new.state.dt_tracer)
+            self.veros_legacy.set_fortran_attribute('runlen', self.timesteps * self.veros_new.state.dt_tracer)
             self.veros_legacy.run()
 
         return self.test_passed()

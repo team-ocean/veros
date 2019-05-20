@@ -1,22 +1,20 @@
 
 import pkg_resources
 
-import pytest
-
 import numpy as np
 import h5netcdf
 
 from test_base import VerosPyOMSystemTest, VerosLegacyDummy
 from veros import veros_method, tools
 
-DATA_FILES = tools.get_assets("global_4deg", pkg_resources.resource_filename("veros", "setup/global_4deg/assets.yml"))
+DATA_FILES = tools.get_assets('global_4deg', pkg_resources.resource_filename('veros', 'setup/global_4deg/assets.yml'))
 
 
 class GlobalFourDegreeSetup(VerosLegacyDummy):
     """ global 4 deg model with 15 levels
     """
     def set_parameter(self, vs):
-        vs.identifier = "4deg_test"
+        vs.identifier = '4deg_test'
         vs.diskless_mode = True
         vs.pyom_compatibility_mode = True
 
@@ -76,18 +74,20 @@ class GlobalFourDegreeSetup(VerosLegacyDummy):
         I.enable_eke_diss_surfbot = True
         I.eke_diss_surfbot_frac = 0.2 # fraction which goes into bottom
         I.enable_idemix_superbee_advection = True
+        I.tau_v = 86400.
+        I.jstar = 10.
 
         M.eq_of_state_type = 5
 
     @veros_method
     def _read_forcing(self, vs, var):
-        with h5netcdf.File(DATA_FILES["forcing"], "r") as infile:
+        with h5netcdf.File(DATA_FILES['forcing'], 'r') as infile:
             return np.array(infile.variables[var][...].T.astype(str(infile.variables[var].dtype)))
 
     @veros_method
     def set_grid(self, vs):
         create_args = {}
-        # if self.backend_name == "bohrium":
+        # if self.backend_name == 'bohrium':
         #     create_args = dict(bohrium=False)
 
         m = self.main_module
@@ -107,8 +107,8 @@ class GlobalFourDegreeSetup(VerosLegacyDummy):
     @veros_method
     def set_topography(self, vs):
         m = self.main_module
-        bathymetry_data = self._read_forcing(vs, "bathymetry")
-        salt_data = self._read_forcing(vs, "salinity")[:, :, ::-1]
+        bathymetry_data = self._read_forcing(vs, 'bathymetry')
+        salt_data = self._read_forcing(vs, 'salinity')[:, :, ::-1]
         mask_salt = salt_data == 0.
         m.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
         mask_bathy = bathymetry_data == 0
@@ -120,31 +120,31 @@ class GlobalFourDegreeSetup(VerosLegacyDummy):
         m = self.main_module
 
         create_args = {}
-        # if self.backend_name == "bohrium":
+        # if self.backend_name == 'bohrium':
         #     create_args = dict(bohrium=False)
 
         self.taux, self.tauy, self.qnec, self.qnet, self.sss_clim, self.sst_clim = (
             np.zeros((m.nx + 4, m.ny + 4, 12), **create_args) for _ in range(6))
 
         # initial conditions for T and S
-        temp_data = self._read_forcing(vs, "temperature")[:, :, ::-1]
+        temp_data = self._read_forcing(vs, 'temperature')[:, :, ::-1]
         m.temp[2:-2, 2:-2, :, :] = (temp_data[:, :, :, np.newaxis]
                                     * m.maskT[2:-2, 2:-2, :, np.newaxis])
 
-        salt_data = self._read_forcing(vs, "salinity")[:, :, ::-1]
+        salt_data = self._read_forcing(vs, 'salinity')[:, :, ::-1]
         m.salt[2:-2, 2:-2, :, :] = (salt_data[..., np.newaxis]
                                     * m.maskT[2:-2, 2:-2, :, np.newaxis])
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
-        self.taux[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_x") / m.rho_0
-        self.tauy[2:-2, 2:-2, :] = self._read_forcing(vs, "tau_y") / m.rho_0
+        self.taux[2:-2, 2:-2, :] = self._read_forcing(vs, 'tau_x') / m.rho_0
+        self.tauy[2:-2, 2:-2, :] = self._read_forcing(vs, 'tau_y') / m.rho_0
 
         # heat flux
-        with h5netcdf.File(DATA_FILES["ecmwf"], "r") as ecmwf_data:
-            self.qnec[2:-2, 2:-2, :] = np.array(ecmwf_data.variables["Q3"], **create_args).transpose()
+        with h5netcdf.File(DATA_FILES['ecmwf'], 'r') as ecmwf_data:
+            self.qnec[2:-2, 2:-2, :] = np.array(ecmwf_data.variables['Q3'], **create_args).transpose()
             self.qnec[self.qnec <= -1e10] = 0.0
 
-        q = self._read_forcing(vs, "q_net")
+        q = self._read_forcing(vs, 'q_net')
         self.qnet[2:-2, 2:-2, :] = -q
         self.qnet[self.qnet <= -1e10] = 0.0
 
@@ -159,13 +159,13 @@ class GlobalFourDegreeSetup(VerosLegacyDummy):
         self.qnet[...] = (self.qnet - fxa) * maskT
 
         # SST and SSS
-        self.sst_clim[2:-2, 2:-2, :] = self._read_forcing(vs, "sst")
-        self.sss_clim[2:-2, 2:-2, :] = self._read_forcing(vs, "sss")
+        self.sst_clim[2:-2, 2:-2, :] = self._read_forcing(vs, 'sst')
+        self.sss_clim[2:-2, 2:-2, :] = self._read_forcing(vs, 'sss')
 
         idm = self.idemix_module
         if idm.enable_idemix:
-            idm.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing(vs, "tidal_energy") / m.rho_0
-            idm.forc_iw_surface[2:-2, 2:-2] = self._read_forcing(vs, "wind_energy") / m.rho_0 * 0.2
+            idm.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing(vs, 'tidal_energy') / m.rho_0
+            idm.forc_iw_surface[2:-2, 2:-2] = self._read_forcing(vs, 'wind_energy') / m.rho_0 * 0.2
 
     @veros_method
     def set_forcing(self, vs):
@@ -230,16 +230,15 @@ class FourDegreeTest(VerosPyOMSystemTest):
         differing_arrays = self.check_array_objects()
 
         if differing_scalars or differing_arrays:
-            print("The following attributes do not match between old and new veros:")
+            print('The following attributes do not match between old and new veros:')
             for s, (v1, v2) in differing_scalars.items():
-                print("{}, {}, {}".format(s, v1, v2))
+                print('{}, {}, {}'.format(s, v1, v2))
             for a, (v1, v2) in differing_arrays.items():
-                if a in ("B1_gm", "B2_gm", "Ai_ez", "Ai_nz", "Ai_bx", "Ai_by"):
+                if a in ('B1_gm', 'B2_gm', 'Ai_ez', 'Ai_nz', 'Ai_bx', 'Ai_by'):
                     # usually very small differences being amplified
                     continue
                 self.check_variable(a, atol=1e-4, data=(v1, v2))
 
 
-@pytest.mark.pyom
 def test_4deg(pyom2_lib, backend):
     FourDegreeTest(fortran=pyom2_lib, backend=backend).run()

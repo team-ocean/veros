@@ -3,12 +3,16 @@ import abc
 
 from loguru import logger
 
-from . import (settings, diagnostics, time, handlers, logs,
-               distributed, progress, runtime_settings as rs)
-from .state import VerosState
-from .timer import Timer
-from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
-                   isoneutral, streamfunction, advection, utilities)
+from veros import (
+    settings, diagnostics, time, handlers, logs, distributed, progress,
+    runtime_settings as rs, runtime_state as rst
+)
+from veros.state import VerosState
+from veros.timer import Timer
+from veros.core import (
+    momentum, numerics, thermodynamics, eke, tke, idemix,
+    isoneutral, streamfunction, advection, utilities
+)
 
 
 class VerosSetup(metaclass=abc.ABCMeta):
@@ -214,7 +218,6 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 By default, only show if stdout is a terminal and Veros is running on a single process.
 
         """
-        from . import runtime_settings as rs, runtime_state as rst
         vs = self.state
 
         logger.info('\nStarting integration for {0[0]:.1f} {0[1]}'.format(time.format_time(vs.runlen)))
@@ -295,6 +298,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                             diagnostics.diagnose(vs)
                             diagnostics.output(vs)
 
+                        # NOTE: benchmarks parse this, don't change / remove
                         logger.debug(' Time step took {:.2f}s', vs.timers['main'].get_last_time())
 
                         # permutate time indices

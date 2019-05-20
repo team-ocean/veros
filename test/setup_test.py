@@ -22,18 +22,6 @@ def test_setup_acc_sector(backend):
     sim.run()
 
 
-def test_setup_eady(backend):
-    from veros import runtime_settings as rs
-    from veros.setup.eady import EadySetup
-    rs.backend = backend
-
-    sim = EadySetup()
-    sim.state.diskless_mode = True
-    sim.setup()
-    sim.state.runlen = sim.state.dt_tracer * 20
-    sim.run()
-
-
 def test_setup_4deg(backend):
     from veros import runtime_settings as rs
     from veros.setup.global_4deg import GlobalFourDegreeSetup

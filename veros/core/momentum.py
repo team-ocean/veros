@@ -121,9 +121,9 @@ def momentum(vs):
 @veros_method
 def vertical_velocity(vs):
     """
-           vertical velocity from continuity :
-           \int_0^z w_z dz = w(z)-w(0) = - \int dz (u_x + v_y)
-           w(z) = -int dz u_x + v_y
+    vertical velocity from continuity :
+    \\int_0^z w_z dz = w(z)-w(0) = - \\int dz (u_x + v_y)
+    w(z) = -int dz u_x + v_y
     """
     fxa = allocate(vs, ('xt', 'yt', 'zw'))[1:, 1:]
     # integrate from bottom to surface to see error in w
