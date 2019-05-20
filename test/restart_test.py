@@ -133,7 +133,7 @@ class ACC2(VerosSetup):
         pass
 
 
-class RestartTest(object):
+class RestartTest:
     timesteps = 10
 
     def __init__(self, backend):

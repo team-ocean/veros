@@ -5,7 +5,7 @@ from loguru import logger
 from . import veros, settings, runtime_settings
 
 
-class LowercaseAttributeWrapper(object):
+class LowercaseAttributeWrapper:
     """
     A simple wrapper class that converts attributes to lower case (needed for Fortran interface)
     """

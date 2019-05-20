@@ -29,7 +29,7 @@ AVAILABLE_SETTINGS = (
 )
 
 
-class RuntimeSettings(object):
+class RuntimeSettings:
     def __init__(self):
         self.__locked__ = False
         self.__setting_types__ = {}
@@ -66,7 +66,7 @@ class RuntimeSettings(object):
         )
 
 
-class RuntimeState(object):
+class RuntimeState:
     """Unifies attributes from various modules in a simple read-only object"""
 
     __slots__ = []

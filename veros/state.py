@@ -3,7 +3,7 @@ import math
 from . import variables, settings
 
 
-class VerosState(object):
+class VerosState:
     """Holds all settings and model state for a given Veros run."""
     # Constants
     pi = math.pi

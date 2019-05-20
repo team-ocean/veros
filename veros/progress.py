@@ -14,7 +14,7 @@ else:
 from . import time, logs, runtime_settings as rs, runtime_state as rst
 
 
-class LoggingProgressBar(object):
+class LoggingProgressBar:
     """A simple progress report to logger.info
 
     Serves as a fallback where TQDM is not available or not feasible (writing to a file,
@@ -64,7 +64,7 @@ class LoggingProgressBar(object):
         )
 
 
-class FancyProgressBar(object):
+class FancyProgressBar:
     """A fancy progress bar based on TQDM that stays at the bottom of the terminal."""
 
     def __init__(self, total, start_time=0, start_iteration=0, time_unit='seconds'):

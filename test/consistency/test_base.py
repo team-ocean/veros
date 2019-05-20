@@ -65,7 +65,7 @@ class VerosLegacyDummy(VerosLegacy):
         return routine_handle(*args, **kwargs)
 
 
-class VerosPyOMUnitTest(object):
+class VerosPyOMUnitTest:
     legacy_modules = ("main_module", "isoneutral_module", "tke_module",
                       "eke_module", "idemix_module")
     array_attributes = ARRAY_ATTRIBUTES

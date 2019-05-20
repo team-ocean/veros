@@ -7,7 +7,7 @@ from ..decorators import veros_method, do_not_disturb
 from .. import time, runtime_state, distributed, runtime_settings
 
 
-class VerosDiagnostic(object):
+class VerosDiagnostic:
     """Base class for diagnostics. Provides an interface and wrappers for common I/O.
 
     Any diagnostic needs to implement the five interface methods and set some attributes.

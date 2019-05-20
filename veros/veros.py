@@ -1,7 +1,6 @@
 
 import abc
 
-from future.utils import with_metaclass
 from loguru import logger
 
 from . import (settings, diagnostics, time, handlers, logs,
@@ -12,7 +11,7 @@ from .core import (momentum, numerics, thermodynamics, eke, tke, idemix,
                    isoneutral, streamfunction, advection, utilities)
 
 
-class VerosSetup(with_metaclass(abc.ABCMeta)):
+class VerosSetup(metaclass=abc.ABCMeta):
     """Main class for Veros, used for building a model and running it.
 
     Note:
