@@ -1,8 +1,14 @@
+
+import os
 import sys
 import subprocess
 
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
+
+import pytest
+
+ON_GPU = os.environ.get('BH_STACK', '').lower() in ('opencl', 'cuda')
 
 
 def run_dist_kernel(code):
@@ -15,6 +21,7 @@ def run_dist_kernel(code):
         )
 
 
+@pytest.mark.skipif(ON_GPU, reason='Cannot run MPI and OpenCL')
 def test_gather(backend):
     test_kernel = dedent('''
     import os
@@ -76,6 +83,7 @@ def test_gather(backend):
     run_dist_kernel(test_kernel)
 
 
+@pytest.mark.skipif(ON_GPU, reason='Cannot run MPI and OpenCL')
 def test_scatter(backend):
     test_kernel = dedent('''
     import os
@@ -150,6 +158,7 @@ def test_scatter(backend):
     run_dist_kernel(test_kernel)
 
 
+@pytest.mark.skipif(ON_GPU, reason='Cannot run MPI and OpenCL')
 def test_acc(backend):
     test_kernel = dedent('''
     import os

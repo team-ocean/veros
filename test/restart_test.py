@@ -179,9 +179,8 @@ class RestartTest:
                 print(setting, s_1, s_2)
 
         for var in sorted(self.acc_no_restart.state.variables.keys()) + ['t_star', 't_rest']:
-            # if 'salt' in var:  # salt is not used by this setup, contains only noise
-            #     continue
             arr_1, arr_2 = (getattr(obj, var) for obj in (self.acc_no_restart.state, self.acc_restart.state))
+
             try:
                 arr_1 = arr_1.copy2numpy()
             except AttributeError:
@@ -191,7 +190,7 @@ class RestartTest:
             except AttributeError:
                 pass
 
-            np.testing.assert_allclose(*self._normalize(arr_1, arr_2), atol=1e-12, rtol=0)
+            np.testing.assert_allclose(*self._normalize(arr_1, arr_2), atol=1e-10, rtol=0)
 
         return passed
 

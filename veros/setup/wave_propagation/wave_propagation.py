@@ -114,7 +114,7 @@ class WavePropagationSetup(VerosSetup):
             tauy=Variable('tauy', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
             na_mask=Variable(
                 'Mask for North Atlantic', ('xt', 'yt'), '', 'Mask for North Atlantic',
-                dtype='int', time_dependent=False, output=True
+                dtype='bool', time_dependent=False, output=True
             )
         )
 
