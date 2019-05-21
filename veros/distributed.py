@@ -50,9 +50,10 @@ def validate_decomposition(vs):
         return
 
     comm_size = rs.mpi_comm.Get_size()
-    if rst.proc_num != comm_size:
+    proc_num = rs.num_proc[0] * rs.num_proc[1]
+    if proc_num != comm_size:
         raise RuntimeError('number of processes ({}) does not match size of communicator ({})'
-                           .format(rst.proc_num, comm_size))
+                           .format(proc_num, comm_size))
 
     if vs.nx % rs.num_proc[0]:
         raise ValueError('processes do not divide domain evenly in x-direction')
@@ -342,7 +343,7 @@ def global_sum(vs, arr):
 def _gather_1d(vs, arr, dim):
     assert dim in (0, 1)
 
-    otherdim = int(not dim)
+    otherdim = 1 - dim
     pi = proc_rank_to_index(rst.proc_rank)
     if pi[otherdim] != 0:
         return arr
