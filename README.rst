@@ -25,6 +25,17 @@ developed by Carsten Eden (Institut für Meereskunde, Hamburg
 University). Veros is currently being developed at Niels Bohr Institute,
 Copenhagen University.
 
+
+**How about a demonstration?**
+
+.. figure:: https://media.giphy.com/media/dwS6EeA4OTfsZZHVE9/giphy-downsized-large.gif
+   :alt: Veros high-resolution model spin-up
+   :align: center
+   :target: https://media.giphy.com/media/dwS6EeA4OTfsZZHVE9/giphy.mp4
+
+   (0.25×0.25° high-resolution model spin-up, click for better resolution)
+
+
 Features
 --------
 
