@@ -163,11 +163,11 @@ def test_acc(backend):
     from veros.setup.acc import ACCSetup
 
     rs.backend = '{backend}'
-    rs.linear_solver = 'petsc'
+    rs.linear_solver = 'scipy'
 
     sim = ACCSetup(override=dict(
         diskless_mode=True,
-        runlen=86400 * 100,
+        runlen=86400 * 10,
     ))
 
     if rst.proc_num == 1:
@@ -178,8 +178,12 @@ def test_acc(backend):
             maxprocs=4
         )
 
-        sim.setup()
-        sim.run()
+        try:
+            sim.setup()
+            sim.run()
+        except Exception as exc:
+            print(str(exc))
+            comm.Abort(1)
 
         other_psi = np.empty_like(sim.state.psi)
         comm.Recv(other_psi, 0)
