@@ -68,7 +68,7 @@ SETTINGS = OrderedDict([
     ('tau_v', Setting(2.0 * 86400.0, float, 'time scale for vertical symmetrisation')),
     ('tau_h', Setting(15.0 * 86400.0, float, 'time scale for horizontal symmetrisation')),
     ('gamma', Setting(1.57, float, '')),
-    ('jstar', Setting(5.0, float, 'spectral bandwidth in modes')),
+    ('jstar', Setting(10.0, float, 'spectral bandwidth in modes')),
     ('mu0', Setting(1. / 3., float, 'dissipation parameter')),
     ('enable_idemix_hor_diffusion', Setting(False, bool, '')),
     ('enable_eke_diss_bottom', Setting(False, bool, '')),
