@@ -20,7 +20,7 @@ class ACC2(VerosSetup):
 
         vs.nx, vs.ny, vs.nz = 30, 42, 15
         vs.dt_mom = 4800
-        vs.dt_tracer = 86400 / 2.
+        vs.dt_tracer = 86400 / 4.
         vs.runlen = 86400 * 365
 
         vs.coord_degree = True
@@ -190,7 +190,9 @@ class RestartTest:
             except AttributeError:
                 pass
 
+            print('Testing {}...'.format(var), end=' ')
             np.testing.assert_allclose(*self._normalize(arr_1, arr_2), atol=1e-10, rtol=0)
+            print('ok')
 
         return passed
 

@@ -71,7 +71,7 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.eke_lmin = 100.0
         vs.enable_eke_superbee_advection = True
 
-        vs.enable_idemix = True
+        vs.enable_idemix = False
         vs.enable_idemix_hor_diffusion = True
         vs.enable_eke_diss_surfbot = True
         vs.eke_diss_surfbot_frac = 0.2

@@ -72,7 +72,7 @@ class GlobalOneDegreeSetup(VerosSetup):
         vs.enable_eke_isopycnal_diffusion = True
 
         # idemix
-        vs.enable_idemix = True
+        vs.enable_idemix = False
         vs.enable_eke_diss_surfbot = True
         vs.eke_diss_surfbot_frac = 0.2
         vs.enable_idemix_superbee_advection = True

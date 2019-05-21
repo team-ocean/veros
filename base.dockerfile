@@ -72,19 +72,26 @@ RUN pip install "petsc4py>=3.11.0,<3.12.0" -U && \
 
 # Install OpenCL
 RUN apt-get update && apt-get install -y \
-    'ocl-icd-opencl-dev' \
-    'pocl-opencl-icd' \
+    'alien' \
+    'opencl-dev' \
     'opencl-headers' \
     'clinfo' && \
-  clinfo && \
   rm -rf /var/lib/apt/lists/*
 
-RUN pip install mako pybind11 && \
-    pip install pyopencl && \
-    python -c "import pyopencl" && \
-    pip3 install mako pybind11 && \
-    pip3 install pyopencl && \
-    python3 -c "import pyopencl"
+ARG INTEL_DRIVER=opencl_runtime_16.1.1_x64_ubuntu_6.4.0.25.tgz
+ARG INTEL_DRIVER_URL=http://registrationcenter-download.intel.com/akdlm/irc_nas/9019
+
+WORKDIR /tmp/opencl-driver-intel
+RUN echo INTEL_DRIVER is $INTEL_DRIVER && \
+    curl -O $INTEL_DRIVER_URL/$INTEL_DRIVER && \
+    tar -xzf $INTEL_DRIVER && \
+    for i in $(basename $INTEL_DRIVER .tgz)/rpm/*.rpm; do alien --to-deb $i; done && \
+    dpkg -i *.deb && \
+    rm -rf $INTEL_DRIVER $(basename $INTEL_DRIVER .tgz) *.deb && \
+    mkdir -p /etc/OpenCL/vendors && \
+    echo /opt/intel/*/lib64/libintelocl.so > /etc/OpenCL/vendors/intel.icd && \
+    rm -rf /tmp/opencl-driver-intel && \
+    clinfo
 
 # Build bohrium
 WORKDIR /tmp
@@ -107,7 +114,8 @@ RUN ln -s /usr/lib/python2.7/site-packages/bohrium /usr/lib/python2.7/dist-packa
 RUN ln -s /usr/lib/python3.6/site-packages/bohrium /usr/lib/python3/dist-packages/ && \
     ln -s /usr/lib/python3.6/site-packages/bohrium_api /usr/lib/python3/dist-packages/ && \
     python3.6 -m bohrium_api --info && \
-    BH_STACK=opencl python3.6 -m bohrium_api --info
+    BH_STACK=opencl python3.6 -m bohrium_api --info && \
+    BH_STACK=opencl python3.6 -c "import bohrium as bh; print(bh.random.rand(100, 100).sum())"
 
 # Build pyOM2 with Python 2 and Python 3 support
 RUN mkdir -p /tmp/pyOM2
