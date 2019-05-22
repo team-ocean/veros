@@ -51,7 +51,10 @@ def reference_solution(vs, rhs, sol, boundary_val=None):
 
 @pytest.mark.parametrize('cyclic', [True, False])
 @pytest.mark.parametrize('solver_class', [scipy.SciPySolver, petsc.PETScSolver, pyamg.PyAMGSolver])
-def test_solver(solver_class, cyclic):
+def test_solver(solver_class, cyclic, backend):
+    from veros import runtime_settings as rs
+    rs.backend = backend
+
     vs = SolverTestState(cyclic)
 
     rhs = np.ones((vs.nx + 4, vs.ny + 4))

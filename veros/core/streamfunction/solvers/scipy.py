@@ -27,12 +27,17 @@ class SciPySolver(LinearSolver):
 
         boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
         rhs = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
+        x0 = sol.flatten()
 
-        if rs.backend == 'bohrium':
+        try:
             rhs = rhs.copy2numpy()
-            x0 = sol.copy2numpy().flatten()
-        else:
-            x0 = sol.flatten()
+        except AttributeError:
+            pass
+
+        try:
+            x0 = x0.copy2numpy()
+        except AttributeError:
+            pass
 
         rhs = rhs.flatten() * self._preconditioner.diagonal()
         linear_solution, info = spalg.bicgstab(

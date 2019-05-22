@@ -161,6 +161,7 @@ class VerosPyOMUnitTest:
         return (a / norm for a in arrays)
 
     def check_variable(self, var, atol=1e-8, rtol=1e-6, data=None):
+        print('Checking {}...'.format(var), end=' ')
         if data is None:
             v1, v2 = self.get_attribute(var)
         else:
@@ -171,6 +172,7 @@ class VerosPyOMUnitTest:
         if v2.ndim > 1:
             v2 = v2[2:-2, 2:-2, ...]
         np.testing.assert_allclose(*self._normalize(v1, v2), atol=atol, rtol=rtol)
+        print('ok')
         return True
 
     def run(self):

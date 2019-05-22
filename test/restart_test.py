@@ -179,6 +179,9 @@ class RestartTest:
                 print(setting, s_1, s_2)
 
         for var in sorted(self.acc_no_restart.state.variables.keys()) + ['t_star', 't_rest']:
+            # salt is not used by this setup, contains only noise
+            if 'salt' in var:
+                continue
             arr_1, arr_2 = (getattr(obj, var) for obj in (self.acc_no_restart.state, self.acc_restart.state))
 
             try:

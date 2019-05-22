@@ -62,12 +62,18 @@ class PETScSolver(LinearSolver):
         if rst.proc_idx[1] == 0:
             rhs[2:-2, 2] -= rhs[2:-2, 1] * self._boundary_fac['south']
 
-        if rs.backend == 'bohrium':
-            self._da.getVecArray(self._rhs_petsc)[...] = np.interop_numpy.get_array(rhs[2:-2, 2:-2].copy())
-            self._da.getVecArray(self._sol_petsc)[...] = np.interop_numpy.get_array(x0[2:-2, 2:-2].copy())
-        else:
-            self._da.getVecArray(self._rhs_petsc)[...] = rhs[2:-2, 2:-2]
-            self._da.getVecArray(self._sol_petsc)[...] = x0[2:-2, 2:-2]
+        try:
+            rhs = rhs.copy2numpy()
+        except AttributeError:
+            pass
+
+        try:
+            x0 = x0.copy2numpy()
+        except AttributeError:
+            pass
+        
+        self._da.getVecArray(self._rhs_petsc)[...] = rhs[2:-2, 2:-2]
+        self._da.getVecArray(self._sol_petsc)[...] = x0[2:-2, 2:-2]
 
         self._ksp.solve(self._rhs_petsc, self._sol_petsc)
 
