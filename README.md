@@ -16,14 +16,6 @@
     <img src="https://zenodo.org/badge/87419383.svg" alt="DOI">
   </a>
 </p>
-[![Documentation
-Status](https://readthedocs.org/projects/veros/badge/?version=latest)](http://veros.readthedocs.io/?badge=latest)
-[![Build
-Status](https://travis-ci.org/dionhaefner/veros.svg?branch=master)](https://travis-ci.org/dionhaefner/veros)
-[![Code
-Coverage](https://codecov.io/gh/dionhaefner/veros/branch/master/graph/badge.svg)](https://codecov.io/gh/dionhaefner/veros)
-[![DOI](https://zenodo.org/badge/87419383.svg)](https://zenodo.org/badge/latestdoi/87419383)
-</p>
 
 Veros, the *versatile ocean simulator*, is just that: A powerful tool
 that makes high-performance ocean modeling approachable and fun. Since
