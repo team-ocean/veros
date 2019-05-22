@@ -13,7 +13,6 @@ Development Status :: 3 - Alpha
 Intended Audience :: Science/Research
 License :: OSI Approved :: MIT License
 Programming Language :: Python :: 3
-Programming Language :: Python :: 3.4
 Programming Language :: Python :: 3.5
 Programming Language :: Python :: 3.6
 Programming Language :: Python :: 3.7
@@ -56,7 +55,7 @@ CONSOLE_SCRIPTS = [
 PACKAGE_DATA = ['setup/*/assets.yml', 'setup/*/*.npy', 'setup/*/*.png']
 
 here = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
+with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
@@ -68,6 +67,7 @@ setup(
              'geophysics ocean-model bohrium mpi4py',
     description='The versatile ocean simulator, in pure Python, powered by Bohrium.',
     long_description=long_description,
+    long_description_content_type='text/markdown',
     url='https://veros.readthedocs.io',
     python_requires='>3.5.2',
     version=versioneer.get_version(),
