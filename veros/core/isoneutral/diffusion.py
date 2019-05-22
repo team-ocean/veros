@@ -1,25 +1,23 @@
 from ... import veros_method
-from .. import numerics, utilities, diffusion
+from .. import utilities, diffusion
+from ...variables import allocate
 
 
 @veros_method
 def _calc_tracer_fluxes(vs, tr, K_iso, K_skew):
-    tr_pad = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz + 2), dtype=vs.default_float_type)
-    tr_pad[:, :, 1:-1] = tr[..., vs.tau]
-    tr_pad[:, :, 0] = tr[:, :, 1, vs.tau]
-    tr_pad[:, :, -1] = tr[:, :, -2, vs.tau]
+    tr_pad = utilities.pad_z_edges(vs, tr[..., vs.tau])
 
     K1 = K_iso - K_skew
     K2 = K_iso + K_skew
 
     """
-    construct total isoneutral tracer flux at east face of "T" cells
+    construct total isoneutral tracer flux at east face of 'T' cells
     """
-    diffloc = np.zeros((vs.nx + 1, vs.ny, vs.nz), dtype=vs.default_float_type)
+    diffloc = allocate(vs, ('xt', 'yt', 'zt'))[1:-2, 2:-2]
     diffloc[:, :, 1:] = 0.25 * (K1[1:-2, 2:-2, 1:] + K1[1:-2, 2:-2, :-1] +
                                 K1[2:-1, 2:-2, 1:] + K1[2:-1, 2:-2, :-1])
     diffloc[:, :, 0] = 0.5 * (K1[1:-2, 2:-2, 0] + K1[2:-1, 2:-2, 0])
-    sumz = np.zeros((vs.nx + 1, vs.ny, vs.nz), dtype=vs.default_float_type)
+    sumz = allocate(vs, ('xt', 'yt', 'zt'))[1:-2, 2:-2]
     for kr in range(2):
         for ip in range(2):
             sumz += diffloc * vs.Ai_ez[1:-2, 2:-2, :, ip, kr] * (
@@ -28,13 +26,13 @@ def _calc_tracer_fluxes(vs, tr, K_iso, K_skew):
                                 / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxu[1:-2, np.newaxis, np.newaxis]) * vs.K_11[1:-2, 2:-2, :]
 
     """
-    construct total isoneutral tracer flux at north face of "T" cells
+    construct total isoneutral tracer flux at north face of 'T' cells
     """
-    diffloc = np.zeros((vs.nx, vs.ny + 1, vs.nz), dtype=vs.default_float_type)
+    diffloc = allocate(vs, ('xt', 'yt', 'zt'))[2:-2, 1:-2]
     diffloc[:, :, 1:] = 0.25 * (K1[2:-2, 1:-2, 1:] + K1[2:-2, 1:-2, :-1] +
                                 K1[2:-2, 2:-1, 1:] + K1[2:-2, 2:-1, :-1])
     diffloc[:, :, 0] = 0.5 * (K1[2:-2, 1:-2, 0] + K1[2:-2, 2:-1, 0])
-    sumz = np.zeros((vs.nx, vs.ny + 1, vs.nz), dtype=vs.default_float_type)
+    sumz = allocate(vs, ('xt', 'yt', 'zt'))[2:-2, 1:-2]
     for kr in range(2):
         for jp in range(2):
             sumz += diffloc * vs.Ai_nz[2:-2, 1:-2, :, jp, kr] * (
@@ -43,7 +41,7 @@ def _calc_tracer_fluxes(vs, tr, K_iso, K_skew):
                                 + (tr[2:-2, 2:-1, :, vs.tau] - tr[2:-2, 1:-2, :, vs.tau]) / vs.dyu[np.newaxis, 1:-2, np.newaxis] * vs.K_22[2:-2, 1:-2, :])
 
     """
-    compute the vertical tracer flux "vs.flux_top" containing the K31
+    compute the vertical tracer flux 'vs.flux_top' containing the K31
     and K32 components which are to be solved explicitly. The K33
     component will be treated implicitly. Note that there are some
     cancellations of dxu(i-1+ip) and dyu(jrow-1+jp)
@@ -66,7 +64,7 @@ def _calc_tracer_fluxes(vs, tr, K_iso, K_skew):
 
 @veros_method
 def _calc_explicit_part(vs):
-    aloc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+    aloc = allocate(vs, ('xt', 'yt', 'zt'))
     aloc[2:-2, 2:-2, :] = vs.maskT[2:-2, 2:-2, :] * ((vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :]) / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
                                                    + (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :]) / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis]))
     aloc[:, :, 0] += vs.maskT[:, :, 0] * vs.flux_top[:, :, 0] / vs.dzt[0]
@@ -80,10 +78,10 @@ def _calc_explicit_part(vs):
 def _calc_implicit_part(vs, tr):
     ks = vs.kbot[2:-2, 2:-2] - 1
 
-    a_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-    b_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-    c_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-    delta = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+    a_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    b_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    c_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    delta = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
 
     delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.K_33[2:-2, 2:-2, :-1]
     delta[:, :, -1] = 0.
@@ -110,11 +108,11 @@ def isoneutral_diffusion(vs, tr, istemp, iso=True, skew=False):
     if iso:
         K_iso = vs.K_iso
     else:
-        K_iso = np.zeros_like(vs.K_iso)
+        K_iso = 0
     if skew:
         K_skew = vs.K_gm
     else:
-        K_skew = np.zeros_like(vs.K_gm)
+        K_skew = 0
 
     _calc_tracer_fluxes(vs, tr, K_iso, K_skew)
 

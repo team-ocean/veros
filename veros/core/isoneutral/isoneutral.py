@@ -1,7 +1,8 @@
-import logging
+from loguru import logger
 
 from .. import density, utilities
-from ... import veros_method, veros_inline_method
+from ... import veros_method
+from ...variables import allocate
 
 
 @veros_method
@@ -11,70 +12,77 @@ def isoneutral_diffusion_pre(vs):
     following functional formulation by Griffies et al
     Code adopted from MOM2.1
     """
-    drdTS = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz, 2), dtype=vs.default_float_type)
-    ddzt = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz, 2), dtype=vs.default_float_type)
-    ddxt = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz, 2), dtype=vs.default_float_type)
-    ddyt = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz, 2), dtype=vs.default_float_type)
     epsln = 1e-20
+
+    dTdx = allocate(vs, ('xu', 'yt', 'zt'))
+    dSdx = allocate(vs, ('xu', 'yt', 'zt'))
+    dTdy = allocate(vs, ('xt', 'yu', 'zt'))
+    dSdy = allocate(vs, ('xt', 'yu', 'zt'))
+    dTdz = allocate(vs, ('xt', 'yt', 'zw'))
+    dSdz = allocate(vs, ('xt', 'yt', 'zw'))
 
     """
     drho_dt and drho_ds at centers of T cells
     """
-    drdTS[:, :, :, 0] = vs.maskT * density.get_drhodT(
+    drdT = vs.maskT * density.get_drhodT(
         vs, vs.salt[:, :, :, vs.tau], vs.temp[:, :, :, vs.tau], np.abs(vs.zt)
     )
-    drdTS[:, :, :, 1] = vs.maskT * density.get_drhodS(
+    drdS = vs.maskT * density.get_drhodS(
         vs, vs.salt[:, :, :, vs.tau], vs.temp[:, :, :, vs.tau], np.abs(vs.zt)
     )
 
     """
     gradients at top face of T cells
     """
-    ddzt[:, :, :-1, 0] = vs.maskW[:, :, :-1] * \
+    dTdz[:, :, :-1] = vs.maskW[:, :, :-1] * \
         (vs.temp[:, :, 1:, vs.tau] - vs.temp[:, :, :-1, vs.tau]) / \
         vs.dzw[np.newaxis, np.newaxis, :-1]
-    ddzt[:, :, :-1, 1] = vs.maskW[:, :, :-1] * \
+    dSdz[:, :, :-1] = vs.maskW[:, :, :-1] * \
         (vs.salt[:, :, 1:, vs.tau] - vs.salt[:, :, :-1, vs.tau]) / \
         vs.dzw[np.newaxis, np.newaxis, :-1]
-    ddzt[..., -1, :] = 0.
 
     """
     gradients at eastern face of T cells
     """
-    ddxt[:-1, :, :, 0] = vs.maskU[:-1, :, :] * (vs.temp[1:, :, :, vs.tau] - vs.temp[:-1, :, :, vs.tau]) \
+    dTdx[:-1, :, :] = vs.maskU[:-1, :, :] * (vs.temp[1:, :, :, vs.tau] - vs.temp[:-1, :, :, vs.tau]) \
         / (vs.dxu[:-1, np.newaxis, np.newaxis] * vs.cost[np.newaxis, :, np.newaxis])
-    ddxt[:-1, :, :, 1] = vs.maskU[:-1, :, :] * (vs.salt[1:, :, :, vs.tau] - vs.salt[:-1, :, :, vs.tau]) \
+    dSdx[:-1, :, :] = vs.maskU[:-1, :, :] * (vs.salt[1:, :, :, vs.tau] - vs.salt[:-1, :, :, vs.tau]) \
         / (vs.dxu[:-1, np.newaxis, np.newaxis] * vs.cost[np.newaxis, :, np.newaxis])
 
     """
     gradients at northern face of T cells
     """
-    ddyt[:, :-1, :, 0] = vs.maskV[:, :-1, :] * \
+    dTdy[:, :-1, :] = vs.maskV[:, :-1, :] * \
         (vs.temp[:, 1:, :, vs.tau] - vs.temp[:, :-1, :, vs.tau]) \
         / vs.dyu[np.newaxis, :-1, np.newaxis]
-    ddyt[:, :-1, :, 1] = vs.maskV[:, :-1, :] * \
+    dSdy[:, :-1, :] = vs.maskV[:, :-1, :] * \
         (vs.salt[:, 1:, :, vs.tau] - vs.salt[:, :-1, :, vs.tau]) \
         / vs.dyu[np.newaxis, :-1, np.newaxis]
+
+    def dm_taper(sx):
+        """
+        tapering function for isopycnal slopes
+        """
+        return 0.5 * (1. + np.tanh((-np.abs(sx) + vs.iso_slopec) / vs.iso_dslope))
 
     """
     Compute Ai_ez and K11 on center of east face of T cell.
     """
-    diffloc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+    diffloc = allocate(vs, ('xt', 'yt', 'zt'))
     diffloc[1:-2, 2:-2, 1:] = 0.25 * (vs.K_iso[1:-2, 2:-2, 1:] + vs.K_iso[1:-2, 2:-2, :-1]
                                       + vs.K_iso[2:-1, 2:-2, 1:] + vs.K_iso[2:-1, 2:-2, :-1])
     diffloc[1:-2, 2:-2, 0] = 0.5 * (vs.K_iso[1:-2, 2:-2, 0] + vs.K_iso[2:-1, 2:-2, 0])
 
-    sumz = np.zeros((vs.nx + 1, vs.ny, vs.nz), dtype=vs.default_float_type)
+    sumz = allocate(vs, ('xu', 'yt', 'zw'))[1:-2, 2:-2]
     for kr in range(2):
         ki = 0 if kr == 1 else 1
         for ip in range(2):
-            drodxe = drdTS[1 + ip:-2 + ip, 2:-2, ki:, 0] * ddxt[1:-2, 2:-2, ki:, 0] \
-                + drdTS[1 + ip:-2 + ip, 2:-2, ki:, 1] * ddxt[1:-2, 2:-2, ki:, 1]
-            drodze = drdTS[1 + ip:-2 + ip, 2:-2, ki:, 0] * ddzt[1 + ip:-2 + ip, 2:-2, :-1 + kr or None, 0] \
-                + drdTS[1 + ip:-2 + ip, 2:-2, ki:, 1] * \
-                ddzt[1 + ip:-2 + ip, 2:-2, :-1 + kr or None, 1]
+            drodxe = drdT[1 + ip:-2 + ip, 2:-2, ki:] * dTdx[1:-2, 2:-2, ki:] \
+                + drdS[1 + ip:-2 + ip, 2:-2, ki:] * dSdx[1:-2, 2:-2, ki:]
+            drodze = drdT[1 + ip:-2 + ip, 2:-2, ki:] * dTdz[1 + ip:-2 + ip, 2:-2, :-1 + kr or None] \
+                + drdS[1 + ip:-2 + ip, 2:-2, ki:] * dSdz[1 + ip:-2 + ip, 2:-2, :-1 + kr or None]
             sxe = -drodxe / (np.minimum(0., drodze) - epsln)
-            taper = dm_taper(vs, sxe, vs.iso_slopec, vs.iso_dslope)
+            taper = dm_taper(sxe)
             sumz[:, :, ki:] += vs.dzw[np.newaxis, np.newaxis, :-1 + kr or None] * vs.maskU[1:-2, 2:-2, ki:] \
                 * np.maximum(vs.K_iso_steep, diffloc[1:-2, 2:-2, ki:] * taper)
             vs.Ai_ez[1:-2, 2:-2, ki:, ip, kr] = taper * sxe * vs.maskU[1:-2, 2:-2, ki:]
@@ -83,22 +91,21 @@ def isoneutral_diffusion_pre(vs):
     """
     Compute Ai_nz and K_22 on center of north face of T cell.
     """
-    diffloc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+    diffloc[...] = 0
     diffloc[2:-2, 1:-2, 1:] = 0.25 * (vs.K_iso[2:-2, 1:-2, 1:] + vs.K_iso[2:-2, 1:-2, :-1]
                                       + vs.K_iso[2:-2, 2:-1, 1:] + vs.K_iso[2:-2, 2:-1, :-1])
     diffloc[2:-2, 1:-2, 0] = 0.5 * (vs.K_iso[2:-2, 1:-2, 0] + vs.K_iso[2:-2, 2:-1, 0])
 
-    sumz = np.zeros((vs.nx, vs.ny + 1, vs.nz), dtype=vs.default_float_type)
+    sumz = allocate(vs, ('xt', 'yu', 'zw'))[2:-2, 1:-2]
     for kr in range(2):
         ki = 0 if kr == 1 else 1
         for jp in range(2):
-            drodyn = drdTS[2:-2, 1 + jp:-2 + jp, ki:, 0] * ddyt[2:-2, 1:-2, ki:, 0] + \
-                drdTS[2:-2, 1 + jp:-2 + jp, ki:, 1] * ddyt[2:-2, 1:-2, ki:, 1]
-            drodzn = drdTS[2:-2, 1 + jp:-2 + jp, ki:, 0] * ddzt[2:-2, 1 + jp:-2 + jp, :-1 + kr or None, 0] \
-                + drdTS[2:-2, 1 + jp:-2 + jp, ki:, 1] * \
-                ddzt[2:-2, 1 + jp:-2 + jp, :-1 + kr or None, 1]
+            drodyn = drdT[2:-2, 1 + jp:-2 + jp, ki:] * dTdy[2:-2, 1:-2, ki:] + \
+                drdS[2:-2, 1 + jp:-2 + jp, ki:] * dSdy[2:-2, 1:-2, ki:]
+            drodzn = drdT[2:-2, 1 + jp:-2 + jp, ki:] * dTdz[2:-2, 1 + jp:-2 + jp, :-1 + kr or None] \
+                + drdS[2:-2, 1 + jp:-2 + jp, ki:] * dSdz[2:-2, 1 + jp:-2 + jp, :-1 + kr or None]
             syn = -drodyn / (np.minimum(0., drodzn) - epsln)
-            taper = dm_taper(vs, syn, vs.iso_slopec, vs.iso_dslope)
+            taper = dm_taper(syn)
             sumz[:, :, ki:] += vs.dzw[np.newaxis, np.newaxis, :-1 + kr or None] \
                 * vs.maskV[2:-2, 1:-2, ki:] * np.maximum(vs.K_iso_steep, diffloc[2:-2, 1:-2, ki:] * taper)
             vs.Ai_nz[2:-2, 1:-2, ki:, jp, kr] = taper * syn * vs.maskV[2:-2, 1:-2, ki:]
@@ -107,39 +114,36 @@ def isoneutral_diffusion_pre(vs):
     """
     compute Ai_bx, Ai_by and K33 on top face of T cell.
     """
-    # eastward slopes at the top of T cells
-    sumx = np.zeros((vs.nx, vs.ny, vs.nz - 1), dtype=vs.default_float_type)
-    for ip in range(2):
-        for kr in range(2):
-            drodxb = drdTS[2:-2, 2:-2, kr:-1 + kr or None, 0] * ddxt[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None, 0] \
-                + drdTS[2:-2, 2:-2, kr:-1 + kr or None, 1] * \
-                ddxt[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None, 1]
-            drodzb = drdTS[2:-2, 2:-2, kr:-1 + kr or None, 0] * ddzt[2:-2, 2:-2, :-1, 0] \
-                + drdTS[2:-2, 2:-2, kr:-1 + kr or None, 1] * ddzt[2:-2, 2:-2, :-1, 1]
+    sumx = allocate(vs, ('xt', 'yt', 'zt'))[2:-2, 2:-2, :-1]
+    sumy = allocate(vs, ('xt', 'yt', 'zt'))[2:-2, 2:-2, :-1]
+
+    for kr in range(2):
+        drodzb = drdT[2:-2, 2:-2, kr:-1 + kr or None] * dTdz[2:-2, 2:-2, :-1] \
+            + drdS[2:-2, 2:-2, kr:-1 + kr or None] * dSdz[2:-2, 2:-2, :-1]
+
+        # eastward slopes at the top of T cells
+        for ip in range(2):
+            drodxb = drdT[2:-2, 2:-2, kr:-1 + kr or None] * dTdx[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None] \
+                + drdS[2:-2, 2:-2, kr:-1 + kr or None] * dSdx[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None]
             sxb = -drodxb / (np.minimum(0., drodzb) - epsln)
-            taper = dm_taper(vs, sxb, vs.iso_slopec, vs.iso_dslope)
+            taper = dm_taper(sxb)
             sumx += vs.dxu[1 + ip:-3 + ip, np.newaxis, np.newaxis] * \
                 vs.K_iso[2:-2, 2:-2, :-1] * taper * sxb**2 * vs.maskW[2:-2, 2:-2, :-1]
             vs.Ai_bx[2:-2, 2:-2, :-1, ip, kr] = taper * sxb * vs.maskW[2:-2, 2:-2, :-1]
 
-    # northward slopes at the top of T cells
-    sumy = np.zeros((vs.nx, vs.ny, vs.nz - 1), dtype=vs.default_float_type)
-    for jp in range(2):
-        facty = vs.cosu[1 + jp:-3 + jp] * vs.dyu[1 + jp:-3 + jp]
-        for kr in range(2):
-            drodyb = drdTS[2:-2, 2:-2, kr:-1 + kr or None, 0] * ddyt[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None, 0] \
-                + drdTS[2:-2, 2:-2, kr:-1 + kr or None, 1] * \
-                ddyt[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None, 1]
-            drodzb = drdTS[2:-2, 2:-2, kr:-1 + kr or None, 0] * ddzt[2:-2, 2:-2, :-1, 0] \
-                + drdTS[2:-2, 2:-2, kr:-1 + kr or None, 1] * ddzt[2:-2, 2:-2, :-1, 1]
+        # northward slopes at the top of T cells
+        for jp in range(2):
+            facty = vs.cosu[1 + jp:-3 + jp] * vs.dyu[1 + jp:-3 + jp]
+            drodyb = drdT[2:-2, 2:-2, kr:-1 + kr or None] * dTdy[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None] \
+                + drdS[2:-2, 2:-2, kr:-1 + kr or None] * dSdy[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None]
             syb = -drodyb / (np.minimum(0., drodzb) - epsln)
-            taper = dm_taper(vs, syb, vs.iso_slopec, vs.iso_dslope)
+            taper = dm_taper(syb)
             sumy += facty[np.newaxis, :, np.newaxis] * vs.K_iso[2:-2, 2:-2, :-1] \
                 * taper * syb**2 * vs.maskW[2:-2, 2:-2, :-1]
             vs.Ai_by[2:-2, 2:-2, :-1, jp, kr] = taper * syb * vs.maskW[2:-2, 2:-2, :-1]
 
-    vs.K_33[2:-2, 2:-2, :-1] = sumx / (4 * vs.dxt[2:-2, np.newaxis, np.newaxis]) + sumy \
-        / (4 * vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.cost[np.newaxis, 2:-2, np.newaxis])
+    vs.K_33[2:-2, 2:-2, :-1] = sumx / (4 * vs.dxt[2:-2, np.newaxis, np.newaxis]) + \
+        sumy / (4 * vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.cost[np.newaxis, 2:-2, np.newaxis])
     vs.K_33[2:-2, 2:-2, -1] = 0.
 
 
@@ -151,7 +155,7 @@ def isoneutral_diag_streamfunction(vs):
     """
 
     """
-    meridional component at east face of "T" cells
+    meridional component at east face of 'T' cells
     """
     K_gm_pad = utilities.pad_z_edges(vs, vs.K_gm)
 
@@ -161,7 +165,7 @@ def isoneutral_diag_streamfunction(vs):
     vs.B2_gm[1:-2, 2:-2, :] = 0.25 * sumz
 
     """
-    zonal component at north face of "T" cells
+    zonal component at north face of 'T' cells
     """
     diffloc = 0.25 * (K_gm_pad[2:-2, 1:-2, 1:-1] + K_gm_pad[2:-2, 1:-2, :-2] +
                       K_gm_pad[2:-2, 2:-1, 1:-1] + K_gm_pad[2:-2, 2:-1, :-2])
@@ -169,15 +173,9 @@ def isoneutral_diag_streamfunction(vs):
     vs.B1_gm[2:-2, 1:-2, :] = -0.25 * sumz
 
 
-@veros_inline_method
-def dm_taper(vs, sx, iso_slopec, iso_dslope):
-    """
-    tapering function for isopycnal slopes
-    """
-    return 0.5 * (1. + np.tanh((-np.abs(sx) + iso_slopec) / iso_dslope))
-
-
-@veros_method
+@veros_method(dist_safe=False, local_variables=[
+    'dxt', 'dyt', 'dzt', 'cost'
+])
 def check_isoneutral_slope_crit(vs):
     """
     check linear stability criterion from Griffies et al
@@ -189,15 +187,15 @@ def check_isoneutral_slope_crit(vs):
                 * vs.dzt[np.newaxis, np.newaxis, :] * ft1)
         delta1b = np.min(vs.dyt[np.newaxis, 2:-2, np.newaxis] *
                          vs.dzt[np.newaxis, np.newaxis, :] * ft1)
-        delta_iso1 = np.minimum(
-                        vs.dzt[0] * ft1 * vs.dxt[-1] * np.abs(vs.cost[-1]),
-                        np.minimum(delta1a, delta1b)
-                    )
+        delta_iso1 = min(
+            vs.dzt[0] * ft1 * vs.dxt[-1] * abs(vs.cost[-1]),
+            min(delta1a, delta1b)
+        )
 
-        logging.info("diffusion grid factor delta_iso1 = {}".format(delta_iso1))
+        logger.info('Diffusion grid factor delta_iso1 = {}', float(delta_iso1))
         if delta_iso1 < vs.iso_slopec:
-            raise RuntimeError("Without latitudinal filtering, delta_iso1 is the steepest "
-                               "isoneutral slope available for linear stability of "
-                               "Redi and GM. Maximum allowable isoneutral slope is "
-                               "specified as iso_slopec = {}."
+            raise RuntimeError('Without latitudinal filtering, delta_iso1 is the steepest '
+                               'isoneutral slope available for linear stability of '
+                               'Redi and GM. Maximum allowable isoneutral slope is '
+                               'specified as iso_slopec = {}.'
                                .format(vs.iso_slopec))

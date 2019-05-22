@@ -1,5 +1,6 @@
 from .. import veros_method
-from . import friction, isoneutral, external
+from ..variables import allocate
+from . import friction, isoneutral, streamfunction
 
 
 @veros_method
@@ -69,7 +70,7 @@ def momentum(vs):
     vs.du[:, :, :, vs.tau] += vs.du_adv
     vs.dv[:, :, :, vs.tau] += vs.dv_adv
 
-    with vs.timers["friction"]:
+    with vs.timers['friction']:
         """
         vertical friction
         """
@@ -113,31 +114,31 @@ def momentum(vs):
     """
     external mode
     """
-    with vs.timers["pressure"]:
-        external.solve_streamfunction(vs)
+    with vs.timers['pressure']:
+        streamfunction.solve_streamfunction(vs)
 
 
 @veros_method
 def vertical_velocity(vs):
     """
-           vertical velocity from continuity :
-           \int_0^z w_z dz = w(z)-w(0) = - \int dz (u_x + v_y)
-           w(z) = -int dz u_x + v_y
+    vertical velocity from continuity :
+    \\int_0^z w_z dz = w(z)-w(0) = - \\int dz (u_x + v_y)
+    w(z) = -int dz u_x + v_y
     """
-    fxa = np.zeros((vs.nx + 3, vs.ny + 3, vs.nz), dtype=vs.default_float_type)
+    fxa = allocate(vs, ('xt', 'yt', 'zw'))[1:, 1:]
     # integrate from bottom to surface to see error in w
     fxa[:, :, 0] = -vs.maskW[1:, 1:, 0] * vs.dzt[0] * \
         ((vs.u[1:, 1:, 0, vs.taup1] - vs.u[:-1, 1:, 0, vs.taup1])
-         / (vs.cost[np.newaxis, 1:] * vs.dxt[1:, np.newaxis])
-         + (vs.cosu[np.newaxis, 1:] * vs.v[1:, 1:, 0, vs.taup1]
+        / (vs.cost[np.newaxis, 1:] * vs.dxt[1:, np.newaxis])
+        + (vs.cosu[np.newaxis, 1:] * vs.v[1:, 1:, 0, vs.taup1]
             - vs.cosu[np.newaxis, :-1] * vs.v[1:, :-1, 0, vs.taup1])
-         / (vs.cost[np.newaxis, 1:] * vs.dyt[np.newaxis, 1:]))
+        / (vs.cost[np.newaxis, 1:] * vs.dyt[np.newaxis, 1:]))
     fxa[:, :, 1:] = -vs.maskW[1:, 1:, 1:] * vs.dzt[np.newaxis, np.newaxis, 1:] \
         * ((vs.u[1:, 1:, 1:, vs.taup1] - vs.u[:-1, 1:, 1:, vs.taup1])
-           / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])
-           + (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.v[1:, 1:, 1:, vs.taup1]
-              - vs.cosu[np.newaxis, :-1, np.newaxis] * vs.v[1:, :-1, 1:, vs.taup1])
-           / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis]))
+        / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])
+        + (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.v[1:, 1:, 1:, vs.taup1]
+            - vs.cosu[np.newaxis, :-1, np.newaxis] * vs.v[1:, :-1, 1:, vs.taup1])
+        / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis]))
     vs.w[1:, 1:, :, vs.taup1] = np.cumsum(fxa, axis=2)
 
 
@@ -159,6 +160,7 @@ def momentum_advection(vs):
     """
     for zonal momentum
     """
+    vs.flux_top[...] = 0.
     vs.flux_east[1:-2, 2:-2] = 0.25 * (vs.u[1:-2, 2:-2, :, vs.tau] \
                                      + vs.u[2:-1, 2:-2, :, vs.tau]) \
                                     * (utr[2:-1, 2:-2] + utr[1:-2, 2:-2])
@@ -168,7 +170,6 @@ def momentum_advection(vs):
     vs.flux_top[2:-2, 2:-2, :-1] = 0.25 * (vs.u[2:-2, 2:-2, 1:, vs.tau] \
                                          + vs.u[2:-2, 2:-2, :-1, vs.tau]) \
                                         * (wtr[2:-2, 2:-2, :-1] + wtr[3:-1, 2:-2, :-1])
-    vs.flux_top[:, :, -1] = 0.0
     vs.du_adv[2:-2, 2:-2] = -vs.maskU[2:-2, 2:-2] * (vs.flux_east[2:-2, 2:-2] - vs.flux_east[1:-3, 2:-2]
                                                    + vs.flux_north[2:-2, 2:-2] - vs.flux_north[2:-2, 1:-3]) \
                             / (vs.dzt[np.newaxis, np.newaxis, :] * vs.area_u[2:-2, 2:-2, np.newaxis])
@@ -180,13 +181,13 @@ def momentum_advection(vs):
     """
     for meridional momentum
     """
+    vs.flux_top[...] = 0.
     vs.flux_east[1:-2, 2:-2] = 0.25 * (vs.v[1:-2, 2:-2, :, vs.tau]
                                      + vs.v[2:-1, 2:-2, :, vs.tau]) * (utr[1:-2, 3:-1] + utr[1:-2, 2:-2])
     vs.flux_north[2:-2, 1:-2] = 0.25 * (vs.v[2:-2, 1:-2, :, vs.tau]
                                       + vs.v[2:-2, 2:-1, :, vs.tau]) * (vtr[2:-2, 2:-1] + vtr[2:-2, 1:-2])
     vs.flux_top[2:-2, 2:-2, :-1] = 0.25 * (vs.v[2:-2, 2:-2, 1:, vs.tau]
                                          + vs.v[2:-2, 2:-2, :-1, vs.tau]) * (wtr[2:-2, 2:-2, :-1] + wtr[2:-2, 3:-1, :-1])
-    vs.flux_top[:, :, -1] = 0.0
     vs.dv_adv[2:-2, 2:-2] = -vs.maskV[2:-2, 2:-2] * (vs.flux_east[2:-2, 2:-2] - vs.flux_east[1:-3, 2:-2]
                                                    + vs.flux_north[2:-2, 2:-2] - vs.flux_north[2:-2, 1:-3]) \
                             / (vs.dzt * vs.area_v[2:-2, 2:-2, np.newaxis])

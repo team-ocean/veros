@@ -1,4 +1,4 @@
 ACC sector model
 =================
 
-.. autoclass:: veros.setup.acc_sector.ACCSector
+.. autoclass:: veros.setup.acc_sector.ACCSectorSetup

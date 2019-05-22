@@ -17,10 +17,10 @@ class ACC2Benchmark(VerosLegacy):
         super(ACC2Benchmark, self).__init__(*args, **kwargs)
 
     @veros_method
-    def set_parameter(self):
-        self.identifier = "acc2_benchmark"
-        self.diskless_mode = True
-        self.pyom_compatibility_mode = True
+    def set_parameter(self, vs):
+        vs.identifier = "acc2_benchmark"
+        vs.diskless_mode = True
+        vs.pyom_compatibility_mode = True
 
         m = self.main_module
         m.dt_mom = 480
@@ -81,7 +81,7 @@ class ACC2Benchmark(VerosLegacy):
         m.eq_of_state_type = 3
 
     @veros_method
-    def set_grid(self):
+    def set_grid(self, vs):
         m = self.main_module
         m.dxt[:] = 80.0 / m.nx
         m.dyt[:] = 80.0 / m.ny
@@ -90,12 +90,12 @@ class ACC2Benchmark(VerosLegacy):
         m.y_origin = -40.0
 
     @veros_method
-    def set_coriolis(self):
+    def set_coriolis(self, vs):
         m = self.main_module
         m.coriolis_t[:, :] = 2 * m.omega * np.sin(m.yt[None, :] / 180. * np.pi)
 
     @veros_method
-    def set_topography(self):
+    def set_topography(self, vs):
         m = self.main_module
         (X, Y) = np.meshgrid(m.xt, m.yt)
         X = X.transpose()
@@ -103,7 +103,7 @@ class ACC2Benchmark(VerosLegacy):
         m.kbot[...] = (X > 1.0) | (Y < -20)
 
     @veros_method
-    def set_initial_conditions(self):
+    def set_initial_conditions(self, vs):
         m = self.main_module
 
         # initial conditions
@@ -111,7 +111,7 @@ class ACC2Benchmark(VerosLegacy):
         m.salt[:, :, :, 0:2] = 35.0 * m.maskT[..., None]
 
         # wind stress forcing
-        taux = np.zeros(m.ny + 1, dtype=self.default_float_type)
+        taux = np.zeros(m.ny + 1, dtype=vs.default_float_type)
         yt = m.yt[2:m.ny + 3]
         taux = (.1e-3 * np.sin(np.pi * (m.yu[2:m.ny + 3] - yu_start) / (-20.0 - yt_start))) * (yt < -20) \
             + (.1e-3 * (1 - np.cos(2 * np.pi *
@@ -119,12 +119,12 @@ class ACC2Benchmark(VerosLegacy):
         m.surface_taux[:, 2:m.ny + 3] = taux * m.maskU[:, 2:m.ny + 3, -1]
 
         # surface heatflux forcing
-        self.t_rest = np.zeros_like(m.u[:, :, 1, 0])
-        self.t_star = np.zeros_like(m.u[:, :, 1, 0])
-        self.t_star[:, 2:-2] = 15 * np.invert((m.yt[2:-2] < -20) | (m.yt[2:-2] > 20)) \
+        vs.t_rest = np.zeros_like(m.u[:, :, 1, 0])
+        vs.t_star = np.zeros_like(m.u[:, :, 1, 0])
+        vs.t_star[:, 2:-2] = 15 * np.invert((m.yt[2:-2] < -20) | (m.yt[2:-2] > 20)) \
             + 15 * (m.yt[2:-2] - yt_start) / (-20 - yt_start) * (m.yt[2:-2] < -20) \
             + 15 * (1 - (m.yt[2:-2] - 20) / (yt_end - 20)) * (m.yt[2:-2] > 20.)
-        self.t_rest = m.dzt[None, -1] / (30. * 86400.) * m.maskT[:, :, -1]
+        vs.t_rest = m.dzt[None, -1] / (30. * 86400.) * m.maskT[:, :, -1]
 
         t = self.tke_module
         if t.enable_tke:
@@ -137,16 +137,16 @@ class ACC2Benchmark(VerosLegacy):
             i.forc_iw_surface[:] = 0.1e-6 * m.maskW[:, :, -1]
 
     @veros_method
-    def set_forcing(self):
+    def set_forcing(self, vs):
         m = self.main_module
-        m.forc_temp_surface[:] = self.t_rest * (self.t_star - m.temp[:, :, -1, self.get_tau()])
+        m.forc_temp_surface[:] = vs.t_rest * (vs.t_star - m.temp[:, :, -1, self.get_tau()])
 
     @veros_method
-    def set_diagnostics(self):
+    def set_diagnostics(self, vs):
         pass
 
     @veros_method
-    def after_timestep(self):
+    def after_timestep(self, vs):
         pass
 
 

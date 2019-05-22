@@ -6,8 +6,6 @@ MAINTAINER Dion Häfner <mail@dionhaefner.de>
 RUN apt-get update && apt-get install -y \
       'python-pip' \
       'python3-pip' \
-      'python-mpi4py' \
-      'python3-mpi4py' \
       'python-virtualenv' \
       'python3-virtualenv' \
       'locales' \
@@ -16,7 +14,6 @@ RUN apt-get update && apt-get install -y \
       'gcc' \
       'gfortran' \
       'cmake' \
-      'libnetcdf-dev' \
       'libopenmpi-dev' \
       'libsigsegv-dev' \
       'libboost-serialization-dev' \
@@ -36,9 +33,8 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip install numpy -U && \
     mv /usr/local/bin/f2py /usr/local/bin/f2py2.7 && \
-    python -c "import numpy; print(numpy.__version__)"
-
-RUN pip3 install numpy -U && \
+    python -c "import numpy; print(numpy.__version__)" && \
+    pip3 install numpy -U && \
     mv /usr/local/bin/f2py /usr/local/bin/f2py3.6 && \
     python3 -c "import numpy; print(numpy.__version__)"
 
@@ -48,21 +44,54 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
+# Install mpi4py
+RUN pip install mpi4py --no-binary mpi4py -U && \
+    python -c "from mpi4py import MPI" && \
+    pip3 install mpi4py --no-binary mpi4py -U && \
+    python3 -c "from mpi4py import MPI"
+
+# Build PETSc
+ENV PETSC_ARCH=arch-linux2-c-opt
+ENV PETSC_DIR="/tmp/petsc-3.11.1"
+
+WORKDIR /tmp
+RUN curl -L http://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-lite-3.11.1.tar.gz > /tmp/petsc.tar.gz && \
+    tar xzf petsc.tar.gz && \
+    rm petsc.tar.gz
+WORKDIR /tmp/petsc-3.11.1
+RUN ./configure \
+      --prefix=/usr/local \
+      --download-hypre && \
+    make -j 4 && \
+    make install
+
+ENV PETSC_DIR="/usr/local"
+
+RUN pip install "petsc4py>=3.11.0,<3.12.0" -U && \
+    pip3 install "petsc4py>=3.11.0,<3.12.0" -U
+
 # Install OpenCL
 RUN apt-get update && apt-get install -y \
-    'ocl-icd-opencl-dev' \
-    'pocl-opencl-icd' \
+    'alien' \
+    'opencl-dev' \
     'opencl-headers' \
     'clinfo' && \
-  clinfo && \
   rm -rf /var/lib/apt/lists/*
 
-RUN pip install mako pybind11 && \
-    pip install pyopencl && \
-    python -c "import pyopencl" && \
-    pip3 install mako pybind11 && \
-    pip3 install pyopencl && \
-    python3 -c "import pyopencl"
+ARG INTEL_DRIVER=opencl_runtime_16.1.1_x64_ubuntu_6.4.0.25.tgz
+ARG INTEL_DRIVER_URL=http://registrationcenter-download.intel.com/akdlm/irc_nas/9019
+
+WORKDIR /tmp/opencl-driver-intel
+RUN echo INTEL_DRIVER is $INTEL_DRIVER && \
+    curl -O $INTEL_DRIVER_URL/$INTEL_DRIVER && \
+    tar -xzf $INTEL_DRIVER && \
+    for i in $(basename $INTEL_DRIVER .tgz)/rpm/*.rpm; do alien --to-deb $i; done && \
+    dpkg -i *.deb && \
+    rm -rf $INTEL_DRIVER $(basename $INTEL_DRIVER .tgz) *.deb && \
+    mkdir -p /etc/OpenCL/vendors && \
+    echo /opt/intel/*/lib64/libintelocl.so > /etc/OpenCL/vendors/intel.icd && \
+    rm -rf /tmp/opencl-driver-intel && \
+    clinfo
 
 # Build bohrium
 WORKDIR /tmp
@@ -85,7 +114,8 @@ RUN ln -s /usr/lib/python2.7/site-packages/bohrium /usr/lib/python2.7/dist-packa
 RUN ln -s /usr/lib/python3.6/site-packages/bohrium /usr/lib/python3/dist-packages/ && \
     ln -s /usr/lib/python3.6/site-packages/bohrium_api /usr/lib/python3/dist-packages/ && \
     python3.6 -m bohrium_api --info && \
-    BH_STACK=opencl python3.6 -m bohrium_api --info
+    BH_STACK=opencl python3.6 -m bohrium_api --info && \
+    BH_STACK=opencl python3.6 -c "import bohrium as bh; print(bh.random.rand(100, 100).sum())"
 
 # Build pyOM2 with Python 2 and Python 3 support
 RUN mkdir -p /tmp/pyOM2

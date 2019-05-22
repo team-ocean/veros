@@ -1,53 +1,86 @@
-BACKENDS = ["numpy", "bohrium"]
+from loguru import logger
+
+BACKENDS = None
 
 
-def get_backend(backend_name):
-    if backend_name not in BACKENDS:
-        raise ValueError("unrecognized backend {} (must be either of: {!r})"
-                         .format(backend_name, BACKENDS))
+def init_environment():
+    import os
+    from . import runtime_state as rst
 
-    backend_modules = {backend: None for backend in BACKENDS}
+    if rst.proc_rank > 0:
+        os.environ.update(
+            BH_OPENMP_CACHE_READONLY='true',
+            BH_UNSUP_WARN='false',
+        )
+
+
+def init_backends():
+    init_environment()
+
+    # populate available backend modules
+    global BACKENDS
+    BACKENDS = {}
 
     import numpy
-    import warnings
-
-    if numpy.__name__ == "bohrium":
-        warnings.warn("Running veros with 'python -m bohrium' is discouraged "
-                      "(use '--backend bohrium' instead)")
+    if numpy.__name__ == 'bohrium':
+        logger.warning('Running veros with "python -m bohrium" is discouraged '
+                       '(use "--backend bohrium" instead)')
         import numpy_force
         numpy = numpy_force
 
-    backend_modules["numpy"] = numpy
+    BACKENDS['numpy'] = numpy
 
     try:
         import bohrium
-        backend_modules["bohrium"] = bohrium
     except ImportError:
-        warnings.warn("Could not import Bohrium")
+        logger.warning('Could not import Bohrium (Bohrium backend will be unavailable)')
+        BACKENDS['bohrium'] = None
+    else:
+        BACKENDS['bohrium'] = bohrium
 
-    if backend_modules[backend_name] is None:
-        raise ValueError("Backend '{}' failed to import".format(backend_name))
-    return backend_modules[backend_name], backend_name
+
+def get_backend(backend_name):
+    if BACKENDS is None:
+        init_backends()
+
+    if backend_name not in BACKENDS:
+        raise ValueError('unrecognized backend {} (must be either of: {!r})'
+                         .format(backend_name, list(BACKENDS.keys())))
+
+    if BACKENDS[backend_name] is None:
+        raise ValueError('backend "{}" failed to import'.format(backend_name))
+
+    return BACKENDS[backend_name]
 
 
 def get_vector_engine(np):
-    try:
-        runtime_info = np.bh_info.runtime_info()
-    except AttributeError:
-        return None
-    if "OpenCL" in runtime_info:
-        return "opencl"
-    if "CUDA" in runtime_info:
-        return "cuda"
-    return "openmp"
+    from . import runtime_settings
+
+    if runtime_settings.backend == 'bohrium':
+        try:
+            import bohrium_api
+        except ImportError:
+            return None
+
+        if bohrium_api.stack_info.is_opencl_in_stack():
+            return 'opencl'
+
+        if bohrium_api.stack_info.is_cuda_in_stack():
+            return 'cuda'
+
+        return 'openmp'
+
+    return None
 
 
-def flush(vs):
-    if vs.backend_name == "numpy":
+def flush():
+    from . import runtime_settings as rs
+
+    if rs.backend == 'numpy':
         pass
 
-    elif vs.backend_name == "bohrium":
-        vs.backend.flush()
+    elif rs.backend == 'bohrium':
+        get_backend(rs.backend).flush()
 
     else:
-        raise RuntimeError("Unrecognized backend %r" % vs.backend_name)
+        raise RuntimeError('Unrecognized backend %s' % rs.backend)

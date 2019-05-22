@@ -1,9 +1,8 @@
 import math
 
-from builtins import range
-
 from .. import veros_method
-from . import cyclic, advection, utilities, numerics
+from ..variables import allocate
+from . import advection, utilities
 
 
 @veros_method
@@ -11,7 +10,7 @@ def set_tke_diffusivities(vs):
     """
     set vertical diffusivities based on TKE model
     """
-    Rinumber = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+    Rinumber = allocate(vs, ('xt', 'yt', 'zw'))
 
     if vs.enable_tke:
         vs.sqrttke[...] = np.sqrt(np.maximum(0., vs.tke[:, :, :, vs.tau]))
@@ -48,13 +47,12 @@ def set_tke_diffusivities(vs):
                 vs.mxl[:, :, k] = np.minimum(vs.mxl[:, :, k], vs.mxl[:, :, k - 1] + vs.dzt[k])
             vs.mxl[...] = np.maximum(vs.mxl, vs.mxl_min)
         else:
-            raise ValueError("unknown mixing length choice in tke_mxl_choice")
+            raise ValueError('unknown mixing length choice in tke_mxl_choice')
 
         """
         calculate viscosity and diffusivity based on Prandtl number
         """
-        if vs.enable_cyclic_x:
-            cyclic.setcyclic_x(vs.K_diss_v)
+        utilities.enforce_boundaries(vs, vs.K_diss_v)
         vs.kappaM[...] = np.minimum(vs.kappaM_max, vs.c_k * vs.mxl * vs.sqrttke)
         Rinumber[...] = vs.Nsqr[:, :, :, vs.tau] / \
             np.maximum(vs.K_diss_v / np.maximum(1e-12, vs.kappaM), 1e-12)
@@ -77,7 +75,7 @@ def integrate_tke(vs):
     """
     integrate Tke equation on W grid with surface flux boundary condition
     """
-    vs.dt_tke = vs.dt_mom  # use momentum time step to prevent spurious oscillations
+    dt_tke = vs.dt_mom  # use momentum time step to prevent spurious oscillations
 
     """
     Sources and sinks by vertical friction, vertical mixing, and non-conservative advection
@@ -123,30 +121,30 @@ def integrate_tke(vs):
     """
     ks = vs.kbot[2:-2, 2:-2] - 1
 
-    a_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-    b_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-    c_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-    d_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-    delta = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+    a_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    b_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    c_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    d_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    delta = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
 
-    delta[:, :, :-1] = vs.dt_tke / vs.dzt[np.newaxis, np.newaxis, 1:] * vs.alpha_tke * 0.5 \
+    delta[:, :, :-1] = dt_tke / vs.dzt[np.newaxis, np.newaxis, 1:] * vs.alpha_tke * 0.5 \
         * (vs.kappaM[2:-2, 2:-2, :-1] + vs.kappaM[2:-2, 2:-2, 1:])
 
     a_tri[:, :, 1:-1] = -delta[:, :, :-2] / vs.dzw[np.newaxis, np.newaxis, 1:-1]
     a_tri[:, :, -1] = -delta[:, :, -2] / (0.5 * vs.dzw[-1])
 
     b_tri[:, :, 1:-1] = 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / vs.dzw[np.newaxis, np.newaxis, 1:-1] \
-        + vs.dt_tke * vs.c_eps \
+        + dt_tke * vs.c_eps \
         * vs.sqrttke[2:-2, 2:-2, 1:-1] / vs.mxl[2:-2, 2:-2, 1:-1]
     b_tri[:, :, -1] = 1 + delta[:, :, -2] / (0.5 * vs.dzw[-1]) \
-        + vs.dt_tke * vs.c_eps / vs.mxl[2:-2, 2:-2, -1] * vs.sqrttke[2:-2, 2:-2, -1]
+        + dt_tke * vs.c_eps / vs.mxl[2:-2, 2:-2, -1] * vs.sqrttke[2:-2, 2:-2, -1]
     b_tri_edge = 1 + delta / vs.dzw[np.newaxis, np.newaxis, :] \
-        + vs.dt_tke * vs.c_eps / vs.mxl[2:-2, 2:-2, :] * vs.sqrttke[2:-2, 2:-2, :]
+        + dt_tke * vs.c_eps / vs.mxl[2:-2, 2:-2, :] * vs.sqrttke[2:-2, 2:-2, :]
 
     c_tri[:, :, :-1] = -delta[:, :, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1]
 
-    d_tri[...] = vs.tke[2:-2, 2:-2, :, vs.tau] + vs.dt_tke * forc[2:-2, 2:-2, :]
-    d_tri[:, :, -1] += vs.dt_tke * vs.forc_tke_surface[2:-2, 2:-2] / (0.5 * vs.dzw[-1])
+    d_tri[...] = vs.tke[2:-2, 2:-2, :, vs.tau] + dt_tke * forc[2:-2, 2:-2, :]
+    d_tri[:, :, -1] += dt_tke * vs.forc_tke_surface[2:-2, 2:-2] / (0.5 * vs.dzw[-1])
 
     sol, water_mask = utilities.solve_implicit(vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
     vs.tke[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, water_mask, sol, vs.tke[2:-2, 2:-2, :, vs.taup1])
@@ -163,7 +161,7 @@ def integrate_tke(vs):
     vs.tke_surf_corr[...] = 0.
     vs.tke_surf_corr[2:-2, 2:-2] = utilities.where(vs, mask,
                                             -vs.tke[2:-2, 2:-2, -1, vs.taup1] * 0.5
-                                               * vs.dzw[-1] / vs.dt_tke,
+                                               * vs.dzw[-1] / dt_tke,
                                             0.)
     vs.tke[2:-2, 2:-2, -1, vs.taup1] = np.maximum(0., vs.tke[2:-2, 2:-2, -1, vs.taup1])
 
@@ -180,7 +178,7 @@ def integrate_tke(vs):
         vs.flux_north[:, :-1, :] = vs.K_h_tke * (vs.tke[:, 1:, :, vs.tau] - vs.tke[:, :-1, :, vs.tau]) \
             / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] * vs.cosu[np.newaxis, :-1, np.newaxis]
         vs.flux_north[:, -1, :] = 0.
-        vs.tke[2:-2, 2:-2, :, vs.taup1] += vs.dt_tke * vs.maskW[2:-2, 2:-2, :] * \
+        vs.tke[2:-2, 2:-2, :, vs.taup1] += dt_tke * vs.maskW[2:-2, 2:-2, :] * \
             ((vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :])
              / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
              + (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])

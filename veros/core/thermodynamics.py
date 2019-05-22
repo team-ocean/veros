@@ -1,5 +1,7 @@
 from .. import veros_method
-from . import advection, diffusion, isoneutral, cyclic, numerics, density, utilities
+from ..distributed import global_sum
+from ..variables import allocate
+from . import advection, diffusion, isoneutral, density, utilities
 
 
 @veros_method
@@ -19,11 +21,11 @@ def thermodynamics(vs):
                                         vs.flux_top, vs.Hd[:, :, :, vs.tau])
         else:
             advection.adv_flux_2nd(vs, vs.flux_east, vs.flux_north,
-                                   vs.flux_top, vs.Hd[:, :, :, vs.tau])
+                                vs.flux_top, vs.Hd[:, :, :, vs.tau])
 
         vs.dHd[2:-2, 2:-2, :, vs.tau] = vs.maskT[2:-2, 2:-2, :] * (-(vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :])
                                                                     / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
-                                                                   - (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])
+                                                                - (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])
                                                                     / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis]))
         vs.dHd[:, :, 0, vs.tau] += -vs.maskT[:, :, 0] \
             * vs.flux_top[:, :, 0] / vs.dzt[0]
@@ -34,9 +36,9 @@ def thermodynamics(vs):
         """
         changes in dyn. Enthalpy due to advection
         """
-        aloc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+        aloc = allocate(vs, ('xt', 'yt', 'zt'))
         aloc[2:-2, 2:-2, :] = vs.grav / vs.rho_0 * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau] * vs.dtemp[2:-2, 2:-2, :, vs.tau]
-                                                   - vs.int_drhodS[2:-2, 2:-2, :, vs.tau] * vs.dsalt[2:-2, 2:-2, :, vs.tau]) \
+                                                - vs.int_drhodS[2:-2, 2:-2, :, vs.tau] * vs.dsalt[2:-2, 2:-2, :, vs.tau]) \
                             - vs.dHd[2:-2, 2:-2, :, vs.tau]
 
         """
@@ -60,12 +62,16 @@ def thermodynamics(vs):
         distribute vs.P_diss_adv over domain, prevent draining of TKE
         """
         fxa = np.sum(vs.area_t[2:-2, 2:-2, np.newaxis] * vs.P_diss_adv[2:-2, 2:-2, :-1]
-                     * vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1]) \
+                    * vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1]) \
             + np.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.P_diss_adv[2:-2, 2:-2, -1]
-                     * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
+                    * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
         tke_mask = vs.tke[2:-2, 2:-2, :-1, vs.tau] > 0.
         fxb = np.sum(vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1] * tke_mask) \
             + np.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
+
+        fxa = global_sum(vs, fxa)
+        fxb = global_sum(vs, fxb)
+
         vs.P_diss_adv[...] = 0.
         vs.P_diss_adv[2:-2, 2:-2, :-1] = fxa / fxb * tke_mask
         vs.P_diss_adv[2:-2, 2:-2, -1] = fxa / fxb
@@ -74,16 +80,16 @@ def thermodynamics(vs):
     Adam Bashforth time stepping for advection
     """
     vs.temp[:, :, :, vs.taup1] = vs.temp[:, :, :, vs.tau] + vs.dt_tracer \
-          * ((1.5 + vs.AB_eps) * vs.dtemp[:, :, :, vs.tau]
-           - (0.5 + vs.AB_eps) * vs.dtemp[:, :, :, vs.taum1]) * vs.maskT
+        * ((1.5 + vs.AB_eps) * vs.dtemp[:, :, :, vs.tau]
+        - (0.5 + vs.AB_eps) * vs.dtemp[:, :, :, vs.taum1]) * vs.maskT
     vs.salt[:, :, :, vs.taup1] = vs.salt[:, :, :, vs.tau] + vs.dt_tracer \
-          * ((1.5 + vs.AB_eps) * vs.dsalt[:, :, :, vs.tau]
-           - (0.5 + vs.AB_eps) * vs.dsalt[:, :, :, vs.taum1]) * vs.maskT
+        * ((1.5 + vs.AB_eps) * vs.dsalt[:, :, :, vs.tau]
+        - (0.5 + vs.AB_eps) * vs.dsalt[:, :, :, vs.taum1]) * vs.maskT
 
     """
     horizontal diffusion
     """
-    with vs.timers["isoneutral"]:
+    with vs.timers['isoneutral']:
         if vs.enable_hor_diffusion:
             diffusion.tempsalt_diffusion(vs)
         if vs.enable_biharmonic_mixing:
@@ -110,18 +116,18 @@ def thermodynamics(vs):
                 isoneutral.isoneutral_skew_diffusion(vs, vs.temp, True)
                 isoneutral.isoneutral_skew_diffusion(vs, vs.salt, False)
 
-    with vs.timers["vmix"]:
+    with vs.timers['vmix']:
         """
         vertical mixing of temperature and salinity
         """
         vs.dtemp_vmix[...] = vs.temp[:, :, :, vs.taup1]
         vs.dsalt_vmix[...] = vs.salt[:, :, :, vs.taup1]
 
-        a_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        b_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        c_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        d_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-        delta = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+        a_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+        b_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+        c_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+        d_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+        delta = allocate(vs, ('xt', 'yt', 'zw'), include_ghosts=False)
 
         ks = vs.kbot[2:-2, 2:-2] - 1
         delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1] \
@@ -144,18 +150,17 @@ def thermodynamics(vs):
         vs.salt[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, mask, sol, vs.salt[2:-2, 2:-2, :, vs.taup1])
 
         vs.dtemp_vmix[...] = (vs.temp[:, :, :, vs.taup1] -
-                              vs.dtemp_vmix) / vs.dt_tracer
+                            vs.dtemp_vmix) / vs.dt_tracer
         vs.dsalt_vmix[...] = (vs.salt[:, :, :, vs.taup1] -
-                              vs.dsalt_vmix) / vs.dt_tracer
+                            vs.dsalt_vmix) / vs.dt_tracer
 
     """
     boundary exchange
     """
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(vs.temp[..., vs.taup1])
-        cyclic.setcyclic_x(vs.salt[..., vs.taup1])
+    utilities.enforce_boundaries(vs, vs.temp[..., vs.taup1])
+    utilities.enforce_boundaries(vs, vs.salt[..., vs.taup1])
 
-    with vs.timers["eq_of_state"]:
+    with vs.timers['eq_of_state']:
         calc_eq_of_state(vs, vs.taup1)
 
     """
@@ -163,14 +168,14 @@ def thermodynamics(vs):
     """
     vs.forc_rho_surface[...] = vs.maskT[:, :, -1] * (
         density.get_drhodT(vs, vs.salt[:, :, -1, vs.taup1],
-                           vs.temp[:, :, -1, vs.taup1],
-                           np.abs(vs.zt[-1])) * vs.forc_temp_surface
+                        vs.temp[:, :, -1, vs.taup1],
+                        np.abs(vs.zt[-1])) * vs.forc_temp_surface
         + density.get_drhodS(vs, vs.salt[:, :, -1, vs.taup1],
-                             vs.temp[:, :, -1, vs.taup1],
-                             np.abs(vs.zt[-1])) * vs.forc_salt_surface
+                            vs.temp[:, :, -1, vs.taup1],
+                            np.abs(vs.zt[-1])) * vs.forc_salt_surface
         )
 
-    with vs.timers["vmix"]:
+    with vs.timers['vmix']:
         vs.P_diss_v[...] = 0.0
         if vs.enable_conserve_energy:
             """
