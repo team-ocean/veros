@@ -74,7 +74,7 @@ On bare metal (Ubuntu / Debian)
 Setting up a model
 ------------------
 
-To run Veros, you need to set up a model - i.e., specify which settings and model domain you want to use. This is done by subclassing the :class:`Veros base class <veros.Veros>` in a *setup script* that is written in Python. You should have a look at the pre-implemented model setups in the repository's :file:`setup` folder, or use the :command:`veros copy-setup` command to copy one into your current folder. A good place to start is the :class:`ACC model <acc.ACCSetup>`: ::
+To run Veros, you need to set up a model - i.e., specify which settings and model domain you want to use. This is done by subclassing the :class:`Veros setup base class <veros.VerosSetup>` in a *setup script* that is written in Python. You should have a look at the pre-implemented model setups in the repository's :file:`setup` folder, or use the :command:`veros copy-setup` command to copy one into your current folder. A good place to start is the :class:`ACC model <acc.ACCSetup>`: ::
 
     $ veros copy-setup acc
 
@@ -92,9 +92,9 @@ By working through the existing models, you should quickly be able to figure out
           def my_function(self):
               arr = np.array([1,2,3,4]) # "np" uses either NumPy or Bohrium
 
-- If you are curious about the general procedure in which a model is set up and ran, you should read the source code of :class:`veros.Veros` (especially the :meth:`setup` and :meth:`run` methods). This is also the best way to find out about the order in which methods and routines are called.
+- If you are curious about the general procedure in which a model is set up and ran, you should read the source code of :class:`veros.VerosSetup` (especially the :meth:`setup` and :meth:`run` methods). This is also the best way to find out about the order in which methods and routines are called.
 
-- Out of all functions that need to be implemented by your subclass of :class:`veros.Veros`, the only one that is called in every time step is :meth:`set_forcing` (at the beginning of each iteration). This implies that, to achieve optimal performance, you should consider moving calculations that are constant in time to other functions.
+- Out of all functions that need to be implemented by your subclass of :class:`veros.VerosSetup`, the only one that is called in every time step is :meth:`set_forcing` (at the beginning of each iteration). This implies that, to achieve optimal performance, you should consider moving calculations that are constant in time to other functions.
 
 If you want to learn more about setting up advanced configurations, you should :doc:`check out our tutorial </tutorial/wave-propagation>` that walks you through the creation of a realistic configuration with an idealized Atlantic.
 
@@ -205,7 +205,7 @@ Enhancing Veros
 
 Veros was written with extensibility in mind. If you already know some Python and have worked with NumPy, you are pretty much ready to write your own extension. The model code is located in the :file:`veros` subfolder, while all of the numerical routines are located in :file:`veros/core`.
 
-We believe that the best way to learn how Veros works is to read its source code. Starting from the :py:class:`Veros base class <veros.Veros>`, you should be able to work your way through the flow of the program, and figure out where to add your modifications. If you installed Veros through :command:`pip -e` or :command:`setup.py develop`, all changes you make will immediately be reflected when running the code.
+We believe that the best way to learn how Veros works is to read its source code. Starting from the :py:class:`Veros base class <veros.VerosSetup>`, you should be able to work your way through the flow of the program, and figure out where to add your modifications. If you installed Veros through :command:`pip -e` or :command:`setup.py develop`, all changes you make will immediately be reflected when running the code.
 
 In case you want to add additional output capabilities or compute additional quantities without changing the main solution of the simulation, you should consider :doc:`adding a custom diagnostic </reference/diagnostics>`.
 

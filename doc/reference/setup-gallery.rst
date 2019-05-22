@@ -1,9 +1,11 @@
 Setup gallery
 =============
 
-This page gives an overview of the available model setups. To copy the setup file and additional input files (if applicable) to the current working directory, you can make use of the :command:`veros copy-setup` command, e.g.: ::
+This page gives an overview of the available model setups. To copy the setup file and additional input files (if applicable) to the current working directory, you can make use of the :command:`veros copy-setup` command.
 
-   veros copy-setup acc
+Example::
+
+   $ veros copy-setup acc
 
 
 Idealized configurations

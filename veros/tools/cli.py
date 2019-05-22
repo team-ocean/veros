@@ -32,6 +32,37 @@ class VerosSetting(click.ParamType):
 
 
 def cli(run):
+    """Decorator that wraps the decorated function with the Veros setup command line interface.
+
+    Example:
+
+        >>> @veros.tools.cli.cli()
+        >>> def run_setup(override):
+        ...     sim = MyVerosSetup(override=override)
+        ...     sim.run()
+        ...
+        >>> if __name__ == '__main__':
+        ...     run_setup()
+
+    This script then automatically supports settings to be specified from the command line::
+
+        $ python my_setup.py --help
+        Usage: my_setup.py [OPTIONS]
+
+        Options:
+        -b, --backend [numpy|bohrium]   Backend to use for computations (default:
+                                        numpy)
+        -v, --loglevel [trace|debug|info|warning|error|critical]
+                                        Log level used for output (default: info)
+        -s, --override SETTING VALUE    Override default setting, may be specified
+                                        multiple times
+        -p, --profile-mode              Write a performance profile for debugging
+                                        (default: false)
+        -n, --num-proc INTEGER...       Number of processes in x and y dimension
+                                        (requires execution via mpirun)
+        --help                          Show this message and exit.
+
+    """
     @click.command('veros-run')
     @click.option('-b', '--backend', default='numpy', type=click.Choice(BACKENDS),
                   help='Backend to use for computations (default: numpy)', envvar='VEROS_BACKEND')
