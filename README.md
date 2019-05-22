@@ -2,6 +2,20 @@
 <img src="doc/_images/veros-logo-400px.png?raw=true">
 </p>
 
+<p align="center">
+  <a href="http://veros.readthedocs.io/?badge=latest">
+    <img src="https://readthedocs.org/projects/veros/badge/?version=latest" alt="Documentation status">
+  </a>
+  <a href="https://travis-ci.org/dionhaefner/veros">
+    <img src="https://travis-ci.org/dionhaefner/veros.svg?branch=master" alt="Build status">
+  </a>
+  <a href="https://codecov.io/gh/dionhaefner/veros">
+    <img src="https://codecov.io/gh/dionhaefner/veros/branch/master/graph/badge.svg" alt="Code Coverage">
+  </a>
+  <a href="https://zenodo.org/badge/latestdoi/87419383">
+    <img src="https://zenodo.org/badge/87419383.svg" alt="DOI">
+  </a>
+</p>
 [![Documentation
 Status](https://readthedocs.org/projects/veros/badge/?version=latest)](http://veros.readthedocs.io/?badge=latest)
 [![Build
@@ -9,6 +23,7 @@ Status](https://travis-ci.org/dionhaefner/veros.svg?branch=master)](https://trav
 [![Code
 Coverage](https://codecov.io/gh/dionhaefner/veros/branch/master/graph/badge.svg)](https://codecov.io/gh/dionhaefner/veros)
 [![DOI](https://zenodo.org/badge/87419383.svg)](https://zenodo.org/badge/latestdoi/87419383)
+</p>
 
 Veros, the *versatile ocean simulator*, is just that: A powerful tool
 that makes high-performance ocean modeling approachable and fun. Since
@@ -32,18 +47,20 @@ developed by Carsten Eden (Institut für Meereskunde, Hamburg
 University). Veros is currently being developed at Niels Bohr Institute,
 Copenhagen University.
 
-**How about a demonstration?**
+#### How about a demonstration?
 
 <p align="center">
-  <img src="https://media.giphy.com/media/dwS6EeA4OTfsZZHVE9/giphy-downsized-large.gif" alt="0.25×0.25° high-resolution model spin-up">
+  <a href="https://media.giphy.com/media/dwS6EeA4OTfsZZHVE9/giphy.mp4">
+      <img src="https://media.giphy.com/media/dwS6EeA4OTfsZZHVE9/giphy-downsized-large.gif" alt="0.25×0.25° high-resolution model spin-up">
+  </a>
 </p>
+
 <p align="center">
 (0.25×0.25° high-resolution model spin-up, click for better
-resolution)
+quality)
 </p>
 
-Features
-========
+## Features
 
 Veros provides
 
@@ -61,8 +78,7 @@ Veros provides
 -   **accessibility, readability, and extensibility** - thanks to the
     power of Python!
 
-Veros for the impatient
-=======================
+## Veros for the impatient
 
 A minimal example to install and run Veros:
 
@@ -73,11 +89,9 @@ $ cd /tmp/acc
 $ python acc.py
 ```
 
-Installation
-============
+## Installation
 
-Dependencies
-------------
+### Dependencies
 
 Veros only has one external library dependency, `HDF5`. The installation
 procedure of this library varies between platforms. The easiest way to
@@ -97,8 +111,7 @@ Similar package managers on OSX are [Homebrew](https://brew.sh/) or
 [MacPorts](https://www.macports.org/), which both provide the required
 dependencies as pre-compiled binaries.
 
-Installing Veros
-----------------
+### Installing Veros
 
 As soon as you have a working environment, installing Veros is simple:
 
@@ -121,8 +134,7 @@ In case you want to use the Bohrium backend, you will have to install
 [Bohrium](https://github.com/bh107/bohrium), e.g. through `conda` or
 `apt-get`, or by building it from source.
 
-Basic usage
-===========
+## Basic usage
 
 To run Veros, you need to set up a model - i.e., specify which settings
 and model domain you want to use. This is done by subclassing the
@@ -147,8 +159,7 @@ $ python acc.py
 For more information on using Veros, have a look at [our
 documentation](http://veros.readthedocs.io).
 
-Contributing
-============
+## Contributing
 
 Contributions to Veros are always welcome, no matter if you spotted an
 inaccuracy in [the documentation](http://veros.readthedocs.io), wrote a
