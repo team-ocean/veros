@@ -107,7 +107,7 @@ def calcite_production(vs, plankton, DIC, calcite):
 
     # changes to production of calcite
     dprca = (vs.mortality[plankton] + vs.grazing[plankton] *
-             (1 - vs.assimilation_efficiency)) * vs.capr * vs.redfield_ratio_CN * 1e-3
+             (1 - vs.assimilation_efficiency)) * vs.capr * vs.redfield_ratio_CN# * 1e-3
 
     return {DIC: -dprca, calcite: dprca}
 
@@ -142,6 +142,10 @@ def post_redistribute_calcite(vs, calcite, tracer):
     total_production = (vs.temporary_tracers[calcite] * vs.dzt).sum(axis=2)
     redistributed_production = total_production[:, :, np.newaxis] * vs.rcak
     return {tracer: redistributed_production}
+
+@veros_inline_method
+def post_redistribute_calcite_alk(vs, calcite, alkalinity):
+    return {alkalinity: 2 * post_redistribute_calcite(vs, calcite, "DIC")["DIC"]}
 
 
 # @veros_method
