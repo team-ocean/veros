@@ -152,8 +152,10 @@ def biogeochemistry(vs):
             impo[sinker] = np.empty_like(export[sinker])
             impo[sinker][:, :, -1] = 0
             impo[sinker][:, :, :-1] = export[sinker][:, :, 1:] * (vs.dzt[1:] / vs.dzt[:-1])
+            impo[sinker][...] *= vs.maskT
 
             import_minus_export[sinker] = impo[sinker] - export[sinker]
+
 
         # Gather all state updates
         # TODO use named tuple? Indeces will be confusing
@@ -437,7 +439,7 @@ def setup_basic_npzd_rules(vs):
     Setup rules for basic NPZD model including phosphate, detritus, phytoplankton and zooplankton
     """
     from .npzd_rules import grazing, mortality, sloppy_feeding, recycling_to_po4, \
-        zooplankton_self_grazing, excretion, primary_production
+        zooplankton_self_grazing, excretion, primary_production, empty_rule
 
     vs.bottom_mask = np.empty((vs.nx + 4, vs.ny + 4, vs.nz), dtype=np.bool)
     vs.bottom_mask[:, :, :] = np.arange(vs.nz)[np.newaxis, np.newaxis, :] == (vs.kbot - 1)[:, :, np.newaxis]
@@ -505,6 +507,8 @@ def setup_basic_npzd_rules(vs):
         "npzd_basic_detritus_grazing",
         ])
 
+    register_npzd_rule(vs, "empty_rule", (empty_rule, None, None))
+
 
 @veros_method
 def setup_carbon_npzd_rules(vs):
@@ -515,7 +519,7 @@ def setup_carbon_npzd_rules(vs):
     from .npzd_rules import co2_surface_flux, recycling_to_dic, \
         primary_production_from_DIC, excretion_dic, recycling_phyto_to_dic, \
         dic_alk_scale, calcite_production_phyto, calcite_production_phyto_alk, \
-        post_redistribute_calcite, pre_reset_calcite
+        post_redistribute_calcite, post_redistribute_calcite_alk, pre_reset_calcite
 
     zw = vs.zw - vs.dzt  # bottom of grid box using dzt because dzw is weird
 
@@ -582,7 +586,7 @@ def setup_carbon_npzd_rules(vs):
 
 
     register_npzd_rule(vs, "npzd_carbon_calcite_production_alk", (calcite_production_phyto_alk, "alkalinity", "caco3"), label="Production of calcite")
-    register_npzd_rule(vs, "npzd_carbon_post_distribute_calcite_alk", (post_redistribute_calcite, "caco3", "alkalinity"), label="dissolution", group="POST")
+    register_npzd_rule(vs, "npzd_carbon_post_distribute_calcite_alk", (post_redistribute_calcite_alk, "caco3", "alkalinity"), label="dissolution", group="POST")
     register_npzd_rule(vs, "npzd_carbon_post_distribute_calcite_dic", (post_redistribute_calcite, "caco3", "DIC"), label="dissolution", group="POST")
     register_npzd_rule(vs, "pre_reset_calcite", (pre_reset_calcite, "caco3", "caco3"), label="reset", group="PRE")
 
@@ -690,12 +694,12 @@ def setupNPZD(vs):
     """Taking veros variables and packaging them up into iterables"""
 
     # TODO can we create the dictionaries in variables or something like that?
-    vs.npzd_tracers = {}  # Dictionary keeping track of plankton, nutrients etc.
-    vs.npzd_rules = []  # List of rules describing the interaction between tracers
-    vs.npzd_pre_rules = []  # Rules to be executed before bio loop
-    vs.npzd_post_rules = []  # Rules to be executed after bio loop
-    vs.npzd_available_rules = {}  # Every rule created is stored here
-    vs.npzd_selected_rule_names = []  # name of selected rules
+    # vs.npzd_tracers = {}  # Dictionary keeping track of plankton, nutrients etc.
+    # vs.npzd_rules = []  # List of rules describing the interaction between tracers
+    # vs.npzd_pre_rules = []  # Rules to be executed before bio loop
+    # vs.npzd_post_rules = []  # Rules to be executed after bio loop
+    # vs.npzd_available_rules = {}  # Every rule created is stored here
+    # vs.npzd_selected_rule_names = []  # name of selected rules
 
     # Which tracers should be transported
     # In some cases it may be desirable to not transport a tracer. In that
@@ -704,16 +708,16 @@ def setupNPZD(vs):
 
 
     # Temporary storage of mortality and recycled - to be used in rules
-    vs.net_primary_production = {}
-    vs.recycled = {}
-    vs.mortality = {}
+    # vs.net_primary_production = {}
+    # vs.recycled = {}
+    # vs.mortality = {}
 
-    vs.plankton_growth_functions = {}  # Contains functions describing growth of plankton
-    vs.limiting_functions = {}  # Contains descriptions of how nutrients put a limit on growth
+    # vs.plankton_growth_functions = {}  # Contains functions describing growth of plankton
+    # vs.limiting_functions = {}  # Contains descriptions of how nutrients put a limit on growth
 
-    vs.sinking_speeds = {}  # Dictionary of sinking objects with their sinking speeds
-    vs.recycling_rates = {}
-    vs.mortality_rates = {}
+    # vs.sinking_speeds = {}  # Dictionary of sinking objects with their sinking speeds
+    # vs.recycling_rates = {}
+    # vs.mortality_rates = {}
 
     setup_basic_npzd_rules(vs)
 

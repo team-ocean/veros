@@ -135,26 +135,55 @@ SETTINGS = OrderedDict([
 
     # NPZD
     ("enable_npzd", Setting(False, bool, "")),
+
+    # I don't like keeping these in settings, but I can't make them in variables
+    # maybe keep selected rules
+    ("recycled", Setting({}, dict, "lalalalal")),
+    ("mortality", Setting({}, dict, "lalalalal")),
+    ("net_primary_production", Setting({}, dict, "lalalalal")),
+    ("plankton_growth_functions", Setting({}, dict, "lalalalal")),
+    ("limiting_functions", Setting({}, dict, "lalalalal")),
+    ("sinking_speeds", Setting({}, dict, "lalalalal")),
+    ("recycling_rates", Setting({}, dict, "lalalalal")),
+    ("mortality_rates", Setting({}, dict, "lalalalal")),
+    ("npzd_tracers", Setting({}, dict, "lalalalal")),
+    ("npzd_rules", Setting([], list, "lalalalla")),
+    ("npzd_pre_rules", Setting([], list, "lalallala")),
+    ("npzd_post_rules", Setting([], list,  "Rules to be executed after bio loop")),
+    ("npzd_available_rules", Setting({}, dict, "Every rule created is stored here")),
+    ("npzd_selected_rule_names", Setting([], list, "name of selected rules")),
+
+
+
+
+
     ("light_attenuation_phytoplankton", Setting(0.047, float, "Light attenuation of phytoplankton")),
     ("light_attenuation_water", Setting(0.04, float, "Light attenuation of water [1/m]")),
     ("light_attenuation_ice", Setting(5.0, float, "Light attenuation of ice [1/m]")),
-    ("nud0", Setting(0.07 / 86400, float, "Remineralization rate of detritus [1/sec]")),
-    ("bbio", Setting(1.066, float, "the b in b ** (c*T)")),
-    ("bbio", Setting(1.038, float, "the b in b ** (c*T)")),
-    ("cbio", Setting(1.0, float, "the c in b ** (c*T)")),
+    # ("nud0", Setting(0.07 / 86400, float, "Remineralization rate of detritus [1/sec]")),
+    ("nud0", Setting(0, float, "Remineralization rate of detritus [1/sec]")),
+    # ("bbio", Setting(1.066, float, "the b in b ** (c*T)")),
+    ("bbio", Setting(0, float, "the b in b ** (c*T)")),
+    # ("cbio", Setting(1.0, float, "the c in b ** (c*T)")),
+    ("cbio", Setting(0, float, "the c in b ** (c*T)")),
     # ("abio_P", Setting(0.6 / 86400, float, "Maximum growth rate parameter for phytoplankton in [1/sec]")),
-    ("abio_P", Setting(0.22 / 86400, float, "Maximum growth rate parameter for phytoplankton in [1/sec]")),
+    ("abio_P", Setting(0.0, float, "Maximum growth rate parameter for phytoplankton in [1/sec]")),
     # ("gbio", Setting(0.38 / 86400, float, "Maximum grazing rate at 0 deg C [1/sec]")),
-    ("gbio", Setting(0.13 / 86400, float, "Maximum grazing rate at 0 deg C [1/sec]")),
+    ("gbio", Setting(0, float, "Maximum grazing rate at 0 deg C [1/sec]")),
     # ("nupt0", Setting(0.015 / 86400, float, "Fast-recycling mortality rate of phytoplankton [1/sec]")),
-    ("nupt0", Setting(0.037 / 86400, float, "Fast-recycling mortality rate of phytoplankton [1/sec]")),
+    ("nupt0", Setting(0, float, "Fast-recycling mortality rate of phytoplankton [1/sec]")),
     ("saturation_constant_N", Setting(0.7, float, "Half saturation constant for N uptate [mmol N / m^3]")),
     ("saturation_constant_Z_grazing", Setting(0.15, float, "Half saturation constant for Z grazing [mmol/m^3]")),
-    ("specific_mortality_phytoplankton", Setting(0.03 / 86400, float, "Specific mortality rate of phytoplankton")),
-    ("quadric_mortality_zooplankton", Setting(0.06 / 86400, float, "Quadric mortality rate of zooplankton [???]")),
-    ("assimilation_efficiency", Setting(0.70, float, "gamma1")),  # TODO comment
-    ("zooplankton_growth_efficiency", Setting(0.6, float, "Zooplankton growth efficiency")),
-    ("wd0", Setting(5. / 86400, float, "Sinking speed of detritus at surface [m/s]")),
+    # ("specific_mortality_phytoplankton", Setting(0.03 / 86400, float, "Specific mortality rate of phytoplankton")),
+    ("specific_mortality_phytoplankton", Setting(0, float, "Specific mortality rate of phytoplankton")),
+    # ("quadric_mortality_zooplankton", Setting(0.06 / 86400, float, "Quadric mortality rate of zooplankton [???]")),
+    ("quadric_mortality_zooplankton", Setting(0, float, "Quadric mortality rate of zooplankton [???]")),
+    # ("assimilation_efficiency", Setting(0.70, float, "gamma1")),  # TODO comment
+    ("assimilation_efficiency", Setting(0, float, "gamma1")),  # TODO comment
+    # ("zooplankton_growth_efficiency", Setting(0.6, float, "Zooplankton growth efficiency")),
+    ("zooplankton_growth_efficiency", Setting(0, float, "Zooplankton growth efficiency")),
+    # ("wd0", Setting(5. / 86400, float, "Sinking speed of detritus at surface [m/s]")),
+    ("wd0", Setting(0 / 86400, float, "Sinking speed of detritus at surface [m/s]")),
     ("mwz", Setting(1000, float, "Depth below which sinking speed of detritus remains constant [m]")),
     ("mw", Setting(0.02 / 86400, float, "Increase in sinking speed with depth [1/sec]")),
     ("zprefP", Setting(1, float, "Zooplankton preference for grazing on Phytoplankton")),
@@ -199,7 +228,8 @@ SETTINGS = OrderedDict([
     ("capr", Setting(0.022, float, "Carbonate to carbon production ratio")),
     # Ballast
     ("bapr", Setting(0.05, float, "Detritus to carbonate ratio [mg POC/mg PIC]")),
-    ("dcaco3", Setting(6500.0, float, "Calcite remineralization depth [m]")),
+    # ("dcaco3", Setting(6500.0, float, "Calcite remineralization depth [m]")),
+    ("dcaco3", Setting(3500.0, float, "Calcite remineralization depth [m]")),
 
     # NPZD with iron
     ("enable_iron", Setting(False, bool, "")),
