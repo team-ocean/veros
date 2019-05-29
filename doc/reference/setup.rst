@@ -34,7 +34,7 @@ Idealized configurations
 .. |acc_sector| image:: /_images/gallery/acc_sector.png
   :width: 100%
   :scale: 90%
-  :align: middle 
+  :align: middle
   :target: setups/acc_sector.html
   :alt: Steady-state stream function
 
@@ -70,7 +70,6 @@ Realistic configurations
    :target: setups/north-atlantic.html
    :alt: Resulting average surface speed
 
-
 .. |4deg| image:: /_images/gallery/4deg.png
    :width: 100%
    :align: middle
@@ -83,8 +82,6 @@ Realistic configurations
    :target: setups/1deg.html
    :alt: Stream function
 
-
-
 .. toctree::
    :hidden:
 
@@ -92,3 +89,23 @@ Realistic configurations
    setups/north-atlantic
    setups/4deg
    setups/1deg
+
+Configurations with BioGeoChemistry
+-----------------------------------
+
++--------------------------------------------+
+| :doc:`/reference/setups/bgc-4deg`          |
+|                                            |
+| |bgc-4deg|                                 |
++--------------------------------------------+
+
+.. |bgc-4deg| image:: /_images/gallery/bgc-4deg.png
+   :width: 100%
+   :align: middle
+   :target: setups/bgc-4deg.html
+   :alt: Zooplancton after 50 years
+
+.. toctree::
+   :hidden:
+
+   setups/bgc-4deg

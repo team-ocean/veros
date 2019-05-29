@@ -1,0 +1,4 @@
+npzd:
+    selected_rules:
+        - "group_npzd_basic"
+        - "group_carbon_implicit_caco3"

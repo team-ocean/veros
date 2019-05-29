@@ -2,8 +2,9 @@ import logging
 
 from .diagnostic import VerosDiagnostic
 from .. import veros_class_method
-from graphviz import Digraph
+
 import numpy as np
+
 
 class NPZDMonitor(VerosDiagnostic):
     """Diagnostic monitoring nutrients and plankton concentrations
@@ -14,14 +15,16 @@ class NPZDMonitor(VerosDiagnostic):
     restart_attributes = []
 
     def __init__(self, setup):
-            self.save_graph = False
-            self.npzd_graph = Digraph("npzd_dynamics", filename="npzd_dynamics.gv")
-            self.npzd_graph.graph_attr["splines"] = "ortho"
-            self.npzd_graph.graph_attr["nodesep"] = "1"
-            self.npzd_graph.graph_attr["node"] = "square"
-            self.output_variables = []
-            self.surface_out = []
-            self.po4_total = 0
+        self.save_graph = False
+        self.npzd_graph_attr = {
+            "splines": "ortho",
+            "nodesep": "1",
+            "node": "square",
+        }
+
+        self.output_variables = []
+        self.surface_out = []
+        self.po4_total = 0
 
     def initialize(self, vs):
         cell_volume = vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzt[np.newaxis, np.newaxis, :] * vs.maskT[2:-2, 2:-2, :]
@@ -33,35 +36,37 @@ class NPZDMonitor(VerosDiagnostic):
 
         self.po4_total = np.sum(po4_sum * cell_volume)
 
-
     def diagnose(self, vs):
         pass
-
 
     @veros_class_method
     def output(self, vs):
         """Print NPZD interaction graph
         """
         if self.save_graph:
+            from graphviz import Digraph
+            npzd_graph = Digraph("npzd_dynamics", filename="npzd_dynamics.gv")
+            npzd_graph.attr.update(self.npzd_graph_attr)
+
             for tracer in vs.npzd_tracers:
-                self.npzd_graph.node(tracer)
+                npzd_graph.node(tracer)
 
             for rule, source, sink, label in vs.npzd_rules:
-                self.npzd_graph.edge(source, sink, xlabel=label)
+                npzd_graph.edge(source, sink, xlabel=label)
 
             for rule, source, sink, label in vs.npzd_pre_rules:
-                self.npzd_graph.edge(source, sink, xlabel=label, style="dotted")
+                npzd_graph.edge(source, sink, xlabel=label, style="dotted")
 
             for rule, source, sink, label in vs.npzd_post_rules:
-                self.npzd_graph.edge(source, sink, xlabel=label, style="dashed")
+                npzd_graph.edge(source, sink, xlabel=label, style="dashed")
 
             if vs.sinking_speeds:
-                self.npzd_graph.node("Bottom", shape="square")
+                npzd_graph.node("Bottom", shape="square")
                 for sinker in vs.sinking_speeds:
-                    self.npzd_graph.edge(sinker, "Bottom", xlabel="sinking")
+                    npzd_graph.edge(sinker, "Bottom", xlabel="sinking")
 
             self.save_graph = False
-            self.npzd_graph.save()
+            npzd_graph.save()
 
         """
         Total phosphorus should be (approximately) constant
@@ -80,10 +85,8 @@ class NPZDMonitor(VerosDiagnostic):
         if vs.enable_nitrogen:
             pass
 
-
         po4_total = np.sum(po4_sum * cell_volume)
         logging.warning(" total phosphorus: {}, relative change: {}".format(po4_total, (po4_total - self.po4_total)/self.po4_total))
-
 
         for var in self.output_variables:
             if var in vs.recycled:
@@ -106,17 +109,13 @@ class NPZDMonitor(VerosDiagnostic):
             else:
                 grazing_total = 0
 
-
             logging.warning(" total recycled {}: {}".format(var, recycled_total))
             logging.warning(" total mortality {}: {}".format(var, mortality_total))
             logging.warning(" total npp {}: {}".format(var, npp_total))
             logging.warning(" total grazed {}: {}".format(var, grazing_total))
 
-
         for var in self.surface_out:
             logging.warning(" mean {} surface concentration: {} mmol/m^3".format(var, vs.npzd_tracers[var][vs.maskT[:, :, -1]].mean()))
-
-
 
     def read_restart(self, vs):
         pass

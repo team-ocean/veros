@@ -22,11 +22,6 @@ import sys
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('_3rdparty'))
 
-# Mock packages with C dependencies
-import mock
-MOCK_MODULES = ['pyamg', 'netCDF4', 'h5py', 'pyopencl']
-sys.modules.update((mod_name, mock.MagicMock()) for mod_name in MOCK_MODULES)
-
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -37,6 +32,7 @@ sys.modules.update((mod_name, mock.MagicMock()) for mod_name in MOCK_MODULES)
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 import sphinx_fontawesome
+
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
@@ -62,7 +58,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Veros'
-copyright = u'2017, The Veros Team, NBI Copenhagen'
+copyright = u'2017-2019, The Veros Team, NBI Copenhagen'
 author = u'The Veros Team, NBI Copenhagen'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -176,7 +172,7 @@ texinfo_documents = [
 
 # -- Options for autodoc --------------------------------------------------
 autodoc_member_order = "bysource"
-autodoc_default_flags = ["show-inheritance"]
+autodoc_default_options = {"show-inheritance": None}
 
 # -- Custom exec directive ------------------------------------------------
 
@@ -187,8 +183,10 @@ try:
 except ImportError:
     from io import StringIO
 
-from sphinx.util.compat import Directive
+# from sphinx.util.compat import Directive
 from docutils import nodes, statemachine
+from docutils.parsers.rst import Directive
+
 
 class ExecDirective(Directive):
     """Execute the specified python code and insert the output into the document"""
@@ -207,9 +205,11 @@ class ExecDirective(Directive):
             self.state_machine.insert_input(lines, source)
             return []
         except Exception:
-            return [nodes.error(None, nodes.paragraph(text = "Unable to execute python code at %s:%d:" % (basename(source), self.lineno)), nodes.paragraph(text = str(sys.exc_info()[1])))]
+            text = sys.stdout.getvalue()
+            return [nodes.error(None, nodes.paragraph(text, "Unable to execute python code at %s:%d:" % (basename(source), self.lineno)), nodes.paragraph(text=str(sys.exc_info()[1])))]
         finally:
             sys.stdout = oldStdout
+
 
 def setup(app):
     app.add_directive('exec', ExecDirective)
