@@ -93,17 +93,17 @@ Realistic configurations
 Configurations with BioGeoChemistry
 -----------------------------------
 
-+--------------------------------------------+
-| :doc:`/reference/setups/bgc-4deg`          |
-|                                            |
-| |bgc-4deg|                                 |
-+--------------------------------------------+
++--------------------------------------------+--------------------------------------------+
+| :doc:`/reference/setups/bgc-4deg`          |                                            |
+|                                            |                                            |
+| |bgc-4deg|                                 |                                            |
++--------------------------------------------+--------------------------------------------+
 
 .. |bgc-4deg| image:: /_images/gallery/bgc-4deg.png
    :width: 100%
    :align: middle
    :target: setups/bgc-4deg.html
-   :alt: Zooplancton after 50 years
+   :alt: Surface zooplancton after 60 years
 
 .. toctree::
    :hidden:
