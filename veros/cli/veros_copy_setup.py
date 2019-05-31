@@ -33,7 +33,7 @@ def copy_setup(setup, to=None):
 
 
 @click.command('veros-copy-setup')
-@click.argument('setup', type=click.Choice(SETUPS))
+@click.argument('setup', type=click.Choice(SETUPS), metavar='SETUP')
 @click.option('--to', type=click.Path(dir_okay=False, file_okay=False), required=False,
               default=None, help='Target directory (default: copy to current working directory)')
 @functools.wraps(copy_setup)
