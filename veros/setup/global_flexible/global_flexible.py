@@ -174,7 +174,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
         topo_x_shifted, topo_z_shifted = self._shift_longitude_array(vs, topo_x, topo_z_smoothed)
         coords = (vs.xt[2:-2], vs.yt[2:-2])
-        z_interp = allocate(vs, ('xt', 'yt'))
+        z_interp = allocate(vs, ('xt', 'yt'), local=False)
         z_interp[2:-2, 2:-2] = veros.tools.interpolate(
             (topo_x_shifted, topo_y), topo_z_shifted, coords, kind='nearest', fill=False
         )
