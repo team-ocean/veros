@@ -13,6 +13,11 @@ else:
 
 from . import time, logs, runtime_settings as rs, runtime_state as rst
 
+BAR_FORMAT = (
+    ' Current iteration: {iteration:<5} ({time:.2f}/{total:.2f}{unit} | {percentage:>4.1f}% | '
+    '{rate:.2f}{rate_unit} | {eta:.1f}{eta_unit} left)'
+)
+
 
 class LoggingProgressBar:
     """A simple progress report to logger.info
@@ -50,13 +55,12 @@ class LoggingProgressBar:
         percentage = 100 * (self._time - self._start_time) / (self._total - self._start_time)
 
         logger.info(
-            ' Current iteration: {it:<5} ({time:.2f}/{total:.2f}{unit} | {percentage:<4.1f}% | '
-            '{rate:.2f}{rate_unit} | {eta:.1f}{eta_unit} left)',
+            BAR_FORMAT,
             time=report_time,
             total=total_time,
             unit=self._time_unit[0],
             percentage=percentage,
-            it=self._iteration,
+            iteration=self._iteration,
             rate=rate,
             rate_unit='{}/(model year)'.format(rate_unit[0]),
             eta=eta,
@@ -68,24 +72,54 @@ class FancyProgressBar:
     """A fancy progress bar based on TQDM that stays at the bottom of the terminal."""
 
     def __init__(self, total, start_time=0, start_iteration=0, time_unit='seconds'):
-        self._start_time = start_time
-        self._start_iteration = start_iteration
+        self._time = self._start_time = start_time
+        self._iteration = self._start_iteration = start_iteration
         self._total = total
 
         total_runlen, time_unit = time.format_time(total)
         self._time_unit = time_unit
 
-        bar_format = (
-            '{{l_bar}}{{bar}}| {{n:.2f}}/{{total:.2f}}{time_unit}'
-            ' [{{elapsed}}<{{remaining}}, {{rate_fmt}}{{postfix}}]'.format(time_unit=time_unit[0])
-        )
-        self._pbar = tqdm.tqdm(
-            total=total_runlen,
-            unit='(model {})'.format(time_unit.rstrip('s')),
-            desc='Integrating',
+        class _VerosTQDM(tqdm.tqdm):
+            """Stripped down version of tqdm.tqdm
+
+            We only need TQDM to handle dynamic updates to the progress indicator.
+            """
+            @property
+            def format_dict(other):
+                report_time = time.convert_time(self._time, 'seconds', self._time_unit)
+                total_time = time.convert_time(self._total, 'seconds', self._time_unit)
+                percentage = 100 * (self._time - self._start_time) / (self._total - self._start_time)
+
+                d = super().format_dict
+
+                if d['elapsed'] > 0:
+                    rate_in_seconds = d['elapsed'] / (self._time - self._start_time)
+                    rate_in_seconds_per_year = rate_in_seconds / time.convert_time(1, 'seconds', 'years')
+                    rate, rate_unit = time.format_time(rate_in_seconds_per_year)
+                    eta, eta_unit = time.format_time((self._total - self._time) * rate_in_seconds)
+                else:
+                    rate, rate_unit = 0, 's'
+                    eta, eta_unit = 0, 's'
+
+                d.update(
+                    iteration=self._iteration,
+                    time=report_time,
+                    total=total_time,
+                    unit=self._time_unit[0],
+                    percentage=percentage,
+                    rate=rate,
+                    rate_unit='{}/(model year)'.format(rate_unit[0]),
+                    eta=eta,
+                    eta_unit=eta_unit[0],
+                )
+                return d
+
+            def format_meter(other, *args, bar_format, **kwargs):
+                return bar_format.format(**kwargs)
+
+        self._pbar = _VerosTQDM(
             file=sys.stdout,
-            bar_format=bar_format,
-            ncols=120,
+            bar_format=BAR_FORMAT
         )
 
     def __enter__(self, *args, **kwargs):
@@ -99,20 +133,11 @@ class FancyProgressBar:
         return self._pbar.__exit__(*args, **kwargs)
 
     def advance_time(self, amount):
-        amount_in_total_unit = min(
-            time.convert_time(amount, 'seconds', self._time_unit),
-            time.convert_time(self._total - self._time - 1e-8, 'seconds', self._time_unit)
-        )
-        self._pbar.update(amount_in_total_unit)
-
         self._iteration += 1
         self._time += amount
 
-        total_time = time.convert_time(self._time, 'seconds', self._time_unit)
-        self._pbar.set_postfix({
-            'time': '{time:.2f}{unit}'.format(time=total_time, unit=self._time_unit[0]),
-            'iteration': str(self._iteration),
-        })
+        # force update of progress bar
+        self._pbar.update(0)
 
 
 def get_progress_bar(vs, use_tqdm=None):
