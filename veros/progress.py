@@ -37,6 +37,8 @@ class LoggingProgressBar:
         self._start = perf_counter()
         self._iteration = self._start_iteration
         self._time = self._start_time
+        self.flush()
+        return self
 
     def __exit__(self, *args, **kwargs):
         pass
@@ -44,10 +46,16 @@ class LoggingProgressBar:
     def advance_time(self, amount, *args, **kwargs):
         self._iteration += 1
         self._time += amount
+        self.flush()
+
+    def flush(self):
         report_time = time.convert_time(self._time, 'seconds', self._time_unit)
         total_time = time.convert_time(self._total, 'seconds', self._time_unit)
 
-        rate_in_seconds = (perf_counter() - self._start) / (self._time - self._start_time)
+        if self._time > self._start_time:
+            rate_in_seconds = (perf_counter() - self._start) / (self._time - self._start_time)
+        else:
+            rate_in_seconds = 0
         rate_in_seconds_per_year = rate_in_seconds / time.convert_time(1, 'seconds', 'years')
 
         rate, rate_unit = time.format_time(rate_in_seconds_per_year)
@@ -125,18 +133,23 @@ class FancyProgressBar:
     def __enter__(self, *args, **kwargs):
         self._iteration = self._start_iteration
         self._time = self._start_time
-        logs.setup_logging(loglevel=rs.loglevel, stream_sink=functools.partial(self._pbar.write, end=''))
-        return self._pbar.__enter__(*args, **kwargs)
+        logs.setup_logging(
+            loglevel=rs.loglevel,
+            stream_sink=functools.partial(self._pbar.write, file=sys.stdout, end='')
+        )
+        self._pbar.__enter__(*args, **kwargs)
+        return self
 
     def __exit__(self, *args, **kwargs):
         logs.setup_logging(loglevel=rs.loglevel)
-        return self._pbar.__exit__(*args, **kwargs)
+        self._pbar.__exit__(*args, **kwargs)
 
     def advance_time(self, amount):
         self._iteration += 1
         self._time += amount
+        self.flush()
 
-        # force update of progress bar
+    def flush(self):
         self._pbar.update(0)
 
 
