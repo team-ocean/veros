@@ -60,7 +60,11 @@ class LoggingProgressBar:
 
         rate, rate_unit = time.format_time(rate_in_seconds_per_year)
         eta, eta_unit = time.format_time((self._total - self._time) * rate_in_seconds)
-        percentage = 100 * (self._time - self._start_time) / (self._total - self._start_time)
+
+        if self._start_time < self._total:
+            percentage = 100 * (self._time - self._start_time) / (self._total - self._start_time)
+        else:
+            percentage = 100
 
         logger.info(
             BAR_FORMAT,
@@ -96,12 +100,18 @@ class FancyProgressBar:
             def format_dict(other):
                 report_time = time.convert_time(self._time, 'seconds', self._time_unit)
                 total_time = time.convert_time(self._total, 'seconds', self._time_unit)
-                percentage = 100 * (self._time - self._start_time) / (self._total - self._start_time)
+                if self._start_time < self._total:
+                    percentage = 100 * (self._time - self._start_time) / (self._total - self._start_time)
+                else:
+                    percentage = 100
 
                 d = super().format_dict
 
                 if d['elapsed'] > 0:
-                    rate_in_seconds = d['elapsed'] / (self._time - self._start_time)
+                    if self._time > self._start_time:
+                        rate_in_seconds = d['elapsed'] / (self._time - self._start_time)
+                    else:
+                        rate_in_seconds = 0
                     rate_in_seconds_per_year = rate_in_seconds / time.convert_time(1, 'seconds', 'years')
                     rate, rate_unit = time.format_time(rate_in_seconds_per_year)
                     eta, eta_unit = time.format_time((self._total - self._time) * rate_in_seconds)

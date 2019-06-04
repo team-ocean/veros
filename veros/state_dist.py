@@ -17,6 +17,8 @@ class DistributedVerosState(VerosState):
         """Gather given variables from parent state object"""
         from .distributed import gather
         for arr in arrays:
+            if not hasattr(self._vs, arr):
+                continue
             self._gathered.add(arr)
             logger.trace(' Gathering {}', arr)
             gathered_arr = gather(
@@ -30,6 +32,8 @@ class DistributedVerosState(VerosState):
         """Sync all changes with parent state object"""
         from .distributed import scatter
         for arr in sorted(self._gathered):
+            if not hasattr(self._vs, arr):
+                continue
             logger.trace(' Scattering {}', arr)
             getattr(self._vs, arr)[...] = scatter(
                 self._vs,
