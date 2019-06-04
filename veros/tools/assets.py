@@ -7,10 +7,13 @@ import requests
 import ruamel.yaml as yaml
 from loguru import logger
 
+from .filelock import FileLock
+
 try:
     import urlparse
 except ImportError:
     import urllib.parse as urlparse
+
 
 ASSET_DIRECTORY = os.environ.get('VEROS_ASSET_DIR') or os.path.join(os.path.expanduser('~'), '.veros', 'assets')
 
@@ -68,13 +71,15 @@ def get_assets(asset_id, asset_file):
     def get_asset(url, md5=None):
         target_filename = os.path.basename(urlparse.urlparse(url).path)
         target_path = os.path.join(asset_dir, target_filename)
+        target_lock = target_path + '.lock'
 
-        if not os.path.isfile(target_path) or (md5 is not None and _filehash(target_path) != md5):
-            logger.info('Downloading asset {} ...', target_filename)
-            _download_file(url, target_path)
+        with FileLock(target_lock):
+            if not os.path.isfile(target_path) or (md5 is not None and _filehash(target_path) != md5):
+                logger.info('Downloading asset {} ...', target_filename)
+                _download_file(url, target_path)
 
-        if md5 is not None and _filehash(target_path) != md5:
-            raise AssetError('Mismatching MD5 checksum on asset %s' % target_filename)
+            if md5 is not None and _filehash(target_path) != md5:
+                raise AssetError('Mismatching MD5 checksum on asset %s' % target_filename)
 
         return target_path
 
