@@ -703,23 +703,25 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "Phytoplankton concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
             "Concentration of phytoplankton in grid box",
             output=True,
+            write_to_restart=True
         )),
         ("zooplankton", Variable(
             "Zooplankton concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
             "Concentration of zooplankton in grid box",
-            output=True
+            output=True,
+            write_to_restart=True
         )),
         ("detritus", Variable(
             "Detritus concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
             "Concentration of detritus in grid box",
-            output=True
+            output=True,
+            write_to_restart=True
         )),
-        ("detritus_export", Variable(
-            "Exported detritus", T_GRID + TIMESTEPS, "mmol/m^3", "", output=True)),
         ("po4", Variable(
             "Phosphate concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
             "Concentration of phosphate in grid box",
-            output=True
+            output=True,
+            write_to_restart=True
         )),
         ("swr", Variable(
             "Shortwave radiation", T_HOR, "W/m^3?",
@@ -731,38 +733,40 @@ CONDITIONAL_VARIABLES = OrderedDict([
             "Fraction of day with sunlight", YT, "1",
             "Fraction of day with sunlight")),
     ])),
-    ("enable_nitrogen", OrderedDict([
-    ("no3", Variable(
-        "Nitrate concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
-        "Concentration of nitrate in grid box",
-        output=True
-    )),
-    ("dop", Variable(
-        "Dissolved organic phosphorus", T_GRID + TIMESTEPS, "mmol/m^3?",
-        "Concentration of Dissolved organic phosphorus in grid box",
-        output=True
-    )),
-    ("don", Variable(
-        "Dissolved organic nitrogen", T_GRID + TIMESTEPS, "mmol/m^3?",
-        "Concentration of dissolved organic nitrogen in grid box",
-        output=True
-    )),
-    ("diazotroph", Variable(
-        "Diazotroph concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
-        "Concentration of diazotrophs in grid box",
-        output=True
-    )),
-    ])),
+    # ("enable_nitrogen", OrderedDict([
+    # ("no3", Variable(
+    #     "Nitrate concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
+    #     "Concentration of nitrate in grid box",
+    #     output=True
+    # )),
+    # ("dop", Variable(
+    #     "Dissolved organic phosphorus", T_GRID + TIMESTEPS, "mmol/m^3?",
+    #     "Concentration of Dissolved organic phosphorus in grid box",
+    #     output=True
+    # )),
+    # ("don", Variable(
+    #     "Dissolved organic nitrogen", T_GRID + TIMESTEPS, "mmol/m^3?",
+    #     "Concentration of dissolved organic nitrogen in grid box",
+    #     output=True
+    # )),
+    # ("diazotroph", Variable(
+    #     "Diazotroph concentration", T_GRID + TIMESTEPS, "mmol/m^3?",
+    #     "Concentration of diazotrophs in grid box",
+    #     output=True
+    # )),
+    # ])),
     ("enable_carbon", OrderedDict([
-    ("dic", Variable(
+    ("DIC", Variable(
         "Dissolved Inorganic Carbon", T_GRID + TIMESTEPS, "mmol/m^3",
         "Concentration of inorganic carbon ions and molecule",
-        output=True
+        output=True,
+        write_to_restart=True,
     )),
     ("alkalinity", Variable(
         "Alkalinity", T_GRID + TIMESTEPS, "mmol/m^3",
         "Combined bases and acids",
-        output=True
+        output=True,
+        write_to_restart=True
     )),
     ("atmospheric_co2", Variable(
         "Atmospheric co2 concentration", T_HOR, "ppmv",
@@ -775,21 +779,21 @@ CONDITIONAL_VARIABLES = OrderedDict([
         "Debugging wind speed", T_HOR, "m/s",
         "Just used for debugging. Please ignore",
         output=True)),
-    ("hSWS", Variable("hSWS", T_HOR, "?????", "?", output=True)),
-    ("pCO2", Variable("pCO2", T_HOR, "?????", "?", output=True)),
-    ("dpCO2", Variable("dpCO2", T_HOR, "?????", "?", output=True)),
-    ("co2star", Variable("co2star", T_HOR, "?????", "?", output=True)),
-    ("dco2star", Variable("dco2star", T_HOR, "?????", "?", output=True)),
+    ("hSWS", Variable("hSWS", T_HOR, "1", "[H] in Sea water sample", output=True)),
+    ("pCO2", Variable("pCO2", T_HOR, "?ppmv/atm?", "Partial CO2 pressure", output=True)),
+    ("dpCO2", Variable("dpCO2", T_HOR, "?ppmv/atm?", "Difference in ocean CO2 pressure and atmospheric", output=True)),
+    ("co2star", Variable("co2star", T_HOR, "?ppmv?", "Adjusted CO2 in ocean", output=True)),
+    ("dco2star", Variable("dco2star", T_HOR, "?ppmv?", "Adjusted CO2 difference", output=True)),
     ("rcak", Variable("Calcite redistribution share", T_GRID, "1", "Calcite is redistributed after production by dissolution varying by depth")),
     ])),
-    ("enable_calcifiers", OrderedDict([
-    ("coccolitophore", Variable(
-        "Coccolitophore concentration", T_GRID + TIMESTEPS, "mmol/m^3",
-        "")),
-    ("caco3", Variable(
-        "Calcite concentration", T_GRID + TIMESTEPS, "mmol/m^3",
-        ""))
-        ])),
+    # ("enable_calcifiers", OrderedDict([
+    # ("coccolitophore", Variable(
+    #     "Coccolitophore concentration", T_GRID + TIMESTEPS, "mmol/m^3",
+    #     "")),
+    # ("caco3", Variable(
+    #     "Calcite concentration", T_GRID + TIMESTEPS, "mmol/m^3",
+    #     ""))
+    #     ])),
 ])
 
 
