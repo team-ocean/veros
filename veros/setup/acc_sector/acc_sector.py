@@ -67,8 +67,9 @@ class ACCSectorSetup(VerosSetup):
         vs.tke_mxl_choice = 2
         vs.kappaM_min = 2e-4
         vs.kappaH_min = 2e-5
-        # vs.enable_tke_superbee_advection = True
         vs.enable_Prandtl_tke = False
+        vs.enable_kappaH_profile = True
+        # vs.enable_tke_superbee_advection = True
 
         vs.K_gm_0 = 1300.0
         vs.enable_eke = False
