@@ -115,6 +115,7 @@ SETTINGS = OrderedDict([
 
     # New
     ('kappaH_min', Setting(0., float, 'minimum value for vertical diffusivity')),
+    ('enable_kappaH_profile', Setting(False, bool, 'Compute vertical profile of diffusivity after Bryan and Lewis (1979) in TKE routine')),
     ('enable_Prandtl_tke', Setting(True, bool, 'Compute Prandtl number from stratification levels in TKE routine')),
     ('Prandtl_tke0', Setting(10., float, 'Constant Prandtl number when stratification is neglected for kappaH computation in TKE routine')),
     ('use_io_threads', Setting(False, bool, 'Start extra threads for disk writes')),

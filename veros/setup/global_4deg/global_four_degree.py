@@ -60,6 +60,9 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.alpha_tke = 30.0
         vs.mxl_min = 1e-8
         vs.tke_mxl_choice = 2
+        vs.kappaM_min = 2e-4
+        vs.kappaH_min = 2e-5
+        vs.enable_kappaH_profile = True
         vs.enable_tke_superbee_advection = True
 
         vs.enable_eke = True
