@@ -104,7 +104,7 @@ def calcite_production(vs, plankton, DIC, calcite):
 
     # changes to production of calcite
     dprca = (vs.mortality[plankton] + vs.grazing[plankton] *
-             (1 - vs.assimilation_efficiency)) * vs.capr * vs.redfield_ratio_CN# * 1e-3
+             (1 - vs.assimilation_efficiency)) * vs.capr * vs.redfield_ratio_CN
 
     return {DIC: -dprca, calcite: dprca}
 
@@ -154,34 +154,6 @@ def co2_surface_flux(vs, co2, dic):
     atmospherefluxes.carbon_flux(vs)
     flux = vs.cflux * vs.dt_tracer / vs.dzt[-1]
     return {dic: flux}  # NOTE we don't have an atmosphere, so this rules is a stub
-
-
-# @veros_inline_method
-# def primary_production_from_dop_po4(vs, DOP, plankton):
-#     """
-#     Plankton growth by DOP uptake.
-#     """
-
-#     return {DOP: - vs.net_primary_production[DOP] * vs.dop_consumption, plankton: vs.net_primary_production[plankton] * vs.dop_consumption}
-
-
-# @veros_inline_method
-# def primary_production_from_po4_dop(vs, po4, plankton):
-#     """
-#     Plankton growth by po4 consumption
-#     """
-
-#     cons = np.logical_not(vs.dop_consumption)
-#     return {po4: - vs.net_primary_production[plankton] * cons, plankton: vs.net_primary_production[plankton] * cons}
-
-
-# @veros_inline_method
-# def diazotroph_growth_don(vs, DON, diazotroph):
-#     """
-#     Diazotroph growth by DON consumption
-#     """
-
-#     return {}
 
 
 @veros_inline_method
