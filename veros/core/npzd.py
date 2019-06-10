@@ -203,22 +203,28 @@ def zooplankton_grazing(vs, tracers, flags, gmax):
     All are useful to have calculated once and made available to rules
     """
 
+    # Denominator
     thetaZ = sum([pref_score * tracers[preference] for preference, pref_score
                   in vs.zprefs.items()])\
                  + vs.saturation_constant_Z_grazing * vs.redfield_ratio_PN
 
+    # Fractional part of each grazed type, which may be ingested
     ingestion = {preference: pref_score / thetaZ for preference, pref_score in vs.zprefs.items()}
 
+    # The amounts each grazed tracer will be reduced
     grazing = {preference: flags[preference] * flags['zooplankton'] * gmax
                            * ingestion[preference] * tracers[preference]
                            * tracers['zooplankton'] for preference in ingestion}
 
+    # how much is available for growth in zooplankton
     digestion = {preference: vs.assimilation_efficiency * amount_grazed
                  for preference, amount_grazed in grazing.items()}
 
+    # how much is lost from zooplankton growth, based on digestion
     excretion = {preference: (1 - vs.zooplankton_growth_efficiency) * amount_digested
                  for preference, amount_digested in digestion.items()}
 
+    # the part of total grazed tracers which are not digested - i.e. it should become detritus
     sloppy_feeding = {preference: grazing[preference] - digestion[preference]
                       for preference in grazing}
 
