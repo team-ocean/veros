@@ -732,6 +732,9 @@ CONDITIONAL_VARIABLES = OrderedDict([
         ("dayfrac", Variable(
             "Fraction of day with sunlight", YT, "1",
             "Fraction of day with sunlight")),
+        ("excretion_total", Variable(
+            "Total excretion from zooplankton", T_GRID, "mmol/m^3 / s",
+            "Zooplankton grazing causes excretion. This stores the total excreted amount for all consumed tracers")),
     ])),
     # ("enable_nitrogen", OrderedDict([
     # ("no3", Variable(

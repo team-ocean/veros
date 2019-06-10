@@ -154,6 +154,11 @@ SETTINGS = OrderedDict([
     ("npzd_selected_rule_names", Setting([], list, "name of selected rules")),
     ("npzd_export", Setting({}, dict, "Exported material from npzd tracers by sinking")),
     ("npzd_import", Setting({}, dict, "Imported material from npzd tracers from layer above. Takes same value as npzd_export scaled by level differences. Sea surface is 0")),
+    ("zprefs", Setting({}, dict, "Preference for zooplankton to graze on named tracers")),
+    # TODO remove this, when merging npzd_objects
+    ("npzd_transported_tracers", Setting([], list, "List of NPZD tracers which are transported")),
+    ("npzd_advection_derivatives", Setting({}, dict, "Stores derivates of advection term for tracers")),
+    ("temporary_tracers", Setting({}, dict, "Temporary copy of npzd_tracers for biogeochemistry loop")),
 
 
 

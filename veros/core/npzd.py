@@ -137,7 +137,7 @@ def biogeochemistry(vs):
         # Zooplankton growth parameters for use in rules and diagnostics
         vs.grazing, vs.digestion, vs.excretion, vs.sloppy_feeding = \
             zooplankton_grazing(vs, vs.temporary_tracers, flags, gmax)
-        vs.excretion_total = sum(vs.excretion.values())
+        vs.excretion_total[...] = sum(vs.excretion.values())
 
         # Calculate concentration leaving cell and entering from above
         for sinker, speed in vs.sinking_speeds.items():
@@ -381,6 +381,7 @@ def setup_basic_npzd_rules(vs):
         zooplankton_self_grazing, excretion, primary_production, empty_rule, \
         bottom_remineralization_detritus_po4
 
+    # TODO - couldn't this be created elsewhere or can I use vs.kbot more efficiently?
     vs.bottom_mask = np.empty((vs.nx + 4, vs.ny + 4, vs.nz), dtype=np.bool)
     vs.bottom_mask[:, :, :] = np.arange(vs.nz)[np.newaxis, np.newaxis, :] == (vs.kbot - 1)[:, :, np.newaxis]
 
@@ -400,7 +401,10 @@ def setup_basic_npzd_rules(vs):
 
     # Zooplankton preferences for grazing on keys
     # Values are scaled automatically at the end of this function
-    vs.zprefs = {'phytoplankton': vs.zprefP, 'zooplankton': vs.zprefZ, 'detritus': vs.zprefDet}
+    # vs.zprefs = {'phytoplankton': vs.zprefP, 'zooplankton': vs.zprefZ, 'detritus': vs.zprefDet}
+    vs.zprefs['phytoplankton'] = vs.zprefP
+    vs.zprefs['zooplankton'] = vs.zprefZ
+    vs.zprefs['detritus'] = vs.zprefDet
 
     # Register for basic model
     register_npzd_data(vs, 'detritus', vs.detritus)
@@ -573,7 +577,7 @@ def setupNPZD(vs):
     # Which tracers should be transported
     # In some cases it may be desirable to not transport a tracer. In that
     # case you should ensure, it is updated or reset appropriately using pre and post rules
-    vs.npzd_transported_tracers = []
+    # vs.npzd_transported_tracers = []
 
     setup_basic_npzd_rules(vs)
 
@@ -590,10 +594,12 @@ def setupNPZD(vs):
         vs.zprefs[preference] /= zprefsum
 
     # Keep derivatives of everything for advection
-    vs.npzd_advection_derivatives = {tracer: np.zeros_like(data)
-                                     for tracer, data in vs.npzd_tracers.items()}
+    for tracer, data in vs.npzd_tracers.items():
+        vs.npzd_advection_derivatives[tracer] = np.zeros_like(data)
 
-    vs.temporary_tracers = {tracer: np.empty_like(data[..., 0]) for tracer, data in vs.npzd_tracers.items()}
+    # Temporary tracers are necessary to only return differences
+    for tracer, data in vs.npzd_tracers.items():
+        vs.temporary_tracers[tracer] = np.empty_like(data[..., 0])
 
 
 @veros_method
