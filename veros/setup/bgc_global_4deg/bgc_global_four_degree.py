@@ -85,6 +85,7 @@ class GlobalFourDegreeBGC(veros.Veros):
         # self.kappaH_min =7e-5 # NOTE usually 2e-5
         self.enable_tke_superbee_advection = True
         self.enable_Prandtl_tke = False
+        self.enable_kappaH_profile = True
 
         # eke
         self.K_gm_0 = 1000.0

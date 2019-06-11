@@ -16,14 +16,14 @@ class ACCSector(veros.Veros):
     This setup demonstrates:
      - setting up an idealized geometry after `(Munday et al., 2013) <https://doi.org/10.1175/JPO-D-12-095.1>`_.
      - modifing surface forcings over selected regions of the domain
-     - sensitivity of circumpolar transport and meridional overturning 
+     - sensitivity of circumpolar transport and meridional overturning
        to changes in Southern Ocean wind stress and buoyancy anomalies
      - basic usage of diagnostics
 
     :doc:`Adapted from ACC channel model </reference/setups/acc>`.
 
     """
-    
+
     max_depth = 4000.
     so_wind_factor = 1.
 
@@ -50,7 +50,7 @@ class ACCSector(veros.Veros):
         self.enable_skew_diffusion = True
 
         self.enable_hor_friction = True
-        self.A_h = 5e4 * 2 
+        self.A_h = 5e4 * 2
         self.enable_hor_friction_cos_scaling = True
         self.hor_friction_cosPower = 1
 
@@ -67,8 +67,9 @@ class ACCSector(veros.Veros):
         self.tke_mxl_choice = 2
         self.kappaM_min = 2e-4
         self.kappaH_min = 2e-5
-        # self.enable_tke_superbee_advection = True
         self.enable_Prandtl_tke = False
+        self.enable_kappaH_profile = True
+        # self.enable_tke_superbee_advection = True
 
         self.K_gm_0 = 1300.0
         self.enable_eke = False

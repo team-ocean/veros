@@ -72,6 +72,9 @@ class NorthAtlantic(veros.Veros):
         self.alpha_tke = 30.0
         self.mxl_min = 1e-8
         self.tke_mxl_choice = 2
+        self.kappaM_min = 2e-4
+        self.kappaH_min = 2e-5
+        self.enable_kappaH_profile = True
 
         self.K_gm_0 = 1000.0
 

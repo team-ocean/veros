@@ -56,6 +56,9 @@ class GlobalFourDegree(veros.Veros):
         self.alpha_tke = 30.0
         self.mxl_min = 1e-8
         self.tke_mxl_choice = 2
+        self.kappaM_min = 2e-4
+        self.kappaH_min = 2e-5
+        self.enable_kappaH_profile = True
         self.enable_tke_superbee_advection = True
 
         self.enable_eke = True
@@ -67,7 +70,7 @@ class GlobalFourDegree(veros.Veros):
         self.eke_lmin = 100.0
         self.enable_eke_superbee_advection = True
 
-        self.enable_idemix = True
+        self.enable_idemix = False
         self.enable_idemix_hor_diffusion = True
         self.enable_eke_diss_surfbot = True
         self.eke_diss_surfbot_frac = 0.2

@@ -66,6 +66,14 @@ def set_tke_diffusivities(vs):
         else:
             vs.Prandtlnumber[...] = vs.Prandtl_tke0
         vs.kappaH[...] = np.maximum(vs.kappaH_min, vs.kappaM / vs.Prandtlnumber)
+        if vs.enable_kappaH_profile:
+            # Correct diffusivity according to
+            # Bryan, K., and L. J. Lewis, 1979:
+            # A water mass model of the world ocean. J. Geophys. Res., 84, 2503–2517.
+            # It mainly modifies kappaH within 20S - 20N deg. belt
+            vs.kappaH[...] = np.maximum(vs.kappaH, (0.8 + 1.05 / np.pi
+                                                    * np.arctan((-vs.zw[np.newaxis, np.newaxis, :] - 2500.)
+                                                    / 222.2)) * 1e-4)
         vs.kappaM[...] = np.maximum(vs.kappaM_min, vs.kappaM)
     else:
         vs.kappaM[...] = vs.kappaM_0
