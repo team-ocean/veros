@@ -92,7 +92,6 @@ def biogeochemistry(vs):
 
     # Maximum grazing rate is a function of temperature
     # bctz sets an upper limit on effects of temperature on grazing
-    # gmax = vs.gbio * bctz
     gmax = vs.maximum_grazing_rate * bctz
 
     # light saturated growth and non-saturated growth
@@ -393,15 +392,12 @@ def setup_basic_npzd_rules(vs):
     vs.plankton_types = ['phytoplankton']  # Phytoplankton types in the model. For blocking light
     vs.plankton_growth_functions['phytoplankton'] = phytoplankton_potential_growth
     vs.limiting_functions['phytoplankton'] = [phosphate_limitation_phytoplankton]
-    # vs.recycling_rates['phytoplankton'] = vs.nupt0
     vs.recycling_rates['phytoplankton'] = vs.fast_recycling_rate_phytoplankton
-    # vs.recycling_rates['detritus'] = vs.nud0
     vs.recycling_rates['detritus'] = vs.remineralization_rate_detritus
     vs.mortality_rates['phytoplankton'] = vs.specific_mortality_phytoplankton
 
     # Zooplankton preferences for grazing on keys
     # Values are scaled automatically at the end of this function
-    # vs.zprefs = {'phytoplankton': vs.zprefP, 'zooplankton': vs.zprefZ, 'detritus': vs.zprefDet}
     vs.zprefs['phytoplankton'] = vs.zprefP
     vs.zprefs['zooplankton'] = vs.zprefZ
     vs.zprefs['detritus'] = vs.zprefDet
@@ -573,11 +569,6 @@ def setup_carbon_npzd_rules(vs):
 @veros_inline_method
 def setupNPZD(vs):
     """Taking veros variables and packaging them up into iterables"""
-
-    # Which tracers should be transported
-    # In some cases it may be desirable to not transport a tracer. In that
-    # case you should ensure, it is updated or reset appropriately using pre and post rules
-    # vs.npzd_transported_tracers = []
 
     setup_basic_npzd_rules(vs)
 
