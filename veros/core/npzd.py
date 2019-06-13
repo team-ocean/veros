@@ -244,7 +244,6 @@ def potential_growth(vs, bct, grid_light, light_attenuation, growth_parameter):
 @veros_inline_method
 def phytoplankton_potential_growth(vs, bct, grid_light, light_attenuation):
     """ Regular potential growth scaled by vs.abi_P """
-    # return potential_growth(vs, bct, grid_light, light_attenuation, vs.abio_P)
     return potential_growth(vs, bct, grid_light, light_attenuation, vs.maximum_growth_rate_phyto)
 
 
