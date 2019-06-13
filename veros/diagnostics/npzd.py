@@ -34,13 +34,15 @@ class NPZDMonitor(VerosDiagnostic):
                   + vs.zooplankton[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_PN\
                   + vs.po4[2:-2, 2:-2, :, vs.tau]
 
-        dic_sum = vs.phytoplankton[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
-                  + vs.detritus[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
-                  + vs.zooplankton[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
-                  + vs.DIC[2:-2, 2:-2, :, vs.tau]
-
         self.po4_total = np.sum(po4_sum * cell_volume)
-        self.dic_total = np.sum(dic_sum * cell_volume)
+
+        if vs.enable_carbon:
+            dic_sum = vs.phytoplankton[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
+                      + vs.detritus[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
+                      + vs.zooplankton[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
+                      + vs.DIC[2:-2, 2:-2, :, vs.tau]
+
+            self.dic_total = np.sum(dic_sum * cell_volume)
 
 
     def diagnose(self, vs):
@@ -82,10 +84,11 @@ class NPZDMonitor(VerosDiagnostic):
                   + vs.zooplankton[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_PN\
                   + vs.po4[2:-2, 2:-2, :, vs.tau]
 
-        dic_sum = vs.phytoplankton[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
-                  + vs.detritus[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
-                  + vs.zooplankton[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
-                  + vs.DIC[2:-2, 2:-2, :, vs.tau]
+        if vs.enable_carbon:
+            dic_sum = vs.phytoplankton[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
+                      + vs.detritus[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
+                      + vs.zooplankton[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
+                      + vs.DIC[2:-2, 2:-2, :, vs.tau]
 
         # more species carry phosphorus
         if vs.enable_calcifiers:
@@ -99,9 +102,10 @@ class NPZDMonitor(VerosDiagnostic):
         logging.warning(" total phosphorus: {}, relative change: {}".format(po4_total, (po4_total - self.po4_total)/self.po4_total))
         self.po4_total = po4_total[...]
 
-        dic_total = np.sum(dic_sum * cell_volume)
-        logging.warning(" total DIC: {}, relative change: {}".format(dic_total, (dic_total - self.dic_total)/self.dic_total))
-        self.dic_total = dic_total.copy()
+        if vs.enable_carbon:
+            dic_total = np.sum(dic_sum * cell_volume)
+            logging.warning(" total DIC: {}, relative change: {}".format(dic_total, (dic_total - self.dic_total)/self.dic_total))
+            self.dic_total = dic_total.copy()
 
 
         for var in self.output_variables:
