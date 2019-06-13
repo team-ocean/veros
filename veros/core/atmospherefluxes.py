@@ -61,7 +61,7 @@ def carbon_flux(vs):
 
     # TODO land fluxes?
 
-    vs.cflux = co2_flux
+    vs.cflux[...] = co2_flux
     return vs.cflux
 
 
