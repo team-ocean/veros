@@ -21,7 +21,7 @@ def carbon_flux(vs):
     atmospheric_pressure = 1  # atm  NOTE: We don't have an atmosphere yet, hence constant pressure
 
     # TODO get actual wind speed rather than deriving from wind stress
-    wind_speed = np.sqrt(np.abs(vs.surface_taux) + np.abs(vs.surface_tauy)) * 500 # mult for scale?
+    wind_speed = np.sqrt(np.abs(vs.surface_taux / vs.rho_0) + np.abs(vs.surface_tauy / vs.rho_0)) * 500 # mult for scale?
     vs.wind_speed = wind_speed
 
 
