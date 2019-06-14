@@ -8,13 +8,12 @@ from . import cyclic
 
 @veros_method
 def carbon_flux(vs):
-    t_in = vs.temp[:, :, -1, vs.tau]  # [degree C] TODO rename variable
-    s_in = vs.salt[:, :, -1, vs.tau]  # [g/kg = PSU] TODO rename variable
-    dic_in = vs.dic[:, :, -1, vs.tau] * 1e-3# [mmol -> mol] TODO rename variable
-    ta_in = vs.alkalinity[:, :, -1, vs.tau] * 1e-3 # [mmol -> mol] TODO rename variable
-    co2_in = vs.atmospheric_co2 # [ppmv] TODO rename variable
+    # t_in = vs.temp[:, :, -1, vs.tau]  # [degree C] TODO rename variable
+    # s_in = vs.salt[:, :, -1, vs.tau]  # [g/kg = PSU] TODO rename variable
+    # dic_in = vs.dic[:, :, -1, vs.tau] * 1e-3# [mmol -> mol] TODO rename variable
+    # ta_in = vs.alkalinity[:, :, -1, vs.tau] * 1e-3 # [mmol -> mol] TODO rename variable
+    # co2_in = vs.atmospheric_co2 # [ppmv] TODO rename variable
 
-#    ao = 1  # 1 - ice fraction coverage
     icemask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
             vs.forc_temp_surface < 0.0)
     ao = np.logical_not(icemask)
@@ -32,13 +31,20 @@ def carbon_flux(vs):
 #       xconv = 33.7/3.6e+05
 #       xconv = xconv*0.75
     xconv = 0.337 / 3.6e5
-    xconv *= 0.75  # NOTE: This seems like an approximation I don't where they got it
+    xconv *= 0.75  # NOTE: This seems like an approximation I don't know where they got it
 
-    vs.dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
+    # vs.dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
+    vs.dco2star = co2calc_SWS(vs, vs.temp[:, :, -1, vs.tau],  # [degree C]
+                              vs.salt[:, :, -1, vs.tau],  # [g/kg]
+                              vs.DIC[:, :, -1, vs.tau] * 1e-3,  # [mmol -> mol]
+                              vs.alkalinity[:, :, -1, vs.tau] * 1e-3,  # [mmol -> mol]
+                              vs.atmospheric_co2,  # [ppmv]
+                              atmospheric_pressure)  # atm
 
     # Schmidt number for CO2
     # Wanninkhof, 1992, table A
-    scco2 = 2073.1 - 125.62 * t_in + 3.6276 * t_in ** 2 - 0.043219 * t_in ** 3
+    # scco2 = 2073.1 - 125.62 * t_in + 3.6276 * t_in ** 2 - 0.043219 * t_in ** 3
+    scco2 = 2073.1 - 125.62 * vs.temp[:, :, -1, vs.tau] + 3.6276 * vs.temp[:, :, -1, vs.tau] ** 2 - 0.043219 * vs.temp[:, :, -1, vs.tau] ** 3
 
     piston_vel = ao * xconv * (wind_speed) ** 2 * ((scco2/660.0)**(-0.5))
     # NOTE: According to https://www.soest.hawaii.edu/oceanography/courses/OCN623/Spring%202015/Gas_Exchange_2015_one-lecture1.pdf there are 3 regimes we are looking at the wavy surface
@@ -55,8 +61,7 @@ def carbon_flux(vs):
 
     # TODO land fluxes?
 
-    # call co2forc
-    vs.cflux = co2_flux
+    vs.cflux[...] = co2_flux
     return vs.cflux
 
 
@@ -70,10 +75,17 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     """ Please rename this to something that actually makes sense
         Calculate delta co2* from total alkalinty and total CO2 at
         temperature, salinity and atmosphere total pressure
+
+        :temperature: sea surface temperature
+        :salinity: salinity
+        :dic_in: DIC in units [mol/m^3]
+        :ta_in: alkalinity in units [mol/m^3]
+        :co2_in: atmospheric co2
+        :atmospheric_pressure: atmospheric pressure in [atm]
     """
 
-    sit_in = np.ones_like(temperature) * 7.6875e-3  # mol / m^3 TODO: What is this?
-    pt_in = np.ones_like(temperature) * 0.5125e-3  # mol / m^3 TODO: What is this?
+    sit_in = np.ones_like(temperature) * 7.6875e-3  # [mol/m^3] estimated total Si
+    pt_in = np.ones_like(temperature) * 0.5125e-3  # [mol/m^3 ] estimated total P
 
     temperature_in_kelvin = temperature + 273.15
 
@@ -82,16 +94,16 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # Note: mol/kg are actually what the body of this routine uses for calculations
 
     permil = 1.0 / 1024.5
-    pt = pt_in * permil
-    sit = sit_in * permil
-    ta = ta_in * permil
+    pt = pt_in * permil  # total P
+    sit = sit_in * permil  # total Si
+    ta = ta_in * permil  # total alkalinity
     dic = dic_in * permil
 
     # convert from uatm to atm, but it's in ppmv
     permeg = 1e-6
     co2 = co2_in * permeg
 
-    scl = salinity / 1.80655
+    scl = salinity / 1.80655  # convenience parameter
     _is = 19.924 * salinity / (1000.0 - 1.005 * salinity)  # ionic _strength
 
     # Concentrations for borate, sulfate, and flouride
@@ -112,7 +124,7 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
             * np.log(temperature_in_kelvin / 100) + salinity * (
                 0.023517 - 0.023656 * temperature_in_kelvin / 100 + 0.0047036 * (temperature_in_kelvin / 100) ** 2))
 
-    # Now calculate FugFac according to Weiss (1974) Marine Chemestry TODO: What does FugFac mean?
+    # Now calculate FugFac according to Weiss (1974) Marine Chemestry
     # delta_x and b_x are in cm3/mol TODO we should use m over cm right?
     # NOTE: This looks like equation 9, but without the pressure factors. Could FugFac mean fugacity factor??
     rt_x = 83.1451 * temperature_in_kelvin  # Gas constant times temperature
@@ -214,26 +226,18 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # is not recommended (xacc of 10**-9 drops precision to 2 significant figures).
 
     # ph = np.log10(vs.hSWS)  # negativ ph
-
-    # x1 = 10.0 ** (ph + 0.5)
-    # x2 = 10.0 ** (ph - 0.5)
     xacc = 1e-10
-
-    # in1 = np.ones_like(co2_in) * x1
-    # in2 = np.ones_like(co2_in) * x2
-
-    # print(0.5 * (in1 + in2) - vs.hSWS)
-    # boundary = np.minimum(np.sqrt(vs.hSWS), vs.hSWS - vs.trcmin)
 
     # NOTE hSWS should never exceed the safe values, but we can check it
     limit_min = 1e-8
-    # boundary = np.minimum(np.maximum(1e-6 - vs.hSWS, limit_min),
-    #                       np.maximum(vs.hSWS - 1e-10, limit_min))
     boundary = np.maximum(limit_min,
                           np.minimum(1e-6 - vs.hSWS, vs.hSWS - 1e-10))
-    in1 = vs.hSWS + boundary
-    in2 = vs.hSWS - boundary
 
+    # boundary guesses are placed equidistant from the guessed best solution
+    in1 = vs.hSWS + boundary  # input guess 1
+    in2 = vs.hSWS - boundary  # input guess 2
+
+    # where to run the optimization - skip land
     iter_mask = np.empty_like(in1, dtype=np.bool)
     iter_mask[...] = vs.maskT[:, :, -1]
 
@@ -249,10 +253,11 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # ORNL/CDIC-74, Dickson and Goyet, eds. (Ch 2 p 1+, Eq A.49)
     co2star = dic * vs.hSWS**2 / (vs.hSWS**2 + k1 * vs.hSWS + k1 * k2)
     co2starair = co2 * ff * atmospheric_pressure
-    dco2star = co2starair - co2star
+    dco2star = co2starair - co2star  # effective CO2 pressure difference
 
-    pCO2 = co2star / (k0 * FugFac)
-    dpCO2 = pCO2 - co2 * atmospheric_pressure
+    # pCO2 and dpCO2 are for diagnostic purposes only
+    pCO2 = co2star / (k0 * FugFac)  # partial CO2 pressure
+    dpCO2 = pCO2 - co2 * atmospheric_pressure  # difference in CO2 pressure between ocean and atmosphere
 
     # Convert units back
     vs.co2star[:, :] = co2star / permil
@@ -547,7 +552,6 @@ def drtsafe_masked(vs, mask, function, guess_low, guess_high, args=None,
 
         if not mask.any():  # complete
             break
-        # print(_, mask.sum())
 
         # Update function for next step
         f, df = function(vs, mask, drtsafe_val, *args)
@@ -560,6 +564,10 @@ def drtsafe_masked(vs, mask, function, guess_low, guess_high, args=None,
 
 @veros_method
 def drtsafe(vs, function, guess_low, guess_high, args=None, accuracy=1e-10, max_iterations=100):
+    """ Root finding method with bounding box, follows Newton-Raphson step
+        unless unsufficient or the step with take the solution out of bounds.
+        Otherwise does birfurcating step.
+    """
     # Initial guess and step size
     drtsafe_val = 0.5 * (guess_low + guess_high)
     dx = np.abs(guess_high - guess_low)
@@ -589,7 +597,6 @@ def drtsafe(vs, function, guess_low, guess_high, args=None, accuracy=1e-10, max_
 
         if not (np.abs(dx) > accuracy).any():
             break
-        # print(_, (np.abs(dx) > accuracy).sum())
 
         # NOTE this was above the accuracy check
         drtsafe_val = np.where(step_mask, x_low + dx, drtsafe_val - dx)
@@ -598,7 +605,6 @@ def drtsafe(vs, function, guess_low, guess_high, args=None, accuracy=1e-10, max_
         f, df = function(vs, drtsafe_val, *args)
 
         # Update search boundaries
-        # drtsafe_boundary_update(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_val)
         x_low, x_high, f_low, f_high = np.where(f < 0,
                                                 (drtsafe_val, x_high, f, f_high),
                                                 (x_low, drtsafe_val, f_low, f))
