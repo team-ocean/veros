@@ -1,14 +1,14 @@
 import math
 
-import numpy as np
-from .. import veros_method, veros_inline_method
-from . import cyclic, utilities
+from .. import veros_method
+from ..variables import allocate
+from . import utilities
 
 
-@veros_inline_method
-def dissipation_on_wgrid(vs, p_arr, int_drhodX=None, aloc=None, ks=None):
+@veros_method(inline=True)
+def dissipation_on_wgrid(vs, out, int_drhodX=None, aloc=None, ks=None):
     if aloc is None:
-        aloc = np.zeros_like(p_arr)
+        aloc = allocate(vs, ('xt', 'yt', 'zw'))
         aloc[1:-1, 1:-1, :] = 0.5 * vs.grav / vs.rho_0 \
             * ((int_drhodX[2:, 1:-1, :] - int_drhodX[1:-1, 1:-1, :]) * vs.flux_east[1:-1, 1:-1, :]
              + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[:-2, 1:-1, :]) * vs.flux_east[:-2, 1:-1, :]) \
@@ -16,6 +16,7 @@ def dissipation_on_wgrid(vs, p_arr, int_drhodX=None, aloc=None, ks=None):
             + 0.5 * vs.grav / vs.rho_0 * ((int_drhodX[1:-1, 2:, :] - int_drhodX[1:-1, 1:-1, :]) * vs.flux_north[1:-1, 1:-1, :]
                                         + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[1:-1, :-2, :]) * vs.flux_north[1:-1, :-2, :]) \
             / (vs.dyt[np.newaxis, 1:-1, np.newaxis] * vs.cost[np.newaxis, 1:-1, np.newaxis])
+
     if ks is None:
         ks = vs.kbot[:, :] - 1
 
@@ -26,21 +27,20 @@ def dissipation_on_wgrid(vs, p_arr, int_drhodX=None, aloc=None, ks=None):
         np.arange(vs.nz - 1)[np.newaxis, np.newaxis, :] > ks[:, :, np.newaxis])
 
     dzw_pad = utilities.pad_z_edges(vs, vs.dzw)
-    p_arr[:, :, :-1] += (0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:])
+    out[:, :, :-1] += (0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:])
                        + 0.5 * (aloc[:, :, :-1] * dzw_pad[np.newaxis, np.newaxis, :-3]
                                / vs.dzw[np.newaxis, np.newaxis, :-1])) * edge_mask
-    p_arr[:, :, :-1] += 0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:]) * water_mask
-    p_arr[:, :, -1] += aloc[:, :, -1] * land_mask
+    out[:, :, :-1] += 0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:]) * water_mask
+    out[:, :, -1] += aloc[:, :, -1] * land_mask
 
 
 @veros_method
 def tempsalt_biharmonic(vs):
     """
-    biharmonic mixing of vs.temp and salinity,
+    biharmonic mixing of temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
-    aloc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
-    del2 = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
+    del2 = allocate(vs, ('xt', 'yt', 'zt'))
 
     fxa = math.sqrt(abs(vs.K_hbi))
 
@@ -56,8 +56,7 @@ def tempsalt_biharmonic(vs):
         + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
         / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
 
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(del2)
+    utilities.enforce_boundaries(vs, del2)
 
     vs.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
         / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
@@ -93,8 +92,8 @@ def tempsalt_biharmonic(vs):
         / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
         + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
         / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(del2)
+
+    utilities.enforce_boundaries(vs, del2)
 
     vs.flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
         / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
@@ -119,11 +118,9 @@ def tempsalt_biharmonic(vs):
 @veros_method
 def tempsalt_diffusion(vs):
     """
-    Diffusion of vs.temp and salinity,
+    Diffusion of temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
-    aloc = np.zeros((vs.nx + 4, vs.ny + 4, vs.nz), dtype=vs.default_float_type)
-
     # horizontal diffusion of temperature
     vs.flux_east[:-1, :, :] = vs.K_h * (vs.temp[1:, :, :, vs.tau] - vs.temp[:-1, :, :, vs.tau]) \
         / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) * vs.maskU[:-1, :, :]
@@ -175,7 +172,7 @@ def tempsalt_diffusion(vs):
 @veros_method
 def tempsalt_sources(vs):
     """
-    Sources of vs.temp and salinity,
+    Sources of temp and salinity,
     effect on dyn. Enthalpy is stored
     """
     vs.temp[:, :, :, vs.taup1] += vs.dt_tracer * vs.temp_source * vs.maskT
@@ -194,7 +191,6 @@ def biharmonic(vs, tr, f, dtr):
     """
     Biharmonic mixing of tracer tr, results saved as dtr
     This is essentially just a copy of tempsalt_biharmonic generalized
-    Is there any reason to use the flux_* in vs?
     """
     flux_east = np.zeros_like(tr, dtype=vs.default_float_type)
     flux_north = np.zeros_like(tr, dtype=vs.default_float_type)
@@ -216,8 +212,7 @@ def biharmonic(vs, tr, f, dtr):
             + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
             / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
 
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(del2)
+    utilities.enforce_boundaries(vs, del2)
 
     flux_east[:-1, :, :] = f * (del2[1:, :, :] - del2[:-1, :, :]) \
             / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \

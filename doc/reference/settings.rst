@@ -1,10 +1,12 @@
-Available settings
-------------------
+Available model settings
+------------------------
 
-The following list of available settings is automatically created from the file :file:`settings.py` in the Veros main folder. They are available as attributes of all instances of the :class:`Veros main class <veros.Veros>`, e.g.: ::
+The following list of available settings is automatically created from the file :file:`settings.py` in the Veros main folder.
+They are available as attributes of all instances of the :class:`Veros state class <veros.VerosState>`, e.g.: ::
 
-   >>> simulation = MyVerosClass()
-   >>> print(simulation.eq_of_state_type)
+   >>> simulation = MyVerosSetup()
+   >>> vs = simulation.state
+   >>> print(vs.eq_of_state_type)
    1
 
 .. exec::

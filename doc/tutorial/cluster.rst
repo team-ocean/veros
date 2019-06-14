@@ -1,10 +1,6 @@
 Running Veros on a cluster
 ==========================
 
-.. note::
-
-   Since Bohrium does not (yet) support distributed memory architectures, Veros is currently limited to running on a single computational node.
-
 This tutorial walks you through some of the most common challenges that are specific to large, shared architectures like clusters and supercomputers. In case you are still having trouble setting up or running Veros on a large architecture after reading it, you should first contact the administrator of your cluster. Otherwise, you should of course feel free to `open an issue <https://github.com/dionhaefner/veros/issues>`_.
 
 Installation

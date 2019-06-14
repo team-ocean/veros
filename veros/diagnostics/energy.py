@@ -1,95 +1,97 @@
 import os
 
 from .diagnostic import VerosDiagnostic
-from .. import veros_class_method
+from .. import veros_method
 from ..variables import Variable
+from ..distributed import global_sum
+
 
 ENERGY_VARIABLES = dict(
     # mean energy content
-    k_m=Variable("Mean kinetic energy", [], "J", "Mean kinetic energy",
+    k_m=Variable('Mean kinetic energy', [], 'J', 'Mean kinetic energy',
                  output=True, write_to_restart=True),
-    Hd_m=Variable("Mean dynamic enthalpy", [], "J", "Mean dynamic enthalpy",
+    Hd_m=Variable('Mean dynamic enthalpy', [], 'J', 'Mean dynamic enthalpy',
                   output=True, write_to_restart=True),
-    eke_m=Variable("Meso-scale eddy energy", [], "J", "Meso-scale eddy energy",
+    eke_m=Variable('Meso-scale eddy energy', [], 'J', 'Meso-scale eddy energy',
                    output=True, write_to_restart=True),
-    iw_m=Variable("Internal wave energy", [], "J", "Internal wave energy",
+    iw_m=Variable('Internal wave energy', [], 'J', 'Internal wave energy',
                   output=True, write_to_restart=True),
-    tke_m=Variable("Turbulent kinetic energy", [], "J", "Turbulent kinetic energy",
+    tke_m=Variable('Turbulent kinetic energy', [], 'J', 'Turbulent kinetic energy',
                    output=True, write_to_restart=True),
 
     # energy changes
-    dE_tot_m=Variable("Change of total energy", [], "W", "Change of total energy",
+    dE_tot_m=Variable('Change of total energy', [], 'W', 'Change of total energy',
                       output=True, write_to_restart=True),
-    dk_m=Variable("Change of KE", [], "W", "Change of kinetic energy",
+    dk_m=Variable('Change of KE', [], 'W', 'Change of kinetic energy',
                   output=True, write_to_restart=True),
-    dHd_m=Variable("Change of Hd", [], "W", "Change of dynamic enthalpy",
+    dHd_m=Variable('Change of Hd', [], 'W', 'Change of dynamic enthalpy',
                    output=True, write_to_restart=True),
-    deke_m=Variable("Change of EKE", [], "W", "Change of meso-scale eddy energy",
+    deke_m=Variable('Change of EKE', [], 'W', 'Change of meso-scale eddy energy',
                     output=True, write_to_restart=True),
-    diw_m=Variable("Change of E_iw", [], "W", "Change of internal wave energy",
+    diw_m=Variable('Change of E_iw', [], 'W', 'Change of internal wave energy',
                    output=True, write_to_restart=True),
-    dtke_m=Variable("Change of TKE", [], "W", "Change of tubulent kinetic energy",
+    dtke_m=Variable('Change of TKE', [], 'W', 'Change of tubulent kinetic energy',
                     output=True, write_to_restart=True),
 
     # dissipation
-    ke_diss_m=Variable("Dissipation of KE", [], "W", "Dissipation of kinetic energy",
+    ke_diss_m=Variable('Dissipation of KE', [], 'W', 'Dissipation of kinetic energy',
                        output=True, write_to_restart=True),
-    Hd_diss_m=Variable("Dissipation of Hd", [], "W", "Dissipation of dynamic enthalpy",
+    Hd_diss_m=Variable('Dissipation of Hd', [], 'W', 'Dissipation of dynamic enthalpy',
                        output=True, write_to_restart=True),
-    eke_diss_m=Variable("Dissipation of EKE", [], "W", "Dissipation of meso-scale eddy energy",
+    eke_diss_m=Variable('Dissipation of EKE', [], 'W', 'Dissipation of meso-scale eddy energy',
                         output=True, write_to_restart=True),
-    iw_diss_m=Variable("Dissipation of E_iw", [], "W", "Dissipation of internal wave energy",
+    iw_diss_m=Variable('Dissipation of E_iw', [], 'W', 'Dissipation of internal wave energy',
                        output=True, write_to_restart=True),
-    tke_diss_m=Variable("Dissipation of TKE", [], "W", "Dissipation of turbulent kinetic energy",
+    tke_diss_m=Variable('Dissipation of TKE', [], 'W', 'Dissipation of turbulent kinetic energy',
                         output=True, write_to_restart=True),
-    adv_diss_m=Variable("Dissipation by advection", [], "W", "Dissipation by advection",
+    adv_diss_m=Variable('Dissipation by advection', [], 'W', 'Dissipation by advection',
                         output=True, write_to_restart=True),
 
     # external forcing
-    wind_m=Variable("Wind work", [], "W", "Wind work",
+    wind_m=Variable('Wind work', [], 'W', 'Wind work',
                     output=True, write_to_restart=True),
-    dHd_sources_m=Variable("Hd production by ext. sources", [], "W",
-                           "Dynamic enthalpy production through external sources",
+    dHd_sources_m=Variable('Hd production by ext. sources', [], 'W',
+                           'Dynamic enthalpy production through external sources',
                            output=True, write_to_restart=True),
-    iw_forc_m=Variable("External forcing of E_iw", [], "W",
-                       "External forcing of internal wave energy",
+    iw_forc_m=Variable('External forcing of E_iw', [], 'W',
+                       'External forcing of internal wave energy',
                        output=True, write_to_restart=True),
-    tke_forc_m=Variable("External forcing of TKE", [], "W",
-                        "External forcing of turbulent kinetic energy",
+    tke_forc_m=Variable('External forcing of TKE', [], 'W',
+                        'External forcing of turbulent kinetic energy',
                         output=True, write_to_restart=True),
 
     # exchange
-    ke_hd_m=Variable("Exchange KE -> Hd", [], "W",
-                     "Exchange between kinetic energy and dynamic enthalpy",
+    ke_hd_m=Variable('Exchange KE -> Hd', [], 'W',
+                     'Exchange between kinetic energy and dynamic enthalpy',
                      output=True, write_to_restart=True),
-    ke_tke_m=Variable("Exchange KE -> TKE by vert. friction", [], "W",
-                      "Exchange between kinetic energy and turbulent kinetic energy by vertical friction",
+    ke_tke_m=Variable('Exchange KE -> TKE by vert. friction', [], 'W',
+                      'Exchange between kinetic energy and turbulent kinetic energy by vertical friction',
                       output=True, write_to_restart=True),
-    ke_iw_m=Variable("Exchange KE -> IW by bottom friction", [], "W",
-                     "Exchange between kinetic energy and internal wave energy by bottom friction",
+    ke_iw_m=Variable('Exchange KE -> IW by bottom friction', [], 'W',
+                     'Exchange between kinetic energy and internal wave energy by bottom friction',
                      output=True, write_to_restart=True),
-    tke_hd_m=Variable("Exchange TKE -> Hd by vertical mixing", [], "W",
-                      "Exchange between turbulent kinetic energy and dynamic enthalpy by vertical mixing",
+    tke_hd_m=Variable('Exchange TKE -> Hd by vertical mixing', [], 'W',
+                      'Exchange between turbulent kinetic energy and dynamic enthalpy by vertical mixing',
                       output=True, write_to_restart=True),
-    ke_eke_m=Variable("Exchange KE -> EKE by lateral friction", [], "W",
-                      "Exchange between kinetic energy and eddy kinetic energy by lateral friction",
+    ke_eke_m=Variable('Exchange KE -> EKE by lateral friction', [], 'W',
+                      'Exchange between kinetic energy and eddy kinetic energy by lateral friction',
                       output=True, write_to_restart=True),
-    hd_eke_m=Variable("Exchange Hd -> EKE by GM and lateral mixing", [], "W",
-                      "Exchange between dynamic enthalpy and eddy kinetic energy by GM and lateral mixing",
+    hd_eke_m=Variable('Exchange Hd -> EKE by GM and lateral mixing', [], 'W',
+                      'Exchange between dynamic enthalpy and eddy kinetic energy by GM and lateral mixing',
                       output=True, write_to_restart=True),
-    eke_tke_m=Variable("Exchange EKE -> TKE", [], "W",
-                       "Exchange between eddy and turbulent kinetic energy",
+    eke_tke_m=Variable('Exchange EKE -> TKE', [], 'W',
+                       'Exchange between eddy and turbulent kinetic energy',
                        output=True, write_to_restart=True),
-    eke_iw_m=Variable("Exchange EKE -> IW", [], "W",
-                      "Exchange between eddy kinetic energy and internal wave energy",
+    eke_iw_m=Variable('Exchange EKE -> IW', [], 'W',
+                      'Exchange between eddy kinetic energy and internal wave energy',
                       output=True, write_to_restart=True),
 
     # cabbeling
-    cabb_m=Variable("Cabbeling by vertical mixing", [], "W",
-                    "Cabbeling by vertical mixing",
+    cabb_m=Variable('Cabbeling by vertical mixing', [], 'W',
+                    'Cabbeling by vertical mixing',
                     output=True, write_to_restart=True),
-    cabb_iso_m=Variable("Cabbeling by isopycnal mixing", [], "W",
-                        "Cabbeling by isopycnal mixing",
+    cabb_iso_m=Variable('Cabbeling by isopycnal mixing', [], 'W',
+                        'Cabbeling by isopycnal mixing',
                         output=True, write_to_restart=True),
 )
 
@@ -97,13 +99,13 @@ ENERGY_VARIABLES = dict(
 class Energy(VerosDiagnostic):
     """Diagnose globally averaged energy cycle. Also averages energy in time.
     """
-    name = "energy" #:
-    output_path = "{identifier}.energy.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
+    name = 'energy' #:
+    output_path = '{identifier}.energy.nc'  #: File to write to. May contain format strings that are replaced with Veros attributes.
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
     variables = ENERGY_VARIABLES
 
-    @veros_class_method
+    @veros_method
     def initialize(self, vs):
         self.nitts = 0
         for var in self.variables.keys():
@@ -112,32 +114,40 @@ class Energy(VerosDiagnostic):
         output_variables = {key: val for key, val in self.variables.items() if val.output}
         self.initialize_output(vs, output_variables)
 
-    @veros_class_method
+    @veros_method
     def diagnose(self, vs):
         # changes of dynamic enthalpy
         vol_t = vs.area_t[2:-2, 2:-2, np.newaxis] \
             * vs.dzt[np.newaxis, np.newaxis, :] \
             * vs.maskT[2:-2, 2:-2, :]
-        dP_iso = np.sum(vol_t * vs.grav / vs.rho_0
-                        * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
+        dP_iso = global_sum(vs,
+            np.sum(vol_t * vs.grav / vs.rho_0
+                         * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                            * vs.dtemp_iso[2:-2, 2:-2, :]
                            - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
                            * vs.dsalt_iso[2:-2, 2:-2, :]))
-        dP_hmix = np.sum(vol_t * vs.grav / vs.rho_0
+        )
+        dP_hmix = global_sum(vs,
+            np.sum(vol_t * vs.grav / vs.rho_0
                          * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                             * vs.dtemp_hmix[2:-2, 2:-2, :]
                             - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
                             * vs.dsalt_hmix[2:-2, 2:-2, :]))
-        dP_vmix = np.sum(vol_t * vs.grav / vs.rho_0
+        )
+        dP_vmix = global_sum(vs,
+            np.sum(vol_t * vs.grav / vs.rho_0
                          * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                             * vs.dtemp_vmix[2:-2, 2:-2, :]
                             - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
                             * vs.dsalt_vmix[2:-2, 2:-2, :]))
-        dP_m = np.sum(vol_t * vs.grav / vs.rho_0
+        )
+        dP_m = global_sum(vs,
+            np.sum(vol_t * vs.grav / vs.rho_0
                       * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                           * vs.dtemp[2:-2, 2:-2, :, vs.tau]
                           - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
                           * vs.dsalt[2:-2, 2:-2, :, vs.tau]))
+        )
         dP_m_all = dP_m + dP_vmix + dP_hmix + dP_iso
 
         # changes of kinetic energy
@@ -145,23 +155,20 @@ class Energy(VerosDiagnostic):
             * vs.dzt[np.newaxis, np.newaxis, :]
         vol_v = vs.area_v[2:-2, 2:-2, np.newaxis] \
             * vs.dzt[np.newaxis, np.newaxis, :]
-        k_m = np.sum(vol_t * 0.5 * (0.5 * (vs.u[2:-2, 2:-2, :, vs.tau] ** 2
+        k_m = global_sum(vs,
+            np.sum(vol_t * 0.5 * (0.5 * (vs.u[2:-2, 2:-2, :, vs.tau] ** 2
                                            + vs.u[1:-3, 2:-2, :, vs.tau] ** 2)
                                     + 0.5 * (vs.v[2:-2, 2:-2, :, vs.tau] ** 2)
                                     + vs.v[2:-2, 1:-3, :, vs.tau] ** 2))
-        p_m = np.sum(vol_t * vs.Hd[2:-2, 2:-2, :, vs.tau])
-        dk_m = np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du[2:-2, 2:-2, :, vs.tau] * vol_u
+        )
+        p_m = global_sum(vs, np.sum(vol_t * vs.Hd[2:-2, 2:-2, :, vs.tau]))
+        dk_m = global_sum(vs,
+            np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du[2:-2, 2:-2, :, vs.tau] * vol_u
                       + vs.v[2:-2, 2:-2, :, vs.tau]
                       * vs.dv[2:-2, 2:-2, :, vs.tau] * vol_v
                       + vs.u[2:-2, 2:-2, :, vs.tau] * vs.du_mix[2:-2, 2:-2, :] * vol_u
                       + vs.v[2:-2, 2:-2, :, vs.tau] * vs.dv_mix[2:-2, 2:-2, :] * vol_v)
-
-        corm = np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du_cor[2:-2, 2:-2, :] * vol_u
-                      + vs.v[2:-2, 2:-2, :, vs.tau] * vs.dv_cor[2:-2, 2:-2, :] * vol_v)
-        k_e_adv = np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du_adv[2:-2, 2:-2, :]
-                         * vol_u * vs.maskU[2:-2, 2:-2, :]
-                         + vs.v[2:-2, 2:-2, :, vs.tau] * vs.dv_adv[2:-2, 2:-2, :]
-                         * vol_v * vs.maskV[2:-2, 2:-2, :])
+        )
 
         # K*Nsqr and KE and dyn. enthalpy dissipation
         vol_w = vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzw[np.newaxis, np.newaxis, :] \
@@ -169,13 +176,12 @@ class Energy(VerosDiagnostic):
         vol_w[:, :, -1] *= 0.5
 
         def mean_w(var):
-            return np.sum(var[2:-2, 2:-2, :] * vol_w)
+            return global_sum(vs, np.sum(var[2:-2, 2:-2, :] * vol_w))
 
         mdiss_vmix = mean_w(vs.P_diss_v)
         mdiss_nonlin = mean_w(vs.P_diss_nonlin)
         mdiss_adv = mean_w(vs.P_diss_adv)
         mdiss_hmix = mean_w(vs.P_diss_hmix)
-        mdiss_comp = mean_w(vs.P_diss_comp)
         mdiss_iso = mean_w(vs.P_diss_iso)
         mdiss_skew = mean_w(vs.P_diss_skew)
         mdiss_sources = mean_w(vs.P_diss_sources)
@@ -185,22 +191,38 @@ class Energy(VerosDiagnostic):
         mdiss_gm = mean_w(vs.K_diss_gm)
         mdiss_bot = mean_w(vs.K_diss_bot)
 
-        wrhom = np.sum(-vs.area_t[2:-2, 2:-2, np.newaxis] * vs.maskW[2:-2, 2:-2, :-1]
+        wrhom = global_sum(vs, 
+            np.sum(-vs.area_t[2:-2, 2:-2, np.newaxis] * vs.maskW[2:-2, 2:-2, :-1]
                        * (vs.p_hydro[2:-2, 2:-2, 1:] - vs.p_hydro[2:-2, 2:-2, :-1])
                        * vs.w[2:-2, 2:-2, :-1, vs.tau])
+        )
 
         # wind work
-        wind = np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2]
-                      * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
-                      + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2]
-                      * vs.maskV[2:-2, 2:-2, -1] * vs.area_v[2:-2, 2:-2])
+        if vs.pyom_compatibility_mode:
+            wind = global_sum(
+                vs,
+                np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2]
+                       * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
+                       + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2]
+                       * vs.maskV[2:-2, 2:-2, -1] * vs.area_v[2:-2, 2:-2])
+            )
+        else:
+            wind = global_sum(
+                vs,
+                np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2] / vs.rho_0
+                       * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
+                       + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2] / vs.rho_0
+                       * vs.maskV[2:-2, 2:-2, -1] * vs.area_v[2:-2, 2:-2])
+            )
 
         # meso-scale energy
         if vs.enable_eke:
             eke_m = mean_w(vs.eke[..., vs.tau])
-            deke_m = np.sum(vol_w * (vs.eke[2:-2, 2:-2, :, vs.taup1]
-                                     - vs.eke[2:-2, 2:-2, :, vs.tau])
-                            / vs.dt_tracer)
+            deke_m = global_sum(vs,
+                np.sum(vol_w * (vs.eke[2:-2, 2:-2, :, vs.taup1]
+                                - vs.eke[2:-2, 2:-2, :, vs.tau])
+                       / vs.dt_tracer)
+            )
             eke_diss = mean_w(vs.eke_diss_iw)
             eke_diss_tke = mean_w(vs.eke_diss_tke)
         else:
@@ -211,30 +233,37 @@ class Energy(VerosDiagnostic):
 
         # small-scale energy
         if vs.enable_tke:
+            dt_tke = vs.dt_mom
             tke_m = mean_w(vs.tke[..., vs.tau])
             dtke_m = mean_w((vs.tke[..., vs.taup1]
                              - vs.tke[..., vs.tau])
-                            / vs.dt_tke)
+                            / dt_tke)
             tke_diss = mean_w(vs.tke_diss)
-            tke_forc = np.sum(vs.area_t[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
+            tke_forc = global_sum(vs,
+                np.sum(vs.area_t[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
                               * (vs.forc_tke_surface[2:-2, 2:-2] + vs.tke_surf_corr[2:-2, 2:-2]))
+            )
         else:
             tke_m = dtke_m = tke_diss = tke_forc = 0.
 
         # internal wave energy
         if vs.enable_idemix:
             iw_m = mean_w(vs.E_iw[..., vs.tau])
-            diw_m = np.sum(vol_w * (vs.E_iw[2:-2, 2:-2, :, vs.taup1]
+            diw_m = global_sum(vs,
+                np.sum(vol_w * (vs.E_iw[2:-2, 2:-2, :, vs.taup1]
                                     - vs.E_iw[2:-2, 2:-2, :, vs.tau])
                            / vs.dt_tracer)
+            )
             iw_diss = mean_w(vs.iw_diss)
 
             k = np.maximum(1, vs.kbot[2:-2, 2:-2]) - 1
             mask = k[:, :, np.newaxis] == np.arange(vs.nz)[np.newaxis, np.newaxis, :]
-            iwforc = np.sum(vs.area_t[2:-2, 2:-2]
+            iwforc = global_sum(vs, 
+                np.sum(vs.area_t[2:-2, 2:-2]
                             * (vs.forc_iw_surface[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
                                + np.sum(mask * vs.forc_iw_bottom[2:-2, 2:-2, np.newaxis]
                                         * vs.maskW[2:-2, 2:-2, :], axis=2)))
+            )
         else:
             iw_m = diw_m = iwforc = 0.
             iw_diss = eke_diss
@@ -286,12 +315,12 @@ class Energy(VerosDiagnostic):
 
         self.nitts += 1
 
-    @veros_class_method
+    @veros_method
     def output(self, vs):
         self.nitts = float(self.nitts or 1)
         output_variables = {key: val for key, val in self.variables.items() if val.output}
-        output_data = {key: getattr(self, key) * vs.rho_0 /
-                       self.nitts for key in output_variables.keys()}
+        output_data = {key: getattr(self, key) * vs.rho_0 / self.nitts
+                       for key in output_variables.keys()}
         if not os.path.isfile(self.get_output_file_name(vs)):
             self.initialize_output(vs, output_variables)
         self.write_output(vs, output_variables, output_data)
@@ -300,16 +329,16 @@ class Energy(VerosDiagnostic):
             setattr(self, key, 0.)
         self.nitts = 0
 
-    @veros_class_method
-    def read_restart(self, vs):
-        attributes, variables = self.read_h5_restart(vs)
+    @veros_method
+    def read_restart(self, vs, infile):
+        attributes, variables = self.read_h5_restart(vs, self.variables, infile)
         if attributes:
             for key, val in attributes.items():
                 setattr(self, key, val)
 
-    @veros_class_method
+    @veros_method
     def write_restart(self, vs, outfile):
         restart_data = {key: getattr(self, key)
                         for key, val in self.variables.items() if val.write_to_restart}
-        restart_data.update({"nitts": self.nitts})
+        restart_data.update({'nitts': self.nitts})
         self.write_h5_restart(vs, restart_data, {}, {}, outfile)

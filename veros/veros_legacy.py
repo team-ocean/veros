@@ -1,28 +1,35 @@
-import imp
-import logging
-import math
+import importlib.util
 
-from . import veros, settings
+from loguru import logger
+
+from . import veros, settings, runtime_settings
 
 
-class LowercaseAttributeWrapper(object):
+def _load_fortran_module(module, path):
+    spec = importlib.util.spec_from_file_location(module, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class LowercaseAttributeWrapper:
     """
     A simple wrapper class that converts attributes to lower case (needed for Fortran interface)
     """
 
     def __init__(self, wrapped_object):
-        object.__setattr__(self, "_w", wrapped_object)
+        object.__setattr__(self, '_w', wrapped_object)
 
     def __getattr__(self, key):
-        if key == "_w":
-            return object.__getattribute__(self, "_w")
-        return getattr(object.__getattribute__(self, "_w"), key.lower())
+        if key == '_w':
+            return object.__getattribute__(self, '_w')
+        return getattr(object.__getattribute__(self, '_w'), key.lower())
 
     def __setattr__(self, key, value):
         setattr(self._w, key.lower(), value)
 
 
-class VerosLegacy(veros.Veros):
+class VerosLegacy(veros.VerosSetup):
     """
     An alternative Veros class that supports the pyOM Fortran interface as backend
 
@@ -35,16 +42,18 @@ class VerosLegacy(veros.Veros):
         """
         To use the pyOM2 legacy interface point the fortran argument to the Veros fortran library:
 
-        > simulation = GlobalOneDegree(fortran="pyOM_code.so")
+        > simulation = GlobalOneDegreeSetup(fortran='pyOM_code.so')
 
         """
+        super(VerosLegacy, self).__init__(*args, **kwargs)
+
         if fortran:
             self.legacy_mode = True
             try:
-                self.fortran = LowercaseAttributeWrapper(imp.load_dynamic("pyOM_code", fortran))
+                self.fortran = LowercaseAttributeWrapper(_load_fortran_module('pyOM_code', fortran))
                 self.use_mpi = False
             except ImportError:
-                self.fortran = LowercaseAttributeWrapper(imp.load_dynamic("pyOM_code_MPI", fortran))
+                self.fortran = LowercaseAttributeWrapper(_load_fortran_module('pyOM_code_MPI', fortran))
                 self.use_mpi = True
                 from mpi4py import MPI
                 self.mpi_comm = MPI.COMM_WORLD
@@ -57,25 +66,21 @@ class VerosLegacy(veros.Veros):
             self.legacy_mode = False
             self.use_mpi = False
             self.fortran = self
-            self.main_module = self
-            self.isoneutral_module = self
-            self.idemix_module = self
-            self.tke_module = self
-            self.eke_module = self
+            self.main_module = self.state
+            self.isoneutral_module = self.state
+            self.idemix_module = self.state
+            self.tke_module = self.state
+            self.eke_module = self.state
         self.modules = (self.main_module, self.isoneutral_module, self.idemix_module,
                         self.tke_module, self.eke_module)
 
         if self.use_mpi and self.mpi_comm.Get_rank() != 0:
-            kwargs["loglevel"] = "critical"
-
-        super(VerosLegacy, self).__init__(*args, **kwargs)
+            kwargs['loglevel'] = 'critical'
 
     def set_legacy_parameter(self, *args, **kwargs):
         m = self.fortran.main_module
         if self.use_mpi:
-            proc_combinations = [(ni, m.n_pes / ni) for ni in range(1, int(math.sqrt(m.n_pes) + 1))
-                                 if ni * (m.n_pes / ni) == m.n_pes]
-            m.n_pes_i, m.n_pes_j = min(proc_combinations, key=lambda x: abs(x[1] - x[0]))
+            m.n_pes_i, m.n_pes_j = runtime_settings.num_proc
         self.if2py = lambda i: i + m.onx - m.is_pe
         self.jf2py = lambda j: j + m.onx - m.js_pe
         self.ip2fy = lambda i: i + m.is_pe - m.onx
@@ -96,13 +101,14 @@ class VerosLegacy(veros.Veros):
                     setattr(m, key, settings.SETTINGS[key].type(val))
 
     def setup(self, *args, **kwargs):
-        with self.timers["setup"]:
+        vs = self.state
+        with vs.timers['setup']:
             if self.legacy_mode:
                 if self.use_mpi:
                     self.fortran.my_mpi_init(self.mpi_comm.py2f())
                 else:
                     self.fortran.my_mpi_init(0)
-                self.set_parameter()
+                self.set_parameter(vs)
                 self.set_legacy_parameter()
                 self._set_commandline_settings()
                 self.fortran.pe_decomposition()
@@ -111,58 +117,59 @@ class VerosLegacy(veros.Veros):
                 self.fortran.allocate_tke_module()
                 self.fortran.allocate_eke_module()
                 self.fortran.allocate_idemix_module()
-                self.set_grid()
+                self.set_grid(vs)
                 self.fortran.calc_grid()
-                self.set_coriolis()
+                self.set_coriolis(vs)
                 self.fortran.calc_beta()
-                self.set_topography()
+                self.set_topography(vs)
                 self.fortran.calc_topo()
                 self.fortran.calc_spectral_topo()
-                self.set_initial_conditions()
+                self.set_initial_conditions(vs)
                 self.fortran.calc_initial_conditions()
                 self.fortran.streamfunction_init()
-                self.set_diagnostics()
-                self.set_forcing()
+                self.set_diagnostics(vs)
+                self.set_forcing(vs)
                 self.fortran.check_isoneutral_slope_crit()
             else:
                 # self.set_parameter() is called twice, but that shouldn't matter
-                self.set_parameter()
+                self.set_parameter(vs)
                 self.set_legacy_parameter()
                 super(VerosLegacy, self).setup(*args, **kwargs)
 
                 diag_legacy_settings = (
-                    (self.diagnostics["cfl_monitor"], "output_frequency", "ts_monint"),
-                    (self.diagnostics["tracer_monitor"], "output_frequency", "trac_cont_int"),
-                    (self.diagnostics["snapshot"], "output_frequency", "snapint"),
-                    (self.diagnostics["averages"], "output_frequency", "aveint"),
-                    (self.diagnostics["averages"], "sampling_frequency", "avefreq"),
-                    (self.diagnostics["overturning"], "output_frequency", "overint"),
-                    (self.diagnostics["overturning"], "sampling_frequency", "overfreq"),
-                    (self.diagnostics["energy"], "output_frequency", "energint"),
-                    (self.diagnostics["energy"], "sampling_frequency", "energfreq"),
+                    (vs.diagnostics['cfl_monitor'], 'output_frequency', 'ts_monint'),
+                    (vs.diagnostics['tracer_monitor'], 'output_frequency', 'trac_cont_int'),
+                    (vs.diagnostics['snapshot'], 'output_frequency', 'snapint'),
+                    (vs.diagnostics['averages'], 'output_frequency', 'aveint'),
+                    (vs.diagnostics['averages'], 'sampling_frequency', 'avefreq'),
+                    (vs.diagnostics['overturning'], 'output_frequency', 'overint'),
+                    (vs.diagnostics['overturning'], 'sampling_frequency', 'overfreq'),
+                    (vs.diagnostics['energy'], 'output_frequency', 'energint'),
+                    (vs.diagnostics['energy'], 'sampling_frequency', 'energfreq'),
                 )
 
                 for diag, param, attr in diag_legacy_settings:
-                    if hasattr(self, attr):
-                        setattr(diag, param, getattr(self, attr))
+                    if hasattr(vs, attr):
+                        setattr(diag, param, getattr(vs, attr))
 
     def run(self, **kwargs):
         if not self.legacy_mode:
             return super(VerosLegacy, self).run(**kwargs)
 
+        vs = self.state
         f = self.fortran
         m = self.main_module
         idm = self.idemix_module
         ekm = self.eke_module
         tkm = self.tke_module
 
-        logging.info("Starting integration for {:.2e}s".format(float(m.runlen)))
+        logger.info('Starting integration for {:.2e}s'.format(float(m.runlen)))
 
-        while self.time < m.runlen:
-            logging.info("Current iteration: {}".format(m.itt))
+        while vs.time < m.runlen:
+            logger.info('Current iteration: {}'.format(m.itt))
 
-            with self.timers["main"]:
-                self.set_forcing()
+            with vs.timers['main']:
+                self.set_forcing(vs)
 
                 if idm.enable_idemix:
                     f.set_idemix_parameter()
@@ -170,24 +177,24 @@ class VerosLegacy(veros.Veros):
                 f.set_eke_diffusivities()
                 f.set_tke_diffusivities()
 
-                with self.timers["momentum"]:
+                with vs.timers['momentum']:
                     f.momentum()
 
-                with self.timers["temperature"]:
+                with vs.timers['temperature']:
                     f.thermodynamics()
 
                 if ekm.enable_eke or tkm.enable_tke or idm.enable_idemix:
                     f.calculate_velocity_on_wgrid()
 
-                with self.timers["eke"]:
+                with vs.timers['eke']:
                     if ekm.enable_eke:
                         f.integrate_eke()
 
-                with self.timers["idemix"]:
+                with vs.timers['idemix']:
                     if idm.enable_idemix:
                         f.integrate_idemix()
 
-                with self.timers["tke"]:
+                with vs.timers['tke']:
                     if tkm.enable_tke:
                         f.integrate_tke()
 
@@ -225,22 +232,23 @@ class VerosLegacy(veros.Veros):
 
             # shift time
             m.itt += 1
-            self.time += m.dt_tracer
+            vs.time += m.dt_tracer
 
-            self.after_timestep()
+            self.after_timestep(vs)
 
             otaum1 = m.taum1 * 1
             m.taum1 = m.tau
             m.tau = m.taup1
             m.taup1 = otaum1
 
-            logging.debug("Time step took {}s".format(self.timers["main"].get_last_time()))
+            # NOTE: benchmarks parse this, do not change / remove
+            logger.debug('Time step took {}s', vs.timers['main'].get_last_time())
 
-        logging.debug("Timing summary:")
-        logging.debug(" setup time summary       = {}s".format(self.timers["setup"].get_time()))
-        logging.debug(" main loop time summary   = {}s".format(self.timers["main"].get_time()))
-        logging.debug("     momentum             = {}s".format(self.timers["momentum"].get_time()))
-        logging.debug("     thermodynamics       = {}s".format(self.timers["temperature"].get_time()))
-        logging.debug("     EKE                  = {}s".format(self.timers["eke"].get_time()))
-        logging.debug("     IDEMIX               = {}s".format(self.timers["idemix"].get_time()))
-        logging.debug("     TKE                  = {}s".format(self.timers["tke"].get_time()))
+        logger.debug('Timing summary:')
+        logger.debug(' setup time summary       = {}s', vs.timers['setup'].get_time())
+        logger.debug(' main loop time summary   = {}s', vs.timers['main'].get_time())
+        logger.debug('     momentum             = {}s', vs.timers['momentum'].get_time())
+        logger.debug('     thermodynamics       = {}s', vs.timers['temperature'].get_time())
+        logger.debug('     EKE                  = {}s', vs.timers['eke'].get_time())
+        logger.debug('     IDEMIX               = {}s', vs.timers['idemix'].get_time())
+        logger.debug('     TKE                  = {}s', vs.timers['tke'].get_time())

@@ -3,8 +3,8 @@ topography:
   md5: 5bd5b5ea6f8ab529b9f74f560319b65d
 
 forcing:
-  url: https://sid.erda.dk/share_redirect/gsdZADr8to/north_atlantic/forcing.nc
-  md5: cfa5b4472b2c31f91654212c71f1cc1e
+  url: https://sid.erda.dk/share_redirect/gsdZADr8to/north_atlantic/forcing_nc4.nc
+  md5: 9997ebf7798c0d1c28bcbdd406414f28
 
 restoring:
   url: https://sid.erda.dk/share_redirect/gsdZADr8to/north_atlantic/restoring_zone.nc

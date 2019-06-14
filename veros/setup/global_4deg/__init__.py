@@ -1,1 +1,1 @@
-from veros.setup.global_4deg.global_four_degree import GlobalFourDegree
+from veros.setup.global_4deg.global_four_degree import GlobalFourDegreeSetup

@@ -1,21 +1,13 @@
-The Veros interface
-===================
+Python API
+==========
 
-Veros main class
-----------------
+.. toctree::
+   :maxdepth: 3
 
-.. autoclass:: veros.Veros
-   :members:
-
-veros_method decorator
-----------------------
-
-.. autofunction:: veros.veros_method
-
-.. autofunction:: veros.veros_inline_method
-
-Tools & utilities
--------------------
-
-.. automodule:: veros.tools
-   :members:
+   api/veros-setup
+   api/veros-state
+   api/veros-method
+   api/runtime
+   api/tools
+   api/numerics
+   api/distributed

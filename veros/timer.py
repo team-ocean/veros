@@ -25,7 +25,7 @@ class Timer:
         self.total_time += self.last_time
 
     def print_time(self):
-        print("[{}]: {}s".format(self.name, self.get_time()))
+        print('[{}]: {}s'.format(self.name, self.get_time()))
 
     def get_time(self):
         return self.total_time

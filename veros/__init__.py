@@ -1,14 +1,52 @@
-from ._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
+"""Veros, the versatile ocean simulator"""
 
-# for some reason, netCDF4 has to be imported before h5py, so we do it here
-import netCDF4
-import h5py
+import sys
+import types
 
-del netCDF4
-del h5py
+# black magic: ensure lazy imports for public API by overriding module.__class__
 
-from .decorators import veros_method, veros_inline_method, veros_class_method
-from .veros import Veros
-from .veros_legacy import VerosLegacy
+class _PublicAPI(types.ModuleType):
+    @property
+    def __version__(self):
+        from veros._version import get_versions
+        return get_versions()['version']
+
+    @property
+    def runtime_settings(self):
+        if not hasattr(self, '_runtime_settings'):
+            from veros.runtime import RuntimeSettings
+            self._runtime_settings = RuntimeSettings()
+        return self._runtime_settings
+
+    @property
+    def runtime_state(self):
+        if not hasattr(self, '_runtime_state'):
+            from veros.runtime import RuntimeState
+            self._runtime_state = RuntimeState()
+        return self._runtime_state
+
+    @property
+    def veros_method(self):
+        from veros.decorators import veros_method
+        return veros_method
+
+    @property
+    def VerosSetup(self):
+        from veros.veros import VerosSetup
+        return VerosSetup
+
+    @property
+    def VerosState(self):
+        from veros.state import VerosState
+        return VerosState
+
+    @property
+    def VerosLegacy(self):
+        from veros.veros_legacy import VerosLegacy
+        return VerosLegacy
+
+sys.modules[__name__].__class__ = _PublicAPI
+
+del sys
+del types
+del _PublicAPI

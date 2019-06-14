@@ -3,7 +3,7 @@ import scipy.interpolate
 import scipy.spatial
 
 
-def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind="linear"):
+def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind='linear'):
     """Interpolate globally defined data to a different (regular) grid.
 
     Arguments:
@@ -24,14 +24,14 @@ def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind=
 
     """
     if len(coords) != len(interp_coords) or len(coords) != var.ndim:
-        raise ValueError("Dimensions of coordinates and values do not match")
+        raise ValueError('Dimensions of coordinates and values do not match')
     var = np.array(var)
     if missing_value is not None:
         invalid_mask = np.isclose(var, missing_value)
         var[invalid_mask] = np.nan
     if var.ndim > 1 and coords[0].ndim == 1:
         interp_grid = np.rollaxis(np.array(np.meshgrid(
-            *interp_coords, indexing="ij", copy=False)), 0, len(interp_coords) + 1)
+            *interp_coords, indexing='ij', copy=False)), 0, len(interp_coords) + 1)
     else:
         interp_grid = coords
     var = scipy.interpolate.interpn(coords, var, interp_grid,
@@ -61,6 +61,9 @@ def fill_holes(data):
             slcs1[i] = slice(0, -1)
             slcs2[i] = slice(1, None)
 
+            slcs1 = tuple(slcs1)
+            slcs2 = tuple(slcs2)
+
             # replace from the right
             repmask = np.logical_and(~flag[slcs1], flag[slcs2])
             data[slcs1][repmask] = data[slcs2][repmask]
@@ -70,6 +73,7 @@ def fill_holes(data):
             repmask = np.logical_and(~flag[slcs2], flag[slcs1])
             data[slcs2][repmask] = data[slcs1][repmask]
             flag[slcs2][repmask] = True
+
     return data
 
 
@@ -162,16 +166,16 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
     Example:
         The following returns coastal distances of all T cells for a spherical Veros setup.
 
-        >>> coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing="ij")
+        >>> coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing='ij')
         >>> dist = tools.get_coastline_distance(coords, self.kbot > 0, spherical=True, radius=self.radius)
 
     """
     if not len(coords) == 2:
-        raise ValueError("coords must be lon-lat tuple")
+        raise ValueError('coords must be lon-lat tuple')
     if not all(c.shape == coast_mask.shape for c in coords):
-        raise ValueError("coordinates must have same shape as coastal mask")
+        raise ValueError('coordinates must have same shape as coastal mask')
     if spherical and not radius:
-        raise ValueError("radius must be given for spherical coordinates")
+        raise ValueError('radius must be given for spherical coordinates')
 
     watercoords = np.array([c[~coast_mask] for c in coords]).T
     if spherical:
@@ -182,12 +186,14 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
 
     distance = np.zeros(coords[0].shape)
     if spherical:
+
         def spherical_distance(coords1, coords2):
             """Calculate great circle distance from latitude and longitude"""
             coords1 *= np.pi / 180.
             coords2 *= np.pi / 180.
             lon1, lon2, lat1, lat2 = coords1[..., 0], coords2[..., 0], coords1[..., 1], coords2[..., 1]
             return radius * np.arccos(np.sin(lat1) * np.sin(lat2) + np.cos(lat1) * np.cos(lat2) * np.cos(lon1 - lon2))
+
         if not num_candidates:
             num_candidates = int(np.sqrt(np.count_nonzero(~coast_mask)))
         i_nearest = coast_kdtree.query(watercoords, k=num_candidates, n_jobs=n_jobs)[1]
@@ -217,12 +223,12 @@ def get_uniform_grid_steps(total_length, stepsize):
 
     """
     if total_length % stepsize:
-        raise ValueError("total length must be an integer multiple of stepsize")
+        raise ValueError('total length must be an integer multiple of stepsize')
     return stepsize * np.ones(int(total_length / stepsize))
 
 
 def get_stretched_grid_steps(n_cells, total_length, minimum_stepsize, stretching_factor=2.5,
-                             two_sided_grid=False, refine_towards="upper"):
+                             two_sided_grid=False, refine_towards='upper'):
     """Computes stretched grid steps for regional and global domains with either
     one or two-sided stretching using a hyperbolic tangent stretching function.
 
@@ -235,8 +241,8 @@ def get_stretched_grid_steps(n_cells, total_length, minimum_stepsize, stretching
             function. The higher this value, the more abrupt the step sizes change.
         two_sided_grid (bool, optional): If set to `True`, the resulting grid will be symmetrical
             around the center. Defaults to `False`.
-        refine_towards ("upper" or "lower", optional): The side of the interval that is to be refined.
-            Defaults to "upper".
+        refine_towards ('upper' or 'lower', optional): The side of the interval that is to be refined.
+            Defaults to 'upper'.
 
     Returns:
         :obj:`ndarray` of shape `(n_cells)` containing grid steps.
@@ -260,16 +266,16 @@ def get_stretched_grid_steps(n_cells, total_length, minimum_stepsize, stretching
 
     """
 
-    if refine_towards not in ("upper", "lower"):
-        raise ValueError("refine_towards must be 'upper' or 'lower'")
+    if refine_towards not in ('upper', 'lower'):
+        raise ValueError('refine_towards must be "upper" or "lower"')
     if two_sided_grid:
         if n_cells % 2:
-            raise ValueError("number of grid points must be even integer number (given: {})".format(n_cells))
+            raise ValueError('number of grid points must be even integer number (given: {})'.format(n_cells))
         n_cells = n_cells / 2
 
     stretching_function = np.tanh(stretching_factor * np.linspace(-1, 1, n_cells))
 
-    if refine_towards == "lower":
+    if refine_towards == 'lower':
         stretching_function = stretching_function[::-1]
     if two_sided_grid:
         stretching_function = np.concatenate((stretching_function[::-1], stretching_function))
@@ -281,12 +287,12 @@ def get_stretched_grid_steps(n_cells, total_length, minimum_stepsize, stretching
         return var + minimum_value
 
     stretching_function = normalize_sum(stretching_function, total_length, minimum_stepsize)
-    assert abs(1 - np.sum(stretching_function) / total_length) < 1e-5, "precision error"
+    assert abs(1 - np.sum(stretching_function) / total_length) < 1e-5, 'precision error'
     return stretching_function
 
 
 def get_vinokur_grid_steps(n_cells, total_length, lower_stepsize, upper_stepsize=None,
-                           two_sided_grid=False, refine_towards="upper"):
+                           two_sided_grid=False, refine_towards='upper'):
     """Computes stretched grid steps for regional and global domains with either
     one or two-sided stretching using Vinokur stretching.
 
@@ -303,8 +309,8 @@ def get_vinokur_grid_steps(n_cells, total_length, lower_stepsize, upper_stepsize
             on the upper end).
         two_sided_grid (bool, optional): If set to `True`, the resulting grid will be symmetrical
             around the center. Defaults to `False`.
-        refine_towards ("upper" or "lower", optional): The side of the interval that is to be refined.
-            Defaults to "upper".
+        refine_towards ('upper' or 'lower', optional): The side of the interval that is to be refined.
+            Defaults to 'upper'.
 
     Returns:
         :obj:`ndarray` of shape `(n_cells)` containing grid steps.
@@ -331,22 +337,23 @@ def get_vinokur_grid_steps(n_cells, total_length, lower_stepsize, upper_stepsize
         180.
 
     """
-    if refine_towards not in ("upper", "lower"):
-        raise ValueError("refine_towards must be 'upper' or 'lower'")
+    if refine_towards not in ('upper', 'lower'):
+        raise ValueError('refine_towards must be "upper" or "lower"')
     if two_sided_grid:
         if n_cells % 2:
-            raise ValueError("number of grid points must be even integer number (given: {})".format(n_cells))
-        n_cells = n_cells / 2
+            raise ValueError('number of grid points must be an even integer (given: {})'.format(n_cells))
+        n_cells = n_cells // 2
+
     n_cells += 1
 
     def approximate_sinc_inverse(y):
         """Approximate inverse of sin(y) / y"""
         if y < 0.26938972:
-            inv =  np.pi * (1 - y + y**2 - (1 + np.pi**2 / 6) * y**3 + 6.794732 * y**4 - 13.205501 * y**5 + 11.726095 * y**6)
+            inv = np.pi * (1 - y + y**2 - (1 + np.pi**2 / 6) * y**3 + 6.794732 * y**4 - 13.205501 * y**5 + 11.726095 * y**6)
         else:
             ybar = 1. - y
-            inv =  np.sqrt(6 * ybar) * (1 + .15 * ybar + 0.057321429 * ybar**2 + 0.048774238 * ybar**3 - 0.053337753 * ybar**4 + 0.075845134 * ybar**5)
-        assert abs(1 - np.sin(inv) / inv / y) < 1e-2, "precision error"
+            inv = np.sqrt(6 * ybar) * (1 + .15 * ybar + 0.057321429 * ybar**2 + 0.048774238 * ybar**3 - 0.053337753 * ybar**4 + 0.075845134 * ybar**5)
+        assert abs(1 - np.sin(inv) / inv / y) < 1e-2, 'precision error'
         return inv
 
     def approximate_sinhc_inverse(y):
@@ -358,7 +365,7 @@ def get_vinokur_grid_steps(n_cells, total_length, lower_stepsize, upper_stepsize
             v = np.log(y)
             w = 1. / y - 0.028527431
             inv = v + (1 + 1. / v) * np.log(2 * v) - 0.02041793 + 0.24902722 * w + 1.9496443 * w**2 - 2.6294547 * w**3 + 8.56795911 * w**4
-        assert abs(1 - np.sinh(inv) / inv / y) < 1e-2, "precision error"
+        assert abs(1 - np.sinh(inv) / inv / y) < 1e-2, 'precision error'
         return inv
 
     target_sum = total_length
@@ -385,10 +392,10 @@ def get_vinokur_grid_steps(n_cells, total_length, lower_stepsize, upper_stepsize
             stretched_grid = 1 + np.tan(stretching_factor * np.linspace(0., 1., n_cells)) / np.tan(stretching_factor)
 
     stretched_grid_steps = np.diff(stretched_grid * target_sum)
-    if refine_towards == "upper":
+    if refine_towards == 'upper':
         stretched_grid_steps = stretched_grid_steps[::-1]
     if two_sided_grid:
         stretched_grid_steps = np.concatenate((stretched_grid_steps[::-1], stretched_grid_steps))
 
-    assert abs(1 - np.sum(stretched_grid_steps) / total_length) < 1e-5, "precision error"
+    assert abs(1 - np.sum(stretched_grid_steps) / total_length) < 1e-5, 'precision error'
     return stretched_grid_steps

@@ -6,17 +6,17 @@ Diagnostics
 Diagnostics are separate objects (instances of subclasses of :class:`VerosDiagnostic`)
 responsible for handling I/O, restart mechanics, and monitoring of the numerical
 solution. All available diagnostics are instantiated and added to a dictionary
-attribute :attr:`Veros.diagnostics` (with a key determined by their `name` attribute).
-Options for diagnostics may be set during the :meth:`Veros.set_diagnostics` method:
+attribute :attr:`VerosState.diagnostics` (with a key determined by their `name` attribute).
+Options for diagnostics may be set during the :meth:`VerosSetup.set_diagnostics` method:
 
 ::
 
-   class MyModelSetup(Veros):
+   class MyModelSetup(VerosSetup):
        ...
-       def set_diagnostics(self):
-           self.diagnostics["averages"].output_variables = ["psi","u","v"]
-           self.diagnostics["averages"].sampling_frequency = 3600.
-           self.diagnostics["snapshot"].output_variables += ["du"]
+       def set_diagnostics(self, vs):
+           vs.diagnostics['averages'].output_variables = ['psi','u','v']
+           vs.diagnostics['averages'].sampling_frequency = 3600.
+           vs.diagnostics['snapshot'].output_variables += ['du']
 
 Base class
 ----------
@@ -32,7 +32,7 @@ Available diagnostics
 ---------------------
 
 Currently, the following diagnostics are implemented and added to
-:obj:`Veros.diagnostics`:
+:obj:`VerosState.diagnostics`:
 
 Snapshot
 ++++++++

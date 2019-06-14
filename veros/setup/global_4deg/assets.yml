@@ -3,5 +3,5 @@ forcing:
   md5: ef3be0a58782771c8ee5a6d0206b87f5
   
 ecmwf:
-  url: https://sid.erda.dk/share_redirect/gsdZADr8to/global_4deg/ecmwf_4deg_monthly.nc
-  md5: 98e484580a5eed362af29593461ada42
+  url: https://sid.erda.dk/share_redirect/gsdZADr8to/global_4deg/ecmwf_4deg_monthly_nc4.nc
+  md5: d1b4e0e199d7a5883cf7c88d3d6bcb27

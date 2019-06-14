@@ -3,10 +3,10 @@ Contains veros methods for handling bio- and geochemistry
 (currently only simple bio)
 """
 from collections import namedtuple
-import numpy as np  # NOTE np is already defined by Veros and should be removed
-from .. import veros_method, veros_inline_method
+
+from .. import veros_method
 from .. import time
-from . import diffusion, thermodynamics, cyclic, utilities, isoneutral
+from . import diffusion, thermodynamics, utilities, isoneutral
 
 
 @veros_method
@@ -194,7 +194,7 @@ def biogeochemistry(vs):
             for tracer in vs.npzd_tracers}
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def zooplankton_grazing(vs, tracers, flags, gmax):
     """
     Zooplankton grazing returns total grazing, digestion i.e. how much is available
@@ -230,7 +230,7 @@ def zooplankton_grazing(vs, tracers, flags, gmax):
     return grazing, digestion, excretion, sloppy_feeding
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def potential_growth(vs, bct, grid_light, light_attenuation, growth_parameter):
     """ Potential growth of phytoplankton """
     f1 = np.exp(-light_attenuation)  # available light
@@ -241,13 +241,13 @@ def potential_growth(vs, bct, grid_light, light_attenuation, growth_parameter):
     return jmax, avej
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def phytoplankton_potential_growth(vs, bct, grid_light, light_attenuation):
     """ Regular potential growth scaled by vs.abi_P """
     return potential_growth(vs, bct, grid_light, light_attenuation, vs.maximum_growth_rate_phyto)
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def avg_J(vs, f1, gd, grid_light, light_attenuation):
     """Average J"""
     u1 = np.maximum(grid_light / gd, vs.u1_min)
@@ -265,13 +265,13 @@ def general_nutrient_limitation(nutrient, saturation_constant):
     return nutrient / (saturation_constant + nutrient)
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def phosphate_limitation_phytoplankton(vs, tracers):
     """ Phytoplankton limit to growth by phosphate limitation """
-    return general_nutrient_limitation(tracers["po4"], vs.saturation_constant_N * vs.redfield_ratio_PN)
+    return general_nutrient_limitation(tracers['po4'], vs.saturation_constant_N * vs.redfield_ratio_PN)
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def register_npzd_data(vs, name, value, transport=True):
     """
     Add tracer to the NPZD data set and create node in interaction graph
@@ -280,7 +280,7 @@ def register_npzd_data(vs, name, value, transport=True):
     """
 
     if name in vs.npzd_tracers:
-        raise ValueError(name, "has already been added to the NPZD data set")
+        raise ValueError(name, 'has already been added to the NPZD data set')
 
     vs.npzd_tracers[name] = value
 
@@ -288,7 +288,7 @@ def register_npzd_data(vs, name, value, transport=True):
         vs.npzd_transported_tracers.append(name)
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def _get_boundary(vs, boundary_string):
     """
     Return slice representing boundary
@@ -307,8 +307,8 @@ def _get_boundary(vs, boundary_string):
     return tuple([slice(None, None, None)] * 3)
 
 
-@veros_inline_method
-def register_npzd_rule(vs, name, rule, label=None, boundary=None, group="PRIMARY"):
+@veros_method(inline=True)
+def register_npzd_rule(vs, name, rule, label=None, boundary=None, group='PRIMARY'):
     """ Add rule to the npzd dynamics e.g. phytoplankkton being eaten by zooplankton
 
         ...
@@ -340,7 +340,7 @@ def register_npzd_rule(vs, name, rule, label=None, boundary=None, group="PRIMARY
                                              group=group)
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def select_npzd_rule(vs, name):
     """ Select rule for the NPZD model """
 
@@ -370,7 +370,7 @@ def select_npzd_rule(vs, name):
         raise TypeError('Rule must be of type tuple or list')
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def setup_basic_npzd_rules(vs):
     """
     Setup rules for basic NPZD model including phosphate, detritus, phytoplankton and zooplankton
@@ -387,7 +387,7 @@ def setup_basic_npzd_rules(vs):
     vs.sinking_speeds['detritus'] = (vs.wd0 + vs.mw * np.where(-zw < vs.mwz, -zw, vs.mwz)) \
         * vs.maskT
 
-    # Add "regular" phytoplankton to the model
+    # Add 'regular' phytoplankton to the model
     vs.plankton_types = ['phytoplankton']  # Phytoplankton types in the model. For blocking light
     vs.plankton_growth_functions['phytoplankton'] = phytoplankton_potential_growth
     vs.limiting_functions['phytoplankton'] = [phosphate_limitation_phytoplankton]
@@ -463,12 +463,12 @@ def setup_basic_npzd_rules(vs):
         'npzd_basic_detritus_remineralization',
         'npzd_basic_detritus_grazing',
         'npzd_basic_detritus_bottom_remineralization'
-        ])
+    ])
 
     register_npzd_rule(vs, 'empty_rule', (empty_rule, None, None))
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def setup_carbon_npzd_rules(vs):
     """
     Rules for including a carbon cycle
@@ -487,7 +487,7 @@ def setup_carbon_npzd_rules(vs):
     vs.rcak[:, :, -1] = - (np.exp(zw[-1] / vs.dcaco3) - 1.0) / vs.dzt[-1]
 
     # redistribution fraction at bottom
-    rcab = np.empty_like(vs.DIC[..., 0])
+    rcab = np.empty_like(vs.dic[..., 0])
     rcab[:, : -1] = 1 / vs.dzt[-1]
     rcab[:, :, :-1] = np.exp(zw[:-1] / vs.dcaco3) / vs.dzt[1:]
 
@@ -496,12 +496,12 @@ def setup_carbon_npzd_rules(vs):
     vs.rcak[...] *= vs.maskT
 
     # Need to track dissolved inorganic carbon, alkalinity
-    register_npzd_data(vs, 'DIC', vs.DIC)
+    register_npzd_data(vs, 'DIC', vs.dic)
     register_npzd_data(vs, 'alkalinity', vs.alkalinity)
 
     if not vs.enable_calcifiers:
         # Only for collection purposes - to be redistributed in post rules
-        register_npzd_data(vs, 'caco3', np.zeros_like(vs.DIC), transport=False)
+        register_npzd_data(vs, 'caco3', np.zeros_like(vs.dic), transport=False)
 
     # Atmosphere
     register_npzd_rule(vs, 'npzd_carbon_flux',
@@ -562,10 +562,10 @@ def setup_carbon_npzd_rules(vs):
         'npzd_carbon_post_distribute_calcite_dic',
         'npzd_carbon_detritus_bottom_remineralization',
         'pre_reset_calcite',
-        ])
+    ])
 
 
-@veros_inline_method
+@veros_method(inline=True)
 def setupNPZD(vs):
     """Taking veros variables and packaging them up into iterables"""
 
@@ -699,7 +699,5 @@ def npzd(vs):
     for tracer in vs.npzd_tracers.values():
         tracer[:, :, :, vs.taup1] = np.maximum(tracer[:, :, :, vs.taup1], vs.trcmin * vs.maskT)
 
-    if vs.enable_cyclic_x:
-        for tracer in vs.npzd_tracers.values():
-            cyclic.setcyclic_x(tracer)
-
+    for tracer in vs.npzd_tracers.values():
+        utilities.enforce_boundaries(vs, tracer)

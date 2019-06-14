@@ -22,13 +22,14 @@ If you want to learn more about the background and capabilities of Veros, you sh
    :caption: Tutorials
 
    tutorial/wave-propagation
+   tutorial/dev
    tutorial/cluster
 
 .. toctree::
    :maxdepth: 1
    :caption: Reference
 
-   reference/setup
+   reference/setup-gallery
    reference/settings
    reference/variables
    reference/diagnostics

@@ -2,8 +2,8 @@
 Functions calculating atmosphere-ocean fluxes
 
 """
-from veros import veros_method
-from . import cyclic
+from veros import veros_method, runtime_settings as rs
+from . import utilities
 
 
 @veros_method
@@ -17,7 +17,6 @@ def carbon_flux(vs):
     icemask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
             vs.forc_temp_surface < 0.0)
     ao = np.logical_not(icemask)
-
 
     atmospheric_pressure = 1  # atm  NOTE: We don't have an atmosphere yet, hence constant pressure
 
@@ -36,7 +35,7 @@ def carbon_flux(vs):
     # vs.dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
     vs.dco2star = co2calc_SWS(vs, vs.temp[:, :, -1, vs.tau],  # [degree C]
                               vs.salt[:, :, -1, vs.tau],  # [g/kg]
-                              vs.DIC[:, :, -1, vs.tau] * 1e-3,  # [mmol -> mol]
+                              vs.dic[:, :, -1, vs.tau] * 1e-3,  # [mmol -> mol]
                               vs.alkalinity[:, :, -1, vs.tau] * 1e-3,  # [mmol -> mol]
                               vs.atmospheric_co2,  # [ppmv]
                               atmospheric_pressure)  # atm
@@ -56,8 +55,7 @@ def carbon_flux(vs):
     # NOTE Is this Fick's First law? https://www.ocean.washington.edu/courses/oc400/Lecture_Notes/CHPT11.pdf
 
     # TODO set boundary condictions
-    if vs.enable_cyclic_x:
-        cyclic.setcyclic_x(co2_flux)
+    utilities.enforce_boundaries(vs, co2_flux)
 
     # TODO land fluxes?
 
@@ -128,7 +126,7 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # delta_x and b_x are in cm3/mol TODO we should use m over cm right?
     # NOTE: This looks like equation 9, but without the pressure factors. Could FugFac mean fugacity factor??
     rt_x = 83.1451 * temperature_in_kelvin  # Gas constant times temperature
-    delta_x = (57.7 - 0.118 * temperature_in_kelvin)  # In the text "\delta CO_2-air
+    delta_x = (57.7 - 0.118 * temperature_in_kelvin)  # In the text '\delta CO_2-air
     b_x = -1636.75 + 12.0408 * temperature_in_kelvin - 0.0327957 * temperature_in_kelvin ** 2 \
             + 3.16528 * 1e-5 * temperature_in_kelvin ** 3  # equation 6: Second viral coefficient B(T) (cm^3/mol)
     FugFac = np.exp((b_x + 2 * delta_x) / rt_x)  # equation 9 without front factor and ignoring pressure factors, but if they are 1atm, then that explains it
@@ -212,7 +210,7 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     #
     # If DIC and TA are known then either a root finding or iterative method
     # must be used to calculate hSWS. In this case we use the Newton-Raphson
-    # "safe" method taken from "Numerical Recipes" (function "rtsafe.f" with
+    # 'safe' method taken from 'Numerical Recipes' (function 'rtsafe.f' with
     # error trapping removed).
     #
     # As currently set, this procedure iterates about 12 times. The x1 and x2
@@ -378,7 +376,7 @@ def ta_iter_SWS_bohrium(*args):
         }
     }
 
-    """ % {"shape": x.size}
+    """ % {'shape': x.size}
 
     np.user_kernel.execute(kernel, arg_behaving + [fn, df])
 
@@ -394,7 +392,7 @@ def ta_iter_SWS(*args):
     vs = args[0]
     mask = args[1]
 
-    if vs.backend_name == "bohrium":# and 0:
+    if rs.backend == 'bohrium':
         return ta_iter_SWS_bohrium(vs, mask, *args[2:])
     else:
         return ta_iter_SWS_numpy(vs, *args[2:])
@@ -407,7 +405,7 @@ def drtsafe_boundary_update(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsa
     Masked to avoid syncs to numpy
     """
 
-    if vs.backend_name == "bohrium":# and 0:
+    if rs.backend == 'bohrium':
         mask_input = np.user_kernel.make_behaving(mask, dtype=np.bool)
         x_low_input = np.user_kernel.make_behaving(x_low, dtype=vs.default_float_type)
         x_high_input = np.user_kernel.make_behaving(x_high, dtype=vs.default_float_type)
@@ -459,7 +457,7 @@ def drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accura
     and update step accordingly
     """
 
-    if vs.backend_name == "bohrium":# and 0:
+    if rs.backend == 'bohrium':
         mask_input = np.user_kernel.make_behaving(mask, dtype=np.int32)
         drtsafe_val_input = np.user_kernel.make_behaving(drtsafe_val, dtype=vs.default_float_type)
         x_high_input = np.user_kernel.make_behaving(x_high, dtype=vs.default_float_type)
@@ -610,4 +608,3 @@ def drtsafe(vs, function, guess_low, guess_high, args=None, accuracy=1e-10, max_
                                                 (x_low, drtsafe_val, f_low, f))
 
     return drtsafe_val
-
