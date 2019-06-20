@@ -203,7 +203,7 @@ SETTINGS = OrderedDict([
     ('zooplankton_max_growth_temp', Setting(20.0, float, 'Temperature (C) for which zooplankton growth rate no longer grows with temperature')),
 
     # NPZD with N
-    # ('enable_nitrogen', Setting(False, bool, '')),
+    ('enable_nitrogen', Setting(False, bool, '')),
     # ('gd_min_diaz', Setting(1e-14, float, 'Minimum value for gd for diazotroph growth')),
     # ('jdiar', Setting(0.08, float, 'Factor reducing the growth rate of diazotrophs')),
     # ('nudon0', Setting(2.33e-5 / 86400, float, 'DON remineralization rate [1/sec]')),
@@ -217,8 +217,11 @@ SETTINGS = OrderedDict([
     # ('dfrt', Setting(0.08, float, 'phtoplankton fast recycling refactory/semi-labile DOM fraction')),
     # ('bct_min_diaz', Setting(2.6, float, 'Minmum value for b*c^T for calculating diazotroph growth')),
 
+    ('enable_carbon', Setting(False, bool, '')),
+    ('enable_oxygen', Setting(False, bool, '')),
+
     # NPZD with caco3
-    # ('enable_calcifiers', Setting(False, bool, '')),
+    ('enable_calcifiers', Setting(False, bool, '')),
     # ('light_attenuation_caco3', Setting(0.047, float, 'Calcite light attenuation [1/(m * mmol/m^3)')),
     # ('zprefC', Setting(1, float, 'Zooplankton preference for coccoliths')),
     # ('alpha_C', Setting(0.06 / 86400, float, 'Initial slope P-I curve [(W/m^2)^-1/sec]')),
@@ -237,7 +240,7 @@ SETTINGS = OrderedDict([
     # ('dcaco3', Setting(3500.0, float, 'Calcite remineralization depth [m]')),
 
     # NPZD with iron
-    # ('enable_iron', Setting(False, bool, '')),
+    ('enable_iron', Setting(False, bool, '')),
     # ('pmax_P', Setting(0.15, float, 'Phytoplankton biomass above which kfe increases [mmol N / m^3]')),
     # ('kfemin', Setting(0.04e-3, float, 'Minimum half saturation constant for Fe limitation phyto [mmol Fe / m^3]')),
     # ('kfemax', Setting(0.2e-3, float, 'Maximum half saturation constant for Fe limitation phyto [mmol Fe / m^3]')),
