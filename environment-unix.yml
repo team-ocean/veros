@@ -3,6 +3,7 @@ channels:
     - conda-forge
 dependencies:
     - python=3.7
+    - pip
     - numpy
     - click
     - requests>=2.18
@@ -13,7 +14,7 @@ dependencies:
     - pillow
     - ruamel.yaml
     - pyamg
-    - gcc
+    - libgcc
     - loguru
     - tqdm
     - pip:
