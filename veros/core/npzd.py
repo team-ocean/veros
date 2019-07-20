@@ -499,14 +499,15 @@ def setup_carbon_npzd_rules(vs):
     register_npzd_data(vs, 'DIC', vs.dic)
     register_npzd_data(vs, 'alkalinity', vs.alkalinity)
 
-    if not vs.enable_calcifiers:
-        # Only for collection purposes - to be redistributed in post rules
-        register_npzd_data(vs, 'caco3', np.zeros_like(vs.dic), transport=False)
+    # if not vs.enable_calcifiers:
+    # Only for collection purposes - to be redistributed in post rules
+    register_npzd_data(vs, 'caco3', np.zeros_like(vs.dic), transport=False)
 
     # Atmosphere
     register_npzd_rule(vs, 'npzd_carbon_flux',
                        (co2_surface_flux, 'co2', 'DIC'),
-                       boundary='SURFACE', group='PRE')
+                       boundary='SURFACE', group='PRE',
+                       label='Atmosphere exchange')
 
     # Common rule set for nutrient
     register_npzd_rule(vs, 'npzd_carbon_recycling_detritus_dic',
@@ -563,7 +564,6 @@ def setup_carbon_npzd_rules(vs):
         'npzd_carbon_detritus_bottom_remineralization',
         'pre_reset_calcite',
     ])
-
 
 @veros_method(inline=True)
 def setupNPZD(vs):
