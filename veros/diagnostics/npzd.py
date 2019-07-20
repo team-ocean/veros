@@ -56,23 +56,25 @@ class NPZDMonitor(VerosDiagnostic):
         if self.save_graph:
             from graphviz import Digraph
             npzd_graph = Digraph('npzd_dynamics', filename='npzd_dynamics.gv')
+            label_prefix = '\\tiny '
+            label_prefix = ''
 
             for tracer in vs.npzd_tracers:
                 npzd_graph.node(tracer)
 
             for rule in vs.npzd_rules:
-                npzd_graph.edge(rule.source, rule.sink, label='\\tiny ' + rule.label, lblstyle='sloped, above')
+                npzd_graph.edge(rule.source, rule.sink, label=label_prefix + rule.label, lblstyle='sloped, above')
 
             for rule in vs.npzd_pre_rules:
-                npzd_graph.edge(rule.source, rule.sink, label='\\tiny ' + rule.label, style='dotted', lblstyle='sloped, above')
+                npzd_graph.edge(rule.source, rule.sink, label=label_prefix + rule.label, style='dotted', lblstyle='sloped, above')
 
             for rule in vs.npzd_post_rules:
-                npzd_graph.edge(rule.source, rule.sink, label='\\tiny ' + rule.label, style='dashed', lblstyle='sloped, above')
+                npzd_graph.edge(rule.source, rule.sink, label=label_prefix + rule.label, style='dashed', lblstyle='sloped, above')
 
             if vs.sinking_speeds:
                 npzd_graph.node('Bottom', shape='square')
                 for sinker in vs.sinking_speeds:
-                    npzd_graph.edge(sinker, 'Bottom', label='\\tiny sinking', lblstyle='sloped, above')
+                    npzd_graph.edge(sinker, 'Bottom', label=label_prefix + 'sinking', lblstyle='sloped, above')
 
             self.save_graph = False
             npzd_graph.save()
@@ -93,12 +95,6 @@ class NPZDMonitor(VerosDiagnostic):
                       + vs.zooplankton[2:-2, 2:-2, :, vs.tau] * vs.redfield_ratio_CN\
                       + vs.dic[2:-2, 2:-2, :, vs.tau]
 
-        # more species carry phosphorus
-        if vs.enable_calcifiers:
-            pass
-
-        if vs.enable_nitrogen:
-            pass
 
         po4_total = np.sum(po4_sum * cell_volume)
         logger.warning(' total phosphorus: {}, relative change: {}'.format(po4_total, (po4_total - self.po4_total)/self.po4_total))
