@@ -218,7 +218,7 @@ SETTINGS = OrderedDict([
     # ('bct_min_diaz', Setting(2.6, float, 'Minmum value for b*c^T for calculating diazotroph growth')),
 
     # NPZD with caco3
-    # ('enable_calcifiers', Setting(False, bool, '')),
+    ('enable_calcifiers', Setting(False, bool, '')),
     # ('light_attenuation_caco3', Setting(0.047, float, 'Calcite light attenuation [1/(m * mmol/m^3)')),
     # ('zprefC', Setting(1, float, 'Zooplankton preference for coccoliths')),
     # ('alpha_C', Setting(0.06 / 86400, float, 'Initial slope P-I curve [(W/m^2)^-1/sec]')),
