@@ -54,7 +54,7 @@ def zooplankton_self_grazing(vs, zooplankton1, zoooplankton2):
 
 @veros_method(inline=True)
 def excretion(vs, zooplankton, nutrient):
-    """Zooplankton excretes nutrients after eating. Poop, breathing..."""
+    """Zooplankton excretes nutrients after eating. Fecal matter, breathing..."""
     return {zooplankton: - vs.excretion_total, nutrient: vs.redfield_ratio_PN * vs.excretion_total}
 
 
