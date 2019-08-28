@@ -77,7 +77,8 @@ class NPZDMonitor(VerosDiagnostic):
                     npzd_graph.edge(sinker, 'Bottom', label=label_prefix + 'sinking', lblstyle='sloped, above')
 
             self.save_graph = False
-            npzd_graph.save()
+            # npzd_graph.save()
+            npzd_graph.render('npzd_graph', view=False)
 
         """
         Total phosphorus should be (approximately) constant
