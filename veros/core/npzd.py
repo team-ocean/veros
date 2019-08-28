@@ -521,7 +521,8 @@ def setup_carbon_npzd_rules(vs):
     # POST rules
     register_npzd_rule(vs, 'npzd_carbon_dic_alk',
                        (dic_alk_scale, 'DIC', 'alkalinity'),
-                       group='POST')
+                       group='POST',
+                       label='Changes in DIC reflected in ALK')
     register_npzd_rule(vs, 'npzd_carbon_post_distribute_calcite_alk',
                        (post_redistribute_calcite_alk, 'caco3', 'alkalinity'),
                        label='dissolution', group='POST')
