@@ -325,7 +325,7 @@ def setup_basic_npzd_rules(vs):
     Setup rules for basic NPZD model including phosphate, detritus, phytoplankton and zooplankton
     """
     from .npzd_rules import grazing, mortality, sloppy_feeding, recycling_to_po4, \
-        zooplankton_self_grazing, excretion, primary_production, empty_rule, \
+        excretion, primary_production, empty_rule, \
         bottom_remineralization_detritus_po4
 
     from .npzd_tracers import Recyclable_tracer, Phytoplankton, Zooplankton, NPZD_tracer
@@ -390,14 +390,14 @@ def setup_basic_npzd_rules(vs):
     register_npzd_rule(vs, 'npzd_basic_phytoplankton_mortality',
                        (mortality, 'phytoplankton', 'detritus'),
                        label='Mortality')
-    register_npzd_rule(vs, 'npzd_basic_phytoplankton_sloppy_feeding',
-                       (sloppy_feeding, 'phytoplankton', 'detritus'),
-                       label='Sloppy feeding')
+    # register_npzd_rule(vs, 'npzd_basic_phytoplankton_sloppy_feeding',
+    #                    (sloppy_feeding, 'phytoplankton', 'detritus'),
+    #                    label='Sloppy feeding')
     register_npzd_rule(vs, 'npzd_basic_phytoplankton_fast_recycling',
                        (recycling_to_po4, 'phytoplankton', 'po4'),
                        label='Fast recycling')
     register_npzd_rule(vs, 'npzd_basic_zooplankton_grazing',
-                       (zooplankton_self_grazing, 'zooplankton', 'zooplankton'),
+                       (empty_rule, 'zooplankton', 'zooplankton'),
                        label='Grazing')
     register_npzd_rule(vs, 'npzd_basic_zooplankton_excretion',
                        (excretion, 'zooplankton', 'po4'),
@@ -408,9 +408,9 @@ def setup_basic_npzd_rules(vs):
     register_npzd_rule(vs, 'npzd_basic_zooplankton_sloppy_feeding',
                        (sloppy_feeding, 'zooplankton', 'detritus'),
                        label='Sloppy feeding')
-    register_npzd_rule(vs, 'npzd_basic_detritus_sloppy_feeding',
-                       (sloppy_feeding, 'detritus', 'detritus'),
-                       label='Sloppy feeding')
+    # register_npzd_rule(vs, 'npzd_basic_detritus_sloppy_feeding',
+    #                    (sloppy_feeding, 'detritus', 'detritus'),
+    #                    label='Sloppy feeding')
     register_npzd_rule(vs, 'npzd_basic_detritus_grazing',
                        (grazing, 'detritus', 'zooplankton'),
                        label='Grazing')
@@ -428,14 +428,14 @@ def setup_basic_npzd_rules(vs):
     register_npzd_rule(vs, 'group_npzd_basic', [
         'npzd_basic_phytoplankton_grazing',
         'npzd_basic_phytoplankton_mortality',
-        'npzd_basic_phytoplankton_sloppy_feeding',
+        # 'npzd_basic_phytoplankton_sloppy_feeding',
         'npzd_basic_phytoplankton_fast_recycling',
         'npzd_basic_phytoplankton_primary_production',
         'npzd_basic_zooplankton_grazing',
         'npzd_basic_zooplankton_excretion',
         'npzd_basic_zooplankton_mortality',
         'npzd_basic_zooplankton_sloppy_feeding',
-        'npzd_basic_detritus_sloppy_feeding',
+        # 'npzd_basic_detritus_sloppy_feeding',
         'npzd_basic_detritus_remineralization',
         'npzd_basic_detritus_grazing',
         'npzd_basic_detritus_bottom_remineralization'

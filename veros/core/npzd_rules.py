@@ -30,26 +30,29 @@ def mortality(vs, plankton, detritus):
 
 
 @veros_method(inline=True)
-def sloppy_feeding(vs, plankton, detritus):
-    """When zooplankton graces, some is not eaten. This is converted to detritus.
-        There should be a rule for sloppy feeding for each grazing"""
-    return {detritus: vs.sloppy_feeding[plankton]}
+def sloppy_feeding(vs, zooplankton, detritus):
+    """When zooplankton graces, some is not eaten. This is converted to detritus."""
+        # There should be a rule for sloppy feeding for each grazing"""
+    # return {detritus: vs.sloppy_feeding[plankton]}
+    sloppy_sum = sum(vs.sloppy_feeding.values())
+    return {zooplankton: -sloppy_sum, detritus: sloppy_sum}
 
 
 @veros_method(inline=True)
 def grazing(vs, eaten, zooplankton):
     """Zooplankton grows by amount digested, eaten decreases by amount grazed"""
-    return {eaten: - vs.grazing[eaten], zooplankton: vs.digestion[eaten]}
+    # return {eaten: - vs.grazing[eaten], zooplankton: vs.digestion[eaten]}
+    return {eaten: - vs.grazing[eaten], zooplankton: vs.grazing[eaten]}
 
 
-@veros_method(inline=True)
-def zooplankton_self_grazing(vs, zooplankton1, zoooplankton2):
-    """Zooplankton grazing on itself doesn't work with the grazing function
-        because it would overwrite dictionary keys
-        therefore we implement a special rule for them
-        zooplankton2 is superflous, but necessary for the code to run
-    """
-    return {zooplankton1: vs.digestion[zooplankton1] - vs.grazing[zooplankton1]}
+# @veros_method(inline=True)
+# def zooplankton_self_grazing(vs, zooplankton1, zoooplankton2):
+#     """Zooplankton grazing on itself doesn't work with the grazing function
+#         because it would overwrite dictionary keys
+#         therefore we implement a special rule for them
+#         zooplankton2 is superflous, but necessary for the code to run
+#     """
+#     return {zooplankton1: vs.digestion[zooplankton1] - vs.grazing[zooplankton1]}
 
 
 @veros_method(inline=True)
