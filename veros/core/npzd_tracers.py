@@ -6,15 +6,18 @@ from .. import veros_method
 
 class NPZD_tracer(np.ndarray):
     """
-    Class for npzd tracers to store additional information
-    about themselves.
-    Inhenrits from numpy.ndarray to make it work seamless with the current setup
-    Work in progress
-
-    Transport: Whether to transport the tracer
-    sinking_speed: If set the tracer will sink at the given speed
-    light_attenuation: If set the tracer will block light as the light_attenuation * concentration
+    Class for npzd tracers to store additional information about themselves.
+    Inhenrits from numpy.ndarray to make it work seamless with array operations
     """
+
+    # These are not used. They are just here for documenting the parameters set in __new__
+    name = None  #: A unique identifier (during the configured simulation)
+    sinking_speed = None  #: Numpy array for how fast the tracer sinks in each cell
+    input_array = None  #: Numpy array backing data
+    description = "This is the base tracer class"  #: Metadata
+    transport = True  #: Whether or not to include the tracer in physical transport
+    light_attenuation = None  #: Factor for how much light is blocked
+
 
     def __new__(cls, input_array, name, sinking_speed=None, light_attenuation=None, transport=True,
                 description = None):
@@ -26,7 +29,6 @@ class NPZD_tracer(np.ndarray):
 
 
         obj.name = name
-        obj.description = description or name
         obj.transport = transport
 
 
@@ -47,9 +49,10 @@ class NPZD_tracer(np.ndarray):
 class Recyclable_tracer(NPZD_tracer):
     """
     A recyclable tracer, this would be tracer, which may be a tracer like detritus, which can be recycled
-
-    recycling_rate: Rate to recycle the tracer at
     """
+
+    # this is just for documentation
+    recycling_rate = 0  #: A factor scaling the recycling by the population size
 
     def __new__(cls, input_array, name, recycling_rate=0, **kwargs):
         obj = super().__new__(cls, input_array, name, **kwargs)
@@ -60,7 +63,7 @@ class Recyclable_tracer(NPZD_tracer):
     @veros_method(inline=True)
     def recycle(self, vs):
         """
-        Recycling is temperature dependant
+        Recycling is temperature dependant by vs.bct
         """
         return vs.bct * self.recycling_rate * self
 
@@ -73,8 +76,10 @@ class Plankton(Recyclable_tracer):
     This class is intended as a base for phytoplankton and zooplankton and not
     as a standalone class
 
-    mortality_rate: Rate at which the tracer is dying
     """
+
+    # this is just for documentation
+    mortality_rate = 0  #: Rate at which the tracer is dying in mortality method
 
     def __new__(cls, input_array, name, mortality_rate=0, **kwargs):
         obj = super().__new__(cls, input_array, name, **kwargs)
@@ -95,6 +100,9 @@ class Phytoplankton(Plankton):
     """
     Phytoplankton also has primary production
     """
+
+    # this is just for documentation
+    growth_parameter = 0  #: Scaling factor for maximum potential growth
 
     def __new__(cls, input_array, name, growth_parameter=0, **kwargs):
         obj = super().__new__(cls, input_array, name, **kwargs)
@@ -131,16 +139,21 @@ class Zooplankton(Plankton):
     """
     Zooplankton displays quadratic mortality rate but otherwise is similar to ordinary phytoplankton
     """
+    max_grazing = 0  #: Scaling factor for maximum grazing rate
+    grazing_saturation_constant = 1  #: Saturation in Michaelis-Menten
+    grazing_preferences = {}  #: Dictionary of preferences for grazing on other tracers
+    assimilation_efficiency = 0  #: Fraction of grazed material ingested
+    growth_efficiency = 0  #: Fraction of ingested material resulting in growth
 
     def __new__(cls, input_array, name, max_grazing=0, grazing_saturation_constant=1,
                 grazing_preferences={}, assimilation_efficiency=0,
                 growth_efficiency=0, **kwargs):
         obj = super().__new__(cls, input_array, name, **kwargs)
-        obj.max_grazing = max_grazing
-        obj.grazing_saturation_constant = grazing_saturation_constant
-        obj.grazing_preferences = grazing_preferences
-        obj.assimilation_efficiency = assimilation_efficiency
-        obj.growth_efficiency = growth_efficiency
+        obj.max_grazing = max_grazing  #: Scaling factor for maximum grazing rate
+        obj.grazing_saturation_constant = grazing_saturation_constant  #: Saturation in Michaelis-Menten
+        obj.grazing_preferences = grazing_preferences  #: Dictionary of preferences for grazing on other tracers
+        obj.assimilation_efficiency = assimilation_efficiency  #: Fraction of grazed material ingested
+        obj.growth_efficiency = growth_efficiency  #: Fraction of ingested material resulting in growth
         obj._gmax = 0  # should be private
 
         return obj
@@ -150,14 +163,13 @@ class Zooplankton(Plankton):
         """
         Updates internal numbers, which are calculated only from Veros values
         """
-        # self._gmax = self.max_grazing * vs.bbio ** (vs.cbio * vs.temp[..., vs.tau])
         self._gmax = self.max_grazing * vs.bbio ** (vs.cbio * np.minimum(20, vs.temp[..., vs.tau]))
 
 
     @veros_method(inline=True)
     def mortality(self, vs):
         """
-        Zooplankton mortality is modelled with a quadratic
+        Zooplankton is modelled with a quadratic mortality
         """
         return self.mortality_rate * self ** 2
 
