@@ -8,19 +8,18 @@ class NPZDMonitor(VerosDiagnostic):
     """Diagnostic monitoring nutrients and plankton concentrations
     """
 
-    name = 'npzd'
-    output_frequency = None
+    name = 'npzd'  #:
+    output_frequency = None  #: Frequency (in seconds) in which output is written
     restart_attributes = []
-
-    def __init__(self, setup):
-        self.save_graph = False
-        self.graph_attr = {
+    save_graph = False  #: Whether or not to save a graph of the selected dynamics
+    graph_attr = {  #: Properties of the graph (graphviz)
             'splines': 'ortho',
             'center': 'true',
             'nodesep': '0.05',
             'node': 'square'
         }
 
+    def __init__(self, setup):
         self.output_variables = []
         self.surface_out = []
         self.bottom_out = []
@@ -56,28 +55,55 @@ class NPZDMonitor(VerosDiagnostic):
         if self.save_graph:
             from graphviz import Digraph
             npzd_graph = Digraph('npzd_dynamics', filename='npzd_dynamics.gv')
-            label_prefix = '\\tiny '
+            label_prefix = '\\tiny '  # should be selectable in settings allows for better exporting to tex
             label_prefix = ''
 
-            for tracer in vs.npzd_tracers:
+            # Create a node for all selected tracers
+            # Drawing edges also creates nodes, so this just ensures, we se it,
+            # when there are no connections to a node
+            for tracer, tracer_data in vs.npzd_tracers.items():
                 npzd_graph.node(tracer)
 
+                # If a tracer has the sinking_speed attribute indicate on the graph
+                if hasattr(tracer_data, 'sinking_speed'):
+                    npzd_graph.node('Bottom', shape='square')
+                    npzd_graph.edge(tracer, 'Bottom', label=label_prefix + 'sinking', lblstyle='sloped,above')
+
+            # Common source rules are split up into several rules
+            # This causes a duplication of the first registerd rule
+            # Which should not be shown, so if there is more than one of them selected,
+            # The source edge should not be displayed, because it is already there
+            skiprules = []
+            for name, rule in vs.common_source_rules.items():
+                # Construct the list of rule names
+                rule_names = [name + '_' + rule[0][1]] + [name + '_' + rule[i][2] for i in range(1, len(rule))]
+
+                # If there is more than one indicate, that it should be skipped from drawing
+                if len(rule_names) > 1:
+                    skiprules.append(vs.npzd_available_rules[rule_names[0]])
+
+            # Draw primary rules
             for rule in vs.npzd_rules:
+                if rule in skiprules:
+                    continue
+
                 npzd_graph.edge(rule.source, rule.sink, label=label_prefix + rule.label, lblstyle='sloped, above')
 
+            # Draw pre rules dotted
             for rule in vs.npzd_pre_rules:
+                if rule in skiprules:
+                    continue
+
                 npzd_graph.edge(rule.source, rule.sink, label=label_prefix + rule.label, style='dotted', lblstyle='sloped, above')
 
+            # Draw post rules dashed
             for rule in vs.npzd_post_rules:
+                if rule in skiprules:
+                    continue
+
                 npzd_graph.edge(rule.source, rule.sink, label=label_prefix + rule.label, style='dashed', lblstyle='sloped, above')
 
-            if vs.sinking_speeds:
-                npzd_graph.node('Bottom', shape='square')
-                for sinker in vs.sinking_speeds:
-                    npzd_graph.edge(sinker, 'Bottom', label=label_prefix + 'sinking', lblstyle='sloped, above')
-
             self.save_graph = False
-            # npzd_graph.save()
             npzd_graph.render('npzd_graph', view=False)
 
         """
