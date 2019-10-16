@@ -86,20 +86,11 @@ def biogeochemistry(vs):
     light_attenuation = vs.dzt * vs.light_attenuation_water +\
                         plankton_total * vs.light_attenuation_phytoplankton
 
-    # recycling rate determined according to b ** (cT)
-    # bct = vs.bbio ** (vs.cbio * vs.temp[:, :, :, vs.tau])
+    # common temperature factor determined according to b ** (cT)
     vs.bct = vs.bbio ** (vs.cbio * vs.temp[:, :, :, vs.tau])
-    bctz = vs.bbio ** (vs.cbio * np.minimum(vs.temp[:, :, :, vs.tau],
-                                            vs.zooplankton_max_growth_temp))
-
-    # Maximum grazing rate is a function of temperature
-    # bctz sets an upper limit on effects of temperature on grazing
-    gmax = vs.maximum_grazing_rate * bctz
 
     # light saturated growth and non-saturated growth
     jmax, avej = {}, {}
-    # for plankton, growth_function in vs.plankton_growth_functions.items():
-    #     jmax[plankton], avej[plankton] = growth_function(vs, bct, grid_light, light_attenuation)
     for tracer in vs.temporary_tracers.values():
 
         # Calculate light limited vs unlimited growth
@@ -126,7 +117,6 @@ def biogeochemistry(vs):
             # and calculate primary production from that
             if hasattr(tracer, 'potential_growth'):
                 # NOTE jmax and avej are NOT updated within bio loop
-                # jmax, avej = tracer.potential_growth(grid_light, light_attenuation)
                 for growth_limiting_function in vs.limiting_functions[tracer.name]:
                     u = np.minimum(u, growth_limiting_function(vs, vs.temporary_tracers))
 
@@ -220,7 +210,6 @@ def phosphate_limitation_phytoplankton(vs, tracers):
 
 
 @veros_method(inline=True)
-# def register_npzd_data(vs, name, value, transport=True):
 def register_npzd_data(vs, tracer):
     """
     Add tracer to the NPZD data set and create node in interaction graph
@@ -288,6 +277,65 @@ def register_npzd_rule(vs, name, rule, label=None, boundary=None, group='PRIMARY
                                              boundary=_get_boundary(vs, boundary),
                                              group=group)
 
+@veros_method(inline=True)
+def register_npzd_common_source_rule(vs, name, rule, label=None, boundary=None, group='PRIMARY'):
+    """
+    Register a rule to the model, which shares source term with other rules.
+    Should only be used for rules, where the source term is exactly the same.
+    This function creates stub rules for each individual term by evaluating the original rule and returning only
+    the sink part of the original rule. Additionally there will be created a stub rule for the source term based
+    on the first registered rule for the common source. Therefore a common source rule is best suited for rules,
+    where the source terms has been preevaluated.
+    The new registered rules are available with the name given by the parameter :name: postfixed by an underscore
+    followed by the name of the tracer to be affected as specified in the rule.
+    All created rules will be made available as a rule collection to be activated collectively with the name
+    specified by the parameter :name:
+    Parameters are the same as register_npzd_rule
+    """
+    # The rule collection is made in setup_npzd based on the concents of common_source_rules
+
+    if isinstance(rule, list):
+        raise ValueError('register_npzd_common_source_rule does not accept list of rule names as rule parameter')
+
+    # This should maybe be done elsewhere
+    # Ensure that the common source rules dictionary exists
+    # register_nzpd_rule handles not allowing multiple rules with the same name,
+    # therefore also handling not having the same sink defined twice or the source also being a sink
+    if not hasattr(vs, 'common_source_rules'):
+        vs.common_source_rules = {}
+
+    # If no rule for this name has been added yet, add the source term
+    if name not in vs.common_source_rules.keys():
+        vs.common_source_rules[name] = []
+
+        # Add the source term
+        # The new rule should consist of a new function, which is callable like the initial function of the rule, but only returns the source term
+        source_rule = (veros_method(lambda veros, source, sink: {source: rule[0](veros, source, sink)[source]}, inline=True), rule[1], rule[2])
+        register_npzd_rule(vs, f'{name}_{rule[1]}', source_rule, label=label + '(source)', boundary=boundary, group=group)
+
+        vs.common_source_rules[name].append(source_rule)
+
+    # Register new stub rule for the sink - source is assumed common so only added for the first
+    sink_rule = (veros_method(lambda veros, source, sink: {sink: rule[0](veros, source, sink)[sink]}, inline=True), rule[1], rule[2])
+    register_npzd_rule(vs, f'{name}_{rule[2]}', sink_rule, label=label, boundary=boundary, group=group)
+
+    vs.common_source_rules[name].append(sink_rule)
+
+    # Ensure that the registered rule works on the same boundary and same execution group as the source
+    # The boundary is in principle not a strict requirement, but should in practice always be the same
+    registered_source = vs.npzd_available_rules[f'{name}_{rule[1]}']
+    registered_sink = vs.npzd_available_rules[f'{name}_{rule[2]}']
+
+    if registered_source.boundary != registered_sink.boundary:
+        raise ValueError(f'Common source rules must have the same boundary for both source and sink but {registered_source.name} did not match {registered_sink.name}. Expected {registered_source.boundary}, got {registed_sink.boundary}')
+    if registered_source.group != registered_sink.group:
+        raise ValueError(f'Common source rules must have the same group for both source and sink but {registered_source.name} did not match {registered_sink.name}. Expected {registered_source.group}, got {registed_sink.group}')
+
+    # Make sure that the sources are actually listed as the same.
+    # This check should not be necesarry if the user actually wants to register rules for a common source
+    if registered_source.source != rule[1]:
+        raise ValueError(f'Common source rules should have a common source, but {registered_source.name} did not match {registered_sink.name}. Expected {registered_source.source}, got {rule[1]}')
+
 
 @veros_method(inline=True)
 def select_npzd_rule(vs, name):
@@ -353,7 +401,8 @@ def setup_basic_npzd_rules(vs):
                               grazing_saturation_constant=vs.saturation_constant_Z_grazing,
                               assimilation_efficiency=vs.assimilation_efficiency,
                               growth_efficiency=vs.zooplankton_growth_efficiency,
-                              grazing_preferences=vs.zprefs)
+                              grazing_preferences=vs.zprefs,
+                              mortality_rate=vs.quadric_mortality_zooplankton)
 
     po4 = NPZD_tracer(vs.po4, 'po4')
 
@@ -364,24 +413,13 @@ def setup_basic_npzd_rules(vs):
     register_npzd_data(vs, po4)
 
     # Add 'regular' phytoplankton to the model
-    # vs.plankton_types = ['phytoplankton']  # Phytoplankton types in the model. For blocking light
-    # vs.plankton_growth_functions['phytoplankton'] = phytoplankton_potential_growth
     vs.limiting_functions['phytoplankton'] = [phosphate_limitation_phytoplankton]
-    # vs.recycling_rates['phytoplankton'] = vs.fast_recycling_rate_phytoplankton
-    # vs.recycling_rates['detritus'] = vs.remineralization_rate_detritus
-    # vs.mortality_rates['phytoplankton'] = vs.specific_mortality_phytoplankton
 
     # Zooplankton preferences for grazing on keys
     # Values are scaled automatically at the end of this function
     vs.zprefs['phytoplankton'] = vs.zprefP
     vs.zprefs['zooplankton'] = vs.zprefZ
     vs.zprefs['detritus'] = vs.zprefDet
-
-    # Register for basic model
-    # register_npzd_data(vs, 'detritus', vs.detritus)
-    # register_npzd_data(vs, 'phytoplankton', vs.phytoplankton)
-    # register_npzd_data(vs, 'zooplankton', vs.zooplankton)
-    # register_npzd_data(vs, 'po4', vs.po4)
 
     # Register rules for interactions between active tracers
     register_npzd_rule(vs, 'npzd_basic_phytoplankton_grazing',
@@ -390,27 +428,18 @@ def setup_basic_npzd_rules(vs):
     register_npzd_rule(vs, 'npzd_basic_phytoplankton_mortality',
                        (mortality, 'phytoplankton', 'detritus'),
                        label='Mortality')
-    # register_npzd_rule(vs, 'npzd_basic_phytoplankton_sloppy_feeding',
-    #                    (sloppy_feeding, 'phytoplankton', 'detritus'),
-    #                    label='Sloppy feeding')
     register_npzd_rule(vs, 'npzd_basic_phytoplankton_fast_recycling',
                        (recycling_to_po4, 'phytoplankton', 'po4'),
                        label='Fast recycling')
     register_npzd_rule(vs, 'npzd_basic_zooplankton_grazing',
                        (empty_rule, 'zooplankton', 'zooplankton'),
                        label='Grazing')
-    register_npzd_rule(vs, 'npzd_basic_zooplankton_excretion',
-                       (excretion, 'zooplankton', 'po4'),
-                       label='Excretion')
     register_npzd_rule(vs, 'npzd_basic_zooplankton_mortality',
                        (mortality, 'zooplankton', 'detritus'),
                        label='Mortality')
     register_npzd_rule(vs, 'npzd_basic_zooplankton_sloppy_feeding',
                        (sloppy_feeding, 'zooplankton', 'detritus'),
                        label='Sloppy feeding')
-    # register_npzd_rule(vs, 'npzd_basic_detritus_sloppy_feeding',
-    #                    (sloppy_feeding, 'detritus', 'detritus'),
-    #                    label='Sloppy feeding')
     register_npzd_rule(vs, 'npzd_basic_detritus_grazing',
                        (grazing, 'detritus', 'zooplankton'),
                        label='Grazing')
@@ -428,14 +457,11 @@ def setup_basic_npzd_rules(vs):
     register_npzd_rule(vs, 'group_npzd_basic', [
         'npzd_basic_phytoplankton_grazing',
         'npzd_basic_phytoplankton_mortality',
-        # 'npzd_basic_phytoplankton_sloppy_feeding',
         'npzd_basic_phytoplankton_fast_recycling',
         'npzd_basic_phytoplankton_primary_production',
         'npzd_basic_zooplankton_grazing',
-        'npzd_basic_zooplankton_excretion',
         'npzd_basic_zooplankton_mortality',
         'npzd_basic_zooplankton_sloppy_feeding',
-        # 'npzd_basic_detritus_sloppy_feeding',
         'npzd_basic_detritus_remineralization',
         'npzd_basic_detritus_grazing',
         'npzd_basic_detritus_bottom_remineralization'
@@ -474,16 +500,12 @@ def setup_carbon_npzd_rules(vs):
     vs.rcak[...] *= vs.maskT
 
     # Need to track dissolved inorganic carbon, alkalinity
-    # register_npzd_data(vs, 'DIC', vs.dic)
-    # register_npzd_data(vs, 'alkalinity', vs.alkalinity)
     dic = NPZD_tracer(vs.dic, 'DIC')
     alk = NPZD_tracer(vs.alkalinity, 'alkalinity')
     register_npzd_data(vs, dic)
     register_npzd_data(vs, alk)
 
-    # if not vs.enable_calcifiers:
     # Only for collection purposes - to be redistributed in post rules
-    # register_npzd_data(vs, 'caco3', np.zeros_like(vs.dic), transport=False)
     caco3 = NPZD_tracer(np.zeros_like(vs.dic), "caco3", transport=False)
     register_npzd_data(vs, caco3)
 
@@ -560,10 +582,35 @@ def setupNPZD(vs):
     if vs.enable_carbon:
         setup_carbon_npzd_rules(vs)
 
+    from .npzd_rules import excretion
+    register_npzd_common_source_rule(vs, 'npzd_basic_zooplankton_excretion',
+                                     (excretion, 'zooplankton', 'po4'),
+                                     label='Excretion')
+
+
+    register_npzd_common_source_rule(vs, 'npzd_basic_zooplankton_excretion',
+                                     (excretion, 'zooplankton', 'DIC'),
+                                     label='Excretion')
+
+
+    # Turn common source rules into selectable rules
+    # We should not have to make this check, it should just be defined
+    if hasattr(vs, 'common_source_rules'):
+        # All common source rules have been saved to a dictionary
+        # where the key is the collection identifier and individual rules are
+        # named after the convention {collection_name}_{tracer_name}
+        for name, rules in vs.common_source_rules.items():
+            collection = [name + "_" + rules[0][1]] + [name + "_" + rules[i][2] for i in range(1, len(rules))]
+            print(name, collection)
+            register_npzd_rule(vs, name, collection)
+
+    # vs.npzd_selected_rules.append('npzd_basic_zooplankton_excretion')
+
     for rule in vs.npzd_selected_rules:
         select_npzd_rule(vs, rule)
 
     # Update Zooplankton preferences dynamically
+    # Ideally this would be done in the Zooplankton class
     zprefsum = sum(vs.zprefs.values())
     for preference in vs.zprefs:
         vs.zprefs[preference] /= zprefsum

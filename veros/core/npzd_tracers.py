@@ -139,21 +139,25 @@ class Zooplankton(Plankton):
     """
     Zooplankton displays quadratic mortality rate but otherwise is similar to ordinary phytoplankton
     """
+
+    # These should not do anything. They are just here for sphinx
     max_grazing = 0  #: Scaling factor for maximum grazing rate
     grazing_saturation_constant = 1  #: Saturation in Michaelis-Menten
     grazing_preferences = {}  #: Dictionary of preferences for grazing on other tracers
     assimilation_efficiency = 0  #: Fraction of grazed material ingested
     growth_efficiency = 0  #: Fraction of ingested material resulting in growth
+    maximum_growth_temperature = 20  #: Temperature where increasing temperature no longer increases grazing
 
     def __new__(cls, input_array, name, max_grazing=0, grazing_saturation_constant=1,
                 grazing_preferences={}, assimilation_efficiency=0,
-                growth_efficiency=0, **kwargs):
+                growth_efficiency=0,
+                maximum_growth_temperature=20, **kwargs):
         obj = super().__new__(cls, input_array, name, **kwargs)
-        obj.max_grazing = max_grazing  #: Scaling factor for maximum grazing rate
-        obj.grazing_saturation_constant = grazing_saturation_constant  #: Saturation in Michaelis-Menten
-        obj.grazing_preferences = grazing_preferences  #: Dictionary of preferences for grazing on other tracers
-        obj.assimilation_efficiency = assimilation_efficiency  #: Fraction of grazed material ingested
-        obj.growth_efficiency = growth_efficiency  #: Fraction of ingested material resulting in growth
+        obj.max_grazing = max_grazing
+        obj.grazing_saturation_constant = grazing_saturation_constant
+        obj.grazing_preferences = grazing_preferences
+        obj.assimilation_efficiency = assimilation_efficiency
+        obj.growth_efficiency = growth_efficiency
         obj._gmax = 0  # should be private
 
         return obj
@@ -163,7 +167,8 @@ class Zooplankton(Plankton):
         """
         Updates internal numbers, which are calculated only from Veros values
         """
-        self._gmax = self.max_grazing * vs.bbio ** (vs.cbio * np.minimum(20, vs.temp[..., vs.tau]))
+        self._gmax = self.max_grazing * vs.bbio ** (vs.cbio *
+                     np.minimum(self.maximum_growth_temperature, vs.temp[..., vs.tau]))
 
 
     @veros_method(inline=True)
