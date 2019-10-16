@@ -22,9 +22,6 @@ like any other Veros variable. The concentration (or appropriate unit) of the tr
 in Veros' grid is stored in the corresponding cell in the tracer grid. The base class defines attributes
 for operations which may apply to any tracer.
 
-.. autoclass:: veros.core.npzd_tracers.NPZD_tracer
-   :members: name, sinking_speed, light_attenuation, transport, description
-
 Instances of this class must be created with a numpy array backing the tracer values. Preferably this
 array was created in variables.py. Additionally a name must be supplied. This name will uniquely
 identify the tracer during simulation. Optional arguments may be supplied:
@@ -70,41 +67,33 @@ and phytoplankton can be done like
                                 recycling_rate=vs.fast_recycling_rate_phytoplankton,
                                 mortality_rate=vs.specific_mortality_phytoplankton)
 
-Other predefined tracers are
 
 Base tracer
 ###########
 
 .. autoclass:: veros.core.npzd_tracers.NPZD_tracer
-   :members: name, sinking_speed, light_attenuation, transport, description
-
 
 Recyclable tracer
 #################
 
 .. autoclass:: veros.core.npzd_tracers.Recyclable_tracer
-   :members: name, sinking_speed, light_attenuation, transport, description, recycling_rate, recycle
-
 
 Plankton
 ########
 
 .. autoclass:: veros.core.npzd_tracers.Plankton
-   :members: name, sinking_speed, light_attenuation, transport, description, recycling_rate, recycle, mortality_rate, mortality
 
 
 Phytoplankton
 #############
 
 .. autoclass:: veros.core.npzd_tracers.Phytoplankton
-   :members: name, sinking_speed, light_attenuation, transport, description, recycling_rate, recycle, mortality_rate, mortality, growth_parameter, potential_growth
 
 
 Zooplankton
 ###########
 
 .. autoclass:: veros.core.npzd_tracers.Zooplankton
-   :members: name, sinking_speed, light_attenuation, transport, description, recycling_rate, recycle, mortality_rate, mortality, max_grazing, grazing_saturation_constant, assimilation_efficiency, growth_efficiency, update_internal, grazing
 
 
 Extending tracers
