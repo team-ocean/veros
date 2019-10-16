@@ -27,7 +27,7 @@ for operations which may apply to any tracer.
 
 Instances of this class must be created with a numpy array backing the tracer values. Preferably this
 array was created in variables.py. Additionally a name must be supplied. This name will uniquely
-identify the tracer during simulation. Optional arguments arguments may be supplied:
+identify the tracer during simulation. Optional arguments may be supplied:
 :attr:`transport` By default this value is True. When :attr:`transport` is true, the tracer is transported
 according to the selected transportation scheme. Setting a value for for :attr:`sinking_speed` will cause
 the tracer to be included in calculations of sinking tracers. And setting :attr:`light_attenuation` will
@@ -97,7 +97,7 @@ Phytoplankton
 #############
 
 .. autoclass:: veros.core.npzd_tracers.Phytoplankton
-   :members: name, sinking_speed, light_attenuation, transport, description, recycling_rate, recycle, mortality_rate, mortality, growth_parameter, potential_growth, _avg_J
+   :members: name, sinking_speed, light_attenuation, transport, description, recycling_rate, recycle, mortality_rate, mortality, growth_parameter, potential_growth
 
 
 Zooplankton
