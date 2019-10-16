@@ -1,5 +1,10 @@
 """
 Collection of rules to be used by the npzd module
+
+Rules should always take 3 arguments:
+    1. vs
+    2. Name of source tracer
+    3. Name of sink tracer
 """
 from .. import veros_method
 from . import atmospherefluxes
@@ -19,8 +24,14 @@ def primary_production(vs, nutrient, plankton):
 
 @veros_method(inline=True)
 def recycling(vs, plankton, nutrient, ratio):
-    """plankton or detritus is recycled into nutrients"""
-    return {nutrient: ratio * vs.recycled[plankton], plankton: - vs.recycled[plankton]}
+    """Plankton or detritus is recycled into nutrients
+
+    Parameters
+    ----------
+    ratio
+        Factor for adjusting nutrient contribution. Typically a Redfield ratio.
+    """
+    return {plankton: - vs.recycled[plankton], nutrient: ratio * vs.recycled[plankton]}
 
 
 @veros_method(inline=True)
@@ -32,8 +43,6 @@ def mortality(vs, plankton, detritus):
 @veros_method(inline=True)
 def sloppy_feeding(vs, zooplankton, detritus):
     """When zooplankton graces, some is not eaten. This is converted to detritus."""
-        # There should be a rule for sloppy feeding for each grazing"""
-    # return {detritus: vs.sloppy_feeding[plankton]}
     sloppy_sum = sum(vs.sloppy_feeding.values())
     return {zooplankton: -sloppy_sum, detritus: sloppy_sum}
 
@@ -41,18 +50,7 @@ def sloppy_feeding(vs, zooplankton, detritus):
 @veros_method(inline=True)
 def grazing(vs, eaten, zooplankton):
     """Zooplankton grows by amount digested, eaten decreases by amount grazed"""
-    # return {eaten: - vs.grazing[eaten], zooplankton: vs.digestion[eaten]}
     return {eaten: - vs.grazing[eaten], zooplankton: vs.grazing[eaten]}
-
-
-# @veros_method(inline=True)
-# def zooplankton_self_grazing(vs, zooplankton1, zoooplankton2):
-#     """Zooplankton grazing on itself doesn't work with the grazing function
-#         because it would overwrite dictionary keys
-#         therefore we implement a special rule for them
-#         zooplankton2 is superflous, but necessary for the code to run
-#     """
-#     return {zooplankton1: vs.digestion[zooplankton1] - vs.grazing[zooplankton1]}
 
 
 @veros_method(inline=True)
@@ -63,7 +61,7 @@ def excretion(vs, zooplankton, nutrient):
 
 @veros_method(inline=True)
 def primary_production_from_DIC(vs, nutrient, plankton):
-    """Only using DIC, because plankton is handled by po4... shitty design right now"""
+    """Stub rule for primary production consuming DIC. Should be replaced by common sink rule"""
     return {nutrient: - vs.redfield_ratio_CN * vs.net_primary_production[plankton]}
 
 
@@ -81,7 +79,10 @@ def recycling_to_no3(vs, plankton, no3):
 
 @veros_method(inline=True)
 def recycling_to_dic(vs, plankton, dic):
-    """Recycling to carbon is scaled by redfield ratio C to N removing plankton has already been done by po4"""
+    """Recycling to carbon
+
+    Is scaled by redfield ratio C to N removing plankton has already been done by po4
+    """
     return {dic: recycling(vs, plankton, dic, vs.redfield_ratio_CN)[dic]}
 
 
@@ -100,9 +101,10 @@ def excretion_dic(vs, zooplankton, nutrient):
 @veros_method(inline=True)
 def calcite_production(vs, plankton, DIC, calcite):
     """Calcite is produced at a rate similar to detritus
-        Intended for use with a smoothing rule
-        If explicit tracking of calcite is desired use
-        rules for the explicit relationship
+
+    Intended for use with a smoothing rule
+    If explicit tracking of calcite is desired use
+    rules for the explicit relationship
     """
 
     # changes to production of calcite
@@ -120,15 +122,16 @@ def calcite_production_alk(vs, plankton, alkalinity, calcite):
 
 @veros_method(inline=True)
 def calcite_production_phyto(vs, DIC, calcite):
-    """DIC is consumed to produce calcite. How much depends on the mortality
-        and sloppy feeding of and on phytoplankton and zooplankton
+    """DIC is consumed to produce calcite.
+
+    How much depends on the mortality and sloppy feeding of and on phytoplankton and zooplankton
     """
     return calcite_production(vs, 'phytoplankton', DIC, calcite)
 
 
 @veros_method(inline=True)
 def calcite_production_phyto_alk(vs, alkalinity, calcite):
-    """sclaed version off calcite_production_phyto for alkalinity"""
+    """Scaled version off calcite_production_phyto for alkalinity"""
     return calcite_production_alk(vs, 'phytoplankton', alkalinity, calcite)
 
 
@@ -142,6 +145,7 @@ def post_redistribute_calcite(vs, calcite, tracer):
 
 @veros_method(inline=True)
 def post_redistribute_calcite_alk(vs, calcite, alkalinity):
+    """Post rule reusing post_redistribute_calcite to redistribute alkalinity"""
     return {alkalinity: 2 * post_redistribute_calcite(vs, calcite, 'DIC')['DIC']}
 
 
@@ -167,7 +171,17 @@ def dic_alk_scale(vs, DIC, alkalinity):
 
 @veros_method(inline=True)
 def bottom_remineralization(vs, source, sink, scale):
-    """Exported material falling through the ocean floor is converted to nutrients"""
+    """Exported material falling through the ocean floor is converted to nutrients
+
+    Note
+    ----
+    There can be no source, because that is handled by the sinking code
+
+    Parameters
+    ----------
+    scale
+        Factor to convert remineralized material to nutrient. Typically Redfield ratio.
+    """
     return {sink: vs.npzd_export[source][vs.bottom_mask] * scale}
 
 

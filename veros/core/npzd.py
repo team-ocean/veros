@@ -11,16 +11,13 @@ from . import diffusion, thermodynamics, utilities, isoneutral
 
 @veros_method
 def biogeochemistry(vs):
-    """
-    Control function for integration of biogeochemistry
+    """ Control function for integration of biogeochemistry
 
     Implements a rule based strategy. Any interaction between tracers should be
     described by registering a rule for the interaction.
     This routine ensures minimum tracer concentrations,
     calculates primary production, mortality, recyclability, vertical export for
     general tracers. Tracers should be registered to be used.
-
-    TODO: More description or link to documentation
     """
 
     # Number of timesteps to do for bio tracers
@@ -211,10 +208,16 @@ def phosphate_limitation_phytoplankton(vs, tracers):
 
 @veros_method(inline=True)
 def register_npzd_data(vs, tracer):
-    """
-    Add tracer to the NPZD data set and create node in interaction graph
+    """ Add tracer to the NPZD data set and create node in interaction graph
+
     Tracers added are available in the npzd dynamics and is automatically
     included in transport equations
+
+    Parameters
+    ----------
+    tracer
+        An instance of :obj:`veros.core.npzd_tracer.NPZD_tracer`
+        to be included in biogeochemistry calculations
     """
 
     if tracer.name in vs.npzd_tracers.keys():
@@ -228,12 +231,15 @@ def register_npzd_data(vs, tracer):
 
 @veros_method(inline=True)
 def _get_boundary(vs, boundary_string):
-    """
-    Return slice representing boundary
+    """ Return slice representing boundary
 
-    surface:       [:, :, -1] only the top layer
-    bottom:        bottom_mask as set by veros
-    else:          [:, :, :] everything
+    Parameters
+    ----------
+    boundary_string
+        Identifer for boundary. May take one of the following values:
+        SURFACE:       [:, :, -1] only the top layer
+        BOTTOM:        bottom_mask as set by veros
+        else:          [:, :, :] everything
     """
 
     if boundary_string == 'SURFACE':
@@ -247,17 +253,37 @@ def _get_boundary(vs, boundary_string):
 
 @veros_method(inline=True)
 def register_npzd_rule(vs, name, rule, label=None, boundary=None, group='PRIMARY'):
-    """ Add rule to the npzd dynamics e.g. phytoplankkton being eaten by zooplankton
+    """ Make rule available to the npzd dynamics
 
-        ...
-        name: Unique identifier for the rule
-        rule: a list of rule names or tuple containing:
+    The rule specifies an interaction between two tracers.
+    It may additionally specify where in the grid it works as
+    well as where in the execution order.
+
+    Note
+    ----
+    Registering a rule is not sufficient for inclusion in dynamics.
+    It must also be selected using select_npzd_rule.
+
+    Parameters
+    ----------
+    name
+        Unique identifier for the rule
+
+    rule
+        A list of rule names or tuple containing:
             function: function to be called
             source: what is being consumed
             destination: what is growing from consuming
-        label: A description for graph
-        boundary: 'SURFACE', 'BOTTOM' or None
-        ...
+    label
+        A description for graph. See :obj:`veros.diagnostics.biogeochemistry`
+
+    boundary
+        'SURFACE', 'BOTTOM' or None, see _get_boundary
+
+    group
+        'PRIMARY' (default): Rule is evaluated in primary execution loop nbio times with timestepping
+        'PRE': Rule is evaluated once before primary loop
+        'POST': Rule is evaluated once after primary loop
     """
 
     Rule = namedtuple('Rule', ['function', 'source', 'sink', 'label', 'boundary', 'group'])
@@ -279,18 +305,42 @@ def register_npzd_rule(vs, name, rule, label=None, boundary=None, group='PRIMARY
 
 @veros_method(inline=True)
 def register_npzd_common_source_rule(vs, name, rule, label=None, boundary=None, group='PRIMARY'):
-    """
-    Register a rule to the model, which shares source term with other rules.
-    Should only be used for rules, where the source term is exactly the same.
-    This function creates stub rules for each individual term by evaluating the original rule and returning only
-    the sink part of the original rule. Additionally there will be created a stub rule for the source term based
-    on the first registered rule for the common source. Therefore a common source rule is best suited for rules,
-    where the source terms has been preevaluated.
-    The new registered rules are available with the name given by the parameter :name: postfixed by an underscore
-    followed by the name of the tracer to be affected as specified in the rule.
-    All created rules will be made available as a rule collection to be activated collectively with the name
-    specified by the parameter :name:
+    """ Register a rule to the model, which shares source term with other rules.
+
+    This function creates stub rules for each individual term by evaluating the original rule and
+    returning only the sink part of the original rule. Additionally there will be created a stub
+    rule for the source term based on the first registered rule for the common source. Therefore a
+    common source rule is best suited for rules, where the source terms has been preevaluated.
+    The new registered rules are available with the name given by the parameter :obj:`name`
+    postfixed by an underscore followed by the name of the tracer to be affected as specified in the
+    rule. All created rules will be made available as a rule collection to be activated collectively
+    with the name specified by the parameter :obj:`name`.
     Parameters are the same as register_npzd_rule
+
+    Note
+    ----
+    Should only be used for rules, where the source term is exactly the same.
+
+    Parameters
+    ----------
+    name
+        Unique identifier for the rule
+
+    rule
+        A list of rule names or tuple containing:
+            function: function to be called
+            source: what is being consumed
+            destination: what is growing from consuming
+    label
+        A description for graph. See :obj:`veros.diagnostics.biogeochemistry`
+
+    boundary
+        'SURFACE', 'BOTTOM' or None, see _get_boundary
+
+    group
+        'PRIMARY' (default): Rule is evaluated in primary execution loop nbio times with timestepping
+        'PRE': Rule is evaluated once before primary loop
+        'POST': Rule is evaluated once after primary loop
     """
     # The rule collection is made in setup_npzd based on the concents of common_source_rules
 
@@ -339,7 +389,14 @@ def register_npzd_common_source_rule(vs, name, rule, label=None, boundary=None, 
 
 @veros_method(inline=True)
 def select_npzd_rule(vs, name):
-    """ Select rule for the NPZD model """
+    """
+    Select rule for the NPZD model
+
+    Parameters
+    ----------
+    name
+        Name of the rule to be selected
+    """
 
     # activate rule by selecting from available rules
     rule = vs.npzd_available_rules[name]
@@ -604,8 +661,6 @@ def setupNPZD(vs):
             print(name, collection)
             register_npzd_rule(vs, name, collection)
 
-    # vs.npzd_selected_rules.append('npzd_basic_zooplankton_excretion')
-
     for rule in vs.npzd_selected_rules:
         select_npzd_rule(vs, rule)
 
@@ -626,11 +681,14 @@ def setupNPZD(vs):
 
 @veros_method
 def npzd(vs):
-    """
+    r"""
     Main driving function for NPZD functionality
+
     Computes transport terms and biological activity separately
 
-    :math: \\dfrac{\\partial C_i}{\\partial t} = T + S
+    \begin{equation}
+        \dfrac{\partial C_i}{\partial t} = T + S
+    \end{equation}
     """
 
     # TODO: Refactor transportation code to be defined only once and also used by thermodynamics
@@ -642,7 +700,6 @@ def npzd(vs):
     For vertical mixing
     """
 
-    # TODO: move to function. This is essentially the same as vmix in thermodynamics
     a_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
     b_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
     c_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
