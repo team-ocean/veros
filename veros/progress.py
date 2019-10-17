@@ -96,6 +96,10 @@ class FancyProgressBar:
 
             We only need TQDM to handle dynamic updates to the progress indicator.
             """
+            def __init__(self, *args, **kwargs):
+                kwargs.update(leave=True)
+                super().__init__(*args, **kwargs)
+
             @property
             def format_dict(other):
                 report_time = time.convert_time(self._time, 'seconds', self._time_unit)
@@ -152,7 +156,6 @@ class FancyProgressBar:
 
     def __exit__(self, *args, **kwargs):
         logs.setup_logging(loglevel=rs.loglevel)
-        self._pbar.__exit__(*args, **kwargs)
 
     def advance_time(self, amount):
         self._iteration += 1
@@ -160,7 +163,7 @@ class FancyProgressBar:
         self.flush()
 
     def flush(self):
-        self._pbar.update(0)
+        self._pbar.refresh()
 
 
 def get_progress_bar(vs, use_tqdm=None):
