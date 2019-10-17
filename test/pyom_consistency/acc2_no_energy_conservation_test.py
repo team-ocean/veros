@@ -16,7 +16,8 @@ class ACC2NoEnergyConservationTest(VerosPyOMSystemTest):
             for s, (v1, v2) in differing_scalars.items():
                 print('{}, {}, {}'.format(s, v1, v2))
             for a, (v1, v2) in differing_arrays.items():
-                if 'salt' in a or a in ('B1_gm', 'B2_gm'): # salt and isoneutral streamfunctions aren't used by this example
+                if 'salt' in a:
+                    # salt isn't used by this example
                     continue
                 self.check_variable(a, atol=1e-6, data=(v1, v2))
 

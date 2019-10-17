@@ -227,7 +227,7 @@ class FourDegreeTest(VerosPyOMSystemTest):
             for s, (v1, v2) in differing_scalars.items():
                 print('{}, {}, {}'.format(s, v1, v2))
             for a, (v1, v2) in differing_arrays.items():
-                if a in ('B1_gm', 'B2_gm', 'Ai_ez', 'Ai_nz', 'Ai_bx', 'Ai_by'):
+                if a in ('Ai_ez', 'Ai_nz', 'Ai_bx', 'Ai_by'):
                     # usually very small differences being amplified
                     continue
                 self.check_variable(a, atol=1e-4, data=(v1, v2))

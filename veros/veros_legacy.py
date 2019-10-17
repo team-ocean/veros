@@ -230,6 +230,9 @@ class VerosLegacy(veros.VerosSetup):
                 # diagnose vertical velocity at taup1
                 f.vertical_velocity()
 
+                # diagnose isoneutral streamfunction regardless of output settings
+                f.isoneutral_diag_streamfunction()
+
             # shift time
             m.itt += 1
             vs.time += m.dt_tracer
