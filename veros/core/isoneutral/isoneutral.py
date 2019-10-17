@@ -153,24 +153,21 @@ def isoneutral_diag_streamfunction(vs):
     calculate hor. components of streamfunction for eddy driven velocity
     for diagnostics purpose only
     """
+    K_gm_pad = utilities.pad_z_edges(vs, vs.K_gm)
 
     """
     meridional component at east face of 'T' cells
     """
-    K_gm_pad = utilities.pad_z_edges(vs, vs.K_gm)
-
     diffloc = 0.25 * (K_gm_pad[1:-2, 2:-2, 1:-1] + K_gm_pad[1:-2, 2:-2, :-2] +
                       K_gm_pad[2:-1, 2:-2, 1:-1] + K_gm_pad[2:-1, 2:-2, :-2])
-    sumz = np.sum(diffloc[..., np.newaxis, np.newaxis] * vs.Ai_ez[1:-2, 2:-2, ...], axis=(3, 4))
-    vs.B2_gm[1:-2, 2:-2, :] = 0.25 * sumz
+    vs.B2_gm[1:-2, 2:-2, :] = 0.25 * diffloc * np.sum(vs.Ai_ez[1:-2, 2:-2, ...], axis=(3, 4))
 
     """
     zonal component at north face of 'T' cells
     """
     diffloc = 0.25 * (K_gm_pad[2:-2, 1:-2, 1:-1] + K_gm_pad[2:-2, 1:-2, :-2] +
                       K_gm_pad[2:-2, 2:-1, 1:-1] + K_gm_pad[2:-2, 2:-1, :-2])
-    sumz = np.sum(diffloc[..., np.newaxis, np.newaxis] * vs.Ai_nz[2:-2, 1:-2, ...], axis=(3, 4))
-    vs.B1_gm[2:-2, 1:-2, :] = -0.25 * sumz
+    vs.B1_gm[2:-2, 1:-2, :] = -0.25 * diffloc * np.sum(vs.Ai_nz[2:-2, 1:-2, ...], axis=(3, 4))
 
 
 @veros_method(dist_safe=False, local_variables=[
