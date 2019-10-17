@@ -104,6 +104,8 @@ def calc_beta(vs):
     vs.beta[:, 2:-2] = 0.5 * ((vs.coriolis_t[:, 3:-1] - vs.coriolis_t[:, 2:-2]) / vs.dyu[2:-2]
                             + (vs.coriolis_t[:, 2:-2] - vs.coriolis_t[:, 1:-3]) / vs.dyu[1:-3])
 
+    utilities.enforce_boundaries(vs, vs.beta)
+
 
 @veros_method
 def calc_topo(vs):
@@ -117,9 +119,10 @@ def calc_topo(vs):
 
     vs.kbot[:, :2] = 0
     vs.kbot[:, -2:] = 0
-    if vs.enable_cyclic_x:
-        utilities.enforce_boundaries(vs, vs.kbot)
-    else:
+
+    utilities.enforce_boundaries(vs, vs.kbot)
+
+    if not vs.enable_cyclic_x:
         vs.kbot[:2, :] = 0
         vs.kbot[-2:, :] = 0
 
