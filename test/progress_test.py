@@ -32,8 +32,9 @@ def test_progress_format(capsys):
     assert 'Current iteration:' in captured_tqdm.out
 
     def sanitize(prog):
-        # remove rates (inconsistent)
-        prog = re.sub(r'\d+\.\d{2}[smh]/\(model year\)', '?', prog)
+        # remove rates and ETA (inconsistent)
+        prog = re.sub(r'\d+\.\d{2}[smh]/\(model year\)', '?s/(model year)', prog)
+        prog = re.sub(r'\d+\.\d[smh] left', '? left', prog)
         prog = prog.replace('\r', '\n')
         prog = prog.strip()
         return prog
