@@ -251,7 +251,7 @@ MAIN_VARIABLES = OrderedDict([
     ('prho', Variable(
         'Potential density', T_GRID, 'kg/m^3',
         'Potential density anomaly, relative to the surface mean value of 1024 kg/m^3 '
-        '(equal to in-situ density anomaly for equation of state 1 to 4)',
+        '(identical to in-situ density anomaly for equation of state type 1, 2, and 4)',
         output=True
     )),
 

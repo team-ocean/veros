@@ -253,32 +253,33 @@ def calc_eq_of_state(vs, n):
     calculate density, stability frequency, dynamic enthalpy and derivatives
     for time level n from temperature and salinity
     """
-    density_args = (vs, vs.salt[..., n], vs.temp[..., n], np.abs(vs.zt))
+    salt = vs.salt[..., n]
+    temp = vs.temp[..., n]
+    press = np.abs(vs.zt)
 
     """
     calculate new density
     """
-    vs.rho[..., n] = density.get_rho(*density_args) * vs.maskT
+    vs.rho[..., n] = density.get_rho(vs, salt, temp, press) * vs.maskT
 
     """
     calculate new potential density
     """
-    vs.prho[...] = density.get_potential_rho(*density_args) * vs.maskT
+    vs.prho[...] = density.get_potential_rho(vs, salt, temp) * vs.maskT
 
+    """
+    calculate new dynamic enthalpy and derivatives
+    """
     if vs.enable_conserve_energy:
-        """
-        calculate new dynamic enthalpy and derivatives
-        """
-        vs.Hd[..., n] = density.get_dyn_enthalpy(*density_args) * vs.maskT
-        vs.int_drhodT[..., n] = density.get_int_drhodT(*density_args)
-        vs.int_drhodS[..., n] = density.get_int_drhodS(*density_args)
+        vs.Hd[..., n] = density.get_dyn_enthalpy(vs, salt, temp, press) * vs.maskT
+        vs.int_drhodT[..., n] = density.get_int_drhodT(vs, salt, temp, press)
+        vs.int_drhodS[..., n] = density.get_int_drhodS(vs, salt, temp, press)
 
     """
     new stability frequency
     """
     fxa = -vs.grav / vs.rho_0 / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[:, :, :-1]
     vs.Nsqr[:, :, :-1, n] = fxa * (density.get_rho(
-                                        vs, vs.salt[:, :, 1:, n], vs.temp[:, :, 1:, n], np.abs(vs.zt[:-1])
-                                    ) - vs.rho[:, :, :-1, n]
-                                  )
+                                        vs, salt[:, :, 1:], temp[:, :, 1:], press[:-1]
+                                    ) - vs.rho[:, :, :-1, n])
     vs.Nsqr[:, :, -1, n] = vs.Nsqr[:, :, -2, n]

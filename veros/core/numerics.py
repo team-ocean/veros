@@ -174,8 +174,6 @@ def calc_initial_conditions(vs):
 
     vs.rho[...] = density.get_rho(vs, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis]) \
                   * vs.maskT[..., np.newaxis]
-    vs.prho[...] = density.get_potential_rho(vs, vs.salt[..., vs.tau], vs.temp[..., vs.tau], np.abs(vs.zt)) \
-                   * vs.maskT[...]
     vs.Hd[...] = density.get_dyn_enthalpy(vs, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis]) \
                  * vs.maskT[..., np.newaxis]
     vs.int_drhodT[...] = density.get_int_drhodT(vs, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis])
