@@ -68,10 +68,12 @@ def initialize_variable(vs, key, var, ncfile):
         chunks=tuple(chunksize[::-1]),
         **kwargs
     )
-    v.long_name = var.name
-    v.units = var.units
     v.missing_value = variables.FILL_VALUE
-    v.attrs.update(var.extra_attributes)
+    v.attrs.update(
+        long_name=var.name,
+        units=var.units,
+        **var.extra_attributes
+    )
 
 
 @veros_method
@@ -118,8 +120,8 @@ def write_variable(vs, key, var, var_data, ncfile, time_step=None):
     var_obj[chunk] = var_data
 
 
-@veros_method
 @contextlib.contextmanager
+@veros_method
 def threaded_io(vs, filepath, mode):
     """
     If using IO threads, start a new thread to write the netCDF data to disk.
