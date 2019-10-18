@@ -156,6 +156,7 @@ class FancyProgressBar:
 
     def __exit__(self, *args, **kwargs):
         logs.setup_logging(loglevel=rs.loglevel)
+        self._pbar.__exit__(*args, **kwargs)
 
     def advance_time(self, amount):
         self._iteration += 1

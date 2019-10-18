@@ -39,4 +39,12 @@ def test_progress_format(capsys):
         prog = prog.strip()
         return prog
 
-    assert sanitize(captured_log.out) == sanitize(captured_tqdm.out)
+    def deduplicate(prog):
+        # remove repeated identical lines
+        out = []
+        for line in prog.split('\n'):
+            if not out or out[-1] != line:
+                out.append(line)
+        return '\n'.join(out)
+
+    assert sanitize(captured_log.out) == deduplicate(sanitize(captured_tqdm.out))
