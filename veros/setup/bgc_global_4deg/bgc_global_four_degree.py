@@ -33,26 +33,22 @@ class GlobalFourDegreeBGC(VerosSetup):
 
         vs.trcmin = 0
         vs.enable_npzd = True
-        vs.enable_nitrogen = False
-        vs.enable_calcifiers = False
         vs.enable_carbon = True
-        vs.enable_iron = False
-        vs.enable_oxygen = False
 
         with open(os.path.join(BASE_PATH, 'npzd.yml')) as yaml_file:
             cfg = yaml.safe_load(yaml_file)['npzd']
             vs.npzd_selected_rules = cfg['selected_rules']
 
-        vs.remineralization_rate_detritus = 0.07 / 86400
+        vs.remineralization_rate_detritus = 0.09 / 86400
         vs.bbio = 1.038
         vs.cbio = 1.0
-        vs.maximum_growth_rate_phyto = 0.27 / 86400
+        vs.maximum_growth_rate_phyto = 0.23 / 86400
         vs.maximum_grazing_rate = 0.13 / 86400
-        vs.fast_recycling_rate_phytoplankton = 0.027 / 86400
-        vs.specific_mortality_phytoplankton = 0.03 / 86400
+        vs.fast_recycling_rate_phytoplankton = 0.025 / 86400
+        vs.specific_mortality_phytoplankton = 0.035 / 86400
         vs.quadric_mortality_zooplankton = 0.06 / 86400
-        vs.zooplankton_growth_efficiency = 0.70
-        vs.assimilation_efficiency = 0.6
+        vs.zooplankton_growth_efficiency = 0.60
+        vs.assimilation_efficiency = 0.5
         vs.wd0 = 2 / 86400
         vs.mwz = 1000
         vs.mw = 0.02 / 86400
@@ -84,7 +80,7 @@ class GlobalFourDegreeBGC(VerosSetup):
         vs.mxl_min = 1e-8
         vs.tke_mxl_choice = 2
         vs.kappaM_min = 2e-4
-        vs.kappaH_min = 8e-5  # usually 2e-5
+        vs.kappaH_min = 7e-5  # usually 2e-5
         vs.enable_Prandtl_tke = False
         vs.enable_kappaH_profile = True
 
@@ -205,14 +201,7 @@ class GlobalFourDegreeBGC(VerosSetup):
             vs.detritus[:, :, :, :] = 1e-4 * vs.maskT[..., np.newaxis]
 
             vs.po4[:, :, :, :] = 2.2
-            vs.po4[:, :, -1, :] = 0.5
             vs.po4[...] *= vs.maskT[..., np.newaxis]
-
-        if vs.enable_nitrogen:
-            vs.diazotroph[...] = vs.phytoplankton / 10
-            vs.no3[...] = vs.po4[...] * 10
-            vs.don[...] = 20 * vs.maskT[..., np.newaxis]
-            vs.dop[...] = 20 * vs.maskT[..., np.newaxis]
 
         if vs.enable_carbon:
             vs.dic[...] = 2300 * vs.maskT[..., np.newaxis]
@@ -220,17 +209,6 @@ class GlobalFourDegreeBGC(VerosSetup):
             vs.alkalinity[...] = 2400 * vs.maskT[..., np.newaxis]
 
             vs.hSWS[...] = 5e-7
-
-        if vs.enable_calcifiers:
-            vs.coccolitophore[...] = vs.phytoplankton / 10
-            vs.caco3[...] = 0.01 * vs.maskT[..., np.newaxis]
-
-        if vs.enable_iron:
-            vs.fe[2:-2, 2:-2, -2:] = 8
-            vs.particulate_fe[2:-2, 2:-2, -2:] = 9
-
-        if vs.enable_oxygen:
-            vs.o2[2:-2, 2:-2, -2:] = 20
 
     @veros_method
     def set_forcing(self, vs):

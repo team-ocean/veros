@@ -69,3 +69,12 @@ Overturning
 
 .. autoclass:: veros.diagnostics.overturning.Overturning
    :members: name, p_ref, sampling_frequency, output_frequency, output_path
+
+
+Biogeochemistry
++++++++++++++++
+
+This module monitors total phosphate and produces interaction graphs for the biogeochemistry module
+
+.. autoclass:: veros.diagnostics.npzd.NPZDMonitor
+   :members: name, output_frequency, save_graph

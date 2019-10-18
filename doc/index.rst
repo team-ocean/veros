@@ -33,6 +33,7 @@ If you want to learn more about the background and capabilities of Veros, you sh
    reference/settings
    reference/variables
    reference/diagnostics
+   reference/biogeochemistry
    reference/cli
    reference/public-api
 
