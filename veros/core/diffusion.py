@@ -190,6 +190,7 @@ def tempsalt_sources(vs):
 def biharmonic(vs, tr, f, dtr):
     """
     Biharmonic mixing of tracer tr, results saved as dtr
+
     This is essentially just a copy of tempsalt_biharmonic generalized
     """
     flux_east = np.zeros_like(tr, dtype=vs.default_float_type)
