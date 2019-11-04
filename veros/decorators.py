@@ -27,7 +27,7 @@ def veros_method(function=None, **kwargs):
 
     Example:
        >>> from veros import Veros, veros_method
-       >>> 
+       >>>
        >>> class MyModel(Veros):
        >>>     @veros_method
        >>>     def set_topography(self):
@@ -143,14 +143,19 @@ def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
 
 def dist_context_only(function):
     @functools.wraps(function)
-    def dist_context_only_wrapper(vs, arr, *args, **kwargs):
+    def dist_context_only_wrapper(*args, **kwargs):
+        # args are assumed to be (), (vs,), or (vs, arr, ...)
         from . import runtime_state as rst
 
         if rst.proc_num == 1 or not CONTEXT.is_dist_safe:
             # no-op for sequential execution
-            return arr
+            try:
+                # return input array unchanged
+                return args[2]
+            except IndexError:
+                return
 
-        return function(vs, arr, *args, **kwargs)
+        return function(*args, **kwargs)
 
     return dist_context_only_wrapper
 
