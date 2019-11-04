@@ -151,7 +151,7 @@ def dist_context_only(function):
             # no-op for sequential execution
             try:
                 # return input array unchanged
-                return args[2]
+                return args[1]
             except IndexError:
                 return
 
