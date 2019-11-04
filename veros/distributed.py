@@ -553,9 +553,11 @@ def scatter(vs, arr, var_grid):
         raise NotImplementedError()
 
 
+@dist_context_only
 def barrier():
     rs.mpi_comm.barrier()
 
 
+@dist_context_only
 def abort():
     rs.mpi_comm.Abort()
