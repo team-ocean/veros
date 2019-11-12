@@ -12,7 +12,7 @@ from ..variables import allocate
 
 @veros_method
 def biogeochemistry(vs):
-    """ Control function for integration of biogeochemistry
+    """Control function for integration of biogeochemistry
 
     Implements a rule based strategy. Any interaction between tracers should be
     described by registering a rule for the interaction.
@@ -222,7 +222,7 @@ def register_npzd_data(vs, tracer):
     """
 
     if tracer.name in vs.npzd_tracers.keys():
-        raise ValueError(name, 'has already been added to the NPZD data set')
+        raise ValueError('{name} has already been added to the NPZD data set'.format(name=tracer.name))
 
     vs.npzd_tracers[tracer.name] = tracer
 
@@ -431,7 +431,7 @@ def setup_basic_npzd_rules(vs):
     Setup rules for basic NPZD model including phosphate, detritus, phytoplankton and zooplankton
     """
     from .npzd_rules import grazing, mortality, sloppy_feeding, recycling_to_po4, \
-        excretion, primary_production, empty_rule, \
+        primary_production, empty_rule, \
         bottom_remineralization_detritus_po4
 
     from .npzd_tracers import Recyclable_tracer, Phytoplankton, Zooplankton, NPZD_tracer
@@ -643,11 +643,9 @@ def setupNPZD(vs):
                                      (excretion, 'zooplankton', 'po4'),
                                      label='Excretion')
 
-
     register_npzd_common_source_rule(vs, 'npzd_basic_zooplankton_excretion',
                                      (excretion, 'zooplankton', 'DIC'),
                                      label='Excretion')
-
 
     # Turn common source rules into selectable rules
     # We should not have to make this check, it should just be defined
