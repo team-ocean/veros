@@ -335,9 +335,12 @@ class Zooplankton(Plankton):
         Note
         ----
         The result of this method is primarily useful in rules
+
+        Note
+        ----
+        thetaZ is scaled by vs.redfield_ratio_PN. This may not be desirable in the general case
         """
 
-        # TODO check saturation constants
         thetaZ = sum([pref_score * tracers[preference] for preference, pref_score
                       in self.grazing_preferences.items()])\
                       + vs.saturation_constant_Z_grazing * vs.redfield_ratio_PN

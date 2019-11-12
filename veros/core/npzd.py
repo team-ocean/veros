@@ -118,8 +118,6 @@ def biogeochemistry(vs):
                 for growth_limiting_function in vs.limiting_functions[tracer.name]:
                     u = np.minimum(u, growth_limiting_function(vs, vs.temporary_tracers))
 
-                # TODO growth limiting functions should be identifiable by name or handle
-                # flags themselves
                 vs.net_primary_production[tracer.name] = flags[tracer.name] * flags['po4'] \
                     * np.minimum(avej[tracer.name], u * jmax[tracer.name]) * tracer
 
@@ -463,12 +461,12 @@ def setup_basic_npzd_rules(vs):
 
     po4 = NPZD_tracer(vs.po4, 'po4')
 
+    # Add tracers to the model
     register_npzd_data(vs, detritus)
     register_npzd_data(vs, phytoplankton)
     register_npzd_data(vs, zooplankton)
     register_npzd_data(vs, po4)
 
-    # Add 'regular' phytoplankton to the model
     vs.limiting_functions['phytoplankton'] = [phosphate_limitation_phytoplankton]
 
     # Zooplankton preferences for grazing on keys
