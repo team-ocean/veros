@@ -5,7 +5,7 @@ import os
 import h5netcdf
 import ruamel.yaml as yaml
 
-from veros import VerosSetup, veros_method
+from veros import VerosSetup, veros_method, distributed
 from veros.variables import Variable
 import veros.tools
 
@@ -19,8 +19,6 @@ DATA_FILES = veros.tools.get_assets(
 class GlobalFourDegreeBGC(VerosSetup):
     """Global 4 degree model with 15 vertical levels and biogeochemistry.
     """
-    collapse_AMOC = False
-
     @veros_method
     def set_parameter(self, vs):
         vs.identifier = '4deg'
@@ -132,6 +130,11 @@ class GlobalFourDegreeBGC(VerosSetup):
         vs.y_origin = -78.0
         vs.x_origin = 4.0
 
+        idx_global, _ = distributed.get_chunk_slices(vs, ('xt', 'yt', 'zt'))
+
+        with h5netcdf.File(DATA_FILES['corev2'], 'r') as infile:
+            vs.swr_initial = infile.variables['SWDN_MOD'][idx_global[::-1]].T
+
     @veros_method
     def set_coriolis(self, vs):
         vs.coriolis_t[...] = 2 * vs.omega * np.sin(vs.yt[np.newaxis, :] / 180. * vs.pi)
@@ -151,7 +154,9 @@ class GlobalFourDegreeBGC(VerosSetup):
     @veros_method(dist_safe=False, local_variables=[
         'taux', 'tauy', 'qnec', 'qnet', 'sss_clim', 'sst_clim',
         'temp', 'salt', 'taux', 'tauy', 'area_t', 'maskT',
-        'forc_iw_bottom', 'forc_iw_surface'
+        'forc_iw_bottom', 'forc_iw_surface', 'zw', 'maskT',
+        'phytoplankton', 'zooplankton', 'detritus', 'po4',
+        'dic', 'atmospheric_co2', 'alkalinity', 'hSWS'
     ])
     def set_initial_conditions(self, vs):
         # initial conditions for T and S
@@ -190,9 +195,6 @@ class GlobalFourDegreeBGC(VerosSetup):
             vs.forc_iw_surface[2:-2, 2:-2] = self._read_forcing(vs, 'wind_energy') / vs.rho_0 * 0.2
 
         if vs.enable_npzd:
-            with h5netcdf.File(DATA_FILES['corev2'], 'r') as infile:
-                vs.swr_initial = infile.variables['SWDN_MOD'][...].T
-
             phytoplankton = 0.14 * np.exp(vs.zw / 100) * vs.maskT
             zooplankton = 0.014 * np.exp(vs.zw / 100) * vs.maskT
 
@@ -238,13 +240,6 @@ class GlobalFourDegreeBGC(VerosSetup):
         # salinity restoring
         t_rest = 30 * 86400.0
         sss = f1 * vs.sss_clim[:, :, n1] + f2 * vs.sss_clim[:, :, n2]
-
-        # NOTE this is used to collapse the AMOC. Should only be enabled if you wish to collapse it
-        if self.collapse_AMOC:
-            east_AMOC_border = (vs.xt <= 50) + (vs.xt >= 260)
-            north_AMOC_border = vs.yt >= 50
-            AMOC_border = east_AMOC_border.reshape(-1, 1) * north_AMOC_border.reshape(1, -1)
-            sss[:] += -1 * AMOC_border
 
         vs.forc_salt_surface[:] = 1. / t_rest * \
             (sss - vs.salt[:, :, -1, vs.tau]) * vs.maskT[:, :, -1] * vs.dzt[-1]

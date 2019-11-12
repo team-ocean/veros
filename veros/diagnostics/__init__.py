@@ -7,10 +7,16 @@ from .io_tools import hdf5 as h5tools
 
 @veros_method
 def create_diagnostics(vs):
-    return {Diag.name: Diag(vs) for Diag in (averages.Averages, cfl_monitor.CFLMonitor,
-                                                energy.Energy, overturning.Overturning,
-                                                snapshot.Snapshot, tracer_monitor.TracerMonitor,
-                                                npzd.NPZDMonitor)}
+    diagnostics = {Diag.name: Diag(vs) for Diag in (
+        averages.Averages, cfl_monitor.CFLMonitor,
+        energy.Energy, overturning.Overturning,
+        snapshot.Snapshot, tracer_monitor.TracerMonitor,
+    )}
+
+    if vs.enable_npzd:
+        diagnostics[npzd.NPZDMonitor.name] = npzd.NPZDMonitor(vs)
+
+    return diagnostics
 
 
 @veros_method

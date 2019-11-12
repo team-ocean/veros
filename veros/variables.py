@@ -725,6 +725,9 @@ CONDITIONAL_VARIABLES = OrderedDict([
         )),
     ])),
     ('enable_npzd', OrderedDict([
+        ('bottom_mask', Variable(
+            'Bottom mask', T_GRID, '', 'Bottom mask', dtype='int8'
+        )),
         ('phytoplankton', Variable(
             'Phytoplankton concentration', T_GRID + TIMESTEPS, 'mmol/m^3?',
             'Concentration of phytoplankton in grid box',

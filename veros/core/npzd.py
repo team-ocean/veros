@@ -7,6 +7,7 @@ from collections import namedtuple
 from .. import veros_method
 from .. import time
 from . import diffusion, thermodynamics, utilities, isoneutral
+from ..variables import allocate
 
 
 @veros_method
@@ -436,7 +437,6 @@ def setup_basic_npzd_rules(vs):
     from .npzd_tracers import Recyclable_tracer, Phytoplankton, Zooplankton, NPZD_tracer
 
     # TODO - couldn't this be created elsewhere or can I use vs.kbot more efficiently?
-    vs.bottom_mask = np.empty((vs.nx + 4, vs.ny + 4, vs.nz), dtype=np.bool)
     vs.bottom_mask[:, :, :] = np.arange(vs.nz)[np.newaxis, np.newaxis, :] == (vs.kbot - 1)[:, :, np.newaxis]
 
     zw = vs.zw - vs.dzt  # bottom of grid box using dzt because dzw is weird
@@ -462,7 +462,6 @@ def setup_basic_npzd_rules(vs):
                               mortality_rate=vs.quadric_mortality_zooplankton)
 
     po4 = NPZD_tracer(vs.po4, 'po4')
-
 
     register_npzd_data(vs, detritus)
     register_npzd_data(vs, phytoplankton)
@@ -700,11 +699,11 @@ def npzd(vs):
     For vertical mixing
     """
 
-    a_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-    b_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-    c_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-    d_tri = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
-    delta = np.zeros((vs.nx, vs.ny, vs.nz), dtype=vs.default_float_type)
+    a_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    b_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    c_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    d_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
+    delta = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
 
     ks = vs.kbot[2:-2, 2:-2] - 1
     delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1]\
