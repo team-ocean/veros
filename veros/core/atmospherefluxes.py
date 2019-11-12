@@ -8,11 +8,26 @@ from . import utilities
 
 @veros_method
 def carbon_flux(vs):
-    # t_in = vs.temp[:, :, -1, vs.tau]  # [degree C] TODO rename variable
-    # s_in = vs.salt[:, :, -1, vs.tau]  # [g/kg = PSU] TODO rename variable
-    # dic_in = vs.dic[:, :, -1, vs.tau] * 1e-3# [mmol -> mol] TODO rename variable
-    # ta_in = vs.alkalinity[:, :, -1, vs.tau] * 1e-3 # [mmol -> mol] TODO rename variable
-    # co2_in = vs.atmospheric_co2 # [ppmv] TODO rename variable
+    """Calculates flux of CO2 over the ocean-atmosphere boundary
+
+    This is an adaptation of co2_calc_SWS from UVic ESCM
+
+    Note
+    ----
+    This was written without an atmosphere component in veros.
+    Therefore an atmospheric pressure of 1 atm is assumed.
+    The concentration of CO2 (in units of ppmv) may be set in vs.atmospheric_co2
+
+    Note
+    ----
+    This was written without an explicit sea ice component. Therefore a full
+    ice cover is assumed when temperature is below -1.8C and temperature forcing is negative
+
+    Returns
+    -------
+    numpy.ndarray(vs.nx, vs.ny) with flux in units of :math:`mmol / m^2 / s`
+    Positive indicates a flux into the ocean
+    """
 
     icemask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
             vs.forc_temp_surface < 0.0)
@@ -21,18 +36,15 @@ def carbon_flux(vs):
     atmospheric_pressure = 1  # atm  NOTE: We don't have an atmosphere yet, hence constant pressure
 
     # TODO get actual wind speed rather than deriving from wind stress
-    wind_speed = np.sqrt(np.abs(vs.surface_taux / vs.rho_0) + np.abs(vs.surface_tauy / vs.rho_0)) * 500 # mult for scale?
+    wind_speed = np.sqrt(np.abs(vs.surface_taux / vs.rho_0) + np.abs(vs.surface_tauy / vs.rho_0)) * 500
     vs.wind_speed = wind_speed
 
 
-# !     xconv is constant to convert piston_vel from cm/hr -> cm/s
-# !     here it is 100.*a*xconv (100 => m to cm, a=0.337, xconv=1/3.6e+05)
-#       xconv = 33.7/3.6e+05
-#       xconv = xconv*0.75
+    # xconv is constant to convert piston_vel from cm/hr -> cm/s
+    # here it is 100.*a*xconv (100 => m to cm, a=0.337, xconv=1/3.6e+05)
     xconv = 0.337 / 3.6e5
     xconv *= 0.75  # NOTE: This seems like an approximation I don't know where they got it
 
-    # vs.dco2star = co2calc_SWS(vs, t_in, s_in, dic_in, ta_in, co2_in, atmospheric_pressure)
     vs.dco2star = co2calc_SWS(vs, vs.temp[:, :, -1, vs.tau],  # [degree C]
                               vs.salt[:, :, -1, vs.tau],  # [g/kg]
                               vs.dic[:, :, -1, vs.tau] * 1e-3,  # [mmol -> mol]
@@ -42,7 +54,6 @@ def carbon_flux(vs):
 
     # Schmidt number for CO2
     # Wanninkhof, 1992, table A
-    # scco2 = 2073.1 - 125.62 * t_in + 3.6276 * t_in ** 2 - 0.043219 * t_in ** 3
     scco2 = 2073.1 - 125.62 * vs.temp[:, :, -1, vs.tau] + 3.6276 * vs.temp[:, :, -1, vs.tau] ** 2 - 0.043219 * vs.temp[:, :, -1, vs.tau] ** 3
 
     piston_vel = ao * xconv * (wind_speed) ** 2 * ((scco2/660.0)**(-0.5))
@@ -52,34 +63,50 @@ def carbon_flux(vs):
 
     # 1e3 added to convert to mmol / m^2 / s
     co2_flux = piston_vel * vs.dco2star * vs.maskT[:, :, -1] * 1e3
-    # NOTE Is this Fick's First law? https://www.ocean.washington.edu/courses/oc400/Lecture_Notes/CHPT11.pdf
 
-    # TODO set boundary condictions
     utilities.enforce_boundaries(vs, co2_flux)
-
-    # TODO land fluxes?
 
     vs.cflux[...] = co2_flux
     return vs.cflux
 
 
 @veros_method
-def oxygen_flux(vs):
-    pass
-
-
-@veros_method
 def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pressure):
-    """ Please rename this to something that actually makes sense
-        Calculate delta co2* from total alkalinty and total CO2 at
-        temperature, salinity and atmosphere total pressure
+    """ Calculate delta co2*
 
-        :temperature: sea surface temperature
-        :salinity: salinity
-        :dic_in: DIC in units [mol/m^3]
-        :ta_in: alkalinity in units [mol/m^3]
-        :co2_in: atmospheric co2
-        :atmospheric_pressure: atmospheric pressure in [atm]
+        Calculate delta co2* from total alkalinty and total CO2 at temperature, salinity and atmosphere total pressure
+        This function needs a better name
+
+        Parameters
+        ----------
+
+        temperature
+            sea surface temperature
+
+        salinity
+            sea surface salinity
+
+        dic_in
+            DIC in surface layer in units [mol/m^3]
+
+        ta_in
+            Total alkalinity in surface layer in units [mol/m^3]
+
+        co2_in
+            atmospheric co2
+
+        atmospheric_pressure
+            atmospheric pressure in [atm]
+
+        Note
+        ----
+        It is assumed, that total Si and P are constant.
+        Several other element concentration are approximated from temperature and salinity
+
+        Returns
+        -------
+
+        $\delta CO_2\star$
     """
 
     sit_in = np.ones_like(temperature) * 7.6875e-3  # [mol/m^3] estimated total Si
@@ -109,7 +136,6 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     st = 0.14 * scl / 96.062  # Morris & Riley (1966)
     ft = 0.000067 * scl / 18.9984  # Riley (1965)
 
-    # f = k0(1-pH20) * correction term for non-ideality
     # Weiss & Price (1980, Mar. Chem., 8, 347-359; Eq 13 with table 6 values)
     ff = np.exp(-162.8301 + 218.2968 / (temperature_in_kelvin / 100)
                 + 90.9241 * np.log(temperature_in_kelvin / 100)
@@ -123,13 +149,11 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
                 0.023517 - 0.023656 * temperature_in_kelvin / 100 + 0.0047036 * (temperature_in_kelvin / 100) ** 2))
 
     # Now calculate FugFac according to Weiss (1974) Marine Chemestry
-    # delta_x and b_x are in cm3/mol TODO we should use m over cm right?
-    # NOTE: This looks like equation 9, but without the pressure factors. Could FugFac mean fugacity factor??
     rt_x = 83.1451 * temperature_in_kelvin  # Gas constant times temperature
     delta_x = (57.7 - 0.118 * temperature_in_kelvin)  # In the text '\delta CO_2-air
     b_x = -1636.75 + 12.0408 * temperature_in_kelvin - 0.0327957 * temperature_in_kelvin ** 2 \
             + 3.16528 * 1e-5 * temperature_in_kelvin ** 3  # equation 6: Second viral coefficient B(T) (cm^3/mol)
-    FugFac = np.exp((b_x + 2 * delta_x) / rt_x)  # equation 9 without front factor and ignoring pressure factors, but if they are 1atm, then that explains it
+    FugFac = np.exp((b_x + 2 * delta_x) / rt_x)  # equation 9 without front factor and ignoring pressure factors
 
 
     # k1 = [H][HCO3]/[H2CO3]
@@ -212,18 +236,7 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     # must be used to calculate hSWS. In this case we use the Newton-Raphson
     # 'safe' method taken from 'Numerical Recipes' (function 'rtsafe.f' with
     # error trapping removed).
-    #
-    # As currently set, this procedure iterates about 12 times. The x1 and x2
-    # values set below will accomodate ANY oceanographic values. If an initial
-    # guess of the pH is known, then the number of iterations can be reduced to
-    # about 5 by narrowing the gap between x1 and x2. It is recommended that
-    # the first few time steps be run with x1 and x2 set as below. After that,
-    # set x1 and x2 to the previous value of the pH +/- ~0.5. The current
-    # setting of xacc will result in co2star accurate to 3 significant figures
-    # (xx.y). Making xacc bigger will result in faster convergence also, but this
-    # is not recommended (xacc of 10**-9 drops precision to 2 significant figures).
 
-    # ph = np.log10(vs.hSWS)  # negativ ph
     xacc = 1e-10
 
     # NOTE hSWS should never exceed the safe values, but we can check it
@@ -243,9 +256,6 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
     vs.hSWS = drtsafe_masked(vs, iter_mask, ta_iter_SWS, in1, in2,
                              args=(k1, k2, k1p, k2p, k3p, st, ks, kf, ft,
                                    dic, ta, sit, ksi, pt, bt, kw, kb), accuracy=xacc)
-    # vs.hSWS = drtsafe(vs, ta_iter_SWS_numpy, in1, in2,
-    #                   args=(k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic,
-    #                         ta, sit, ksi, pt, bt, kw, kb), accuracy=xacc)
 
     # Calculate [CO2*] as defined in DOE Methods Handbook 1993 Ver. 2,
     # ORNL/CDIC-74, Dickson and Goyet, eds. (Ch 2 p 1+, Eq A.49)
@@ -271,6 +281,12 @@ def co2calc_SWS(vs, temperature, salinity, dic_in, ta_in, co2_in, atmospheric_pr
 def ta_iter_SWS_numpy(vs, x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit, ksi, pt, bt, kw, kb):
     """
     Sum of free protons calculated from saturation constants
+
+    Parameters are same as ta_iter_SWS
+
+    Note
+    ----
+    This function is internal and is intended to be called by ta_iter_SWS
     """
     x2 = x * x
     x3 = x2 * x
@@ -306,7 +322,12 @@ def ta_iter_SWS_numpy(vs, x, k1, k2, k1p, k2p, k3p, st, ks, kf, ft, dic, ta, sit
 def ta_iter_SWS_bohrium(*args):
     """
     Sum of free proton calculated from saturation constants
-    For bohrium, making use of a mask to limit the number of calculations
+
+    Parameters are same as ta_iter_SWS
+
+    Note
+    ----
+    This function is internal. It was made explicitly for bohrium, making use of a mask to limit the number of calculations
     """
 
     arg_behaving = [np.user_kernel.make_behaving(args[1], dtype=np.int32)]
@@ -386,8 +407,36 @@ def ta_iter_SWS_bohrium(*args):
 @veros_method
 def ta_iter_SWS(*args):
     """
-    Function to be optimized for free protons, calls Bohrium version
-    if required
+    Function to be optimized for free protons, calls Bohrium version if required
+
+
+    Parameters
+    ----------
+    mask
+        Mask indicating which cells to include / exclude from calculation
+    x
+        Free protons
+    k1
+    k2
+    k1p
+    k2p
+    k3p
+    st
+    ks
+    kf
+    ft
+    dic
+    ta
+    sit
+    ksi
+    pt
+    bt
+    kw
+    kb
+
+    Returns
+    -------
+    A function value and derivative in a tuple (f, df)
     """
     vs = args[0]
     mask = args[1]
@@ -402,7 +451,42 @@ def ta_iter_SWS(*args):
 def drtsafe_boundary_update(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsafe_val):
     """
     For drtsafe: Moves the search boundary based on current result.
-    Masked to avoid syncs to numpy
+
+    Parameters
+    ----------
+    mask
+        Mask for where to perform / skip calculations
+
+    x_low
+        Lower boundary value
+
+    x_high
+        Upper boundary value
+
+    df
+        Function derivative
+
+    f
+        Function value
+
+    f_low
+        Function value at lower bound
+
+    f_high
+        Function value at upper bound
+
+    drtsafe_val
+        Values for which f was calculated
+
+    Returns
+    -------
+    None, but x_low, f_low, x_high, and f_high are updated to reflect new boundaries
+
+    Note
+    ----
+    With the Bohrium backend, this function uses a user kernel to handle masked
+    arrays. This is siginificantly faster than syncing to numpy or working on
+    already completed cells.
     """
 
     if rs.backend == 'bohrium':
@@ -452,9 +536,49 @@ def drtsafe_boundary_update(vs, mask, x_low, x_high, df, f, f_low, f_high, drtsa
 @veros_method
 def drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accuracy):
     """
-    Update step size: If step size would take us out of bounds,
-    set step size to half the interval length, else f/df
+    Update step size
+
+    If step size would take us out of bounds, set step size to half the interval length, else f/df
     and update step accordingly
+
+    Parameters
+    ----------
+    mask
+        Which cells should be calculated / skipped
+
+    drtsafe_val
+        Function input values
+
+    x_high
+        Upper bound of input values
+
+    df
+        Derivative in f
+
+    f
+        Function value
+
+    x_low
+        Lower bound of input values
+
+    dx
+        Change in function input value
+
+    dx_old
+        Change in function input value from previous step
+
+    accuracy
+        If calculated dx falls below this value, the mask for that cell will be updated
+
+    Returns
+    -------
+    None, but mask, dtrsafe_val, dx, and dx_old will be updated
+
+
+    Note
+    ----
+    With the Bohrium backend, this function uses a user kernel to skip completed cells.
+    This is siginificantly faster than syncing to numpy or working on already completed cells.
     """
 
     if rs.backend == 'bohrium':
@@ -521,10 +645,33 @@ def drtsafe_masked(vs, mask, function, guess_low, guess_high, args=None,
                    accuracy=1e-10, max_iterations=100):
     """
     Masked version of drtsafe
-    the function given should return a function value and derivative.
-    It will be given the updated mask as first argument and guess as second.
-    Any further arguments will be what is stored in args.
-    The initial guess will be the mean value of guess_low and guess_high
+
+    Parameters
+    ----------
+    mask
+        A mask indicating which cells may be skipped from calculations
+
+    function
+        Function to be optimzed. It must return a tuple consiting of function value and derivative
+
+    guess_low
+        Lower bound of initial guess bouding interval
+
+    guess_high
+        Upper bound of initial guess bounding interval
+
+    args
+        Additional fixed arguments passed to the function
+
+    accuracy
+        Maximum step size required as stop condition
+
+    max_iterations
+        Maximum number of optimization steps
+
+    Returns
+    -------
+    Parameter values minimizing the function value
     """
 
     # Initial guess and step size
@@ -562,9 +709,34 @@ def drtsafe_masked(vs, mask, function, guess_low, guess_high, args=None,
 
 @veros_method
 def drtsafe(vs, function, guess_low, guess_high, args=None, accuracy=1e-10, max_iterations=100):
-    """ Root finding method with bounding box, follows Newton-Raphson step
-        unless unsufficient or the step with take the solution out of bounds.
-        Otherwise does birfurcating step.
+    """ Root finding method with bounding box
+
+    Follows Newton-Raphson step unless unsufficient or the step with take the solution out of bounds.
+    Otherwise does birfurcating step.
+
+    Parameters
+    ----------
+    function
+        Function to be optimzed. It must return a tuple consiting of function value and derivative.
+
+    guess_low
+        Lower bound of initial guess bouding interval
+
+    guess_high
+        Upper bound of initial guess bounding interval
+
+    args
+        Additional fixed arguments passed to the function
+
+    accuracy
+        Maximum step size required as stop condition
+
+    max_iterations
+        Maximum number of optimization steps
+
+    Returns
+    -------
+    Parameter values minimizing the function value
     """
     # Initial guess and step size
     drtsafe_val = 0.5 * (guess_low + guess_high)
@@ -585,7 +757,6 @@ def drtsafe(vs, function, guess_low, guess_high, args=None, accuracy=1e-10, max_
     for _ in range(max_iterations):
 
         # update step size, step and mask
-        # drtsafe_step(vs, mask, drtsafe_val, x_high, df, f, x_low, dx, dx_old, accuracy)
         step_mask = ((drtsafe_val - x_high) * df - f) * (
                     (drtsafe_val - x_low) * df - f) >= 0
         step_mask = np.logical_or(step_mask, (np.abs(2.0 * f) > np.abs(dx_old * df)))

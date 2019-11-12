@@ -131,7 +131,7 @@ def isoneutral_diffusion_decoupled(vs, tr, dtracer_iso, iso=True, skew=False):
     """
     dissipation by isopycnal mixing
     """
-    # TODO
+    # TODO add dissipation by isopycnal mixing
     # NOTE drhodS, drhodT are calculated in isoneutral.py. The rest in there is additional stuff
 
 
