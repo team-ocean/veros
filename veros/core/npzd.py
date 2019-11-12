@@ -626,6 +626,7 @@ def setup_carbon_npzd_rules(vs):
         'pre_reset_calcite',
     ])
 
+
 @veros_method(inline=True)
 def setupNPZD(vs):
     """Taking veros variables and packaging them up into iterables"""
@@ -653,7 +654,6 @@ def setupNPZD(vs):
         # named after the convention {collection_name}_{tracer_name}
         for name, rules in vs.common_source_rules.items():
             collection = [name + "_" + rules[0][1]] + [name + "_" + rules[i][2] for i in range(1, len(rules))]
-            print(name, collection)
             register_npzd_rule(vs, name, collection)
 
     for rule in vs.npzd_selected_rules:
