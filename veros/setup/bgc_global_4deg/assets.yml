@@ -1,0 +1,11 @@
+forcing:
+  url: https://sid.erda.dk/share_redirect/gsdZADr8to/global_4deg/forcing_4deg_global.nc
+  md5: ef3be0a58782771c8ee5a6d0206b87f5
+
+ecmwf:
+  url: https://sid.erda.dk/share_redirect/gsdZADr8to/global_4deg/ecmwf_4deg_monthly_nc4.nc
+  md5: d1b4e0e199d7a5883cf7c88d3d6bcb27
+
+corev2:
+  url: https://sid.erda.dk/share_redirect/gsdZADr8to/COREv2_NYF/CNYFv2/monthly_average/ncar_rad.15JUNE2009.monthly_avg_4deg.nc
+  md5: 328a1bcf37b2b14671c8526e462cc1c1
