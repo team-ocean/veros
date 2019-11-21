@@ -1,6 +1,6 @@
 import math
 
-from . import variables, settings
+from . import variables, settings, timer, plugins, diagnostics
 
 
 class VerosState:
@@ -14,20 +14,49 @@ class VerosState:
     rho_0 = 1024.  # Boussinesq reference density in :math:`kg/m^3`
     grav = 9.81  # Gravitational constant in :math:`m/s^2`
 
-    def __init__(self):
+    def __init__(self, use_plugins=None):
         self.variables = {}
+        self.diagnostics = {}
         self.poisson_solver = None
         self.nisle = 0 # to be overriden during streamfunction_init
         self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
         self.time, self.itt = 0., 0 # current time and iteration
 
+        if use_plugins is not None:
+            self._plugin_interfaces = tuple(plugins.load_plugin(p) for p in use_plugins)
+        else:
+            self._plugin_interfaces = tuple()
+
         settings.set_default_settings(self)
+
+        for plugin in self._plugin_interfaces:
+            settings.update_settings(self, plugin.settings)
+
+        self.timers = {k: timer.Timer() for k in (
+            'setup', 'main', 'momentum', 'temperature', 'eke', 'idemix',
+            'tke', 'diagnostics', 'pressure', 'friction', 'isoneutral',
+            'vmix', 'eq_of_state', 'plugins'
+        )}
+
+        for plugin in self._plugin_interfaces:
+            self.timers[plugin.name] = timer.Timer()
 
     def allocate_variables(self):
         self.variables.update(variables.get_standard_variables(self))
 
+        for plugin in self._plugin_interfaces:
+            plugin_vars = variables.get_active_variables(self, plugin.variables, plugin.conditional_variables)
+            self.variables.update(plugin_vars)
+
         for key, var in self.variables.items():
             setattr(self, key, variables.allocate(self, var.dims, dtype=var.dtype))
+
+    def create_diagnostics(self):
+        self.diagnostics.update(diagnostics.create_default_diagnostics(self))
+
+        for plugin in self._plugin_interfaces:
+            for diagnostic in plugin.diagnostics:
+                self.diagnostics[diagnostic.name] = diagnostic(self)
 
     def to_xarray(self):
         import xarray as xr

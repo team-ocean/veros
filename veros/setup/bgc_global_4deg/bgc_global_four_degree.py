@@ -9,6 +9,8 @@ from veros import VerosSetup, veros_method, distributed
 from veros.variables import Variable
 import veros.tools
 
+import veros_bgc
+
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = veros.tools.get_assets(
     'global_4deg',
@@ -19,6 +21,8 @@ DATA_FILES = veros.tools.get_assets(
 class GlobalFourDegreeBGC(VerosSetup):
     """Global 4 degree model with 15 vertical levels and biogeochemistry.
     """
+    __veros_plugins__ = (veros_bgc,)
+
     @veros_method
     def set_parameter(self, vs):
         vs.identifier = '4deg'
@@ -83,23 +87,23 @@ class GlobalFourDegreeBGC(VerosSetup):
         vs.enable_kappaH_profile = True
 
         # eke
-        self.K_gm_0 = 1000.0
-        self.enable_eke = False
-        self.eke_k_max = 1e4
-        self.eke_c_k = 0.4
-        self.eke_c_eps = 0.5
-        self.eke_cross = 2.
-        self.eke_crhin = 1.0
-        self.eke_lmin = 100.0
-        self.enable_eke_superbee_advection = False
-        self.enable_eke_isopycnal_diffusion = False
+        vs.K_gm_0 = 1000.0
+        vs.enable_eke = False
+        vs.eke_k_max = 1e4
+        vs.eke_c_k = 0.4
+        vs.eke_c_eps = 0.5
+        vs.eke_cross = 2.
+        vs.eke_crhin = 1.0
+        vs.eke_lmin = 100.0
+        vs.enable_eke_superbee_advection = False
+        vs.enable_eke_isopycnal_diffusion = False
 
         # idemix
-        self.enable_idemix = False
-        self.enable_idemix_hor_diffusion = False
-        self.enable_eke_diss_surfbot = False
-        self.eke_diss_surfbot_frac = 0.2  #  fraction which goes into bottom
-        self.enable_idemix_superbee_advection = False
+        vs.enable_idemix = False
+        vs.enable_idemix_hor_diffusion = False
+        vs.enable_eke_diss_surfbot = False
+        vs.eke_diss_surfbot_frac = 0.2  #  fraction which goes into bottom
+        vs.enable_idemix_superbee_advection = False
 
         vs.eq_of_state_type = 5
 

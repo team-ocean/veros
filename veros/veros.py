@@ -8,7 +8,7 @@ from veros import (
     runtime_settings as rs, runtime_state as rst
 )
 from veros.state import VerosState
-from veros.timer import Timer
+from veros.plugins import load_plugin
 from veros.core import (
     momentum, numerics, thermodynamics, eke, tke, idemix,
     isoneutral, streamfunction, advection, utilities
@@ -46,19 +46,28 @@ class VerosSetup(metaclass=abc.ABCMeta):
         >>> plt.show()
 
     """
+    __veros_plugins__ = tuple()
 
-    def __init__(self, state=None, override=None):
+    def __init__(self, state=None, override=None, plugins=None):
         self.override_settings = override or {}
         logs.setup_logging(loglevel=rs.loglevel)
 
-        if state is None:
-            self.state = VerosState()
+        if plugins is not None:
+            self.__veros_plugins__ = tuple(plugins)
 
-        self.state.timers = {k: Timer(k) for k in (
-            'setup', 'main', 'momentum', 'temperature', 'eke', 'idemix',
-            'tke', 'diagnostics', 'pressure', 'friction', 'isoneutral',
-            'vmix', 'eq_of_state'
-        )}
+        self._plugin_interfaces = tuple(load_plugin(p) for p in self.__veros_plugins__)
+
+        if state is None:
+            self.state = VerosState(use_plugins=self.__veros_plugins__)
+
+        this_plugins = set(p.module for p in self.state._plugin_interfaces)
+        state_plugins = set(p.module for p in self._plugin_interfaces)
+
+        if this_plugins != state_plugins:
+            raise ValueError(
+                'VerosState was created with plugin modules {}, but this setup uses {}'
+                .format(state_plugins, this_plugins)
+            )
 
     @abc.abstractmethod
     def set_parameter(self, vs):
@@ -201,7 +210,10 @@ class VerosSetup(metaclass=abc.ABCMeta):
             streamfunction.streamfunction_init(vs)
             eke.init_eke(vs)
 
-            vs.diagnostics = diagnostics.create_diagnostics(vs)
+            for plugin in self._plugin_interfaces:
+                plugin.setup_entrypoint(vs)
+
+            vs.create_diagnostics()
             self.set_diagnostics(vs)
             diagnostics.initialize(vs)
             diagnostics.read_restart(vs)
@@ -284,6 +296,11 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
                             momentum.vertical_velocity(vs)
 
+                        with vs.timers['plugins']:
+                            for plugin in self._plugin_interfaces:
+                                with vs.timers[plugin.name]:
+                                    plugin.run_entrypoint(vs)
+
                         vs.itt += 1
                         vs.time += vs.dt_tracer
                         pbar.advance_time(vs.dt_tracer)
@@ -316,7 +333,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
             finally:
                 diagnostics.write_restart(vs, force=True)
 
-                logger.debug('\n'.join([
+                timing_summary = [
                     '',
                     'Timing summary:',
                     ' setup time               = {:.2f}s'.format(vs.timers['setup'].get_time()),
@@ -332,7 +349,15 @@ class VerosSetup(metaclass=abc.ABCMeta):
                     '   IDEMIX                 = {:.2f}s'.format(vs.timers['idemix'].get_time()),
                     '   TKE                    = {:.2f}s'.format(vs.timers['tke'].get_time()),
                     ' diagnostics and I/O      = {:.2f}s'.format(vs.timers['diagnostics'].get_time()),
-                ]))
+                    ' plugins                  = {:.2f}s'.format(vs.timers['plugins'].get_time()),
+                ]
+
+                timing_summary.extend([
+                    '   {:<22} = {:.2f}s'.format(plugin.name, vs.timers[plugin.name].get_time())
+                    for plugin in vs._plugin_interfaces
+                ])
+
+                logger.debug('\n'.join(timing_summary))
 
                 if profiler is not None:
                     diagnostics.stop_profiler(profiler)

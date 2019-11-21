@@ -728,22 +728,33 @@ CONDITIONAL_VARIABLES = OrderedDict([
 
 
 @veros_method
-def get_standard_variables(vs):
+def get_active_variables(vs, main_variables=None, conditional_variables=None):
     variables = {}
 
-    for var_name, var in MAIN_VARIABLES.items():
-        variables[var_name] = var
+    if main_variables is not None:
+        for var_name, var in main_variables.items():
+            variables[var_name] = var
 
-    for condition, var_dict in CONDITIONAL_VARIABLES.items():
-        if condition.startswith('not '):
-            eval_condition = not bool(getattr(vs, condition[4:]))
-        else:
-            eval_condition = bool(getattr(vs, condition))
-        if eval_condition:
-            for var_name, var in var_dict.items():
-                variables[var_name] = var
+    if conditional_variables is not None:
+        for condition, var_dict in conditional_variables.items():
+            if condition.startswith('not '):
+                eval_condition = not bool(getattr(vs, condition[4:]))
+            else:
+                eval_condition = bool(getattr(vs, condition))
+            if eval_condition:
+                for var_name, var in var_dict.items():
+                    variables[var_name] = var
 
     return variables
+
+
+@veros_method
+def get_standard_variables(vs):
+    return get_active_variables(
+        vs,
+        main_variables=MAIN_VARIABLES,
+        conditional_variables=CONDITIONAL_VARIABLES
+    )
 
 
 @veros_method(inline=True)

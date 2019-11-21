@@ -3,7 +3,7 @@ from loguru import logger
 from .state import VerosState
 
 
-class DistributedVerosState(VerosState):
+class DistributedVerosState:
     """A proxy wrapper to temporarily synchronize a distributed state.
 
     Use `gather_arrays` to retrieve distributed variables from parent VerosState object,
@@ -65,3 +65,6 @@ class DistributedVerosState(VerosState):
             return self._vs.__setattr__(attr, val)
 
         raise AttributeError('Cannot access distributed variable %s since it was not retrieved' % attr)
+
+    def __repr__(self):
+        return '{}(parent_state={})'.format(self.__class__.__name__, repr(self._vs))
