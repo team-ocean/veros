@@ -40,9 +40,10 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
+    'sphinx.ext.intersphinx',
     'sphinxcontrib.programoutput',
     'sphinx_fontawesome',
-    ]
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -173,6 +174,9 @@ texinfo_documents = [
 # -- Options for autodoc --------------------------------------------------
 autodoc_member_order = "bysource"
 autodoc_default_options = {"show-inheritance": None}
+
+# -- Options for intersphinx ----------------------------------------------
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
 
 # -- Custom exec directive ------------------------------------------------
 

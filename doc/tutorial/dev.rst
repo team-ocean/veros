@@ -85,4 +85,4 @@ If your changes to Veros turn out to have a negative effect on the runtime of th
 
       vs.u[...] = np.asarray(external_function(u_np))
 
-- If you are still having trouble, don't hesitate to ask for help (e.g. `on GitHub <https://github.com/dionhaefner/veros/issues>`_).
+- If you are still having trouble, don't hesitate to ask for help (e.g. `on GitHub <https://github.com/team-ocean/veros/issues>`_).

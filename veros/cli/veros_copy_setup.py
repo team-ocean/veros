@@ -2,16 +2,20 @@
 
 import os
 import shutil
-import pkg_resources
 import functools
 
 import click
+import entrypoints
+
 
 SETUPDIR_ENVVAR = 'VEROS_SETUP_DIR'
 IGNORE_PATTERNS = ['__init__.py', '*.pyc', '__pycache__/']
 SETUPS = {}
 
-setup_dirs = [pkg_resources.resource_filename('veros', 'setup')]
+setup_dirs = [
+    os.path.dirname(e.load().__file__)
+    for e in entrypoints.get_group_all('veros.setup_dirs')
+]
 
 for setup_dir in os.environ.get(SETUPDIR_ENVVAR, '').split(';'):
     if os.path.isdir(setup_dir):
@@ -30,10 +34,23 @@ for setup_dir in setup_dirs:
 SETUP_NAMES = sorted(SETUPS.keys())
 
 
+def write_version_file(target_dir, origin):
+    from veros import __version__ as veros_version
+
+    with open(os.path.join(target_dir, 'version.txt'), 'w') as f:
+        f.write(
+            'Veros v{veros_version}\n'
+            '{origin}\n'
+            .format(origin=origin, veros_version=veros_version)
+        )
+
+
 def copy_setup(setup, to=None):
     """Copy a standard setup to another directory.
 
-    Argument must be one of: {setups}
+    Available setups:
+
+        {setups}
 
     Example:
 
@@ -57,6 +74,8 @@ def copy_setup(setup, to=None):
     shutil.copytree(
         SETUPS[setup], to, ignore=ignore
     )
+
+    write_version_file(to, SETUPS[setup])
 
 
 copy_setup.__doc__ = copy_setup.__doc__.format(

@@ -1,9 +1,9 @@
 from loguru import logger
 
-from .state import VerosState
+from .state import VerosStateBase
 
 
-class DistributedVerosState:
+class DistributedVerosState(VerosStateBase):
     """A proxy wrapper to temporarily synchronize a distributed state.
 
     Use `gather_arrays` to retrieve distributed variables from parent VerosState object,

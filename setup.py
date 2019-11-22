@@ -26,6 +26,7 @@ Operating System :: MacOS
 
 INSTALL_REQUIRES = [
     'click',
+    'entrypoints',
     'requests>=2.18',
     'numpy>=1.13',
     'scipy',
@@ -77,9 +78,13 @@ setup(
     extras_require=EXTRAS_REQUIRE,
     entry_points={
         'console_scripts': CONSOLE_SCRIPTS,
+        'veros.setup_dirs': [
+            'base = veros.setup'
+        ]
     },
     package_data={
         'veros': PACKAGE_DATA
     },
-    classifiers=[c for c in CLASSIFIERS.split('\n') if c]
+    classifiers=[c for c in CLASSIFIERS.split('\n') if c],
+    zip_safe=False,
 )

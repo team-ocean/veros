@@ -6,7 +6,7 @@
 Versatile Ocean Simulation in Pure Python
 =========================================
 
-Veros, *the versatile ocean simulator*, aims to be the swiss army knife of ocean modeling. It is a full-fledged :abbr:`GCM (general circulation model)` that supports anything between highly idealized configurations and realistic set-ups, targeting students and seasoned researchers alike. Thanks to its seamless interplay with `Bohrium <https://github.com/bh107/bohrium>`_, Veros runs efficiently on your laptop, gaming PC (with experimental GPU support through OpenCL & CUDA), and small cluster. Veros has a clear focus on simplicity, usability, and adaptability - *because the Baroque is over*.
+Veros, *the versatile ocean simulator*, aims to be the swiss army knife of ocean modeling. It is a full-fledged :abbr:`GCM (general circulation model)` that supports anything between highly idealized configurations and realistic set-ups. Thanks to its interplay with `Bohrium <https://github.com/bh107/bohrium>`_, Veros runs efficiently on your laptop, gaming PC (with experimental GPU support through OpenCL & CUDA), and small cluster. In short, we want to enable ocean modelling with a clear focus on simplicity, usability, and adaptability.
 
 If you want to learn more about the background and capabilities of Veros, you should check out :doc:`quickstart/introduction`. If you are already convinced, you can jump right into action, and :doc:`learn how to get started <quickstart/get-started>` instead!
 
@@ -37,6 +37,14 @@ If you want to learn more about the background and capabilities of Veros, you sh
    reference/public-api
 
 .. toctree::
+   :maxdepth: 1
+   :caption: Plug-ins
+
+   plugins/user-guide
+   Biogeochemistry plug-in (Veros-BGC) <https://readthedocs.io/veros-bgc>
+   plugins/developer-guide
+
+.. toctree::
    :maxdepth: 2
    :caption: More Information
 
@@ -44,4 +52,4 @@ If you want to learn more about the background and capabilities of Veros, you sh
    more/benchmarks
    more/publications
    more/contact
-   Visit us on GitHub <https://github.com/dionhaefner/veros>
+   Visit us on GitHub <https://github.com/team-ocean/veros>

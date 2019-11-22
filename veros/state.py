@@ -1,9 +1,14 @@
+import abc
 import math
 
 from . import variables, settings, timer, plugins, diagnostics
 
 
-class VerosState:
+class VerosStateBase(metaclass=abc.ABCMeta):
+    pass
+
+
+class VerosState(VerosStateBase):
     """Holds all settings and model state for a given Veros run."""
     # Constants
     pi = math.pi
