@@ -98,9 +98,9 @@ def _calc_implicit_part(vs, tr):
 
 
 @veros_method
-def isoneutral_diffusion_decoupled(vs, tr, dtracer_iso, iso=True, skew=False):
+def isoneutral_diffusion_tracer(vs, tr, dtracer_iso, iso=True, skew=False):
     """
-    Like isoneutral_diffusion but for general tracers
+    Isoneutral diffusion for general tracers
     """
     if iso:
         K_iso = vs.K_iso
@@ -128,13 +128,6 @@ def isoneutral_diffusion_decoupled(vs, tr, dtracer_iso, iso=True, skew=False):
         _calc_implicit_part(vs, tr)
         dtracer_iso[...] += (tr[:, :, :, vs.taup1] - aloc) / vs.dt_tracer
 
-    """
-    dissipation by isopycnal mixing
-    """
-    # TODO add dissipation by isopycnal mixing
-    # NOTE drhodS, drhodT are calculated in isoneutral.py. The rest in there is additional stuff
-
-
 
 @veros_method
 def isoneutral_diffusion(vs, tr, istemp, iso=True, skew=False):
@@ -144,37 +137,12 @@ def isoneutral_diffusion(vs, tr, istemp, iso=True, skew=False):
     Dissipation is calculated and stored in P_diss_iso
     T/S changes are added to dtemp_iso/dsalt_iso
     """
-    if iso:
-        K_iso = vs.K_iso
-    else:
-        K_iso = 0
-    if skew:
-        K_skew = vs.K_gm
-    else:
-        K_skew = 0
-
-    _calc_tracer_fluxes(vs, tr, K_iso, K_skew)
-
-    """
-    add explicit part
-    """
-    aloc = _calc_explicit_part(vs)
     if istemp:
-        vs.dtemp_iso[...] += aloc[...]
+        dtracer_iso = vs.dtemp_iso
     else:
-        vs.dsalt_iso[...] += aloc[...]
-    tr[2:-2, 2:-2, :, vs.taup1] += vs.dt_tracer * aloc[2:-2, 2:-2, :]
+        dtracer_iso = vs.dsalt_iso
 
-    """
-    add implicit part
-    """
-    if iso:
-        aloc[...] = tr[:, :, :, vs.taup1]
-        _calc_implicit_part(vs, tr)
-        if istemp:
-            vs.dtemp_iso += (tr[:, :, :, vs.taup1] - aloc) / vs.dt_tracer
-        else:
-            vs.dsalt_iso += (tr[:, :, :, vs.taup1] - aloc) / vs.dt_tracer
+    isoneutral_diffusion_tracer(vs, tr, dtracer_iso)
 
     """
     dissipation by isopycnal mixing
