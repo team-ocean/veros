@@ -15,7 +15,7 @@ Talks
 - Veros — A High-Performance Ocean Simulator Written in Pure Python.
   A talk held at the 98th Annual Meeting of the American Meteorological Society (AMS).
   `Abstract <https://ams.confex.com/ams/98Annual/webprogram/Paper324397.html>`_ and
-  `slides <http://slides.com/team-ocean/veros-ams/>`_ available.
+  `slides <http://slides.com/dionhaefner/veros-ams/>`_ available.
 - A Fast Versatile Ocean Simulator (Veros) in Pure Python.
   A talk held at the European Geosciences Union General Assembly 2018, Vienna, Austria.
   `Abstract <https://meetingorganizer.copernicus.org/EGU2018/EGU2018-7122-2.pdf>`_
