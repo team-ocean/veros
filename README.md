@@ -30,7 +30,7 @@ OpenCL (GPU), and runs on distributed architectures via MPI.
 
 A good starting point to gain an overview of Veros\' design,
 performance, and capabilities are [these slides of a talk on
-Veros](http://slides.com/team-ocean/veros-ams) held during the 98th
+Veros](http://slides.com/dionhaefner/veros-ams) held during the 98th
 Annual Meeting of the American Meteorological Society.
 
 The underlying numerics are based on
