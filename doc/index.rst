@@ -41,7 +41,7 @@ If you want to learn more about the background and capabilities of Veros, you sh
    :caption: Plug-ins
 
    plugins/user-guide
-   Biogeochemistry plug-in (Veros-BGC) <https://readthedocs.io/veros-bgc>
+   Biogeochemistry plug-in (Veros-BGC) <https://veros-bgc.readthedocs.io>
    plugins/developer-guide
 
 .. toctree::
