@@ -142,7 +142,7 @@ def isoneutral_diffusion(vs, tr, istemp, iso=True, skew=False):
     else:
         dtracer_iso = vs.dsalt_iso
 
-    isoneutral_diffusion_tracer(vs, tr, dtracer_iso)
+    isoneutral_diffusion_tracer(vs, tr, dtracer_iso, iso=iso, skew=skew)
 
     """
     dissipation by isopycnal mixing

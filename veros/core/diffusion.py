@@ -104,39 +104,37 @@ def biharmonic_diffusion(vs, tr, diffusivity):
     """
     Biharmonic mixing of tracer tr
     """
-    flux_east = allocate(vs, ('xt', 'yt', 'zt'))
-    flux_north = allocate(vs, ('xt', 'yt', 'zt'))
     del2 = allocate(vs, ('xt', 'yt', 'zt'))
     dtr = allocate(vs, ('xt', 'yt', 'zt'))
 
-    flux_east[:-1, :, :] = -diffusivity * (tr[1:, :, :] - tr[:-1, :, :]) \
+    vs.flux_east[:-1, :, :] = -diffusivity * (tr[1:, :, :] - tr[:-1, :, :]) \
             / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
             * vs.maskU[:-1, :, :]
 
-    flux_north[:, :-1, :] = -diffusivity * (tr[:, 1:, :] - tr[:, :-1, :]) \
+    vs.flux_north[:, :-1, :] = -diffusivity * (tr[:, 1:, :] - tr[:, :-1, :]) \
             / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] \
             * vs.cosu[np.newaxis, :-1, np.newaxis]
 
-    del2[1:, 1:, :] = vs.maskT[1:, 1:, :] * (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
+    del2[1:, 1:, :] = vs.maskT[1:, 1:, :] * (vs.flux_east[1:, 1:, :] - vs.flux_east[:-1, 1:, :]) \
             / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
-            + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
+            + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
             / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
 
     utilities.enforce_boundaries(vs, del2)
 
-    flux_east[:-1, :, :] = diffusivity * (del2[1:, :, :] - del2[:-1, :, :]) \
+    vs.flux_east[:-1, :, :] = diffusivity * (del2[1:, :, :] - del2[:-1, :, :]) \
             / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
             * vs.maskU[:-1, :, :]
-    flux_north[:, :-1, :] = diffusivity * (del2[:, 1:, :] - del2[:, :-1, :]) \
+    vs.flux_north[:, :-1, :] = diffusivity * (del2[:, 1:, :] - del2[:, :-1, :]) \
             / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] \
             * vs.cosu[np.newaxis, :-1, np.newaxis]
 
-    flux_east[-1, :, :] = 0.
-    flux_north[:, -1, :] = 0.
+    vs.flux_east[-1, :, :] = 0.
+    vs.flux_north[:, -1, :] = 0.
 
-    dtr[1:, 1:, :] = (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
+    dtr[1:, 1:, :] = (vs.flux_east[1:, 1:, :] - vs.flux_east[:-1, 1:, :]) \
             / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
-            + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
+            + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
             / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
 
     dtr[...] *= vs.maskT
@@ -150,27 +148,25 @@ def horizontal_diffusion(vs, tr, diffusivity):
     Diffusion of tracer tr
     """
     dtr_hmix = allocate(vs, ('xt', 'yt', 'zt'))
-    flux_east = allocate(vs, ('xt', 'yt', 'zt'))
-    flux_north = allocate(vs, ('xt', 'yt', 'zt'))
 
     # horizontal diffusion of tracer
-    flux_east[:-1, :, :] = diffusivity * (tr[1:, :, :] - tr[:-1, :, :]) \
+    vs.flux_east[:-1, :, :] = diffusivity * (tr[1:, :, :] - tr[:-1, :, :]) \
         / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis])\
         * vs.maskU[:-1, :, :]
-    flux_east[-1, :, :] = 0.
+    vs.flux_east[-1, :, :] = 0.
 
-    flux_north[:, :-1, :] = diffusivity * (tr[:, 1:, :] - tr[:, :-1, :]) \
+    vs.flux_north[:, :-1, :] = diffusivity * (tr[:, 1:, :] - tr[:, :-1, :]) \
         / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :]\
         * vs.cosu[np.newaxis, :-1, np.newaxis]
-    flux_north[:, -1, :] = 0.
+    vs.flux_north[:, -1, :] = 0.
 
     if vs.enable_hor_friction_cos_scaling:
-        flux_east[...] *= vs.cost[np.newaxis, :, np.newaxis] ** vs.hor_friction_cosPower
-        flux_north[...] *= vs.cosu[np.newaxis, :, np.newaxis] ** vs.hor_friction_cosPower
+        vs.flux_east[...] *= vs.cost[np.newaxis, :, np.newaxis] ** vs.hor_friction_cosPower
+        vs.flux_north[...] *= vs.cosu[np.newaxis, :, np.newaxis] ** vs.hor_friction_cosPower
 
-    dtr_hmix[1:, 1:, :] = ((flux_east[1:, 1:, :] - flux_east[:-1, 1:, :])
+    dtr_hmix[1:, 1:, :] = ((vs.flux_east[1:, 1:, :] - vs.flux_east[:-1, 1:, :])
                            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])
-                           + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :])
+                           + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :])
                            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis]))\
                                 * vs.maskT[1:, 1:, :]
 

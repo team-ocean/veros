@@ -186,17 +186,17 @@ class VerosPyOMUnitTest:
             for a, (v1, v2) in differing_arrays.items():
                 print('{}, {!r}, {!r}'.format(a, np.max(v1), np.max(v2)))
 
-        veros_timers = {k: Timer('veros ' + k) for k in self.test_routines}
-        veros_legacy_timers = {k: Timer('veros legacy ' + k) for k in self.test_routines}
+        veros_timers = {k: Timer() for k in self.test_routines}
+        veros_legacy_timers = {k: Timer() for k in self.test_routines}
 
         for routine in self.test_routines.keys():
             veros_args, veros_legacy_args = self.test_routines[routine]
             with veros_timers[routine]:
                 getattr(self.test_module, routine)(*veros_args)
-            veros_timers[routine].print_time()
+            print('[{}]: {:.3f}s'.format(routine, veros_timers[routine].get_last_time()))
             with veros_legacy_timers[routine]:
                 self.veros_legacy.call_fortran_routine(routine, **veros_legacy_args)
-            veros_legacy_timers[routine].print_time()
+            print('[legacy {}]: {:.3f}s'.format(routine, veros_legacy_timers[routine].get_last_time()))
             self.test_passed(routine)
             self.initialize()
 
