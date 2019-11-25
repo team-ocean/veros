@@ -33,7 +33,7 @@ Using Anaconda (multi-platform, recommended)
 
 2. Clone the Veros repository: ::
 
-      $ git clone https://github.com/dionhaefner/veros.git
+      $ git clone https://github.com/team-ocean/veros.git
 
 2. Create a new conda environment for Veros, and install all relevant dependencies,
    by running ::
@@ -60,7 +60,7 @@ On bare metal (Ubuntu / Debian)
 
 2. Clone our repository: ::
 
-      $ git clone https://github.com/dionhaefner/veros.git
+      $ git clone https://github.com/team-ocean/veros.git
 
 3. Install Veros (preferably in a virtual environment) via::
 
@@ -209,7 +209,7 @@ We believe that the best way to learn how Veros works is to read its source code
 
 In case you want to add additional output capabilities or compute additional quantities without changing the main solution of the simulation, you should consider :doc:`adding a custom diagnostic </reference/diagnostics>`.
 
-A convenient way to implement your modifications is to create your own fork of Veros on GitHub, and submit a `pull request <https://github.com/dionhaefner/veros/pulls>`_ if you think your modifications could be useful for the Veros community.
+A convenient way to implement your modifications is to create your own fork of Veros on GitHub, and submit a `pull request <https://github.com/team-ocean/veros/pulls>`_ if you think your modifications could be useful for the Veros community.
 
 .. seealso::
 

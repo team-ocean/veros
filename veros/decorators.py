@@ -68,7 +68,7 @@ def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
     def veros_method_wrapper(*args, **kwargs):
         from . import runtime_settings as rs, runtime_state as rst
         from .backend import flush, get_backend
-        from .state import VerosState
+        from .state import VerosStateBase
         from .state_dist import DistributedVerosState
         from .distributed import broadcast
 
@@ -83,8 +83,8 @@ def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
 
         veros_state = args[narg]
 
-        if not isinstance(veros_state, VerosState):
-            raise TypeError('first argument to a veros_method must be subclass of VerosState')
+        if not isinstance(veros_state, VerosStateBase):
+            raise TypeError('first argument to a veros_method must be a veros state object')
 
         reset_dist_safe = False
         if not CONTEXT.is_dist_safe:

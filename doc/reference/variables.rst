@@ -1,7 +1,7 @@
 .. _variables:
 
 Model variables
----------------
+===============
 
 The variable meta-data (i.e., all instances of :class:`veros.variables.Variable`)
 are available in a dictionary as the attribute :attr:`Veros.variables`. The actual
@@ -18,12 +18,12 @@ are time dependent and should be added to the output, while ``var_data`` is a di
 with the same keys containing the corresponding data arrays.
 
 Variable class
-++++++++++++++
+--------------
 
 .. autoclass:: veros.variables.Variable
 
 Available variables
-+++++++++++++++++++
+-------------------
 
 There are two kinds of variables in Veros. Main variables are always present in a
 simulation, while conditional variables are only available if their respective
@@ -40,16 +40,18 @@ Attributes:
   from veros.variables import MAIN_VARIABLES, CONDITIONAL_VARIABLES
   first_condition = True
   for condition, vardict in [(None, MAIN_VARIABLES)] + list(CONDITIONAL_VARIABLES.items()):
+      if not vardict:
+          continue
       if condition:
           if first_condition:
               print("Conditional variables")
-              print("=====================")
+              print("+++++++++++++++++++++")
               first_condition = False
           print(condition)
           print(len(condition) * "#")
       else:
           print("Main variables")
-          print("==============")
+          print("++++++++++++++")
       print("")
       for key, var in vardict.items():
           flags = ""
@@ -59,7 +61,7 @@ Attributes:
               flags += ":fa:`download` "
           if var.write_to_restart:
               flags += ":fa:`repeat` "
-          print(".. py:attribute:: Veros.{}".format(key))
+          print(".. py:attribute:: VerosState.{}".format(key))
           print("")
           print("  :units: {}".format(var.units))
           print("  :dimensions: {}".format(", ".join(var.dims)))

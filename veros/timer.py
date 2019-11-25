@@ -2,8 +2,7 @@ import timeit
 
 
 class Timer:
-    def __init__(self, name):
-        self.name = name
+    def __init__(self):
         self.total_time = 0
         self.last_time = 0
 
@@ -23,9 +22,6 @@ class Timer:
         self._flush()
         self.last_time = timeit.default_timer() - self.start_time
         self.total_time += self.last_time
-
-    def print_time(self):
-        print('[{}]: {}s'.format(self.name, self.get_time()))
 
     def get_time(self):
         return self.total_time

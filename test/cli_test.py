@@ -28,5 +28,7 @@ def test_veros_copy_setup(runner):
             ignore = [f for f in os.listdir(srcpath) if any(
                 fnmatch.fnmatch(f, pattern) for pattern in veros.cli.veros_copy_setup.IGNORE_PATTERNS
             )]
+            ignore.append('version.txt')
+
             comparer = filecmp.dircmp(outpath, srcpath, ignore=ignore)
             assert not comparer.left_only and not comparer.right_only and not comparer.diff_files

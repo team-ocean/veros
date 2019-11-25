@@ -133,7 +133,11 @@ SETTINGS = OrderedDict([
 
 
 def set_default_settings(vs):
-    for key, setting in SETTINGS.items():
+    update_settings(vs, SETTINGS)
+
+
+def update_settings(vs, settings):
+    for key, setting in settings.items():
         setattr(vs, key, setting.type(setting.default))
 
 

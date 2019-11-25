@@ -6,11 +6,11 @@
   <a href="http://veros.readthedocs.io/?badge=latest">
     <img src="https://readthedocs.org/projects/veros/badge/?version=latest" alt="Documentation status">
   </a>
-  <a href="https://travis-ci.org/dionhaefner/veros">
-    <img src="https://travis-ci.org/dionhaefner/veros.svg?branch=master" alt="Build status">
+  <a href="https://travis-ci.org/team-ocean/veros">
+    <img src="https://travis-ci.org/team-ocean/veros.svg?branch=master" alt="Build status">
   </a>
-  <a href="https://codecov.io/gh/dionhaefner/veros">
-    <img src="https://codecov.io/gh/dionhaefner/veros/branch/master/graph/badge.svg" alt="Code Coverage">
+  <a href="https://codecov.io/gh/team-ocean/veros">
+    <img src="https://codecov.io/gh/team-ocean/veros/branch/master/graph/badge.svg" alt="Code Coverage">
   </a>
   <a href="https://zenodo.org/badge/latestdoi/87419383">
     <img src="https://zenodo.org/badge/87419383.svg" alt="DOI">
@@ -110,7 +110,7 @@ As soon as you have a working environment, installing Veros is simple:
 1.  Clone the repository to your hard-drive:
 
     ```bash
-    $ git clone https://github.com/dionhaefner/veros.git
+    $ git clone https://github.com/team-ocean/veros.git
     ```
 
 2.  Install it, preferably with
@@ -134,7 +134,7 @@ and model domain you want to use. This is done by subclassing the
 should have a look at the pre-implemented model setups in the
 repository\'s `setup` folder, or use the `veros copy-setup` command to
 copy one into your current folder. A good place to start is the [ACC
-model](https://github.com/dionhaefner/veros/blob/master/setup/acc/acc.py):
+model](https://github.com/team-ocean/veros/blob/master/setup/acc/acc.py):
 
 ```bash
 $ veros copy-setup acc
@@ -159,13 +159,13 @@ nice setup, fixed a bug, or even extended Veros\' core mechanics. There
 are two ways to contribute:
 
 -   If you want to report a bug or request a missing feature, please
-    [open an issue](https://github.com/dionhaefner/veros/issues). If you
+    [open an issue](https://github.com/team-ocean/veros/issues). If you
     are reporting a bug, make sure to include all relevant information
     for reproducing it (ideally through a *minimal* code sample).
 -   If you want to fix the issue yourself, or wrote an extension for
     Veros - great! You are welcome to submit your code for review by
     committing it to a repository and opening a [pull
-    request](https://github.com/dionhaefner/veros/pulls). However,
+    request](https://github.com/team-ocean/veros/pulls). However,
     before you do so, please check [the contribution
     guide](http://veros.readthedocs.io/quickstart/get-started.html#enhancing-veros)
     for some tips on testing and benchmarking, and to make sure that
