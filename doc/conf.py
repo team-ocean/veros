@@ -209,7 +209,7 @@ class ExecDirective(Directive):
             self.state_machine.insert_input(lines, source)
             return []
         except Exception:
-            return [nodes.error(None, nodes.paragraph(text, "Unable to execute python code at %s:%d:" % (basename(source), self.lineno)), nodes.paragraph(text=str(sys.exc_info()[1])))]
+            return [nodes.error(None, nodes.paragraph(text="Unable to execute python code at %s:%d:" % (basename(source), self.lineno)), nodes.paragraph(text=str(sys.exc_info()[1])))]
         finally:
             sys.stdout = oldStdout
 

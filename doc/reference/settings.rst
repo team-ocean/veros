@@ -14,7 +14,7 @@ They are available as attributes of all instances of the :class:`Veros state cla
   for key, sett in SETTINGS.items():
       print(".. _setting-{}:".format(key))
       print("")
-      print(".. data:: {} = {}".format(key, sett.default))
+      print(".. py:attribute:: VerosState.{} = {}".format(key, sett.default))
       print("")
       print("   {}".format(sett.description))
       print("")
