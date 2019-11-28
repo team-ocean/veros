@@ -1,4 +1,6 @@
 import functools
+import sys
+import time
 
 import click
 
@@ -75,17 +77,37 @@ def cli(run):
                   help='Write a performance profile for debugging (default: false)')
     @click.option('-n', '--num-proc', nargs=2, default=[1, 1], type=click.INT,
                   help='Number of processes in x and y dimension (requires execution via mpirun)')
+    @click.option('--slave', default=False, is_flag=True, hidden=True)
     @functools.wraps(run)
-    def wrapped(*args, **kwargs):
-        from veros import runtime_settings
+    def wrapped(*args, slave, **kwargs):
+        from veros import runtime_settings, runtime_state
+
+        total_proc = kwargs['num_proc'][0] * kwargs['num_proc'][1]
+
+        if total_proc > 1 and runtime_state.proc_num == 1 and not slave:
+            from mpi4py import MPI
+
+            comm = MPI.COMM_SELF.Spawn(
+                sys.executable,
+                args=['-m', 'mpi4py'] + list(sys.argv) + ['--slave'],
+                maxprocs=total_proc
+            )
+
+            futures = [comm.irecv(source=p) for p in range(total_proc)]
+            while not all(f.test()[0] for f in futures):
+                time.sleep(0.1)
+
+            return
 
         kwargs['override'] = dict(kwargs['override'])
 
         for setting in ('backend', 'profile_mode', 'num_proc', 'loglevel'):
-            if setting not in kwargs:
-                continue
             setattr(runtime_settings, setting, kwargs.pop(setting))
 
-        run(*args, **kwargs)
+        try:
+            run(*args, **kwargs)
+        finally:
+            if slave:
+                runtime_settings.mpi_comm.Get_parent().send(None, dest=0)
 
     return wrapped
