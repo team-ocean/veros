@@ -48,17 +48,17 @@ def test_setup_flexible(backend):
     sim.run()
 
 
-# too big to test
-# def test_setup_1deg(backend):
-#     from veros import runtime_settings as rs
-#     from veros.setup.global_1deg import GlobalOneDegreeSetup
-#     rs.backend = backend
-#
-#     sim = GlobalOneDegreeSetup()
-#     sim.state.diskless_mode = True
-#     sim.setup()
-#     sim.state.runlen = sim.state.dt_tracer
-#     sim.run()
+def test_setup_1deg(backend):
+    from veros import runtime_settings as rs
+    from veros.setup.global_1deg import GlobalOneDegreeSetup
+    rs.backend = backend
+
+    sim = GlobalOneDegreeSetup()
+    sim.state.diskless_mode = True
+    # too big to test
+    # sim.setup()
+    # sim.state.runlen = sim.state.dt_tracer
+    # sim.run()
 
 
 def test_setup_north_atlantic(backend):
