@@ -226,3 +226,18 @@ def test_acc(backend):
     ))
 
     run_dist_kernel(test_kernel)
+
+
+@pytest.mark.skipif(ON_GPU, reason='Cannot run MPI and OpenCL')
+def test_acc_nompirun(backend):
+    from veros.setup.acc import acc
+
+    subprocess.check_call([
+        sys.executable,
+        '-m', 'mpi4py',
+        acc.__file__,
+        '-n', '2', '2',
+        '-b', backend,
+        '-s' 'diskless_mode', '1',
+        '-s', 'runlen', '864000'
+    ], stderr=subprocess.STDOUT)
