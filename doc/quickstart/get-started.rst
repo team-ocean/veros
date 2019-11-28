@@ -186,6 +186,10 @@ Running Veros through MPI requires some addititonal dependencies:
 
 After you have installed everything, you can start Veros on multiple processes like so:::
 
+   $ python my_setup.py -n 2 2
+
+Or, by explicitly using mpirun (might be required on some architectures)::
+
    $ mpirun -n 4 python my_setup.py -n 2 2
 
 In this case, Veros would run on 4 processes, each process computing one-quarter of the domain. The arguments of the `-n` flag specify the number of chunks in x and y-direction, respectively.

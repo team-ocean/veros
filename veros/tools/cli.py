@@ -76,8 +76,9 @@ def cli(run):
     @click.option('-p', '--profile-mode', is_flag=True, default=False, type=click.BOOL, envvar='VEROS_PROFILE',
                   help='Write a performance profile for debugging (default: false)')
     @click.option('-n', '--num-proc', nargs=2, default=[1, 1], type=click.INT,
-                  help='Number of processes in x and y dimension (requires execution via mpirun)')
-    @click.option('--slave', default=False, is_flag=True, hidden=True)
+                  help='Number of processes in x and y dimension')
+    @click.option('--slave', default=False, is_flag=True, hidden=True,
+                  help='Indicates that this process is an MPI worker (for internal use)')
     @functools.wraps(run)
     def wrapped(*args, slave, **kwargs):
         from veros import runtime_settings, runtime_state
@@ -94,7 +95,15 @@ def cli(run):
             )
 
             futures = [comm.irecv(source=p) for p in range(total_proc)]
-            while not all(f.test()[0] for f in futures):
+            while True:
+                done, success = zip(*(f.test() for f in futures))
+
+                if any(s is False for s in success):
+                    raise RuntimeError('An MPI worker encountered an error')
+
+                if all(done):
+                    break
+
                 time.sleep(0.1)
 
             return
@@ -106,8 +115,13 @@ def cli(run):
 
         try:
             run(*args, **kwargs)
+        except:  # noqa: E722
+            status = False
+            raise
+        else:
+            status = True
         finally:
             if slave:
-                runtime_settings.mpi_comm.Get_parent().send(None, dest=0)
+                runtime_settings.mpi_comm.Get_parent().send(status, dest=0)
 
     return wrapped
