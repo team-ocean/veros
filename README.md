@@ -42,8 +42,8 @@ Copenhagen University.
 #### How about a demonstration?
 
 <p align="center">
-  <a href="https://media.giphy.com/media/dwS6EeA4OTfsZZHVE9/giphy.mp4">
-      <img src="https://media.giphy.com/media/dwS6EeA4OTfsZZHVE9/giphy-downsized-large.gif" alt="0.25×0.25° high-resolution model spin-up">
+  <a href="https://gifyu.com/image/vrr6">
+      <img src="doc/_images/veros-preview.gif?raw=true" alt="0.25×0.25° high-resolution model spin-up">
   </a>
 </p>
 
