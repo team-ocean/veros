@@ -1,86 +1,91 @@
-from ... import veros_method
-from ...variables import allocate
+from veros.core import veros_kernel
 from .. import numerics, utilities
 
 
-@veros_method
-def isoneutral_friction(vs):
+@veros_kernel(static_args=('enable_implicit_vert_friction', 'enable_conserve_energy'))
+def isoneutral_friction(du_mix, dv_mix, K_diss_gm, u, v, tau, taup1, kbot, kappa_gm,
+                        dt_mom, dxt, dxu, dzt, dzw, maskU, maskV, area_v, area_t,
+                        enable_implicit_vert_friction, enable_conserve_energy):
     """
     vertical friction using TEM formalism for eddy driven velocity
     """
-    if vs.enable_implicit_vert_friction:
-        aloc = vs.u[:, :, :, vs.taup1]
+    flux_top = np.zeros_like(maskU)
+
+    if enable_implicit_vert_friction:
+        aloc = u[:, :, :, taup1]
     else:
-        aloc = vs.u[:, :, :, vs.tau]
+        aloc = u[:, :, :, tau]
 
     # implicit vertical friction of zonal momentum by GM
-    ks = np.maximum(vs.kbot[1:-2, 1:-2], vs.kbot[2:-1, 1:-2]) - 1
-    fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :] + vs.kappa_gm[2:-1, 1:-2, :])
+    ks = np.maximum(kbot[1:-2, 1:-2], kbot[2:-1, 1:-2]) - 1
+    fxa = 0.5 * (kappa_gm[1:-2, 1:-2, :] + kappa_gm[2:-1, 1:-2, :])
     delta, a_tri, b_tri, c_tri = (
-        allocate(vs, ('xu', 'yt', 'zt'))[1:-2, 1:-2]
+        np.zeros_like(maskU[1:-2, 1:-2, :])
         for _ in range(4)
     )
-    delta[:, :, :-1] = vs.dt_mom / vs.dzw[np.newaxis, np.newaxis, :-1] * \
-        fxa[:, :, :-1] * vs.maskU[1:-2, 1:-2, 1:] * vs.maskU[1:-2, 1:-2, :-1]
+    delta[:, :, :-1] = dt_mom / dzw[np.newaxis, np.newaxis, :-1] * \
+        fxa[:, :, :-1] * maskU[1:-2, 1:-2, 1:] * maskU[1:-2, 1:-2, :-1]
     delta[-1] = 0.
-    a_tri[:, :, 1:] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
-    b_tri_edge = 1 + delta / vs.dzt[np.newaxis, np.newaxis, :]
-    b_tri[:, :, 1:-1] = 1 + delta[:, :, 1:-1] / vs.dzt[np.newaxis, np.newaxis, 1:-1] + \
-        delta[:, :, :-2] / vs.dzt[np.newaxis, np.newaxis, 1:-1]
-    b_tri[:, :, -1] = 1 + delta[:, :, -2] / vs.dzt[-1]
-    c_tri[...] = - delta / vs.dzt[np.newaxis, np.newaxis, :]
+    a_tri[:, :, 1:] = -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:]
+    b_tri_edge = 1 + delta / dzt[np.newaxis, np.newaxis, :]
+    b_tri[:, :, 1:-1] = 1 + delta[:, :, 1:-1] / dzt[np.newaxis, np.newaxis, 1:-1] + \
+        delta[:, :, :-2] / dzt[np.newaxis, np.newaxis, 1:-1]
+    b_tri[:, :, -1] = 1 + delta[:, :, -2] / dzt[-1]
+    c_tri[...] = - delta / dzt[np.newaxis, np.newaxis, :]
     sol, water_mask = utilities.solve_implicit(
-        vs, ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], b_edge=b_tri_edge
+        ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], b_edge=b_tri_edge
     )
-    vs.u[1:-2, 1:-2, :, vs.taup1] = utilities.where(vs, water_mask, sol, vs.u[1:-2, 1:-2, :, vs.taup1])
-    vs.du_mix[1:-2, 1:-2, :] += (vs.u[1:-2, 1:-2, :, vs.taup1] \
-                                - aloc[1:-2, 1:-2, :]) / vs.dt_mom * water_mask
+    u[1:-2, 1:-2, :, taup1] = utilities.where(water_mask, sol, u[1:-2, 1:-2, :, taup1])
+    du_mix[1:-2, 1:-2, :] += (u[1:-2, 1:-2, :, taup1]
+                              - aloc[1:-2, 1:-2, :]) / dt_mom * water_mask
 
-    if vs.enable_conserve_energy:
+    if enable_conserve_energy:
         # diagnose dissipation
-        diss = allocate(vs, ('xu', 'yt', 'zt'))
-        fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :-1] + vs.kappa_gm[2:-1, 1:-2, :-1])
-        vs.flux_top[1:-2, 1:-2, :-1] = fxa * (vs.u[1:-2, 1:-2, 1:, vs.taup1] - vs.u[1:-2, 1:-2, :-1, vs.taup1]) \
-            / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskU[1:-2, 1:-2, 1:] * vs.maskU[1:-2, 1:-2, :-1]
-        diss[1:-2, 1:-2, :-1] = (vs.u[1:-2, 1:-2, 1:, vs.tau] - vs.u[1:-2, 1:-2, :-1, vs.tau]) \
-            * vs.flux_top[1:-2, 1:-2, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1]
+        diss = np.zeros_like(maskU)
+        fxa = 0.5 * (kappa_gm[1:-2, 1:-2, :-1] + kappa_gm[2:-1, 1:-2, :-1])
+        flux_top[1:-2, 1:-2, :-1] = fxa * (u[1:-2, 1:-2, 1:, taup1] - u[1:-2, 1:-2, :-1, taup1]) \
+            / dzw[np.newaxis, np.newaxis, :-1] * maskU[1:-2, 1:-2, 1:] * maskU[1:-2, 1:-2, :-1]
+        diss[1:-2, 1:-2, :-1] = (u[1:-2, 1:-2, 1:, tau] - u[1:-2, 1:-2, :-1, tau]) \
+            * flux_top[1:-2, 1:-2, :-1] / dzw[np.newaxis, np.newaxis, :-1]
         diss[:, :, -1] = 0.0
-        diss = numerics.ugrid_to_tgrid(vs, diss)
-        vs.K_diss_gm[...] = diss
+        diss = numerics.ugrid_to_tgrid(diss, dxt, dxu)
+        K_diss_gm[...] = diss
 
-    if vs.enable_implicit_vert_friction:
-        aloc = vs.v[:, :, :, vs.taup1]
+    if enable_implicit_vert_friction:
+        aloc = v[:, :, :, taup1]
     else:
-        aloc = vs.v[:, :, :, vs.tau]
+        aloc = v[:, :, :, tau]
 
     # implicit vertical friction of zonal momentum by GM
-    ks = np.maximum(vs.kbot[1:-2, 1:-2], vs.kbot[1:-2, 2:-1]) - 1
-    fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :] + vs.kappa_gm[1:-2, 2:-1, :])
-    delta, a_tri, b_tri, c_tri = (allocate(vs, ('xt', 'yu', 'zt'))[1:-2, 1:-2] for _ in range(4))
-    delta[:, :, :-1] = vs.dt_mom / vs.dzw[np.newaxis, np.newaxis, :-1] * \
-        fxa[:, :, :-1] * vs.maskV[1:-2, 1:-2, 1:] * vs.maskV[1:-2, 1:-2, :-1]
+    ks = np.maximum(kbot[1:-2, 1:-2], kbot[1:-2, 2:-1]) - 1
+    fxa = 0.5 * (kappa_gm[1:-2, 1:-2, :] + kappa_gm[1:-2, 2:-1, :])
+    delta, a_tri, b_tri, c_tri = (np.zeros_like(maskU[1:-2, 1:-2, :]) for _ in range(4))
+    delta[:, :, :-1] = dt_mom / dzw[np.newaxis, np.newaxis, :-1] * \
+        fxa[:, :, :-1] * maskV[1:-2, 1:-2, 1:] * maskV[1:-2, 1:-2, :-1]
     delta[-1] = 0.
-    a_tri[:, :, 1:] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
-    b_tri_edge = 1 + delta / vs.dzt[np.newaxis, np.newaxis, :]
-    b_tri[:, :, 1:-1] = 1 + delta[:, :, 1:-1] / vs.dzt[np.newaxis, np.newaxis, 1:-1] + \
-        delta[:, :, :-2] / vs.dzt[np.newaxis, np.newaxis, 1:-1]
-    b_tri[:, :, -1] = 1 + delta[:, :, -2] / vs.dzt[-1]
-    c_tri[...] = - delta / vs.dzt[np.newaxis, np.newaxis, :]
+    a_tri[:, :, 1:] = -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:]
+    b_tri_edge = 1 + delta / dzt[np.newaxis, np.newaxis, :]
+    b_tri[:, :, 1:-1] = 1 + delta[:, :, 1:-1] / dzt[np.newaxis, np.newaxis, 1:-1] + \
+        delta[:, :, :-2] / dzt[np.newaxis, np.newaxis, 1:-1]
+    b_tri[:, :, -1] = 1 + delta[:, :, -2] / dzt[-1]
+    c_tri[...] = - delta / dzt[np.newaxis, np.newaxis, :]
     sol, water_mask = utilities.solve_implicit(
-        vs, ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], b_edge=b_tri_edge
+        ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], b_edge=b_tri_edge
     )
-    vs.v[1:-2, 1:-2, :, vs.taup1] = utilities.where(vs, water_mask, sol, vs.v[1:-2, 1:-2, :, vs.taup1])
-    vs.dv_mix[1:-2, 1:-2, :] += (vs.v[1:-2, 1:-2, :, vs.taup1] -
-                                 aloc[1:-2, 1:-2, :]) / vs.dt_mom * water_mask
+    v[1:-2, 1:-2, :, taup1] = utilities.where(water_mask, sol, v[1:-2, 1:-2, :, taup1])
+    dv_mix[1:-2, 1:-2, :] += (v[1:-2, 1:-2, :, taup1] -
+                              aloc[1:-2, 1:-2, :]) / dt_mom * water_mask
 
-    if vs.enable_conserve_energy:
+    if enable_conserve_energy:
         # diagnose dissipation
-        diss = allocate(vs, ('xt', 'yu', 'zt'))
-        fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :-1] + vs.kappa_gm[1:-2, 2:-1, :-1])
-        vs.flux_top[1:-2, 1:-2, :-1] = fxa * (vs.v[1:-2, 1:-2, 1:, vs.taup1] - vs.v[1:-2, 1:-2, :-1, vs.taup1]) \
-            / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskV[1:-2, 1:-2, 1:] * vs.maskV[1:-2, 1:-2, :-1]
-        diss[1:-2, 1:-2, :-1] = (vs.v[1:-2, 1:-2, 1:, vs.tau] - vs.v[1:-2, 1:-2, :-1, vs.tau]) \
-            * vs.flux_top[1:-2, 1:-2, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1]
+        diss = np.zeros_like(maskU)
+        fxa = 0.5 * (kappa_gm[1:-2, 1:-2, :-1] + kappa_gm[1:-2, 2:-1, :-1])
+        flux_top[1:-2, 1:-2, :-1] = fxa * (v[1:-2, 1:-2, 1:, taup1] - v[1:-2, 1:-2, :-1, taup1]) \
+            / dzw[np.newaxis, np.newaxis, :-1] * maskV[1:-2, 1:-2, 1:] * maskV[1:-2, 1:-2, :-1]
+        diss[1:-2, 1:-2, :-1] = (v[1:-2, 1:-2, 1:, tau] - v[1:-2, 1:-2, :-1, tau]) \
+            * flux_top[1:-2, 1:-2, :-1] / dzw[np.newaxis, np.newaxis, :-1]
         diss[:, :, -1] = 0.0
-        diss = numerics.vgrid_to_tgrid(vs, diss)
-        vs.K_diss_gm += diss
+        diss = numerics.vgrid_to_tgrid(diss, area_v, area_t)
+        K_diss_gm += diss
+
+    return u, v, du_mix, dv_mix, K_diss_gm

@@ -1,6 +1,6 @@
 from .. import veros_method, runtime_settings as rs, runtime_state as rst
 from . import density, diffusion, utilities
-
+from veros.core import veros_kernel
 
 @veros_method(dist_safe=False, local_variables=(
     'dxt', 'dxu', 'xt', 'xu',
@@ -186,24 +186,26 @@ def calc_initial_conditions(vs):
     vs.Nsqr[:, :, -1, :] = vs.Nsqr[:, :, -2, :]
 
 
-@veros_method(inline=True)
-def ugrid_to_tgrid(vs, a):
+@veros_kernel
+def ugrid_to_tgrid(a, dxt, dxu):
     b = np.zeros_like(a)
-    b[2:-2, :, :] = (vs.dxu[2:-2, np.newaxis, np.newaxis] * a[2:-2, :, :] + vs.dxu[1:-3, np.newaxis, np.newaxis] * a[1:-3, :, :]) \
-        / (2 * vs.dxt[2:-2, np.newaxis, np.newaxis])
+    b[2:-2, :, :] = (dxu[2:-2, np.newaxis, np.newaxis] * a[2:-2, :, :]
+                     + dxu[1:-3, np.newaxis, np.newaxis] * a[1:-3, :, :]) \
+        / (2 * dxt[2:-2, np.newaxis, np.newaxis])
     return b
 
 
-@veros_method(inline=True)
-def vgrid_to_tgrid(vs, a):
+@veros_kernel
+def vgrid_to_tgrid(a, area_v, area_t):
     b = np.zeros_like(a)
-    b[:, 2:-2, :] = (vs.area_v[:, 2:-2, np.newaxis] * a[:, 2:-2, :] + vs.area_v[:, 1:-3, np.newaxis] * a[:, 1:-3, :]) \
-        / (2 * vs.area_t[:, 2:-2, np.newaxis])
+    b[:, 2:-2, :] = (area_v[:, 2:-2, np.newaxis] * a[:, 2:-2, :]
+                     + area_v[:, 1:-3, np.newaxis] * a[:, 1:-3, :]) \
+        / (2 * area_t[:, 2:-2, np.newaxis])
     return b
 
 
-@veros_method
-def solve_tridiag(vs, a, b, c, d):
+@veros_kernel
+def solve_tridiag(a, b, c, d):
     """
     Solves a tridiagonal matrix system with diagonals a, b, c and RHS vector d.
     Uses LAPACK when running with NumPy, and otherwise the Thomas algorithm iterating over the
@@ -220,17 +222,19 @@ def solve_tridiag(vs, a, b, c, d):
     return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
 
 
-@veros_method(inline=True)
-def calc_diss(vs, diss, tag):
+@veros_kernel
+def calc_diss_u(diss, kbot, nz, dzw, dxt, dxu):
     diss_u = np.zeros_like(diss)
-    ks = np.zeros_like(vs.kbot)
-    if tag == 'U':
-        ks[1:-2, 2:-2] = np.maximum(vs.kbot[1:-2, 2:-2], vs.kbot[2:-1, 2:-2]) - 1
-        interpolator = ugrid_to_tgrid
-    elif tag == 'V':
-        ks[2:-2, 1:-2] = np.maximum(vs.kbot[2:-2, 1:-2], vs.kbot[2:-2, 2:-1]) - 1
-        interpolator = vgrid_to_tgrid
-    else:
-        raise ValueError('unknown tag {} (must be \'U\' or \'V\')'.format(tag))
-    diffusion.dissipation_on_wgrid(vs, diss_u, aloc=diss, ks=ks)
-    return interpolator(vs, diss_u)
+    ks = np.zeros_like(kbot)
+    ks[1:-2, 2:-2] = np.maximum(kbot[1:-2, 2:-2], kbot[2:-1, 2:-2]) - 1
+    diss_u = diffusion.dissipation_on_wgrid(diss_u, nz, dzw, aloc=diss, ks=ks)
+    return ugrid_to_tgrid(diss_u, dxt, dxu)
+
+
+@veros_kernel
+def calc_diss_v(diss, kbot, nz, dzw, area_v, area_t):
+    diss_v = np.zeros_like(diss)
+    ks = np.zeros_like(kbot)
+    ks[2:-2, 1:-2] = np.maximum(kbot[2:-2, 1:-2], kbot[2:-2, 2:-1]) - 1
+    diss_v = diffusion.dissipation_on_wgrid(diss_v, nz, dzw, aloc=diss, ks=ks)
+    return vgrid_to_tgrid(diss_v, area_v, area_t)

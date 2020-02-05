@@ -1,37 +1,44 @@
 import math
 
+from veros.core import veros_kernel
 from .. import veros_method
 from ..variables import allocate
 from . import utilities
 
 
-@veros_method(inline=True)
-def dissipation_on_wgrid(vs, out, int_drhodX=None, aloc=None, ks=None):
+@veros_kernel
+def dissipation_on_wgrid(out, nz, dzw,
+                         int_drhodX=None, grav=None, rho_0=None, flux_east=None,
+                         flux_north=None, dxt=None, dyt=None, cost=None,
+                         aloc=None,
+                         ks=None, kbot=None):
     if aloc is None:
-        aloc = allocate(vs, ('xt', 'yt', 'zw'))
-        aloc[1:-1, 1:-1, :] = 0.5 * vs.grav / vs.rho_0 \
-            * ((int_drhodX[2:, 1:-1, :] - int_drhodX[1:-1, 1:-1, :]) * vs.flux_east[1:-1, 1:-1, :]
-             + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[:-2, 1:-1, :]) * vs.flux_east[:-2, 1:-1, :]) \
-            / (vs.dxt[1:-1, np.newaxis, np.newaxis] * vs.cost[np.newaxis, 1:-1, np.newaxis]) \
-            + 0.5 * vs.grav / vs.rho_0 * ((int_drhodX[1:-1, 2:, :] - int_drhodX[1:-1, 1:-1, :]) * vs.flux_north[1:-1, 1:-1, :]
-                                        + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[1:-1, :-2, :]) * vs.flux_north[1:-1, :-2, :]) \
-            / (vs.dyt[np.newaxis, 1:-1, np.newaxis] * vs.cost[np.newaxis, 1:-1, np.newaxis])
+        aloc = np.zeros_like(out)
+        aloc[1:-1, 1:-1, :] = 0.5 * grav / rho_0 \
+            * ((int_drhodX[2:, 1:-1, :] - int_drhodX[1:-1, 1:-1, :]) * flux_east[1:-1, 1:-1, :]
+               + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[:-2, 1:-1, :]) * flux_east[:-2, 1:-1, :]) \
+            / (dxt[1:-1, np.newaxis, np.newaxis] * cost[np.newaxis, 1:-1, np.newaxis]) \
+            + 0.5 * grav / rho_0 * ((int_drhodX[1:-1, 2:, :] - int_drhodX[1:-1, 1:-1, :]) * flux_north[1:-1, 1:-1, :]
+                                    + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[1:-1, :-2, :]) * flux_north[1:-1, :-2, :]) \
+            / (dyt[np.newaxis, 1:-1, np.newaxis] * cost[np.newaxis, 1:-1, np.newaxis])
 
     if ks is None:
-        ks = vs.kbot[:, :] - 1
+        ks = kbot[:, :] - 1
 
     land_mask = ks >= 0
     edge_mask = land_mask[:, :, np.newaxis] & (
-        np.arange(vs.nz - 1)[np.newaxis, np.newaxis, :] == ks[:, :, np.newaxis])
+        np.arange(nz - 1)[np.newaxis, np.newaxis, :] == ks[:, :, np.newaxis])
     water_mask = land_mask[:, :, np.newaxis] & (
-        np.arange(vs.nz - 1)[np.newaxis, np.newaxis, :] > ks[:, :, np.newaxis])
+        np.arange(nz - 1)[np.newaxis, np.newaxis, :] > ks[:, :, np.newaxis])
 
-    dzw_pad = utilities.pad_z_edges(vs, vs.dzw)
+    dzw_pad = pad_z_edges(dzw, dzw.ndim)
     out[:, :, :-1] += (0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:])
                        + 0.5 * (aloc[:, :, :-1] * dzw_pad[np.newaxis, np.newaxis, :-3]
-                               / vs.dzw[np.newaxis, np.newaxis, :-1])) * edge_mask
+                                / dzw[np.newaxis, np.newaxis, :-1])) * edge_mask
     out[:, :, :-1] += 0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:]) * water_mask
     out[:, :, -1] += aloc[:, :, -1] * land_mask
+
+    return out
 
 
 @veros_method
