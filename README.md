@@ -42,7 +42,7 @@ Copenhagen University.
 #### How about a demonstration?
 
 <p align="center">
-  <a href="https://gifyu.com/image/vrr6">
+  <a href="https://vimeo.com/391237951">
       <img src="doc/_images/veros-preview.gif?raw=true" alt="0.25×0.25° high-resolution model spin-up">
   </a>
 </p>
