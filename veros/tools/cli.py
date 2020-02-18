@@ -106,6 +106,7 @@ def cli(run):
 
                 time.sleep(0.1)
 
+            comm.Disconnect()
             return
 
         kwargs['override'] = dict(kwargs['override'])

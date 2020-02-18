@@ -56,6 +56,8 @@ def test_gather(backend):
                  [1., 1., 1., 1., 3., 3., 3., 3.],
                  [1., 1., 1., 1., 3., 3., 3., 3.]]
             ))
+
+        comm.Disconnect()
     else:
         rs.num_proc = (2, 2)
 
@@ -128,6 +130,8 @@ def test_scatter(backend):
         for proc, idx in enumerate(proc_slices):
             comm.Recv(res, proc)
             assert np.array_equal(res, global_arr[idx])
+
+        comm.Disconnect()
     else:
         rs.num_proc = (2, 2)
 
@@ -203,6 +207,8 @@ def test_acc(backend):
         )
 
         np.testing.assert_allclose(sim.state.psi / scale, other_psi / scale, rtol=0, atol=1e-5)
+
+        comm.Disconnect()
     else:
         rs.num_proc = (2, 2)
 
