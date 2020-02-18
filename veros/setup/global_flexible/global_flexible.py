@@ -248,12 +248,12 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         taux_raw = self._get_data(vs, 'tau_x', idx=data_subset)
         taux_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             taux_raw, time_grid)
-        vs.taux[2:-2, 2:-2, :] = taux_data / vs.rho_0
+        vs.taux[2:-2, 2:-2, :] = taux_data
 
         tauy_raw = self._get_data(vs, 'tau_y', idx=data_subset)
         tauy_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
                                             tauy_raw, time_grid)
-        vs.tauy[2:-2, 2:-2, :] = tauy_data / vs.rho_0
+        vs.tauy[2:-2, 2:-2, :] = tauy_data
 
         enforce_boundaries(vs, vs.taux)
         enforce_boundaries(vs, vs.tauy)
