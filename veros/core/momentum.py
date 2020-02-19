@@ -9,8 +9,8 @@ def tend_coriolisf(du, dv, coriolis_t, maskU, maskV, dxt, dxu, dyt, dyu,
     time tendency due to Coriolis force
     """
 
-    du_cor = np.zeros_like(coriolis_t)
-    dv_cor = np.zeros_like(coriolis_t)
+    du_cor = np.zeros_like(maskU)
+    dv_cor = np.zeros_like(maskV)
 
     du_cor[2:-2, 2:-2] = maskU[2:-2, 2:-2] \
         * (coriolis_t[2:-2, 2:-2, np.newaxis] * (v[2:-2, 2:-2, :, tau] + v[2:-2, 1:-3, :, tau])

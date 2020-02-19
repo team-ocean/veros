@@ -65,7 +65,7 @@ def implicit_vert_friction(du_mix, dv_mix, K_diss_v, u, v, kbot, kappaM, tau, ta
     vertical friction
     dissipation is calculated and added to K_diss_v
     """
-    diss = np.zeros_like(kbot[1:-2, 1:-2])
+    diss = np.zeros_like(maskU)
     a_tri = np.zeros_like(kbot[1:-2, 1:-2])
     b_tri = np.zeros_like(kbot[1:-2, 1:-2])
     c_tri = np.zeros_like(kbot[1:-2, 1:-2])
@@ -268,7 +268,7 @@ def harmonic_friction(du_mix, dv_mix, K_diss_h, cost, cosu, A_h, u, v, tau,
     """
     diss = np.zeros_like(maskU)
     flux_east = np.zeros_like(maskU)
-    flux_north = np.zeros_like(maskU)
+    flux_north = np.zeros_like(maskV)
 
     """
     Zonal velocity
@@ -381,7 +381,7 @@ def biharmonic_friction(du_mix, dv_mix, K_diss_h, A_hbi, u, v, tau, area_v, area
     dissipation is calculated and added to K_diss_h
     """
     flux_east = np.zeros_like(maskU)
-    flux_north = np.zeros_like(maskU)
+    flux_north = np.zeros_like(maskV)
     fxa = math.sqrt(abs(A_hbi))
 
     """

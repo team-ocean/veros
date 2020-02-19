@@ -1,105 +1,403 @@
-from .. import veros_method
+from veros.core import veros_kernel, veros_routine
 from ..distributed import global_sum
-from ..variables import allocate
 from . import advection, diffusion, isoneutral, density, utilities
 
 
-@veros_method
-def thermodynamics(vs):
+@veros_kernel(static_args=('enable_superbee_advection',))
+def advect_tracer(tr, dtr, flux_east, flux_north, flux_top, u_wgrid, v_wgrid, w_wgrid,
+                  dxt, dyt, dzt, dzw, maskT, maskU, maskV, maskW, cost, cosu, dt_tracer,
+                  tau, enable_superbee_advection):
+    """
+    calculate time tendency of a tracer due to advection
+    """
+    if enable_superbee_advection:
+        flux_east, flux_north, flux_top = advection.adv_flux_superbee(
+            flux_east, flux_north, flux_top, tr, u_wgrid, v_wgrid, w_wgrid,
+            dxt, dyt, dzw, maskU, maskV, maskW, cost, cosu, dt_tracer, tau
+        )
+    else:
+        flux_east, flux_north, flux_top = advection.adv_flux_2nd(
+            flux_east, flux_north, flux_top, tr, u_wgrid, v_wgrid, w_wgrid,
+            cosu, maskU, maskV, maskW, tau
+        )
+    dtr[2:-2, 2:-2, :] = maskT[2:-2, 2:-2, :] * (-(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+                                                 / (cost[np.newaxis, 2:-2, np.newaxis] * dxt[2:-2, np.newaxis, np.newaxis])
+                                                 - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
+                                                 / (cost[np.newaxis, 2:-2, np.newaxis] * dyt[np.newaxis, 2:-2, np.newaxis]))
+    dtr[:, :, 0] += -maskT[:, :, 0] * flux_top[:, :, 0] / dzt[0]
+    dtr[:, :, 1:] += -maskT[:, :, 1:] * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / dzt[1:]
+
+    return dtr
+
+
+@veros_kernel
+def advect_temperature(temp, dtemp, tau, flux_east, flux_north, flux_top, u_wgrid,
+                       v_wgrid, w_wgrid, dxt, dyt, dzt, dzw, maskT, maskU, maskV,
+                       maskW, cost, cosu, dt_tracer, enable_superbee_advection):
+    """
+    integrate temperature
+    """
+    return advect_tracer(temp[..., tau], dtemp[..., tau], flux_east, flux_north,
+                         flux_top, u_wgrid, v_wgrid, w_wgrid, dxt, dyt, dzt, dzw,
+                         maskT, maskU, maskV, maskW, cost, cosu, dt_tracer,
+                         tau, enable_superbee_advection)
+
+
+@veros_kernel
+def advect_salinity(salt, dsalt, tau, flux_east, flux_north, flux_top, u_wgrid,
+                    v_wgrid, w_wgrid, dxt, dyt, dzt, dzw, maskT, maskU, maskV,
+                    maskW, cost, cosu, dt_tracer, enable_superbee_advection):
+    """
+    integrate salinity
+    """
+    return advect_tracer(salt[..., tau], dsalt[..., tau], flux_east, flux_north,
+                         flux_top, u_wgrid, v_wgrid, w_wgrid, dxt, dyt, dzt, dzw,
+                         maskT, maskU, maskV, maskW, cost, cosu, dt_tracer,
+                         tau, enable_superbee_advection)
+
+
+@veros_kernel(static_args=('enable_conserve_energy',))
+def calc_eq_of_state(n, salt, temp, rho, prho, Hd, int_drhodT, int_drhodS, Nsqr,
+                     zt, dzw, maskT, maskW, grav, rho_0, enable_conserve_energy):
+    """
+    calculate density, stability frequency, dynamic enthalpy and derivatives
+    for time level n from temperature and salinity
+    """
+    salt = salt[..., n]
+    temp = temp[..., n]
+    press = np.abs(zt)
+
+    """
+    calculate new density
+    """
+    rho[..., n] = density.get_rho(salt, temp, press) * maskT
+
+    """
+    calculate new potential density
+    """
+    prho[...] = density.get_potential_rho(salt, temp) * maskT
+
+    """
+    calculate new dynamic enthalpy and derivatives
+    """
+    if enable_conserve_energy:
+        Hd[..., n] = density.get_dyn_enthalpy(salt, temp, press) * maskT
+        int_drhodT[..., n] = density.get_int_drhodT(salt, temp, press)
+        int_drhodS[..., n] = density.get_int_drhodS(salt, temp, press)
+
+    """
+    new stability frequency
+    """
+    fxa = -grav / rho_0 / dzw[np.newaxis, np.newaxis, :-1] * maskW[:, :, :-1]
+    Nsqr[:, :, :-1, n] = fxa * (density.get_rho(
+                                        salt[:, :, 1:], temp[:, :, 1:], press[:-1]
+                                    ) - rho[:, :, :-1, n])
+    Nsqr[:, :, -1, n] = Nsqr[:, :, -2, n]
+
+    return rho, prho, Hd, int_drhodT, int_drhodS, Nsqr
+
+
+@veros_kernel(static_args=('enable_conserve_energy', 'enable_superbee_advection', 'enable_tke',))
+def advect_temp_salt_enthalpy(temp, dtemp, salt, dsalt, u, v, w, u_wgrid, v_wgrid, w_wgrid, nz, tau,
+                              taup1, taum1, dt_tracer, dxt, dyt, dzt, dzw, maskT, maskU, maskV, maskW, cost, cosu,
+                              area_t, Hd, dHd, grav, rho_0, AB_eps, int_drhodT, int_drhodS, rho, P_diss_adv,
+                              tke, enable_superbee_advection, enable_conserve_energy, enable_tke):
     """
     integrate temperature and salinity and diagnose sources of dynamic enthalpy
     """
-    advect_temperature(vs)
-    advect_salinity(vs)
+    flux_east = np.zeros_like(maskU)
+    flux_north = np.zeros_like(maskV)
+    flux_top = np.zeros_like(maskW)
 
-    if vs.enable_conserve_energy:
+    dtemp = advect_temperature(temp, dtemp, tau, flux_east, flux_north, flux_top,
+                               u_wgrid, v_wgrid, w_wgrid, dxt, dyt, dzt, dzw,
+                               maskT, maskU, maskV, maskW, cost, cosu, dt_tracer,
+                               enable_superbee_advection)
+
+    dsalt = advect_salinity(salt, dsalt, tau, flux_east, flux_north, flux_top,
+                            u_wgrid, v_wgrid, w_wgrid, dxt, dyt, dzt, dzw,
+                            maskT, maskU, maskV, maskW, cost, cosu, dt_tracer,
+                            enable_superbee_advection)
+
+    if enable_conserve_energy:
         """
         advection of dynamic enthalpy
         """
-        if vs.enable_superbee_advection:
-            advection.adv_flux_superbee(vs, vs.flux_east, vs.flux_north,
-                                        vs.flux_top, vs.Hd[:, :, :, vs.tau])
+        if enable_superbee_advection:
+            flux_east, flux_north, flux_top = \
+                advection.adv_flux_superbee(flux_east, flux_north, flux_top,
+                                            Hd[:, :, :, tau], u, v, w, dxt, dyt, dzt,
+                                            maskU, maskV, maskW, cost, cosu, dt_tracer, tau)
         else:
-            advection.adv_flux_2nd(vs, vs.flux_east, vs.flux_north,
-                                vs.flux_top, vs.Hd[:, :, :, vs.tau])
+            flux_east, flux_north, flux_top = \
+                advection.adv_flux_2nd(flux_east, flux_north, flux_top,
+                                       Hd[:, :, :, tau], u, v, w, cosu,
+                                       maskU, maskV, maskW, tau)
 
-        vs.dHd[2:-2, 2:-2, :, vs.tau] = vs.maskT[2:-2, 2:-2, :] * (-(vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :])
-                                                                    / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
-                                                                - (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])
-                                                                    / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis]))
-        vs.dHd[:, :, 0, vs.tau] += -vs.maskT[:, :, 0] \
-            * vs.flux_top[:, :, 0] / vs.dzt[0]
-        vs.dHd[:, :, 1:, vs.tau] += -vs.maskT[:, :, 1:] \
-            * (vs.flux_top[:, :, 1:] - vs.flux_top[:, :, :-1]) \
-            / vs.dzt[np.newaxis, np.newaxis, 1:]
+        dHd[2:-2, 2:-2, :, tau] = maskT[2:-2, 2:-2, :] * (-(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+                                                          / (cost[np.newaxis, 2:-2, np.newaxis] * dxt[2:-2, np.newaxis, np.newaxis])
+                                                          - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
+                                                          / (cost[np.newaxis, 2:-2, np.newaxis] * dyt[np.newaxis, 2:-2, np.newaxis]))
+        dHd[:, :, 0, tau] += -maskT[:, :, 0] \
+            * flux_top[:, :, 0] / dzt[0]
+        dHd[:, :, 1:, tau] += -maskT[:, :, 1:] \
+            * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) \
+            / dzt[np.newaxis, np.newaxis, 1:]
 
         """
         changes in dyn. Enthalpy due to advection
         """
-        aloc = allocate(vs, ('xt', 'yt', 'zt'))
-        aloc[2:-2, 2:-2, :] = vs.grav / vs.rho_0 * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau] * vs.dtemp[2:-2, 2:-2, :, vs.tau]
-                                                - vs.int_drhodS[2:-2, 2:-2, :, vs.tau] * vs.dsalt[2:-2, 2:-2, :, vs.tau]) \
-                            - vs.dHd[2:-2, 2:-2, :, vs.tau]
+        aloc = np.zeros_like(maskT)
+        aloc[2:-2, 2:-2, :] = grav / rho_0 * (-int_drhodT[2:-2, 2:-2, :, tau] * dtemp[2:-2, 2:-2, :, tau]
+                                              - int_drhodS[2:-2, 2:-2, :, tau] * dsalt[2:-2, 2:-2, :, tau]) \
+                                           - dHd[2:-2, 2:-2, :, tau]
 
         """
         contribution by vertical advection is - g rho w / rho0, substract this also
         """
-        aloc[:, :, :-1] += -0.25 * vs.grav / vs.rho_0 * vs.w[:, :, :-1, vs.tau] \
-            * (vs.rho[:, :, :-1, vs.tau] + vs.rho[:, :, 1:, vs.tau]) \
-            * vs.dzw[np.newaxis, np.newaxis, :-1] / vs.dzt[np.newaxis, np.newaxis, :-1]
-        aloc[:, :, 1:] += -0.25 * vs.grav / vs.rho_0 * vs.w[:, :, :-1, vs.tau] \
-            * (vs.rho[:, :, 1:, vs.tau] + vs.rho[:, :, :-1, vs.tau]) \
-            * vs.dzw[np.newaxis, np.newaxis, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
+        aloc[:, :, :-1] += -0.25 * grav / rho_0 * w[:, :, :-1, tau] \
+            * (rho[:, :, :-1, tau] + rho[:, :, 1:, tau]) \
+            * dzw[np.newaxis, np.newaxis, :-1] / dzt[np.newaxis, np.newaxis, :-1]
+        aloc[:, :, 1:] += -0.25 * grav / rho_0 * w[:, :, :-1, tau] \
+            * (rho[:, :, 1:, tau] + rho[:, :, :-1, tau]) \
+            * dzw[np.newaxis, np.newaxis, :-1] / dzt[np.newaxis, np.newaxis, 1:]
 
-    if vs.enable_conserve_energy and vs.enable_tke:
+    if enable_conserve_energy and enable_tke:
         """
         dissipation by advection interpolated on W-grid
         """
-        vs.P_diss_adv[...] = 0.
-        diffusion.dissipation_on_wgrid(vs, vs.P_diss_adv, aloc=aloc)
+        P_diss_adv[...] = 0.
+        diffusion.dissipation_on_wgrid(P_diss_adv, nz, dzw, aloc=aloc)
 
         """
-        distribute vs.P_diss_adv over domain, prevent draining of TKE
+        distribute P_diss_adv over domain, prevent draining of TKE
         """
-        fxa = np.sum(vs.area_t[2:-2, 2:-2, np.newaxis] * vs.P_diss_adv[2:-2, 2:-2, :-1]
-                    * vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1]) \
-            + np.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.P_diss_adv[2:-2, 2:-2, -1]
-                    * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
-        tke_mask = vs.tke[2:-2, 2:-2, :-1, vs.tau] > 0.
-        fxb = np.sum(vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1] * tke_mask) \
-            + np.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
+        fxa = np.sum(area_t[2:-2, 2:-2, np.newaxis] * P_diss_adv[2:-2, 2:-2, :-1]
+                     * dzw[np.newaxis, np.newaxis, :-1] * maskW[2:-2, 2:-2, :-1]) \
+            + np.sum(0.5 * area_t[2:-2, 2:-2] * P_diss_adv[2:-2, 2:-2, -1]
+                     * dzw[-1] * maskW[2:-2, 2:-2, -1])
+        tke_mask = tke[2:-2, 2:-2, :-1, tau] > 0.
+        fxb = np.sum(area_t[2:-2, 2:-2, np.newaxis] * dzw[np.newaxis, np.newaxis, :-1] * maskW[2:-2, 2:-2, :-1] * tke_mask) \
+            + np.sum(0.5 * area_t[2:-2, 2:-2] * dzw[-1] * maskW[2:-2, 2:-2, -1])
 
-        fxa = global_sum(vs, fxa)
-        fxb = global_sum(vs, fxb)
+        fxa = global_sum(fxa)
+        fxb = global_sum(fxb)
 
-        vs.P_diss_adv[...] = 0.
-        vs.P_diss_adv[2:-2, 2:-2, :-1] = fxa / fxb * tke_mask
-        vs.P_diss_adv[2:-2, 2:-2, -1] = fxa / fxb
+        P_diss_adv[...] = 0.
+        P_diss_adv[2:-2, 2:-2, :-1] = fxa / fxb * tke_mask
+        P_diss_adv[2:-2, 2:-2, -1] = fxa / fxb
 
     """
     Adam Bashforth time stepping for advection
     """
-    vs.temp[:, :, :, vs.taup1] = vs.temp[:, :, :, vs.tau] + vs.dt_tracer \
-        * ((1.5 + vs.AB_eps) * vs.dtemp[:, :, :, vs.tau]
-        - (0.5 + vs.AB_eps) * vs.dtemp[:, :, :, vs.taum1]) * vs.maskT
-    vs.salt[:, :, :, vs.taup1] = vs.salt[:, :, :, vs.tau] + vs.dt_tracer \
-        * ((1.5 + vs.AB_eps) * vs.dsalt[:, :, :, vs.tau]
-        - (0.5 + vs.AB_eps) * vs.dsalt[:, :, :, vs.taum1]) * vs.maskT
+    temp[:, :, :, taup1] = temp[:, :, :, tau] + dt_tracer \
+        * ((1.5 + AB_eps) * dtemp[:, :, :, tau]
+           - (0.5 + AB_eps) * dtemp[:, :, :, taum1]) * maskT
+    salt[:, :, :, taup1] = salt[:, :, :, tau] + dt_tracer \
+        * ((1.5 + AB_eps) * dsalt[:, :, :, tau]
+           - (0.5 + AB_eps) * dsalt[:, :, :, taum1]) * maskT
 
+    return temp, salt, dtemp, dsalt, dHd, P_diss_adv
+
+
+@veros_kernel
+def vertmix_tempsalt(temp, salt, dtemp_vmix, dsalt_vmix, kappaH, kbot, dzt, dzw, taup1,
+                     dt_tracer, forc_temp_surface, forc_salt_surface, enable_cyclic_x):
+    """
+    vertical mixing of temperature and salinity
+    """
+    dtemp_vmix[...] = temp[:, :, :, taup1]
+    dsalt_vmix[...] = salt[:, :, :, taup1]
+
+    a_tri = np.zeros_like(salt[2:-2, 2:-2, :, taup1])
+    b_tri = np.zeros_like(salt[2:-2, 2:-2, :, taup1])
+    c_tri = np.zeros_like(salt[2:-2, 2:-2, :, taup1])
+    d_tri = np.zeros_like(salt[2:-2, 2:-2, :, taup1])
+    delta = np.zeros_like(salt[2:-2, 2:-2, :, taup1])
+
+    ks = kbot[2:-2, 2:-2] - 1
+    delta[:, :, :-1] = dt_tracer / dzw[np.newaxis, np.newaxis, :-1] \
+        * kappaH[2:-2, 2:-2, :-1]
+    delta[:, :, -1] = 0.
+    a_tri[:, :, 1:] = -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:]
+    b_tri[:, :, 1:] = 1 + (delta[:, :, 1:] + delta[:, :, :-1]) \
+        / dzt[np.newaxis, np.newaxis, 1:]
+    b_tri_edge = 1 + delta / dzt[np.newaxis, np.newaxis, :]
+    c_tri[:, :, :-1] = -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, :-1]
+    d_tri[...] = temp[2:-2, 2:-2, :, taup1]
+    d_tri[:, :, -1] += dt_tracer * forc_temp_surface[2:-2, 2:-2] / dzt[-1]
+    sol, mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
+    temp[2:-2, 2:-2, :, taup1] = utilities.where(mask, sol, temp[2:-2, 2:-2, :, taup1])
+    d_tri[...] = salt[2:-2, 2:-2, :, taup1]
+    d_tri[:, :, -1] += dt_tracer * forc_salt_surface[2:-2, 2:-2] / dzt[-1]
+    sol, mask = utilities.solve_implicit(
+        ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge
+    )
+    salt[2:-2, 2:-2, :, taup1] = utilities.where(mask, sol, salt[2:-2, 2:-2, :, taup1])
+
+    dtemp_vmix[...] = (temp[:, :, :, taup1] -
+                       dtemp_vmix) / dt_tracer
+    dsalt_vmix[...] = (salt[:, :, :, taup1] -
+                       dsalt_vmix) / dt_tracer
+
+    """
+    boundary exchange
+    """
+    utilities.enforce_boundaries(temp[..., taup1], enable_cyclic_x)
+    utilities.enforce_boundaries(salt[..., taup1], enable_cyclic_x)
+
+    return dtemp_vmix, temp, dsalt_vmix, salt
+
+
+@veros_kernel
+def surf_densityf(salt, temp, zt, maskT, taup1, forc_temp_surface, forc_salt_surface):
+    """
+    surface density flux
+    """
+    return maskT[:, :, -1] * (
+        density.get_drhodT(salt[:, :, -1, taup1],
+                           temp[:, :, -1, taup1],
+                           np.abs(zt[-1])) * forc_temp_surface
+        + density.get_drhodS(salt[:, :, -1, taup1],
+                             temp[:, :, -1, taup1],
+                             np.abs(zt[-1])) * forc_salt_surface
+        )
+
+
+@veros_kernel
+def diag_P_diss_v(P_diss_v, P_diss_nonlin, int_drhodT, int_drhodS, temp, salt, kappaH,
+                  grav, rho_0, dzw, maskT, maskW, taup1, forc_temp_surface,
+                  forc_salt_surface, forc_rho_surface, Nsqr, enable_conserve_energy):
+    P_diss_v[...] = 0.0
+    aloc = np.zeros_like(kappaH)
+
+    if enable_conserve_energy:
+        """
+        diagnose dissipation of dynamic enthalpy by vertical mixing
+        """
+        fxa = (-int_drhodT[2:-2, 2:-2, 1:, taup1] + int_drhodT[2:-2, 2:-2, :-1, taup1]) \
+            / dzw[np.newaxis, np.newaxis, :-1]
+        P_diss_v[2:-2, 2:-2, :-1] += -grav / rho_0 * fxa * kappaH[2:-2, 2:-2, :-1] \
+            * (temp[2:-2, 2:-2, 1:, taup1] - temp[2:-2, 2:-2, :-1, taup1]) \
+            / dzw[np.newaxis, np.newaxis, :-1] * maskW[2:-2, 2:-2, :-1]
+        fxa = (-int_drhodS[2:-2, 2:-2, 1:, taup1] + int_drhodS[2:-2, 2:-2, :-1, taup1]) \
+            / dzw[np.newaxis, np.newaxis, :-1]
+        P_diss_v[2:-2, 2:-2, :-1] += -grav / rho_0 * fxa * kappaH[2:-2, 2:-2, :-1] \
+            * (salt[2:-2, 2:-2, 1:, taup1] - salt[2:-2, 2:-2, :-1, taup1]) \
+            / dzw[np.newaxis, np.newaxis, :-1] * maskW[2:-2, 2:-2, :-1]
+
+        fxa = 2 * int_drhodT[2:-2, 2:-2, -1, taup1] / dzw[-1]
+        P_diss_v[2:-2, 2:-2, -1] += - grav / rho_0 * fxa * \
+            forc_temp_surface[2:-2, 2:-2] * maskW[2:-2, 2:-2, -1]
+        fxa = 2 * int_drhodS[2:-2, 2:-2, -1, taup1] / dzw[-1]
+        P_diss_v[2:-2, 2:-2, -1] += - grav / rho_0 * fxa * \
+            forc_salt_surface[2:-2, 2:-2] * maskW[2:-2, 2:-2, -1]
+
+    if enable_conserve_energy:
+        """
+        determine effect due to nonlinear equation of state
+        """
+        aloc[:, :, :-1] = kappaH[:, :, :-1] * Nsqr[:, :, :-1, taup1]
+        P_diss_nonlin[:, :, :-1] = P_diss_v[:, :, :-1] - aloc[:, :, :-1]
+        P_diss_v[:, :, :-1] = aloc[:, :, :-1]
+    else:
+        """
+        diagnose N^2 vs.kappaH, i.e. exchange of pot. energy with TKE
+        """
+        P_diss_v[:, :, :-1] = kappaH[:, :, :-1] * Nsqr[:, :, :-1, taup1]
+        P_diss_v[:, :, -1] = -forc_rho_surface * maskT[:, :, -1] * grav / rho_0
+
+    return P_diss_v, P_diss_nonlin
+
+
+@veros_routine(
+    inputs=(
+        'temp', 'salt', 'dtemp', 'dsalt',
+        'dtemp_vmix', 'dsalt_vmix', 'dtemp_iso', 'dsalt_iso',
+        'u', 'v', 'w', 'u_wgrid', 'v_wgrid', 'w_wgrid',
+        'tau', 'taup1', 'taum1', 'dt_tracer', 'kbot',
+        'dxt', 'dxu', 'dyt', 'dyu', 'dzt', 'zt', 'dzw',
+        'maskT', 'maskU', 'maskV', 'maskW', 'cost', 'cosu',
+        'area_t', 'Hd', 'dHd', 'temp_source', 'salt_source',
+        'P_diss_skew', 'P_diss_iso', 'grav', 'rho_0',
+        'int_drhodT', 'int_drhodS',
+        'rho', 'prho', 'P_diss_adv', 'tke',
+        'P_diss_v', 'P_diss_nonlin', 'kappaH',
+        'forc_temp_surface', 'forc_salt_surface',
+        'forc_rho_surface', 'Nsqr',
+        'K_11', 'K_22', 'K_33', 'K_gm', 'K_iso',
+        'Ai_ez', 'Ai_nz', 'Ai_bx', 'Ai_by',
+        'flux_east', 'flux_north', 'flux_top',
+    ),
+    outputs=(
+        'temp', 'salt',
+        'dtemp', 'dsalt',
+        'dtemp_hmix', 'dsalt_hmix',
+        'dtemp_vmix', 'dsalt_vmix',
+        'dtemp_iso', 'dsalt_iso',
+        'P_diss_iso',
+        'P_diss_skew',
+        'P_diss_adv',
+        'P_diss_hmix',
+        'P_diss_sources',
+        'rho', 'prho',
+        'Hd', 'dHd',
+        'int_drhodT',
+        'int_drhodS',
+        'Nsqr',
+        'P_diss_v',
+        'P_diss_nonlin',
+        'forc_rho_surface',
+        'K_11', 'K_22', 'K_33',
+        'Ai_ez', 'Ai_nz', 'Ai_bx', 'Ai_by'
+    ),
+    settings=(
+        'K_h',
+        'K_hbi',
+        'K_iso_steep',
+        'nz',
+        'dt_tracer',
+        'AB_eps',
+        'iso_slopec',
+        'iso_dslope',
+        'enable_superbee_advection',
+        'enable_conserve_energy',
+        'enable_tke',
+        'enable_hor_diffusion',
+        'enable_biharmonic_mixing',
+        'enable_tempsalt_sources',
+        'enable_skew_diffusion',
+        'enable_neutral_diffusion',
+        'hor_friction_cosPower',
+        'enable_hor_friction_cos_scaling',
+        'enable_cyclic_x',
+        'pyom_compatibility_mode',
+    ),
+)
+def thermodynamics(vs):
+    """
+    integrate temperature and salinity and diagnose sources of dynamic enthalpy
+    """
+    """
+    Advection tendencies for temperature, salinity and dynamic enthalpy
+    """
+    temp, salt, dtemp, dsalt, dHd, P_diss_adv = advect_temp_salt_enthalpy(vs)
     """
     horizontal diffusion
     """
     with vs.timers['isoneutral']:
         if vs.enable_hor_diffusion:
-            diffusion.tempsalt_diffusion(vs)
+            temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix = \
+                diffusion.tempsalt_diffusion(vs, temp=temp, salt=salt)
         if vs.enable_biharmonic_mixing:
-            diffusion.tempsalt_biharmonic(vs)
+            temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix = \
+                diffusion.tempsalt_biharmonic(vs, temp=temp, salt=salt)
 
         """
         sources like restoring zones, etc
         """
         if vs.enable_tempsalt_sources:
-            diffusion.tempsalt_sources(vs)
+            temp, salt, P_diss_sources = diffusion.tempsalt_sources(vs, temp=temp, salt=salt)
 
         """
         isopycnal diffusion
@@ -108,178 +406,78 @@ def thermodynamics(vs):
             vs.P_diss_iso[...] = 0.0
             vs.dtemp_iso[...] = 0.0
             vs.dsalt_iso[...] = 0.0
-            isoneutral.isoneutral_diffusion_pre(vs)
-            isoneutral.isoneutral_diffusion(vs, vs.temp, True)
-            isoneutral.isoneutral_diffusion(vs, vs.salt, False)
+
+            K_11, K_22, K_33, Ai_ez, Ai_nz, Ai_bx, Ai_by = \
+                isoneutral.isoneutral_diffusion_pre(vs, salt=salt, temp=temp)
+
+            temp, dtemp_iso, P_diss_iso = \
+                isoneutral.isoneutral_diffusion(vs,
+                    tr=temp, istemp=True, K_11=K_11, K_22=K_22, K_33=K_33,
+                    Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
+                    temp=temp, salt=salt)
+
+            salt, dsalt_iso, P_diss_iso = \
+                isoneutral.isoneutral_diffusion(vs,
+                    tr=salt, istemp=False, K_11=K_11, K_22=K_22, K_33=K_33,
+                    Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
+                    P_diss_iso=P_diss_iso, temp=temp, salt=salt)
+
             if vs.enable_skew_diffusion:
                 vs.P_diss_skew[...] = 0.0
-                isoneutral.isoneutral_skew_diffusion(vs, vs.temp, True)
-                isoneutral.isoneutral_skew_diffusion(vs, vs.salt, False)
+                temp, dtemp_iso, P_diss_skew = \
+                    isoneutral.isoneutral_skew_diffusion(vs,
+                        tr=temp, istemp=True, dtemp_iso=dtemp_iso,
+                        dsalt_iso=dsalt_iso, K_11=K_11, K_22=K_22, K_33=K_33,
+                        Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
+                        P_diss_iso=P_diss_iso, temp=temp, salt=salt)
+                salt, dsalt_iso, P_diss_skew = \
+                    isoneutral.isoneutral_skew_diffusion(vs,
+                        tr=salt, istemp=False, dtemp_iso=dtemp_iso,
+                        dsalt_iso=dsalt_iso, K_11=K_11, K_22=K_22, K_33=K_33,
+                        Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
+                        P_diss_iso=P_diss_iso, P_diss_skew=P_diss_skew,
+                        temp=temp, salt=salt)
 
     with vs.timers['vmix']:
-        """
-        vertical mixing of temperature and salinity
-        """
-        vs.dtemp_vmix[...] = vs.temp[:, :, :, vs.taup1]
-        vs.dsalt_vmix[...] = vs.salt[:, :, :, vs.taup1]
-
-        a_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
-        b_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
-        c_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
-        d_tri = allocate(vs, ('xt', 'yt', 'zt'), include_ghosts=False)
-        delta = allocate(vs, ('xt', 'yt', 'zw'), include_ghosts=False)
-
-        ks = vs.kbot[2:-2, 2:-2] - 1
-        delta[:, :, :-1] = vs.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1] \
-            * vs.kappaH[2:-2, 2:-2, :-1]
-        delta[:, :, -1] = 0.
-        a_tri[:, :, 1:] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:]
-        b_tri[:, :, 1:] = 1 + (delta[:, :, 1:] + delta[:, :, :-1]) \
-            / vs.dzt[np.newaxis, np.newaxis, 1:]
-        b_tri_edge = 1 + delta / vs.dzt[np.newaxis, np.newaxis, :]
-        c_tri[:, :, :-1] = -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, :-1]
-        d_tri[...] = vs.temp[2:-2, 2:-2, :, vs.taup1]
-        d_tri[:, :, -1] += vs.dt_tracer * vs.forc_temp_surface[2:-2, 2:-2] / vs.dzt[-1]
-        sol, mask = utilities.solve_implicit(vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-        vs.temp[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, mask, sol, vs.temp[2:-2, 2:-2, :, vs.taup1])
-        d_tri[...] = vs.salt[2:-2, 2:-2, :, vs.taup1]
-        d_tri[:, :, -1] += vs.dt_tracer * vs.forc_salt_surface[2:-2, 2:-2] / vs.dzt[-1]
-        sol, mask = utilities.solve_implicit(
-            vs, ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge
-        )
-        vs.salt[2:-2, 2:-2, :, vs.taup1] = utilities.where(vs, mask, sol, vs.salt[2:-2, 2:-2, :, vs.taup1])
-
-        vs.dtemp_vmix[...] = (vs.temp[:, :, :, vs.taup1] -
-                            vs.dtemp_vmix) / vs.dt_tracer
-        vs.dsalt_vmix[...] = (vs.salt[:, :, :, vs.taup1] -
-                            vs.dsalt_vmix) / vs.dt_tracer
-
-    """
-    boundary exchange
-    """
-    utilities.enforce_boundaries(vs, vs.temp[..., vs.taup1])
-    utilities.enforce_boundaries(vs, vs.salt[..., vs.taup1])
+        dtemp_vmix, temp, dsalt_vmix, salt = vertmix_tempsalt(temp=temp, salt=salt)
 
     with vs.timers['eq_of_state']:
-        calc_eq_of_state(vs, vs.taup1)
+        rho, prho, Hd, int_drhodT, int_drhodS, Nsqr = \
+            calc_eq_of_state(vs, n=vs.taup1, salt=salt, temp=temp)
 
     """
     surface density flux
     """
-    vs.forc_rho_surface[...] = vs.maskT[:, :, -1] * (
-        density.get_drhodT(vs, vs.salt[:, :, -1, vs.taup1],
-                        vs.temp[:, :, -1, vs.taup1],
-                        np.abs(vs.zt[-1])) * vs.forc_temp_surface
-        + density.get_drhodS(vs, vs.salt[:, :, -1, vs.taup1],
-                            vs.temp[:, :, -1, vs.taup1],
-                            np.abs(vs.zt[-1])) * vs.forc_salt_surface
-        )
+    forc_rho_surface = surf_densityf(vs, salt=salt, temp=temp)
 
     with vs.timers['vmix']:
-        vs.P_diss_v[...] = 0.0
-        if vs.enable_conserve_energy:
-            """
-            diagnose dissipation of dynamic enthalpy by vertical mixing
-            """
-            fxa = (-vs.int_drhodT[2:-2, 2:-2, 1:, vs.taup1] + vs.int_drhodT[2:-2, 2:-2, :-1, vs.taup1]) \
-                / vs.dzw[np.newaxis, np.newaxis, :-1]
-            vs.P_diss_v[2:-2, 2:-2, :-1] += -vs.grav / vs.rho_0 * fxa * vs.kappaH[2:-2, 2:-2, :-1] \
-                * (vs.temp[2:-2, 2:-2, 1:, vs.taup1] - vs.temp[2:-2, 2:-2, :-1, vs.taup1]) \
-                / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1]
-            fxa = (-vs.int_drhodS[2:-2, 2:-2, 1:, vs.taup1] + vs.int_drhodS[2:-2, 2:-2, :-1, vs.taup1]) \
-                / vs.dzw[np.newaxis, np.newaxis, :-1]
-            vs.P_diss_v[2:-2, 2:-2, :-1] += -vs.grav / vs.rho_0 * fxa * vs.kappaH[2:-2, 2:-2, :-1] \
-                * (vs.salt[2:-2, 2:-2, 1:, vs.taup1] - vs.salt[2:-2, 2:-2, :-1, vs.taup1]) \
-                / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1]
+        P_diss_v, P_diss_nonlin = diag_P_diss_v(vs,
+            int_drhodT=int_drhodT, int_drhodS=int_drhodS,
+            temp=temp, salt=salt, forc_rho_surface=forc_rho_surface, Nsqr=Nsqr
+        )
 
-            fxa = 2 * vs.int_drhodT[2:-2, 2:-2, -1, vs.taup1] / vs.dzw[-1]
-            vs.P_diss_v[2:-2, 2:-2, -1] += - vs.grav / vs.rho_0 * fxa * \
-                vs.forc_temp_surface[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
-            fxa = 2 * vs.int_drhodS[2:-2, 2:-2, -1, vs.taup1] / vs.dzw[-1]
-            vs.P_diss_v[2:-2, 2:-2, -1] += - vs.grav / vs.rho_0 * fxa * \
-                vs.forc_salt_surface[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
-
-        if vs.enable_conserve_energy:
-            """
-            determine effect due to nonlinear equation of state
-            """
-            aloc[:, :, :-1] = vs.kappaH[:, :, :-1] * vs.Nsqr[:, :, :-1, vs.taup1]
-            vs.P_diss_nonlin[:, :, :-1] = vs.P_diss_v[:, :, :-1] - aloc[:, :, :-1]
-            vs.P_diss_v[:, :, :-1] = aloc[:, :, :-1]
-        else:
-            """
-            diagnose N^2 vs.kappaH, i.e. exchange of pot. energy with TKE
-            """
-            vs.P_diss_v[:, :, :-1] = vs.kappaH[:, :, :-1] * vs.Nsqr[:, :, :-1, vs.taup1]
-            vs.P_diss_v[:, :, -1] = -vs.forc_rho_surface * vs.maskT[:, :, -1] * vs.grav / vs.rho_0
-
-
-@veros_method
-def advect_tracer(vs, tr, dtr):
-    """
-    calculate time tendency of a tracer due to advection
-    """
-    if vs.enable_superbee_advection:
-        advection.adv_flux_superbee(vs, vs.flux_east, vs.flux_north, vs.flux_top, tr)
-    else:
-        advection.adv_flux_2nd(vs, vs.flux_east, vs.flux_north, vs.flux_top, tr)
-    dtr[2:-2, 2:-2, :] = vs.maskT[2:-2, 2:-2, :] * (-(vs.flux_east[2:-2, 2:-2, :] - vs.flux_east[1:-3, 2:-2, :])
-                                                    / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
-                                                   - (vs.flux_north[2:-2, 2:-2, :] - vs.flux_north[2:-2, 1:-3, :])
-                                                    / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis]))
-    dtr[:, :, 0] += -vs.maskT[:, :, 0] * vs.flux_top[:, :, 0] / vs.dzt[0]
-    dtr[:, :, 1:] += -vs.maskT[:, :, 1:] * (vs.flux_top[:, :, 1:] - vs.flux_top[:, :, :-1]) / vs.dzt[1:]
-
-
-@veros_method
-def advect_temperature(vs):
-    """
-    integrate temperature
-    """
-    return advect_tracer(vs, vs.temp[..., vs.tau], vs.dtemp[..., vs.tau])
-
-
-@veros_method
-def advect_salinity(vs):
-    """
-    integrate salinity
-    """
-    return advect_tracer(vs, vs.salt[..., vs.tau], vs.dsalt[..., vs.tau])
-
-
-@veros_method
-def calc_eq_of_state(vs, n):
-    """
-    calculate density, stability frequency, dynamic enthalpy and derivatives
-    for time level n from temperature and salinity
-    """
-    salt = vs.salt[..., n]
-    temp = vs.temp[..., n]
-    press = np.abs(vs.zt)
-
-    """
-    calculate new density
-    """
-    vs.rho[..., n] = density.get_rho(vs, salt, temp, press) * vs.maskT
-
-    """
-    calculate new potential density
-    """
-    vs.prho[...] = density.get_potential_rho(vs, salt, temp) * vs.maskT
-
-    """
-    calculate new dynamic enthalpy and derivatives
-    """
-    if vs.enable_conserve_energy:
-        vs.Hd[..., n] = density.get_dyn_enthalpy(vs, salt, temp, press) * vs.maskT
-        vs.int_drhodT[..., n] = density.get_int_drhodT(vs, salt, temp, press)
-        vs.int_drhodS[..., n] = density.get_int_drhodS(vs, salt, temp, press)
-
-    """
-    new stability frequency
-    """
-    fxa = -vs.grav / vs.rho_0 / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[:, :, :-1]
-    vs.Nsqr[:, :, :-1, n] = fxa * (density.get_rho(
-                                        vs, salt[:, :, 1:], temp[:, :, 1:], press[:-1]
-                                    ) - vs.rho[:, :, :-1, n])
-    vs.Nsqr[:, :, -1, n] = vs.Nsqr[:, :, -2, n]
+    return dict(
+        temp=temp, salt=salt,
+        dtemp=dtemp, dsalt=dsalt,
+        dtemp_hmix=dtemp_hmix,
+        dsalt_hmix=dsalt_hmix,
+        dtemp_vmix=dtemp_vmix,
+        dsalt_vmix=dsalt_vmix,
+        dtemp_iso=dtemp_iso,
+        dsalt_iso=dsalt_iso,
+        P_diss_adv=P_diss_adv,
+        P_diss_hmix=P_diss_hmix,
+        P_diss_sources=P_diss_sources,
+        rho=rho, prho=prho,
+        Hd=Hd, dHd=dHd,
+        int_drhodT=int_drhodT,
+        int_drhodS=int_drhodS,
+        Nsqr=Nsqr,
+        P_diss_v=P_diss_v,
+        P_diss_iso=P_diss_iso,
+        P_diss_nonlin=P_diss_nonlin,
+        forc_rho_surface=forc_rho_surface,
+        K_11=K_11, K_22=K_22, K_33=K_33,
+        Ai_ez=Ai_ez, Ai_nz=Ai_nz,
+        Ai_bx=Ai_bx, Ai_by=Ai_by
+    )

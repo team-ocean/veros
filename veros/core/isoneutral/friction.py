@@ -59,7 +59,7 @@ def isoneutral_friction(du_mix, dv_mix, K_diss_gm, u, v, tau, taup1, kbot, kappa
     # implicit vertical friction of zonal momentum by GM
     ks = np.maximum(kbot[1:-2, 1:-2], kbot[1:-2, 2:-1]) - 1
     fxa = 0.5 * (kappa_gm[1:-2, 1:-2, :] + kappa_gm[1:-2, 2:-1, :])
-    delta, a_tri, b_tri, c_tri = (np.zeros_like(maskU[1:-2, 1:-2, :]) for _ in range(4))
+    delta, a_tri, b_tri, c_tri = (np.zeros_like(maskV[1:-2, 1:-2, :]) for _ in range(4))
     delta[:, :, :-1] = dt_mom / dzw[np.newaxis, np.newaxis, :-1] * \
         fxa[:, :, :-1] * maskV[1:-2, 1:-2, 1:] * maskV[1:-2, 1:-2, :-1]
     delta[-1] = 0.
@@ -78,7 +78,7 @@ def isoneutral_friction(du_mix, dv_mix, K_diss_gm, u, v, tau, taup1, kbot, kappa
 
     if enable_conserve_energy:
         # diagnose dissipation
-        diss = np.zeros_like(maskU)
+        diss = np.zeros_like(maskV)
         fxa = 0.5 * (kappa_gm[1:-2, 1:-2, :-1] + kappa_gm[1:-2, 2:-1, :-1])
         flux_top[1:-2, 1:-2, :-1] = fxa * (v[1:-2, 1:-2, 1:, taup1] - v[1:-2, 1:-2, :-1, taup1]) \
             / dzw[np.newaxis, np.newaxis, :-1] * maskV[1:-2, 1:-2, 1:] * maskV[1:-2, 1:-2, :-1]

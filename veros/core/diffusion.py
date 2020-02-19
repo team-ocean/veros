@@ -1,8 +1,6 @@
 import math
 
 from veros.core import veros_kernel
-from .. import veros_method
-from ..variables import allocate
 from . import utilities
 
 
@@ -31,7 +29,7 @@ def dissipation_on_wgrid(out, nz, dzw,
     water_mask = land_mask[:, :, np.newaxis] & (
         np.arange(nz - 1)[np.newaxis, np.newaxis, :] > ks[:, :, np.newaxis])
 
-    dzw_pad = pad_z_edges(dzw, dzw.ndim)
+    dzw_pad = utilities.pad_z_edges(dzw)
     out[:, :, :-1] += (0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:])
                        + 0.5 * (aloc[:, :, :-1] * dzw_pad[np.newaxis, np.newaxis, :-3]
                                 / dzw[np.newaxis, np.newaxis, :-1])) * edge_mask
@@ -41,140 +39,177 @@ def dissipation_on_wgrid(out, nz, dzw,
     return out
 
 
-@veros_method
-def tempsalt_biharmonic(vs):
+@veros_kernel(static_args=('enable_conserve_energy', 'pyom_compatibility_mode',))
+def tempsalt_biharmonic(K_hbi, temp, salt, int_drhodT, int_drhodS, maskT, maskU, maskV, maskW,
+                        dxt, dxu, dyt, dyu, dzw, nz, tau, cost, cosu, taup1, dt_tracer,
+                        enable_cyclic_x, enable_conserve_energy, pyom_compatibility_mode):
     """
     biharmonic mixing of temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
-    fxa = math.sqrt(abs(vs.K_hbi))
+    fxa = math.sqrt(abs(K_hbi))
 
     # update temp
-    vs.dtemp_hmix[1:, 1:, :] = biharmonic_diffusion(vs, vs.temp[:, :, :, vs.tau], fxa)[1:, 1:, :]
-    vs.temp[:, :, :, vs.taup1] += vs.dt_tracer * vs.dtemp_hmix * vs.maskT
+    dtemp_hmix = np.zeros_like(maskT)
+    dtemp_hmix[1:, 1:, :] = biharmonic_diffusion(temp[:, :, :, tau], fxa,
+                                                 dxt, dxu, dyt, dyu, maskT,
+                                                 maskU, maskV, cost, cosu,
+                                                 enable_cyclic_x)[1:, 1:, :]
+    temp[:, :, :, taup1] += dt_tracer * dtemp_hmix * maskT
 
-    if vs.enable_conserve_energy:
-        if vs.pyom_compatibility_mode:
-            fxa = vs.int_drhodT[-3, -3, -1, vs.tau]
-        vs.P_diss_hmix[...] = 0.
-        dissipation_on_wgrid(vs, vs.P_diss_hmix, int_drhodX=vs.int_drhodT[..., vs.tau])
+    P_diss_hmix = np.zeros_like(maskW)
+    if enable_conserve_energy:
+        if pyom_compatibility_mode:
+            fxa = int_drhodT[-3, -3, -1, tau]
+        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw, int_drhodX=int_drhodT[..., tau])
 
     # update salt
-    vs.dsalt_hmix[1:, 1:, :] = biharmonic_diffusion(vs, vs.salt[:, :, :, vs.tau], fxa)[1:, 1:, :]
-    vs.salt[:, :, :, vs.taup1] += vs.dt_tracer * vs.dsalt_hmix * vs.maskT
+    dsalt_hmix = np.zeros_like(maskT)
+    dsalt_hmix[1:, 1:, :] = biharmonic_diffusion(salt[:, :, :, tau], fxa,
+                                                 dxt, dxu, dyt, dyu, maskT,
+                                                 maskU, maskV, cost, cosu,
+                                                 enable_cyclic_x)[1:, 1:, :]
+    salt[:, :, :, taup1] += dt_tracer * dsalt_hmix * maskT
 
-    if vs.enable_conserve_energy:
-        dissipation_on_wgrid(vs, vs.P_diss_hmix, int_drhodX=vs.int_drhodS[..., vs.tau])
+    if enable_conserve_energy:
+        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw, int_drhodX=int_drhodS[..., tau])
+
+    return temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix
 
 
-@veros_method
-def tempsalt_diffusion(vs):
+@veros_kernel(static_args=('enable_conserve_energy',))
+def tempsalt_diffusion(int_drhodT, int_drhodS, temp, salt, maskT, maskU, maskV, maskW,
+                       dxt, dxu, dyt, dyu, nz, dzw, tau, taup1, dt_tracer, K_h, cost, cosu,
+                       hor_friction_cosPower, enable_hor_friction_cos_scaling,
+                       enable_conserve_energy):
     """
     Diffusion of temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
     # horizontal diffusion of temperature
-    vs.dtemp_hmix[1:, 1:, :] = horizontal_diffusion(vs, vs.temp[:, :, :, vs.tau], vs.K_h)[1:, 1:, :]
-    vs.temp[:, :, :, vs.taup1] += vs.dt_tracer * vs.dtemp_hmix * vs.maskT
+    dtemp_hmix = np.zeros_like(maskT)
+    dtemp_hmix[1:, 1:, :] = horizontal_diffusion(temp[:, :, :, tau], K_h,
+                                                 dxt, dxu, dyt, dyu, maskT,
+                                                 maskU, maskV, cost, cosu,
+                                                 hor_friction_cosPower,
+                                                 enable_hor_friction_cos_scaling)[1:, 1:, :]
+    temp[:, :, :, taup1] += dt_tracer * dtemp_hmix * maskT
 
-    if vs.enable_conserve_energy:
-        vs.P_diss_hmix[...] = 0.
-        dissipation_on_wgrid(vs, vs.P_diss_hmix, int_drhodX=vs.int_drhodT[..., vs.tau])
+    P_diss_hmix = np.zeros_like(maskW)
+    if enable_conserve_energy:
+        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw, int_drhodX=int_drhodT[..., tau])
 
     # horizontal diffusion of salinity
-    vs.dsalt_hmix[1:, 1:, :] = horizontal_diffusion(vs, vs.salt[:, :, :, vs.tau], vs.K_h)[1:, 1:, :]
-    vs.salt[:, :, :, vs.taup1] += vs.dt_tracer * vs.dsalt_hmix * vs.maskT
+    dsalt_hmix = np.zeros_like(maskT)
+    dsalt_hmix[1:, 1:, :] = horizontal_diffusion(salt[:, :, :, tau], K_h,
+                                                 dxt, dxu, dyt, dyu, maskT,
+                                                 maskU, maskV, cost, cosu,
+                                                 hor_friction_cosPower,
+                                                 enable_hor_friction_cos_scaling)[1:, 1:, :]
+    salt[:, :, :, taup1] += dt_tracer * dsalt_hmix * maskT
 
-    if vs.enable_conserve_energy:
-        dissipation_on_wgrid(vs, vs.P_diss_hmix, int_drhodX=vs.int_drhodS[..., vs.tau])
+    if enable_conserve_energy:
+        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw, int_drhodX=int_drhodS[..., tau])
+
+    return temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix
 
 
-@veros_method
-def tempsalt_sources(vs):
+@veros_kernel(static_args=('enable_conserve_energy',))
+def tempsalt_sources(temp, salt, temp_source, salt_source, maskT, maskW,
+                     tau, taup1, dt_tracer, grav, rho_0, nz, dzw,
+                     int_drhodT, int_drhodS, enable_conserve_energy):
     """
     Sources of temp and salinity,
     effect on dyn. Enthalpy is stored
     """
-    vs.temp[:, :, :, vs.taup1] += vs.dt_tracer * vs.temp_source * vs.maskT
-    vs.salt[:, :, :, vs.taup1] += vs.dt_tracer * vs.salt_source * vs.maskT
+    temp[:, :, :, taup1] += dt_tracer * temp_source * maskT
+    salt[:, :, :, taup1] += dt_tracer * salt_source * maskT
 
-    if vs.enable_conserve_energy:
-        aloc = -vs.grav / vs.rho_0 * vs.maskT * \
-            (vs.int_drhodT[..., vs.tau] * vs.temp_source +
-             vs.int_drhodS[..., vs.tau] * vs.salt_source)
-        vs.P_diss_sources[...] = 0.
-        dissipation_on_wgrid(vs, vs.P_diss_sources, aloc=aloc)
+    P_diss_sources = np.zeros_like(maskW)
+    if enable_conserve_energy:
+        aloc = -grav / rho_0 * maskT * \
+            (int_drhodT[..., tau] * temp_source +
+             int_drhodS[..., tau] * salt_source)
+        P_diss_sources = dissipation_on_wgrid(P_diss_sources, nz, dzw, aloc=aloc)
+
+    return temp, salt, P_diss_sources
 
 
-@veros_method
-def biharmonic_diffusion(vs, tr, diffusivity):
+@veros_kernel
+def biharmonic_diffusion(tr, diffusivity, dxt, dxu, dyt, dyu, maskT, maskU, maskV,
+                         cost, cosu, enable_cyclic_x):
     """
     Biharmonic mixing of tracer tr
     """
-    del2 = allocate(vs, ('xt', 'yt', 'zt'))
-    dtr = allocate(vs, ('xt', 'yt', 'zt'))
+    del2 = np.zeros_like(maskT)
+    dtr = np.zeros_like(maskT)
+    flux_east = np.zeros_like(maskU)
+    flux_north = np.zeros_like(maskV)
 
-    vs.flux_east[:-1, :, :] = -diffusivity * (tr[1:, :, :] - tr[:-1, :, :]) \
-            / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
-            * vs.maskU[:-1, :, :]
+    flux_east[:-1, :, :] = -diffusivity * (tr[1:, :, :] - tr[:-1, :, :]) \
+        / (cost[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis]) \
+        * maskU[:-1, :, :]
 
-    vs.flux_north[:, :-1, :] = -diffusivity * (tr[:, 1:, :] - tr[:, :-1, :]) \
-            / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] \
-            * vs.cosu[np.newaxis, :-1, np.newaxis]
+    flux_north[:, :-1, :] = -diffusivity * (tr[:, 1:, :] - tr[:, :-1, :]) \
+        / dyu[np.newaxis, :-1, np.newaxis] * maskV[:, :-1, :] \
+        * cosu[np.newaxis, :-1, np.newaxis]
 
-    del2[1:, 1:, :] = vs.maskT[1:, 1:, :] * (vs.flux_east[1:, 1:, :] - vs.flux_east[:-1, 1:, :]) \
-            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
-            + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
-            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
+    del2[1:, 1:, :] = maskT[1:, 1:, :] * (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
+        / (cost[np.newaxis, 1:, np.newaxis] * dxt[1:, np.newaxis, np.newaxis]) \
+        + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
+        / (cost[np.newaxis, 1:, np.newaxis] * dyt[np.newaxis, 1:, np.newaxis])
 
-    utilities.enforce_boundaries(vs, del2)
+    utilities.enforce_boundaries(del2, enable_cyclic_x)
 
-    vs.flux_east[:-1, :, :] = diffusivity * (del2[1:, :, :] - del2[:-1, :, :]) \
-            / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
-            * vs.maskU[:-1, :, :]
-    vs.flux_north[:, :-1, :] = diffusivity * (del2[:, 1:, :] - del2[:, :-1, :]) \
-            / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] \
-            * vs.cosu[np.newaxis, :-1, np.newaxis]
+    flux_east[:-1, :, :] = diffusivity * (del2[1:, :, :] - del2[:-1, :, :]) \
+        / (cost[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis]) \
+        * maskU[:-1, :, :]
+    flux_north[:, :-1, :] = diffusivity * (del2[:, 1:, :] - del2[:, :-1, :]) \
+        / dyu[np.newaxis, :-1, np.newaxis] * maskV[:, :-1, :] \
+        * cosu[np.newaxis, :-1, np.newaxis]
 
-    vs.flux_east[-1, :, :] = 0.
-    vs.flux_north[:, -1, :] = 0.
+    flux_east[-1, :, :] = 0.
+    flux_north[:, -1, :] = 0.
 
-    dtr[1:, 1:, :] = (vs.flux_east[1:, 1:, :] - vs.flux_east[:-1, 1:, :]) \
-            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
-            + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :]) \
-            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])
+    dtr[1:, 1:, :] = (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
+        / (cost[np.newaxis, 1:, np.newaxis] * dxt[1:, np.newaxis, np.newaxis]) \
+        + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
+        / (cost[np.newaxis, 1:, np.newaxis] * dyt[np.newaxis, 1:, np.newaxis])
 
-    dtr[...] *= vs.maskT
+    dtr[...] *= maskT
 
     return dtr
 
 
-@veros_method
-def horizontal_diffusion(vs, tr, diffusivity):
+@veros_kernel(static_args=('enable_hor_friction_cos_scaling'))
+def horizontal_diffusion(tr, diffusivity, dxt, dxu, dyt, dyu, maskT, maskU, maskV, cost,
+                         cosu, hor_friction_cosPower, enable_hor_friction_cos_scaling):
     """
     Diffusion of tracer tr
     """
-    dtr_hmix = allocate(vs, ('xt', 'yt', 'zt'))
+    dtr_hmix = np.zeros_like(maskT)
+    flux_east = np.zeros_like(maskU)
+    flux_north = np.zeros_like(maskV)
 
     # horizontal diffusion of tracer
-    vs.flux_east[:-1, :, :] = diffusivity * (tr[1:, :, :] - tr[:-1, :, :]) \
-        / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis])\
-        * vs.maskU[:-1, :, :]
-    vs.flux_east[-1, :, :] = 0.
+    flux_east[:-1, :, :] = diffusivity * (tr[1:, :, :] - tr[:-1, :, :]) \
+        / (cost[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis])\
+        * maskU[:-1, :, :]
+    flux_east[-1, :, :] = 0.
 
-    vs.flux_north[:, :-1, :] = diffusivity * (tr[:, 1:, :] - tr[:, :-1, :]) \
-        / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :]\
-        * vs.cosu[np.newaxis, :-1, np.newaxis]
-    vs.flux_north[:, -1, :] = 0.
+    flux_north[:, :-1, :] = diffusivity * (tr[:, 1:, :] - tr[:, :-1, :]) \
+        / dyu[np.newaxis, :-1, np.newaxis] * maskV[:, :-1, :]\
+        * cosu[np.newaxis, :-1, np.newaxis]
+    flux_north[:, -1, :] = 0.
 
-    if vs.enable_hor_friction_cos_scaling:
-        vs.flux_east[...] *= vs.cost[np.newaxis, :, np.newaxis] ** vs.hor_friction_cosPower
-        vs.flux_north[...] *= vs.cosu[np.newaxis, :, np.newaxis] ** vs.hor_friction_cosPower
+    if enable_hor_friction_cos_scaling:
+        flux_east[...] *= cost[np.newaxis, :, np.newaxis] ** hor_friction_cosPower
+        flux_north[...] *= cosu[np.newaxis, :, np.newaxis] ** hor_friction_cosPower
 
-    dtr_hmix[1:, 1:, :] = ((vs.flux_east[1:, 1:, :] - vs.flux_east[:-1, 1:, :])
-                           / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])
-                           + (vs.flux_north[1:, 1:, :] - vs.flux_north[1:, :-1, :])
-                           / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis]))\
-                                * vs.maskT[1:, 1:, :]
+    dtr_hmix[1:, 1:, :] = ((flux_east[1:, 1:, :] - flux_east[:-1, 1:, :])
+                           / (cost[np.newaxis, 1:, np.newaxis] * dxt[1:, np.newaxis, np.newaxis])
+                           + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :])
+                           / (cost[np.newaxis, 1:, np.newaxis] * dyt[np.newaxis, 1:, np.newaxis]))\
+                        * maskT[1:, 1:, :]
 
     return dtr_hmix

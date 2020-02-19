@@ -1,5 +1,5 @@
 from veros.core import veros_kernel
-from .. runtime_settings as rs, runtime_state as rst
+from .. import runtime_settings as rs, runtime_state as rst
 
 
 @veros_kernel(static_args=('enable_cyclic_x', 'local'))
