@@ -134,6 +134,13 @@ def streamfunction_init(vs):
 
 @veros_method
 def _ascii_map(vs, boundary_map):
+    def _get_char(c):
+        if c == 0:
+            return '.'
+        if c < 0:
+            return '#'
+        return str(c % 10)
+
     map_string = ''
     linewidth = 100
     imt = vs.nx + 4
@@ -150,8 +157,8 @@ def _ascii_map(vs, boundary_map):
             map_string += ''.join(['{:5d}'.format(istart + i + 1 - 2) for i in range(1, iline + 1, 5)])
             map_string += '\n'
             for j in range(vs.ny + 3, -1, -1):
-                map_string += '{:3d} '.format(j) + ''.join([str(boundary_map[istart + i - 2, j] % 10)
-                                                            if boundary_map[istart + i - 2, j] >= 0 else '*' for i in range(2, iline + 2)])
+                map_string += '{:3d} '.format(j)
+                map_string += ''.join([_get_char(boundary_map[istart + i - 2, j]) for i in range(2, iline + 2)])
                 map_string += '\n'
             map_string += ''.join(['{:5d}'.format(istart + i + 1 - 2) for i in range(1, iline + 1, 5)])
             map_string += '\n'

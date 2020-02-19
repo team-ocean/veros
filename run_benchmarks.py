@@ -24,13 +24,13 @@ COMPONENTS = ['numpy', 'numpy-mpi', 'bohrium', 'bohrium-opencl', 'bohrium-cuda',
 STATIC_SETTINGS = '-v debug -s nx {nx} -s ny {ny} -s nz {nz} -s default_float_type {float_type} --timesteps {timesteps}'
 BENCHMARK_COMMANDS = {
     'numpy': '{python} {filename} -b numpy ' + STATIC_SETTINGS,
-    'numpy-mpi': '{mpiexec} -n {nproc} -- {python} {filename} -b numpy -n {decomp} ' + STATIC_SETTINGS,
+    'numpy-mpi': '{mpiexec} -n {nproc} {python} {filename} -b numpy -n {decomp} ' + STATIC_SETTINGS,
     'bohrium': 'OMP_NUM_THREADS={nproc} BH_STACK=openmp BH_OPENMP_PROF=1 {python} {filename} -b bohrium '  + STATIC_SETTINGS,
     'bohrium-opencl': 'BH_STACK=opencl BH_OPENCL_PROF=1 {python} {filename} -b bohrium ' + STATIC_SETTINGS,
     'bohrium-cuda': 'BH_STACK=cuda BH_CUDA_PROF=1 {python} {filename} -b bohrium ' + STATIC_SETTINGS,
-    'bohrium-mpi': 'OMP_NUM_THREADS=1 {mpiexec} -n {nproc} -- {python} {filename} -b bohrium -n {decomp} ' + STATIC_SETTINGS,
+    'bohrium-mpi': 'OMP_NUM_THREADS=1 {mpiexec} -n {nproc} {python} {filename} -b bohrium -n {decomp} ' + STATIC_SETTINGS,
     'fortran': '{python} {filename} --fortran {fortran_library} ' + STATIC_SETTINGS,
-    'fortran-mpi': '{mpiexec} -n {nproc} -- {python} {filename} --fortran {fortran_library} -n {decomp} ' + STATIC_SETTINGS
+    'fortran-mpi': '{mpiexec} -n {nproc} {python} {filename} --fortran {fortran_library} -n {decomp} ' + STATIC_SETTINGS
 }
 SLURM_COMMANDS = {
     'numpy': 'srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b numpy ' + STATIC_SETTINGS,

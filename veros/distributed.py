@@ -284,31 +284,37 @@ def exchange_cyclic_boundaries(vs, arr):
 def _reduce(vs, arr, op, axis=None):
     if axis is None:
         comm = rs.mpi_comm
+        disconnect_comm = False
     else:
         assert axis in (0, 1)
         pi = proc_rank_to_index(rst.proc_rank)
         other_axis = 1 - axis
         comm = rs.mpi_comm.Split(pi[other_axis], rst.proc_rank)
+        disconnect_comm = True
 
-    if np.isscalar(arr):
-        squeeze = True
-        arr = np.array([arr])
-    else:
-        squeeze = False
+    try:
+        if np.isscalar(arr):
+            squeeze = True
+            arr = np.array([arr])
+        else:
+            squeeze = False
 
-    arr = ascontiguousarray(arr)
-    res = np.empty_like(arr)
+        arr = ascontiguousarray(arr)
+        res = np.empty_like(arr)
 
-    comm.Allreduce(
-        get_array_buffer(vs, arr),
-        get_array_buffer(vs, res),
-        op=op
-    )
+        comm.Allreduce(
+            get_array_buffer(vs, arr),
+            get_array_buffer(vs, res),
+            op=op
+        )
 
-    if squeeze:
-        res = res[0]
+        if squeeze:
+            res = res[0]
 
-    return res
+        return res
+    finally:
+        if disconnect_comm:
+            comm.Disconnect()
 
 
 @dist_context_only
