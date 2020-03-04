@@ -1,32 +1,32 @@
-from .. import veros_method, runtime_settings as rs, runtime_state as rst
+from veros.core import veros_kernel
+from .. import runtime_settings as rs, runtime_state as rst
 
 
-@veros_method
-def enforce_boundaries(vs, arr, local=False):
+@veros_kernel(static_args=('enable_cyclic_x', 'local'))
+def enforce_boundaries(arr, enable_cyclic_x, local=False):
     from ..distributed import exchange_cyclic_boundaries, exchange_overlap
     from ..decorators import CONTEXT
 
-    if vs.enable_cyclic_x:
+    if enable_cyclic_x:
         if rs.num_proc[0] == 1 or not CONTEXT.is_dist_safe or local:
             arr[-2:, ...] = arr[2:4, ...]
             arr[:2, ...] = arr[-4:-2, ...]
         else:
-            exchange_cyclic_boundaries(vs, arr)
+            exchange_cyclic_boundaries(arr)
 
     if local or rst.proc_num == 1:
         return
 
-    exchange_overlap(vs, arr, ['xt', 'yt'])
+    exchange_overlap(arr, ['xt', 'yt'])
 
 
-@veros_method(inline=True)
-def where(vs, cond, arr1, arr2):
-    assert cond.dtype == np.bool
-    return cond * arr1 + np.logical_not(cond) * arr2
+@veros_kernel
+def where(mask, a, b):
+    return np.where(mask, a, b)
 
 
-@veros_method(inline=True)
-def pad_z_edges(vs, array):
+@veros_kernel
+def pad_z_edges(array):
     """
     Pads the z-axis of an array by repeating its edge values
     """
@@ -47,8 +47,8 @@ def pad_z_edges(vs, array):
     return newarray
 
 
-@veros_method(inline=True)
-def solve_implicit(vs, ks, a, b, c, d, b_edge=None, d_edge=None):
+@veros_kernel
+def solve_implicit(ks, a, b, c, d, b_edge=None, d_edge=None):
     from .numerics import solve_tridiag  # avoid circular import
 
     land_mask = (ks >= 0)[:, :, np.newaxis]
@@ -58,13 +58,12 @@ def solve_implicit(vs, ks, a, b, c, d, b_edge=None, d_edge=None):
                               >= ks[:, :, np.newaxis])
 
     a_tri = water_mask * a * np.logical_not(edge_mask)
-    #a_tri = np.logical_not(edge_mask) * a_tri
-    b_tri = where(vs, water_mask, b, 1.)
+    b_tri = where(water_mask, b, 1.)
     if b_edge is not None:
-        b_tri = where(vs, edge_mask, b_edge, b_tri)
+        b_tri = where(edge_mask, b_edge, b_tri)
     c_tri = water_mask * c
     d_tri = water_mask * d
     if d_edge is not None:
-        d_tri = where(vs, edge_mask, d_edge, d_tri)
+        d_tri = where(edge_mask, d_edge, d_tri)
 
-    return solve_tridiag(vs, a_tri, b_tri, c_tri, d_tri), water_mask
+    return solve_tridiag(a_tri, b_tri, c_tri, d_tri), water_mask
