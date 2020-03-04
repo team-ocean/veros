@@ -1,9 +1,11 @@
-from ... import veros_method
+from veros.core import veros_kernel
 from veros.distributed import global_sum
 
 
-@veros_method
-def line_integrals(vs, uloc, vloc, kind='same'):
+@veros_kernel(static_args=('kind',))
+def line_integrals(dxu, dyu, cost, line_dir_east_mask, line_dir_west_mask,
+                   line_dir_north_mask, line_dir_south_mask, boundary_mask,
+                   nisle, uloc, vloc, kind='same'):
     """
     calculate line integrals along all islands
 
@@ -14,56 +16,56 @@ def line_integrals(vs, uloc, vloc, kind='same'):
     if kind not in ('same', 'full'):
         raise ValueError('kind must be "same" or "full"')
 
-    east = vloc[1:-2, 1:-2, :] * vs.dyu[np.newaxis, 1:-2, np.newaxis] \
+    east = vloc[1:-2, 1:-2, :] * dyu[np.newaxis, 1:-2, np.newaxis] \
         + uloc[1:-2, 2:-1, :] \
-        * vs.dxu[1:-2, np.newaxis, np.newaxis] \
-        * vs.cost[np.newaxis, 2:-1, np.newaxis]
-    west = -vloc[2:-1, 1:-2, :] * vs.dyu[np.newaxis, 1:-2, np.newaxis] \
+        * dxu[1:-2, np.newaxis, np.newaxis] \
+        * cost[np.newaxis, 2:-1, np.newaxis]
+    west = -vloc[2:-1, 1:-2, :] * dyu[np.newaxis, 1:-2, np.newaxis] \
         - uloc[1:-2, 1:-2, :] \
-        * vs.dxu[1:-2, np.newaxis, np.newaxis] \
-        * vs.cost[np.newaxis, 1:-2, np.newaxis]
-    north = vloc[1:-2, 1:-2, :] * vs.dyu[np.newaxis, 1:-2, np.newaxis] \
+        * dxu[1:-2, np.newaxis, np.newaxis] \
+        * cost[np.newaxis, 1:-2, np.newaxis]
+    north = vloc[1:-2, 1:-2, :] * dyu[np.newaxis, 1:-2, np.newaxis] \
         - uloc[1:-2, 1:-2, :] \
-        * vs.dxu[1:-2, np.newaxis, np.newaxis] \
-        * vs.cost[np.newaxis, 1:-2, np.newaxis]
-    south = -vloc[2:-1, 1:-2, :] * vs.dyu[np.newaxis, 1:-2, np.newaxis] \
+        * dxu[1:-2, np.newaxis, np.newaxis] \
+        * cost[np.newaxis, 1:-2, np.newaxis]
+    south = -vloc[2:-1, 1:-2, :] * dyu[np.newaxis, 1:-2, np.newaxis] \
         + uloc[1:-2, 2:-1, :] \
-        * vs.dxu[1:-2, np.newaxis, np.newaxis] \
-        * vs.cost[np.newaxis, 2:-1, np.newaxis]
+        * dxu[1:-2, np.newaxis, np.newaxis] \
+        * cost[np.newaxis, 2:-1, np.newaxis]
 
     if kind == 'same':
-        east = np.sum(east * (vs.line_dir_east_mask[1:-2, 1:-2] &
-                                vs.boundary_mask[1:-2, 1:-2]), axis=(0, 1))
-        west = np.sum(west * (vs.line_dir_west_mask[1:-2, 1:-2] &
-                                vs.boundary_mask[1:-2, 1:-2]), axis=(0, 1))
-        north = np.sum(north * (vs.line_dir_north_mask[1:-2, 1:-2]
-                                    & vs.boundary_mask[1:-2, 1:-2]), axis=(0, 1))
-        south = np.sum(south * (vs.line_dir_south_mask[1:-2, 1:-2]
-                                    & vs.boundary_mask[1:-2, 1:-2]), axis=(0, 1))
+        east = np.sum(east * (line_dir_east_mask[1:-2, 1:-2] &
+                              boundary_mask[1:-2, 1:-2]), axis=(0, 1))
+        west = np.sum(west * (line_dir_west_mask[1:-2, 1:-2] &
+                              boundary_mask[1:-2, 1:-2]), axis=(0, 1))
+        north = np.sum(north * (line_dir_north_mask[1:-2, 1:-2]
+                                & boundary_mask[1:-2, 1:-2]), axis=(0, 1))
+        south = np.sum(south * (line_dir_south_mask[1:-2, 1:-2]
+                                & boundary_mask[1:-2, 1:-2]), axis=(0, 1))
         out = east + west + north + south
     else:
-        out = np.empty((vs.nisle, vs.nisle))
-        for isle in range(vs.nisle):
+        out = np.empty((nisle, nisle))
+        for isle in range(nisle):
             east_isle = np.sum(
                 east[..., isle, np.newaxis]
-                * (vs.line_dir_east_mask[1:-2, 1:-2] & vs.boundary_mask[1:-2, 1:-2]),
+                * (line_dir_east_mask[1:-2, 1:-2] & boundary_mask[1:-2, 1:-2]),
                 axis=(0, 1)
             )
             west_isle = np.sum(
                 west[..., isle, np.newaxis]
-                * (vs.line_dir_west_mask[1:-2, 1:-2] & vs.boundary_mask[1:-2, 1:-2]),
+                * (line_dir_west_mask[1:-2, 1:-2] & boundary_mask[1:-2, 1:-2]),
                 axis=(0, 1)
             )
             north_isle = np.sum(
                 north[..., isle, np.newaxis]
-                * (vs.line_dir_north_mask[1:-2, 1:-2] & vs.boundary_mask[1:-2, 1:-2]),
+                * (line_dir_north_mask[1:-2, 1:-2] & boundary_mask[1:-2, 1:-2]),
                 axis=(0, 1)
             )
             south_isle = np.sum(
                 south[..., isle, np.newaxis]
-                * (vs.line_dir_south_mask[1:-2, 1:-2] & vs.boundary_mask[1:-2, 1:-2]),
+                * (line_dir_south_mask[1:-2, 1:-2] & boundary_mask[1:-2, 1:-2]),
                 axis=(0, 1)
             )
             out[:, isle] = east_isle + west_isle + north_isle + south_isle
 
-    return global_sum(vs, out)
+    return global_sum(out)
