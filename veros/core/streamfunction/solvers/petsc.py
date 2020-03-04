@@ -1,3 +1,4 @@
+import numpy as np
 from petsc4py import PETSc
 from loguru import logger
 
@@ -71,7 +72,7 @@ class PETScSolver(LinearSolver):
             x0 = x0.copy2numpy()
         except AttributeError:
             pass
-        
+
         self._da.getVecArray(self._rhs_petsc)[...] = rhs[2:-2, 2:-2]
         self._da.getVecArray(self._sol_petsc)[...] = x0[2:-2, 2:-2]
 

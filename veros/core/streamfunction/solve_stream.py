@@ -5,6 +5,8 @@ with Dirichlet boundary conditions
 used for streamfunction
 """
 
+import numpy as np
+
 from veros.core import veros_kernel
 from . import utilities
 from .. import utilities as mainutils

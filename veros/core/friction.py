@@ -1,8 +1,8 @@
 import math
 
-from veros.core import veros_routine, veros_kernel
-from .. import runtime_settings as rs
-from . import numerics, utilities, isoneutral
+import numpy as np
+
+from veros.core import veros_routine, veros_kernel, numerics, utilities, isoneutral
 
 
 @veros_kernel

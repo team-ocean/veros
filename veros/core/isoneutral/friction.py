@@ -1,5 +1,6 @@
-from veros.core import veros_kernel
-from .. import numerics, utilities
+import numpy as np
+
+from veros.core import veros_kernel, numerics, utilities
 
 
 @veros_kernel(static_args=('enable_implicit_vert_friction', 'enable_conserve_energy'))

@@ -1,7 +1,7 @@
+import numpy as np
 from loguru import logger
 
-from .. import density, utilities
-from veros.core import veros_kernel
+from veros.core import veros_kernel, density, utilities
 
 
 @veros_kernel

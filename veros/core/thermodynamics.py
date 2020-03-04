@@ -1,6 +1,10 @@
-from veros.core import veros_kernel, veros_routine
-from ..distributed import global_sum
-from . import advection, diffusion, isoneutral, density, utilities
+import numpy as np
+
+from veros.distributed import global_sum
+from veros.core import (
+    veros_kernel, veros_routine, run_kernel,
+    advection, diffusion, isoneutral, density, utilities
+)
 
 
 @veros_kernel(static_args=('enable_superbee_advection',))

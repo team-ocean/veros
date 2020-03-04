@@ -1,3 +1,5 @@
+import numpy as np
+
 from veros.core import veros_kernel
 
 """
@@ -8,6 +10,7 @@ from veros.core import veros_kernel
   density in terms of SA, CT and p (IOC et al., 2010).
 ==========================================================================
 """
+
 v01 = 9.998420897506056e+2
 v02 = 2.839940833161907e0
 v03 = -3.147759265588511e-2

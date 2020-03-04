@@ -1,8 +1,9 @@
+import numpy as np
+
 from veros.core import veros_kernel
 from .. import runtime_settings as rs, runtime_state as rst
 
 
-@veros_kernel(static_args=('enable_cyclic_x', 'local'))
 def enforce_boundaries(arr, enable_cyclic_x, local=False):
     from ..distributed import exchange_cyclic_boundaries, exchange_overlap
     from ..decorators import CONTEXT

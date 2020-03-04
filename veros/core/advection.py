@@ -1,5 +1,7 @@
+import numpy as np
+
 from veros.core import veros_kernel
-from .utilities import pad_z_edges, where
+from veros.core.utilities import pad_z_edges, where
 
 
 @veros_kernel

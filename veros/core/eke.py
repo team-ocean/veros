@@ -1,8 +1,8 @@
 import math
 
-from vero.core import veros_kernel
-from .. import runtime_settings as rs
-from . import utilities, advection
+import numpy as np
+
+from vero.core import veros_kernel, utilities, advection
 
 
 @veros_kernel

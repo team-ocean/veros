@@ -1,10 +1,11 @@
+import numpy as np
 from loguru import logger
 import scipy.sparse
 import scipy.sparse.linalg as spalg
 
 from .base import LinearSolver
 from ... import utilities
-from .... import veros_method, runtime_settings as rs, distributed
+from .... import veros_method, distributed
 from ....variables import allocate
 
 

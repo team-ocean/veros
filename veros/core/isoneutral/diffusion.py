@@ -1,5 +1,6 @@
-from veros.core import veros_kernel
-from .. import utilities, diffusion
+import numpy as np
+
+from veros.core import veros_kernel, utilities, diffusion
 
 
 @veros_kernel

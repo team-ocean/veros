@@ -1,6 +1,6 @@
-from . import advection, utilities
-from .. import runtime_settings as rs
-from vero.core import veros_kernel
+import numpy as np
+
+from vero.core import veros_kernel, advection, utilities
 
 """
 IDEMIX as in Olbers and Eden, 2013

@@ -1,15 +1,16 @@
-from . import density, diffusion, utilities
-from veros.core import veros_kernel
+import numpy as np
+
+from veros.core import veros_kernel, density, diffusion, utilities
 
 
 @veros_kernel(
     dist_safe=False,
     local_variables=(
-    'dxt', 'dxu', 'xt', 'xu',
-    'dyt', 'dyu', 'yt', 'yu',
-    'dzt', 'dzw', 'zt', 'zw',
-    'cost', 'cosu', 'tantr',
-    'area_t', 'area_u', 'area_v',
+        'dxt', 'dxu', 'xt', 'xu',
+        'dyt', 'dyu', 'yt', 'yu',
+        'dzt', 'dzw', 'zt', 'zw',
+        'cost', 'cosu', 'tantr',
+        'area_t', 'area_u', 'area_v',
     ),
     static_args=('enable_cyclic_x', 'coord_degree',)
 )

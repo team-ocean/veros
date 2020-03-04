@@ -1,7 +1,8 @@
 import math
 
-from veros.core import veros_kernel
-from . import utilities
+import numpy as np
+
+from veros.core import veros_kernel, utilities
 
 
 @veros_kernel

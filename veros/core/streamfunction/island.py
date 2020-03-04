@@ -1,7 +1,7 @@
-import numpy
+import np as np
 import scipy.ndimage
 
-from veros.core import veros_kernel, runtime_settings as rs
+from veros.core import veros_kernel
 from .. import utilities
 
 
@@ -9,7 +9,7 @@ from .. import utilities
 def isleperim(kmt, enable_cyclic_x, verbose=False):
     utilities.enforce_boundaries(kmt, enable_cyclic_x)
 
-    structure = numpy.ones((3, 3))  # merge diagonally connected land masses
+    structure = np.ones((3, 3))  # merge diagonally connected land masses
 
     # find all land masses
     labelled, _ = scipy.ndimage.label(kmt == 0, structure=structure)
@@ -17,7 +17,7 @@ def isleperim(kmt, enable_cyclic_x, verbose=False):
     # find and set perimeter
     land_masses = labelled > 0
     inner = scipy.ndimage.binary_dilation(land_masses, structure=structure)
-    perimeter = numpy.logical_xor(inner, land_masses)
+    perimeter = np.logical_xor(inner, land_masses)
     labelled[perimeter] = -1
 
     # match wrapping periodic land masses
@@ -25,19 +25,19 @@ def isleperim(kmt, enable_cyclic_x, verbose=False):
         west_slice = labelled[2]
         east_slice = labelled[-2]
 
-        for west_label in numpy.unique(west_slice[west_slice > 0]):
-            east_labels = numpy.unique(east_slice[west_slice == west_label])
-            east_labels = east_labels[~numpy.isin(east_labels, [west_label, -1])]
+        for west_label in np.unique(west_slice[west_slice > 0]):
+            east_labels = np.unique(east_slice[west_slice == west_label])
+            east_labels = east_labels[~np.isin(east_labels, [west_label, -1])]
             if not east_labels.size:
                 # already labelled correctly
                 continue
-            assert len(numpy.unique(east_labels)) == 1, (west_label, east_labels)
+            assert len(np.unique(east_labels)) == 1, (west_label, east_labels)
             labelled[labelled == east_labels[0]] = west_label
 
     utilities.enforce_boundaries(labelled, enable_cyclic_x)
 
     # label landmasses in a way that is consistent with pyom
-    labels = numpy.unique(labelled[labelled > 0])
+    labels = np.unique(labelled[labelled > 0])
 
     label_idx = {}
     for label in labels:

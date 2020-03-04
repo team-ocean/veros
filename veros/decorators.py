@@ -13,6 +13,7 @@ except AttributeError:  # python 2
 
 CONTEXT = threading.local()
 CONTEXT.is_dist_safe = True
+CONTEXT.routine_stack = []
 CONTEXT.stack_level = 0
 
 
@@ -33,21 +34,14 @@ def veros_routine(function=None, **kwargs):
        >>>         self.kbot[...] = np.random.randint(0, self.nz, size=self.kbot.shape)
 
     """
-    if function is not None:
-        narg = 1 if _is_method(function) else 0
-        return _veros_routine(function, narg=narg)
-
-    dist_safe = kwargs.pop('dist_safe', True)
-    local_vars = kwargs.pop('local_variables', [])
-    dist_only = kwargs.pop('dist_only', False)
-
     def inner_decorator(function):
         narg = 1 if _is_method(function) else 0
-        return _veros_routine(
-            function, narg=narg,
-            dist_safe=dist_safe, local_vars=local_vars,
-            dist_only=dist_only
+        return VerosRoutine(
+            function, narg=narg, **kwargs
         )
+
+    if function is not None:
+        return inner_decorator(function)
 
     return inner_decorator
 
@@ -57,26 +51,45 @@ def _is_method(function):
     return spec.args and spec.args[0] == 'self'
 
 
-def _veros_routine(function, dist_safe=True, local_vars=None,
-                  dist_only=False, narg=0):
-    @functools.wraps(function)
-    def veros_routine_wrapper(*args, **kwargs):
-        from . import runtime_settings as rs, runtime_state as rst
-        from .backend import flush, get_backend
+class VerosRoutine:
+    def __init__(self, function, inputs=(), outputs=(), settings=(), subroutines=(), dist_safe=True, narg=0):
+        self.function = function
+        self.inputs = set(inputs)
+        self.this_inputs = set(inputs)
+        self.outputs = set(outputs)
+        self.this_outputs = set(outputs)
+        self.settings = set(settings)
+        self.subroutines = set(subroutines)
+
+        for subroutine in subroutines:
+            if not isinstance(subroutine, VerosRoutine):
+                raise TypeError('Subroutines must themselves be veros routines')
+
+            self.inputs |= subroutine.inputs
+            self.outputs |= subroutine.outputs
+            self.settings |= subroutine.settings
+
+        self.dist_safe = dist_safe
+        self.narg = narg
+
+        self.__call__ = functools.wraps(function)(self.__call__)
+
+    def __call__(self, *args, **kwargs):
+        from . import runtime_state as rst
+        from .backend import flush
         from .state import VerosStateBase
         from .state_dist import DistributedVerosState
-        from .distributed import broadcast
 
-        if not inline:
-            logger.trace(
-                '{}> {}:{}',
-                '-' * CONTEXT.stack_level,
-                inspect.getmodule(function).__name__,
-                function.__name__
-            )
-            CONTEXT.stack_level += 1
+        logger.trace(
+            '{}> {}:{}',
+            '-' * CONTEXT.stack_level,
+            inspect.getmodule(self.function).__name__,
+            self.function.__name__
+        )
+        CONTEXT.stack_level += 1
+        CONTEXT.routine_stack.append(self)
 
-        veros_state = args[narg]
+        veros_state = args.get(self.narg)
 
         if not isinstance(veros_state, VerosStateBase):
             raise TypeError('first argument to a veros_routine must be a veros state object')
@@ -84,12 +97,12 @@ def _veros_routine(function, dist_safe=True, local_vars=None,
         reset_dist_safe = False
         if not CONTEXT.is_dist_safe:
             assert isinstance(veros_state, DistributedVerosState)
-        elif not dist_safe and rst.proc_num > 1:
+        elif not self.dist_safe and rst.proc_num > 1:
             reset_dist_safe = True
 
         if reset_dist_safe:
             dist_state = DistributedVerosState(veros_state)
-            dist_state.gather_arrays(local_vars)
+            dist_state.gather_arrays(self.inputs)
             func_state = dist_state
             CONTEXT.is_dist_safe = False
         else:
@@ -99,41 +112,43 @@ def _veros_routine(function, dist_safe=True, local_vars=None,
         if not CONTEXT.is_dist_safe:
             execute = rst.proc_rank == 0
 
-        g = function.__globals__
-        sentinel = object()
-
-        oldvalue = g.get('np', sentinel)
-        g['np'] = get_backend(rs.backend)
-
         newargs = list(args)
-        newargs[narg] = func_state
+        newargs[self.narg] = func_state
 
-        res = None
         try:
             if execute:
-                res = function(*newargs, **kwargs)
-        except:
+                res = self.function(*newargs, **kwargs)
+        except:  # noqa: F722
             if reset_dist_safe:
                 CONTEXT.is_dist_safe = True
             raise
         else:
+            if set(res.keys()) != self.this_outputs:
+                raise KeyError('Veros routine returned unexpected outputs')
+
+            for key, val in res.items():
+                setattr(func_state, key, val)
+
             if reset_dist_safe:
                 CONTEXT.is_dist_safe = True
-                res = broadcast(veros_state, res)
                 dist_state.scatter_arrays()
         finally:
-            if oldvalue is sentinel:
-                del g['np']
-            else:
-                g['np'] = oldvalue
+            logger.trace(
+                '{}< {}:{}',
+                '-' * CONTEXT.stack_level,
+                inspect.getmodule(self.function).__name__,
+                self.function.__name__
+            )
+            CONTEXT.stack_level -= 1
+            r = CONTEXT.routine_stack.pop()
+            assert r is self
+            flush()
 
-            if not inline:
-                CONTEXT.stack_level -= 1
-                flush()
+        return veros_state
 
-        return res
 
-    return veros_method_wrapper
+def run_kernel(function, veros_state):
+    pass
 
 
 def dist_context_only(function):
@@ -193,6 +208,3 @@ def do_not_disturb(function):
         return res
 
     return dnd_wrapper
-
-
-def
