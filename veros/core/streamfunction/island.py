@@ -1,13 +1,13 @@
 import numpy
 import scipy.ndimage
 
-from ... import veros_method, runtime_settings as rs
+from veros.core import veros_kernel, runtime_settings as rs
 from .. import utilities
 
 
-@veros_method
-def isleperim(vs, kmt, verbose=False):
-    utilities.enforce_boundaries(vs, kmt)
+@veros_kernel(static_args=('enable_cyclic_x',))
+def isleperim(kmt, enable_cyclic_x, verbose=False):
+    utilities.enforce_boundaries(kmt, enable_cyclic_x)
 
     structure = numpy.ones((3, 3))  # merge diagonally connected land masses
 
@@ -21,7 +21,7 @@ def isleperim(vs, kmt, verbose=False):
     labelled[perimeter] = -1
 
     # match wrapping periodic land masses
-    if vs.enable_cyclic_x:
+    if enable_cyclic_x:
         west_slice = labelled[2]
         east_slice = labelled[-2]
 
@@ -34,7 +34,7 @@ def isleperim(vs, kmt, verbose=False):
             assert len(numpy.unique(east_labels)) == 1, (west_label, east_labels)
             labelled[labelled == east_labels[0]] = west_label
 
-    utilities.enforce_boundaries(vs, labelled)
+    utilities.enforce_boundaries(labelled, enable_cyclic_x)
 
     # label landmasses in a way that is consistent with pyom
     labels = numpy.unique(labelled[labelled > 0])
