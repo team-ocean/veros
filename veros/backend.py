@@ -4,14 +4,7 @@ BACKENDS = None
 
 
 def init_environment():
-    import os
-    from . import runtime_state as rst
-
-    if rst.proc_rank > 0:
-        os.environ.update(
-            BH_OPENMP_CACHE_READONLY='true',
-            BH_UNSUP_WARN='false',
-        )
+    pass
 
 
 def init_backends():
@@ -22,21 +15,7 @@ def init_backends():
     BACKENDS = {}
 
     import numpy
-    if numpy.__name__ == 'bohrium':
-        logger.warning('Running veros with "python -m bohrium" is discouraged '
-                       '(use "--backend bohrium" instead)')
-        import numpy_force
-        numpy = numpy_force
-
     BACKENDS['numpy'] = numpy
-
-    try:
-        import bohrium
-    except ImportError:
-        logger.warning('Could not import Bohrium (Bohrium backend will be unavailable)')
-        BACKENDS['bohrium'] = None
-    else:
-        BACKENDS['bohrium'] = bohrium
 
 
 def get_backend(backend_name):
@@ -55,21 +34,6 @@ def get_backend(backend_name):
 
 def get_vector_engine(np):
     from . import runtime_settings
-
-    if runtime_settings.backend == 'bohrium':
-        try:
-            import bohrium_api
-        except ImportError:
-            return None
-
-        if bohrium_api.stack_info.is_opencl_in_stack():
-            return 'opencl'
-
-        if bohrium_api.stack_info.is_cuda_in_stack():
-            return 'cuda'
-
-        return 'openmp'
-
     return None
 
 
@@ -78,9 +42,6 @@ def flush():
 
     if rs.backend == 'numpy':
         pass
-
-    elif rs.backend == 'bohrium':
-        get_backend(rs.backend).flush()
 
     else:
         raise RuntimeError('Unrecognized backend %s' % rs.backend)

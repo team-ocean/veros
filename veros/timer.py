@@ -6,12 +6,8 @@ class Timer:
         self.total_time = 0
         self.last_time = 0
 
-        try:
-            import bohrium as bh
-            flush = bh.flush
-        except ImportError:
-            def flush():
-                pass
+        def flush():
+            pass
 
         self._flush = flush
 

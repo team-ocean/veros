@@ -39,7 +39,7 @@ INSTALL_REQUIRES = [
 ]
 
 EXTRAS_REQUIRE = {
-    'fast': ['bohrium', 'pyamg'],
+    'fast': ['pyamg'],
     'mpi': ['mpi4py', 'petsc4py'],
     'test': ['pytest', 'pytest-cov', 'pytest-xdist', 'codecov', 'pyopencl', 'pyamg', 'petsc4py', 'mpi4py']
 }
@@ -65,7 +65,7 @@ setup(
     author='Dion Häfner (NBI Copenhagen)',
     author_email='dion.haefner@nbi.ku.dk',
     keywords='oceanography python parallel numpy multi-core '
-             'geophysics ocean-model bohrium mpi4py',
+             'geophysics ocean-model mpi4py',
     description='The versatile ocean simulator, in pure Python, powered by Bohrium.',
     long_description=long_description,
     long_description_content_type='text/markdown',

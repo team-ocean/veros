@@ -97,11 +97,7 @@ class VerosDiagnostic:
                 gidx, lidx = distributed.get_chunk_slices(vs, var_meta[key].dims[:var.ndim], include_overlap=True)
 
                 variables[key] = np.empty(local_shape, dtype=str(var.dtype))
-
-                if runtime_settings.backend == 'bohrium':
-                    variables[key][lidx] = var[gidx].astype(variables[key].dtype)
-                else:
-                    variables[key][lidx] = var[gidx]
+                variables[key][lidx] = var[gidx]
 
                 distributed.exchange_overlap(vs, variables[key], var_meta[key].dims)
 

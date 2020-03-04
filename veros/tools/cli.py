@@ -6,7 +6,7 @@ import click
 
 from veros.settings import SETTINGS
 
-BACKENDS = ['numpy', 'bohrium']
+BACKENDS = ['numpy']
 LOGLEVELS = ['trace', 'debug', 'info', 'warning', 'error', 'critical']
 
 
@@ -52,7 +52,7 @@ def cli(run):
         Usage: my_setup.py [OPTIONS]
 
         Options:
-        -b, --backend [numpy|bohrium]   Backend to use for computations (default:
+        -b, --backend [numpy]           Backend to use for computations (default:
                                         numpy)
         -v, --loglevel [trace|debug|info|warning|error|critical]
                                         Log level used for output (default: info)

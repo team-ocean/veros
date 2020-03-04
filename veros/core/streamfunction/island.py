@@ -9,9 +9,6 @@ from .. import utilities
 def isleperim(vs, kmt, verbose=False):
     utilities.enforce_boundaries(vs, kmt)
 
-    if rs.backend == 'bohrium':
-        kmt = kmt.copy2numpy()
-
     structure = numpy.ones((3, 3))  # merge diagonally connected land masses
 
     # find all land masses

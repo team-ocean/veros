@@ -1,4 +1,3 @@
-from .. import veros_method, runtime_settings as rs, runtime_state as rst
 from . import density, diffusion, utilities
 
 
@@ -210,11 +209,6 @@ def solve_tridiag(vs, a, b, c, d):
     last axis of the input arrays.
     """
     assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-
-    if rs.backend == 'bohrium' and rst.vector_engine in ('opencl', 'openmp'):
-        return np.linalg.solve_tridiagonal(a, b, c, d)
-
-    # fall back to scipy
     from scipy.linalg import lapack
     a[..., 0] = c[..., -1] = 0  # remove couplings between slices
     return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)

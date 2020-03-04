@@ -31,15 +31,7 @@ def get_array_buffer(vs, arr):
         'bool': MPI.BOOL,
     }
 
-    if rs.backend == 'bohrium':
-        if np.check(arr):
-            buf = np.interop_numpy.get_array(arr)
-        else:
-            buf = arr
-    else:
-        buf = arr
-
-    return [buf, arr.size, MPI_TYPE_MAP[str(arr.dtype)]]
+    return [arr, arr.size, MPI_TYPE_MAP[str(arr.dtype)]]
 
 
 @veros_method

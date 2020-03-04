@@ -26,7 +26,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
     Arguments:
         backend (:obj:`bool`, optional): Backend to use for array operations.
-            Possible values are ``numpy`` and ``bohrium``. Defaults to ``None``, which
+            Possible values are ``numpy``. Defaults to ``None``, which
             tries to read the backend from the command line (set via a flag
             ``-b``/``--backend``), and uses ``numpy`` if no command line argument is given.
         loglevel (one of {debug, info, warning, error, critical}, optional): Verbosity
@@ -40,7 +40,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         >>> class MyModel(VerosSetup):
         >>>     ...
         >>>
-        >>> simulation = MyModel(backend='bohrium')
+        >>> simulation = MyModel(backend='numpy')
         >>> simulation.run()
         >>> plt.imshow(simulation.state.psi[..., 0])
         >>> plt.show()
@@ -248,8 +248,8 @@ class VerosSetup(metaclass=abc.ABCMeta):
                         with vs.timers['diagnostics']:
                             diagnostics.write_restart(vs)
 
-                        if vs.itt - start_iteration == 3 and rs.profile_mode and rst.proc_rank == 0:
-                            # when using bohrium, most kernels should be pre-compiled by now
+                        if vs.itt - start_iteration == 1 and rs.profile_mode and rst.proc_rank == 0:
+                            # kernels should be pre-compiled by now
                             profiler = diagnostics.start_profiler()
 
                         with vs.timers['main']:

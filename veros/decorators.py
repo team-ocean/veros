@@ -16,42 +16,37 @@ CONTEXT.is_dist_safe = True
 CONTEXT.stack_level = 0
 
 
-def veros_method(function=None, **kwargs):
-    """Decorator that injects the current backend as variable ``np`` into the wrapped function.
-
+def veros_routine(function=None, **kwargs):
+    """
     .. note::
 
       This decorator should be applied to all functions that make use of the computational
-      backend (even when subclassing :class:`veros.Veros`). The first argument to the
+      backend (even when subclassing :class:`veros.Veros`). The sole argument to the
       decorated function must be a Veros instance.
 
     Example:
-       >>> from veros import Veros, veros_method
+       >>> from veros import VerosSetup, veros_routine
        >>>
-       >>> class MyModel(Veros):
-       >>>     @veros_method
+       >>> class MyModel(VerosSetup):
+       >>>     @veros_routine
        >>>     def set_topography(self):
        >>>         self.kbot[...] = np.random.randint(0, self.nz, size=self.kbot.shape)
 
     """
     if function is not None:
         narg = 1 if _is_method(function) else 0
-        return _veros_method(function, narg=narg)
+        return _veros_routine(function, narg=narg)
 
-    inline = kwargs.pop('inline', False)
     dist_safe = kwargs.pop('dist_safe', True)
-
-    if not dist_safe and 'local_variables' not in kwargs:
-        raise ValueError('local_variables argument must be given if dist_safe=False')
-
     local_vars = kwargs.pop('local_variables', [])
     dist_only = kwargs.pop('dist_only', False)
 
     def inner_decorator(function):
         narg = 1 if _is_method(function) else 0
-        return _veros_method(
-            function, inline=inline, narg=narg,
-            dist_safe=dist_safe, local_vars=local_vars, dist_only=dist_only
+        return _veros_routine(
+            function, narg=narg,
+            dist_safe=dist_safe, local_vars=local_vars,
+            dist_only=dist_only
         )
 
     return inner_decorator
@@ -62,10 +57,10 @@ def _is_method(function):
     return spec.args and spec.args[0] == 'self'
 
 
-def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
+def _veros_routine(function, dist_safe=True, local_vars=None,
                   dist_only=False, narg=0):
     @functools.wraps(function)
-    def veros_method_wrapper(*args, **kwargs):
+    def veros_routine_wrapper(*args, **kwargs):
         from . import runtime_settings as rs, runtime_state as rst
         from .backend import flush, get_backend
         from .state import VerosStateBase
@@ -84,7 +79,7 @@ def _veros_method(function, inline=False, dist_safe=True, local_vars=None,
         veros_state = args[narg]
 
         if not isinstance(veros_state, VerosStateBase):
-            raise TypeError('first argument to a veros_method must be a veros state object')
+            raise TypeError('first argument to a veros_routine must be a veros state object')
 
         reset_dist_safe = False
         if not CONTEXT.is_dist_safe:
@@ -198,3 +193,6 @@ def do_not_disturb(function):
         return res
 
     return dnd_wrapper
+
+
+def

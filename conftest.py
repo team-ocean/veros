@@ -7,7 +7,7 @@ def pytest_addoption(parser):
         help="Path to PyOM2 library (must be given for consistency tests)"
     )
     parser.addoption(
-        "--backend", choices=["numpy", "bohrium"], default="numpy",
+        "--backend", choices=["numpy"], default="numpy",
         help="Numerical backend to test"
     )
 

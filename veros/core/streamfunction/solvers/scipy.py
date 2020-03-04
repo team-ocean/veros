@@ -50,9 +50,6 @@ class SciPySolver(LinearSolver):
         if info > 0:
             logger.warning('Streamfunction solver did not converge after {} iterations', info)
 
-        if rs.backend == 'bohrium':
-            linear_solution = np.asarray(linear_solution)
-
         sol[...] = linear_solution.reshape(vs.nx + 4, vs.ny + 4)
 
     @veros_method
@@ -88,10 +85,6 @@ class SciPySolver(LinearSolver):
         Z = allocate(vs, ('xu', 'yu'), fill=1, local=False)
         Y = np.reshape(matrix.diagonal().copy(), (vs.nx + 4, vs.ny + 4))[2:-2, 2:-2]
         Z[2:-2, 2:-2] = utilities.where(vs, np.abs(Y) > eps, 1. / (Y + eps), 1.)
-
-        if rs.backend == 'bohrium':
-            Z = Z.copy2numpy()
-
         return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
 
     @staticmethod
@@ -141,8 +134,4 @@ class SciPySolver(LinearSolver):
             cf += (wrap_diag_east.flatten(), wrap_diag_west.flatten())
 
         cf = np.array(cf)
-
-        if rs.backend == 'bohrium':
-            cf = cf.copy2numpy()
-
         return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()
