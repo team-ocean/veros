@@ -2,7 +2,8 @@ import math
 
 import numpy as np
 
-from veros.core import veros_routine, veros_kernel, numerics, utilities, isoneutral
+from veros import veros_routine, veros_kernel, run_kernel
+from veros.core import numerics, utilities, isoneutral
 
 
 @veros_kernel
@@ -567,25 +568,25 @@ def friction(vs):
     vertical friction
     """
     vs.K_diss_v[...] = 0.0
-    if enable_implicit_vert_friction:
+    if vs.enable_implicit_vert_friction:
         u, v, du_mix, dv_mix, K_diss_v = run_kernel(implicit_vert_friction, vs)
-    if enable_explicit_vert_friction:
+    if vs.enable_explicit_vert_friction:
         du_mix, dv_mix, K_diss_v = run_kernel(explicit_vert_friction, vs)
 
     """
     TEM formalism for eddy-driven velocity
     """
-    if enable_TEM_friction:
+    if vs.enable_TEM_friction:
         du_mix, dv_mix, K_diss_gm, u, v = run_kernel(isoneutral.isoneutral_friction, vs,
                                                      du_mix=du_mix, dv_mix=dv_mix)
 
     """
     horizontal friction
     """
-    if enable_hor_friction:
+    if vs.enable_hor_friction:
         du_mix, dv_mix, K_diss_h = run_kernel(harmonic_friction, vs,
                                               du_mix=du_mix, dv_mix=dv_mix)
-    if enable_biharmonic_friction:
+    if vs.enable_biharmonic_friction:
         du_mix, dv_mix, K_diss_h = run_kernel(biharmonic_friction, vs,
                                               du_mix=du_mix, dv_mix=dv_mix)
 
@@ -593,20 +594,20 @@ def friction(vs):
     Rayleigh and bottom friction
     """
     vs.K_diss_bot[...] = 0.0
-    if enable_ray_friction:
+    if vs.enable_ray_friction:
         du_mix, dv_mix, K_diss_bot = run_kernel(rayleigh_friction, vs,
                                                 du_mix=du_mix, dv_mix=dv_mix)
-    if enable_bottom_friction:
+    if vs.enable_bottom_friction:
         du_mix, dv_mix, K_diss_bot = run_kernel(linear_bottom_friction, vs,
                                                 du_mix=du_mix, dv_mix=dv_mix)
-    if enable_quadratic_bottom_friction:
+    if vs.enable_quadratic_bottom_friction:
         du_mix, dv_mix, K_diss_bot = run_kernel(quadratic_bottom_friction, vs,
                                                 du_mix=du_mix, dv_mix=dv_mix)
 
     """
     add user defined forcing
     """
-    if enable_momentum_sources:
+    if vs.enable_momentum_sources:
         du_mix, dv_mix, K_diss_bot = run_kernel(momentum_sources, vs,
                                                 du_mix=du_mix, dv_mix=dv_mix,
                                                 K_diss_bot=K_diss_bot)

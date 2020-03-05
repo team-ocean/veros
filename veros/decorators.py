@@ -5,11 +5,6 @@ import threading
 
 from loguru import logger
 
-try:
-    getargspec = inspect.getfullargspec
-except AttributeError:  # python 2
-    getargspec = inspect.getargspec
-
 
 CONTEXT = threading.local()
 CONTEXT.is_dist_safe = True
@@ -36,6 +31,9 @@ def veros_routine(function=None, **kwargs):
     """
     def inner_decorator(function):
         narg = 1 if _is_method(function) else 0
+        num_params = len(inspect.signature(function).parameters)
+        if narg >= num_params:
+            raise TypeError('Veros routines must take at least one argument')
         return VerosRoutine(
             function, narg=narg, **kwargs
         )
@@ -47,12 +45,25 @@ def veros_routine(function=None, **kwargs):
 
 
 def _is_method(function):
-    spec = getargspec(function)
-    return spec.args and spec.args[0] == 'self'
+    # spec = inspect.getfullargspec(function)
+    # return spec.args and spec.args[0] == 'self'
+    return inspect.ismethod(function)
 
 
 class VerosRoutine:
     def __init__(self, function, inputs=(), outputs=(), settings=(), subroutines=(), dist_safe=True, narg=0):
+        if isinstance(inputs, str):
+            inputs = (inputs,)
+
+        if isinstance(outputs, str):
+            outputs = (outputs,)
+
+        if isinstance(settings, str):
+            settings = (settings,)
+
+        if isinstance(subroutines, VerosRoutine):
+            subroutines = (subroutines,)
+
         self.function = function
         self.inputs = set(inputs)
         self.this_inputs = set(inputs)
@@ -72,7 +83,11 @@ class VerosRoutine:
         self.dist_safe = dist_safe
         self.narg = narg
 
-        self.__call__ = functools.wraps(function)(self.__call__)
+        self.name = f'{inspect.getmodule(self.function).__name__}:{self.function.__name__}'
+
+        self.__call__ = functools.wraps(function)(
+            functools.partial(VerosRoutine.__call__, self=self)
+        )
 
     def __call__(self, *args, **kwargs):
         from . import runtime_state as rst
@@ -80,16 +95,11 @@ class VerosRoutine:
         from .state import VerosStateBase
         from .state_dist import DistributedVerosState
 
-        logger.trace(
-            '{}> {}:{}',
-            '-' * CONTEXT.stack_level,
-            inspect.getmodule(self.function).__name__,
-            self.function.__name__
-        )
+        logger.trace('{}> {}', '-' * CONTEXT.stack_level, self.name)
         CONTEXT.stack_level += 1
         CONTEXT.routine_stack.append(self)
 
-        veros_state = args.get(self.narg)
+        veros_state = args[self.narg]
 
         if not isinstance(veros_state, VerosStateBase):
             raise TypeError('first argument to a veros_routine must be a veros state object')
@@ -123,8 +133,10 @@ class VerosRoutine:
                 CONTEXT.is_dist_safe = True
             raise
         else:
+            if not isinstance(res, dict):
+                raise TypeError(f'Veros routines must return a single dict ({self.name})')
             if set(res.keys()) != self.this_outputs:
-                raise KeyError('Veros routine returned unexpected outputs')
+                raise KeyError(f'Veros routine {self.name} returned unexpected outputs (expected: {tuple(self.this_outputs)}, got: {tuple(res.keys())})')
 
             for key, val in res.items():
                 setattr(func_state, key, val)
@@ -133,12 +145,7 @@ class VerosRoutine:
                 CONTEXT.is_dist_safe = True
                 dist_state.scatter_arrays()
         finally:
-            logger.trace(
-                '{}< {}:{}',
-                '-' * CONTEXT.stack_level,
-                inspect.getmodule(self.function).__name__,
-                self.function.__name__
-            )
+            logger.trace('<{} {}', '-' * CONTEXT.stack_level, self.name)
             CONTEXT.stack_level -= 1
             r = CONTEXT.routine_stack.pop()
             assert r is self
@@ -147,8 +154,63 @@ class VerosRoutine:
         return veros_state
 
 
-def run_kernel(function, veros_state):
-    pass
+def run_kernel(function, veros_state, **kwargs):
+    """"""
+    func_name = f'{inspect.getmodule(function).__name__}:{function.__qualname__}'
+
+    # peel kernel parameters from veros state and given args
+    func_params = inspect.signature(function).parameters
+
+    func_kwargs = {
+        arg: getattr(veros_state, arg)
+        for arg in func_params.keys()
+        if hasattr(veros_state, arg)
+    }
+    func_kwargs.update(kwargs)
+
+    # check whether all required arguments are given
+    for param in func_params.values():
+        if param.name not in func_kwargs and param.default is inspect.Parameter.empty:
+            raise TypeError(f'{func_name} missing required argument: {param.name}')
+
+    func_args = (func_kwargs.get(param.name, param.default) for param in func_params.values())
+    return function(*func_args)
+
+
+def veros_kernel(function=None, static_args=()):
+    if isinstance(static_args, str):
+        static_args = (static_args,)
+
+    def inner_decorator(function):
+        """Do some parameter introspection and apply jax.jit"""
+        func_name = f'{inspect.getmodule(function).__name__}:{function.__qualname__}'
+        func_params = inspect.signature(function).parameters
+
+        allowed_param_types = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+
+        if any(p.kind not in allowed_param_types for p in func_params.values()):
+            raise ValueError(f'Veros kernels do not support *args, **kwargs, or keyword-only parameters ({func_name})')
+
+        func_argnames = list(func_params.keys())
+        static_argnums = []
+        for static_arg in static_args:
+            try:
+                arg_index = func_argnames.index(static_arg)
+            except ValueError:
+                raise ValueError(
+                    f'Veros kernel {func_name} has no argument {static_arg}, but it is given in static_args'
+                ) from None
+
+            static_argnums.append(arg_index)
+
+        from jax import jit
+        return jit(function, static_argnums=static_argnums)
+        return function
+
+    if function is not None:
+        return inner_decorator(function)
+
+    return inner_decorator
 
 
 def dist_context_only(function):

@@ -2,7 +2,8 @@ import math
 
 import numpy as np
 
-from vero.core import veros_kernel, utilities, advection
+from veros import veros_kernel
+from veros.core import utilities, advection
 
 
 @veros_kernel

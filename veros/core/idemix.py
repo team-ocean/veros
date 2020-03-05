@@ -1,6 +1,7 @@
 import numpy as np
 
-from vero.core import veros_kernel, advection, utilities
+from veros import veros_kernel
+from veros.core import advection, utilities
 
 """
 IDEMIX as in Olbers and Eden, 2013

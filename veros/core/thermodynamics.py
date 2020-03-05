@@ -1,10 +1,8 @@
 import numpy as np
 
+from veros import veros_routine, veros_kernel, run_kernel
 from veros.distributed import global_sum
-from veros.core import (
-    veros_kernel, veros_routine, run_kernel,
-    advection, diffusion, isoneutral, density, utilities
-)
+from veros.core import advection, diffusion, isoneutral, density, utilities
 
 
 @veros_kernel(static_args=('enable_superbee_advection',))
@@ -94,8 +92,8 @@ def calc_eq_of_state(n, salt, temp, rho, prho, Hd, int_drhodT, int_drhodS, Nsqr,
     """
     fxa = -grav / rho_0 / dzw[np.newaxis, np.newaxis, :-1] * maskW[:, :, :-1]
     Nsqr[:, :, :-1, n] = fxa * (density.get_rho(
-                                        salt[:, :, 1:], temp[:, :, 1:], press[:-1]
-                                    ) - rho[:, :, :-1, n])
+                                    salt[:, :, 1:], temp[:, :, 1:], press[:-1]
+                                ) - rho[:, :, :-1, n])
     Nsqr[:, :, -1, n] = Nsqr[:, :, -2, n]
 
     return rho, prho, Hd, int_drhodT, int_drhodS, Nsqr
@@ -239,10 +237,8 @@ def vertmix_tempsalt(temp, salt, dtemp_vmix, dsalt_vmix, kappaH, kbot, dzt, dzw,
     )
     salt[2:-2, 2:-2, :, taup1] = utilities.where(mask, sol, salt[2:-2, 2:-2, :, taup1])
 
-    dtemp_vmix[...] = (temp[:, :, :, taup1] -
-                       dtemp_vmix) / dt_tracer
-    dsalt_vmix[...] = (salt[:, :, :, taup1] -
-                       dsalt_vmix) / dt_tracer
+    dtemp_vmix[...] = (temp[:, :, :, taup1] - dtemp_vmix) / dt_tracer
+    dsalt_vmix[...] = (salt[:, :, :, taup1] - dsalt_vmix) / dt_tracer
 
     """
     boundary exchange
@@ -265,7 +261,7 @@ def surf_densityf(salt, temp, zt, maskT, taup1, forc_temp_surface, forc_salt_sur
         + density.get_drhodS(salt[:, :, -1, taup1],
                              temp[:, :, -1, taup1],
                              np.abs(zt[-1])) * forc_salt_surface
-        )
+    )
 
 
 @veros_kernel
@@ -385,23 +381,27 @@ def thermodynamics(vs):
     """
     Advection tendencies for temperature, salinity and dynamic enthalpy
     """
-    temp, salt, dtemp, dsalt, dHd, P_diss_adv = advect_temp_salt_enthalpy(vs)
+    temp, salt, dtemp, dsalt, dHd, P_diss_adv = run_kernel(advect_temp_salt_enthalpy, vs)
     """
     horizontal diffusion
     """
     with vs.timers['isoneutral']:
         if vs.enable_hor_diffusion:
-            temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix = \
-                diffusion.tempsalt_diffusion(vs, temp=temp, salt=salt)
+            temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix = run_kernel(
+                diffusion.tempsalt_diffusion, vs, temp=temp, salt=salt
+            )
         if vs.enable_biharmonic_mixing:
-            temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix = \
-                diffusion.tempsalt_biharmonic(vs, temp=temp, salt=salt)
+            temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix = run_kernel(
+                diffusion.tempsalt_biharmonic, vs, temp=temp, salt=salt
+            )
 
         """
         sources like restoring zones, etc
         """
         if vs.enable_tempsalt_sources:
-            temp, salt, P_diss_sources = diffusion.tempsalt_sources(vs, temp=temp, salt=salt)
+            temp, salt, P_diss_sources = run_kernel(
+                diffusion.tempsalt_sources, vs, temp=temp, salt=salt
+            )
 
         """
         isopycnal diffusion
@@ -411,51 +411,59 @@ def thermodynamics(vs):
             vs.dtemp_iso[...] = 0.0
             vs.dsalt_iso[...] = 0.0
 
-            K_11, K_22, K_33, Ai_ez, Ai_nz, Ai_bx, Ai_by = \
-                isoneutral.isoneutral_diffusion_pre(vs, salt=salt, temp=temp)
+            K_11, K_22, K_33, Ai_ez, Ai_nz, Ai_bx, Ai_by = run_kernel(
+                isoneutral.isoneutral_diffusion_pre, vs, salt=salt, temp=temp
+            )
 
-            temp, dtemp_iso, P_diss_iso = \
-                isoneutral.isoneutral_diffusion(vs,
-                    tr=temp, istemp=True, K_11=K_11, K_22=K_22, K_33=K_33,
-                    Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
-                    temp=temp, salt=salt)
+            temp, dtemp_iso, P_diss_iso = run_kernel(
+                isoneutral.isoneutral_diffusion, vs,
+                tr=temp, istemp=True, K_11=K_11, K_22=K_22, K_33=K_33,
+                Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
+                temp=temp, salt=salt
+            )
 
-            salt, dsalt_iso, P_diss_iso = \
-                isoneutral.isoneutral_diffusion(vs,
-                    tr=salt, istemp=False, K_11=K_11, K_22=K_22, K_33=K_33,
-                    Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
-                    P_diss_iso=P_diss_iso, temp=temp, salt=salt)
+            salt, dsalt_iso, P_diss_iso = run_kernel(
+                isoneutral.isoneutral_diffusion, vs,
+                tr=salt, istemp=False, K_11=K_11, K_22=K_22, K_33=K_33,
+                Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
+                P_diss_iso=P_diss_iso, temp=temp, salt=salt
+            )
 
             if vs.enable_skew_diffusion:
                 vs.P_diss_skew[...] = 0.0
-                temp, dtemp_iso, P_diss_skew = \
-                    isoneutral.isoneutral_skew_diffusion(vs,
-                        tr=temp, istemp=True, dtemp_iso=dtemp_iso,
-                        dsalt_iso=dsalt_iso, K_11=K_11, K_22=K_22, K_33=K_33,
-                        Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
-                        P_diss_iso=P_diss_iso, temp=temp, salt=salt)
-                salt, dsalt_iso, P_diss_skew = \
-                    isoneutral.isoneutral_skew_diffusion(vs,
-                        tr=salt, istemp=False, dtemp_iso=dtemp_iso,
-                        dsalt_iso=dsalt_iso, K_11=K_11, K_22=K_22, K_33=K_33,
-                        Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
-                        P_diss_iso=P_diss_iso, P_diss_skew=P_diss_skew,
-                        temp=temp, salt=salt)
+                temp, dtemp_iso, P_diss_skew = run_kernel(
+                    isoneutral.isoneutral_skew_diffusion, vs,
+                    tr=temp, istemp=True, dtemp_iso=dtemp_iso,
+                    dsalt_iso=dsalt_iso, K_11=K_11, K_22=K_22, K_33=K_33,
+                    Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
+                    P_diss_iso=P_diss_iso, temp=temp, salt=salt
+                )
+
+                salt, dsalt_iso, P_diss_skew = run_kernel(
+                    isoneutral.isoneutral_skew_diffusion, vs,
+                    tr=salt, istemp=False, dtemp_iso=dtemp_iso,
+                    dsalt_iso=dsalt_iso, K_11=K_11, K_22=K_22, K_33=K_33,
+                    Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by,
+                    P_diss_iso=P_diss_iso, P_diss_skew=P_diss_skew,
+                    temp=temp, salt=salt
+                )
 
     with vs.timers['vmix']:
-        dtemp_vmix, temp, dsalt_vmix, salt = vertmix_tempsalt(temp=temp, salt=salt)
+        dtemp_vmix, temp, dsalt_vmix, salt = run_kernel(vertmix_tempsalt, temp=temp, salt=salt)
 
     with vs.timers['eq_of_state']:
-        rho, prho, Hd, int_drhodT, int_drhodS, Nsqr = \
-            calc_eq_of_state(vs, n=vs.taup1, salt=salt, temp=temp)
+        rho, prho, Hd, int_drhodT, int_drhodS, Nsqr = run_kernel(
+            calc_eq_of_state, vs, n=vs.taup1, salt=salt, temp=temp
+        )
 
     """
     surface density flux
     """
-    forc_rho_surface = surf_densityf(vs, salt=salt, temp=temp)
+    forc_rho_surface = run_kernel(surf_densityf, vs, salt=salt, temp=temp)
 
     with vs.timers['vmix']:
-        P_diss_v, P_diss_nonlin = diag_P_diss_v(vs,
+        P_diss_v, P_diss_nonlin = run_kernel(
+            diag_P_diss_v, vs,
             int_drhodT=int_drhodT, int_drhodS=int_drhodS,
             temp=temp, salt=salt, forc_rho_surface=forc_rho_surface, Nsqr=Nsqr
         )

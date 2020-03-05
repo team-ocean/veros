@@ -1,54 +1,52 @@
 import numpy as np
 
-from veros.core import veros_kernel, density, diffusion, utilities
+from veros import veros_kernel, veros_routine, run_kernel
+from veros.core import density, diffusion, utilities
+from veros.core.operators import update, at
+
+
+@veros_kernel
+def u_centered_grid(dyt, dyu, yt, yu):
+    yu[0] = 0
+    yu[1:] = np.cumsum(dyt[1:])
+
+    yt[0] = yu[0] - dyt[0] * 0.5
+    yt[1:] = 2 * yu[:-1]
+
+    alternating_pattern = np.ones_like(yt)
+    alternating_pattern[::2] = -1
+    yt[...] = alternating_pattern * np.cumsum(alternating_pattern * yt)
+
+    dyu[:-1] = yt[1:] - yt[:-1]
+    dyu[-1] = 2 * dyt[-1] - dyu[-2]
+    return dyu, yt, yu
 
 
 @veros_kernel(
-    dist_safe=False,
-    local_variables=(
-        'dxt', 'dxu', 'xt', 'xu',
-        'dyt', 'dyu', 'yt', 'yu',
-        'dzt', 'dzw', 'zt', 'zw',
-        'cost', 'cosu', 'tantr',
-        'area_t', 'area_u', 'area_v',
-    ),
-    static_args=('enable_cyclic_x', 'coord_degree',)
+    static_args=('enable_cyclic_x', 'coord_degree')
 )
-def calc_grid(dxt, dxu, dyt, dyu, xt, xu, yt, yu, dzt, dzw, zt, zw, x_origin, y_origin,
-              cost, cosu, tantr, pi, radius, area_t, area_u, area_v, degtom,
-              enable_cyclic_x, coord_degree):
-    """
-    setup grid based on dxt,dyt,dzt and x_origin, y_origin
-    """
-
-    def u_centered_grid(dyt, dyu, yt, yu):
-        yu[0] = 0
-        yu[1:] = np.cumsum(dyt[1:])
-
-        yt[0] = yu[0] - dyt[0] * 0.5
-        yt[1:] = 2 * yu[:-1]
-
-        alternating_pattern = np.ones_like(yt)
-        alternating_pattern[::2] = -1
-        yt[...] = alternating_pattern * np.cumsum(alternating_pattern * yt)
-
-        dyu[:-1] = yt[1:] - yt[:-1]
-        dyu[-1] = 2 * dyt[-1] - dyu[-2]
-
+def calc_grid_kernel(dxt, dxu, dyt, dyu,
+                     xt, xu, yt, yu,
+                     dzt, dzw, zt, zw,
+                     x_origin, y_origin,
+                     cost, cosu, tantr,
+                     pi, radius, degtom,
+                     area_t, area_u, area_v,
+                     enable_cyclic_x, coord_degree):
     if enable_cyclic_x:
-        dxt[-2:] = dxt[2:4]
-        dxt[:2] = dxt[-4:-2]
+        dxt = update(dxt, at[-2:], dxt[2:4])
+        dxt = update(dxt, at[:2], dxt[-4:-2])
     else:
-        dxt[-2:] = dxt[-3]
-        dxt[:2] = dxt[2]
+        dxt = update(dxt, at[-2:], dxt[-3])
+        dxt = update(dxt, at[:2], dxt[2])
 
-    dyt[-2:] = dyt[-3]
+    dyt = update(dyt, at[-2:], dyt[-3])
     dyt[:2] = dyt[2]
 
     """
     grid in east/west direction
     """
-    u_centered_grid(dxt, dxu, xt, xu)
+    dxu, xt, xu = u_centered_grid(dxt, dxu, xt, xu)
     xt += x_origin - xu[2]
     xu += x_origin - xu[2]
 
@@ -63,7 +61,7 @@ def calc_grid(dxt, dxu, dyt, dyu, xt, xu, yt, yu, dzt, dzw, zt, zw, x_origin, y_
     """
     grid in north/south direction
     """
-    u_centered_grid(dyt, dyu, yt, yu)
+    dyu, yt, yu = u_centered_grid(dyt, dyu, yt, yu)
     yt += y_origin - yu[2]
     yu += y_origin - yu[2]
 
@@ -79,7 +77,7 @@ def calc_grid(dxt, dxu, dyt, dyu, xt, xu, yt, yu, dzt, dzw, zt, zw, x_origin, y_
     """
     grid in vertical direction
     """
-    u_centered_grid(dzt, dzw, zt, zw)
+    dzw, zt, zw = u_centered_grid(dzt, dzw, zt, zw)
     zt -= zw[-1]
     zw -= zw[-1]  # enforce 0 boundary height
 
@@ -102,25 +100,99 @@ def calc_grid(dxt, dxu, dyt, dyu, xt, xu, yt, yu, dzt, dzw, zt, zw, x_origin, y_
     area_u[...] = cost * dyt * dxu[:, np.newaxis]
     area_v[...] = cosu * dyu * dxt[:, np.newaxis]
 
-    return dxt, dxu, dyt, dyu, xt, xu, yt, yu, dzt, dzw, zt, zw,\
-        cost, cosu, tantr, area_t, area_u, area_v
+    return (
+        dxt, dxu, dyt, dyu,
+        xt, xu, yt, yu,
+        dzt, dzw, zt, zw,
+        cost, cosu, tantr,
+        area_t, area_u, area_v,
+    )
 
 
-@veros_kernel
-def calc_beta(dyu, beta, coriolis_t, enable_cyclic_x):
+@veros_routine(
+    inputs=(
+        'dxt', 'dxu', 'dyt', 'dyu',
+        'xt', 'xu', 'yt', 'yu',
+        'dzt', 'dzw', 'zt', 'zw',
+        'x_origin', 'y_origin',
+        'cost', 'cosu', 'tantr',
+        'pi', 'radius', 'degtom'
+        'area_t', 'area_u', 'area_v',
+    ),
+    outputs=(
+        'dxt', 'dxu', 'dyt', 'dyu',
+        'xt', 'xu', 'yt', 'yu',
+        'dzt', 'dzw', 'zt', 'zw',
+        'cost', 'cosu', 'tantr',
+        'area_t', 'area_u', 'area_v',
+    ),
+    settings=('enable_cyclic_x', 'coord_degree'),
+    dist_safe=False,
+)
+def calc_grid(vs):
+    """
+    setup grid based on dxt,dyt,dzt and x_origin, y_origin
+    """
+
+    (
+        dxt, dxu, dyt, dyu,
+        xt, xu, yt, yu,
+        dzt, dzw, zt, zw,
+        cost, cosu, tantr,
+        area_t, area_u, area_v,
+    ) = run_kernel(calc_grid_kernel, vs)
+
+    return dict(
+        dxt=dxt,
+        dxu=dxu,
+        dyt=dyt,
+        dyu=dyu,
+        xt=xt,
+        xu=xu,
+        yt=yt,
+        yu=yu,
+        dzt=dzt,
+        dzw=dzw,
+        zt=zt,
+        zw=zw,
+        cost=cost,
+        cosu=cosu,
+        tantr=tantr,
+        area_t=area_t,
+        area_u=area_u,
+        area_v=area_v
+    )
+
+
+@veros_routine(
+    inputs=(
+        'dyu', 'beta', 'coriolis_t'
+    ),
+    outputs=('beta'),
+    settings=('enable_cyclic_x')
+)
+def calc_beta(vs):
     """
     calculate beta = df/dy
     """
-    beta[:, 2:-2] = 0.5 * ((coriolis_t[:, 3:-1] - coriolis_t[:, 2:-2]) / dyu[2:-2]
-                           + (coriolis_t[:, 2:-2] - coriolis_t[:, 1:-3]) / dyu[1:-3])
+    vs.beta[:, 2:-2] = 0.5 * ((vs.coriolis_t[:, 3:-1] - vs.coriolis_t[:, 2:-2]) / vs.dyu[2:-2]
+                           + (vs.coriolis_t[:, 2:-2] - vs.coriolis_t[:, 1:-3]) / vs.dyu[1:-3])
 
-    utilities.enforce_boundaries(beta, enable_cyclic_x)
+    utilities.enforce_boundaries(vs.beta, vs.enable_cyclic_x)
 
-    return beta
+    return dict(beta=vs.beta)
 
 
-@veros_kernel(static_args=('enable_cyclic_x',))
-def calc_topo(kbot, maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr, dzt, enable_cyclic_x):
+@veros_routine(
+    inputs=(
+        'kbot', 'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'dzt'
+    ),
+    outputs=(
+        'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr'
+    ),
+    settings=('enable_cyclic_x')
+)
+def calc_topo(vs):
     """
     calulate masks, total depth etc
     """
@@ -128,6 +200,9 @@ def calc_topo(kbot, maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr, dzt
     """
     close domain
     """
+    kbot, maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr, dzt, enable_cyclic_x = (
+        getattr(vs, k) for k in ('kbot', 'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'dzt', 'enable_cyclic_x')
+    )
 
     kbot[:, :2] = 0
     kbot[:, -2:] = 0
@@ -172,35 +247,67 @@ def calc_topo(kbot, maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr, dzt
     mask = (hv == 0).astype(np.float)
     hvr[...] = 1. / (hv + mask) * (1 - mask)
 
-    return maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr
+    return dict(
+        maskT=maskT,
+        maskU=maskU,
+        maskV=maskV,
+        maskW=maskW,
+        maskZ=maskZ,
+        ht=ht,
+        hu=hu,
+        hv=hv,
+        hur=hur,
+        hvr=hvr
+    )
 
 
-@veros_kernel
-def calc_initial_conditions(salt, temp, rho, Hd, int_drhodT, int_drhodS, Nsqr, dzw, zt, maskT,
-                            maskW, grav, rho_0, enable_cyclic_x):
+@veros_routine(
+    inputs=(
+        'salt', 'temp', 'rho', 'Hd', 'int_drhodT', 'int_drhodS', 'Nsqr',
+        'dzw', 'zt', 'maskT', 'maskW', 'grav', 'rho_0',
+    ),
+    outputs=('salt', 'temp', 'rho', 'Hd', 'int_drhodT', 'int_drhodS', 'Nsqr'),
+    settings=('enable_cyclic_x', 'eq_of_state_type')
+)
+def calc_initial_conditions(vs):
     """
     calculate dyn. enthalp, etc
     """
+    (salt, temp, rho, Hd, int_drhodT, int_drhodS, Nsqr,
+     dzw, zt, maskT, maskW, grav, rho_0, enable_cyclic_x, eq_of_state_type) = (
+        getattr(vs, k) for k in (
+            'salt', 'temp', 'rho', 'Hd', 'int_drhodT', 'int_drhodS', 'Nsqr',
+            'dzw', 'zt', 'maskT', 'maskW', 'grav', 'rho_0', 'enable_cyclic_x', 'eq_of_state_type'
+        )
+    )
     if np.any(salt < 0.0):
         raise RuntimeError('encountered negative salinity')
 
     utilities.enforce_boundaries(temp, enable_cyclic_x)
     utilities.enforce_boundaries(salt, enable_cyclic_x)
 
-    rho[...] = density.get_rho(salt, temp, np.abs(zt)[:, np.newaxis]) \
+    rho[...] = density.get_rho(eq_of_state_type, salt, temp, np.abs(zt)[:, np.newaxis]) \
         * maskT[..., np.newaxis]
-    Hd[...] = density.get_dyn_enthalpy(salt, temp, np.abs(zt)[:, np.newaxis]) \
+    Hd[...] = density.get_dyn_enthalpy(eq_of_state_type, salt, temp, np.abs(zt)[:, np.newaxis]) \
         * maskT[..., np.newaxis]
-    int_drhodT[...] = density.get_int_drhodT(salt, temp, np.abs(zt)[:, np.newaxis])
-    int_drhodS[...] = density.get_int_drhodS(salt, temp, np.abs(zt)[:, np.newaxis])
+    int_drhodT[...] = density.get_int_drhodT(eq_of_state_type, salt, temp, np.abs(zt)[:, np.newaxis])
+    int_drhodS[...] = density.get_int_drhodS(eq_of_state_type, salt, temp, np.abs(zt)[:, np.newaxis])
 
     fxa = -grav / rho_0 / dzw[np.newaxis, np.newaxis, :] * maskW
     Nsqr[:, :, :-1, :] = fxa[:, :, :-1, np.newaxis] \
-        * (density.get_rho(salt[:, :, 1:, :], temp[:, :, 1:, :], np.abs(zt)[:-1, np.newaxis])
+        * (density.get_rho(eq_of_state_type, salt[:, :, 1:, :], temp[:, :, 1:, :], np.abs(zt)[:-1, np.newaxis])
            - rho[:, :, :-1, :])
     Nsqr[:, :, -1, :] = Nsqr[:, :, -2, :]
 
-    return salt, temp, rho, Hd, int_drhodT, int_drhodS, Nsqr
+    return dict(
+        salt=salt,
+        temp=temp,
+        rho=rho,
+        Hd=Hd,
+        int_drhodT=int_drhodT,
+        int_drhodS=int_drhodS,
+        Nsqr=Nsqr
+    )
 
 
 @veros_kernel

@@ -1,12 +1,12 @@
 from loguru import logger
 import numpy as np
 
-from veros.core import veros_kernel, runtime_settings as rs, runtime_state as rst
-from .. import utilities as mainutils
-from . import island, utilities
+from veros import veros_kernel, runtime_settings as rs, runtime_state as rst
+from veros.core import utilities as mainutils
+from veros.core.streamfunction import island, utilities
 
 
-@veros_kernel(inline=True, dist_safe=False, local_variables=['kbot', 'land_map'])
+@veros_kernel#(dist_safe=False, local_variables=['kbot', 'land_map'])
 def get_isleperim(land_map, kbot, nx, ny, enable_cyclic_x):
     logger.debug(' Determining number of land masses')
     land_map[...] = island.isleperim(kbot, enable_cyclic_x)

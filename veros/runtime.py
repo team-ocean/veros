@@ -20,7 +20,7 @@ def loglevel(v):
 
 AVAILABLE_SETTINGS = (
     # (name, type, default)
-    ('backend', str, 'numpy'),
+    ('backend', str, 'jax'),
     ('linear_solver', str, 'best'),
     ('num_proc', twoints, (1, 1)),
     ('profile_mode', bool, False),

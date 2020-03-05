@@ -1,11 +1,10 @@
 import pyamg
 
 from .scipy import SciPySolver
-from .... import veros_method, runtime_state as rst
+from .... import runtime_state as rst
 
 
 class PyAMGSolver(SciPySolver):
-    @veros_method
     def __init__(self, vs):
         super(PyAMGSolver, self).__init__(vs)
 

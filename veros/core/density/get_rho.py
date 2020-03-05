@@ -1,6 +1,8 @@
-from . import (gsw, linear_eq as lq, nonlinear_eq1 as nq1,
-               nonlinear_eq2 as nq2, nonlinear_eq3 as nq3)
-from veros.core import veros_kernel
+from veros import veros_kernel
+from veros.core.density import (
+    gsw, linear_eq as lq, nonlinear_eq1 as nq1,
+    nonlinear_eq2 as nq2, nonlinear_eq3 as nq3
+)
 
 
 @veros_kernel(static_args=('eq_of_state_type',))

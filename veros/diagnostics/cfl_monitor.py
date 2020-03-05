@@ -1,8 +1,8 @@
 from loguru import logger
+import numpy as np
 
-from .diagnostic import VerosDiagnostic
-from .. import veros_method
-from ..distributed import global_max
+from veros.diagnostics.diagnostic import VerosDiagnostic
+from veros.distributed import global_max
 
 
 class CFLMonitor(VerosDiagnostic):
@@ -20,7 +20,6 @@ class CFLMonitor(VerosDiagnostic):
     def diagnose(self, vs):
         pass
 
-    @veros_method
     def output(self, vs):
         """
         check for CFL violation

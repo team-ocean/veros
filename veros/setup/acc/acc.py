@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-from veros import VerosSetup, veros_method
+import numpy as np
+
+from veros import VerosSetup
 from veros.tools import cli
 from veros.variables import allocate
 from veros.distributed import global_min, global_max
@@ -18,7 +20,6 @@ class ACCSetup(VerosSetup):
 
     `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/ACC%202>`_.
     """
-    @veros_method
     def set_parameter(self, vs):
         vs.identifier = 'acc'
 
@@ -76,7 +77,6 @@ class ACCSetup(VerosSetup):
 
         vs.eq_of_state_type = 3
 
-    @veros_method
     def set_grid(self, vs):
         ddz = np.array([50., 70., 100., 140., 190., 240., 290., 340.,
                         390., 440., 490., 540., 590., 640., 690.])
@@ -86,16 +86,13 @@ class ACCSetup(VerosSetup):
         vs.y_origin = -40.0
         vs.dzt[...] = ddz[::-1] / 2.5
 
-    @veros_method
     def set_coriolis(self, vs):
         vs.coriolis_t[:, :] = 2 * vs.omega * np.sin(vs.yt[None, :] / 180. * vs.pi)
 
-    @veros_method
     def set_topography(self, vs):
         x, y = np.meshgrid(vs.xt, vs.yt, indexing='ij')
         vs.kbot[...] = np.logical_or(x > 1.0, y < -20).astype(np.int)
 
-    @veros_method
     def set_initial_conditions(self, vs):
         # initial conditions
         vs.temp[:, :, :, 0:2] = ((1 - vs.zt[None, None, :] / vs.zw[0]) * 15 * vs.maskT)[..., None]
@@ -126,11 +123,9 @@ class ACCSetup(VerosSetup):
             vs.forc_iw_bottom[...] = 1e-6 * vs.maskW[:, :, -1]
             vs.forc_iw_surface[...] = 1e-7 * vs.maskW[:, :, -1]
 
-    @veros_method
     def set_forcing(self, vs):
         vs.forc_temp_surface[...] = vs._t_rest * (vs._t_star - vs.temp[:, :, -1, vs.tau])
 
-    @veros_method
     def set_diagnostics(self, vs):
         vs.diagnostics['snapshot'].output_frequency = 86400 * 10
         vs.diagnostics['averages'].output_variables = (

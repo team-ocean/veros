@@ -1,6 +1,8 @@
 from collections import OrderedDict
 
-from . import veros_method, runtime_settings
+import numpy as np
+
+from . import runtime_settings
 
 
 class Variable:
@@ -95,7 +97,6 @@ def remove_ghosts(array, dims):
     return array[ghost_mask]
 
 
-@veros_method
 def add_ghosts(vs, array, dims):
     full_shape = tuple([i + 4 if dim in GHOST_DIMENSIONS else i for i,
                         dim in zip(array.shape, dims)])
@@ -727,7 +728,6 @@ CONDITIONAL_VARIABLES = OrderedDict([
 ])
 
 
-@veros_method
 def get_active_variables(vs, main_variables=None, conditional_variables=None):
     variables = {}
 
@@ -748,7 +748,6 @@ def get_active_variables(vs, main_variables=None, conditional_variables=None):
     return variables
 
 
-@veros_method
 def get_standard_variables(vs):
     return get_active_variables(
         vs,
@@ -757,7 +756,6 @@ def get_standard_variables(vs):
     )
 
 
-@veros_method(inline=True)
 def allocate(vs, dimensions, dtype=None, include_ghosts=True, local=True, fill=0):
     if dtype is None:
         dtype = vs.default_float_type

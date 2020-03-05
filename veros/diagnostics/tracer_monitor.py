@@ -1,8 +1,8 @@
 from loguru import logger
+import numpy as np
 
-from .diagnostic import VerosDiagnostic
-from .. import veros_method
-from ..distributed import global_sum
+from veros.diagnostics.diagnostic import VerosDiagnostic
+from veros.distributed import global_sum
 
 
 class TracerMonitor(VerosDiagnostic):
@@ -24,7 +24,6 @@ class TracerMonitor(VerosDiagnostic):
     def diagnose(self, vs):
         pass
 
-    @veros_method
     def output(self, vs):
         """
         Diagnose tracer content

@@ -2,13 +2,12 @@ import numpy as np
 from petsc4py import PETSc
 from loguru import logger
 
-from .base import LinearSolver
-from ... import utilities
-from .... import veros_method, runtime_settings as rs, runtime_state as rst
+from veros import runtime_settings as rs, runtime_state as rst
+from veros.core import utilities
+from veros.core.streamfunction.solvers.base import LinearSolver
 
 
 class PETScSolver(LinearSolver):
-    @veros_method
     def __init__(self, vs):
         if vs.enable_cyclic_x:
             boundary_type = ('periodic', 'ghosted')
@@ -47,7 +46,6 @@ class PETScSolver(LinearSolver):
         self._rhs_petsc = self._da.createGlobalVec()
         self._sol_petsc = self._da.createGlobalVec()
 
-    @veros_method
     def _petsc_solver(self, vs, rhs, x0):
         # add dirichlet BC to rhs
         if not vs.enable_cyclic_x:
@@ -63,16 +61,6 @@ class PETScSolver(LinearSolver):
         if rst.proc_idx[1] == 0:
             rhs[2:-2, 2] -= rhs[2:-2, 1] * self._boundary_fac['south']
 
-        try:
-            rhs = rhs.copy2numpy()
-        except AttributeError:
-            pass
-
-        try:
-            x0 = x0.copy2numpy()
-        except AttributeError:
-            pass
-
         self._da.getVecArray(self._rhs_petsc)[...] = rhs[2:-2, 2:-2]
         self._da.getVecArray(self._sol_petsc)[...] = x0[2:-2, 2:-2]
 
@@ -86,7 +74,6 @@ class PETScSolver(LinearSolver):
 
         return np.array(self._da.getVecArray(self._sol_petsc)[...])
 
-    @veros_method
     def solve(self, vs, rhs, sol, boundary_val=None):
         """
         Arguments:
@@ -105,7 +92,6 @@ class PETScSolver(LinearSolver):
         sol[...] = rhs
         sol[2:-2, 2:-2] = self._petsc_solver(vs, rhs, sol)
 
-    @veros_method
     def _assemble_poisson_matrix(self, vs):
         """
         Construct a sparse matrix based on the stencil for the 2D Poisson equation.

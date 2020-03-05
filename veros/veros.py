@@ -60,8 +60,8 @@ class VerosSetup(metaclass=abc.ABCMeta):
         if state is None:
             self.state = VerosState(use_plugins=self.__veros_plugins__)
 
-        this_plugins = set(p.module for p in self.state._plugin_interfaces)
-        state_plugins = set(p.module for p in self._plugin_interfaces)
+        this_plugins = set(p.module for p in self._plugin_interfaces)
+        state_plugins = set(p.module for p in self.state._plugin_interfaces)
 
         if this_plugins != state_plugins:
             raise ValueError(
@@ -323,7 +323,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                         # permutate time indices
                         vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
-            except:
+            except:  # noqa: E722
                 logger.critical('Stopping integration at iteration {}', vs.itt)
                 raise
 

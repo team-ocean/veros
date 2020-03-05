@@ -2,7 +2,8 @@ import math
 
 import numpy as np
 
-from veros.core import veros_kernel, utilities
+from veros import veros_kernel
+from veros.core import utilities
 
 
 @veros_kernel

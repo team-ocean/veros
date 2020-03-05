@@ -2,8 +2,8 @@ import os
 
 from loguru import logger
 
-from .. import veros_method, time
-from .diagnostic import VerosDiagnostic
+from veros import time
+from veros.diagnostics.diagnostic import VerosDiagnostic
 
 
 class Snapshot(VerosDiagnostic):
@@ -26,7 +26,6 @@ class Snapshot(VerosDiagnostic):
         """Variables to be written to restart. Defaults to all Veros variables that
         have the attribute :attr:`write_to_restart`."""
 
-    @veros_method
     def initialize(self, vs):
         var_meta = {var: vs.variables[var] for var in self.output_variables}
         var_data = {var: getattr(vs, var) for var in self.output_variables}
@@ -35,7 +34,6 @@ class Snapshot(VerosDiagnostic):
     def diagnose(self, vs):
         pass
 
-    @veros_method
     def output(self, vs):
         logger.info(' Writing snapshot at {0[0]:.2f} {0[1]}', time.format_time(vs.time))
 

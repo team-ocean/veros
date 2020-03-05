@@ -1,10 +1,11 @@
 import os
 
 from loguru import logger
+import numpy as np
 
-from .io_tools import netcdf as nctools, hdf5 as h5tools
-from ..decorators import veros_method, do_not_disturb
-from .. import time, runtime_state, distributed, runtime_settings
+from veros.diagnostics.io_tools import netcdf as nctools, hdf5 as h5tools
+from veros.decorators import do_not_disturb
+from veros import time, runtime_state, distributed
 
 
 class VerosDiagnostic:
@@ -38,12 +39,10 @@ class VerosDiagnostic:
     read_restart = _not_implemented
     """Responsible for reading restart files."""
 
-    @veros_method
     def get_output_file_name(self, vs):
         return self.output_path.format(**vars(vs))
 
     @do_not_disturb
-    @veros_method
     def initialize_output(self, vs, variables, var_data=None, extra_dimensions=None):
         if vs.diskless_mode or (not self.output_frequency and not self.sampling_frequency):
             return
@@ -66,7 +65,6 @@ class VerosDiagnostic:
                     nctools.write_variable(vs, key, var, var_data[key], outfile)
 
     @do_not_disturb
-    @veros_method
     def write_output(self, vs, variables, variable_data):
         if vs.diskless_mode:
             return
@@ -78,7 +76,6 @@ class VerosDiagnostic:
                 nctools.write_variable(vs, key, var, variable_data[key],
                                        outfile, time_step=time_step)
 
-    @veros_method
     def read_h5_restart(self, vs, var_meta, restart_filename):
         if not os.path.isfile(restart_filename):
             raise IOError('restart file {} not found'.format(restart_filename))
@@ -106,7 +103,6 @@ class VerosDiagnostic:
         return attributes, variables
 
     @do_not_disturb
-    @veros_method
     def write_h5_restart(self, vs, attributes, var_meta, var_data, outfile):
         group = outfile.require_group(self.name)
         for key, var in var_data.items():

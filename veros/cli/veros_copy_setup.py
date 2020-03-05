@@ -12,10 +12,13 @@ SETUPDIR_ENVVAR = 'VEROS_SETUP_DIR'
 IGNORE_PATTERNS = ['__init__.py', '*.pyc', '__pycache__/']
 SETUPS = {}
 
-setup_dirs = [
-    os.path.dirname(e.load().__file__)
-    for e in entrypoints.get_group_all('veros.setup_dirs')
-]
+setup_dirs = []
+
+for e in entrypoints.get_group_all('veros.setup_dirs'):
+    try:
+        setup_dirs.append(os.path.dirname(e.load().__file__))
+    except ImportError:
+        click.echo(f'Warning: Veros plugin {e!s} failed to import', err=True)
 
 for setup_dir in os.environ.get(SETUPDIR_ENVVAR, '').split(';'):
     if os.path.isdir(setup_dir):

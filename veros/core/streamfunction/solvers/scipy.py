@@ -1,44 +1,34 @@
-import numpy as np
 from loguru import logger
+import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg as spalg
 
 from .base import LinearSolver
 from ... import utilities
-from .... import veros_method, distributed
+from .... import distributed
 from ....variables import allocate
 
 
 class SciPySolver(LinearSolver):
-    @veros_method(dist_safe=False, local_variables=[
-        'hvr', 'hur',
-        'dxu', 'dxt', 'dyu', 'dyt',
-        'cosu', 'cost',
-        'boundary_mask'
-    ])
+    # @veros_method(dist_safe=False, local_variables=[
+    #     'hvr', 'hur',
+    #     'dxu', 'dxt', 'dyu', 'dyt',
+    #     'cosu', 'cost',
+    #     'boundary_mask'
+    # ])
     def __init__(self, vs):
         self._extra_args = {}
         self._matrix = self._assemble_poisson_matrix(vs)
         self._preconditioner = self._jacobi_preconditioner(vs, self._matrix)
         self._matrix = self._preconditioner * self._matrix
 
-    @veros_method(dist_safe=False, local_variables=['boundary_mask'])
+    # @veros_method(dist_safe=False, local_variables=['boundary_mask'])
     def _scipy_solver(self, vs, rhs, sol, boundary_val):
         utilities.enforce_boundaries(vs, sol)
 
         boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
         rhs = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
         x0 = sol.flatten()
-
-        try:
-            rhs = rhs.copy2numpy()
-        except AttributeError:
-            pass
-
-        try:
-            x0 = x0.copy2numpy()
-        except AttributeError:
-            pass
 
         rhs = rhs.flatten() * self._preconditioner.diagonal()
         linear_solution, info = spalg.bicgstab(
@@ -53,7 +43,7 @@ class SciPySolver(LinearSolver):
 
         sol[...] = linear_solution.reshape(vs.nx + 4, vs.ny + 4)
 
-    @veros_method
+    # @veros_method
     def solve(self, vs, rhs, sol, boundary_val=None):
         """
         Main solver for streamfunction. Solves a 2D Poisson equation. Uses scipy.sparse.linalg
@@ -77,7 +67,7 @@ class SciPySolver(LinearSolver):
         sol[...] = distributed.scatter(vs, sol_global, ('xt', 'yt'))
 
     @staticmethod
-    @veros_method(dist_safe=False, local_variables=[])
+    # @veros_method(dist_safe=False, local_variables=[])
     def _jacobi_preconditioner(vs, matrix):
         """
         Construct a simple Jacobi preconditioner
@@ -89,7 +79,7 @@ class SciPySolver(LinearSolver):
         return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
 
     @staticmethod
-    @veros_method(dist_safe=False, local_variables=['boundary_mask'])
+    # @veros_method(dist_safe=False, local_variables=['boundary_mask'])
     def _assemble_poisson_matrix(vs):
         """
         Construct a sparse matrix based on the stencil for the 2D Poisson equation.

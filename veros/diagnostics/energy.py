@@ -1,9 +1,10 @@
 import os
 
-from .diagnostic import VerosDiagnostic
-from .. import veros_method
-from ..variables import Variable
-from ..distributed import global_sum
+import numpy as np
+
+from veros.diagnostics.diagnostic import VerosDiagnostic
+from veros.variables import Variable
+from veros.distributed import global_sum
 
 
 ENERGY_VARIABLES = dict(
@@ -105,7 +106,6 @@ class Energy(VerosDiagnostic):
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
     variables = ENERGY_VARIABLES
 
-    @veros_method
     def initialize(self, vs):
         self.nitts = 0
         for var in self.variables.keys():
@@ -114,7 +114,6 @@ class Energy(VerosDiagnostic):
         output_variables = {key: val for key, val in self.variables.items() if val.output}
         self.initialize_output(vs, output_variables)
 
-    @veros_method
     def diagnose(self, vs):
         # changes of dynamic enthalpy
         vol_t = vs.area_t[2:-2, 2:-2, np.newaxis] \
@@ -191,7 +190,7 @@ class Energy(VerosDiagnostic):
         mdiss_gm = mean_w(vs.K_diss_gm)
         mdiss_bot = mean_w(vs.K_diss_bot)
 
-        wrhom = global_sum(vs, 
+        wrhom = global_sum(vs,
             np.sum(-vs.area_t[2:-2, 2:-2, np.newaxis] * vs.maskW[2:-2, 2:-2, :-1]
                        * (vs.p_hydro[2:-2, 2:-2, 1:] - vs.p_hydro[2:-2, 2:-2, :-1])
                        * vs.w[2:-2, 2:-2, :-1, vs.tau])
@@ -258,7 +257,7 @@ class Energy(VerosDiagnostic):
 
             k = np.maximum(1, vs.kbot[2:-2, 2:-2]) - 1
             mask = k[:, :, np.newaxis] == np.arange(vs.nz)[np.newaxis, np.newaxis, :]
-            iwforc = global_sum(vs, 
+            iwforc = global_sum(vs,
                 np.sum(vs.area_t[2:-2, 2:-2]
                             * (vs.forc_iw_surface[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
                                + np.sum(mask * vs.forc_iw_bottom[2:-2, 2:-2, np.newaxis]
@@ -315,7 +314,6 @@ class Energy(VerosDiagnostic):
 
         self.nitts += 1
 
-    @veros_method
     def output(self, vs):
         self.nitts = float(self.nitts or 1)
         output_variables = {key: val for key, val in self.variables.items() if val.output}
@@ -329,14 +327,12 @@ class Energy(VerosDiagnostic):
             setattr(self, key, 0.)
         self.nitts = 0
 
-    @veros_method
     def read_restart(self, vs, infile):
         attributes, variables = self.read_h5_restart(vs, self.variables, infile)
         if attributes:
             for key, val in attributes.items():
                 setattr(self, key, val)
 
-    @veros_method
     def write_restart(self, vs, outfile):
         restart_data = {key: getattr(self, key)
                         for key, val in self.variables.items() if val.write_to_restart}

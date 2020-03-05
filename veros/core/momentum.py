@@ -1,6 +1,7 @@
 import numpy as np
 
-from veros.core import veros_routine, veros_kernel, run_kernel, friction, streamfunction
+from veros import veros_routine, veros_kernel, run_kernel
+from veros.core import friction, streamfunction
 
 
 @veros_kernel(static_args=('coord_degree'))

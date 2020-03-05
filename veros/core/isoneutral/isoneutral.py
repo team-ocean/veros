@@ -1,7 +1,8 @@
 import numpy as np
 from loguru import logger
 
-from veros.core import veros_kernel, density, utilities
+from veros import veros_kernel
+from veros.core import density, utilities
 
 
 @veros_kernel
@@ -176,9 +177,9 @@ def isoneutral_diag_streamfunction(K_gm, Ai_ez, Ai_nz, B1_gm, B2_gm):
     return B1_gm, B2_gm
 
 
-@veros_kernel(dist_safe=False, local_variables=[
-    'dxt', 'dyt', 'dzt', 'cost'
-])
+@veros_kernel(
+    # dist_safe=False, local_variables=['dxt', 'dyt', 'dzt', 'cost']
+)
 def check_isoneutral_slope_crit(K_iso_0, iso_slopec, dxt, dyt, dzt, cost, dt_tracer,
                                 enable_neutral_diffusion):
     """

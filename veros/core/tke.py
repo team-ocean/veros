@@ -2,7 +2,8 @@ import math
 
 import numpy as np
 
-from vero.core import veros_kernel, advection, utilities
+from veros import veros_kernel
+from veros.core import advection, utilities
 
 
 @veros_kernel(static_args=('enable_tke', 'tke_mxl_choice', 'enable_idemix',

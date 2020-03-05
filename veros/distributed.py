@@ -1,5 +1,7 @@
+import numpy as np
+
 from . import runtime_settings as rs, runtime_state as rst
-from .decorators import veros_method, dist_context_only
+from .decorators import dist_context_only
 
 
 SCATTERED_DIMENSIONS = (
@@ -16,7 +18,6 @@ def ascontiguousarray(arr):
     return arr
 
 
-@veros_method(inline=True)
 def get_array_buffer(vs, arr):
     from mpi4py import MPI
 
@@ -34,7 +35,6 @@ def get_array_buffer(vs, arr):
     return [arr, arr.size, MPI_TYPE_MAP[str(arr.dtype)]]
 
 
-@veros_method
 def validate_decomposition(vs):
     if rs.mpi_comm is None:
         if (rs.num_proc[0] > 1 or rs.num_proc[1] > 1):
@@ -153,7 +153,6 @@ def get_process_neighbors(vs):
 
 
 @dist_context_only
-@veros_method
 def exchange_overlap(vs, arr, var_grid):
     if len(var_grid) < 2:
         d1, d2 = var_grid[0], None
@@ -239,7 +238,6 @@ def exchange_overlap(vs, arr, var_grid):
 
 
 @dist_context_only
-@veros_method
 def exchange_cyclic_boundaries(vs, arr):
     if rs.num_proc[0] == 1:
         arr[-2:, ...] = arr[2:4, ...]
@@ -272,7 +270,6 @@ def exchange_cyclic_boundaries(vs, arr):
 
 
 @dist_context_only
-@veros_method(inline=True)
 def _reduce(vs, arr, op, axis=None):
     if axis is None:
         comm = rs.mpi_comm
@@ -310,42 +307,36 @@ def _reduce(vs, arr, op, axis=None):
 
 
 @dist_context_only
-@veros_method
 def global_and(vs, arr, axis=None):
     from mpi4py import MPI
     return _reduce(vs, arr, MPI.LAND, axis=axis)
 
 
 @dist_context_only
-@veros_method
 def global_or(vs, arr, axis=None):
     from mpi4py import MPI
     return _reduce(vs, arr, MPI.LOR, axis=axis)
 
 
 @dist_context_only
-@veros_method
 def global_max(vs, arr, axis=None):
     from mpi4py import MPI
     return _reduce(vs, arr, MPI.MAX, axis=axis)
 
 
 @dist_context_only
-@veros_method
 def global_min(vs, arr, axis=None):
     from mpi4py import MPI
     return _reduce(vs, arr, MPI.MIN, axis=axis)
 
 
 @dist_context_only
-@veros_method
 def global_sum(vs, arr, axis=None):
     from mpi4py import MPI
     return _reduce(vs, arr, MPI.SUM, axis=axis)
 
 
 @dist_context_only
-@veros_method(inline=True)
 def _gather_1d(vs, arr, dim):
     assert dim in (0, 1)
 
@@ -385,7 +376,6 @@ def _gather_1d(vs, arr, dim):
 
 
 @dist_context_only
-@veros_method(inline=True)
 def _gather_xy(vs, arr):
     nxi, nyi = get_chunk_size(vs)
     assert arr.shape[:2] == (nxi + 4, nyi + 4), arr.shape
@@ -421,7 +411,6 @@ def _gather_xy(vs, arr):
 
 
 @dist_context_only
-@veros_method
 def gather(vs, arr, var_grid):
     if len(var_grid) < 2:
         d1, d2 = var_grid[0], None
@@ -449,13 +438,11 @@ def gather(vs, arr, var_grid):
 
 
 @dist_context_only
-@veros_method
 def broadcast(vs, obj):
     return rs.mpi_comm.bcast(obj, root=0)
 
 
 @dist_context_only
-@veros_method(inline=True)
 def _scatter_constant(vs, arr):
     arr = ascontiguousarray(arr)
     rs.mpi_comm.Bcast(get_array_buffer(vs, arr), root=0)
@@ -463,7 +450,6 @@ def _scatter_constant(vs, arr):
 
 
 @dist_context_only
-@veros_method(inline=True)
 def _scatter_1d(vs, arr, dim):
     assert dim in (0, 1)
 
@@ -493,7 +479,6 @@ def _scatter_1d(vs, arr, dim):
 
 
 @dist_context_only
-@veros_method(inline=True)
 def _scatter_xy(vs, arr):
     nxi, nyi = get_chunk_size(vs)
 
@@ -522,7 +507,6 @@ def _scatter_xy(vs, arr):
 
 
 @dist_context_only
-@veros_method
 def scatter(vs, arr, var_grid):
     if len(var_grid) < 2:
         d1, d2 = var_grid[0], None

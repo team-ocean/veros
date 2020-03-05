@@ -7,9 +7,9 @@ used for streamfunction
 
 import numpy as np
 
-from veros.core import veros_kernel
-from . import utilities
-from .. import utilities as mainutils
+from veros import veros_kernel
+from veros.core import utilities as mainutils
+from veros.core.streamfunction import utilities
 
 
 @veros_kernel(static_args=('nisle', 'enable_cyclic_x'))

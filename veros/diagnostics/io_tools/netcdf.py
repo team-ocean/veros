@@ -2,8 +2,9 @@ import threading
 import contextlib
 
 from loguru import logger
+import numpy as np
 
-from ... import veros_method, variables, runtime_state, runtime_settings as rs, distributed
+from veros import variables, runtime_state, runtime_settings as rs, distributed
 
 """
 netCDF output is designed to follow the COARDS guidelines from
@@ -11,7 +12,6 @@ http://ferret.pmel.noaa.gov/Ferret/documentation/coards-netcdf-conventions
 """
 
 
-@veros_method
 def initialize_file(vs, ncfile, create_time_dimension=True):
     """
     Define standard grid in netcdf file
@@ -36,12 +36,10 @@ def initialize_file(vs, ncfile, create_time_dimension=True):
         nc_dim_var_time.time_origin = '01-JAN-1900 00:00:00'
 
 
-@veros_method
 def add_dimension(vs, identifier, size, ncfile):
     ncfile.dimensions[identifier] = size
 
 
-@veros_method
 def initialize_variable(vs, key, var, ncfile):
     dims = tuple(d for d in var.dims if d in ncfile.dimensions)
     if var.time_dependent and 'Time' in ncfile.dimensions:
@@ -76,18 +74,15 @@ def initialize_variable(vs, key, var, ncfile):
     )
 
 
-@veros_method
 def get_current_timestep(vs, ncfile):
     return len(ncfile.variables['Time'])
 
 
-@veros_method
 def advance_time(vs, time_step, time_value, ncfile):
     ncfile.resize_dimension('Time', time_step + 1)
     ncfile.variables['Time'][time_step] = time_value
 
 
-@veros_method
 def write_variable(vs, key, var, var_data, ncfile, time_step=None):
     var_data = var_data * var.scale
 
@@ -121,7 +116,6 @@ def write_variable(vs, key, var, var_data, ncfile, time_step=None):
 
 
 @contextlib.contextmanager
-@veros_method
 def threaded_io(vs, filepath, mode):
     """
     If using IO threads, start a new thread to write the netCDF data to disk.

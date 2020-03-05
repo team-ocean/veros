@@ -1,24 +1,21 @@
 from loguru import logger
 
 from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monitor, io_tools
-from .. import time, veros_method
+from .. import time
 from .io_tools import hdf5 as h5tools
 
 
-@veros_method
 def create_default_diagnostics(vs):
     return {Diag.name: Diag(vs) for Diag in (averages.Averages, cfl_monitor.CFLMonitor,
                                              energy.Energy, overturning.Overturning,
                                              snapshot.Snapshot, tracer_monitor.TracerMonitor)}
 
 
-@veros_method
 def sanity_check(vs):
     from ..distributed import global_and
     return global_and(vs, np.all(np.isfinite(vs.u)))
 
 
-@veros_method
 def read_restart(vs):
     if not vs.restart_input_filename:
         return
@@ -29,7 +26,6 @@ def read_restart(vs):
         diagnostic.read_restart(vs, vs.restart_input_filename.format(**vars(vs)))
 
 
-@veros_method
 def write_restart(vs, force=False):
     if vs.diskless_mode:
         return
@@ -43,7 +39,6 @@ def write_restart(vs, force=False):
                 diagnostic.write_restart(vs, outfile)
 
 
-@veros_method
 def initialize(vs):
     for name, diagnostic in vs.diagnostics.items():
         diagnostic.initialize(vs)
@@ -55,14 +50,12 @@ def initialize(vs):
                          .format(name, time.format_time(diagnostic.output_frequency)))
 
 
-@veros_method
 def diagnose(vs):
     for diagnostic in vs.diagnostics.values():
         if diagnostic.sampling_frequency and vs.time % diagnostic.sampling_frequency < vs.dt_tracer:
             diagnostic.diagnose(vs)
 
 
-@veros_method
 def output(vs):
     for diagnostic in vs.diagnostics.values():
         if diagnostic.output_frequency and vs.time % diagnostic.output_frequency < vs.dt_tracer:
