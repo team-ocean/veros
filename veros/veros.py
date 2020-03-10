@@ -284,13 +284,13 @@ class VerosSetup(metaclass=abc.ABCMeta):
                                 if vs.enable_eke:
                                     eke.integrate_eke(vs)
 
-                            # with vs.timers['idemix']:
-                            #     if vs.enable_idemix:
-                            #         idemix.integrate_idemix(vs)
+                            with vs.timers['idemix']:
+                                if vs.enable_idemix:
+                                    idemix.integrate_idemix(vs)
 
-                            # with vs.timers['tke']:
-                            #     if vs.enable_tke:
-                            #         tke.integrate_tke(vs)
+                            with vs.timers['tke']:
+                                if vs.enable_tke:
+                                    tke.integrate_tke(vs)
 
                             utilities.enforce_boundaries(vs.u[:, :, :, vs.taup1], vs.enable_cyclic_x)
                             utilities.enforce_boundaries(vs.v[:, :, :, vs.taup1], vs.enable_cyclic_x)
