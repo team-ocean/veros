@@ -6,7 +6,7 @@ from veros.core import friction, streamfunction
 
 @veros_kernel(static_args=('coord_degree'))
 def tend_coriolisf(du, dv, coriolis_t, maskU, maskV, dxt, dxu, dyt, dyu,
-                   cost, cosu, tau, tantr, coord_degree):
+                   cost, cosu, tau, tantr, coord_degree, u, v):
     """
     time tendency due to Coriolis force
     """
@@ -145,8 +145,19 @@ def momentum_advection(tend_u, tend_v, u, v, w, maskU, maskV, maskW,
     return tend_u, tend_v
 
 
+@veros_routine(
+    inputs=(
+        'u', 'v', 'w', 'maskW', 'dxt', 'dyt', 'dzt', 'cost', 'cosu', 'taup1'
+    ),
+    outputs=('w')
+)
+def vertical_velocity(vs):
+    w = run_kernel(vertical_velocity_kernel, vs)
+    return dict(w=w)
+
+
 @veros_kernel
-def vertical_velocity(u, v, w, maskW, dxt, dyt, dzt, cost, cosu, taup1):
+def vertical_velocity_kernel(u, v, w, maskW, dxt, dyt, dzt, cost, cosu, taup1):
     """
     vertical velocity from continuity :
     \\int_0^z w_z dz = w(z)-w(0) = - \\int dz (u_x + v_y)
@@ -181,18 +192,12 @@ def vertical_velocity(u, v, w, maskW, dxt, dyt, dzt, cost, cosu, taup1):
         'coriolis_t', 'tau', 'tantr',
         'surface_taux', 'surface_tauy', 'rho_0',
     ),
-    outputs=(
-        'u', 'v',
-        'p_hydro',
-        'dpsi',
-        'dpsin',
-        'psi',
-    ),
+    outputs=(),
     settings=(
         'coord_degree',
         'pyom_compatibility_mode',
     ),
-    subroutines=(friction.friction),
+    subroutines=(friction.friction, streamfunction.solve_streamfunction),
 )
 def momentum(vs):
     """
@@ -220,17 +225,8 @@ def momentum(vs):
     """
     external mode
     """
-    with vs.timers['pressure']:
-        u, v, du, dv, p_hydro, psi, dpsi, dpsin = run_kernel(streamfunction.solve_streamfunction,
-                                                             vs, tend_u=du, tend_v=dv)
+    vs.du = du
+    vs.dv = dv
 
-    return dict(
-        u=u,
-        v=v,
-        du=du,
-        dv=dv,
-        p_hydro=p_hydro,
-        psi=psi,
-        dpsi=dpsi,
-        dpsin=dpsin,
-    )
+    with vs.timers['pressure']:
+        streamfunction.solve_streamfunction(vs)

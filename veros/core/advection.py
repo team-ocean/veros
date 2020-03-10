@@ -1,6 +1,6 @@
 import numpy as np
 
-from veros import veros_kernel
+from veros import veros_kernel, veros_routine, run_kernel
 from veros.core.utilities import pad_z_edges, where
 
 
@@ -93,9 +93,20 @@ def adv_flux_superbee(adv_fe, adv_fn, adv_ft, var, u, v, w, dxt, dyt, dzt,
     return adv_fe, adv_fn, adv_ft
 
 
+@veros_routine(
+    inputs=('u', 'v', 'w', 'maskU', 'maskV', 'maskW', 'dxt', 'dyt', 'dzt', 'dzw',
+            'cosu', 'cost', 'tau'),
+    outputs=('u_wgrid', 'v_wgrid', 'w_wgrid')
+)
+def calculate_velocity_on_wgrid(vs):
+    u_wgrid, v_wgrid, w_wgrid = run_kernel(calculate_velocity_on_wgrid_kernel, vs)
+    return dict(
+        u_wgrid=u_wgrid, v_wgrid=v_wgrid, w_wgrid=w_wgrid
+    )
+
 @veros_kernel
-def calculate_velocity_on_wgrid(u, v, w, maskU, maskV, maskW, dxt, dyt, dzt, dzw,
-                                cosu, cost, tau):
+def calculate_velocity_on_wgrid_kernel(u, v, w, maskU, maskV, maskW, dxt, dyt, dzt, dzw,
+                                       cosu, cost, tau):
     """
     calculates advection velocity for tracer on W grid
 

@@ -2,86 +2,123 @@ import math
 
 import numpy as np
 
-from veros import veros_kernel
+from veros import veros_kernel, veros_routine, run_kernel
 from veros.core import advection, utilities
+
+
+@veros_routine(
+    inputs=(
+        'tke', 'mxl_min', 'Nsqr', 'ht', 'maskW', 'zw', 'dzt', 'dzw', 'tau',
+        'nz', 'K_diss_v', 'kappaM_max', 'kappaM_min', 'kappaH_min',
+        'kappaM_0', 'kappaH_0', 'c_k', 'alpha_c', 'E_iw', 'Prandtl_tke0',
+        'kappaM', 'kappaH', 'Prandtlnumber'
+    ),
+    outputs=(
+        'sqrttke', 'mxl', 'kappaM', 'kappaH', 'Prandtlnumber'
+    ),
+    settings=(
+        'enable_cyclic_x', 'enable_Prandtl_tke', 'enable_kappaH_profile', 'enable_tke',
+        'tke_mxl_choice', 'enable_idemix'
+    ),
+)
+def set_tke_diffusivities(vs):
+    if vs.enable_idemix:
+        alpha_c = vs.alpha_c
+        E_iw = vs.E_iw
+    else:
+        alpha_c = 0
+        E_iw = 0
+
+    if vs.enable_tke:
+        (sqrttke, mxl, kappaM, kappaH, Prandtlnumber) = run_kernel(set_tke_diffusivities_kernel, vs, alpha_c=alpha_c, E_iw=E_iw)
+    else:
+        kappaM = vs.kappaM_0 * np.ones_like(vs.kappaM)
+        kappaH = vs.kappaH_0 * np.ones_like(vs.kappaH)
+        sqrttke = mxl = Prandtlnumber = None
+    return dict(
+        sqrttke=sqrttke,
+        mxl=mxl,
+        kappaM=kappaM,
+        kappaH=kappaH,
+        Prandtlnumber=Prandtlnumber
+    )
 
 
 @veros_kernel(static_args=('enable_tke', 'tke_mxl_choice', 'enable_idemix',
                            'enable_Prandtl_tke', 'enable_kappaH_profile',))
-def set_tke_diffusivities(tke, sqrttke, mxl, mxl_min, Nsqr, ht, maskW, zw, dzt, dzw, tau,
-                          nz, K_diss_v, kappaM, kappaH, kappaM_max, kappaM_min, kappaH_min,
-                          kappaM_0, kappaH_0, c_k, alpha_c, E_iw, Prandtlnumber, Prandtl_tke0,
-                          enable_cyclic_x, enable_Prandtl_tke, enable_kappaH_profile, enable_tke,
-                          tke_mxl_choice, enable_idemix):
+def set_tke_diffusivities_kernel(tke, mxl_min, Nsqr, ht, maskW, zw, dzt, dzw, tau,
+                                 nz, K_diss_v, kappaM_max, kappaM_min, kappaH_min,
+                                 kappaM_0, kappaH_0, c_k, alpha_c, E_iw, Prandtl_tke0,
+                                 enable_cyclic_x, enable_Prandtl_tke, enable_kappaH_profile, enable_tke,
+                                 tke_mxl_choice, enable_idemix,
+                                 kappaM, kappaH, Prandtlnumber):
     """
     set vertical diffusivities based on TKE model
     """
     Rinumber = np.zeros_like(maskW)
 
-    if enable_tke:
-        sqrttke[...] = np.sqrt(np.maximum(0., tke[:, :, :, tau]))
-        """
-        calculate buoyancy length scale
-        """
-        mxl[...] = math.sqrt(2) * sqrttke \
-            / np.sqrt(np.maximum(1e-12, Nsqr[:, :, :, tau])) * maskW
+    sqrttke = np.sqrt(np.maximum(0., tke[:, :, :, tau]))
+    """
+    calculate buoyancy length scale
+    """
+    mxl = math.sqrt(2) * sqrttke \
+        / np.sqrt(np.maximum(1e-12, Nsqr[:, :, :, tau])) * maskW
 
+    """
+    apply limits for mixing length
+    """
+    if tke_mxl_choice == 1:
         """
-        apply limits for mixing length
+        bounded by the distance to surface/bottom
         """
-        if tke_mxl_choice == 1:
-            """
-            bounded by the distance to surface/bottom
-            """
-            mxl[...] = np.minimum(
-                np.minimum(mxl, -zw[np.newaxis, np.newaxis, :]
-                           + dzw[np.newaxis, np.newaxis, :] * 0.5
-                           ), ht[:, :, np.newaxis] + zw[np.newaxis, np.newaxis, :]
-            )
-            mxl[...] = np.maximum(mxl, mxl_min)
-        elif tke_mxl_choice == 2:
-            """
-            bound length scale as in mitgcm/OPA code
+        mxl[...] = np.minimum(
+            np.minimum(mxl, -zw[np.newaxis, np.newaxis, :]
+                        + dzw[np.newaxis, np.newaxis, :] * 0.5
+                        ), ht[:, :, np.newaxis] + zw[np.newaxis, np.newaxis, :]
+        )
+        mxl[...] = np.maximum(mxl, mxl_min)
+    elif tke_mxl_choice == 2:
+        """
+        bound length scale as in mitgcm/OPA code
 
-            Note that the following code doesn't vectorize. If critical for performance,
-            consider re-implementing it in Cython.
-            """
-            for k in range(nz - 2, -1, -1):
-                mxl[:, :, k] = np.minimum(mxl[:, :, k], mxl[:, :, k + 1] + dzt[k + 1])
-            mxl[:, :, -1] = np.minimum(mxl[:, :, -1], mxl_min + dzt[-1])
-            for k in range(1, nz):
-                mxl[:, :, k] = np.minimum(mxl[:, :, k], mxl[:, :, k - 1] + dzt[k])
-            mxl[...] = np.maximum(mxl, mxl_min)
-        else:
-            raise ValueError('unknown mixing length choice in tke_mxl_choice')
-
+        Note that the following code doesn't vectorize. If critical for performance,
+        consider re-implementing it in Cython.
         """
-        calculate viscosity and diffusivity based on Prandtl number
-        """
-        utilities.enforce_boundaries(K_diss_v, enable_cyclic_x)
-        kappaM[...] = np.minimum(kappaM_max, c_k * mxl * sqrttke)
-        Rinumber[...] = Nsqr[:, :, :, tau] / \
-            np.maximum(K_diss_v / np.maximum(1e-12, kappaM), 1e-12)
-        if enable_idemix:
-            Rinumber[...] = np.minimum(Rinumber, kappaM * Nsqr[:, :, :, tau]
-                                       / np.maximum(1e-12, alpha_c * E_iw[:, :, :, tau]**2))
-        if enable_Prandtl_tke:
-            Prandtlnumber[...] = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
-        else:
-            Prandtlnumber[...] = Prandtl_tke0
-        kappaH[...] = np.maximum(kappaH_min, kappaM / Prandtlnumber)
-        if enable_kappaH_profile:
-            # Correct diffusivity according to
-            # Bryan, K., and L. J. Lewis, 1979:
-            # A water mass model of the world ocean. J. Geophys. Res., 84, 2503–2517.
-            # It mainly modifies kappaH within 20S - 20N deg. belt
-            kappaH[...] = np.maximum(kappaH, (0.8 + 1.05 / np.pi
-                                              * np.arctan((-zw[np.newaxis, np.newaxis, :] - 2500.)
-                                                          / 222.2)) * 1e-4)
-        kappaM[...] = np.maximum(kappaM_min, kappaM)
+        for k in range(nz - 2, -1, -1):
+            mxl[:, :, k] = np.minimum(mxl[:, :, k], mxl[:, :, k + 1] + dzt[k + 1])
+        mxl[:, :, -1] = np.minimum(mxl[:, :, -1], mxl_min + dzt[-1])
+        for k in range(1, nz):
+            mxl[:, :, k] = np.minimum(mxl[:, :, k], mxl[:, :, k - 1] + dzt[k])
+        mxl[...] = np.maximum(mxl, mxl_min)
     else:
-        kappaM[...] = kappaM_0
-        kappaH[...] = kappaH_0
+        raise ValueError('unknown mixing length choice in tke_mxl_choice')
+
+    """
+    calculate viscosity and diffusivity based on Prandtl number
+    """
+    utilities.enforce_boundaries(K_diss_v, enable_cyclic_x)
+    kappaM[...] = np.minimum(kappaM_max, c_k * mxl * sqrttke)
+    Rinumber[...] = Nsqr[:, :, :, tau] / \
+        np.maximum(K_diss_v / np.maximum(1e-12, kappaM), 1e-12)
+    if enable_idemix:
+        Rinumber[...] = np.minimum(Rinumber, kappaM * Nsqr[:, :, :, tau]
+                                    / np.maximum(1e-12, alpha_c * E_iw[:, :, :, tau]**2))
+    if enable_Prandtl_tke:
+        Prandtlnumber[...] = np.maximum(1., np.minimum(10, 6.6 * Rinumber))
+    else:
+        Prandtlnumber[...] = Prandtl_tke0
+    kappaH[...] = np.maximum(kappaH_min, kappaM / Prandtlnumber)
+    if enable_kappaH_profile:
+        # Correct diffusivity according to
+        # Bryan, K., and L. J. Lewis, 1979:
+        # A water mass model of the world ocean. J. Geophys. Res., 84, 2503–2517.
+        # It mainly modifies kappaH within 20S - 20N deg. belt
+        kappaH[...] = np.maximum(kappaH, (0.8 + 1.05 / np.pi
+                                            * np.arctan((-zw[np.newaxis, np.newaxis, :] - 2500.)
+                                                        / 222.2)) * 1e-4)
+    kappaM[...] = np.maximum(kappaM_min, kappaM)
+
+    return (sqrttke, mxl, kappaM, kappaH, Prandtlnumber)
 
 
 @veros_kernel

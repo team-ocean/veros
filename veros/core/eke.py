@@ -2,27 +2,66 @@ import math
 
 import numpy as np
 
-from veros import veros_kernel
+from veros import veros_kernel, veros_routine, run_kernel
 from veros.core import utilities, advection
 
 
-@veros_kernel
-def init_eke(enable_eke_leewave_dissipation, eke_hrms_k0_min,
-             pi, eke_topo_hrms, eke_topo_lam):
+@veros_routine(
+    inputs=(),
+    outputs=('hrms_k0'),
+    settings=(
+        'enable_eke_leewave_dissipation', 'eke_hrms_k0_min',
+        'pi', 'eke_topo_hrms', 'eke_topo_lam'
+    )
+)
+def init_eke(vs):
     """
     Initialize EKE
     """
-    if enable_eke_leewave_dissipation:
-        return np.maximum(eke_hrms_k0_min, 2 / pi * eke_topo_hrms**2
-                          / np.maximum(1e-12, eke_topo_lam)**1.5)
+    if vs.enable_eke_leewave_dissipation:
+        hrms_k0 = np.maximum(vs.eke_hrms_k0_min, 2 / vs.pi * vs.eke_topo_hrms**2
+                             / np.maximum(1e-12, vs.eke_topo_lam)**1.5)
+    else:
+        hrms_k0 = 0
+    return dict(hrms_k0=hrms_k0)
 
 
-@veros_kernel(static_args=('enable_eke', 'enable_eke_isopycnal_diffusion',
-                           'enable_TEM_friction',))
-def set_eke_diffusivities(eke, Nsqr, coriolis_t, beta, dzw, maskW, tau, pi, K_gm, K_iso,
-                          K_gm_0, K_iso_0, L_rossby, L_rhines, kappa_gm, sqrteke,
-                          eke_len, eke_lmin, eke_cross, eke_crhin, eke_k_max, eke_c_k,
-                          enable_eke, enable_eke_isopycnal_diffusion, enable_TEM_friction):
+@veros_routine(
+    inputs=('eke', 'Nsqr', 'coriolis_t', 'beta', 'dzw', 'maskW', 'tau', 'pi', 'K_gm', 'K_iso',
+            'K_gm_0', 'K_iso_0', 'L_rossby', 'L_rhines', 'kappa_gm', 'sqrteke',),
+    outputs=('L_rossby', 'L_rhines', 'eke_len', 'sqrteke', 'K_gm', 'K_iso', 'kappa_gm'),
+    settings=('enable_eke', 'enable_eke_isopycnal_diffusion', 'enable_TEM_friction',
+              'eke_len', 'eke_lmin', 'eke_cross', 'eke_crhin', 'eke_k_max', 'eke_c_k')
+)
+def set_eke_diffusivities(vs):
+    L_rossby, L_rhines, eke_len, sqrteke, K_gm, K_iso = run_kernel(set_eke_diffusivities_kernel, vs)
+
+    if vs.enable_TEM_friction:
+        kappa_gm = run_kernel(update_kappa_gm, vs)
+    else:
+        kappa_gm = None
+
+    return dict(
+        L_rossby=L_rossby,
+        L_rhines=L_rhines,
+        eke_len=eke_len,
+        sqrteke=sqrteke,
+        K_gm=K_gm,
+        K_iso=K_iso,
+        kappa_gm=kappa_gm
+    )
+
+
+@veros_kernel
+def update_kappa_gm(K_gm, coriolis_t, Nsqr, maskW, tau):
+    return K_gm * np.minimum(0.01, coriolis_t[..., np.newaxis]**2 / np.maximum(1e-9, Nsqr[..., tau])) * maskW
+
+
+@veros_kernel(static_args=('enable_eke', 'enable_eke_isopycnal_diffusion', 'enable_TEM_friction',))
+def set_eke_diffusivities_kernel(eke, Nsqr, coriolis_t, beta, dzw, maskW, tau, pi, K_gm, K_iso,
+                                 K_gm_0, K_iso_0, L_rossby, L_rhines, sqrteke,
+                                 eke_len, eke_lmin, eke_cross, eke_crhin, eke_k_max, eke_c_k,
+                                 enable_eke, enable_eke_isopycnal_diffusion, enable_TEM_friction):
     """
     set skew diffusivity K_gm and isopycnal diffusivity K_iso
     set also vertical viscosity if TEM formalism is chosen
@@ -52,15 +91,38 @@ def set_eke_diffusivities(eke, Nsqr, coriolis_t, beta, dzw, maskW, tau, pi, K_gm
         """
         K_gm[...] = K_gm_0
 
-    if enable_TEM_friction:
-        kappa_gm[...] = K_gm * np.minimum(0.01, coriolis_t[..., np.newaxis]**2
-                                          / np.maximum(1e-9, Nsqr[..., tau])) * maskW
     if enable_eke and enable_eke_isopycnal_diffusion:
         K_iso[...] = K_gm
     else:
         K_iso[...] = K_iso_0  # always constant
 
-    return L_rossby, L_rhines, eke_len, sqrteke, K_gm, K_iso, kappa_gm
+    return L_rossby, L_rhines, eke_len, sqrteke, K_gm, K_iso
+
+
+@veros_routine(
+    inputs=(
+        'eke', 'deke', 'sqrteke', 'K_diss_h', 'K_diss_gm', 'K_gm', 'kappaM', 'P_diss_skew',
+        'P_diss_hmix', 'P_diss_iso', 'hrms_k0', 'Nsqr', 'kbot', 'coriolis_t', 'AB_eps', 'nz',
+        'tau', 'taup1', 'taum1', 'dt_tracer', 'u', 'v', 'u_wgrid', 'v_wgrid', 'w_wgrid', 'c_lee',
+        'c_lee0', 'cost', 'cosu', 'dxt', 'dxu', 'dyt', 'dyu', 'dzt', 'dzw', 'maskU', 'maskV', 'maskW',
+        'eke_Ri0', 'eke_Ri1', 'c_Ri_diss', 'eke_int_diss0', 'eke_diss_iw', 'eke_r_bot',
+        'eke_c_eps', 'eke_len', 'alpha_eke', 'eke_diss_tke', 'eke_lee_flux', 'eke_bot_flux',
+    ),
+    outputs=(
+        'eke', 'deke', 'c_lee', 'c_Ri_diss', 'eke_diss_iw', 'eke_diss_tke', 'eke_lee_flux', 'eke_bot_flux'
+    ),
+    settings=(
+        'enable_store_cabbeling_heat', 'enable_eke_leewave_dissipation',
+        'enable_eke_superbee_advection', 'enable_eke_upwind_advection',
+        'pyom_compatibility_mode'
+    )
+)
+def integrate_eke(vs):
+    (eke, deke, c_lee, c_Ri_diss, eke_diss_iw, eke_diss_tke, eke_lee_flux, eke_bot_flux) = run_kernel(integrate_eke_kernel, vs, hrms_k0=None, c_lee=None, c_Ri_diss=None, eke_lee_flux=None)
+    return dict(
+        eke=eke, deke=deke, c_lee=c_lee, c_Ri_diss=c_Ri_diss, eke_diss_iw=eke_diss_iw,
+        eke_diss_tke=eke_diss_tke, eke_lee_flux=eke_lee_flux, eke_bot_flux=eke_bot_flux
+    )
 
 
 @veros_kernel(static_args=('enable_store_cabbeling_heat',
@@ -68,7 +130,7 @@ def set_eke_diffusivities(eke, Nsqr, coriolis_t, beta, dzw, maskW, tau, pi, K_gm
                            'pyom_compatibility_mode',
                            'enable_eke_superbee_advection',
                            'enable_eke_upwind_advection'))
-def integrate_eke(eke, deke, sqrteke, K_diss_h, K_diss_gm, K_gm, kappaM, P_diss_skew,
+def integrate_eke_kernel(eke, deke, sqrteke, K_diss_h, K_diss_gm, K_gm, kappaM, P_diss_skew,
                   P_diss_hmix, P_diss_iso, hrms_k0, Nsqr, kbot, coriolis_t, AB_eps, nz,
                   tau, taup1, taum1, dt_tracer, u, v, u_wgrid, v_wgrid, w_wgrid, c_lee,
                   c_lee0, cost, cosu, dxt, dxu, dyt, dyu, dzt, dzw, maskU, maskV, maskW,

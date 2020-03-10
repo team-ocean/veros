@@ -51,12 +51,15 @@ def _is_method(function):
 
 
 class VerosRoutine:
-    def __init__(self, function, inputs=(), outputs=(), settings=(), subroutines=(), dist_safe=True, narg=0):
+    def __init__(self, function, inputs=(), outputs=(), extra_outputs=(), settings=(), subroutines=(), dist_safe=True, narg=0):
         if isinstance(inputs, str):
             inputs = (inputs,)
 
         if isinstance(outputs, str):
             outputs = (outputs,)
+
+        if isinstance(extra_outputs, str):
+            extra_outputs = (extra_outputs,)
 
         if isinstance(settings, str):
             settings = (settings,)
@@ -69,6 +72,7 @@ class VerosRoutine:
         self.this_inputs = set(inputs)
         self.outputs = set(outputs)
         self.this_outputs = set(outputs)
+        self.extra_outputs = set(extra_outputs)
         self.settings = set(settings)
         self.subroutines = set(subroutines)
 
@@ -90,10 +94,10 @@ class VerosRoutine:
         )
 
     def __call__(self, *args, **kwargs):
-        from . import runtime_state as rst
-        from .backend import flush
-        from .state import VerosStateBase
-        from .state_dist import DistributedVerosState
+        from veros import runtime_state as rst
+        from veros.backend import flush
+        from veros.state import VerosStateBase
+        from veros.state_dist import DistributedVerosState
 
         logger.trace('{}> {}', '-' * CONTEXT.stack_level, self.name)
         CONTEXT.stack_level += 1
@@ -133,20 +137,23 @@ class VerosRoutine:
                 CONTEXT.is_dist_safe = True
             raise
         else:
+            if res is None:
+                res = {}
             if not isinstance(res, dict):
                 raise TypeError(f'Veros routines must return a single dict ({self.name})')
             if set(res.keys()) != self.this_outputs:
-                raise KeyError(f'Veros routine {self.name} returned unexpected outputs (expected: {tuple(self.this_outputs)}, got: {tuple(res.keys())})')
+                raise KeyError(f'Veros routine {self.name} returned unexpected outputs (expected: {sorted(self.this_outputs)}, got: {sorted(res.keys())})')
 
             for key, val in res.items():
-                setattr(func_state, key, val)
+                if hasattr(func_state, key):
+                    setattr(func_state, key, val)
 
             if reset_dist_safe:
                 CONTEXT.is_dist_safe = True
                 dist_state.scatter_arrays()
         finally:
-            logger.trace('<{} {}', '-' * CONTEXT.stack_level, self.name)
             CONTEXT.stack_level -= 1
+            logger.trace('<{} {}', '-' * CONTEXT.stack_level, self.name)
             r = CONTEXT.routine_stack.pop()
             assert r is self
             flush()
@@ -183,6 +190,8 @@ def veros_kernel(function=None, static_args=()):
 
     def inner_decorator(function):
         """Do some parameter introspection and apply jax.jit"""
+        from veros import runtime_settings
+
         func_name = f'{inspect.getmodule(function).__name__}:{function.__qualname__}'
         func_params = inspect.signature(function).parameters
 
@@ -203,8 +212,10 @@ def veros_kernel(function=None, static_args=()):
 
             static_argnums.append(arg_index)
 
-        from jax import jit
-        return jit(function, static_argnums=static_argnums)
+        if runtime_settings.backend == 'jax':
+            from jax import jit
+            return jit(function, static_argnums=static_argnums)
+
         return function
 
     if function is not None:
@@ -216,14 +227,14 @@ def veros_kernel(function=None, static_args=()):
 def dist_context_only(function):
     @functools.wraps(function)
     def dist_context_only_wrapper(*args, **kwargs):
-        # args are assumed to be (), (vs,), or (vs, arr, ...)
-        from . import runtime_state as rst
+        # args are assumed to be () or (arr, ...)
+        from veros import runtime_state as rst
 
         if rst.proc_num == 1 or not CONTEXT.is_dist_safe:
             # no-op for sequential execution
             try:
                 # return input array unchanged
-                return args[1]
+                return args[0]
             except IndexError:
                 return
 

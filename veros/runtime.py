@@ -20,7 +20,7 @@ def loglevel(v):
 
 AVAILABLE_SETTINGS = (
     # (name, type, default)
-    ('backend', str, 'jax'),
+    ('backend', str, 'numpy'),
     ('linear_solver', str, 'best'),
     ('num_proc', twoints, (1, 1)),
     ('profile_mode', bool, False),
@@ -68,7 +68,6 @@ class RuntimeSettings:
 
 class RuntimeState:
     """Unifies attributes from various modules in a simple read-only object"""
-
     __slots__ = []
 
     @property

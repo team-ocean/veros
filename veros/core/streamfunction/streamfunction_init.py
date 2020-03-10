@@ -1,17 +1,28 @@
 from loguru import logger
 import numpy as np
 
-from veros import veros_kernel, runtime_settings as rs, runtime_state as rst
+from veros import (
+    veros_kernel, veros_routine, run_kernel,
+    runtime_settings as rs, runtime_state as rst
+)
 from veros.core import utilities as mainutils
 from veros.core.streamfunction import island, utilities
 
 
-@veros_kernel#(dist_safe=False, local_variables=['kbot', 'land_map'])
-def get_isleperim(land_map, kbot, nx, ny, enable_cyclic_x):
+@veros_routine(
+    inputs=('kbot', 'land_map'),
+    outputs=('land_map'),
+    settings=('enable_cyclic_x'),
+    dist_safe=False
+)
+def get_isleperim(vs):
+    """
+    preprocess land map using MOMs algorithm for B-grid to determine number of islands
+    """
     logger.debug(' Determining number of land masses')
-    land_map[...] = island.isleperim(kbot, enable_cyclic_x)
-    logger.info(_ascii_map(nx, ny, land_map))
-    return int(land_map.max()), land_map
+    land_map = island.isleperim(vs.kbot, vs.enable_cyclic_x)
+    logger.info(_ascii_map(land_map))
+    return dict(land_map=land_map)
 
 
 def _get_solver_class():
@@ -51,35 +62,104 @@ def _get_solver_class():
     raise ValueError('unrecognized linear solver %s' % ls)
 
 
-@veros_kernel
-def streamfunction_init(land_map, nisle, kbot, nx, ny, isle, psin, dpsin, line_psin, boundary_mask,
-                        line_dir_south_mask, line_dir_north_mask, line_dir_east_mask,
-                        line_dir_west_mask, linear_solver, dxt, dyt, hur, hvr, maskZ,
-                        maskU, maskV, cosu, dxu, dyu, cost, default_float_type,
-                        enable_cyclic_x):
+@veros_routine(
+    inputs=(
+        'land_map', 'nisle', 'kbot', 'nx', 'ny', 'isle', 'psin', 'dpsin', 'line_psin', 'boundary_mask',
+        'line_dir_south_mask', 'line_dir_north_mask', 'line_dir_east_mask',
+        'line_dir_west_mask', 'linear_solver', 'dxt', 'dyt', 'hur', 'hvr', 'maskZ',
+        'maskU', 'maskV', 'cosu', 'dxu', 'dyu', 'cost'
+    ),
+    outputs=(
+        'psin', 'dpsin', 'line_psin', 'boundary_mask', 'line_dir_south_mask',
+        'line_dir_north_mask', 'line_dir_east_mask', 'line_dir_west_mask', 'linear_solver',
+        'nisle', 'isle'
+    ),
+    settings=(
+        'default_float_type', 'enable_cyclic_x'
+    ),
+    subroutines=(get_isleperim)
+)
+def streamfunction_init(vs):
     """
     prepare for island integrals
     """
     logger.info('Initializing streamfunction method')
 
-    """
-    preprocess land map using MOMs algorithm for B-grid to determine number of islands
-    """
-    land_map = np.zeros_like(kbot, dtype='int')
-    nisle, land_map = get_isleperim(land_map, kbot, nx, ny, enable_cyclic_x)
+    get_isleperim(vs)
+    nisle = np.max(vs.land_map)
 
+    vs.linear_solver = _get_solver_class()(vs)
+
+    (boundary_mask, line_dir_east_mask, line_dir_west_mask, line_dir_south_mask,
+     line_dir_north_mask) = run_kernel(boundary_masks, vs, nisle=nisle)
+
+    """
+    precalculate time independent boundary components of streamfunction
+    """
+    forc = np.zeros((vs.nx + 4, vs.ny + 4), dtype=vs.default_float_type)
+    psin = np.zeros((vs.nx + 4, vs.ny + 4, nisle), dtype=vs.default_float_type)
+    dpsin = np.zeros((nisle, 3), dtype=vs.default_float_type)
+
+    psin[...] = vs.maskZ[..., -1, np.newaxis]
+
+    for isle in range(nisle):
+        logger.info(' Solving for boundary contribution by island {:d}'.format(isle))
+        vs.linear_solver.solve(vs, forc, psin[:, :, isle], boundary_val=boundary_mask[:, :, isle])
+
+    mainutils.enforce_boundaries(psin, vs.enable_cyclic_x)
+
+    line_psin = run_kernel(
+        island_integrals, vs, nisle=nisle, psin=psin,
+        boundary_mask=boundary_mask, line_dir_east_mask=line_dir_east_mask, line_dir_west_mask=line_dir_west_mask,
+        line_dir_south_mask=line_dir_south_mask, line_dir_north_mask=line_dir_north_mask
+    )
+
+    isle = np.arange(1, nisle + 1)
+
+    return dict(
+        psin=psin, dpsin=dpsin, line_psin=line_psin, boundary_mask=boundary_mask,
+        line_dir_south_mask=line_dir_south_mask, line_dir_north_mask=line_dir_north_mask,
+        line_dir_east_mask=line_dir_east_mask, line_dir_west_mask=line_dir_west_mask,
+        linear_solver=vs.linear_solver,
+        nisle=nisle, isle=isle
+    )
+
+
+@veros_kernel(static_args=('default_float_type'))
+def island_integrals(nx, ny, nisle, default_float_type, maskU, maskV, dxt, dyt, dxu, dyu, cost, cosu, hur, hvr, psin,
+                     line_dir_east_mask, line_dir_west_mask, line_dir_north_mask, line_dir_south_mask, boundary_mask):
+    """
+    precalculate time independent island integrals
+    """
+    fpx = np.zeros((nx + 4, ny + 4, nisle), dtype=default_float_type)
+    fpy = np.zeros((nx + 4, ny + 4, nisle), dtype=default_float_type)
+
+    fpx[1:, 1:, :] = -maskU[1:, 1:, -1, np.newaxis] \
+        * (psin[1:, 1:, :] - psin[1:, :-1, :]) \
+        / dyt[np.newaxis, 1:, np.newaxis] * hur[1:, 1:, np.newaxis]
+    fpy[1:, 1:, ...] = maskV[1:, 1:, -1, np.newaxis] \
+        * (psin[1:, 1:, :] - psin[:-1, 1:, :]) \
+        / (cosu[np.newaxis, 1:, np.newaxis] * dxt[1:, np.newaxis, np.newaxis]) \
+        * hvr[1:, 1:, np.newaxis]
+    line_psin = utilities.line_integrals(
+        dxu, dyu, cost, line_dir_east_mask,
+        line_dir_west_mask, line_dir_north_mask, line_dir_south_mask, boundary_mask,
+        nisle, uloc=fpx, vloc=fpy, kind='full'
+    )
+
+    return line_psin
+
+
+@veros_kernel(static_args=('enable_cyclic_x'))
+def boundary_masks(land_map, nx, ny, nisle, enable_cyclic_x):
     """
     now that the number of islands is known we can allocate the rest of the variables
     """
-    isle = np.arange(1, nisle + 1)
-    psin = np.zeros((nx, ny, isle), dtype=default_float_type)
-    dpsin = np.zeros((nisle, 3), dtype=default_float_type)          # !!! CHANGE ALLOCATION !!!
-    line_psin = np.zeros((nisle, nisle), dtype=default_float_type)
-    boundary_mask = np.zeros((nx, ny, isle), dtype='bool')
-    line_dir_south_mask = np.zeros((nx, ny, isle), dtype='bool')
-    line_dir_north_mask = np.zeros((nx, ny, isle), dtype='bool')
-    line_dir_east_mask = np.zeros((nx, ny, isle), dtype='bool')
-    line_dir_west_mask = np.zeros((nx, ny, isle), dtype='bool')
+    boundary_mask = np.zeros((nx + 4, ny + 4, nisle), dtype='bool')
+    line_dir_south_mask = np.zeros((nx + 4, ny + 4, nisle), dtype='bool')
+    line_dir_north_mask = np.zeros((nx + 4, ny + 4, nisle), dtype='bool')
+    line_dir_east_mask = np.zeros((nx + 4, ny + 4, nisle), dtype='bool')
+    line_dir_west_mask = np.zeros((nx + 4, ny + 4, nisle), dtype='bool')
 
     for isle in range(nisle):
         boundary_map = land_map == (isle + 1)
@@ -102,44 +182,7 @@ def streamfunction_init(land_map, nisle, kbot, nx, ny, isle, psin, dpsin, line_p
             | line_dir_south_mask[..., isle]
         )
 
-    linear_solver = _get_solver_class()
-
-    """
-    precalculate time independent boundary components of streamfunction
-    """
-    forc = np.zeros((nx, ny), dtype=default_float_type)
-
-    # initialize with random noise to achieve uniform convergence
-    psin[...] = maskZ[..., -1, np.newaxis]  # np.random.rand(*psin.shape) * maskZ[..., -1, np.newaxis]
-
-    for isle in range(nisle):
-        logger.info(' Solving for boundary contribution by island {:d}'.format(isle))
-        linear_solver.solve(forc, psin[:, :, isle],
-                            boundary_val=boundary_mask[:, :, isle])
-
-    mainutils.enforce_boundaries(psin, enable_cyclic_x)
-
-    """
-    precalculate time independent island integrals
-    """
-    fpx = np.zeros((nx, ny, isle), dtype=default_float_type)
-    fpy = np.zeros((nx, ny, isle), dtype=default_float_type)
-
-    fpx[1:, 1:, :] = -maskU[1:, 1:, -1, np.newaxis] \
-        * (psin[1:, 1:, :] - psin[1:, :-1, :]) \
-        / dyt[np.newaxis, 1:, np.newaxis] * hur[1:, 1:, np.newaxis]
-    fpy[1:, 1:, ...] = maskV[1:, 1:, -1, np.newaxis] \
-        * (psin[1:, 1:, :] - psin[:-1, 1:, :]) \
-        / (cosu[np.newaxis, 1:, np.newaxis] * dxt[1:, np.newaxis, np.newaxis]) \
-        * hvr[1:, 1:, np.newaxis]
-    line_psin[...] = utilities.line_integrals(
-        dxu, dyu, cost, line_dir_east_mask,
-        line_dir_west_mask, line_dir_north_mask, line_dir_south_mask, boundary_mask,
-        nisle, uloc=fpx, vloc=fpy, kind='full'
-    )
-
-    return psin, dpsin, line_psin, land_map, boundary_mask, line_dir_south_mask,\
-        line_dir_north_mask, line_dir_east_mask, line_dir_west_mask, linear_solver
+    return boundary_mask, line_dir_east_mask, line_dir_west_mask, line_dir_south_mask, line_dir_north_mask
 
 
 def _ascii_map(boundary_map):

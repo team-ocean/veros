@@ -17,6 +17,12 @@ def init_backends():
     import numpy
     BACKENDS['numpy'] = numpy
 
+    try:
+        import jax
+    except ImportError:
+        jax = None
+    BACKENDS['jax'] = jax
+
 
 def get_backend(backend_name):
     if BACKENDS is None:
@@ -33,15 +39,9 @@ def get_backend(backend_name):
 
 
 def get_vector_engine(np):
-    from . import runtime_settings
+    from veros import runtime_settings
     return None
 
 
 def flush():
-    from . import runtime_settings as rs
-
-    if rs.backend == 'numpy':
-        pass
-
-    else:
-        raise RuntimeError('Unrecognized backend %s' % rs.backend)
+    pass

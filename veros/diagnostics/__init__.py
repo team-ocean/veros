@@ -1,4 +1,5 @@
 from loguru import logger
+import numpy as np
 
 from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monitor, io_tools
 from .. import time

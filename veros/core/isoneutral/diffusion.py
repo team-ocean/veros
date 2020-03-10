@@ -20,11 +20,12 @@ def _calc_tracer_fluxes(tr, K_iso, K_skew, K_11, K_22, Ai_ez, Ai_nz, Ai_bx, Ai_b
     diffloc[:, :, 1:] = 0.25 * (K1[1:-2, 2:-2, 1:] + K1[1:-2, 2:-2, :-1] +
                                 K1[2:-1, 2:-2, 1:] + K1[2:-1, 2:-2, :-1])
     diffloc[:, :, 0] = 0.5 * (K1[1:-2, 2:-2, 0] + K1[2:-1, 2:-2, 0])
-    sumz = np.zeros_like(K1)[1:-2, 2:-2, 0]
+    sumz = np.zeros_like(K1)[1:-2, 2:-2]
     for kr in range(2):
         for ip in range(2):
             sumz += diffloc * Ai_ez[1:-2, 2:-2, :, ip, kr] * (
                 tr_pad[1 + ip:-2 + ip, 2:-2, 1 + kr:-1 + kr or None] - tr_pad[1 + ip:-2 + ip, 2:-2, kr:-2 + kr])
+
     flux_east[1:-2, 2:-2, :] = sumz / (4. * dzt[np.newaxis, np.newaxis, :]) + (tr[2:-1, 2:-2, :, tau] - tr[1:-2, 2:-2, :, tau]) \
                              / (cost[np.newaxis, 2:-2, np.newaxis] * dxu[1:-2, np.newaxis, np.newaxis]) * K_11[1:-2, 2:-2, :]
 
@@ -182,10 +183,14 @@ def isoneutral_diffusion(tr, istemp, dtemp_iso, dsalt_iso, K_iso, K_gm, K_11, K_
         """
         if not iso:
             P_diss_skew = diffusion.dissipation_on_wgrid(
-                P_diss_skew, nz, dzw, int_drhodX=int_drhodX)
+                P_diss_skew, nz, dzw,
+                grav, rho_0, flux_east,
+                flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodX)
         else:
             P_diss_iso = diffusion.dissipation_on_wgrid(
-                P_diss_iso, nz, dzw, int_drhodX=int_drhodX)
+                P_diss_iso, nz, dzw,
+                grav, rho_0, flux_east,
+                flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodX)
 
         """
         diagnose dissipation of dynamic enthalpy by explicit and implicit vertical mixing

@@ -1,7 +1,7 @@
 import numpy as np
 from loguru import logger
 
-from veros import veros_kernel
+from veros import veros_kernel, veros_routine
 from veros.core import density, utilities
 
 
@@ -9,7 +9,7 @@ from veros.core import density, utilities
 def isoneutral_diffusion_pre(salt, temp, zt, dxt, dxu, dyt, dyu, dzt, dzw, maskT, maskU,
                              maskV, maskW, cost, cosu, iso_slopec, iso_dslope, K_iso,
                              K_iso_steep, K_11, K_22, K_33, Ai_ez, Ai_nz, Ai_bx, Ai_by,
-                             tau):
+                             tau, eq_of_state_type):
     """
     Isopycnal diffusion for tracer
     following functional formulation by Griffies et al
@@ -28,10 +28,10 @@ def isoneutral_diffusion_pre(salt, temp, zt, dxt, dxu, dyt, dyu, dzt, dzw, maskT
     drho_dt and drho_ds at centers of T cells
     """
     drdT = maskT * density.get_drhodT(
-        salt[:, :, :, tau], temp[:, :, :, tau], np.abs(zt)
+        eq_of_state_type, salt[:, :, :, tau], temp[:, :, :, tau], np.abs(zt)
     )
     drdS = maskT * density.get_drhodS(
-        salt[:, :, :, tau], temp[:, :, :, tau], np.abs(zt)
+        eq_of_state_type, salt[:, :, :, tau], temp[:, :, :, tau], np.abs(zt)
     )
 
     """
@@ -177,30 +177,31 @@ def isoneutral_diag_streamfunction(K_gm, Ai_ez, Ai_nz, B1_gm, B2_gm):
     return B1_gm, B2_gm
 
 
-@veros_kernel(
+@veros_routine(
+    inputs=('dxt', 'dyt', 'dzt', 'cost'),
+    settings=('dt_tracer', 'enable_neutral_diffusion', 'K_iso_0', 'iso_slopec')
     # dist_safe=False, local_variables=['dxt', 'dyt', 'dzt', 'cost']
 )
-def check_isoneutral_slope_crit(K_iso_0, iso_slopec, dxt, dyt, dzt, cost, dt_tracer,
-                                enable_neutral_diffusion):
+def check_isoneutral_slope_crit(vs):
     """
     check linear stability criterion from Griffies et al
     """
     epsln = 1e-20
-    if enable_neutral_diffusion:
-        ft1 = 1.0 / (4.0 * K_iso_0 * dt_tracer + epsln)
-        delta1a = np.min(dxt[2:-2, np.newaxis, np.newaxis] * np.abs(cost[np.newaxis, 2:-2, np.newaxis])
-                * dzt[np.newaxis, np.newaxis, :] * ft1)
-        delta1b = np.min(dyt[np.newaxis, 2:-2, np.newaxis] *
-                         dzt[np.newaxis, np.newaxis, :] * ft1)
+    if vs.enable_neutral_diffusion:
+        ft1 = 1.0 / (4.0 * vs.K_iso_0 * vs.dt_tracer + epsln)
+        delta1a = np.min(vs.dxt[2:-2, np.newaxis, np.newaxis] * np.abs(vs.cost[np.newaxis, 2:-2, np.newaxis])
+                  * vs.dzt[np.newaxis, np.newaxis, :] * ft1)
+        delta1b = np.min(vs.dyt[np.newaxis, 2:-2, np.newaxis] *
+                         vs.dzt[np.newaxis, np.newaxis, :] * ft1)
         delta_iso1 = min(
-            dzt[0] * ft1 * dxt[-1] * abs(cost[-1]),
+            vs.dzt[0] * ft1 * vs.dxt[-1] * abs(vs.cost[-1]),
             min(delta1a, delta1b)
         )
 
         logger.info('Diffusion grid factor delta_iso1 = {}', float(delta_iso1))
-        if delta_iso1 < iso_slopec:
+        if delta_iso1 < vs.iso_slopec:
             raise RuntimeError('Without latitudinal filtering, delta_iso1 is the steepest '
                                'isoneutral slope available for linear stability of '
                                'Redi and GM. Maximum allowable isoneutral slope is '
                                'specified as iso_slopec = {}.'
-                               .format(iso_slopec))
+                               .format(vs.iso_slopec))

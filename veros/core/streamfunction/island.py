@@ -1,11 +1,9 @@
 import numpy as np
 import scipy.ndimage
 
-from veros import veros_kernel
 from veros.core import utilities
 
 
-@veros_kernel(static_args=('enable_cyclic_x',))
 def isleperim(kmt, enable_cyclic_x, verbose=False):
     utilities.enforce_boundaries(kmt, enable_cyclic_x)
 

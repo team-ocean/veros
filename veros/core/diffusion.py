@@ -8,10 +8,9 @@ from veros.core import utilities
 
 @veros_kernel
 def dissipation_on_wgrid(out, nz, dzw,
-                         int_drhodX=None, grav=None, rho_0=None, flux_east=None,
-                         flux_north=None, dxt=None, dyt=None, cost=None,
-                         aloc=None,
-                         ks=None, kbot=None):
+                         grav, rho_0, flux_east,
+                         flux_north, dxt, dyt, cost, kbot,
+                         aloc=None, int_drhodX=None, ks=None):
     if aloc is None:
         aloc = np.zeros_like(out)
         aloc[1:-1, 1:-1, :] = 0.5 * grav / rho_0 \

@@ -4,9 +4,10 @@ import time
 
 import click
 
+from veros import runtime_settings, runtime_state
 from veros.settings import SETTINGS
 
-BACKENDS = ['numpy']
+BACKENDS = ['numpy', 'jax']
 LOGLEVELS = ['trace', 'debug', 'info', 'warning', 'error', 'critical']
 
 
@@ -52,7 +53,7 @@ def cli(run):
         Usage: my_setup.py [OPTIONS]
 
         Options:
-        -b, --backend [numpy]           Backend to use for computations (default:
+        -b, --backend [numpy|jax]       Backend to use for computations (default:
                                         numpy)
         -v, --loglevel [trace|debug|info|warning|error|critical]
                                         Log level used for output (default: info)
@@ -81,8 +82,6 @@ def cli(run):
                   help='Indicates that this process is an MPI worker (for internal use)')
     @functools.wraps(run)
     def wrapped(*args, slave, **kwargs):
-        from veros import runtime_settings, runtime_state
-
         total_proc = kwargs['num_proc'][0] * kwargs['num_proc'][1]
 
         if total_proc > 1 and runtime_state.proc_num == 1 and not slave:
@@ -98,7 +97,7 @@ def cli(run):
             while True:
                 done, success = zip(*(f.test() for f in futures))
 
-                if any(s is False for s in success):
+                if not all(success):
                     raise RuntimeError('An MPI worker encountered an error')
 
                 if all(done):

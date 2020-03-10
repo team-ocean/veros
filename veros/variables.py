@@ -224,23 +224,23 @@ MAIN_VARIABLES = OrderedDict([
 
     ('maskT', Variable(
         'Mask for tracer points', T_GRID, '',
-        'Mask in physical space for tracer points', dtype='int8', time_dependent=False
+        'Mask in physical space for tracer points', time_dependent=False
     )),
     ('maskU', Variable(
         'Mask for U points', U_GRID, '',
-        'Mask in physical space for U points', dtype='int8', time_dependent=False
+        'Mask in physical space for U points', time_dependent=False
     )),
     ('maskV', Variable(
         'Mask for V points', V_GRID, '',
-        'Mask in physical space for V points', dtype='int8', time_dependent=False
+        'Mask in physical space for V points', time_dependent=False
     )),
     ('maskW', Variable(
         'Mask for W points', W_GRID, '',
-        'Mask in physical space for W points', dtype='int8', time_dependent=False
+        'Mask in physical space for W points', time_dependent=False
     )),
     ('maskZ', Variable(
         'Mask for Zeta points', ZETA_GRID, '',
-        'Mask in physical space for Zeta points', dtype='int8', time_dependent=False
+        'Mask in physical space for Zeta points', time_dependent=False
     )),
 
     ('rho', Variable(
@@ -430,7 +430,7 @@ MAIN_VARIABLES = OrderedDict([
     )),
     ('boundary_mask', Variable(
         'Boundary mask', T_HOR + ISLE, '',
-        'Boundary mask', time_dependent=False
+        'Boundary mask', time_dependent=False, dtype='bool'
     )),
     ('line_dir_south_mask', Variable(
         'Line integral mask', T_HOR + ISLE, '',

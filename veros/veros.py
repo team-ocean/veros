@@ -3,16 +3,13 @@ import abc
 
 from loguru import logger
 
+# do not import veros.core here!
 from veros import (
     settings, diagnostics, time, handlers, logs, distributed, progress,
     runtime_settings as rs, runtime_state as rst
 )
 from veros.state import VerosState
 from veros.plugins import load_plugin
-from veros.core import (
-    momentum, numerics, thermodynamics, eke, tke, idemix,
-    isoneutral, streamfunction, advection, utilities
-)
 
 
 class VerosSetup(metaclass=abc.ABCMeta):
@@ -51,6 +48,10 @@ class VerosSetup(metaclass=abc.ABCMeta):
     def __init__(self, state=None, override=None, plugins=None):
         self.override_settings = override or {}
         logs.setup_logging(loglevel=rs.loglevel)
+
+        # this should be the first time the core routines are imported
+        import veros.core
+        veros.core.build_all()
 
         if plugins is not None:
             self.__veros_plugins__ = tuple(plugins)
@@ -182,6 +183,8 @@ class VerosSetup(metaclass=abc.ABCMeta):
         pass
 
     def setup(self):
+        from veros.core import numerics, streamfunction, eke, isoneutral
+
         vs = self.state
 
         with vs.timers['setup']:
@@ -232,6 +235,10 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 By default, only show if stdout is a terminal and Veros is running on a single process.
 
         """
+        from veros.core import (
+            idemix, eke, tke, momentum, thermodynamics, advection, utilities, isoneutral
+        )
+
         vs = self.state
 
         logger.info('\nStarting integration for {0[0]:.1f} {0[1]}'.format(time.format_time(vs.runlen)))
@@ -277,22 +284,22 @@ class VerosSetup(metaclass=abc.ABCMeta):
                                 if vs.enable_eke:
                                     eke.integrate_eke(vs)
 
-                            with vs.timers['idemix']:
-                                if vs.enable_idemix:
-                                    idemix.integrate_idemix(vs)
+                            # with vs.timers['idemix']:
+                            #     if vs.enable_idemix:
+                            #         idemix.integrate_idemix(vs)
 
-                            with vs.timers['tke']:
-                                if vs.enable_tke:
-                                    tke.integrate_tke(vs)
+                            # with vs.timers['tke']:
+                            #     if vs.enable_tke:
+                            #         tke.integrate_tke(vs)
 
-                            utilities.enforce_boundaries(vs, vs.u[:, :, :, vs.taup1])
-                            utilities.enforce_boundaries(vs, vs.v[:, :, :, vs.taup1])
+                            utilities.enforce_boundaries(vs.u[:, :, :, vs.taup1], vs.enable_cyclic_x)
+                            utilities.enforce_boundaries(vs.v[:, :, :, vs.taup1], vs.enable_cyclic_x)
                             if vs.enable_tke:
-                                utilities.enforce_boundaries(vs, vs.tke[:, :, :, vs.taup1])
+                                utilities.enforce_boundaries(vs.tke[:, :, :, vs.taup1], vs.enable_cyclic_x)
                             if vs.enable_eke:
-                                utilities.enforce_boundaries(vs, vs.eke[:, :, :, vs.taup1])
+                                utilities.enforce_boundaries(vs.eke[:, :, :, vs.taup1], vs.enable_cyclic_x)
                             if vs.enable_idemix:
-                                utilities.enforce_boundaries(vs, vs.E_iw[:, :, :, vs.taup1])
+                                utilities.enforce_boundaries(vs.E_iw[:, :, :, vs.taup1], vs.enable_cyclic_x)
 
                             momentum.vertical_velocity(vs)
 
@@ -311,8 +318,8 @@ class VerosSetup(metaclass=abc.ABCMeta):
                             if not diagnostics.sanity_check(vs):
                                 raise RuntimeError('solution diverged at iteration {}'.format(vs.itt))
 
-                            if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-                                isoneutral.isoneutral_diag_streamfunction(vs)
+                            # if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
+                            #     isoneutral.isoneutral_diag_streamfunction(vs)
 
                             diagnostics.diagnose(vs)
                             diagnostics.output(vs)

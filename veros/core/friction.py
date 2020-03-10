@@ -67,11 +67,11 @@ def implicit_vert_friction(du_mix, dv_mix, K_diss_v, u, v, kbot, kappaM, tau, ta
     dissipation is calculated and added to K_diss_v
     """
     diss = np.zeros_like(maskU)
-    a_tri = np.zeros_like(kbot[1:-2, 1:-2])
-    b_tri = np.zeros_like(kbot[1:-2, 1:-2])
-    c_tri = np.zeros_like(kbot[1:-2, 1:-2])
-    d_tri = np.zeros_like(kbot[1:-2, 1:-2])
-    delta = np.zeros_like(kbot[1:-2, 1:-2])
+    a_tri = np.zeros_like(maskU[1:-2, 1:-2])
+    b_tri = np.zeros_like(maskU[1:-2, 1:-2])
+    c_tri = np.zeros_like(maskU[1:-2, 1:-2])
+    d_tri = np.zeros_like(maskU[1:-2, 1:-2])
+    delta = np.zeros_like(maskU[1:-2, 1:-2])
     flux_top = np.zeros_like(maskU)
 
     """
@@ -79,8 +79,7 @@ def implicit_vert_friction(du_mix, dv_mix, K_diss_v, u, v, kbot, kappaM, tau, ta
     """
     kss = np.maximum(kbot[1:-2, 1:-2], kbot[2:-1, 1:-2]) - 1
     fxa = 0.5 * (kappaM[1:-2, 1:-2, :-1] + kappaM[2:-1, 1:-2, :-1])
-    delta[:, :, :-1] = dt_mom / dzw[:-1] * fxa * \
-        maskU[1:-2, 1:-2, 1:] * maskU[1:-2, 1:-2, :-1]
+    delta[:, :, :-1] = dt_mom / dzw[:-1] * fxa * maskU[1:-2, 1:-2, 1:] * maskU[1:-2, 1:-2, :-1]
     a_tri[:, :, 1:] = -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:]
     b_tri[:, :, 1:] = 1 + delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:]
     b_tri[:, :, 1:-1] += delta[:, :, 1:-1] / dzt[np.newaxis, np.newaxis, 1:-1]
@@ -147,19 +146,23 @@ def rayleigh_friction(du_mix, dv_mix, K_diss_bot, maskU, maskV, u, v, tau,
     du_mix[...] += -maskU * r_ray * u[..., tau]
     if enable_conserve_energy:
         diss = maskU * r_ray * u[..., tau]**2
-        K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu)
+        K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dxu, dyt, cost)
     dv_mix[...] += -maskV * r_ray * v[..., tau]
 
     if enable_conserve_energy:
         diss = maskV * r_ray * v[..., tau]**2
-        K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t)
+        K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dyt, cost, area_v, area_t)
 
     return du_mix, dv_mix, K_diss_bot
 
 
 @veros_kernel(static_args=('enable_bottom_friction_var', 'enable_conserve_energy'))
 def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, maskV,
-                           r_bot, r_bot_var_u, r_bot_var_v, tau, dzw, dxt, dxu,
+                           r_bot, r_bot_var_u, r_bot_var_v, tau, dzw,
+                           grav, rho_0, flux_east,
+                           flux_north, dxt, dxu, dyt, cost,
                            area_v, area_t, enable_bottom_friction_var,
                            enable_conserve_energy):
     """
@@ -178,7 +181,8 @@ def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, ma
             diss = np.zeros_like(maskU)
             diss[1:-2, 2:-2] = maskU[1:-2, 2:-2] * r_bot_var_u[1:-2, 2:-2, np.newaxis] \
                 * u[1:-2, 2:-2, :, tau]**2 * mask
-            K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu)
+            K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                    flux_north, dxt, dxu, dyt, cost)
 
         k = np.maximum(kbot[2:-2, 2:-1], kbot[2:-2, 1:-2]) - 1
         mask = np.arange(nz) == k[:, :, np.newaxis]
@@ -188,7 +192,8 @@ def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, ma
             diss = np.zeros_like(maskV)
             diss[2:-2, 1:-2] = maskV[2:-2, 1:-2] * r_bot_var_v[2:-2, 1:-2, np.newaxis] \
                 * v[2:-2, 1:-2, :, tau]**2 * mask
-            K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t)
+            K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                    flux_north, dxt, dyt, cost, area_v, area_t)
     else:
         """
         with constant coefficient
@@ -199,7 +204,8 @@ def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, ma
         if enable_conserve_energy:
             diss = np.zeros_like(maskU)
             diss[1:-2, 2:-2] = maskU[1:-2, 2:-2] * r_bot * u[1:-2, 2:-2, :, tau]**2 * mask
-            K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu)
+            K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                    flux_north, dxt, dxu, dyt, cost)
 
         k = np.maximum(kbot[2:-2, 2:-1], kbot[2:-2, 1:-2]) - 1
         mask = np.arange(nz) == k[:, :, np.newaxis]
@@ -207,14 +213,16 @@ def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, ma
         if enable_conserve_energy:
             diss = np.zeros_like(maskV)
             diss[2:-2, 1:-2] = maskV[2:-2, 1:-2] * r_bot * v[2:-2, 1:-2, :, tau]**2 * mask
-            K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t)
+            K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                    flux_north, dxt, dyt, cost, area_v, area_t)
 
     return du_mix, dv_mix, K_diss_bot
 
 
 @veros_kernel(static_args=('enable_conserve_energy'))
 def quadratic_bottom_friction(du_mix, dv_mix, K_diss_bot, u, v, r_quad_bot, dzt,
-                              dzw, dxt, dxu, kbot, maskU, maskV, nz, tau,
+                              dzw, grav, rho_0, flux_east,
+                              flux_north, dxt, dxu, dyt, cost, kbot, maskU, maskV, nz, tau,
                               area_v, area_t, enable_conserve_energy):
     """
     quadratic bottom friction
@@ -235,7 +243,8 @@ def quadratic_bottom_friction(du_mix, dv_mix, K_diss_bot, u, v, r_quad_bot, dzt,
     if enable_conserve_energy:
         diss = np.zeros_like(maskU)
         diss[1:-2, 2:-2, :] = aloc * u[1:-2, 2:-2, :, tau]
-        K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu)
+        K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dxu, dyt, cost)
 
     k = np.maximum(kbot[2:-2, 1:-2], kbot[2:-2, 2:-1]) - 1
     mask = k[..., np.newaxis] == np.arange(nz)[np.newaxis, np.newaxis, :]
@@ -251,7 +260,8 @@ def quadratic_bottom_friction(du_mix, dv_mix, K_diss_bot, u, v, r_quad_bot, dzt,
     if enable_conserve_energy:
         diss = np.zeros_like(maskV)
         diss[2:-2, 1:-2, :] = aloc * v[2:-2, 1:-2, :, tau]
-        K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t)
+        K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dyt, cost, area_v, area_t)
 
     return du_mix, dv_mix, K_diss_bot
 
@@ -262,7 +272,7 @@ def quadratic_bottom_friction(du_mix, dv_mix, K_diss_bot, u, v, r_quad_bot, dzt,
 def harmonic_friction(du_mix, dv_mix, K_diss_h, cost, cosu, A_h, u, v, tau,
                       dxt, dxu, dyt, dyu, dzw, maskU, maskV, kbot, nz, area_v, area_t,
                       enable_hor_friction_cos_scaling, enable_noslip_lateral,
-                      hor_friction_cosPower, enable_conserve_energy):
+                      hor_friction_cosPower, enable_conserve_energy, grav, rho_0):
     """
     horizontal harmonic friction
     dissipation is calculated and added to K_diss_h
@@ -319,7 +329,8 @@ def harmonic_friction(du_mix, dv_mix, K_diss_h, cost, cosu, A_h, u, v, tau,
                      + (u[1:-2, 2:-2, :, tau] - u[1:-2, 1:-3, :, tau]) * flux_north[1:-2, 1:-3]) \
             / (cost[2:-2] * dyt[2:-2])[np.newaxis, :, np.newaxis]
         K_diss_h[...] = 0.
-        K_diss_h[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu)
+        K_diss_h[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                              flux_north, dxt, dxu, dyt, cost)
 
     """
     Meridional velocity
@@ -368,7 +379,8 @@ def harmonic_friction(du_mix, dv_mix, K_diss_h, cost, cosu, A_h, u, v, tau,
             + 0.5 * ((v[2:-2, 2:-1, :, tau] - v[2:-2, 1:-2, :, tau]) * flux_north[2:-2, 1:-2]
                      + (v[2:-2, 1:-2, :, tau] - v[2:-2, :-3, :, tau]) * flux_north[2:-2, :-3]) \
             / (cosu[1:-2] * dyu[1:-2])[np.newaxis, :, np.newaxis]
-        K_diss_h[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t)
+        K_diss_h[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                              flux_north, dxt, dyt, cost, area_v, area_t)
 
     return du_mix, dv_mix, K_diss_h
 
@@ -443,7 +455,8 @@ def biharmonic_friction(du_mix, dv_mix, K_diss_h, A_hbi, u, v, tau, area_v, area
                      + (u[1:-2, 2:-2, :, tau] - u[1:-2, 1:-3, :, tau]) * flux_north[1:-2, 1:-3, :]) \
             / (cost[np.newaxis, 2:-2, np.newaxis] * dyt[np.newaxis, 2:-2, np.newaxis])
         K_diss_h[...] = 0.
-        K_diss_h[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu)
+        K_diss_h[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                              flux_north, dxt, dxu, dyt, cost)
 
     """
     Meridional velocity
@@ -501,7 +514,8 @@ def biharmonic_friction(du_mix, dv_mix, K_diss_h, A_hbi, u, v, tau, area_v, area
             - 0.5 * ((v[2:-2, 2:-1, :, tau] - v[2:-2, 1:-2, :, tau]) * flux_north[2:-2, 1:-2, :]
                      + (v[2:-2, 1:-2, :, tau] - v[2:-2, :-3, :, tau]) * flux_north[2:-2, :-3, :]) \
             / (cosu[np.newaxis, 1:-2, np.newaxis] * dyu[np.newaxis, 1:-2, np.newaxis])
-        K_diss_h[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t)
+        K_diss_h[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                              flux_north, dxt, dyt, cost, area_v, area_t)
 
     return du_mix, dv_mix, K_diss_h
 
@@ -516,11 +530,13 @@ def momentum_sources(du_mix, dv_mix, K_diss_bot, u, v, u_source, v_source, area_
     du_mix[...] += maskU * u_source
     if enable_conserve_energy:
         diss = -maskU * u[..., tau] * u_source
-        K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu)
+        K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dxu, dyt, cost)
     dv_mix[...] += maskV * v_source
     if enable_conserve_energy:
         diss = -maskV * v[..., tau] * v_source
-        K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t)
+        K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dyt, cost, area_v, area_t)
 
     return du_mix, dv_mix, K_diss_bot
 
@@ -579,6 +595,8 @@ def friction(vs):
     if vs.enable_TEM_friction:
         du_mix, dv_mix, K_diss_gm, u, v = run_kernel(isoneutral.isoneutral_friction, vs,
                                                      du_mix=du_mix, dv_mix=dv_mix)
+    else:
+        K_diss_gm = 0
 
     """
     horizontal friction
@@ -598,8 +616,13 @@ def friction(vs):
         du_mix, dv_mix, K_diss_bot = run_kernel(rayleigh_friction, vs,
                                                 du_mix=du_mix, dv_mix=dv_mix)
     if vs.enable_bottom_friction:
+        if vs.enable_bottom_friction_var:
+            r_bot_var_u, r_bot_var_v = vs.r_bot_var_u, vs.r_bot_var_v
+        else:
+            r_bot_var_u = r_bot_var_v = 0
         du_mix, dv_mix, K_diss_bot = run_kernel(linear_bottom_friction, vs,
-                                                du_mix=du_mix, dv_mix=dv_mix)
+                                                du_mix=du_mix, dv_mix=dv_mix,
+                                                r_bot_var_u=r_bot_var_u, r_bot_var_v=r_bot_var_v)
     if vs.enable_quadratic_bottom_friction:
         du_mix, dv_mix, K_diss_bot = run_kernel(quadratic_bottom_friction, vs,
                                                 du_mix=du_mix, dv_mix=dv_mix)
@@ -612,11 +635,12 @@ def friction(vs):
                                                 du_mix=du_mix, dv_mix=dv_mix,
                                                 K_diss_bot=K_diss_bot)
 
-    return dict(u=u, v=v,
-                du_mix=du_mix,
-                dv_mix=dv_mix,
-                K_diss_h=K_diss_h,
-                K_diss_v=K_diss_v,
-                K_diss_gm=K_diss_gm,
-                K_diss_bot=K_diss_bot
+    return dict(
+        u=u, v=v,
+        du_mix=du_mix,
+        dv_mix=dv_mix,
+        K_diss_h=K_diss_h,
+        K_diss_v=K_diss_v,
+        K_diss_gm=K_diss_gm,
+        K_diss_bot=K_diss_bot
     )

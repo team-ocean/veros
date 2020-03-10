@@ -331,9 +331,9 @@ def global_min(vs, arr, axis=None):
 
 
 @dist_context_only
-def global_sum(vs, arr, axis=None):
+def global_sum(arr, axis=None):
     from mpi4py import MPI
-    return _reduce(vs, arr, MPI.SUM, axis=axis)
+    return _reduce(arr, MPI.SUM, axis=axis)
 
 
 @dist_context_only

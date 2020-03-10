@@ -7,20 +7,51 @@ used for streamfunction
 
 import numpy as np
 
-from veros import veros_kernel
+from veros import veros_kernel, veros_routine, run_kernel
 from veros.core import utilities as mainutils
 from veros.core.streamfunction import utilities
 
 
-@veros_kernel(static_args=('nisle', 'enable_cyclic_x'))
-def solve_streamfunction(grav, rho_0, rho, dxu, dxt, dyu, dyt, dzw, dzt, tau, taup1, taum1,
-                         maskT, maskU, maskV, du, dv, du_mix, dv_mix, cost, cosu, psi, psin,
-                         dpsi, dpsin, p_hydro, hur, hvr, nisle, dt_mom, AB_eps, u, v, line_psin,
-                         linear_solver, enable_cyclic_x, line_dir_east_mask, line_dir_west_mask,
-                         line_dir_north_mask, line_dir_south_mask, boundary_mask):
-    """
-    solve for barotropic streamfunction
-    """
+@veros_routine(
+    inputs=(
+        'rho', 'dxu', 'dxt', 'dyu', 'dyt', 'dzw', 'dzt',
+        'maskT', 'maskU', 'maskV', 'du', 'dv', 'du_mix', 'dv_mix', 'cost', 'cosu', 'psi', 'psin',
+        'dpsi', 'dpsin', 'p_hydro', 'hur', 'hvr', 'u', 'v', 'line_psin',
+        'line_dir_east_mask', 'line_dir_west_mask',
+        'line_dir_north_mask', 'line_dir_south_mask', 'boundary_mask',
+    ),
+    outputs=('u', 'v', 'du', 'dv', 'p_hydro', 'psi', 'dpsi', 'dpsin'),
+    settings=(
+        'tau', 'taup1', 'taum1', 'grav', 'rho_0', 'linear_solver', 'enable_cyclic_x',
+        'nisle', 'dt_mom', 'AB_eps'
+    )
+)
+def solve_streamfunction(vs):
+    forc, dpsi, fpx, fpy = run_kernel(prepare_forcing, vs)
+
+    vs.linear_solver.solve(
+        vs,
+        forc,
+        dpsi[..., vs.taup1]
+    )
+
+    u, v, du, dv, p_hydro, psi, dpsi, dpsin = run_kernel(barotropic_velocity_update, vs, fpx=fpx, fpy=fpy)
+
+    return dict(
+        u=u,
+        v=v,
+        du=du,
+        dv=dv,
+        p_hydro=p_hydro,
+        psi=psi,
+        dpsi=dpsi,
+        dpsin=dpsin
+    )
+
+
+@veros_kernel
+def prepare_forcing(grav, rho_0, tau, taup1, taum1, dzt, maskT, p_hydro, rho, dzw, du, dv, dxu, dyu,
+                    maskU, maskV, cost, du_mix, dv_mix, hur, hvr, enable_cyclic_x, cosu, dpsi):
     # hydrostatic pressure
     fxa = grav / rho_0
     tmp = 0.5 * (rho[:, :, :, tau]) * fxa * dzw * maskT
@@ -58,11 +89,18 @@ def solve_streamfunction(grav, rho_0, rho, dxu, dxt, dyu, dyt, dzw, dzt, tau, ta
     # solve for interior streamfunction
     dpsi[:, :, taup1] = 2 * dpsi[:, :, tau] - dpsi[:, :, taum1]
 
-    linear_solver.solve(
-        forc,
-        dpsi[..., taup1]
-    )
+    return forc, dpsi, fpx, fpy
 
+
+@veros_kernel(static_args=('nisle', 'enable_cyclic_x'))
+def barotropic_velocity_update(dxu, dxt, dyu, dyt, dzw, dzt, tau, taup1, taum1,
+                               maskT, maskU, maskV, du, dv, du_mix, dv_mix, cost, cosu, psi, psin,
+                               dpsi, dpsin, p_hydro, hur, hvr, nisle, dt_mom, AB_eps, u, v, line_psin,
+                               linear_solver, enable_cyclic_x, line_dir_east_mask, line_dir_west_mask,
+                               line_dir_north_mask, line_dir_south_mask, boundary_mask, fpx, fpy):
+    """
+    solve for barotropic streamfunction
+    """
     mainutils.enforce_boundaries(dpsi[:, :, taup1], enable_cyclic_x)
 
     line_forc = np.zeros_like(dpsin[..., -1])
@@ -97,6 +135,7 @@ def solve_streamfunction(grav, rho_0, rho, dxu, dxt, dyu, dyt, dzw, dzt, tau, ta
                                                    vloc=fpy[..., np.newaxis], kind='same')[1:]
 
         # solve for time dependent boundary values
+        print(line_forc.shape, line_psin.shape)
         dpsin[1:, tau] = np.linalg.solve(line_psin[1:, 1:], line_forc[1:])
 
     # integrate barotropic and baroclinic velocity forward in time

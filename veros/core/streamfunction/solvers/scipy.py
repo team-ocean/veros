@@ -24,10 +24,10 @@ class SciPySolver(LinearSolver):
 
     # @veros_method(dist_safe=False, local_variables=['boundary_mask'])
     def _scipy_solver(self, vs, rhs, sol, boundary_val):
-        utilities.enforce_boundaries(vs, sol)
+        utilities.enforce_boundaries(sol, vs.enable_cyclic_x)
 
         boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
-        rhs = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
+        rhs = utilities.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
         x0 = sol.flatten()
 
         rhs = rhs.flatten() * self._preconditioner.diagonal()
@@ -54,8 +54,8 @@ class SciPySolver(LinearSolver):
             sol: Initial guess, gets overwritten with solution
             boundary_val: Array containing values to set on boundary elements. Defaults to `sol`.
         """
-        rhs_global = distributed.gather(vs, rhs, ('xt', 'yt'))
-        sol_global = distributed.gather(vs, sol, ('xt', 'yt'))
+        rhs_global = distributed.gather(rhs, ('xt', 'yt'))
+        sol_global = distributed.gather(sol, ('xt', 'yt'))
 
         if boundary_val is None:
             boundary_val = sol_global
@@ -64,7 +64,7 @@ class SciPySolver(LinearSolver):
 
         self._scipy_solver(vs, rhs_global, sol_global, boundary_val=boundary_val)
 
-        sol[...] = distributed.scatter(vs, sol_global, ('xt', 'yt'))
+        sol[...] = distributed.scatter(sol_global, ('xt', 'yt'))
 
     @staticmethod
     # @veros_method(dist_safe=False, local_variables=[])
@@ -75,7 +75,7 @@ class SciPySolver(LinearSolver):
         eps = 1e-20
         Z = allocate(vs, ('xu', 'yu'), fill=1, local=False)
         Y = np.reshape(matrix.diagonal().copy(), (vs.nx + 4, vs.ny + 4))[2:-2, 2:-2]
-        Z[2:-2, 2:-2] = utilities.where(vs, np.abs(Y) > eps, 1. / (Y + eps), 1.)
+        Z[2:-2, 2:-2] = utilities.where(np.abs(Y) > eps, 1. / (Y + eps), 1.)
         return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
 
     @staticmethod
