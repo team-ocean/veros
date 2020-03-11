@@ -94,7 +94,7 @@ class VerosRoutine:
         )
 
     def __call__(self, *args, **kwargs):
-        from veros import runtime_state as rst
+        from veros import runtime_state as rst, runtime_settings as rs
         from veros.backend import flush
         from veros.state import VerosStateBase
         from veros.state_dist import DistributedVerosState
@@ -145,6 +145,9 @@ class VerosRoutine:
                 raise KeyError(f'Veros routine {self.name} returned unexpected outputs (expected: {sorted(self.this_outputs)}, got: {sorted(res.keys())})')
 
             for key, val in res.items():
+                if rs.backend == 'jax':
+                    val.block_until_ready()
+
                 if hasattr(func_state, key):
                     setattr(func_state, key, val)
 

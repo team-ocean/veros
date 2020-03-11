@@ -85,6 +85,7 @@ def set_tke_diffusivities_kernel(tke, mxl_min, Nsqr, ht, maskW, zw, dzt, dzw, ta
         Note that the following code doesn't vectorize. If critical for performance,
         consider re-implementing it in Cython.
         """
+        # TODO: use JAX primitives
         for k in range(nz - 2, -1, -1):
             mxl = update(mxl, at[:, :, k], np.minimum(mxl[:, :, k], mxl[:, :, k + 1] + dzt[k + 1]))
         mxl = update(mxl, at[:, :, -1], np.minimum(mxl[:, :, -1], mxl_min + dzt[-1]))
