@@ -5,7 +5,7 @@ from loguru import logger
 
 
 def build_all():
-    """Trigger import of all core modules"""
+    """Trigger first import of all core modules"""
     basedir = os.path.dirname(__file__)
 
     for root, dirs, files in os.walk(basedir):
@@ -22,4 +22,7 @@ def build_all():
                 module_path = f'veros.core.{modname}'
 
             logger.trace('importing {}', module_path)
-            importlib.import_module(module_path)
+            try:
+                importlib.import_module(module_path)
+            except ImportError:
+                pass
