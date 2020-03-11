@@ -2,6 +2,7 @@
 
 import os
 os.environ.update(
+    OMP_NUM_THREADS='1',
     JAX_ENABLE_X64='1',
     XLA_FLAGS=(
         '--xla_cpu_multi_thread_eigen=false '
@@ -11,7 +12,7 @@ os.environ.update(
 )
 
 from veros import VerosSetup
-from veros.tools import cli
+from veros.tools import cli, get_vinokur_grid_steps
 from veros.variables import allocate
 from veros.distributed import global_min, global_max
 
@@ -31,7 +32,7 @@ class ACCSetup(VerosSetup):
     def set_parameter(self, vs):
         vs.identifier = 'acc'
 
-        vs.nx, vs.ny, vs.nz = 300, 420, 15
+        vs.nx, vs.ny, vs.nz = 300, 420, 80
         vs.dt_mom = 60
         vs.dt_tracer = 60
         vs.runlen = vs.dt_tracer * 10
@@ -83,19 +84,17 @@ class ACCSetup(VerosSetup):
 
         vs.enable_idemix = False
 
-        vs.eq_of_state_type = 3
+        vs.eq_of_state_type = 5
 
         vs.diskless_mode = True
 
     def set_grid(self, vs):
         from veros.core.operators import numpy as np, update, at
-        ddz = np.array([50., 70., 100., 140., 190., 240., 290., 340.,
-                        390., 440., 490., 540., 590., 640., 690.])
-        vs.dxt = update(vs.dxt, at[...], 2.0)
-        vs.dyt = update(vs.dyt, at[...], 2.0)
+        vs.dzt = np.array(get_vinokur_grid_steps(vs.nz, 4000, 10, refine_towards='lower'))
+        vs.dxt = update(vs.dxt, at[...], .2)
+        vs.dyt = update(vs.dyt, at[...], .2)
         vs.x_origin = 0.0
         vs.y_origin = -40.0
-        vs.dzt = ddz[::-1] / 2.5
 
     def set_coriolis(self, vs):
         from veros.core.operators import numpy as np, update, at
