@@ -2,10 +2,10 @@ import timeit
 
 
 class Timer:
-    def __init__(self, ignore_first=True):
+    def __init__(self, inactive=False):
         self.total_time = 0
         self.last_time = 0
-        self.first = ignore_first
+        self.active = not inactive
 
     def __enter__(self):
         self.start_time = timeit.default_timer()
@@ -13,10 +13,8 @@ class Timer:
     def __exit__(self, type, value, traceback):
         self.last_time = timeit.default_timer() - self.start_time
 
-        if not self.first:
+        if self.active:
             self.total_time += self.last_time
-
-        self.first = False
 
     def get_time(self):
         return self.total_time

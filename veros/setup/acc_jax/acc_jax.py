@@ -32,7 +32,7 @@ class ACCSetup(VerosSetup):
     def set_parameter(self, vs):
         vs.identifier = 'acc'
 
-        vs.nx, vs.ny, vs.nz = 300, 420, 80
+        vs.nx, vs.ny, vs.nz = 180, 360, 80
         vs.dt_mom = 60
         vs.dt_tracer = 60
         vs.runlen = vs.dt_tracer * 10

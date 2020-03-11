@@ -37,7 +37,7 @@ class VerosState(VerosStateBase):
         for plugin in self._plugin_interfaces:
             settings.update_settings(self, plugin.settings)
 
-        self.timers = {k: timer.Timer() for k in (
+        self.timers = {k: timer.Timer(inactive=(k != 'setup')) for k in (
             'setup', 'main', 'momentum', 'temperature', 'eke', 'idemix',
             'tke', 'diagnostics', 'pressure', 'friction', 'isoneutral',
             'vmix', 'eq_of_state', 'plugins'

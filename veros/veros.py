@@ -249,6 +249,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         profiler = None
 
         pbar = progress.get_progress_bar(vs, use_tqdm=show_progress_bar)
+        first_iteration = True
 
         with handlers.signals_to_exception():
             try:
@@ -257,7 +258,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                         with vs.timers['diagnostics']:
                             diagnostics.write_restart(vs)
 
-                        if vs.itt - start_iteration == 1 and rs.profile_mode and rst.proc_rank == 0:
+                        if not first_iteration and rs.profile_mode and rst.proc_rank == 0:
                             # kernels should be pre-compiled by now
                             profiler = diagnostics.start_profiler()
 
@@ -294,14 +295,14 @@ class VerosSetup(metaclass=abc.ABCMeta):
                                 if vs.enable_tke:
                                     tke.integrate_tke(vs)
 
-                            utilities.enforce_boundaries(vs.u[:, :, :, vs.taup1], vs.enable_cyclic_x)
-                            utilities.enforce_boundaries(vs.v[:, :, :, vs.taup1], vs.enable_cyclic_x)
+                            vs.u = utilities.enforce_boundaries(vs.u, vs.enable_cyclic_x)
+                            vs.v = utilities.enforce_boundaries(vs.v, vs.enable_cyclic_x)
                             if vs.enable_tke:
-                                utilities.enforce_boundaries(vs.tke[:, :, :, vs.taup1], vs.enable_cyclic_x)
+                                vs.tke = utilities.enforce_boundaries(vs.tke, vs.enable_cyclic_x)
                             if vs.enable_eke:
-                                utilities.enforce_boundaries(vs.eke[:, :, :, vs.taup1], vs.enable_cyclic_x)
+                                vs.eke = utilities.enforce_boundaries(vs.eke, vs.enable_cyclic_x)
                             if vs.enable_idemix:
-                                utilities.enforce_boundaries(vs.E_iw[:, :, :, vs.taup1], vs.enable_cyclic_x)
+                                vs.E_iw = utilities.enforce_boundaries(vs.E_iw, vs.enable_cyclic_x)
 
                             momentum.vertical_velocity(vs)
 
@@ -331,6 +332,11 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
                         # permutate time indices
                         vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
+
+                        if first_iteration:
+                            for timer in vs.timers.values():
+                                timer.active = True
+                            first_iteration = False
 
             except:  # noqa: E722
                 logger.critical('Stopping integration at iteration {}', vs.itt)
