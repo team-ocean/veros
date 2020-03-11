@@ -1,4 +1,4 @@
-import numpy as np
+from veros.core.operators import numpy as np
 
 from veros import veros_kernel
 

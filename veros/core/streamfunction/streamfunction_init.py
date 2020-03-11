@@ -1,11 +1,12 @@
 from loguru import logger
-import numpy as np
+from veros.core.operators import numpy as np
 
 from veros import (
     veros_kernel, veros_routine, run_kernel,
     runtime_settings as rs, runtime_state as rst
 )
 from veros.core import utilities as mainutils
+from veros.core.operators import update, at
 from veros.core.streamfunction import island, utilities
 
 
@@ -21,7 +22,7 @@ def get_isleperim(vs):
     """
     logger.debug(' Determining number of land masses')
     land_map = island.isleperim(vs.kbot, vs.enable_cyclic_x)
-    logger.info(_ascii_map(land_map))
+    logger.info(_ascii_map(land_map.copy()))
     return dict(land_map=land_map)
 
 
@@ -100,7 +101,7 @@ def streamfunction_init(vs):
     psin = np.zeros((vs.nx + 4, vs.ny + 4, nisle), dtype=vs.default_float_type)
     dpsin = np.zeros((nisle, 3), dtype=vs.default_float_type)
 
-    psin[...] = vs.maskZ[..., -1, np.newaxis]
+    psin = update(psin, at[...], vs.maskZ[..., -1, np.newaxis])
 
     for isle in range(nisle):
         logger.info(' Solving for boundary contribution by island {:d}'.format(isle))
@@ -125,7 +126,7 @@ def streamfunction_init(vs):
     )
 
 
-@veros_kernel(static_args=('default_float_type'))
+@veros_kernel(static_args=('default_float_type', 'nx', 'ny', 'nisle'))
 def island_integrals(nx, ny, nisle, default_float_type, maskU, maskV, dxt, dyt, dxu, dyu, cost, cosu, hur, hvr, psin,
                      line_dir_east_mask, line_dir_west_mask, line_dir_north_mask, line_dir_south_mask, boundary_mask):
     """
@@ -134,23 +135,23 @@ def island_integrals(nx, ny, nisle, default_float_type, maskU, maskV, dxt, dyt, 
     fpx = np.zeros((nx + 4, ny + 4, nisle), dtype=default_float_type)
     fpy = np.zeros((nx + 4, ny + 4, nisle), dtype=default_float_type)
 
-    fpx[1:, 1:, :] = -maskU[1:, 1:, -1, np.newaxis] \
+    fpx = update(fpx, at[1:, 1:, :], -maskU[1:, 1:, -1, np.newaxis] \
         * (psin[1:, 1:, :] - psin[1:, :-1, :]) \
-        / dyt[np.newaxis, 1:, np.newaxis] * hur[1:, 1:, np.newaxis]
-    fpy[1:, 1:, ...] = maskV[1:, 1:, -1, np.newaxis] \
+        / dyt[np.newaxis, 1:, np.newaxis] * hur[1:, 1:, np.newaxis])
+    fpy = update(fpy, at[1:, 1:, ...], maskV[1:, 1:, -1, np.newaxis] \
         * (psin[1:, 1:, :] - psin[:-1, 1:, :]) \
         / (cosu[np.newaxis, 1:, np.newaxis] * dxt[1:, np.newaxis, np.newaxis]) \
-        * hvr[1:, 1:, np.newaxis]
-    line_psin = utilities.line_integrals(
+        * hvr[1:, 1:, np.newaxis])
+    line_psin = utilities.line_integrals_full(
         dxu, dyu, cost, line_dir_east_mask,
         line_dir_west_mask, line_dir_north_mask, line_dir_south_mask, boundary_mask,
-        nisle, uloc=fpx, vloc=fpy, kind='full'
+        nisle, uloc=fpx, vloc=fpy
     )
 
     return line_psin
 
 
-@veros_kernel(static_args=('enable_cyclic_x'))
+@veros_kernel(static_args=('enable_cyclic_x', 'nx', 'ny', 'nisle'))
 def boundary_masks(land_map, nx, ny, nisle, enable_cyclic_x):
     """
     now that the number of islands is known we can allocate the rest of the variables
@@ -165,22 +166,22 @@ def boundary_masks(land_map, nx, ny, nisle, enable_cyclic_x):
         boundary_map = land_map == (isle + 1)
 
         if enable_cyclic_x:
-            line_dir_east_mask[2:-2, 1:-1, isle] = boundary_map[3:-1, 1:-1] & ~boundary_map[3:-1, 2:]
-            line_dir_west_mask[2:-2, 1:-1, isle] = boundary_map[2:-2, 2:] & ~boundary_map[2:-2, 1:-1]
-            line_dir_south_mask[2:-2, 1:-1, isle] = boundary_map[2:-2, 1:-1] & ~boundary_map[3:-1, 1:-1]
-            line_dir_north_mask[2:-2, 1:-1, isle] = boundary_map[3:-1, 2:] & ~boundary_map[2:-2, 2:]
+            line_dir_east_mask = update(line_dir_east_mask, at[2:-2, 1:-1, isle], boundary_map[3:-1, 1:-1] & ~boundary_map[3:-1, 2:])
+            line_dir_west_mask = update(line_dir_west_mask, at[2:-2, 1:-1, isle], boundary_map[2:-2, 2:] & ~boundary_map[2:-2, 1:-1])
+            line_dir_south_mask = update(line_dir_south_mask, at[2:-2, 1:-1, isle], boundary_map[2:-2, 1:-1] & ~boundary_map[3:-1, 1:-1])
+            line_dir_north_mask = update(line_dir_north_mask, at[2:-2, 1:-1, isle], boundary_map[3:-1, 2:] & ~boundary_map[2:-2, 2:])
         else:
-            line_dir_east_mask[1:-1, 1:-1, isle] = boundary_map[2:, 1:-1] & ~boundary_map[2:, 2:]
-            line_dir_west_mask[1:-1, 1:-1, isle] = boundary_map[1:-1, 2:] & ~boundary_map[1:-1, 1:-1]
-            line_dir_south_mask[1:-1, 1:-1, isle] = boundary_map[1:-1, 1:-1] & ~boundary_map[2:, 1:-1]
-            line_dir_north_mask[1:-1, 1:-1, isle] = boundary_map[2:, 2:] & ~boundary_map[1:-1, 2:]
+            line_dir_east_mask = update(line_dir_east_mask, at[1:-1, 1:-1, isle], boundary_map[2:, 1:-1] & ~boundary_map[2:, 2:])
+            line_dir_west_mask = update(line_dir_west_mask, at[1:-1, 1:-1, isle], boundary_map[1:-1, 2:] & ~boundary_map[1:-1, 1:-1])
+            line_dir_south_mask = update(line_dir_south_mask, at[1:-1, 1:-1, isle], boundary_map[1:-1, 1:-1] & ~boundary_map[2:, 1:-1])
+            line_dir_north_mask = update(line_dir_north_mask, at[1:-1, 1:-1, isle], boundary_map[2:, 2:] & ~boundary_map[1:-1, 2:])
 
-        boundary_mask[..., isle] = (
+        boundary_mask = update(boundary_mask, at[..., isle], (
             line_dir_east_mask[..., isle]
             | line_dir_west_mask[..., isle]
             | line_dir_north_mask[..., isle]
             | line_dir_south_mask[..., isle]
-        )
+        ))
 
     return boundary_mask, line_dir_east_mask, line_dir_west_mask, line_dir_south_mask, line_dir_north_mask
 

@@ -1,24 +1,30 @@
-import numpy as np
+from veros.core.operators import numpy as np
 
 from veros import veros_kernel
-from .. import runtime_settings as rs, runtime_state as rst
+from veros.core.operators import update, at
 
 
 def enforce_boundaries(arr, enable_cyclic_x, local=False):
-    from ..distributed import exchange_cyclic_boundaries, exchange_overlap
-    from ..decorators import CONTEXT
+    if not enable_cyclic_x:
+        return arr
 
-    if enable_cyclic_x:
-        if rs.num_proc[0] == 1 or not CONTEXT.is_dist_safe or local:
-            arr[-2:, ...] = arr[2:4, ...]
-            arr[:2, ...] = arr[-4:-2, ...]
-        else:
-            exchange_cyclic_boundaries(arr)
+    arr = update(arr, at[-2:, ...], arr[2:4, ...])
+    arr = update(arr, at[:2, ...], arr[-4:-2, ...])
+    return arr
+    # from ..distributed import exchange_cyclic_boundaries, exchange_overlap
+    # from ..decorators import CONTEXT
 
-    if local or rst.proc_num == 1:
-        return
+    # if enable_cyclic_x:
+    #     if rs.num_proc[0] == 1 or not CONTEXT.is_dist_safe or local:
+    #         arr[-2:, ...] = arr[2:4, ...]
+    #         arr[:2, ...] = arr[-4:-2, ...]
+    #     else:
+    #         exchange_cyclic_boundaries(arr)
 
-    exchange_overlap(arr, ['xt', 'yt'])
+    # if local or rst.proc_num == 1:
+    #     return
+
+    # exchange_overlap(arr, ['xt', 'yt'])
 
 
 @veros_kernel
@@ -33,16 +39,16 @@ def pad_z_edges(array):
     """
     if array.ndim == 1:
         newarray = np.zeros(array.shape[0] + 2, dtype=array.dtype)
-        newarray[1:-1] = array
-        newarray[0] = array[0]
-        newarray[-1] = array[-1]
+        newarray = update(newarray, at[1:-1], array)
+        newarray = update(newarray, at[0], array[0])
+        newarray = update(newarray, at[-1], array[-1])
     elif array.ndim >= 3:
         a = list(array.shape)
         a[2] += 2
         newarray = np.zeros(a, dtype=array.dtype)
-        newarray[:, :, 1:-1, ...] = array
-        newarray[:, :, 0, ...] = array[:, :, 0, ...]
-        newarray[:, :, -1, ...] = array[:, :, -1, ...]
+        newarray = update(newarray, at[:, :, 1:-1, ...], array)
+        newarray = update(newarray, at[:, :, 0, ...], array[:, :, 0, ...])
+        newarray = update(newarray, at[:, :, -1, ...], array[:, :, -1, ...])
     else:
         raise ValueError('Array to pad needs to have 1 or at least 3 dimensions')
     return newarray

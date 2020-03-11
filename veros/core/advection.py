@@ -1,7 +1,8 @@
-import numpy as np
+from veros.core.operators import numpy as np
 
 from veros import veros_kernel, veros_routine, run_kernel
 from veros.core.utilities import pad_z_edges, where
+from veros.core.operators import update, update_add, update_multiply, at
 
 
 @veros_kernel
@@ -53,13 +54,13 @@ def adv_flux_2nd(adv_fe, adv_fn, adv_ft, var, u, v, w,
     """
     2th order advective tracer flux
     """
-    adv_fe[1:-2, 2:-2, :] = 0.5 * (var[1:-2, 2:-2, :] + var[2:-1, 2:-2, :]) \
-        * u[1:-2, 2:-2, :, tau] * maskU[1:-2, 2:-2, :]
-    adv_fn[2:-2, 1:-2, :] = cosu[np.newaxis, 1:-2, np.newaxis] * 0.5 * (var[2:-2, 1:-2, :] + var[2:-2, 2:-1, :]) \
-        * v[2:-2, 1:-2, :, tau] * maskV[2:-2, 1:-2, :]
-    adv_ft[2:-2, 2:-2, :-1] = 0.5 * (var[2:-2, 2:-2, :-1] + var[2:-2, 2:-2, 1:]) \
-        * w[2:-2, 2:-2, :-1, tau] * maskW[2:-2, 2:-2, :-1]
-    adv_ft[:, :, -1] = 0.
+    adv_fe = update(adv_fe, at[1:-2, 2:-2, :], 0.5 * (var[1:-2, 2:-2, :] + var[2:-1, 2:-2, :]) \
+        * u[1:-2, 2:-2, :, tau] * maskU[1:-2, 2:-2, :])
+    adv_fn = update(adv_fn, at[2:-2, 1:-2, :], cosu[np.newaxis, 1:-2, np.newaxis] * 0.5 * (var[2:-2, 1:-2, :] + var[2:-2, 2:-1, :]) \
+        * v[2:-2, 1:-2, :, tau] * maskV[2:-2, 1:-2, :])
+    adv_ft = update(adv_ft, at[2:-2, 2:-2, :-1], 0.5 * (var[2:-2, 2:-2, :-1] + var[2:-2, 2:-2, 1:]) \
+        * w[2:-2, 2:-2, :-1, tau] * maskW[2:-2, 2:-2, :-1])
+    adv_ft = update(adv_ft, at[:, :, -1], 0.)
 
     return adv_fe, adv_fn, adv_ft
 
@@ -82,13 +83,13 @@ def adv_flux_superbee(adv_fe, adv_fn, adv_ft, var, u, v, w, dxt, dyt, dzt,
     where the $\psi(C_r)$ is the limiter function and $C_r$ is
     the slope ratio.
     """
-    adv_fe[1:-2, 2:-2, :] = _adv_superbee(u[..., tau], var, maskU, dxt, 0,
-                                          cost, cosu, dt_tracer)
-    adv_fn[2:-2, 1:-2, :] = _adv_superbee(v[..., tau], var, maskV, dyt, 1,
-                                          cost, cosu, dt_tracer)
-    adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(w[..., tau], var, maskW, dzt, 2,
-                                            cost, cosu, dt_tracer)
-    adv_ft[..., -1] = 0.
+    adv_fe = update(adv_fe, at[1:-2, 2:-2, :], _adv_superbee(u[..., tau], var, maskU, dxt, 0,
+                                          cost, cosu, dt_tracer))
+    adv_fn = update(adv_fn, at[2:-2, 1:-2, :], _adv_superbee(v[..., tau], var, maskV, dyt, 1,
+                                          cost, cosu, dt_tracer))
+    adv_ft = update(adv_ft, at[2:-2, 2:-2, :-1], _adv_superbee(w[..., tau], var, maskW, dzt, 2,
+                                            cost, cosu, dt_tracer))
+    adv_ft = update(adv_ft, at[..., -1], 0.)
 
     return adv_fe, adv_fn, adv_ft
 
@@ -118,40 +119,40 @@ def calculate_velocity_on_wgrid_kernel(u, v, w, maskU, maskV, maskW, dxt, dyt, d
     w_wgrid = np.zeros_like(maskU)
 
     # lateral advection velocities on W grid
-    u_wgrid[:, :, :-1] = u[:, :, 1:, tau] * maskU[:, :, 1:] * 0.5 \
+    u_wgrid = update(u_wgrid, at[:, :, :-1], u[:, :, 1:, tau] * maskU[:, :, 1:] * 0.5 \
         * dzt[np.newaxis, np.newaxis, 1:] / dzw[np.newaxis, np.newaxis, :-1] \
         + u[:, :, :-1, tau] * maskU[:, :, :-1] * 0.5 \
-        * dzt[np.newaxis, np.newaxis, :-1] / dzw[np.newaxis, np.newaxis, :-1]
-    v_wgrid[:, :, :-1] = v[:, :, 1:, tau] * maskV[:, :, 1:] * 0.5 \
+        * dzt[np.newaxis, np.newaxis, :-1] / dzw[np.newaxis, np.newaxis, :-1])
+    v_wgrid = update(v_wgrid, at[:, :, :-1], v[:, :, 1:, tau] * maskV[:, :, 1:] * 0.5 \
         * dzt[np.newaxis, np.newaxis, 1:] / dzw[np.newaxis, np.newaxis, :-1] \
         + v[:, :, :-1, tau] * maskV[:, :, :-1] * 0.5 \
-        * dzt[np.newaxis, np.newaxis, :-1] / dzw[np.newaxis, np.newaxis, :-1]
-    u_wgrid[:, :, -1] = u[:, :, -1, tau] * \
-        maskU[:, :, -1] * 0.5 * dzt[-1:] / dzw[-1:]
-    v_wgrid[:, :, -1] = v[:, :, -1, tau] * \
-        maskV[:, :, -1] * 0.5 * dzt[-1:] / dzw[-1:]
+        * dzt[np.newaxis, np.newaxis, :-1] / dzw[np.newaxis, np.newaxis, :-1])
+    u_wgrid = update(u_wgrid, at[:, :, -1], u[:, :, -1, tau] * \
+        maskU[:, :, -1] * 0.5 * dzt[-1:] / dzw[-1:])
+    v_wgrid = update(v_wgrid, at[:, :, -1], v[:, :, -1, tau] * \
+        maskV[:, :, -1] * 0.5 * dzt[-1:] / dzw[-1:])
 
     # redirect velocity at bottom and at topography
-    u_wgrid[:, :, 0] = u_wgrid[:, :, 0] + u[:, :, 0, tau] \
-        * maskU[:, :, 0] * 0.5 * dzt[0:1] / dzw[0:1]
-    v_wgrid[:, :, 0] = v_wgrid[:, :, 0] + v[:, :, 0, tau] \
-        * maskV[:, :, 0] * 0.5 * dzt[0:1] / dzw[0:1]
+    u_wgrid = update(u_wgrid, at[:, :, 0], u_wgrid[:, :, 0] + u[:, :, 0, tau] \
+        * maskU[:, :, 0] * 0.5 * dzt[0:1] / dzw[0:1])
+    v_wgrid = update(v_wgrid, at[:, :, 0], v_wgrid[:, :, 0] + v[:, :, 0, tau] \
+        * maskV[:, :, 0] * 0.5 * dzt[0:1] / dzw[0:1])
     mask = maskW[:-1, :, :-1] * maskW[1:, :, :-1]
-    u_wgrid[:-1, :, 1:] += (u_wgrid[:-1, :, :-1] * dzw[np.newaxis, np.newaxis, :-1]
-                            / dzw[np.newaxis, np.newaxis, 1:]) * (1. - mask)
-    u_wgrid[:-1, :, :-1] *= mask
+    u_wgrid = update_add(u_wgrid, at[:-1, :, 1:], (u_wgrid[:-1, :, :-1] * dzw[np.newaxis, np.newaxis, :-1]
+                            / dzw[np.newaxis, np.newaxis, 1:]) * (1. - mask))
+    u_wgrid = update_multiply(u_wgrid, at[:-1, :, :-1], mask)
     mask = maskW[:, :-1, :-1] * maskW[:, 1:, :-1]
-    v_wgrid[:, :-1, 1:] += (v_wgrid[:, :-1, :-1] * dzw[np.newaxis, np.newaxis, :-1]
-                            / dzw[np.newaxis, np.newaxis, 1:]) * (1. - mask)
-    v_wgrid[:, :-1, :-1] *= mask
+    v_wgrid = update_add(v_wgrid, at[:, :-1, 1:], (v_wgrid[:, :-1, :-1] * dzw[np.newaxis, np.newaxis, :-1]
+                            / dzw[np.newaxis, np.newaxis, 1:]) * (1. - mask))
+    v_wgrid = update_multiply(v_wgrid, at[:, :-1, :-1], mask)
 
     # vertical advection velocity on W grid from continuity
-    w_wgrid[:, :, 0] = 0.
-    w_wgrid[1:, 1:, :] = np.cumsum(-dzw[np.newaxis, np.newaxis, :] *
+    w_wgrid = update(w_wgrid, at[:, :, 0], 0.)
+    w_wgrid = update(w_wgrid, at[1:, 1:, :], np.cumsum(-dzw[np.newaxis, np.newaxis, :] *
                                    ((u_wgrid[1:, 1:, :] - u_wgrid[:-1, 1:, :]) / (cost[np.newaxis, 1:, np.newaxis] * dxt[1:, np.newaxis, np.newaxis])
                                     + (cosu[np.newaxis, 1:, np.newaxis] * v_wgrid[1:, 1:, :] -
                                        cosu[np.newaxis, :-1, np.newaxis] * v_wgrid[1:, :-1, :])
-                                    / (cost[np.newaxis, 1:, np.newaxis] * dyt[np.newaxis, 1:, np.newaxis])), axis=2)
+                                    / (cost[np.newaxis, 1:, np.newaxis] * dyt[np.newaxis, 1:, np.newaxis])), axis=2))
 
     return u_wgrid, v_wgrid, w_wgrid
 
@@ -163,20 +164,20 @@ def adv_flux_superbee_wgrid(adv_fe, adv_fn, adv_ft, u_wgrid, v_wgrid, w_wgrid,
     Calculates advection of a tracer defined on Wgrid
     """
     maskUtr = np.zeros_like(maskW)
-    maskUtr[:-1, :, :] = maskW[1:, :, :] * maskW[:-1, :, :]
-    adv_fe[1:-2, 2:-2, :] = _adv_superbee(u_wgrid, var, maskUtr, dxt, 0,
-                                          cost, cosu, dt_tracer)
+    maskUtr = update(maskUtr, at[:-1, :, :], maskW[1:, :, :] * maskW[:-1, :, :])
+    adv_fe = update(adv_fe, at[1:-2, 2:-2, :], _adv_superbee(u_wgrid, var, maskUtr, dxt, 0,
+                                          cost, cosu, dt_tracer))
 
     maskVtr = np.zeros_like(maskW)
-    maskVtr[:, :-1, :] = maskW[:, 1:, :] * maskW[:, :-1, :]
-    adv_fn[2:-2, 1:-2, :] = _adv_superbee(v_wgrid, var, maskVtr, dyt, 1,
-                                          cost, cosu, dt_tracer)
+    maskVtr = update(maskVtr, at[:, :-1, :], maskW[:, 1:, :] * maskW[:, :-1, :])
+    adv_fn = update(adv_fn, at[2:-2, 1:-2, :], _adv_superbee(v_wgrid, var, maskVtr, dyt, 1,
+                                          cost, cosu, dt_tracer))
 
     maskWtr = np.zeros_like(maskW)
-    maskWtr[:, :, :-1] = maskW[:, :, 1:] * maskW[:, :, :-1]
-    adv_ft[2:-2, 2:-2, :-1] = _adv_superbee(w_wgrid, var, maskWtr, dzw, 2,
-                                            cost, cosu, dt_tracer)
-    adv_ft[..., -1] = 0.0
+    maskWtr = update(maskWtr, at[:, :, :-1], maskW[:, :, 1:] * maskW[:, :, :-1])
+    adv_ft = update(adv_ft, at[2:-2, 2:-2, :-1], _adv_superbee(w_wgrid, var, maskWtr, dzw, 2,
+                                            cost, cosu, dt_tracer))
+    adv_ft = update(adv_ft, at[..., -1], 0.0)
 
     return adv_fe, adv_fn, adv_ft
 
@@ -189,19 +190,19 @@ def adv_flux_upwind_wgrid(adv_fe, adv_fn, adv_ft, u_wgrid, v_wgrid, w_wgrid,
     """
     maskUtr = maskW[2:-1, 2:-2, :] * maskW[1:-2, 2:-2, :]
     rj = (var[2:-1, 2:-2, :] - var[1:-2, 2:-2, :]) * maskUtr
-    adv_fe[1:-2, 2:-2, :] = u_wgrid[1:-2, 2:-2, :] * (var[2:-1, 2:-2, :] + var[1:-2, 2:-2, :]) * 0.5 \
-        - np.abs(u_wgrid[1:-2, 2:-2, :]) * rj * 0.5
+    adv_fe = update(adv_fe, at[1:-2, 2:-2, :], u_wgrid[1:-2, 2:-2, :] * (var[2:-1, 2:-2, :] + var[1:-2, 2:-2, :]) * 0.5 \
+        - np.abs(u_wgrid[1:-2, 2:-2, :]) * rj * 0.5)
 
     maskVtr = maskW[2:-2, 2:-1, :] * maskW[2:-2, 1:-2, :]
     rj = (var[2:-2, 2:-1, :] - var[2:-2, 1:-2, :]) * maskVtr
-    adv_fn[2:-2, 1:-2, :] = cosu[np.newaxis, 1:-2, np.newaxis] * v_wgrid[2:-2, 1:-2, :] * \
+    adv_fn = update(adv_fn, at[2:-2, 1:-2, :], cosu[np.newaxis, 1:-2, np.newaxis] * v_wgrid[2:-2, 1:-2, :] * \
         (var[2:-2, 2:-1, :] + var[2:-2, 1:-2, :]) * 0.5 \
-        - np.abs(cosu[np.newaxis, 1:-2, np.newaxis] * v_wgrid[2:-2, 1:-2, :]) * rj * 0.5
+        - np.abs(cosu[np.newaxis, 1:-2, np.newaxis] * v_wgrid[2:-2, 1:-2, :]) * rj * 0.5)
 
     maskWtr = maskW[2:-2, 2:-2, 1:] * maskW[2:-2, 2:-2, :-1]
     rj = (var[2:-2, 2:-2, 1:] - var[2:-2, 2:-2, :-1]) * maskWtr
-    adv_ft[2:-2, 2:-2, :-1] = w_wgrid[2:-2, 2:-2, :-1] * (var[2:-2, 2:-2, 1:] + var[2:-2, 2:-2, :-1]) * 0.5 \
-        - np.abs(w_wgrid[2:-2, 2:-2, :-1]) * rj * 0.5
-    adv_ft[:, :, -1] = 0.
+    adv_ft = update(adv_ft, at[2:-2, 2:-2, :-1], w_wgrid[2:-2, 2:-2, :-1] * (var[2:-2, 2:-2, 1:] + var[2:-2, 2:-2, :-1]) * 0.5 \
+        - np.abs(w_wgrid[2:-2, 2:-2, :-1]) * rj * 0.5)
+    adv_ft = update(adv_ft, at[:, :, -1], 0.)
 
     return adv_fe, adv_fn, adv_ft

@@ -207,7 +207,7 @@ def veros_kernel(function=None, static_args=()):
                 arg_index = func_argnames.index(static_arg)
             except ValueError:
                 raise ValueError(
-                    f'Veros kernel {func_name} has no argument {static_arg}, but it is given in static_args'
+                    f'Veros kernel {func_name} has no argument "{static_arg}", but it is given in static_args'
                 ) from None
 
             static_argnums.append(arg_index)

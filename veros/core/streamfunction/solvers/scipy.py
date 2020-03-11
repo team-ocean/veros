@@ -1,12 +1,13 @@
 from loguru import logger
-import numpy as np
+from veros.core.operators import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg as spalg
 
-from .base import LinearSolver
-from ... import utilities
-from .... import distributed
-from ....variables import allocate
+from veros import distributed
+from veros.variables import allocate
+from veros.core import utilities
+from veros.core.operators import update, at
+from veros.core.streamfunction.solvers.base import LinearSolver
 
 
 class SciPySolver(LinearSolver):
@@ -26,7 +27,7 @@ class SciPySolver(LinearSolver):
     def _scipy_solver(self, vs, rhs, sol, boundary_val):
         utilities.enforce_boundaries(sol, vs.enable_cyclic_x)
 
-        boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
+        boundary_mask = np.sum(~vs.boundary_mask, axis=2)
         rhs = utilities.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
         x0 = sol.flatten()
 
@@ -41,7 +42,7 @@ class SciPySolver(LinearSolver):
         if info > 0:
             logger.warning('Streamfunction solver did not converge after {} iterations', info)
 
-        sol[...] = linear_solution.reshape(vs.nx + 4, vs.ny + 4)
+        return linear_solution.reshape(vs.nx + 4, vs.ny + 4)
 
     # @veros_method
     def solve(self, vs, rhs, sol, boundary_val=None):
@@ -60,11 +61,11 @@ class SciPySolver(LinearSolver):
         if boundary_val is None:
             boundary_val = sol_global
         else:
-            boundary_val = distributed.gather(vs, boundary_val, ('xt', 'yt'))
+            boundary_val = distributed.gather(boundary_val, ('xt', 'yt'))
 
         self._scipy_solver(vs, rhs_global, sol_global, boundary_val=boundary_val)
 
-        sol[...] = distributed.scatter(sol_global, ('xt', 'yt'))
+        sol = update(sol, at[...], distributed.scatter(sol_global, ('xt', 'yt')))
 
     @staticmethod
     # @veros_method(dist_safe=False, local_variables=[])
@@ -75,7 +76,7 @@ class SciPySolver(LinearSolver):
         eps = 1e-20
         Z = allocate(vs, ('xu', 'yu'), fill=1, local=False)
         Y = np.reshape(matrix.diagonal().copy(), (vs.nx + 4, vs.ny + 4))[2:-2, 2:-2]
-        Z[2:-2, 2:-2] = utilities.where(np.abs(Y) > eps, 1. / (Y + eps), 1.)
+        Z = update(Z, at[2:-2, 2:-2], utilities.where(np.abs(Y) > eps, 1. / (Y + eps), 1.))
         return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
 
     @staticmethod
@@ -84,31 +85,31 @@ class SciPySolver(LinearSolver):
         """
         Construct a sparse matrix based on the stencil for the 2D Poisson equation.
         """
-        boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
+        boundary_mask = np.sum(~vs.boundary_mask, axis=2)
 
         # assemble diagonals
         main_diag = allocate(vs, ('xu', 'yu'), fill=1, local=False)
         east_diag, west_diag, north_diag, south_diag = (allocate(vs, ('xu', 'yu'), local=False) for _ in range(4))
-        main_diag[2:-2, 2:-2] = -vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, np.newaxis] / vs.dxt[3:-1, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2 \
+        main_diag = update(main_diag, at[2:-2, 2:-2], -vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, np.newaxis] / vs.dxt[3:-1, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2 \
             - vs.hvr[2:-2, 2:-2] / vs.dxu[2:-2, np.newaxis] / vs.dxt[2:-2, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2 \
             - vs.hur[2:-2, 2:-2] / vs.dyu[np.newaxis, 2:-2] / vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2] \
-            - vs.hur[2:-2, 3:-1] / vs.dyu[np.newaxis, 2:-2] / vs.dyt[np.newaxis, 3:-1] * vs.cost[np.newaxis, 3:-1] / vs.cosu[np.newaxis, 2:-2]
-        east_diag[2:-2, 2:-2] = vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, np.newaxis] / \
-            vs.dxt[3:-1, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2
-        west_diag[2:-2, 2:-2] = vs.hvr[2:-2, 2:-2] / vs.dxu[2:-2, np.newaxis] / \
-            vs.dxt[2:-2, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2
-        north_diag[2:-2, 2:-2] = vs.hur[2:-2, 3:-1] / vs.dyu[np.newaxis, 2:-2] / \
-            vs.dyt[np.newaxis, 3:-1] * vs.cost[np.newaxis, 3:-1] / vs.cosu[np.newaxis, 2:-2]
-        south_diag[2:-2, 2:-2] = vs.hur[2:-2, 2:-2] / vs.dyu[np.newaxis, 2:-2] / \
-            vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2]
+            - vs.hur[2:-2, 3:-1] / vs.dyu[np.newaxis, 2:-2] / vs.dyt[np.newaxis, 3:-1] * vs.cost[np.newaxis, 3:-1] / vs.cosu[np.newaxis, 2:-2])
+        east_diag = update(east_diag, at[2:-2, 2:-2], vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, np.newaxis] / \
+            vs.dxt[3:-1, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2)
+        west_diag = update(west_diag, at[2:-2, 2:-2], vs.hvr[2:-2, 2:-2] / vs.dxu[2:-2, np.newaxis] / \
+            vs.dxt[2:-2, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2)
+        north_diag = update(north_diag, at[2:-2, 2:-2], vs.hur[2:-2, 3:-1] / vs.dyu[np.newaxis, 2:-2] / \
+            vs.dyt[np.newaxis, 3:-1] * vs.cost[np.newaxis, 3:-1] / vs.cosu[np.newaxis, 2:-2])
+        south_diag = update(south_diag, at[2:-2, 2:-2], vs.hur[2:-2, 2:-2] / vs.dyu[np.newaxis, 2:-2] / \
+            vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2])
 
         if vs.enable_cyclic_x:
             # couple edges of the domain
             wrap_diag_east, wrap_diag_west = (allocate(vs, ('xu', 'yu'), local=False) for _ in range(2))
-            wrap_diag_east[2, 2:-2] = west_diag[2, 2:-2] * boundary_mask[2, 2:-2]
-            wrap_diag_west[-3, 2:-2] = east_diag[-3, 2:-2] * boundary_mask[-3, 2:-2]
-            west_diag[2, 2:-2] = 0.
-            east_diag[-3, 2:-2] = 0.
+            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], west_diag[2, 2:-2] * boundary_mask[2, 2:-2])
+            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], east_diag[-3, 2:-2] * boundary_mask[-3, 2:-2])
+            west_diag = update(west_diag, at[2, 2:-2], 0.)
+            east_diag = update(east_diag, at[-3, 2:-2], 0.)
 
         # construct sparse matrix
         cf = tuple(diag.flatten() for diag in (

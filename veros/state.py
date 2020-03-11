@@ -1,7 +1,7 @@
 import abc
 import math
 
-from . import variables, settings, timer, plugins, diagnostics
+from veros import variables, settings, timer, plugins
 
 
 class VerosStateBase(metaclass=abc.ABCMeta):
@@ -57,6 +57,7 @@ class VerosState(VerosStateBase):
             setattr(self, key, variables.allocate(self, var.dims, dtype=var.dtype))
 
     def create_diagnostics(self):
+        from veros import diagnostics
         self.diagnostics.update(diagnostics.create_default_diagnostics(self))
 
         for plugin in self._plugin_interfaces:

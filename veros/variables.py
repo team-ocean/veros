@@ -757,10 +757,11 @@ def get_standard_variables(vs):
 
 
 def allocate(vs, dimensions, dtype=None, include_ghosts=True, local=True, fill=0):
+    from veros.core.operators import numpy as np
+
     if dtype is None:
         dtype = vs.default_float_type
 
     shape = get_dimensions(vs, dimensions, include_ghosts=include_ghosts, local=local)
-    out = np.empty(shape, dtype=dtype)
-    out[...] = fill
+    out = np.full(shape, fill, dtype=dtype)
     return out

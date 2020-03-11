@@ -2,22 +2,21 @@ import timeit
 
 
 class Timer:
-    def __init__(self):
+    def __init__(self, ignore_first=True):
         self.total_time = 0
         self.last_time = 0
-
-        def flush():
-            pass
-
-        self._flush = flush
+        self.first = ignore_first
 
     def __enter__(self):
         self.start_time = timeit.default_timer()
 
     def __exit__(self, type, value, traceback):
-        self._flush()
         self.last_time = timeit.default_timer() - self.start_time
-        self.total_time += self.last_time
+
+        if not self.first:
+            self.total_time += self.last_time
+
+        self.first = False
 
     def get_time(self):
         return self.total_time

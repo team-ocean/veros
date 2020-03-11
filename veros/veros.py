@@ -5,7 +5,7 @@ from loguru import logger
 
 # do not import veros.core here!
 from veros import (
-    settings, diagnostics, time, handlers, logs, distributed, progress,
+    settings, time, handlers, logs, distributed, progress,
     runtime_settings as rs, runtime_state as rst
 )
 from veros.state import VerosState
@@ -183,6 +183,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         pass
 
     def setup(self):
+        from veros import diagnostics
         from veros.core import numerics, streamfunction, eke, isoneutral
 
         vs = self.state
@@ -235,6 +236,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 By default, only show if stdout is a terminal and Veros is running on a single process.
 
         """
+        from veros import diagnostics
         from veros.core import (
             idemix, eke, tke, momentum, thermodynamics, advection, utilities, isoneutral
         )

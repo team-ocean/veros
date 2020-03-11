@@ -1,9 +1,10 @@
 import math
 
-import numpy as np
+from veros.core.operators import numpy as np
 
 from veros import veros_routine, veros_kernel, run_kernel
 from veros.core import numerics, utilities, isoneutral
+from veros.core.operators import update, update_add, at
 
 
 @veros_kernel
@@ -20,40 +21,40 @@ def explicit_vert_friction(du_mix, dv_mix, K_diss_v, kappaM, u, v, tau, maskU,
     vertical friction of zonal momentum
     """
     fxa = 0.5 * (kappaM[1:-2, 1:-2, :-1] + kappaM[2:-1, 1:-2, :-1])
-    flux_top[1:-2, 1:-2, :-1] = fxa * (u[1:-2, 1:-2, 1:, tau] - u[1:-2, 1:-2, :-1, tau]) \
-        / dzw[np.newaxis, np.newaxis, :-1] * maskU[1:-2, 1:-2, 1:] * maskU[1:-2, 1:-2, :-1]
-    flux_top[:, :, -1] = 0.0
-    du_mix[:, :, 0] = flux_top[:, :, 0] / dzt[0] * maskU[:, :, 0]
-    du_mix[:, :, 1:] = (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / dzt[1:] * maskU[:, :, 1:]
+    flux_top = update(flux_top, at[1:-2, 1:-2, :-1], fxa * (u[1:-2, 1:-2, 1:, tau] - u[1:-2, 1:-2, :-1, tau]) \
+        / dzw[np.newaxis, np.newaxis, :-1] * maskU[1:-2, 1:-2, 1:] * maskU[1:-2, 1:-2, :-1])
+    flux_top = update(flux_top, at[:, :, -1], 0.0)
+    du_mix = update(du_mix, at[:, :, 0], flux_top[:, :, 0] / dzt[0] * maskU[:, :, 0])
+    du_mix = update(du_mix, at[:, :, 1:], (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / dzt[1:] * maskU[:, :, 1:])
 
     """
     diagnose dissipation by vertical friction of zonal momentum
     """
-    diss[1:-2, 1:-2, :-1] = (u[1:-2, 1:-2, 1:, tau] - u[1:-2, 1:-2, :-1, tau]) \
-        * flux_top[1:-2, 1:-2, :-1] / dzw[np.newaxis, np.newaxis, :-1]
-    diss[:, :, nz - 1] = 0.0
-    diss[...] = numerics.ugrid_to_tgrid(diss, dxt, dxu)
+    diss = update(diss, at[1:-2, 1:-2, :-1], (u[1:-2, 1:-2, 1:, tau] - u[1:-2, 1:-2, :-1, tau]) \
+        * flux_top[1:-2, 1:-2, :-1] / dzw[np.newaxis, np.newaxis, :-1])
+    diss = update(diss, at[:, :, nz - 1], 0.0)
+    diss = numerics.ugrid_to_tgrid(diss, dxt, dxu)
     K_diss_v += diss
 
     """
     vertical friction of meridional momentum
     """
     fxa = 0.5 * (kappaM[1:-2, 1:-2, :-1] + kappaM[1:-2, 2:-1, :-1])
-    flux_top[1:-2, 1:-2, :-1] = fxa * (v[1:-2, 1:-2, 1:, tau] - v[1:-2, 1:-2, :-1, tau]) \
+    flux_top = update(flux_top, at[1:-2, 1:-2, :-1], fxa * (v[1:-2, 1:-2, 1:, tau] - v[1:-2, 1:-2, :-1, tau]) \
         / dzw[np.newaxis, np.newaxis, :-1] * maskV[1:-2, 1:-2, 1:] \
-        * maskV[1:-2, 1:-2, :-1]
-    flux_top[:, :, -1] = 0.0
-    dv_mix[:, :, 1:] = (flux_top[:, :, 1:] - flux_top[:, :, :-1]) \
-        / dzt[np.newaxis, np.newaxis, 1:] * maskV[:, :, 1:]
-    dv_mix[:, :, 0] = flux_top[:, :, 0] / dzt[0] * maskV[:, :, 0]
+        * maskV[1:-2, 1:-2, :-1])
+    flux_top = update(flux_top, at[:, :, -1], 0.0)
+    dv_mix = update(dv_mix, at[:, :, 1:], (flux_top[:, :, 1:] - flux_top[:, :, :-1]) \
+        / dzt[np.newaxis, np.newaxis, 1:] * maskV[:, :, 1:])
+    dv_mix = update(dv_mix, at[:, :, 0], flux_top[:, :, 0] / dzt[0] * maskV[:, :, 0])
 
     """
     diagnose dissipation by vertical friction of meridional momentum
     """
-    diss[1:-2, 1:-2, :-1] = (v[1:-2, 1:-2, 1:, tau] - v[1:-2, 1:-2, :-1, tau]) \
-        * flux_top[1:-2, 1:-2, :-1] / dzw[np.newaxis, np.newaxis, :-1]
-    diss[:, :, -1] = 0.0
-    diss[...] = numerics.vgrid_to_tgrid(diss, area_v, area_t)
+    diss = update(diss, at[1:-2, 1:-2, :-1], (v[1:-2, 1:-2, 1:, tau] - v[1:-2, 1:-2, :-1, tau]) \
+        * flux_top[1:-2, 1:-2, :-1] / dzw[np.newaxis, np.newaxis, :-1])
+    diss = update(diss, at[:, :, -1], 0.0)
+    diss = numerics.vgrid_to_tgrid(diss, area_v, area_t)
     K_diss_v += diss
 
     return du_mix, dv_mix, K_diss_v
@@ -79,27 +80,27 @@ def implicit_vert_friction(du_mix, dv_mix, K_diss_v, u, v, kbot, kappaM, tau, ta
     """
     kss = np.maximum(kbot[1:-2, 1:-2], kbot[2:-1, 1:-2]) - 1
     fxa = 0.5 * (kappaM[1:-2, 1:-2, :-1] + kappaM[2:-1, 1:-2, :-1])
-    delta[:, :, :-1] = dt_mom / dzw[:-1] * fxa * maskU[1:-2, 1:-2, 1:] * maskU[1:-2, 1:-2, :-1]
-    a_tri[:, :, 1:] = -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:]
-    b_tri[:, :, 1:] = 1 + delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:]
-    b_tri[:, :, 1:-1] += delta[:, :, 1:-1] / dzt[np.newaxis, np.newaxis, 1:-1]
+    delta = update(delta, at[:, :, :-1], dt_mom / dzw[:-1] * fxa * maskU[1:-2, 1:-2, 1:] * maskU[1:-2, 1:-2, :-1])
+    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:])
+    b_tri = update(b_tri, at[:, :, 1:], 1 + delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:])
+    b_tri = update_add(b_tri, at[:, :, 1:-1], delta[:, :, 1:-1] / dzt[np.newaxis, np.newaxis, 1:-1])
     b_tri_edge = 1 + delta / dzt[np.newaxis, np.newaxis, :]
-    c_tri[...] = -delta / dzt[np.newaxis, np.newaxis, :]
-    d_tri[...] = u[1:-2, 1:-2, :, tau]
+    c_tri = update(c_tri, at[...], -delta / dzt[np.newaxis, np.newaxis, :])
+    d_tri = update(d_tri, at[...], u[1:-2, 1:-2, :, tau])
     res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    u[1:-2, 1:-2, :, taup1] = utilities.where(mask, res, u[1:-2, 1:-2, :, taup1])
-    du_mix[1:-2, 1:-2] = (u[1:-2, 1:-2, :, taup1] - u[1:-2, 1:-2, :, tau]) / dt_mom
+    u = update(u, at[1:-2, 1:-2, :, taup1], utilities.where(mask, res, u[1:-2, 1:-2, :, taup1]))
+    du_mix = update(du_mix, at[1:-2, 1:-2], (u[1:-2, 1:-2, :, taup1] - u[1:-2, 1:-2, :, tau]) / dt_mom)
 
     """
     diagnose dissipation by vertical friction of zonal momentum
     """
     fxa = 0.5 * (kappaM[1:-2, 1:-2, :-1] + kappaM[2:-1, 1:-2, :-1])
-    flux_top[1:-2, 1:-2, :-1] = fxa * (u[1:-2, 1:-2, 1:, taup1] - u[1:-2, 1:-2, :-1, taup1]) \
-        / dzw[:-1] * maskU[1:-2, 1:-2, 1:] * maskU[1:-2, 1:-2, :-1]
-    diss[1:-2, 1:-2, :-1] = (u[1:-2, 1:-2, 1:, tau] - u[1:-2, 1:-2, :-1, tau]) \
-        * flux_top[1:-2, 1:-2, :-1] / dzw[:-1]
-    diss[:, :, -1] = 0.0
-    diss[...] = numerics.ugrid_to_tgrid(diss, dxt, dxu)
+    flux_top = update(flux_top, at[1:-2, 1:-2, :-1], fxa * (u[1:-2, 1:-2, 1:, taup1] - u[1:-2, 1:-2, :-1, taup1]) \
+        / dzw[:-1] * maskU[1:-2, 1:-2, 1:] * maskU[1:-2, 1:-2, :-1])
+    diss = update(diss, at[1:-2, 1:-2, :-1], (u[1:-2, 1:-2, 1:, tau] - u[1:-2, 1:-2, :-1, tau]) \
+        * flux_top[1:-2, 1:-2, :-1] / dzw[:-1])
+    diss = update(diss, at[:, :, -1], 0.0)
+    diss = numerics.ugrid_to_tgrid(diss, dxt, dxu)
     K_diss_v += diss
 
     """
@@ -107,35 +108,35 @@ def implicit_vert_friction(du_mix, dv_mix, K_diss_v, u, v, kbot, kappaM, tau, ta
     """
     kss = np.maximum(kbot[1:-2, 1:-2], kbot[1:-2, 2:-1]) - 1
     fxa = 0.5 * (kappaM[1:-2, 1:-2, :-1] + kappaM[1:-2, 2:-1, :-1])
-    delta[:, :, :-1] = dt_mom / dzw[np.newaxis, np.newaxis, :-1] * \
-        fxa * maskV[1:-2, 1:-2, 1:] * maskV[1:-2, 1:-2, :-1]
-    a_tri[:, :, 1:] = -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:]
-    b_tri[:, :, 1:] = 1 + delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:]
-    b_tri[:, :, 1:-1] += delta[:, :, 1:-1] / dzt[np.newaxis, np.newaxis, 1:-1]
+    delta = update(delta, at[:, :, :-1], dt_mom / dzw[np.newaxis, np.newaxis, :-1] * \
+        fxa * maskV[1:-2, 1:-2, 1:] * maskV[1:-2, 1:-2, :-1])
+    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:])
+    b_tri = update(b_tri, at[:, :, 1:], 1 + delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:])
+    b_tri = update_add(b_tri, at[:, :, 1:-1], delta[:, :, 1:-1] / dzt[np.newaxis, np.newaxis, 1:-1])
     b_tri_edge = 1 + delta / dzt[np.newaxis, np.newaxis, :]
-    c_tri[:, :, :-1] = -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, :-1]
-    c_tri[:, :, -1] = 0.
-    d_tri[...] = v[1:-2, 1:-2, :, tau]
+    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, :-1])
+    c_tri = update(c_tri, at[:, :, -1], 0.)
+    d_tri = update(d_tri, at[...], v[1:-2, 1:-2, :, tau])
     res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    v[1:-2, 1:-2, :, taup1] = utilities.where(mask, res, v[1:-2, 1:-2, :, taup1])
-    dv_mix[1:-2, 1:-2] = (v[1:-2, 1:-2, :, taup1] - v[1:-2, 1:-2, :, tau]) / dt_mom
+    v = update(v, at[1:-2, 1:-2, :, taup1], utilities.where(mask, res, v[1:-2, 1:-2, :, taup1]))
+    dv_mix = update(dv_mix, at[1:-2, 1:-2], (v[1:-2, 1:-2, :, taup1] - v[1:-2, 1:-2, :, tau]) / dt_mom)
 
     """
     diagnose dissipation by vertical friction of meridional momentum
     """
     fxa = 0.5 * (kappaM[1:-2, 1:-2, :-1] + kappaM[1:-2, 2:-1, :-1])
-    flux_top[1:-2, 1:-2, :-1] = fxa * (v[1:-2, 1:-2, 1:, taup1] - v[1:-2, 1:-2, :-1, taup1]) \
-        / dzw[:-1] * maskV[1:-2, 1:-2, 1:] * maskV[1:-2, 1:-2, :-1]
-    diss[1:-2, 1:-2, :-1] = (v[1:-2, 1:-2, 1:, tau] - v[1:-2, 1:-2, :-1, tau]) \
-        * flux_top[1:-2, 1:-2, :-1] / dzw[:-1]
-    diss[:, :, -1] = 0.0
+    flux_top = update(flux_top, at[1:-2, 1:-2, :-1], fxa * (v[1:-2, 1:-2, 1:, taup1] - v[1:-2, 1:-2, :-1, taup1]) \
+        / dzw[:-1] * maskV[1:-2, 1:-2, 1:] * maskV[1:-2, 1:-2, :-1])
+    diss = update(diss, at[1:-2, 1:-2, :-1], (v[1:-2, 1:-2, 1:, tau] - v[1:-2, 1:-2, :-1, tau]) \
+        * flux_top[1:-2, 1:-2, :-1] / dzw[:-1])
+    diss = update(diss, at[:, :, -1], 0.0)
     diss = numerics.vgrid_to_tgrid(diss, area_v, area_t)
     K_diss_v += diss
 
     return u, v, du_mix, dv_mix, K_diss_v
 
 
-@veros_kernel(static_args=('enable_conserve_energy'))
+@veros_kernel(static_args=('enable_conserve_energy', 'nz'))
 def rayleigh_friction(du_mix, dv_mix, K_diss_bot, maskU, maskV, u, v, tau,
                       kbot, nz, dzw, dxt, dxu, r_ray, area_v, area_t,
                       enable_conserve_energy):
@@ -143,22 +144,22 @@ def rayleigh_friction(du_mix, dv_mix, K_diss_bot, maskU, maskV, u, v, tau,
     interior Rayleigh friction
     dissipation is calculated and added to K_diss_bot
     """
-    du_mix[...] += -maskU * r_ray * u[..., tau]
+    du_mix = update_add(du_mix, at[...], -maskU * r_ray * u[..., tau])
     if enable_conserve_energy:
         diss = maskU * r_ray * u[..., tau]**2
-        K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dxu, dyt, cost)
-    dv_mix[...] += -maskV * r_ray * v[..., tau]
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dxu, dyt, cost))
+    dv_mix = update_add(dv_mix, at[...], -maskV * r_ray * v[..., tau])
 
     if enable_conserve_energy:
         diss = maskV * r_ray * v[..., tau]**2
-        K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dyt, cost, area_v, area_t)
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dyt, cost, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_bot
 
 
-@veros_kernel(static_args=('enable_bottom_friction_var', 'enable_conserve_energy'))
+@veros_kernel(static_args=('enable_bottom_friction_var', 'enable_conserve_energy', 'nz'))
 def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, maskV,
                            r_bot, r_bot_var_u, r_bot_var_v, tau, dzw,
                            grav, rho_0, flux_east,
@@ -175,51 +176,50 @@ def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, ma
         """
         k = np.maximum(kbot[1:-2, 2:-2], kbot[2:-1, 2:-2]) - 1
         mask = np.arange(nz) == k[:, :, np.newaxis]
-        du_mix[1:-2, 2:-2] += -(maskU[1:-2, 2:-2] * r_bot_var_u[1:-2, 2:-2, np.newaxis]) \
-            * u[1:-2, 2:-2, :, tau] * mask
+        du_mix = update_add(du_mix, at[1:-2, 2:-2], -(maskU[1:-2, 2:-2] * r_bot_var_u[1:-2, 2:-2, np.newaxis]) \
+            * u[1:-2, 2:-2, :, tau] * mask)
         if enable_conserve_energy:
             diss = np.zeros_like(maskU)
-            diss[1:-2, 2:-2] = maskU[1:-2, 2:-2] * r_bot_var_u[1:-2, 2:-2, np.newaxis] \
-                * u[1:-2, 2:-2, :, tau]**2 * mask
-            K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                    flux_north, dxt, dxu, dyt, cost)
+            diss = update(diss, at[1:-2, 2:-2], maskU[1:-2, 2:-2] * r_bot_var_u[1:-2, 2:-2, np.newaxis] \
+                * u[1:-2, 2:-2, :, tau]**2 * mask)
+            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                    flux_north, dxt, dxu, dyt, cost))
 
         k = np.maximum(kbot[2:-2, 2:-1], kbot[2:-2, 1:-2]) - 1
         mask = np.arange(nz) == k[:, :, np.newaxis]
-        dv_mix[2:-2, 1:-2] += -(maskV[2:-2, 1:-2] * r_bot_var_v[2:-2, 1:-2, np.newaxis]) \
-            * v[2:-2, 1:-2, :, tau] * mask
+        dv_mix = update_add(dv_mix, at[2:-2, 1:-2], -(maskV[2:-2, 1:-2] * r_bot_var_v[2:-2, 1:-2, np.newaxis]) \
+            * v[2:-2, 1:-2, :, tau] * mask)
         if enable_conserve_energy:
             diss = np.zeros_like(maskV)
-            diss[2:-2, 1:-2] = maskV[2:-2, 1:-2] * r_bot_var_v[2:-2, 1:-2, np.newaxis] \
-                * v[2:-2, 1:-2, :, tau]**2 * mask
-            K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                    flux_north, dxt, dyt, cost, area_v, area_t)
+            diss = update(diss, at[2:-2, 1:-2], maskV[2:-2, 1:-2] * r_bot_var_v[2:-2, 1:-2, np.newaxis] \
+                * v[2:-2, 1:-2, :, tau]**2 * mask)
+            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                    flux_north, dxt, dyt, cost, area_v, area_t))
     else:
         """
         with constant coefficient
         """
         k = np.maximum(kbot[1:-2, 2:-2], kbot[2:-1, 2:-2]) - 1
         mask = np.arange(nz) == k[:, :, np.newaxis]
-        du_mix[1:-2, 2:-2] += -maskU[1:-2, 2:-2] * r_bot * u[1:-2, 2:-2, :, tau] * mask
+        du_mix = update_add(du_mix, at[1:-2, 2:-2], -maskU[1:-2, 2:-2] * r_bot * u[1:-2, 2:-2, :, tau] * mask)
         if enable_conserve_energy:
             diss = np.zeros_like(maskU)
-            diss[1:-2, 2:-2] = maskU[1:-2, 2:-2] * r_bot * u[1:-2, 2:-2, :, tau]**2 * mask
-            K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                    flux_north, dxt, dxu, dyt, cost)
+            diss = update(diss, at[1:-2, 2:-2], maskU[1:-2, 2:-2] * r_bot * u[1:-2, 2:-2, :, tau]**2 * mask)
+            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                    flux_north, dxt, dxu, dyt, cost))
 
         k = np.maximum(kbot[2:-2, 2:-1], kbot[2:-2, 1:-2]) - 1
         mask = np.arange(nz) == k[:, :, np.newaxis]
-        dv_mix[2:-2, 1:-2] += -maskV[2:-2, 1:-2] * r_bot * v[2:-2, 1:-2, :, tau] * mask
+        dv_mix = update_add(dv_mix, at[2:-2, 1:-2], -maskV[2:-2, 1:-2] * r_bot * v[2:-2, 1:-2, :, tau] * mask)
         if enable_conserve_energy:
             diss = np.zeros_like(maskV)
-            diss[2:-2, 1:-2] = maskV[2:-2, 1:-2] * r_bot * v[2:-2, 1:-2, :, tau]**2 * mask
-            K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                    flux_north, dxt, dyt, cost, area_v, area_t)
+            diss = update(diss, at[2:-2, 1:-2], maskV[2:-2, 1:-2] * r_bot * v[2:-2, 1:-2, :, tau]**2 * mask)
+            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                    flux_north, dxt, dyt, cost, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_bot
 
-
-@veros_kernel(static_args=('enable_conserve_energy'))
+@veros_kernel(static_args=('enable_conserve_energy', 'nz'))
 def quadratic_bottom_friction(du_mix, dv_mix, K_diss_bot, u, v, r_quad_bot, dzt,
                               dzw, grav, rho_0, flux_east,
                               flux_north, dxt, dxu, dyt, cost, kbot, maskU, maskV, nz, tau,
@@ -238,13 +238,13 @@ def quadratic_bottom_friction(du_mix, dv_mix, K_diss_bot, u, v, r_quad_bot, dzt,
     fxa = np.sqrt(u[1:-2, 2:-2, :, tau]**2 + 0.25 * fxa)
     aloc = maskU[1:-2, 2:-2, :] * r_quad_bot * u[1:-2, 2:-2, :, tau] \
         * fxa / dzt[np.newaxis, np.newaxis, :] * mask
-    du_mix[1:-2, 2:-2, :] += -aloc
+    du_mix = update_add(du_mix, at[1:-2, 2:-2, :], -aloc)
 
     if enable_conserve_energy:
         diss = np.zeros_like(maskU)
-        diss[1:-2, 2:-2, :] = aloc * u[1:-2, 2:-2, :, tau]
-        K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dxu, dyt, cost)
+        diss = update(diss, at[1:-2, 2:-2, :], aloc * u[1:-2, 2:-2, :, tau])
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dxu, dyt, cost))
 
     k = np.maximum(kbot[2:-2, 1:-2], kbot[2:-2, 2:-1]) - 1
     mask = k[..., np.newaxis] == np.arange(nz)[np.newaxis, np.newaxis, :]
@@ -255,19 +255,20 @@ def quadratic_bottom_friction(du_mix, dv_mix, K_diss_bot, u, v, r_quad_bot, dzt,
     fxa = np.sqrt(v[2:-2, 1:-2, :, tau]**2 + 0.25 * fxa)
     aloc = maskV[2:-2, 1:-2, :] * r_quad_bot * v[2:-2, 1:-2, :, tau] \
         * fxa / dzt[np.newaxis, np.newaxis, :] * mask
-    dv_mix[2:-2, 1:-2, :] += -aloc
+    dv_mix = update_add(dv_mix, at[2:-2, 1:-2, :], -aloc)
 
     if enable_conserve_energy:
         diss = np.zeros_like(maskV)
-        diss[2:-2, 1:-2, :] = aloc * v[2:-2, 1:-2, :, tau]
-        K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dyt, cost, area_v, area_t)
+        diss = update(diss, at[2:-2, 1:-2, :], aloc * v[2:-2, 1:-2, :, tau])
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dyt, cost, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_bot
 
 
-@veros_kernel(static_args=('enable_hor_friction_cos_scaling', 'enable_conserve_energy',
-                           'hor_friction_cosPower', 'enable_noslip_lateral')
+@veros_kernel(
+    static_args=('enable_hor_friction_cos_scaling', 'enable_conserve_energy',
+                 'hor_friction_cosPower', 'enable_noslip_lateral', 'nz',)
 )
 def harmonic_friction(du_mix, dv_mix, K_diss_h, cost, cosu, A_h, u, v, tau,
                       dxt, dxu, dyt, dyu, dzw, maskU, maskV, kbot, nz, area_v, area_t,
@@ -286,106 +287,106 @@ def harmonic_friction(du_mix, dv_mix, K_diss_h, cost, cosu, A_h, u, v, tau,
     """
     if enable_hor_friction_cos_scaling:
         fxa = cost**hor_friction_cosPower
-        flux_east[:-1] = A_h * fxa[np.newaxis, :, np.newaxis] * (u[1:, :, :, tau] - u[:-1, :, :, tau]) \
-            / (cost * dxt[1:, np.newaxis])[:, :, np.newaxis] * maskU[1:] * maskU[:-1]
+        flux_east = update(flux_east, at[:-1], A_h * fxa[np.newaxis, :, np.newaxis] * (u[1:, :, :, tau] - u[:-1, :, :, tau]) \
+            / (cost * dxt[1:, np.newaxis])[:, :, np.newaxis] * maskU[1:] * maskU[:-1])
         fxa = cosu**hor_friction_cosPower
-        flux_north[:, :-1] = A_h * fxa[np.newaxis, :-1, np.newaxis] * (u[:, 1:, :, tau] - u[:, :-1, :, tau]) \
-            / dyu[np.newaxis, :-1, np.newaxis] * maskU[:, 1:] * maskU[:, :-1] * cosu[np.newaxis, :-1, np.newaxis]
+        flux_north = update(flux_north, at[:, :-1], A_h * fxa[np.newaxis, :-1, np.newaxis] * (u[:, 1:, :, tau] - u[:, :-1, :, tau]) \
+            / dyu[np.newaxis, :-1, np.newaxis] * maskU[:, 1:] * maskU[:, :-1] * cosu[np.newaxis, :-1, np.newaxis])
         if enable_noslip_lateral:
-            flux_north[:, :-1] += 2 * A_h * fxa[np.newaxis, :-1, np.newaxis] * (u[:, 1:, :, tau]) \
+            flux_north = update_add(flux_north, at[:, :-1], 2 * A_h * fxa[np.newaxis, :-1, np.newaxis] * (u[:, 1:, :, tau]) \
                 / dyu[np.newaxis, :-1, np.newaxis] * maskU[:, 1:] * (1 - maskU[:, :-1]) * cosu[np.newaxis, :-1, np.newaxis]\
                 - 2 * A_h * fxa[np.newaxis, :-1, np.newaxis] * (u[:, :-1, :, tau]) \
-                / dyu[np.newaxis, :-1, np.newaxis] * (1 - maskU[:, 1:]) * maskU[:, :-1] * cosu[np.newaxis, :-1, np.newaxis]
+                / dyu[np.newaxis, :-1, np.newaxis] * (1 - maskU[:, 1:]) * maskU[:, :-1] * cosu[np.newaxis, :-1, np.newaxis])
     else:
-        flux_east[:-1, :, :] = A_h * (u[1:, :, :, tau] - u[:-1, :, :, tau]) \
-            / (cost * dxt[1:, np.newaxis])[:, :, np.newaxis] * maskU[1:] * maskU[:-1]
-        flux_north[:, :-1, :] = A_h * (u[:, 1:, :, tau] - u[:, :-1, :, tau]) \
-            / dyu[np.newaxis, :-1, np.newaxis] * maskU[:, 1:] * maskU[:, :-1] * cosu[np.newaxis, :-1, np.newaxis]
+        flux_east = update(flux_east, at[:-1, :, :], A_h * (u[1:, :, :, tau] - u[:-1, :, :, tau]) \
+            / (cost * dxt[1:, np.newaxis])[:, :, np.newaxis] * maskU[1:] * maskU[:-1])
+        flux_north = update(flux_north, at[:, :-1, :], A_h * (u[:, 1:, :, tau] - u[:, :-1, :, tau]) \
+            / dyu[np.newaxis, :-1, np.newaxis] * maskU[:, 1:] * maskU[:, :-1] * cosu[np.newaxis, :-1, np.newaxis])
         if enable_noslip_lateral:
-            flux_north[:, :-1] += 2 * A_h * u[:, 1:, :, tau] / dyu[np.newaxis, :-1, np.newaxis] \
+            flux_north = update_add(flux_north, at[:, :-1], 2 * A_h * u[:, 1:, :, tau] / dyu[np.newaxis, :-1, np.newaxis] \
                 * maskU[:, 1:] * (1 - maskU[:, :-1]) * cosu[np.newaxis, :-1, np.newaxis]\
                 - 2 * A_h * u[:, :-1, :, tau] / dyu[np.newaxis, :-1, np.newaxis] \
-                * (1 - maskU[:, 1:]) * maskU[:, :-1] * cosu[np.newaxis, :-1, np.newaxis]
+                * (1 - maskU[:, 1:]) * maskU[:, :-1] * cosu[np.newaxis, :-1, np.newaxis])
 
-    flux_east[-1, :, :] = 0.
-    flux_north[:, -1, :] = 0.
+    flux_east = update(flux_east, at[-1, :, :], 0.)
+    flux_north = update(flux_north, at[:, -1, :], 0.)
 
     """
     update tendency
     """
-    du_mix[2:-2, 2:-2, :] += maskU[2:-2, 2:-2] * ((flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2])
+    du_mix = update_add(du_mix, at[2:-2, 2:-2, :], maskU[2:-2, 2:-2] * ((flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2])
                                                   / (cost[2:-2] * dxu[2:-2, np.newaxis])[:, :, np.newaxis]
                                                   + (flux_north[2:-2, 2:-2] - flux_north[2:-2, 1:-3])
-                                                  / (cost[2:-2] * dyt[2:-2])[np.newaxis, :, np.newaxis])
+                                                  / (cost[2:-2] * dyt[2:-2])[np.newaxis, :, np.newaxis]))
 
     if enable_conserve_energy:
         """
         diagnose dissipation by lateral friction
         """
-        diss[1:-2, 2:-2] = 0.5 * ((u[2:-1, 2:-2, :, tau] - u[1:-2, 2:-2, :, tau]) * flux_east[1:-2, 2:-2]
+        diss = update(diss, at[1:-2, 2:-2], 0.5 * ((u[2:-1, 2:-2, :, tau] - u[1:-2, 2:-2, :, tau]) * flux_east[1:-2, 2:-2]
                                   + (u[1:-2, 2:-2, :, tau] - u[:-3, 2:-2, :, tau]) * flux_east[:-3, 2:-2]) \
             / (cost[2:-2] * dxu[1:-2, np.newaxis])[:, :, np.newaxis]\
             + 0.5 * ((u[1:-2, 3:-1, :, tau] - u[1:-2, 2:-2, :, tau]) * flux_north[1:-2, 2:-2]
                      + (u[1:-2, 2:-2, :, tau] - u[1:-2, 1:-3, :, tau]) * flux_north[1:-2, 1:-3]) \
-            / (cost[2:-2] * dyt[2:-2])[np.newaxis, :, np.newaxis]
-        K_diss_h[...] = 0.
-        K_diss_h[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                              flux_north, dxt, dxu, dyt, cost)
+            / (cost[2:-2] * dyt[2:-2])[np.newaxis, :, np.newaxis])
+        K_diss_h = update(K_diss_h, at[...], 0.)
+        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                              flux_north, dxt, dxu, dyt, cost))
 
     """
     Meridional velocity
     """
     if enable_hor_friction_cos_scaling:
-        flux_east[:-1] = A_h * cosu[np.newaxis, :, np.newaxis] ** hor_friction_cosPower \
+        flux_east = update(flux_east, at[:-1], A_h * cosu[np.newaxis, :, np.newaxis] ** hor_friction_cosPower \
             * (v[1:, :, :, tau] - v[:-1, :, :, tau]) \
-            / (cosu * dxu[:-1, np.newaxis])[:, :, np.newaxis] * maskV[1:] * maskV[:-1]
+            / (cosu * dxu[:-1, np.newaxis])[:, :, np.newaxis] * maskV[1:] * maskV[:-1])
         if enable_noslip_lateral:
-            flux_east[:-1] += 2 * A_h * fxa[np.newaxis, :, np.newaxis] * v[1:, :, :, tau] \
+            flux_east = update_add(flux_east, at[:-1], 2 * A_h * fxa[np.newaxis, :, np.newaxis] * v[1:, :, :, tau] \
                 / (cosu * dxu[:-1, np.newaxis])[:, :, np.newaxis] * maskV[1:] * (1 - maskV[:-1]) \
                 - 2 * A_h * fxa[np.newaxis, :, np.newaxis] * v[:-1, :, :, tau] \
-                / (cosu * dxu[:-1, np.newaxis])[:, :, np.newaxis] * (1 - maskV[1:]) * maskV[:-1]
+                / (cosu * dxu[:-1, np.newaxis])[:, :, np.newaxis] * (1 - maskV[1:]) * maskV[:-1])
 
-        flux_north[:, :-1] = A_h * cost[np.newaxis, 1:, np.newaxis] ** hor_friction_cosPower \
+        flux_north = update(flux_north, at[:, :-1], A_h * cost[np.newaxis, 1:, np.newaxis] ** hor_friction_cosPower \
             * (v[:, 1:, :, tau] - v[:, :-1, :, tau]) \
-            / dyt[np.newaxis, 1:, np.newaxis] * cost[np.newaxis, 1:, np.newaxis] * maskV[:, :-1] * maskV[:, 1:]
+            / dyt[np.newaxis, 1:, np.newaxis] * cost[np.newaxis, 1:, np.newaxis] * maskV[:, :-1] * maskV[:, 1:])
     else:
-        flux_east[:-1] = A_h * (v[1:, :, :, tau] - v[:-1, :, :, tau]) \
-            / (cosu * dxu[:-1, np.newaxis])[:, :, np.newaxis] * maskV[1:] * maskV[:-1]
+        flux_east = update(flux_east, at[:-1], A_h * (v[1:, :, :, tau] - v[:-1, :, :, tau]) \
+            / (cosu * dxu[:-1, np.newaxis])[:, :, np.newaxis] * maskV[1:] * maskV[:-1])
         if enable_noslip_lateral:
-            flux_east[:-1] += 2 * A_h * v[1:, :, :, tau] / (cosu * dxu[:-1, np.newaxis])[:, :, np.newaxis] \
+            flux_east = update_add(flux_east, at[:-1], 2 * A_h * v[1:, :, :, tau] / (cosu * dxu[:-1, np.newaxis])[:, :, np.newaxis] \
                 * maskV[1:] * (1 - maskV[:-1]) \
                 - 2 * A_h * v[:-1, :, :, tau] / (cosu * dxu[:-1, np.newaxis])[:, :, np.newaxis] \
-                * (1 - maskV[1:]) * maskV[:-1]
-        flux_north[:, :-1] = A_h * (v[:, 1:, :, tau] - v[:, :-1, :, tau]) \
-            / dyt[np.newaxis, 1:, np.newaxis] * cost[np.newaxis, 1:, np.newaxis] * maskV[:, :-1] * maskV[:, 1:]
-    flux_east[-1, :, :] = 0.
-    flux_north[:, -1, :] = 0.
+                * (1 - maskV[1:]) * maskV[:-1])
+        flux_north = update(flux_north, at[:, :-1], A_h * (v[:, 1:, :, tau] - v[:, :-1, :, tau]) \
+            / dyt[np.newaxis, 1:, np.newaxis] * cost[np.newaxis, 1:, np.newaxis] * maskV[:, :-1] * maskV[:, 1:])
+    flux_east = update(flux_east, at[-1, :, :], 0.)
+    flux_north = update(flux_north, at[:, -1, :], 0.)
 
     """
     update tendency
     """
-    dv_mix[2:-2, 2:-2] += maskV[2:-2, 2:-2] * ((flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2])
+    dv_mix = update_add(dv_mix, at[2:-2, 2:-2], maskV[2:-2, 2:-2] * ((flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2])
                                                / (cosu[2:-2] * dxt[2:-2, np.newaxis])[:, :, np.newaxis]
                                                + (flux_north[2:-2, 2:-2] - flux_north[2:-2, 1:-3])
-                                               / (dyu[2:-2] * cosu[2:-2])[np.newaxis, :, np.newaxis])
+                                               / (dyu[2:-2] * cosu[2:-2])[np.newaxis, :, np.newaxis]))
 
     if enable_conserve_energy:
         """
         diagnose dissipation by lateral friction
         """
-        diss[2:-2, 1:-2] = 0.5 * ((v[3:-1, 1:-2, :, tau] - v[2:-2, 1:-2, :, tau]) * flux_east[2:-2, 1:-2]
+        diss = update(diss, at[2:-2, 1:-2], 0.5 * ((v[3:-1, 1:-2, :, tau] - v[2:-2, 1:-2, :, tau]) * flux_east[2:-2, 1:-2]
                                   + (v[2:-2, 1:-2, :, tau] - v[1:-3, 1:-2, :, tau]) * flux_east[1:-3, 1:-2]) \
             / (cosu[1:-2] * dxt[2:-2, np.newaxis])[:, :, np.newaxis] \
             + 0.5 * ((v[2:-2, 2:-1, :, tau] - v[2:-2, 1:-2, :, tau]) * flux_north[2:-2, 1:-2]
                      + (v[2:-2, 1:-2, :, tau] - v[2:-2, :-3, :, tau]) * flux_north[2:-2, :-3]) \
-            / (cosu[1:-2] * dyu[1:-2])[np.newaxis, :, np.newaxis]
-        K_diss_h[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                              flux_north, dxt, dyt, cost, area_v, area_t)
+            / (cosu[1:-2] * dyu[1:-2])[np.newaxis, :, np.newaxis])
+        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                              flux_north, dxt, dyt, cost, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_h
 
 
-@veros_kernel(static_args=('enable_noslip_lateral', 'enable_conserve_energy'))
+@veros_kernel(static_args=('enable_noslip_lateral', 'enable_conserve_energy', 'nz'))
 def biharmonic_friction(du_mix, dv_mix, K_diss_h, A_hbi, u, v, tau, area_v, area_t,
                         cost, cosu, dxt, dxu, dyt, dyu, dzw, maskU, maskV, enable_cyclic_x,
                         kbot, nz, enable_noslip_lateral, enable_conserve_energy):
@@ -400,143 +401,143 @@ def biharmonic_friction(du_mix, dv_mix, K_diss_h, A_hbi, u, v, tau, area_v, area
     """
     Zonal velocity
     """
-    flux_east[:-1, :, :] = fxa * (u[1:, :, :, tau] - u[:-1, :, :, tau]) \
+    flux_east = update(flux_east, at[:-1, :, :], fxa * (u[1:, :, :, tau] - u[:-1, :, :, tau]) \
         / (cost[np.newaxis, :, np.newaxis] * dxt[1:, np.newaxis, np.newaxis]) \
-        * maskU[1:, :, :] * maskU[:-1, :, :]
-    flux_north[:, :-1, :] = fxa * (u[:, 1:, :, tau] - u[:, :-1, :, tau]) \
+        * maskU[1:, :, :] * maskU[:-1, :, :])
+    flux_north = update(flux_north, at[:, :-1, :], fxa * (u[:, 1:, :, tau] - u[:, :-1, :, tau]) \
         / dyu[np.newaxis, :-1, np.newaxis] * maskU[:, 1:, :] \
-        * maskU[:, :-1, :] * cosu[np.newaxis, :-1, np.newaxis]
+        * maskU[:, :-1, :] * cosu[np.newaxis, :-1, np.newaxis])
     if enable_noslip_lateral:
-        flux_north[:, :-1] += 2 * fxa * u[:, 1:, :, tau] / dyu[np.newaxis, :-1, np.newaxis] \
+        flux_north = update_add(flux_north, at[:, :-1], 2 * fxa * u[:, 1:, :, tau] / dyu[np.newaxis, :-1, np.newaxis] \
             * maskU[:, 1:] * (1 - maskU[:, :-1]) * cosu[np.newaxis, :-1, np.newaxis]\
             - 2 * fxa * u[:, :-1, :, tau] / dyu[np.newaxis, :-1, np.newaxis] \
-            * (1 - maskU[:, 1:]) * maskU[:, :-1] * cosu[np.newaxis, :-1, np.newaxis]
-    flux_east[-1, :, :] = 0.
-    flux_north[:, -1, :] = 0.
+            * (1 - maskU[:, 1:]) * maskU[:, :-1] * cosu[np.newaxis, :-1, np.newaxis])
+    flux_east = update(flux_east, at[-1, :, :], 0.)
+    flux_north = update(flux_north, at[:, -1, :], 0.)
 
     del2 = np.zeros_like(maskU)
-    del2[1:, 1:, :] = (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
+    del2 = update(del2, at[1:, 1:, :], (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
         / (cost[np.newaxis, 1:, np.newaxis] * dxu[1:, np.newaxis, np.newaxis]) \
         + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
-        / (cost[np.newaxis, 1:, np.newaxis] * dyt[np.newaxis, 1:, np.newaxis])
+        / (cost[np.newaxis, 1:, np.newaxis] * dyt[np.newaxis, 1:, np.newaxis]))
 
-    flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
+    flux_east = update(flux_east, at[:-1, :, :], fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
         / (cost[np.newaxis, :, np.newaxis] * dxt[1:, np.newaxis, np.newaxis]) \
-        * maskU[1:, :, :] * maskU[:-1, :, :]
-    flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) \
+        * maskU[1:, :, :] * maskU[:-1, :, :])
+    flux_north = update(flux_north, at[:, :-1, :], fxa * (del2[:, 1:, :] - del2[:, :-1, :]) \
         / dyu[np.newaxis, :-1, np.newaxis] * maskU[:, 1:, :] \
-        * maskU[:, :-1, :] * cosu[np.newaxis, :-1, np.newaxis]
+        * maskU[:, :-1, :] * cosu[np.newaxis, :-1, np.newaxis])
     if enable_noslip_lateral:
-        flux_north[:, :-1, :] += 2 * fxa * del2[:, 1:, :] / dyu[np.newaxis, :-1, np.newaxis] \
+        flux_north = update_add(flux_north, at[:, :-1, :], 2 * fxa * del2[:, 1:, :] / dyu[np.newaxis, :-1, np.newaxis] \
             * maskU[:, 1:, :] * (1 - maskU[:, :-1, :]) * cosu[np.newaxis, :-1, np.newaxis] \
             - 2 * fxa * del2[:, :-1, :] / dyu[np.newaxis, :-1, np.newaxis] \
-            * (1 - maskU[:, 1:, :]) * maskU[:, :-1, :] * cosu[np.newaxis, :-1, np.newaxis]
-    flux_east[-1, :, :] = 0.
-    flux_north[:, -1, :] = 0.
+            * (1 - maskU[:, 1:, :]) * maskU[:, :-1, :] * cosu[np.newaxis, :-1, np.newaxis])
+    flux_east = update(flux_east, at[-1, :, :], 0.)
+    flux_north = update(flux_north, at[:, -1, :], 0.)
 
     """
     update tendency
     """
-    du_mix[2:-2, 2:-2, :] += -maskU[2:-2, 2:-2, :] * ((flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+    du_mix = update_add(du_mix, at[2:-2, 2:-2, :], -maskU[2:-2, 2:-2, :] * ((flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
                                                       / (cost[np.newaxis, 2:-2, np.newaxis] * dxu[2:-2, np.newaxis, np.newaxis])
                                                       + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                                                      / (cost[np.newaxis, 2:-2, np.newaxis] * dyt[np.newaxis, 2:-2, np.newaxis]))
+                                                      / (cost[np.newaxis, 2:-2, np.newaxis] * dyt[np.newaxis, 2:-2, np.newaxis])))
     if enable_conserve_energy:
         """
         diagnose dissipation by lateral friction
         """
-        utilities.enforce_boundaries(flux_east, enable_cyclic_x)
-        utilities.enforce_boundaries(flux_north, enable_cyclic_x)
+        flux_east = utilities.enforce_boundaries(flux_east, enable_cyclic_x)
+        flux_north = utilities.enforce_boundaries(flux_north, enable_cyclic_x)
         diss = np.zeros_like(maskU)
-        diss[1:-2, 2:-2, :] = -0.5 * ((u[2:-1, 2:-2, :, tau] - u[1:-2, 2:-2, :, tau]) * flux_east[1:-2, 2:-2, :]
+        diss = update(diss, at[1:-2, 2:-2, :], -0.5 * ((u[2:-1, 2:-2, :, tau] - u[1:-2, 2:-2, :, tau]) * flux_east[1:-2, 2:-2, :]
                                       + (u[1:-2, 2:-2, :, tau] - u[:-3, 2:-2, :, tau]) * flux_east[:-3, 2:-2, :]) \
             / (cost[np.newaxis, 2:-2, np.newaxis] * dxu[1:-2, np.newaxis, np.newaxis])  \
             - 0.5 * ((u[1:-2, 3:-1, :, tau] - u[1:-2, 2:-2, :, tau]) * flux_north[1:-2, 2:-2, :]
                      + (u[1:-2, 2:-2, :, tau] - u[1:-2, 1:-3, :, tau]) * flux_north[1:-2, 1:-3, :]) \
-            / (cost[np.newaxis, 2:-2, np.newaxis] * dyt[np.newaxis, 2:-2, np.newaxis])
-        K_diss_h[...] = 0.
-        K_diss_h[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                              flux_north, dxt, dxu, dyt, cost)
+            / (cost[np.newaxis, 2:-2, np.newaxis] * dyt[np.newaxis, 2:-2, np.newaxis]))
+        K_diss_h = update(K_diss_h, at[...], 0.)
+        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                              flux_north, dxt, dxu, dyt, cost))
 
     """
     Meridional velocity
     """
-    flux_east[:-1, :, :] = fxa * (v[1:, :, :, tau] - v[:-1, :, :, tau]) \
+    flux_east = update(flux_east, at[:-1, :, :], fxa * (v[1:, :, :, tau] - v[:-1, :, :, tau]) \
         / (cosu[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis]) \
-        * maskV[1:, :, :] * maskV[:-1, :, :]
+        * maskV[1:, :, :] * maskV[:-1, :, :])
     if enable_noslip_lateral:
-        flux_east[:-1, :, :] += 2 * fxa * v[1:, :, :, tau] / (cosu[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis]) \
+        flux_east = update_add(flux_east, at[:-1, :, :], 2 * fxa * v[1:, :, :, tau] / (cosu[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis]) \
             * maskV[1:, :, :] * (1 - maskV[:-1, :, :]) \
             - 2 * fxa * v[:-1, :, :, tau] / (cosu[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis]) \
-            * (1 - maskV[1:, :, :]) * maskV[:-1, :, :]
-    flux_north[:, :-1, :] = fxa * (v[:, 1:, :, tau] - v[:, :-1, :, tau]) \
+            * (1 - maskV[1:, :, :]) * maskV[:-1, :, :])
+    flux_north = update(flux_north, at[:, :-1, :], fxa * (v[:, 1:, :, tau] - v[:, :-1, :, tau]) \
         / dyt[np.newaxis, 1:, np.newaxis] * cost[np.newaxis, 1:, np.newaxis] \
-        * maskV[:, :-1, :] * maskV[:, 1:, :]
-    flux_east[-1, :, :] = 0.
-    flux_north[:, -1, :] = 0.
+        * maskV[:, :-1, :] * maskV[:, 1:, :])
+    flux_east = update(flux_east, at[-1, :, :], 0.)
+    flux_north = update(flux_north, at[:, -1, :], 0.)
 
-    del2[1:, 1:, :] = (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
+    del2 = update(del2, at[1:, 1:, :], (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
         / (cosu[np.newaxis, 1:, np.newaxis] * dxt[1:, np.newaxis, np.newaxis])  \
         + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
-        / (dyu[np.newaxis, 1:, np.newaxis] * cosu[np.newaxis, 1:, np.newaxis])
+        / (dyu[np.newaxis, 1:, np.newaxis] * cosu[np.newaxis, 1:, np.newaxis]))
 
-    flux_east[:-1, :, :] = fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
+    flux_east = update(flux_east, at[:-1, :, :], fxa * (del2[1:, :, :] - del2[:-1, :, :]) \
         / (cosu[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis]) \
-        * maskV[1:, :, :] * maskV[:-1, :, :]
+        * maskV[1:, :, :] * maskV[:-1, :, :])
     if enable_noslip_lateral:
-        flux_east[:-1, :, :] += 2 * fxa * del2[1:, :, :] / (cosu[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis]) \
+        flux_east = update_add(flux_east, at[:-1, :, :], 2 * fxa * del2[1:, :, :] / (cosu[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis]) \
             * maskV[1:, :, :] * (1 - maskV[:-1, :, :]) \
             - 2 * fxa * del2[:-1, :, :] / (cosu[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis]) \
-            * (1 - maskV[1:, :, :]) * maskV[:-1, :, :]
-    flux_north[:, :-1, :] = fxa * (del2[:, 1:, :] - del2[:, :-1, :]) \
+            * (1 - maskV[1:, :, :]) * maskV[:-1, :, :])
+    flux_north = update(flux_north, at[:, :-1, :], fxa * (del2[:, 1:, :] - del2[:, :-1, :]) \
         / dyt[np.newaxis, 1:, np.newaxis] * cost[np.newaxis, 1:, np.newaxis] \
-        * maskV[:, :-1, :] * maskV[:, 1:, :]
-    flux_east[-1, :, :] = 0.
-    flux_north[:, -1, :] = 0.
+        * maskV[:, :-1, :] * maskV[:, 1:, :])
+    flux_east = update(flux_east, at[-1, :, :], 0.)
+    flux_north = update(flux_north, at[:, -1, :], 0.)
 
     """
     update tendency
     """
-    dv_mix[2:-2, 2:-2, :] += -maskV[2:-2, 2:-2, :] * ((flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+    dv_mix = update_add(dv_mix, at[2:-2, 2:-2, :], -maskV[2:-2, 2:-2, :] * ((flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
                                                       / (cosu[np.newaxis, 2:-2, np.newaxis] * dxt[2:-2, np.newaxis, np.newaxis])
                                                       + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                                                      / (dyu[np.newaxis, 2:-2, np.newaxis] * cosu[np.newaxis, 2:-2, np.newaxis]))
+                                                      / (dyu[np.newaxis, 2:-2, np.newaxis] * cosu[np.newaxis, 2:-2, np.newaxis])))
 
     if enable_conserve_energy:
         """
         diagnose dissipation by lateral friction
         """
-        utilities.enforce_boundaries(flux_east, enable_cyclic_x)
-        utilities.enforce_boundaries(flux_north, enable_cyclic_x)
-        diss[2:-2, 1:-2, :] = -0.5 * ((v[3:-1, 1:-2, :, tau] - v[2:-2, 1:-2, :, tau]) * flux_east[2:-2, 1:-2, :]
+        flux_east = utilities.enforce_boundaries(flux_east, enable_cyclic_x)
+        flux_north = utilities.enforce_boundaries(flux_north, enable_cyclic_x)
+        diss = update(diss, at[2:-2, 1:-2, :], -0.5 * ((v[3:-1, 1:-2, :, tau] - v[2:-2, 1:-2, :, tau]) * flux_east[2:-2, 1:-2, :]
                                       + (v[2:-2, 1:-2, :, tau] - v[1:-3, 1:-2, :, tau]) * flux_east[1:-3, 1:-2, :]) \
             / (cosu[np.newaxis, 1:-2, np.newaxis] * dxt[2:-2, np.newaxis, np.newaxis]) \
             - 0.5 * ((v[2:-2, 2:-1, :, tau] - v[2:-2, 1:-2, :, tau]) * flux_north[2:-2, 1:-2, :]
                      + (v[2:-2, 1:-2, :, tau] - v[2:-2, :-3, :, tau]) * flux_north[2:-2, :-3, :]) \
-            / (cosu[np.newaxis, 1:-2, np.newaxis] * dyu[np.newaxis, 1:-2, np.newaxis])
-        K_diss_h[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                              flux_north, dxt, dyt, cost, area_v, area_t)
+            / (cosu[np.newaxis, 1:-2, np.newaxis] * dyu[np.newaxis, 1:-2, np.newaxis]))
+        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                              flux_north, dxt, dyt, cost, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_h
 
 
-@veros_kernel(static_args=('enable_conserve_energy'))
+@veros_kernel(static_args=('enable_conserve_energy', 'nz',))
 def momentum_sources(du_mix, dv_mix, K_diss_bot, u, v, u_source, v_source, area_v, area_t,
                      tau, maskU, maskV, kbot, nz, dzw, dxt, dxu, enable_conserve_energy):
     """
     other momentum sources
     dissipation is calculated and added to K_diss_bot
     """
-    du_mix[...] += maskU * u_source
+    du_mix = update_add(du_mix, at[...], maskU * u_source)
     if enable_conserve_energy:
         diss = -maskU * u[..., tau] * u_source
-        K_diss_bot[...] += numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dxu, dyt, cost)
-    dv_mix[...] += maskV * v_source
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dxu, dyt, cost))
+    dv_mix = update_add(dv_mix, at[...], maskV * v_source)
     if enable_conserve_energy:
         diss = -maskV * v[..., tau] * v_source
-        K_diss_bot[...] += numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dyt, cost, area_v, area_t)
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
+                                                flux_north, dxt, dyt, cost, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_bot
 
@@ -583,7 +584,7 @@ def friction(vs):
     """
     vertical friction
     """
-    vs.K_diss_v[...] = 0.0
+    K_diss_v = update(vs.K_diss_v, at[...], 0.0)
     if vs.enable_implicit_vert_friction:
         u, v, du_mix, dv_mix, K_diss_v = run_kernel(implicit_vert_friction, vs)
     if vs.enable_explicit_vert_friction:
@@ -611,7 +612,7 @@ def friction(vs):
     """
     Rayleigh and bottom friction
     """
-    vs.K_diss_bot[...] = 0.0
+    K_diss_bot = update(vs.K_diss_bot, at[...], 0.0)
     if vs.enable_ray_friction:
         du_mix, dv_mix, K_diss_bot = run_kernel(rayleigh_friction, vs,
                                                 du_mix=du_mix, dv_mix=dv_mix)
