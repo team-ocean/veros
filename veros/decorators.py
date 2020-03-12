@@ -145,8 +145,10 @@ class VerosRoutine:
                 raise KeyError(f'Veros routine {self.name} returned unexpected outputs (expected: {sorted(self.this_outputs)}, got: {sorted(res.keys())})')
 
             for key, val in res.items():
-                if rs.backend == 'jax':
+                try:
                     val.block_until_ready()
+                except AttributeError:
+                    pass
 
                 if hasattr(func_state, key):
                     setattr(func_state, key, val)
