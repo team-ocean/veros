@@ -288,8 +288,14 @@ def calc_initial_conditions(vs):
 
     rho = density.get_rho(eq_of_state_type, salt, temp, np.abs(zt)[:, np.newaxis]) * maskT[..., np.newaxis]
     Hd = density.get_dyn_enthalpy(eq_of_state_type, salt, temp, np.abs(zt)[:, np.newaxis]) * maskT[..., np.newaxis]
-    int_drhodT = density.get_int_drhodT(eq_of_state_type, salt, temp, np.abs(zt)[:, np.newaxis])
-    int_drhodS = density.get_int_drhodS(eq_of_state_type, salt, temp, np.abs(zt)[:, np.newaxis])
+    int_drhodT = update(
+        int_drhodT, at[...],
+        density.get_int_drhodT(eq_of_state_type, salt, temp, np.abs(zt)[:, np.newaxis])
+    )
+    int_drhodS = update(
+        int_drhodS, at[...],
+        density.get_int_drhodS(eq_of_state_type, salt, temp, np.abs(zt)[:, np.newaxis])
+    )
 
     fxa = -grav / rho_0 / dzw[np.newaxis, np.newaxis, :] * maskW
     Nsqr = update(Nsqr, at[:, :, :-1, :], fxa[:, :, :-1, np.newaxis] \
