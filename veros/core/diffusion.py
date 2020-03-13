@@ -44,6 +44,7 @@ def dissipation_on_wgrid(out, nz, dzw,
 @veros_kernel(static_args=('enable_conserve_energy', 'pyom_compatibility_mode',))
 def tempsalt_biharmonic(K_hbi, temp, salt, int_drhodT, int_drhodS, maskT, maskU, maskV, maskW,
                         dxt, dxu, dyt, dyu, dzw, nz, tau, cost, cosu, taup1, dt_tracer,
+                        grav, rho_0, flux_east, flux_north, kbot,
                         enable_cyclic_x, enable_conserve_energy, pyom_compatibility_mode):
     """
     biharmonic mixing of temp and salinity,
@@ -63,7 +64,9 @@ def tempsalt_biharmonic(K_hbi, temp, salt, int_drhodT, int_drhodS, maskT, maskU,
     if enable_conserve_energy:
         if pyom_compatibility_mode:
             fxa = int_drhodT[-3, -3, -1, tau]
-        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw, int_drhodX=int_drhodT[..., tau])
+        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw,
+                                           grav, rho_0, flux_east,
+                                           flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodT[..., tau])
 
     # update salt
     dsalt_hmix = np.zeros_like(maskT)
@@ -74,7 +77,9 @@ def tempsalt_biharmonic(K_hbi, temp, salt, int_drhodT, int_drhodS, maskT, maskU,
     salt = update_add(salt, at[:, :, :, taup1], dt_tracer * dsalt_hmix * maskT)
 
     if enable_conserve_energy:
-        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw, int_drhodX=int_drhodS[..., tau])
+        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw,
+                                           grav, rho_0, flux_east,
+                                           flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodS[..., tau])
 
     return temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix
 
@@ -82,6 +87,7 @@ def tempsalt_biharmonic(K_hbi, temp, salt, int_drhodT, int_drhodS, maskT, maskU,
 @veros_kernel(static_args=('enable_conserve_energy',))
 def tempsalt_diffusion(int_drhodT, int_drhodS, temp, salt, maskT, maskU, maskV, maskW,
                        dxt, dxu, dyt, dyu, nz, dzw, tau, taup1, dt_tracer, K_h, cost, cosu,
+                       grav, rho_0, flux_east, flux_north, kbot,
                        hor_friction_cosPower, enable_hor_friction_cos_scaling,
                        enable_conserve_energy):
     """
@@ -99,7 +105,9 @@ def tempsalt_diffusion(int_drhodT, int_drhodS, temp, salt, maskT, maskU, maskV, 
 
     P_diss_hmix = np.zeros_like(maskW)
     if enable_conserve_energy:
-        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw, int_drhodX=int_drhodT[..., tau])
+        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw,
+                                           grav, rho_0, flux_east,
+                                           flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodT[..., tau])
 
     # horizontal diffusion of salinity
     dsalt_hmix = np.zeros_like(maskT)
@@ -111,14 +119,17 @@ def tempsalt_diffusion(int_drhodT, int_drhodS, temp, salt, maskT, maskU, maskV, 
     salt = update_add(salt, at[:, :, :, taup1], dt_tracer * dsalt_hmix * maskT)
 
     if enable_conserve_energy:
-        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw, int_drhodX=int_drhodS[..., tau])
+        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw,
+                                           grav, rho_0, flux_east,
+                                           flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodS[..., tau])
 
     return temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix
 
 
-@veros_kernel(static_args=('enable_conserve_energy',))
+@veros_kernel(static_args=('enable_conserve_energy', 'nz'))
 def tempsalt_sources(temp, salt, temp_source, salt_source, maskT, maskW,
                      tau, taup1, dt_tracer, grav, rho_0, nz, dzw,
+                     flux_east, flux_north, dxt, dyt, cost, kbot,
                      int_drhodT, int_drhodS, enable_conserve_energy):
     """
     Sources of temp and salinity,
@@ -132,7 +143,9 @@ def tempsalt_sources(temp, salt, temp_source, salt_source, maskT, maskW,
         aloc = -grav / rho_0 * maskT * \
             (int_drhodT[..., tau] * temp_source +
              int_drhodS[..., tau] * salt_source)
-        P_diss_sources = dissipation_on_wgrid(P_diss_sources, nz, dzw, aloc=aloc)
+        P_diss_sources = dissipation_on_wgrid(P_diss_sources, nz, dzw,
+                                              grav, rho_0, flux_east,
+                                              flux_north, dxt, dyt, cost, kbot, aloc=aloc)
 
     return temp, salt, P_diss_sources
 

@@ -220,14 +220,15 @@ def momentum(vs):
     """
     du, dv = run_kernel(momentum_advection, vs, tend_u=du, tend_v=dv)
 
+    vs.du = du
+    vs.dv = dv
+
     with vs.timers['friction']:
         friction.friction(vs)
 
     """
     external mode
     """
-    vs.du = du
-    vs.dv = dv
 
     with vs.timers['pressure']:
         streamfunction.solve_streamfunction(vs)

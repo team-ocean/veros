@@ -3,6 +3,7 @@ import scipy.ndimage
 from veros.core import utilities
 from veros.core.operators import numpy as np
 
+# fall back to vanilla NumPy for some operations
 import numpy as onp
 
 
@@ -48,10 +49,10 @@ def isleperim(kmt, enable_cyclic_x, verbose=False):
     sorted_labels = list(sorted(labels, key=lambda i: label_idx[i]))
 
     # ensure labels are numbered consecutively
-    relabelled = labelled.copy()
+    relabelled = onp.array(labelled)
     for new_label, label in enumerate(sorted_labels, 1):
         if label == new_label:
             continue
         relabelled[labelled == label] = new_label
 
-    return np.array(relabelled)
+    return np.asarray(relabelled)
