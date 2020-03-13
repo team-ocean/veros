@@ -1,5 +1,6 @@
 from loguru import logger
 from veros.core.operators import numpy as np
+import numpy as onp
 import scipy.sparse
 import scipy.sparse.linalg as spalg
 
@@ -25,13 +26,14 @@ class SciPySolver(LinearSolver):
 
     # @veros_method(dist_safe=False, local_variables=['boundary_mask'])
     def _scipy_solver(self, vs, rhs, sol, boundary_val):
-        utilities.enforce_boundaries(sol, vs.enable_cyclic_x)
+        sol = utilities.enforce_boundaries(sol, vs.enable_cyclic_x)
 
-        boundary_mask = np.sum(~vs.boundary_mask, axis=2)
+        boundary_mask = np.prod(1 - vs.boundary_mask, axis=2)
         rhs = utilities.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
-        x0 = sol.flatten()
 
-        rhs = rhs.flatten() * self._preconditioner.diagonal()
+        rhs = onp.asarray(rhs.flatten()) * self._preconditioner.diagonal()
+        x0 = onp.asarray(sol.flatten())
+
         linear_solution, info = spalg.bicgstab(
             self._matrix, rhs,
             x0=x0, atol=0, tol=vs.congr_epsilon,
@@ -42,7 +44,7 @@ class SciPySolver(LinearSolver):
         if info > 0:
             logger.warning('Streamfunction solver did not converge after {} iterations', info)
 
-        return linear_solution.reshape(vs.nx + 4, vs.ny + 4)
+        return np.asarray(linear_solution.reshape(vs.nx + 4, vs.ny + 4))
 
     # @veros_method
     def solve(self, vs, rhs, sol, boundary_val=None):
@@ -63,9 +65,8 @@ class SciPySolver(LinearSolver):
         else:
             boundary_val = distributed.gather(boundary_val, ('xt', 'yt'))
 
-        self._scipy_solver(vs, rhs_global, sol_global, boundary_val=boundary_val)
-
-        sol = update(sol, at[...], distributed.scatter(sol_global, ('xt', 'yt')))
+        linear_solution = self._scipy_solver(vs, rhs_global, sol_global, boundary_val=boundary_val)
+        return distributed.scatter(linear_solution, ('xt', 'yt'))
 
     @staticmethod
     # @veros_method(dist_safe=False, local_variables=[])
@@ -85,7 +86,7 @@ class SciPySolver(LinearSolver):
         """
         Construct a sparse matrix based on the stencil for the 2D Poisson equation.
         """
-        boundary_mask = np.sum(~vs.boundary_mask, axis=2)
+        boundary_mask = np.prod(1 - vs.boundary_mask, axis=2)
 
         # assemble diagonals
         main_diag = allocate(vs, ('xu', 'yu'), fill=1, local=False)
@@ -125,5 +126,5 @@ class SciPySolver(LinearSolver):
             offsets += (-main_diag.shape[1] * (vs.nx - 1), main_diag.shape[1] * (vs.nx - 1))
             cf += (wrap_diag_east.flatten(), wrap_diag_west.flatten())
 
-        cf = np.array(cf)
+        cf = onp.asarray(cf)
         return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()

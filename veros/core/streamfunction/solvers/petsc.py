@@ -84,7 +84,7 @@ class PETScSolver(LinearSolver):
         if boundary_val is None:
             boundary_val = sol
 
-        utilities.enforce_boundaries(vs, sol)
+        sol = utilities.enforce_boundaries(vs, sol)
 
         boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
         rhs = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries

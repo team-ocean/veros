@@ -30,13 +30,15 @@ from veros.core.streamfunction import utilities
 def solve_streamfunction(vs):
     forc, dpsi, fpx, fpy = run_kernel(prepare_forcing, vs)
 
-    vs.linear_solver.solve(
+    linear_sol = vs.linear_solver.solve(
         vs,
         forc,
         dpsi[..., vs.taup1]
     )
 
-    u, v, du, dv, p_hydro, psi, dpsi, dpsin = run_kernel(barotropic_velocity_update, vs, fpx=fpx, fpy=fpy)
+    dpsi = update(dpsi, at[..., vs.taup1], linear_sol)
+
+    u, v, du, dv, p_hydro, psi, dpsi, dpsin = run_kernel(barotropic_velocity_update, vs, dpsi=dpsi, fpx=fpx, fpy=fpy)
 
     return dict(
         u=u,

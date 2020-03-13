@@ -85,14 +85,16 @@ def streamfunction_init(vs):
     prepare for island integrals
     """
     logger.info('Initializing streamfunction method')
+    import matplotlib.pyplot as plt
 
     get_isleperim(vs)
     nisle = np.max(vs.land_map)
 
-    vs.linear_solver = _get_solver_class()(vs)
-
     (boundary_mask, line_dir_east_mask, line_dir_west_mask, line_dir_south_mask,
      line_dir_north_mask) = run_kernel(boundary_masks, vs, nisle=nisle)
+
+    vs.boundary_mask = boundary_mask
+    vs.linear_solver = _get_solver_class()(vs)
 
     """
     precalculate time independent boundary components of streamfunction
@@ -105,9 +107,10 @@ def streamfunction_init(vs):
 
     for isle in range(nisle):
         logger.info(' Solving for boundary contribution by island {:d}'.format(isle))
-        vs.linear_solver.solve(vs, forc, psin[:, :, isle], boundary_val=boundary_mask[:, :, isle])
+        isle_sol = vs.linear_solver.solve(vs, forc, psin[:, :, isle], boundary_val=boundary_mask[:, :, isle])
+        psin = update(psin, at[:, :, isle], isle_sol)
 
-    mainutils.enforce_boundaries(psin, vs.enable_cyclic_x)
+    psin = mainutils.enforce_boundaries(psin, vs.enable_cyclic_x)
 
     line_psin = run_kernel(
         island_integrals, vs, nisle=nisle, psin=psin,
