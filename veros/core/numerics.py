@@ -175,12 +175,12 @@ def calc_beta(vs):
     """
     calculate beta = df/dy
     """
-    vs.beta = update(vs.beta, at[:, 2:-2], 0.5 * ((vs.coriolis_t[:, 3:-1] - vs.coriolis_t[:, 2:-2]) / vs.dyu[2:-2]
+    beta = update(vs.beta, at[:, 2:-2], 0.5 * ((vs.coriolis_t[:, 3:-1] - vs.coriolis_t[:, 2:-2]) / vs.dyu[2:-2]
                            + (vs.coriolis_t[:, 2:-2] - vs.coriolis_t[:, 1:-3]) / vs.dyu[1:-3]))
 
-    utilities.enforce_boundaries(vs.beta, vs.enable_cyclic_x)
+    beta = utilities.enforce_boundaries(beta, vs.enable_cyclic_x)
 
-    return dict(beta=vs.beta)
+    return dict(beta=beta)
 
 
 @veros_routine(
@@ -188,7 +188,7 @@ def calc_beta(vs):
         'kbot', 'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'dzt'
     ),
     outputs=(
-        'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr'
+        'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'kbot'
     ),
     settings=('enable_cyclic_x')
 )
@@ -219,19 +219,22 @@ def calc_topo(vs):
     maskT = update(maskT, at[...], 0.0)
     land_mask = kbot > 0
     ks = np.arange(maskT.shape[2])[np.newaxis, np.newaxis, :]
+
     maskT = update(maskT, at[...], land_mask[..., np.newaxis] & (kbot[..., np.newaxis] - 1 <= ks))
     maskT = utilities.enforce_boundaries(maskT, enable_cyclic_x)
+
     maskU = update(maskU, at[...], maskT)
     maskU = update(maskU, at[:-1, :, :], np.minimum(maskT[:-1, :, :], maskT[1:, :, :]))
     maskU = utilities.enforce_boundaries(maskU, enable_cyclic_x)
+
     maskV = update(maskV, at[...], maskT)
     maskV = update(maskV, at[:, :-1], np.minimum(maskT[:, :-1], maskT[:, 1:]))
     maskV = utilities.enforce_boundaries(maskV, enable_cyclic_x)
+
     maskZ = update(maskZ, at[...], maskT)
-    maskZ = update(maskZ, at[:-1, :-1], np.minimum(np.minimum(maskT[:-1, :-1],
-                                            maskT[:-1, 1:]),
-                                 maskT[1:, :-1]))
+    maskZ = update(maskZ, at[:-1, :-1], np.minimum(np.minimum(maskT[:-1, :-1], maskT[:-1, 1:]), maskT[1:, :-1]))
     maskZ = utilities.enforce_boundaries(maskZ, enable_cyclic_x)
+
     maskW = update(maskW, at[...], maskT)
     maskW = update(maskW, at[:, :, :-1], np.minimum(maskT[:, :, :-1], maskT[:, :, 1:]))
 
@@ -257,7 +260,8 @@ def calc_topo(vs):
         hu=hu,
         hv=hv,
         hur=hur,
-        hvr=hvr
+        hvr=hvr,
+        kbot=kbot
     )
 
 
