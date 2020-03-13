@@ -85,7 +85,6 @@ def streamfunction_init(vs):
     prepare for island integrals
     """
     logger.info('Initializing streamfunction method')
-    import matplotlib.pyplot as plt
 
     get_isleperim(vs)
     nisle = np.max(vs.land_map)
