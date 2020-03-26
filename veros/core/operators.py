@@ -30,6 +30,20 @@ def solve_tridiagonal_numpy(a, b, c, d):
     return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
 
 
+def scan_numpy(f, init, xs, length=None):
+    import numpy as np
+    if xs is None:
+        xs = [None] * length
+
+    carry = init
+    ys = []
+    for x in xs:
+        carry, y = f(carry, x)
+        ys.append(y)
+
+    return carry, np.stack(ys)
+
+
 @veros_kernel
 def solve_tridiagonal_jax(a, b, c, d):
     import jax.numpy as np
@@ -70,6 +84,7 @@ if runtime_settings.backend == 'numpy':
     update_multiply = update_multiply_numpy
     at = Index()
     solve_tridiagonal = solve_tridiagonal_numpy
+    scan = scan_numpy
 
 elif runtime_settings.backend == 'jax':
     import jax
@@ -80,6 +95,7 @@ elif runtime_settings.backend == 'jax':
     update_multiply = update_multiply_jax
     at = jax.ops.index
     solve_tridiagonal = solve_tridiagonal_jax
+    scan = jax.lax.scan
 
 else:
     raise ValueError()

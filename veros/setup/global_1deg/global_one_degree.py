@@ -40,11 +40,9 @@ def set_forcing_kernel(f1, f2, n1, n2, surface_taux, surface_tauy, taux, tauy, e
     t_star_cur = f1 * t_star[..., n1] + f2 * t_star[..., n2]
     qqnec = f1 * qnec[..., n1] + f2 * qnec[..., n2]
     qqnet = f1 * qnet[..., n1] + f2 * qnet[..., n2]
-    forc_temp_surface = update(forc_temp_surface, at[...], (qqnet + qqnec * (t_star_cur - temp[..., -1, tau]))
-                                    * maskT[..., -1] / cp_0 / rho_0)
+    forc_temp_surface = (qqnet + qqnec * (t_star_cur - temp[..., -1, tau])) * maskT[..., -1] / cp_0 / rho_0
     s_star_cur = f1 * s_star[..., n1] + f2 * s_star[..., n2]
-    forc_salt_surface = update(forc_salt_surface, at[...], 1. / t_rest
-                                    * (s_star_cur - salt[..., -1, tau]) * maskT[..., -1] * dzt[-1])
+    forc_salt_surface = 1. / t_rest * (s_star_cur - salt[..., -1, tau]) * maskT[..., -1] * dzt[-1]
 
     # apply simple ice mask
     mask1 = temp[:, :, -1, tau] * maskT[:, :, -1] <= -1.8
@@ -55,7 +53,7 @@ def set_forcing_kernel(f1, f2, n1, n2, surface_taux, surface_tauy, taux, tauy, e
 
     # solar radiation
     if enable_tempsalt_sources:
-        temp_source = update(temp_source, at[...], (f1 * qsol[..., n1, None] + f2 * qsol[..., n2, None])
+        temp_source = ((f1 * qsol[..., n1, None] + f2 * qsol[..., n2, None])
                                 * divpen_shortwave[None, None, :] * ice[..., None]
                                 * maskT[..., :] / cp_0 / rho_0)
 
@@ -108,7 +106,7 @@ class GlobalOneDegreeSetup(VerosSetup):
         vs.c_eps = 0.7
         vs.alpha_tke = 30.0
         vs.mxl_min = 1e-8
-        vs.tke_mxl_choice = 2
+        vs.tke_mxl_choice = 1
         vs.kappaM_min = 2e-4
         vs.kappaH_min = 2e-5
         vs.enable_kappaH_profile = True

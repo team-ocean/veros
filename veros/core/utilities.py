@@ -4,6 +4,7 @@ from veros import veros_kernel
 from veros.core.operators import update, at
 
 
+@veros_kernel(static_args=('enable_cyclic_x'))
 def enforce_boundaries(arr, enable_cyclic_x, local=False):
     if not enable_cyclic_x:
         return arr
