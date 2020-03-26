@@ -94,7 +94,7 @@ class VerosRoutine:
         )
 
     def __call__(self, *args, **kwargs):
-        from veros import runtime_state as rst, runtime_settings as rs
+        from veros import runtime_state as rst
         from veros.backend import flush
         from veros.state import VerosStateBase
         from veros.state_dist import DistributedVerosState
@@ -129,36 +129,40 @@ class VerosRoutine:
         newargs = list(args)
         newargs[self.narg] = func_state
 
+        timer = veros_state.profile_timers[self.name]
+
         try:
-            if execute:
-                res = self.function(*newargs, **kwargs)
+            with timer:
+                if execute:
+                    res = self.function(*newargs, **kwargs)
+
+                if res is None:
+                    res = {}
+                if not isinstance(res, dict):
+                    raise TypeError(f'Veros routines must return a single dict ({self.name})')
+                if set(res.keys()) != self.this_outputs:
+                    raise KeyError(
+                        f'Veros routine {self.name} returned unexpected outputs (expected: {sorted(self.this_outputs)}, got: {sorted(res.keys())})')
+
+                for key, val in res.items():
+                    try:
+                        val.block_until_ready()
+                    except AttributeError:
+                        pass
+
+                    if hasattr(func_state, key):
+                        setattr(func_state, key, val)
         except:  # noqa: F722
             if reset_dist_safe:
                 CONTEXT.is_dist_safe = True
             raise
         else:
-            if res is None:
-                res = {}
-            if not isinstance(res, dict):
-                raise TypeError(f'Veros routines must return a single dict ({self.name})')
-            if set(res.keys()) != self.this_outputs:
-                raise KeyError(f'Veros routine {self.name} returned unexpected outputs (expected: {sorted(self.this_outputs)}, got: {sorted(res.keys())})')
-
-            for key, val in res.items():
-                try:
-                    val.block_until_ready()
-                except AttributeError:
-                    pass
-
-                if hasattr(func_state, key):
-                    setattr(func_state, key, val)
-
             if reset_dist_safe:
                 CONTEXT.is_dist_safe = True
                 dist_state.scatter_arrays()
         finally:
             CONTEXT.stack_level -= 1
-            logger.trace('<{} {}', '-' * CONTEXT.stack_level, self.name)
+            logger.trace('<{} {} ({:.3f}s)', '-' * CONTEXT.stack_level, self.name, timer.get_last_time())
             r = CONTEXT.routine_stack.pop()
             assert r is self
             flush()
@@ -168,6 +172,8 @@ class VerosRoutine:
 
 def run_kernel(function, veros_state, **kwargs):
     """"""
+    from veros import runtime_settings
+
     func_name = f'{inspect.getmodule(function).__name__}:{function.__qualname__}'
 
     # peel kernel parameters from veros state and given args
@@ -186,7 +192,35 @@ def run_kernel(function, veros_state, **kwargs):
             raise TypeError(f'{func_name} missing required argument: {param.name}')
 
     func_args = (func_kwargs.get(param.name, param.default) for param in func_params.values())
-    return function(*func_args)
+
+    logger.trace('{}> {}', '-' * CONTEXT.stack_level, func_name)
+    CONTEXT.stack_level += 1
+
+    timer = veros_state.profile_timers[func_name]
+
+    try:
+        with timer:
+            out = function(*func_args)
+
+            if runtime_settings.profile_mode:
+                peel = False
+                if not isinstance(out, tuple):
+                    out = (out,)
+                    peel = True
+
+                for o in out:
+                    try:
+                        o.block_until_ready()
+                    except AttributeError:
+                        pass
+
+                if peel:
+                    out = out[0]
+    finally:
+        CONTEXT.stack_level -= 1
+        logger.trace('<{} {} ({:.3f}s)', '-' * CONTEXT.stack_level, func_name, timer.get_last_time())
+
+    return out
 
 
 def veros_kernel(function=None, static_args=()):
@@ -219,7 +253,7 @@ def veros_kernel(function=None, static_args=()):
 
         if runtime_settings.backend == 'jax':
             from jax import jit
-            return jit(function, static_argnums=static_argnums)
+            return functools.wraps(function)(jit(function, static_argnums=static_argnums))
 
         return function
 

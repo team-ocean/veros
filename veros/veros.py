@@ -6,7 +6,7 @@ from loguru import logger
 # do not import veros.core here!
 from veros import (
     settings, time, handlers, logs, distributed, progress,
-    runtime_settings as rs, runtime_state as rst
+    runtime_settings as rs
 )
 from veros.state import VerosState
 from veros.plugins import load_plugin
@@ -187,6 +187,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         from veros.core import numerics, streamfunction, eke, isoneutral
 
         vs = self.state
+        vs.timers['setup'].active = True
 
         with vs.timers['setup']:
             logger.info('Setting up everything')
@@ -245,7 +246,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         logger.info('\nStarting integration for {0[0]:.1f} {0[1]}'.format(time.format_time(vs.runlen)))
 
-        start_time, start_iteration = vs.time, vs.itt
+        start_time = vs.time
         profiler = None
 
         pbar = progress.get_progress_bar(vs, use_tqdm=show_progress_bar)
@@ -257,10 +258,6 @@ class VerosSetup(metaclass=abc.ABCMeta):
                     while vs.time - start_time < vs.runlen:
                         with vs.timers['diagnostics']:
                             diagnostics.write_restart(vs)
-
-                        if not first_iteration and rs.profile_mode and rst.proc_rank == 0:
-                            # kernels should be pre-compiled by now
-                            profiler = diagnostics.start_profiler()
 
                         with vs.timers['main']:
                             self.set_forcing(vs)
@@ -277,7 +274,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                             with vs.timers['momentum']:
                                 momentum.momentum(vs)
 
-                            with vs.timers['temperature']:
+                            with vs.timers['thermodynamics']:
                                 thermodynamics.thermodynamics(vs)
 
                             if vs.enable_eke or vs.enable_tke or vs.enable_idemix:
@@ -321,8 +318,8 @@ class VerosSetup(metaclass=abc.ABCMeta):
                             if not diagnostics.sanity_check(vs):
                                 raise RuntimeError('solution diverged at iteration {}'.format(vs.itt))
 
-                            # if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-                            #     isoneutral.isoneutral_diag_streamfunction(vs)
+                            if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
+                                isoneutral.isoneutral_diag_streamfunction(vs)
 
                             diagnostics.diagnose(vs)
                             diagnostics.output(vs)
@@ -336,6 +333,9 @@ class VerosSetup(metaclass=abc.ABCMeta):
                         if first_iteration:
                             for timer in vs.timers.values():
                                 timer.active = True
+                            for timer in vs.profile_timers.values():
+                                timer.active = True
+
                             first_iteration = False
 
             except:  # noqa: E722
@@ -356,7 +356,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                     '   momentum               = {:.2f}s'.format(vs.timers['momentum'].get_time()),
                     '     pressure             = {:.2f}s'.format(vs.timers['pressure'].get_time()),
                     '     friction             = {:.2f}s'.format(vs.timers['friction'].get_time()),
-                    '   thermodynamics         = {:.2f}s'.format(vs.timers['temperature'].get_time()),
+                    '   thermodynamics         = {:.2f}s'.format(vs.timers['thermodynamics'].get_time()),
                     '     lateral mixing       = {:.2f}s'.format(vs.timers['isoneutral'].get_time()),
                     '     vertical mixing      = {:.2f}s'.format(vs.timers['vmix'].get_time()),
                     '     equation of state    = {:.2f}s'.format(vs.timers['eq_of_state'].get_time()),
@@ -373,6 +373,14 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 ])
 
                 logger.debug('\n'.join(timing_summary))
+
+                if rs.profile_mode:
+                    profile_timings = ['', 'Profile timings:', '(total time spent)', '']
+                    maxwidth = max(len(k) for k in vs.profile_timers.keys())
+                    profile_format_string = '{{:<{}}} = {{:.2f}}s'.format(maxwidth)
+                    for name, timer in vs.profile_timers.items():
+                        profile_timings.append(profile_format_string.format(name, timer.get_time()))
+                    logger.diagnostic('\n'.join(profile_timings))
 
                 if profiler is not None:
                     diagnostics.stop_profiler(profiler)

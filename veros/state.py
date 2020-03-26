@@ -4,6 +4,36 @@ import math
 from veros import variables, settings, timer, plugins
 
 
+class TimerContainer:
+    def __init__(self, start_inactive=True):
+        self._timers = {}
+        self._start_inactive = start_inactive
+
+    def __getitem__(self, key):
+        if key not in self._timers:
+            self._timers[key] = timer.Timer(self._start_inactive)
+
+        return self._timers[key]
+
+    def __setitem__(self, key, val):
+        return self._timers.__setitem__(key, val)
+
+    def __iter__(self):
+        return self._timers.__iter__
+
+    def __next__(self):
+        return self._timers.__next__
+
+    def keys(self):
+        return self._timers.keys()
+
+    def items(self):
+        return self._timers.items()
+
+    def values(self):
+        return self._timers.values()
+
+
 class VerosStateBase(metaclass=abc.ABCMeta):
     pass
 
@@ -37,14 +67,8 @@ class VerosState(VerosStateBase):
         for plugin in self._plugin_interfaces:
             settings.update_settings(self, plugin.settings)
 
-        self.timers = {k: timer.Timer(inactive=(k != 'setup')) for k in (
-            'setup', 'main', 'momentum', 'temperature', 'eke', 'idemix',
-            'tke', 'diagnostics', 'pressure', 'friction', 'isoneutral',
-            'vmix', 'eq_of_state', 'plugins'
-        )}
-
-        for plugin in self._plugin_interfaces:
-            self.timers[plugin.name] = timer.Timer()
+        self.timers = TimerContainer(start_inactive=True)
+        self.profile_timers = TimerContainer(start_inactive=True)
 
     def allocate_variables(self):
         self.variables.update(variables.get_standard_variables(self))
