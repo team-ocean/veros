@@ -147,14 +147,12 @@ def rayleigh_friction(du_mix, dv_mix, K_diss_bot, maskU, maskV, u, v, tau,
     du_mix = update_add(du_mix, at[...], -maskU * r_ray * u[..., tau])
     if enable_conserve_energy:
         diss = maskU * r_ray * u[..., tau]**2
-        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dxu, dyt, cost))
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu))
     dv_mix = update_add(dv_mix, at[...], -maskV * r_ray * v[..., tau])
 
     if enable_conserve_energy:
         diss = maskV * r_ray * v[..., tau]**2
-        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dyt, cost, area_v, area_t))
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_bot
 
@@ -182,8 +180,7 @@ def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, ma
             diss = np.zeros_like(maskU)
             diss = update(diss, at[1:-2, 2:-2], maskU[1:-2, 2:-2] * r_bot_var_u[1:-2, 2:-2, np.newaxis] \
                 * u[1:-2, 2:-2, :, tau]**2 * mask)
-            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                    flux_north, dxt, dxu, dyt, cost))
+            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu))
 
         k = np.maximum(kbot[2:-2, 2:-1], kbot[2:-2, 1:-2]) - 1
         mask = np.arange(nz) == k[:, :, np.newaxis]
@@ -193,8 +190,7 @@ def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, ma
             diss = np.zeros_like(maskV)
             diss = update(diss, at[2:-2, 1:-2], maskV[2:-2, 1:-2] * r_bot_var_v[2:-2, 1:-2, np.newaxis] \
                 * v[2:-2, 1:-2, :, tau]**2 * mask)
-            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                    flux_north, dxt, dyt, cost, area_v, area_t))
+            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t))
     else:
         """
         with constant coefficient
@@ -205,8 +201,7 @@ def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, ma
         if enable_conserve_energy:
             diss = np.zeros_like(maskU)
             diss = update(diss, at[1:-2, 2:-2], maskU[1:-2, 2:-2] * r_bot * u[1:-2, 2:-2, :, tau]**2 * mask)
-            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                    flux_north, dxt, dxu, dyt, cost))
+            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu))
 
         k = np.maximum(kbot[2:-2, 2:-1], kbot[2:-2, 1:-2]) - 1
         mask = np.arange(nz) == k[:, :, np.newaxis]
@@ -214,8 +209,7 @@ def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, ma
         if enable_conserve_energy:
             diss = np.zeros_like(maskV)
             diss = update(diss, at[2:-2, 1:-2], maskV[2:-2, 1:-2] * r_bot * v[2:-2, 1:-2, :, tau]**2 * mask)
-            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                    flux_north, dxt, dyt, cost, area_v, area_t))
+            K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_bot
 
@@ -243,8 +237,7 @@ def quadratic_bottom_friction(du_mix, dv_mix, K_diss_bot, u, v, r_quad_bot, dzt,
     if enable_conserve_energy:
         diss = np.zeros_like(maskU)
         diss = update(diss, at[1:-2, 2:-2, :], aloc * u[1:-2, 2:-2, :, tau])
-        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dxu, dyt, cost))
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu))
 
     k = np.maximum(kbot[2:-2, 1:-2], kbot[2:-2, 2:-1]) - 1
     mask = k[..., np.newaxis] == np.arange(nz)[np.newaxis, np.newaxis, :]
@@ -260,8 +253,7 @@ def quadratic_bottom_friction(du_mix, dv_mix, K_diss_bot, u, v, r_quad_bot, dzt,
     if enable_conserve_energy:
         diss = np.zeros_like(maskV)
         diss = update(diss, at[2:-2, 1:-2, :], aloc * v[2:-2, 1:-2, :, tau])
-        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dyt, cost, area_v, area_t))
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_bot
 
@@ -330,8 +322,7 @@ def harmonic_friction(du_mix, dv_mix, K_diss_h, cost, cosu, A_h, u, v, tau,
                      + (u[1:-2, 2:-2, :, tau] - u[1:-2, 1:-3, :, tau]) * flux_north[1:-2, 1:-3]) \
             / (cost[2:-2] * dyt[2:-2])[np.newaxis, :, np.newaxis])
         K_diss_h = update(K_diss_h, at[...], 0.)
-        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                              flux_north, dxt, dxu, dyt, cost))
+        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu))
 
     """
     Meridional velocity
@@ -380,8 +371,7 @@ def harmonic_friction(du_mix, dv_mix, K_diss_h, cost, cosu, A_h, u, v, tau,
             + 0.5 * ((v[2:-2, 2:-1, :, tau] - v[2:-2, 1:-2, :, tau]) * flux_north[2:-2, 1:-2]
                      + (v[2:-2, 1:-2, :, tau] - v[2:-2, :-3, :, tau]) * flux_north[2:-2, :-3]) \
             / (cosu[1:-2] * dyu[1:-2])[np.newaxis, :, np.newaxis])
-        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                              flux_north, dxt, dyt, cost, area_v, area_t))
+        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_h
 
@@ -456,8 +446,7 @@ def biharmonic_friction(du_mix, dv_mix, K_diss_h, A_hbi, u, v, tau, area_v, area
                      + (u[1:-2, 2:-2, :, tau] - u[1:-2, 1:-3, :, tau]) * flux_north[1:-2, 1:-3, :]) \
             / (cost[np.newaxis, 2:-2, np.newaxis] * dyt[np.newaxis, 2:-2, np.newaxis]))
         K_diss_h = update(K_diss_h, at[...], 0.)
-        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                              flux_north, dxt, dxu, dyt, cost))
+        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu))
 
     """
     Meridional velocity
@@ -515,8 +504,7 @@ def biharmonic_friction(du_mix, dv_mix, K_diss_h, A_hbi, u, v, tau, area_v, area
             - 0.5 * ((v[2:-2, 2:-1, :, tau] - v[2:-2, 1:-2, :, tau]) * flux_north[2:-2, 1:-2, :]
                      + (v[2:-2, 1:-2, :, tau] - v[2:-2, :-3, :, tau]) * flux_north[2:-2, :-3, :]) \
             / (cosu[np.newaxis, 1:-2, np.newaxis] * dyu[np.newaxis, 1:-2, np.newaxis]))
-        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                              flux_north, dxt, dyt, cost, area_v, area_t))
+        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_h
 
@@ -531,13 +519,11 @@ def momentum_sources(du_mix, dv_mix, K_diss_bot, u, v, u_source, v_source, area_
     du_mix = update_add(du_mix, at[...], maskU * u_source)
     if enable_conserve_energy:
         diss = -maskU * u[..., tau] * u_source
-        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dxu, dyt, cost))
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu))
     dv_mix = update_add(dv_mix, at[...], maskV * v_source)
     if enable_conserve_energy:
         diss = -maskV * v[..., tau] * v_source
-        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                                                flux_north, dxt, dyt, cost, area_v, area_t))
+        K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(diss, kbot, nz, dzw, area_v, area_t))
 
     return du_mix, dv_mix, K_diss_bot
 

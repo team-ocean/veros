@@ -150,18 +150,18 @@ def advect_temp_salt_enthalpy(temp, dtemp, salt, dsalt, u, v, w, nz, tau,
         """
         changes in dyn. Enthalpy due to advection
         """
-        aloc = np.zeros_like(u[..., 0])
-        aloc = update(aloc, at[2:-2, 2:-2, :], grav / rho_0 * (-int_drhodT[2:-2, 2:-2, :, tau] * dtemp[2:-2, 2:-2, :, tau]
+        diss = np.zeros_like(u[..., 0])
+        diss = update(diss, at[2:-2, 2:-2, :], grav / rho_0 * (-int_drhodT[2:-2, 2:-2, :, tau] * dtemp[2:-2, 2:-2, :, tau]
                                               - int_drhodS[2:-2, 2:-2, :, tau] * dsalt[2:-2, 2:-2, :, tau]) \
                                            - dHd[2:-2, 2:-2, :, tau])
 
         """
         contribution by vertical advection is - g rho w / rho0, substract this also
         """
-        aloc = update_add(aloc, at[:, :, :-1], -0.25 * grav / rho_0 * w[:, :, :-1, tau] \
+        diss = update_add(diss, at[:, :, :-1], -0.25 * grav / rho_0 * w[:, :, :-1, tau] \
             * (rho[:, :, :-1, tau] + rho[:, :, 1:, tau]) \
             * dzw[np.newaxis, np.newaxis, :-1] / dzt[np.newaxis, np.newaxis, :-1])
-        aloc = update_add(aloc, at[:, :, 1:], -0.25 * grav / rho_0 * w[:, :, :-1, tau] \
+        diss = update_add(diss, at[:, :, 1:], -0.25 * grav / rho_0 * w[:, :, :-1, tau] \
             * (rho[:, :, 1:, tau] + rho[:, :, :-1, tau]) \
             * dzw[np.newaxis, np.newaxis, :-1] / dzt[np.newaxis, np.newaxis, 1:])
 
@@ -169,15 +169,12 @@ def advect_temp_salt_enthalpy(temp, dtemp, salt, dsalt, u, v, w, nz, tau,
         """
         dissipation by advection interpolated on W-grid
         """
-        P_diss_adv = update(P_diss_adv, at[...], 0.)
-        diffusion.dissipation_on_wgrid(P_diss_adv, nz, dzw,
-                                       grav, rho_0, flux_east,
-                                       flux_north, dxt, dyt, cost, kbot, aloc=aloc)
+        P_diss_adv_w = diffusion.dissipation_on_wgrid(diss, nz, dzw, kbot)
 
         """
-        distribute P_diss_adv over domain, prevent draining of TKE
+        distribute P_diss_adv_w over domain, prevent draining of TKE
         """
-        fxa = np.sum(area_t[2:-2, 2:-2, np.newaxis] * P_diss_adv[2:-2, 2:-2, :-1]
+        fxa = np.sum(area_t[2:-2, 2:-2, np.newaxis] * P_diss_adv_w[2:-2, 2:-2, :-1]
                      * dzw[np.newaxis, np.newaxis, :-1] * maskW[2:-2, 2:-2, :-1]) \
             + np.sum(0.5 * area_t[2:-2, 2:-2] * P_diss_adv[2:-2, 2:-2, -1]
                      * dzw[-1] * maskW[2:-2, 2:-2, -1])
@@ -188,7 +185,6 @@ def advect_temp_salt_enthalpy(temp, dtemp, salt, dsalt, u, v, w, nz, tau,
         fxa = global_sum(fxa)
         fxb = global_sum(fxb)
 
-        P_diss_adv = update(P_diss_adv, at[...], 0.)
         P_diss_adv = update(P_diss_adv, at[2:-2, 2:-2, :-1], fxa / fxb * tke_mask)
         P_diss_adv = update(P_diss_adv, at[2:-2, 2:-2, -1], fxa / fxb)
 

@@ -25,8 +25,7 @@ def _adv_superbee(vel, var, mask, dx, axis, cost, cosu, dt_tracer):
     if axis == 0:
         sm1, s, sp1, sp2 = ((slice(1 + n, -2 + n or None), slice(2, -2), slice(None))
                             for n in range(-1, 3))
-        dx = cost[np.newaxis, 2:-2, np.newaxis] * \
-            dx[1:-2, np.newaxis, np.newaxis]
+        dx = cost[np.newaxis, 2:-2, np.newaxis] * dx[1:-2, np.newaxis, np.newaxis]
     elif axis == 1:
         sm1, s, sp1, sp2 = ((slice(2, -2), slice(1 + n, -2 + n or None), slice(None))
                             for n in range(-1, 3))

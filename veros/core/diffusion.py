@@ -7,24 +7,21 @@ from veros.core import utilities
 from veros.core.operators import update, update_add, update_multiply, at
 
 
+def compute_dissipation(grav, rho_0, dxt, dyt, cost, int_drhodX, flux_east, flux_north):
+    diss = np.zeros_like(int_drhodX)
+    diss = update(diss, at[1:-1, 1:-1, :], 0.5 * grav / rho_0
+                  * ((int_drhodX[2:, 1:-1, :] - int_drhodX[1:-1, 1:-1, :]) * flux_east[1:-1, 1:-1, :]
+                     + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[:-2, 1:-1, :]) * flux_east[:-2, 1:-1, :])
+                  / (dxt[1:-1, np.newaxis, np.newaxis] * cost[np.newaxis, 1:-1, np.newaxis])
+                  + 0.5 * grav / rho_0 * ((int_drhodX[1:-1, 2:, :] - int_drhodX[1:-1, 1:-1, :]) * flux_north[1:-1, 1:-1, :]
+                                          + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[1:-1, :-2, :]) * flux_north[1:-1, :-2, :])
+                  / (dyt[np.newaxis, 1:-1, np.newaxis] * cost[np.newaxis, 1:-1, np.newaxis]))
+    return diss
+
+
 @veros_kernel(static_args=('nz',))
-def dissipation_on_wgrid(out, nz, dzw,
-                         grav, rho_0, flux_east,
-                         flux_north, dxt, dyt, cost, kbot,
-                         aloc=None, int_drhodX=None, ks=None):
-    if aloc is None:
-        aloc = np.zeros_like(out)
-        aloc = update(aloc, at[1:-1, 1:-1, :], 0.5 * grav / rho_0 \
-            * ((int_drhodX[2:, 1:-1, :] - int_drhodX[1:-1, 1:-1, :]) * flux_east[1:-1, 1:-1, :]
-               + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[:-2, 1:-1, :]) * flux_east[:-2, 1:-1, :]) \
-            / (dxt[1:-1, np.newaxis, np.newaxis] * cost[np.newaxis, 1:-1, np.newaxis]) \
-            + 0.5 * grav / rho_0 * ((int_drhodX[1:-1, 2:, :] - int_drhodX[1:-1, 1:-1, :]) * flux_north[1:-1, 1:-1, :]
-                                    + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[1:-1, :-2, :]) * flux_north[1:-1, :-2, :]) \
-            / (dyt[np.newaxis, 1:-1, np.newaxis] * cost[np.newaxis, 1:-1, np.newaxis]))
-
-    if ks is None:
-        ks = kbot[:, :] - 1
-
+def dissipation_on_wgrid(diss, nz, dzw, ks):
+    ks = ks - 1
     land_mask = ks >= 0
     edge_mask = land_mask[:, :, np.newaxis] & (
         np.arange(nz - 1)[np.newaxis, np.newaxis, :] == ks[:, :, np.newaxis])
@@ -32,11 +29,13 @@ def dissipation_on_wgrid(out, nz, dzw,
         np.arange(nz - 1)[np.newaxis, np.newaxis, :] > ks[:, :, np.newaxis])
 
     dzw_pad = utilities.pad_z_edges(dzw)
-    out = update_add(out, at[:, :, :-1], (0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:])
-                       + 0.5 * (aloc[:, :, :-1] * dzw_pad[np.newaxis, np.newaxis, :-3]
-                                / dzw[np.newaxis, np.newaxis, :-1])) * edge_mask)
-    out = update_add(out, at[:, :, :-1], 0.5 * (aloc[:, :, :-1] + aloc[:, :, 1:]) * water_mask)
-    out = update_add(out, at[:, :, -1], aloc[:, :, -1] * land_mask)
+
+    out = np.zeros_like(diss)
+    out = update(out, at[:, :, :-1], (0.5 * (diss[:, :, :-1] + diss[:, :, 1:])
+                       + 0.5 * (diss[:, :, :-1] * dzw_pad[np.newaxis, np.newaxis, :-3]
+                                / dzw[np.newaxis, np.newaxis, :-1])) * edge_mask
+                       + 0.5 * (diss[:, :, :-1] + diss[:, :, 1:]) * water_mask)
+    out = update(out, at[:, :, -1], diss[:, :, -1] * land_mask)
 
     return out
 
@@ -64,9 +63,8 @@ def tempsalt_biharmonic(K_hbi, temp, salt, int_drhodT, int_drhodS, maskT, maskU,
     if enable_conserve_energy:
         if pyom_compatibility_mode:
             fxa = int_drhodT[-3, -3, -1, tau]
-        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw,
-                                           grav, rho_0, flux_east,
-                                           flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodT[..., tau])
+        diss = compute_dissipation(grav, rho_0, dxt, dyt, cost, int_drhodT[..., tau], flux_east, flux_north)
+        P_diss_hmix += dissipation_on_wgrid(diss, nz, dzw, kbot)
 
     # update salt
     dsalt_hmix = np.zeros_like(maskT)
@@ -77,9 +75,8 @@ def tempsalt_biharmonic(K_hbi, temp, salt, int_drhodT, int_drhodS, maskT, maskU,
     salt = update_add(salt, at[:, :, :, taup1], dt_tracer * dsalt_hmix * maskT)
 
     if enable_conserve_energy:
-        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw,
-                                           grav, rho_0, flux_east,
-                                           flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodS[..., tau])
+        diss = compute_dissipation(grav, rho_0, dxt, dyt, cost, int_drhodS[..., tau], flux_east, flux_north)
+        P_diss_hmix += dissipation_on_wgrid(diss, nz, dzw, kbot)
 
     return temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix
 
@@ -105,9 +102,8 @@ def tempsalt_diffusion(int_drhodT, int_drhodS, temp, salt, maskT, maskU, maskV, 
 
     P_diss_hmix = np.zeros_like(maskW)
     if enable_conserve_energy:
-        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw,
-                                           grav, rho_0, flux_east,
-                                           flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodT[..., tau])
+        diss = compute_dissipation(grav, rho_0, dxt, dyt, cost, int_drhodT[..., tau], flux_east, flux_north)
+        P_diss_hmix += dissipation_on_wgrid(diss, nz, dzw, kbot)
 
     # horizontal diffusion of salinity
     dsalt_hmix = np.zeros_like(maskT)
@@ -119,9 +115,8 @@ def tempsalt_diffusion(int_drhodT, int_drhodS, temp, salt, maskT, maskU, maskV, 
     salt = update_add(salt, at[:, :, :, taup1], dt_tracer * dsalt_hmix * maskT)
 
     if enable_conserve_energy:
-        P_diss_hmix = dissipation_on_wgrid(P_diss_hmix, nz, dzw,
-                                           grav, rho_0, flux_east,
-                                           flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodS[..., tau])
+        diss = compute_dissipation(grav, rho_0, dxt, dyt, cost, int_drhodS[..., tau], flux_east, flux_north)
+        P_diss_hmix += dissipation_on_wgrid(diss, nz, dzw, kbot)
 
     return temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix
 
@@ -140,12 +135,10 @@ def tempsalt_sources(temp, salt, temp_source, salt_source, maskT, maskW,
 
     P_diss_sources = np.zeros_like(maskW)
     if enable_conserve_energy:
-        aloc = -grav / rho_0 * maskT * \
+        diss = -grav / rho_0 * maskT * \
             (int_drhodT[..., tau] * temp_source +
              int_drhodS[..., tau] * salt_source)
-        P_diss_sources = dissipation_on_wgrid(P_diss_sources, nz, dzw,
-                                              grav, rho_0, flux_east,
-                                              flux_north, dxt, dyt, cost, kbot, aloc=aloc)
+        P_diss_sources += dissipation_on_wgrid(diss, nz, dzw, kbot)
 
     return temp, salt, P_diss_sources
 

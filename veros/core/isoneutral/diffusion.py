@@ -182,16 +182,13 @@ def isoneutral_diffusion(tr, istemp, dtemp_iso, dsalt_iso, K_iso, K_gm, K_11, K_
         """
         dissipation interpolated on W-grid
         """
+        diss = diffusion.compute_dissipation(grav, rho_0, dxt, dyt, cost, int_drhodX, flux_east, flux_north)
+        diss_wgrid = diffusion.dissipation_on_wgrid(diss, nz, dzw, kbot)
+
         if not iso:
-            P_diss_skew = diffusion.dissipation_on_wgrid(
-                P_diss_skew, nz, dzw,
-                grav, rho_0, flux_east,
-                flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodX)
+            P_diss_skew += diss_wgrid
         else:
-            P_diss_iso = diffusion.dissipation_on_wgrid(
-                P_diss_iso, nz, dzw,
-                grav, rho_0, flux_east,
-                flux_north, dxt, dyt, cost, kbot, int_drhodX=int_drhodX)
+            P_diss_iso += diss_wgrid
 
         """
         diagnose dissipation of dynamic enthalpy by explicit and implicit vertical mixing
@@ -230,25 +227,4 @@ def isoneutral_skew_diffusion(tr, istemp, dtemp_iso, dsalt_iso, K_iso,
                                 dzw, cost, cosu, tau, taup1, dt_tracer, nz, maskT, maskW, kbot,
                                 flux_east, flux_north, flux_top, int_drhodT, int_drhodS,
                                 P_diss_skew, P_diss_iso, temp, salt, grav, rho_0,
-                                enable_conserve_energy, True, False)
-
-
-@veros_kernel(static_args=('istemp', 'enable_conserve_energy', 'nz'))
-def isoneutral_diffusion_all(tr, istemp, dtemp_iso, dsalt_iso, K_iso,
-                             K_gm, K_11, K_22, K_33, Ai_ez, Ai_nz, Ai_bx, Ai_by,
-                             dxt, dxu, dyt, dyu, dzt, dzw, cost, cosu, tau, taup1,
-                             dt_tracer, nz, maskT, maskW, kbot,
-                             flux_east, flux_north, flux_top, int_drhodT, int_drhodS,
-                             P_diss_skew, P_diss_iso, temp, salt, grav, rho_0,
-                             enable_conserve_energy):
-    """
-    Isopycnal diffusion plus skew diffusion for tracer,
-    following functional formulation by Griffies et al
-    Dissipation is calculated and stored in P_diss_iso
-    """
-    return isoneutral_diffusion(tr, istemp, dtemp_iso, dsalt_iso, K_iso, K_gm, K_11,
-                                K_22, K_33, Ai_ez, Ai_nz, Ai_bx, Ai_by, dxt, dxu, dyt, dyu, dzt,
-                                dzw, cost, cosu, tau, taup1, dt_tracer, nz, maskT, maskW, kbot,
-                                flux_east, flux_north, flux_top, int_drhodT, int_drhodS,
-                                P_diss_skew, P_diss_iso, temp, salt, grav, rho_0,
-                                enable_conserve_energy, True, True)
+                                enable_conserve_energy, False, True)

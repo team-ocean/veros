@@ -348,23 +348,16 @@ def solve_tridiag(a, b, c, d):
 
 
 @veros_kernel(static_args=('nz',))
-def calc_diss_u(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                flux_north, dxt, dxu, dyt, cost):
-    diss_u = np.zeros_like(diss)
+def calc_diss_u(diss, kbot, nz, dzw, dxt, dxu):
     ks = np.zeros_like(kbot)
-    ks = update(ks, at[1:-2, 2:-2], np.maximum(kbot[1:-2, 2:-2], kbot[2:-1, 2:-2]) - 1)
-    diss_u = diffusion.dissipation_on_wgrid(diss_u, nz, dzw,
-                                            grav, rho_0, flux_east,
-                                            flux_north, dxt, dyt, cost, kbot, aloc=diss, ks=ks)
+    ks = update(ks, at[1:-2, 2:-2], np.maximum(kbot[1:-2, 2:-2], kbot[2:-1, 2:-2]))
+    diss_u = diffusion.dissipation_on_wgrid(diss, nz, dzw, ks)
     return ugrid_to_tgrid(diss_u, dxt, dxu)
 
 
 @veros_kernel(static_args=('nz',))
-def calc_diss_v(diss, kbot, nz, dzw, grav, rho_0, flux_east,
-                flux_north, dxt, dyt, cost, area_v, area_t):
-    diss_v = np.zeros_like(diss)
+def calc_diss_v(diss, kbot, nz, dzw, area_v, area_t):
     ks = np.zeros_like(kbot)
-    ks = update(ks, at[2:-2, 1:-2], np.maximum(kbot[2:-2, 1:-2], kbot[2:-2, 2:-1]) - 1)
-    diss_v = diffusion.dissipation_on_wgrid(diss_v, nz, dzw, grav, rho_0, flux_east,
-                                            flux_north, dxt, dyt, cost, kbot, aloc=diss, ks=ks)
+    ks = update(ks, at[2:-2, 1:-2], np.maximum(kbot[2:-2, 1:-2], kbot[2:-2, 2:-1]))
+    diss_v = diffusion.dissipation_on_wgrid(diss, nz, dzw, ks)
     return vgrid_to_tgrid(diss_v, area_v, area_t)

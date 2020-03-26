@@ -6,6 +6,14 @@ from veros.core import density, utilities
 from veros.core.operators import update, update_add, at
 
 
+@veros_kernel(static_args=('iso_slopec', 'iso_dslope'))
+def dm_taper(sx, iso_slopec, iso_dslope):
+    """
+    tapering function for isopycnal slopes
+    """
+    return 0.5 * (1. + np.tanh((-np.abs(sx) + iso_slopec) / iso_dslope))
+
+
 @veros_kernel(static_args=('eq_of_state_type',))
 def isoneutral_diffusion_pre(salt, temp, zt, dxt, dxu, dyt, dyu, dzt, dzw, maskT, maskU,
                              maskV, maskW, cost, cosu, iso_slopec, iso_dslope, K_iso,
@@ -63,11 +71,7 @@ def isoneutral_diffusion_pre(salt, temp, zt, dxt, dxu, dyt, dyu, dzt, dzw, maskT
         (salt[:, 1:, :, tau] - salt[:, :-1, :, tau]) \
         / dyu[np.newaxis, :-1, np.newaxis])
 
-    def dm_taper(sx):
-        """
-        tapering function for isopycnal slopes
-        """
-        return 0.5 * (1. + np.tanh((-np.abs(sx) + iso_slopec) / iso_dslope))
+
 
     """
     Compute Ai_ez and K11 on center of east face of T cell.
@@ -86,7 +90,7 @@ def isoneutral_diffusion_pre(salt, temp, zt, dxt, dxu, dyt, dyu, dzt, dzw, maskT
             drodze = drdT[1 + ip:-2 + ip, 2:-2, ki:] * dTdz[1 + ip:-2 + ip, 2:-2, :-1 + kr or None] \
                 + drdS[1 + ip:-2 + ip, 2:-2, ki:] * dSdz[1 + ip:-2 + ip, 2:-2, :-1 + kr or None]
             sxe = -drodxe / (np.minimum(0., drodze) - epsln)
-            taper = dm_taper(sxe)
+            taper = dm_taper(sxe, iso_slopec, iso_dslope)
             sumz = update_add(sumz, at[:, :, ki:], dzw[np.newaxis, np.newaxis, :-1 + kr or None] * maskU[1:-2, 2:-2, ki:] \
                 * np.maximum(K_iso_steep, diffloc[1:-2, 2:-2, ki:] * taper))
             Ai_ez = update(Ai_ez, at[1:-2, 2:-2, ki:, ip, kr], taper * sxe * maskU[1:-2, 2:-2, ki:])
@@ -109,7 +113,7 @@ def isoneutral_diffusion_pre(salt, temp, zt, dxt, dxu, dyt, dyu, dzt, dzw, maskT
             drodzn = drdT[2:-2, 1 + jp:-2 + jp, ki:] * dTdz[2:-2, 1 + jp:-2 + jp, :-1 + kr or None] \
                 + drdS[2:-2, 1 + jp:-2 + jp, ki:] * dSdz[2:-2, 1 + jp:-2 + jp, :-1 + kr or None]
             syn = -drodyn / (np.minimum(0., drodzn) - epsln)
-            taper = dm_taper(syn)
+            taper = dm_taper(syn, iso_slopec, iso_dslope)
             sumz = update_add(sumz, at[:, :, ki:], dzw[np.newaxis, np.newaxis, :-1 + kr or None] \
                 * maskV[2:-2, 1:-2, ki:] * np.maximum(K_iso_steep, diffloc[2:-2, 1:-2, ki:] * taper))
             Ai_nz = update(Ai_nz, at[2:-2, 1:-2, ki:, jp, kr], taper * syn * maskV[2:-2, 1:-2, ki:])
@@ -130,7 +134,7 @@ def isoneutral_diffusion_pre(salt, temp, zt, dxt, dxu, dyt, dyu, dzt, dzw, maskT
             drodxb = drdT[2:-2, 2:-2, kr:-1 + kr or None] * dTdx[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None] \
                 + drdS[2:-2, 2:-2, kr:-1 + kr or None] * dSdx[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None]
             sxb = -drodxb / (np.minimum(0., drodzb) - epsln)
-            taper = dm_taper(sxb)
+            taper = dm_taper(sxb, iso_slopec, iso_dslope)
             sumx += dxu[1 + ip:-3 + ip, np.newaxis, np.newaxis] * \
                 K_iso[2:-2, 2:-2, :-1] * taper * sxb**2 * maskW[2:-2, 2:-2, :-1]
             Ai_bx = update(Ai_bx, at[2:-2, 2:-2, :-1, ip, kr], taper * sxb * maskW[2:-2, 2:-2, :-1])
@@ -141,7 +145,7 @@ def isoneutral_diffusion_pre(salt, temp, zt, dxt, dxu, dyt, dyu, dzt, dzw, maskT
             drodyb = drdT[2:-2, 2:-2, kr:-1 + kr or None] * dTdy[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None] \
                 + drdS[2:-2, 2:-2, kr:-1 + kr or None] * dSdy[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None]
             syb = -drodyb / (np.minimum(0., drodzb) - epsln)
-            taper = dm_taper(syb)
+            taper = dm_taper(syb, iso_slopec, iso_dslope)
             sumy += facty[np.newaxis, :, np.newaxis] * K_iso[2:-2, 2:-2, :-1] \
                 * taper * syb**2 * maskW[2:-2, 2:-2, :-1]
             Ai_by = update(Ai_by, at[2:-2, 2:-2, :-1, jp, kr], taper * syb * maskW[2:-2, 2:-2, :-1])
