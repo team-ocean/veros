@@ -254,86 +254,87 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         with handlers.signals_to_exception():
             try:
-                with pbar, vs.profile_timers['all']:
+                with pbar:
                     while vs.time - start_time < vs.runlen:
-                        with vs.timers['diagnostics']:
-                            diagnostics.write_restart(vs)
+                        with vs.profile_timers['all']:
+                            with vs.timers['diagnostics']:
+                                diagnostics.write_restart(vs)
 
-                        with vs.timers['main']:
-                            with vs.timers['forcing']:
-                                self.set_forcing(vs)
+                            with vs.timers['main']:
+                                with vs.timers['forcing']:
+                                    self.set_forcing(vs)
 
-                            if vs.enable_idemix:
+                                if vs.enable_idemix:
+                                    with vs.timers['idemix']:
+                                        idemix.set_idemix_parameter(vs)
+
+                                with vs.timers['eke']:
+                                    eke.set_eke_diffusivities(vs)
+
+                                with vs.timers['tke']:
+                                    tke.set_tke_diffusivities(vs)
+
+                                with vs.timers['momentum']:
+                                    momentum.momentum(vs)
+
+                                with vs.timers['thermodynamics']:
+                                    thermodynamics.thermodynamics(vs)
+
+                                if vs.enable_eke or vs.enable_tke or vs.enable_idemix:
+                                    with vs.timers['advection']:
+                                        advection.calculate_velocity_on_wgrid(vs)
+
+                                with vs.timers['eke']:
+                                    if vs.enable_eke:
+                                        eke.integrate_eke(vs)
+
                                 with vs.timers['idemix']:
-                                    idemix.set_idemix_parameter(vs)
+                                    if vs.enable_idemix:
+                                        idemix.integrate_idemix(vs)
 
-                            with vs.timers['eke']:
-                                eke.set_eke_diffusivities(vs)
+                                with vs.timers['tke']:
+                                    if vs.enable_tke:
+                                        tke.integrate_tke(vs)
 
-                            with vs.timers['tke']:
-                                tke.set_tke_diffusivities(vs)
+                                with vs.timers['boundary_exchange']:
+                                    vs.u = utilities.enforce_boundaries(vs.u, vs.enable_cyclic_x)
+                                    vs.v = utilities.enforce_boundaries(vs.v, vs.enable_cyclic_x)
+                                    if vs.enable_tke:
+                                        vs.tke = utilities.enforce_boundaries(vs.tke, vs.enable_cyclic_x)
+                                    if vs.enable_eke:
+                                        vs.eke = utilities.enforce_boundaries(vs.eke, vs.enable_cyclic_x)
+                                    if vs.enable_idemix:
+                                        vs.E_iw = utilities.enforce_boundaries(vs.E_iw, vs.enable_cyclic_x)
 
-                            with vs.timers['momentum']:
-                                momentum.momentum(vs)
+                                with vs.timers['momentum']:
+                                    momentum.vertical_velocity(vs)
 
-                            with vs.timers['thermodynamics']:
-                                thermodynamics.thermodynamics(vs)
+                            with vs.timers['plugins']:
+                                for plugin in self._plugin_interfaces:
+                                    with vs.timers[plugin.name]:
+                                        plugin.run_entrypoint(vs)
 
-                            if vs.enable_eke or vs.enable_tke or vs.enable_idemix:
-                                with vs.timers['advection']:
-                                    advection.calculate_velocity_on_wgrid(vs)
+                            vs.itt += 1
+                            vs.time += vs.dt_tracer
+                            pbar.advance_time(vs.dt_tracer)
 
-                            with vs.timers['eke']:
-                                if vs.enable_eke:
-                                    eke.integrate_eke(vs)
+                            self.after_timestep(vs)
 
-                            with vs.timers['idemix']:
-                                if vs.enable_idemix:
-                                    idemix.integrate_idemix(vs)
+                            with vs.timers['diagnostics']:
+                                if not diagnostics.sanity_check(vs):
+                                    raise RuntimeError('solution diverged at iteration {}'.format(vs.itt))
 
-                            with vs.timers['tke']:
-                                if vs.enable_tke:
-                                    tke.integrate_tke(vs)
+                                if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
+                                    isoneutral.isoneutral_diag_streamfunction(vs)
 
-                            with vs.timers['boundary_exchange']:
-                                vs.u = utilities.enforce_boundaries(vs.u, vs.enable_cyclic_x)
-                                vs.v = utilities.enforce_boundaries(vs.v, vs.enable_cyclic_x)
-                                if vs.enable_tke:
-                                    vs.tke = utilities.enforce_boundaries(vs.tke, vs.enable_cyclic_x)
-                                if vs.enable_eke:
-                                    vs.eke = utilities.enforce_boundaries(vs.eke, vs.enable_cyclic_x)
-                                if vs.enable_idemix:
-                                    vs.E_iw = utilities.enforce_boundaries(vs.E_iw, vs.enable_cyclic_x)
+                                diagnostics.diagnose(vs)
+                                diagnostics.output(vs)
 
-                            with vs.timers['momentum']:
-                                momentum.vertical_velocity(vs)
+                            # NOTE: benchmarks parse this, do not change / remove
+                            logger.debug(' Time step took {:.2f}s', vs.timers['main'].get_last_time())
 
-                        with vs.timers['plugins']:
-                            for plugin in self._plugin_interfaces:
-                                with vs.timers[plugin.name]:
-                                    plugin.run_entrypoint(vs)
-
-                        vs.itt += 1
-                        vs.time += vs.dt_tracer
-                        pbar.advance_time(vs.dt_tracer)
-
-                        self.after_timestep(vs)
-
-                        with vs.timers['diagnostics']:
-                            if not diagnostics.sanity_check(vs):
-                                raise RuntimeError('solution diverged at iteration {}'.format(vs.itt))
-
-                            if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-                                isoneutral.isoneutral_diag_streamfunction(vs)
-
-                            diagnostics.diagnose(vs)
-                            diagnostics.output(vs)
-
-                        # NOTE: benchmarks parse this, do not change / remove
-                        logger.debug(' Time step took {:.2f}s', vs.timers['main'].get_last_time())
-
-                        # permutate time indices
-                        vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
+                            # permutate time indices
+                            vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
                         if first_iteration:
                             for timer in vs.timers.values():
