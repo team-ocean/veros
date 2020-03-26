@@ -218,8 +218,7 @@ def momentum(vs):
     """
     advection
     """
-    with vs.timers['advection']:
-        du, dv = run_kernel(momentum_advection, vs, tend_u=du, tend_v=dv)
+    du, dv = run_kernel(momentum_advection, vs, tend_u=du, tend_v=dv)
 
     vs.du = du
     vs.dv = dv
