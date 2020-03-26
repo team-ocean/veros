@@ -260,10 +260,12 @@ class VerosSetup(metaclass=abc.ABCMeta):
                             diagnostics.write_restart(vs)
 
                         with vs.timers['main']:
-                            self.set_forcing(vs)
+                            with vs.timers['forcing']:
+                                self.set_forcing(vs)
 
                             if vs.enable_idemix:
-                                idemix.set_idemix_parameter(vs)
+                                with vs.timers['idemix']:
+                                    idemix.set_idemix_parameter(vs)
 
                             with vs.timers['eke']:
                                 eke.set_eke_diffusivities(vs)
@@ -278,7 +280,8 @@ class VerosSetup(metaclass=abc.ABCMeta):
                                 thermodynamics.thermodynamics(vs)
 
                             if vs.enable_eke or vs.enable_tke or vs.enable_idemix:
-                                advection.calculate_velocity_on_wgrid(vs)
+                                with vs.timers['advection']:
+                                    advection.calculate_velocity_on_wgrid(vs)
 
                             with vs.timers['eke']:
                                 if vs.enable_eke:
@@ -292,16 +295,18 @@ class VerosSetup(metaclass=abc.ABCMeta):
                                 if vs.enable_tke:
                                     tke.integrate_tke(vs)
 
-                            vs.u = utilities.enforce_boundaries(vs.u, vs.enable_cyclic_x)
-                            vs.v = utilities.enforce_boundaries(vs.v, vs.enable_cyclic_x)
-                            if vs.enable_tke:
-                                vs.tke = utilities.enforce_boundaries(vs.tke, vs.enable_cyclic_x)
-                            if vs.enable_eke:
-                                vs.eke = utilities.enforce_boundaries(vs.eke, vs.enable_cyclic_x)
-                            if vs.enable_idemix:
-                                vs.E_iw = utilities.enforce_boundaries(vs.E_iw, vs.enable_cyclic_x)
+                            with vs.timers['boundary_exchange']:
+                                vs.u = utilities.enforce_boundaries(vs.u, vs.enable_cyclic_x)
+                                vs.v = utilities.enforce_boundaries(vs.v, vs.enable_cyclic_x)
+                                if vs.enable_tke:
+                                    vs.tke = utilities.enforce_boundaries(vs.tke, vs.enable_cyclic_x)
+                                if vs.enable_eke:
+                                    vs.eke = utilities.enforce_boundaries(vs.eke, vs.enable_cyclic_x)
+                                if vs.enable_idemix:
+                                    vs.E_iw = utilities.enforce_boundaries(vs.E_iw, vs.enable_cyclic_x)
 
-                            momentum.vertical_velocity(vs)
+                            with vs.timers['momentum']:
+                                momentum.vertical_velocity(vs)
 
                         with vs.timers['plugins']:
                             for plugin in self._plugin_interfaces:
@@ -353,8 +358,10 @@ class VerosSetup(metaclass=abc.ABCMeta):
                     'Timing summary:',
                     ' setup time               = {:.2f}s'.format(vs.timers['setup'].get_time()),
                     ' main loop time           = {:.2f}s'.format(vs.timers['main'].get_time()),
+                    '   forcing                = {:.2f}s'.format(vs.timers['forcing'].get_time()),
                     '   momentum               = {:.2f}s'.format(vs.timers['momentum'].get_time()),
                     '     pressure             = {:.2f}s'.format(vs.timers['pressure'].get_time()),
+                    '     advection            = {:.2f}s'.format(vs.timers['advection'].get_time()),
                     '     friction             = {:.2f}s'.format(vs.timers['friction'].get_time()),
                     '   thermodynamics         = {:.2f}s'.format(vs.timers['thermodynamics'].get_time()),
                     '     lateral mixing       = {:.2f}s'.format(vs.timers['isoneutral'].get_time()),
@@ -363,6 +370,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                     '   EKE                    = {:.2f}s'.format(vs.timers['eke'].get_time()),
                     '   IDEMIX                 = {:.2f}s'.format(vs.timers['idemix'].get_time()),
                     '   TKE                    = {:.2f}s'.format(vs.timers['tke'].get_time()),
+                    '   boundary exchange      = {:.2f}s'.format(vs.timers['boundary_exchange'].get_time()),
                     ' diagnostics and I/O      = {:.2f}s'.format(vs.timers['diagnostics'].get_time()),
                     ' plugins                  = {:.2f}s'.format(vs.timers['plugins'].get_time()),
                 ]
@@ -375,11 +383,13 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 logger.debug('\n'.join(timing_summary))
 
                 if rs.profile_mode:
-                    profile_timings = ['', 'Profile timings:', '(total time spent)', '']
+                    profile_timings = ['', 'Profile timings:', '(total time spent)', '---']
                     maxwidth = max(len(k) for k in vs.profile_timers.keys())
-                    profile_format_string = '{{:<{}}} = {{:.2f}}s'.format(maxwidth)
+                    profile_format_string = '{{:<{}}} = {{:.2f}}s ({{}}%)'.format(maxwidth)
+                    total_time = vs.timers['main'].get_time()
                     for name, timer in vs.profile_timers.items():
-                        profile_timings.append(profile_format_string.format(name, timer.get_time()))
+                        this_time = timer.get_time()
+                        profile_timings.append(profile_format_string.format(name, this_time, 100 * this_time / total_time))
                     logger.diagnostic('\n'.join(profile_timings))
 
                 if profiler is not None:

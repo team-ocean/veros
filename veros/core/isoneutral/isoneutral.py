@@ -1,7 +1,7 @@
 from veros.core.operators import numpy as np
 from loguru import logger
 
-from veros import veros_kernel, veros_routine
+from veros import veros_kernel, veros_routine, run_kernel
 from veros.core import density, utilities
 from veros.core.operators import update, update_add, at
 
@@ -153,6 +153,26 @@ def isoneutral_diffusion_pre(salt, temp, zt, dxt, dxu, dyt, dyu, dzt, dzw, maskT
     return Ai_ez, Ai_nz, Ai_bx, Ai_by, K_11, K_22, K_33
 
 
+@veros_kernel
+def isoneutral_diag_streamfunction_kernel(B1_gm, B2_gm, K_gm, Ai_ez, Ai_nz):
+    K_gm_pad = utilities.pad_z_edges(K_gm)
+
+    """
+    meridional component at east face of 'T' cells
+    """
+    diffloc = 0.25 * (K_gm_pad[1:-2, 2:-2, 1:-1] + K_gm_pad[1:-2, 2:-2, :-2]
+                      + K_gm_pad[2:-1, 2:-2, 1:-1] + K_gm_pad[2:-1, 2:-2, :-2])
+    B2_gm = update(B2_gm, at[1:-2, 2:-2, :], 0.25 * diffloc * np.sum(Ai_ez[1:-2, 2:-2, ...], axis=(3, 4)))
+
+    """
+    zonal component at north face of 'T' cells
+    """
+    diffloc = 0.25 * (K_gm_pad[2:-2, 1:-2, 1:-1] + K_gm_pad[2:-2, 1:-2, :-2]
+                      + K_gm_pad[2:-2, 2:-1, 1:-1] + K_gm_pad[2:-2, 2:-1, :-2])
+    B1_gm = update(B1_gm, at[2:-2, 1:-2, :], -0.25 * diffloc * np.sum(Ai_nz[2:-2, 1:-2, ...], axis=(3, 4)))
+    return B1_gm, B2_gm
+
+
 @veros_routine(
     inputs=('K_gm', 'Ai_ez', 'Ai_nz', 'B1_gm', 'B2_gm'),
     outputs=('B1_gm', 'B2_gm')
@@ -162,21 +182,7 @@ def isoneutral_diag_streamfunction(vs):
     calculate hor. components of streamfunction for eddy driven velocity
     for diagnostics purpose only
     """
-    K_gm_pad = utilities.pad_z_edges(vs.K_gm)
-
-    """
-    meridional component at east face of 'T' cells
-    """
-    diffloc = 0.25 * (K_gm_pad[1:-2, 2:-2, 1:-1] + K_gm_pad[1:-2, 2:-2, :-2] +
-                      K_gm_pad[2:-1, 2:-2, 1:-1] + K_gm_pad[2:-1, 2:-2, :-2])
-    B2_gm = update(vs.B2_gm, at[1:-2, 2:-2, :], 0.25 * diffloc * np.sum(vs.Ai_ez[1:-2, 2:-2, ...], axis=(3, 4)))
-
-    """
-    zonal component at north face of 'T' cells
-    """
-    diffloc = 0.25 * (K_gm_pad[2:-2, 1:-2, 1:-1] + K_gm_pad[2:-2, 1:-2, :-2] +
-                      K_gm_pad[2:-2, 2:-1, 1:-1] + K_gm_pad[2:-2, 2:-1, :-2])
-    B1_gm = update(vs.B1_gm, at[2:-2, 1:-2, :], -0.25 * diffloc * np.sum(vs.Ai_nz[2:-2, 1:-2, ...], axis=(3, 4)))
+    B1_gm, B2_gm = run_kernel(isoneutral_diag_streamfunction_kernel, vs)
 
     return dict(
         B1_gm=B1_gm,

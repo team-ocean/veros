@@ -134,9 +134,9 @@ def calculate_velocity_on_wgrid_kernel(u, v, w, maskU, maskV, maskW, dxt, dyt, d
 
     # redirect velocity at bottom and at topography
     u_wgrid = update(u_wgrid, at[:, :, 0], u_wgrid[:, :, 0] + u[:, :, 0, tau] \
-        * maskU[:, :, 0] * 0.5 * dzt[0:1] / dzw[0:1])
+        * maskU[:, :, 0] * 0.5 * dzt[0] / dzw[0])
     v_wgrid = update(v_wgrid, at[:, :, 0], v_wgrid[:, :, 0] + v[:, :, 0, tau] \
-        * maskV[:, :, 0] * 0.5 * dzt[0:1] / dzw[0:1])
+        * maskV[:, :, 0] * 0.5 * dzt[0] / dzw[0])
     mask = maskW[:-1, :, :-1] * maskW[1:, :, :-1]
     u_wgrid = update_add(u_wgrid, at[:-1, :, 1:], (u_wgrid[:-1, :, :-1] * dzw[np.newaxis, np.newaxis, :-1]
                             / dzw[np.newaxis, np.newaxis, 1:]) * (1. - mask))
