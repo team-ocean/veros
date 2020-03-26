@@ -254,7 +254,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         with handlers.signals_to_exception():
             try:
-                with pbar:
+                with pbar, vs.profile_timers['all']:
                     while vs.time - start_time < vs.runlen:
                         with vs.timers['diagnostics']:
                             diagnostics.write_restart(vs)
@@ -385,8 +385,8 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 if rs.profile_mode:
                     profile_timings = ['', 'Profile timings:', '(total time spent)', '---']
                     maxwidth = max(len(k) for k in vs.profile_timers.keys())
-                    profile_format_string = '{{:<{}}} = {{:.2f}}s ({{}}%)'.format(maxwidth)
-                    total_time = vs.timers['main'].get_time()
+                    profile_format_string = '{{:<{}}} = {{:.2f}}s ({{:.2f}}%)'.format(maxwidth)
+                    total_time = vs.profile_timers['all'].get_time()
                     for name, timer in vs.profile_timers.items():
                         this_time = timer.get_time()
                         profile_timings.append(profile_format_string.format(name, this_time, 100 * this_time / total_time))
