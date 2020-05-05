@@ -19,3 +19,16 @@ Talks
 - A Fast Versatile Ocean Simulator (Veros) in Pure Python.
   A talk held at the European Geosciences Union General Assembly 2018, Vienna, Austria.
   `Abstract <https://meetingorganizer.copernicus.org/EGU2018/EGU2018-7122-2.pdf>`_
+
+Theses
+------
+
+- Laurits S. Andreasen. (2019). Time scales of the Bipolar seesaw: 
+  The role of oceanic cross-hemisphere signals,
+  Southern Ocean eddies and wind changes, MSc Thesis, 42p.
+  `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Laurits_Andreasen_MSc_thesis.pdf>`_.
+
+- Steffen Ole Randrup Kristensen. (2019). Extending the Veros climate simulator with biochemistry.
+  Model design and AMOC collapse, MSc Thesis, 67p.
+  `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/SteffenRandrup_MSc_thesis.pdf>`_.
+
