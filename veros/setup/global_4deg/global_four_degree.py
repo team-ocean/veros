@@ -27,7 +27,9 @@ class GlobalFourDegreeSetup(VerosSetup):
 
     `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/4x4%20global%20model>`_.
 
-    Courtesy of Franka Jesse, Utrecht University
+    ChangeLog
+     - 07-05-2020: modify bathymetry in order to include Indonesian throughflow;
+       courtesy of Franka Jesse, Utrecht University
     """
     @veros_method
     def set_parameter(self, vs):
@@ -122,10 +124,8 @@ class GlobalFourDegreeSetup(VerosSetup):
     def set_topography(self, vs):
         bathymetry_data = self._read_forcing(vs, 'bathymetry')
         salt_data = self._read_forcing(vs, 'salinity')[:, :, ::-1]
-        depth = np.array([-4855., -4165., -3575., -2985., -2495., -2005., -1615., -1225.,
-                          -935.,  -645.,  -455.,  -265.,  -175.,   -65.,   -35.])
         _salt = salt_data
-        _salt[(depth[np.newaxis, np.newaxis, :] <= bathymetry_data[..., np.newaxis])] = 0.
+        _salt[vs.zt[np.newaxis, np.newaxis, :] <= bathymetry_data[..., np.newaxis]] = 0.
         mask_salt = _salt == 0.
         vs.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
         mask_bathy = bathymetry_data == 0
