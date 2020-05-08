@@ -124,12 +124,11 @@ class GlobalFourDegreeSetup(VerosSetup):
     def set_topography(self, vs):
         bathymetry_data = self._read_forcing(vs, 'bathymetry')
         salt_data = self._read_forcing(vs, 'salinity')[:, :, ::-1]
-        mask_bathy = (vs.zt[np.newaxis, np.newaxis, :] <= bathymetry_data[..., np.newaxis])\
-                   | (bathymetry_data[..., np.newaxis] == 0)
-        salt_data[mask_bathy] = 0.
+        salt_data[vs.zt[np.newaxis, np.newaxis, :] <= bathymetry_data[..., np.newaxis]] = 0.
         mask_salt = salt_data == 0.
         vs.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
-        vs.kbot[2:-2, 2:-2][mask_bathy[..., -1]] = 0
+        mask_bathy = bathymetry_data == 0
+        vs.kbot[2:-2, 2:-2][mask_bathy] = 0
         vs.kbot[vs.kbot == vs.nz] = 0
 
     @veros_method(dist_safe=False, local_variables=[
