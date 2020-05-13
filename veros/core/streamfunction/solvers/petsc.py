@@ -40,7 +40,7 @@ class PETScSolver(LinearSolver):
 
         # preconditioner
         self._ksp.getPC().setType('hypre')
-        petsc_options['pc_hypre_type'] = 'boomeramg'
+        petsc_options['pc_hypre_type'] = 'euclid'
         self._ksp.getPC().setFromOptions()
 
         self._rhs_petsc = self._da.createGlobalVec()
@@ -71,7 +71,7 @@ class PETScSolver(LinearSolver):
             x0 = x0.copy2numpy()
         except AttributeError:
             pass
-        
+
         self._da.getVecArray(self._rhs_petsc)[...] = rhs[2:-2, 2:-2]
         self._da.getVecArray(self._sol_petsc)[...] = x0[2:-2, 2:-2]
 
