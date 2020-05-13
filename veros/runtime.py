@@ -1,3 +1,6 @@
+import os
+
+
 def _default_mpi_comm():
     try:
         from mpi4py import MPI
@@ -20,8 +23,8 @@ def loglevel(v):
 
 AVAILABLE_SETTINGS = (
     # (name, type, default)
-    ('backend', str, 'numpy'),
-    ('linear_solver', str, 'best'),
+    ('backend', str, os.environ.get('VEROS_BACKEND', 'numpy')),
+    ('linear_solver', str, os.environ.get('VEROS_LINEAR_SOLVER', 'best')),
     ('num_proc', twoints, (1, 1)),
     ('profile_mode', bool, False),
     ('loglevel', loglevel, 'info'),
