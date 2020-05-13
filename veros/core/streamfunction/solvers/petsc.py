@@ -129,9 +129,12 @@ class PETScSolver(LinearSolver):
         south_diag = vs.hur[2:-2, 2:-2] / vs.dyu[np.newaxis, 2:-2] / \
             vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2]
 
+        main_diag *= boundary_mask
+        main_diag[main_diag == 0.] = 1.
+
         # construct sparse matrix
         cf = tuple(diag for diag in (
-            boundary_mask * main_diag + (1 - boundary_mask),
+            main_diag,
             boundary_mask * east_diag,
             boundary_mask * west_diag,
             boundary_mask * north_diag,

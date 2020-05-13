@@ -7,7 +7,7 @@ from .... import veros_method, runtime_state as rst
 class PyAMGSolver(SciPySolver):
     @veros_method
     def __init__(self, vs):
-        super(PyAMGSolver, self).__init__(vs)
+        super(PyAMGSolver, self).__init__(vs, use_preconditioner=False)
 
         if rst.proc_rank == 0:
             ml = pyamg.smoothed_aggregation_solver(self._matrix)

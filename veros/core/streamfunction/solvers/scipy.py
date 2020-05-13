@@ -15,14 +15,15 @@ class SciPySolver(LinearSolver):
         'cosu', 'cost',
         'boundary_mask'
     ])
-    def __init__(self, vs):
+    def __init__(self, vs, use_preconditioner=True):
         self._matrix = self._assemble_poisson_matrix(vs)
         self._preconditioner = self._jacobi_preconditioner(vs, self._matrix)
         self._matrix = self._preconditioner * self._matrix
-        ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-8, fill_factor=1000)
-        self._extra_args = {
-            'M': spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
-        }
+        self._extra_args = {}
+
+        if use_preconditioner:
+            ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-8, fill_factor=1000)
+            self._extra_args['M'] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
 
     @veros_method(dist_safe=False, local_variables=['boundary_mask'])
     def _scipy_solver(self, vs, rhs, sol, boundary_val):
