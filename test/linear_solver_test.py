@@ -3,7 +3,10 @@ import pytest
 import numpy as np
 
 from veros import VerosState
-from veros.core.streamfunction.solvers import scipy, petsc, pyamg
+from veros.core.streamfunction.solvers import (
+    scipy as scipysolver,
+    petsc as petscsolver
+)
 
 
 class SolverTestState(VerosState):
@@ -37,20 +40,18 @@ class SolverTestState(VerosState):
         self.boundary_mask[50:100, 50:100] = 1
 
 
-def reference_solution(vs, rhs, sol, boundary_val=None):
-    from scipy.sparse.linalg import spsolve
-    scipy_solver = scipy.SciPySolver(vs)
+def get_residual(vs, rhs, sol, boundary_val=None):
+    scipy_solver = scipysolver.SciPySolver(vs)
     if boundary_val is None:
         boundary_val = sol
     boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
     rhs = np.where(boundary_mask, rhs, boundary_val)
-    linear_solution = spsolve(scipy_solver._matrix, rhs.flatten()
-                              * scipy_solver._preconditioner.diagonal())
-    return linear_solution.reshape(vs.nx + 4, vs.ny + 4)
+    residual = scipy_solver._matrix @ sol.flatten() - rhs.flatten() * scipy_solver._preconditioner.diagonal()
+    return residual
 
 
 @pytest.mark.parametrize('cyclic', [True, False])
-@pytest.mark.parametrize('solver_class', [scipy.SciPySolver, petsc.PETScSolver, pyamg.PyAMGSolver])
+@pytest.mark.parametrize('solver_class', [scipysolver.SciPySolver, petscsolver.PETScSolver])
 def test_solver(solver_class, cyclic, backend):
     from veros import runtime_settings as rs
     rs.backend = backend
@@ -60,9 +61,10 @@ def test_solver(solver_class, cyclic, backend):
     rhs = np.ones((vs.nx + 4, vs.ny + 4))
     sol = np.random.rand(vs.nx + 4, vs.ny + 4)
 
-    ref_sol = reference_solution(vs, rhs, sol, 10)
     solver_class(vs).solve(vs, rhs, sol, 10)
+
+    residual = get_residual(vs, rhs, sol, 10)
 
     # set tolerance may apply in preconditioned space,
     # so let's allow for some wiggle room
-    assert np.max(np.abs(ref_sol - sol) / np.abs(ref_sol).max()) < vs.congr_epsilon * 1e4
+    assert np.max(np.abs(residual)) < vs.congr_epsilon * 10
