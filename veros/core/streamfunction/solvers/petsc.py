@@ -35,12 +35,13 @@ class PETScSolver(LinearSolver):
         self._ksp = PETSc.KSP()
         self._ksp.create(rs.mpi_comm)
         self._ksp.setOperators(self._matrix)
-        self._ksp.setType('bcgs')
+        self._ksp.setType('gmres')
         self._ksp.setTolerances(atol=0, rtol=vs.congr_epsilon, max_it=vs.congr_max_iterations)
 
         # preconditioner
         self._ksp.getPC().setType('hypre')
-        petsc_options['pc_hypre_type'] = 'euclid'
+        petsc_options['pc_hypre_type'] = 'boomeramg'
+        petsc_options['pc_hypre_boomeramg_relax_type_all'] = 'SOR/Jacobi'
         self._ksp.getPC().setFromOptions()
 
         self._rhs_petsc = self._da.createGlobalVec()
