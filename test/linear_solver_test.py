@@ -46,7 +46,7 @@ def get_residual(vs, rhs, sol, boundary_val=None):
         boundary_val = sol
     boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
     rhs = np.where(boundary_mask, rhs, boundary_val)
-    residual = scipy_solver._matrix @ sol.flatten() - rhs.flatten() * scipy_solver._preconditioner.diagonal()
+    residual = scipy_solver._matrix @ sol.flatten() - rhs.flatten() * scipy_solver._rhs_scale
     return residual
 
 
@@ -67,4 +67,4 @@ def test_solver(solver_class, cyclic, backend):
 
     # set tolerance may apply in preconditioned space,
     # so let's allow for some wiggle room
-    assert np.max(np.abs(residual)) < vs.congr_epsilon * 10
+    assert np.max(np.abs(residual)) < vs.congr_epsilon * 1e2
