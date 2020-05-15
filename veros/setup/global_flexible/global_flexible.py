@@ -5,7 +5,6 @@ import os
 import numpy as np
 import h5netcdf
 import scipy.ndimage
-import scipy.interpolate
 
 from veros import veros_method, VerosSetup, runtime_settings as rs, runtime_state as rst
 from veros.variables import Variable, allocate
