@@ -59,7 +59,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Veros'
-copyright = u'2017-2019, The Veros Team, NBI Copenhagen'
+copyright = u'2017-2020, The Veros Team, NBI Copenhagen'
 author = u'The Veros Team, NBI Copenhagen'
 
 # The version info for the project you're documenting, acts as replacement for

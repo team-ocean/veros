@@ -23,6 +23,12 @@ class WavePropagationSetup(VerosSetup):
     """
     Global model with flexible resolution and idealized geometry in the
     Atlantic to examine coastal wave propagation.
+
+    Reference:
+        Hafner, D., Jacobsen, R. L., Eden, C., Kristensen, M. R. B., Jochum, M., Nuterman, R., & Vinter, B. (2018).
+        Veros v0.1-a fast and versatile ocean simulator in pure Python. Geoscientific Model Development, 11(8), 3299-3312.
+        `<https://doi.org/10.5194/gmd-11-3299-2018>`_.
+
     """
     # settings for north atlantic
     na_shelf_depth = 250

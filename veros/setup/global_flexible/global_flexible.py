@@ -5,7 +5,6 @@ import os
 import numpy as np
 import h5netcdf
 import scipy.ndimage
-import scipy.interpolate
 
 from veros import veros_method, VerosSetup, runtime_settings as rs, runtime_state as rst
 from veros.variables import Variable, allocate
@@ -321,8 +320,8 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.surface_tauy[...] = f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2]
 
         if vs.enable_tke:
-            vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1])) ** 2
-                                                      + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2])) ** 2) ** (3. / 2.)
+            vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / vs.rho_0) ** 2
+                                                      + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / vs.rho_0) ** 2) ** (3. / 2.)
 
         # W/m^2 K kg/J m^3/kg = K m/s
         fxa = f1 * vs.t_star[..., n1] + f2 * vs.t_star[..., n2]

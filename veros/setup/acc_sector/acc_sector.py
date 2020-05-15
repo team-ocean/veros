@@ -24,6 +24,11 @@ class ACCSectorSetup(VerosSetup):
 
     :doc:`Adapted from ACC channel model </reference/setups/acc>`.
 
+    Reference:
+	Laurits S. Andreasen. (2019). Time scales of the Bipolar seesaw: The role of oceanic cross-hemisphere signals,
+        Southern Ocean eddies and wind changes, MSc Thesis, 42p.
+        `<https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Laurits_Andreasen_MSc_thesis.pdf>`_.
+
     """
     max_depth = 4000.
 

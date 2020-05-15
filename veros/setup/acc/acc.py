@@ -108,8 +108,8 @@ class ACCSetup(VerosSetup):
         yu_max = global_max(vs, vs.yu.max())
 
         taux = allocate(vs, ('yt',))
-        taux[vs.yt < -20] = 1e-4 * np.sin(vs.pi * (vs.yu[vs.yt < -20] - yu_min) / (-20.0 - yt_min))
-        taux[vs.yt > 10] = 1e-4 * (1 - np.cos(2 * vs.pi * (vs.yu[vs.yt > 10] - 10.0) / (yu_max - 10.0)))
+        taux[vs.yt < -20] = 0.1 * np.sin(vs.pi * (vs.yu[vs.yt < -20] - yu_min) / (-20.0 - yt_min))
+        taux[vs.yt > 10] = 0.1 * (1 - np.cos(2 * vs.pi * (vs.yu[vs.yt > 10] - 10.0) / (yu_max - 10.0)))
         vs.surface_taux[:, :] = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing
