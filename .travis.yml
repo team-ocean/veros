@@ -25,7 +25,6 @@ env:
   matrix:
     - VEROS_BACKEND=numpy PYTHON_EXEC=$PYTHON_EXEC PYOM2_LIB=$PYOM2_LIB
     - VEROS_BACKEND=bohrium BH_STACK=openmp PYTHON_EXEC=$PYTHON_EXEC PYOM2_LIB=$PYOM2_LIB
-    - VEROS_BACKEND=bohrium BH_STACK=opencl PYTHON_EXEC=$PYTHON_EXEC PYOM2_LIB=$PYOM2_LIB
 
 script:
   - docker run -e BH_STACK -t veros $PYTHON_EXEC -m bohrium_api --info

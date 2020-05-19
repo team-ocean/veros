@@ -21,10 +21,15 @@ class GlobalFourDegreeSetup(VerosSetup):
     This setup demonstrates:
      - setting up a realistic model
      - reading input data from external files
+     - including Indonesian throughflow
      - implementing surface forcings
      - applying a simple ice mask
 
     `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/4x4%20global%20model>`_.
+
+    ChangeLog
+     - 07-05-2020: modify bathymetry in order to include Indonesian throughflow;
+       courtesy of Franka Jesse, Utrecht University
     """
     @veros_method
     def set_parameter(self, vs):
@@ -119,6 +124,7 @@ class GlobalFourDegreeSetup(VerosSetup):
     def set_topography(self, vs):
         bathymetry_data = self._read_forcing(vs, 'bathymetry')
         salt_data = self._read_forcing(vs, 'salinity')[:, :, ::-1]
+        salt_data[vs.zt[np.newaxis, np.newaxis, :] <= bathymetry_data[..., np.newaxis]] = 0.
         mask_salt = salt_data == 0.
         vs.kbot[2:-2, 2:-2] = 1 + np.sum(mask_salt.astype(np.int), axis=2)
         mask_bathy = bathymetry_data == 0
@@ -179,9 +185,9 @@ class GlobalFourDegreeSetup(VerosSetup):
 
         # tke flux
         if vs.enable_tke:
-            vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] \
+            vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
                                                                 + vs.surface_taux[:-2, 1:-1]) / vs.rho_0)**2
-                                                      + (0.5 * (vs.surface_tauy[1:-1, 1:-1] \
+                                                      + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
                                                                 + vs.surface_tauy[1:-1, :-2]) / vs.rho_0)**2)**(3. / 2.)
         # heat flux : W/m^2 K kg/J m^3/kg = K m/s
         cp_0 = 3991.86795711963
