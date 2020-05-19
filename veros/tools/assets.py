@@ -48,7 +48,7 @@ class AssetStore:
 
     def __getitem__(self, key):
         if key not in self._stored_assets:
-            self._stored_assets[key] = self._get_asset()
+            self._stored_assets[key] = self._get_asset(key)
 
         return self._stored_assets[key]
 
