@@ -3,6 +3,9 @@ import warnings
 
 from loguru import logger
 
+# register custom loglevel
+logger.level('DIAGNOSTIC', no=45)
+
 
 def setup_logging(loglevel='info', stream_sink=sys.stdout):
     from . import runtime_state
@@ -23,7 +26,7 @@ def setup_logging(loglevel='info', stream_sink=sys.stdout):
     logger.level('SUCCESS', color='<dim><green>')
     logger.level('WARNING', color='<yellow>')
     logger.level('ERROR', color='<bold><red>')
-    logger.level('DIAGNOSTIC', color='<bold><yellow>', no=45)
+    logger.level('DIAGNOSTIC', color='<bold><yellow>')
     logger.level('CRITICAL', color='<bold><red><WHITE>')
 
     config = {
