@@ -24,24 +24,34 @@ Operating System :: Unix
 Operating System :: MacOS
 """
 
+# managed by dependabot
 INSTALL_REQUIRES = [
-    'click',
-    'entrypoints',
-    'requests>=2.18',
-    'numpy>=1.13',
-    'scipy',
-    'h5netcdf',
-    'h5py',
-    'pillow',
-    'ruamel.yaml',
-    'loguru',
-    'tqdm',
+    'click<=7.1.2',
+    'entrypoints<=0.3',
+    'requests>=2.18,<=2.23.0',
+    'numpy>=1.13,<=1.18.4',
+    'scipy<=1.4.1',
+    'h5netcdf<=0.8.0',
+    'h5py<=2.10.0',
+    'pillow<=7.1.2',
+    'ruamel.yaml<=0.16.20',
+    'loguru<=0.5.0',
+    'tqdm<=4.46.0',
 ]
 
 EXTRAS_REQUIRE = {
-    'fast': ['bohrium'],
-    'mpi': ['mpi4py', 'petsc4py'],
-    'test': ['pytest', 'pytest-cov', 'pytest-xdist', 'codecov', 'pyopencl', 'petsc4py', 'mpi4py']
+    'mpi': [
+        'mpi4py<=3.0.3',
+        'petsc4py<=3.13.0'
+    ],
+    'test': [
+        'pytest',
+        'pytest-cov',
+        'pytest-xdist',
+        'codecov',
+        'petsc4py<=3.0.3',
+        'mpi4py<=3.0.3'
+    ]
 }
 EXTRAS_REQUIRE['all'] = sorted(set(sum(EXTRAS_REQUIRE.values(), [])))
 
