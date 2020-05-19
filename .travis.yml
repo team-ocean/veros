@@ -41,6 +41,7 @@ script:
           $PYTHON_EXEC -m pytest . -v --cov --pyom2-lib $PYOM2_LIB --backend $VEROS_BACKEND && codecov \
       \"\
     "
+  - pip install . && cd doc && pip install -r requirements.txt && make html  # build docs
 
 deploy:
   provider: pypi
