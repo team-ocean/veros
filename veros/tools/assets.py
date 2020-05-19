@@ -46,11 +46,26 @@ class AssetStore:
 
         return target_path
 
+    def keys(self):
+        return self._asset_config.keys()
+
+    def __contains__(self, key):
+        return key in self.keys()
+
     def __getitem__(self, key):
+        if key not in self:
+            raise KeyError('unknown asset {}'.format(key))
+
         if key not in self._stored_assets:
             self._stored_assets[key] = self._get_asset(key)
 
         return self._stored_assets[key]
+
+    def __repr__(self):
+        out = '{}(asset_dir={}, asset_config={})'.format(
+            self.__class__.__name__, self._asset_dir, self._asset_config
+        )
+        return out
 
 
 def get_assets(asset_id, asset_file):
@@ -70,9 +85,9 @@ def get_assets(asset_id, asset_file):
 
     Example:
 
-       >>> get_assets('mysetup', 'assets.yml')
-       {
-           "forcing": "/home/user/.veros/assets/mysetup/mysetup_forcing.h5",
+       >>> assets = get_assets('mysetup', 'assets.yml')
+       >>> assets['forcing']
+       "/home/user/.veros/assets/mysetup/mysetup_forcing.h5",
            "initial_conditions": "/home/user/.veros/assets/mysetup/initial.h5"
        }
 
