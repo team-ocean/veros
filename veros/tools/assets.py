@@ -22,6 +22,37 @@ class AssetError(Exception):
     pass
 
 
+class AssetStore:
+    def __init__(self, asset_dir, asset_config):
+        self._asset_dir = asset_dir
+        self._asset_config = asset_config
+        self._stored_assets = {}
+
+    def _get_asset(self, key):
+        url = self._asset_config[key]['url']
+        md5 = self._asset_config[key].get('md5')
+
+        target_filename = os.path.basename(urlparse.urlparse(url).path)
+        target_path = os.path.join(self._asset_dir, target_filename)
+        target_lock = target_path + '.lock'
+
+        with FileLock(target_lock):
+            if not os.path.isfile(target_path) or (md5 is not None and _filehash(target_path) != md5):
+                logger.info('Downloading asset {} ...', target_filename)
+                _download_file(url, target_path)
+
+            if md5 is not None and _filehash(target_path) != md5:
+                raise AssetError('Mismatching MD5 checksum on asset %s' % target_filename)
+
+        return target_path
+
+    def __getitem__(self, key):
+        if key not in self._stored_assets:
+            self._stored_assets[key] = self._get_asset()
+
+        return self._stored_assets[key]
+
+
 def get_assets(asset_id, asset_file):
     """Handles automatic download and verification of external assets (such as forcing files).
 
@@ -35,7 +66,7 @@ def get_assets(asset_id, asset_file):
 
     Returns:
 
-        A ``dict`` mapping identifier of each asset to file name on disk.
+        A ``dict``-like mapping of each asset to file name on disk. Assets are downloaded lazily.
 
     Example:
 
@@ -68,22 +99,7 @@ def get_assets(asset_id, asset_file):
             if os.path.isdir(asset_dir):
                 pass
 
-    def get_asset(url, md5=None):
-        target_filename = os.path.basename(urlparse.urlparse(url).path)
-        target_path = os.path.join(asset_dir, target_filename)
-        target_lock = target_path + '.lock'
-
-        with FileLock(target_lock):
-            if not os.path.isfile(target_path) or (md5 is not None and _filehash(target_path) != md5):
-                logger.info('Downloading asset {} ...', target_filename)
-                _download_file(url, target_path)
-
-            if md5 is not None and _filehash(target_path) != md5:
-                raise AssetError('Mismatching MD5 checksum on asset %s' % target_filename)
-
-        return target_path
-
-    return {key: get_asset(val['url'], val.get('md5', None)) for key, val in assets.items()}
+    return AssetStore(asset_dir, assets)
 
 
 def _download_file(url, target_path, timeout=10):
