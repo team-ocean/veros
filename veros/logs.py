@@ -17,14 +17,14 @@ def setup_logging(loglevel='info', stream_sink=sys.stdout):
             colorize=False
         )
 
-    logger.level('TRACE', color='<dim>', no=0)
-    logger.level('DEBUG', color='<dim><cyan>', no=10)
-    logger.level('INFO', color='', no=20)
-    logger.level('SUCCESS', color='<dim><green>', no=30)
-    logger.level('WARNING', color='<yellow>', no=30)
-    logger.level('ERROR', color='<bold><red>', no=40)
-    logger.level('DIAGNOSTIC', color='<bold><yellow>', no=50)
-    logger.level('CRITICAL', color='<bold><red><WHITE>', no=60)
+    logger.level('TRACE', color='<dim>')
+    logger.level('DEBUG', color='<dim><cyan>')
+    logger.level('INFO', color='')
+    logger.level('SUCCESS', color='<dim><green>')
+    logger.level('WARNING', color='<yellow>')
+    logger.level('ERROR', color='<bold><red>')
+    logger.level('DIAGNOSTIC', color='<bold><yellow>', no=45)
+    logger.level('CRITICAL', color='<bold><red><WHITE>')
 
     config = {
         'handlers': [
