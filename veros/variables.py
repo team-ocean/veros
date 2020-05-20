@@ -6,7 +6,9 @@ from . import veros_method, runtime_settings
 class Variable:
     def __init__(self, name, dims, units, long_description, dtype=None,
                  output=False, time_dependent=True, scale=1.,
-                 write_to_restart=False, extra_attributes=None):
+                 write_to_restart=False, extra_attributes=None, mask=None):
+        dims = tuple(dims)
+
         self.name = name
         self.dims = dims
         self.units = units
@@ -16,7 +18,20 @@ class Variable:
         self.time_dependent = time_dependent
         self.scale = scale
         self.write_to_restart = write_to_restart
-        # : Additional attributes to be written in netCDF output
+
+        if mask is not None:
+            if not callable(mask):
+                raise TypeError('mask argument has to be callable')
+            self.get_mask = mask
+        else:
+            if dims[:3] in DEFAULT_MASKS:
+                self.get_mask = DEFAULT_MASKS[dims[:3]]
+            elif dims[:2] in DEFAULT_MASKS:
+                self.get_mask = DEFAULT_MASKS[dims[:2]]
+            else:
+                self.get_mask = lambda vs: None
+
+        #: Additional attributes to be written in netCDF output
         self.extra_attributes = extra_attributes or {}
 
 
@@ -46,6 +61,18 @@ TENSOR_COMP = ('tensor1', 'tensor2')
 # those are written to netCDF output by default
 BASE_DIMENSIONS = XT + XU + YT + YU + ZT + ZW + ISLE
 GHOST_DIMENSIONS = ('xt', 'yt', 'xu', 'yu')
+
+DEFAULT_MASKS = {
+    T_HOR: lambda vs: vs.maskT[:, :, -1],
+    U_HOR: lambda vs: vs.maskU[:, :, -1],
+    V_HOR: lambda vs: vs.maskV[:, :, -1],
+    ZETA_HOR: lambda vs: vs.maskZ[:, :, -1],
+    T_GRID: lambda vs: vs.maskT,
+    U_GRID: lambda vs: vs.maskU,
+    V_GRID: lambda vs: vs.maskV,
+    W_GRID: lambda vs: vs.maskW,
+    ZETA_GRID: lambda vs: vs.maskZ
+}
 
 
 def get_dimensions(vs, grid, include_ghosts=True, local=True):
@@ -103,27 +130,6 @@ def add_ghosts(vs, array, dims):
     ghost_mask = tuple(slice(2, -2) if dim in GHOST_DIMENSIONS else slice(None) for dim in dims)
     newarr[ghost_mask] = array
     return newarr
-
-
-def get_grid_mask(vs, grid):
-    masks = {
-        T_HOR: vs.maskT[:, :, -1],
-        U_HOR: vs.maskU[:, :, -1],
-        V_HOR: vs.maskV[:, :, -1],
-        ZETA_HOR: vs.maskZ[:, :, -1],
-        T_GRID: vs.maskT,
-        U_GRID: vs.maskU,
-        V_GRID: vs.maskV,
-        W_GRID: vs.maskW,
-        ZETA_GRID: vs.maskZ
-    }
-    if len(grid) > 2:
-        if grid[:3] in masks.keys():
-            return masks[grid[:3]]
-    if len(grid) > 1:
-        if grid[:2] in masks.keys():
-            return masks[grid[:2]]
-    return None
 
 
 MAIN_VARIABLES = OrderedDict([
@@ -403,7 +409,8 @@ MAIN_VARIABLES = OrderedDict([
 
     ('psi', Variable(
         'Streamfunction', ZETA_HOR + TIMESTEPS, 'm^3/s', 'Barotropic streamfunction',
-        output=True, write_to_restart=True
+        output=True, write_to_restart=True,
+        mask=lambda vs: vs.maskZ[:, :, -1] | vs.boundary_mask.sum(axis=2)
     )),
     ('dpsi', Variable(
         'Streamfunction tendency', ZETA_HOR + TIMESTEPS, 'm^3/s^2',
@@ -417,7 +424,8 @@ MAIN_VARIABLES = OrderedDict([
     )),
     ('psin', Variable(
         'Boundary streamfunction', ZETA_HOR + ISLE, 'm^3/s',
-        'Boundary streamfunction', output=True, time_dependent=False
+        'Boundary streamfunction', output=True, time_dependent=False,
+        mask=lambda vs: vs.maskZ[:, :, -1] | vs.boundary_mask.sum(axis=2)
     )),
     ('dpsin', Variable(
         'Boundary streamfunction factor', ISLE + TIMESTEPS, '?',

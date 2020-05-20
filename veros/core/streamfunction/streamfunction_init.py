@@ -97,7 +97,7 @@ def streamfunction_init(vs):
     forc = allocate(vs, ('xu', 'yu'))
 
     # initialize with random noise to achieve uniform convergence
-    vs.psin[...] = vs.maskZ[..., -1, np.newaxis]# np.random.rand(*vs.psin.shape) * vs.maskZ[..., -1, np.newaxis]
+    vs.psin[...] = vs.maskZ[..., -1, np.newaxis]
 
     for isle in range(vs.nisle):
         logger.info(' Solving for boundary contribution by island {:d}'.format(isle))
