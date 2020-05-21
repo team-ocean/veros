@@ -74,6 +74,8 @@ DEFAULT_MASKS = {
     ZETA_GRID: lambda vs: vs.maskZ
 }
 
+ZETA_HOR_ERODED = lambda vs: vs.maskZ[:, :, -1] | vs.boundary_mask.sum(axis=2)  # noqa: E731
+
 
 def get_dimensions(vs, grid, include_ghosts=True, local=True):
     px, py = runtime_settings.num_proc
@@ -409,8 +411,7 @@ MAIN_VARIABLES = OrderedDict([
 
     ('psi', Variable(
         'Streamfunction', ZETA_HOR + TIMESTEPS, 'm^3/s', 'Barotropic streamfunction',
-        output=True, write_to_restart=True,
-        mask=lambda vs: vs.maskZ[:, :, -1] | vs.boundary_mask.sum(axis=2)
+        output=True, write_to_restart=True, mask=ZETA_HOR_ERODED
     )),
     ('dpsi', Variable(
         'Streamfunction tendency', ZETA_HOR + TIMESTEPS, 'm^3/s^2',
@@ -425,7 +426,7 @@ MAIN_VARIABLES = OrderedDict([
     ('psin', Variable(
         'Boundary streamfunction', ZETA_HOR + ISLE, 'm^3/s',
         'Boundary streamfunction', output=True, time_dependent=False,
-        mask=lambda vs: vs.maskZ[:, :, -1] | vs.boundary_mask.sum(axis=2)
+        mask=ZETA_HOR_ERODED
     )),
     ('dpsin', Variable(
         'Boundary streamfunction factor', ISLE + TIMESTEPS, '?',
