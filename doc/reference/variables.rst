@@ -39,6 +39,7 @@ Attributes:
 .. exec::
   from veros.variables import MAIN_VARIABLES, CONDITIONAL_VARIABLES
   first_condition = True
+  seen = set()
   for condition, vardict in [(None, MAIN_VARIABLES)] + list(CONDITIONAL_VARIABLES.items()):
       if not vardict:
           continue
@@ -62,6 +63,8 @@ Attributes:
           if var.write_to_restart:
               flags += ":fa:`repeat` "
           print(".. py:attribute:: VerosState.{}".format(key))
+          if key in seen:
+              print("  :noindex:")
           print("")
           print("  :units: {}".format(var.units))
           print("  :dimensions: {}".format(", ".join(var.dims)))
@@ -70,3 +73,4 @@ Attributes:
           print("")
           print("  {}".format(var.long_description))
           print("")
+          seen.add(key)

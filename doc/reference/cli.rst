@@ -8,19 +8,22 @@ veros
 
 This is a wrapper script that provides easy access to all Veros command line tools.
 
-.. program-output:: veros
+.. run-click:: veros.cli.veros:cli
 
 veros-create-mask
 -----------------
 
-.. program-output:: veros create-mask --help
+.. run-click:: veros.cli.veros:cli
+   :args: create-mask --help
 
 veros-copy-setup
 ----------------
 
-.. program-output:: veros copy-setup --help
+.. run-click:: veros.cli.veros:cli
+   :args: copy-setup --help
 
 veros-resubmit
 --------------
 
-.. program-output:: veros resubmit --help
+.. run-click:: veros.cli.veros:cli
+   :args: resubmit --help
