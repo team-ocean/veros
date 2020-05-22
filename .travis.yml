@@ -41,7 +41,7 @@ script:
           $PYTHON_EXEC -m pytest . -v --cov --pyom2-lib $PYOM2_LIB --backend $VEROS_BACKEND && codecov \
       \"\
     "
-  - pip install -r doc/requirements.txt && make -C doc html  # build docs
+  - pip install -r doc/requirements.txt && make -C doc html SPHINXOPTS="-W --keep-going"  # build docs
 
 deploy:
   provider: pypi
