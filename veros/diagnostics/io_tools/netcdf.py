@@ -91,7 +91,7 @@ def advance_time(vs, time_step, time_value, ncfile):
 def write_variable(vs, key, var, var_data, ncfile, time_step=None):
     var_data = var_data * var.scale
 
-    gridmask = variables.get_grid_mask(vs, var.dims)
+    gridmask = var.get_mask(vs)
     if gridmask is not None:
         newaxes = (slice(None),) * gridmask.ndim + (np.newaxis,) * (var_data.ndim - gridmask.ndim)
         var_data = np.where(gridmask.astype(np.bool)[newaxes], var_data, variables.FILL_VALUE)
