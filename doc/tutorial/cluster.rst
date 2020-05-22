@@ -1,14 +1,14 @@
 Running Veros on a cluster
 ==========================
 
-This tutorial walks you through some of the most common challenges that are specific to large, shared architectures like clusters and supercomputers. In case you are still having trouble setting up or running Veros on a large architecture after reading it, you should first contact the administrator of your cluster. Otherwise, you should of course feel free to `open an issue <https://github.com/team-ocean/veros/issues>`_.
+This tutorial walks you through some of the most common challenges that are specific to large, shared architectures like clusters and supercomputers. In case you are still having trouble setting up or running Veros on a large architecture after reading it, you should first contact the administrator of your cluster. Otherwise, you should of course feel free to `open an issue <https://github.com/team-ocean/veros/issues>`__.
 
 Installation
 ++++++++++++
 
 Probably the easiest way to install Veros on a cluster is to, once again, :doc:`use Anaconda </quickstart/get-started>`. Since it is mostly platform independent and does not require elevated permissions, Anaconda is the perfect way to try out Veros without too much hassle.
 
-If you are an administrator and want to make Veros accessible to multiple users on your cluster, we recommend that you do *not* install Veros system-wide, since it severely limits the possibilities of the users: First of all, they won't be able to install additional Python modules they might want to use for post-processing or development. And second of all, the source code (and playing with it) is supposed to be a critical part of the Veros experience. Instead, you could e.g. use `virtualenv <https://virtualenv.pypa.io/en/stable/>`_ to create a lightweight Python environment for every user that they can freely manage.
+If you are an administrator and want to make Veros accessible to multiple users on your cluster, we recommend that you do *not* install Veros system-wide, since it severely limits the possibilities of the users: First of all, they won't be able to install additional Python modules they might want to use for post-processing or development. And second of all, the source code (and playing with it) is supposed to be a critical part of the Veros experience. Instead, you could e.g. use `virtualenv <https://virtualenv.pypa.io/en/stable/>`__ to create a lightweight Python environment for every user that they can freely manage.
 
 Usage
 +++++
@@ -26,4 +26,4 @@ To solve these issues, the scheduling manager needs to be told exactly how it sh
 
 which is :download:`saved as veros_batch.sh </_downloads/veros_batch.sh>` in the model setup folder and called using ``sbatch``.
 
-This script makes use of the :command:`veros resubmit` command and its :option:`--callback` option to create a script that automatically re-runs itself in a new process after each successful run (see also :doc:`/reference/cli`). Upon execution, a job is created on one node, using 16 processors in one process, that runs the Veros setup located in :file:`my_setup.py` a total of eight times for 90 days (7776000 seconds) each, with identifier ``my_run``. Note that the ``--callback "sbatch veros_batch.sh"`` part of the command is needed to actually create a new job after every run, to prevent the script from being killed after a timeout.
+This script makes use of the ``veros resubmit`` command and its ``--callback`` option to create a script that automatically re-runs itself in a new process after each successful run (see also :doc:`/reference/cli`). Upon execution, a job is created on one node, using 16 processors in one process, that runs the Veros setup located in :file:`my_setup.py` a total of eight times for 90 days (7776000 seconds) each, with identifier ``my_run``. Note that the ``--callback "sbatch veros_batch.sh"`` part of the command is needed to actually create a new job after every run, to prevent the script from being killed after a timeout.

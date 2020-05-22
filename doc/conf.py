@@ -111,7 +111,7 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = []
 
 
 # -- Options for HTMLHelp output ------------------------------------------
@@ -229,31 +229,35 @@ class ClickDirective(Directive):
         import shlex
         from click.testing import CliRunner
 
-        modname, funcname = self.arguments[0].split(':')
+        arg = self.arguments[0]
         options = shlex.split(self.options.get('args', ''))
+
+        try:
+            modname, funcname = arg.split(':')
+        except ValueError:
+            raise self.error('run-click argument must be "module:function"')
 
         try:
             mod = importlib.import_module(modname)
             func = getattr(mod, funcname)
-        except (ImportError, AttributeError) as e:
-            warn_text = "Error while running command %s:%s %s" % (modname, func, shlex.join(options))
+
+            runner = CliRunner()
+            with runner.isolated_filesystem():
+                result = runner.invoke(func, options)
+
+            text = result.output
+
+            if result.exit_code != 0:
+                raise RuntimeError('Command exited with non-zero exit code; output: "%s"' % text)
+
+            node = nodes.literal_block(text=text)
+            node['language'] = 'text'
+            return [node]
+
+        except Exception:
+            warn_text = "Error while running command %s %s" % (arg, ' '.join(map(shlex.quote, options)))
             warning = self.state_machine.reporter.warning(warn_text)
-            return [warning, nodes.error(None, nodes.paragraph(text=warn_text), nodes.literal_block(text=str(e)))]
-
-        runner = CliRunner()
-        with runner.isolated_filesystem():
-            result = runner.invoke(func, options)
-
-        text = result.output
-
-        if result.exit_code != 0:
-            warn_text = "Error while running command %s:%s %s" % (modname, func, shlex.join(options))
-            warning = self.state_machine.reporter.warning(warn_text)
-            return [warning, nodes.error(None, nodes.paragraph(text=warn_text), nodes.literal_block(text=text))]
-
-        node = nodes.literal_block(text=text)
-        node['language'] = 'text'
-        return [node]
+            return [warning, nodes.error(None, nodes.paragraph(text=warn_text), nodes.paragraph(text=str(sys.exc_info()[1])))]
 
 
 def setup(app):
