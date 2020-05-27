@@ -24,36 +24,16 @@ Operating System :: Unix
 Operating System :: MacOS
 """
 
-# managed by dependabot
-INSTALL_REQUIRES = [
-    'click<=7.1.2',
-    'entrypoints<=0.3',
-    'requests>=2.18,<=2.23.0',
-    'numpy>=1.13,<=1.18.4',
-    'scipy<=1.4.1',
-    'h5netcdf<=0.8.0',
-    'h5py<=2.10.0',
-    'pillow<=7.1.2',
-    'ruamel.yaml<=0.16.20',
-    'loguru<=0.5.0',
-    'tqdm<=4.46.0',
-]
-
 EXTRAS_REQUIRE = {
-    'mpi': [
-        'mpi4py<=3.0.3',
-        'petsc4py<=3.13.0'
-    ],
     'test': [
         'pytest',
         'pytest-cov',
         'pytest-xdist',
         'codecov',
-        'petsc4py<=3.0.3',
-        'mpi4py<=3.0.3'
+        'petsc4py',
+        'mpi4py'
     ]
 }
-EXTRAS_REQUIRE['all'] = sorted(set(sum(EXTRAS_REQUIRE.values(), [])))
 
 CONSOLE_SCRIPTS = [
     'veros = veros.cli.veros:cli',
@@ -66,8 +46,12 @@ CONSOLE_SCRIPTS = [
 PACKAGE_DATA = ['setup/*/assets.yml', 'setup/*/*.npy', 'setup/*/*.png']
 
 here = os.path.abspath(os.path.dirname(__file__))
+
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
+
+with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
+    install_requires = [f.replace('==', '<=') for f in f.readlines()]
 
 setup(
     name='veros',
@@ -84,7 +68,7 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
-    install_requires=INSTALL_REQUIRES,
+    install_requires=install_requires,
     extras_require=EXTRAS_REQUIRE,
     entry_points={
         'console_scripts': CONSOLE_SCRIPTS,
