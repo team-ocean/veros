@@ -9,7 +9,7 @@ import entrypoints
 
 
 SETUPDIR_ENVVAR = 'VEROS_SETUP_DIR'
-IGNORE_PATTERNS = ['__init__.py', '*.pyc', '__pycache__/']
+IGNORE_PATTERNS = ['__init__.py', '*.pyc', '__pycache__']
 SETUPS = {}
 
 setup_dirs = [
