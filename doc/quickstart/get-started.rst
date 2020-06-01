@@ -4,39 +4,36 @@ Getting started
 Installation
 ------------
 
-Using pip (multi-platform)
-++++++++++++++++++++++++++
+Using pip
++++++++++
 
 .. note::
 
-  You should only install Veros via pip if you want to get going as quickly as possible,
-  and do not plan to access or modify the Veros source code. The prefered way to install Veros
-  is through Anaconda (see below).
+  You should only install Veros via pip if you want to get going as quickly as possible, and do not plan to access or modify the Veros source code. The recommended way to install Veros is through Conda (see below).
 
-If you already have Python installed, the quickest way to get a working Veros installation
-is to run::
+If you already have Python installed, the quickest way to get a working Veros installation is to run ::
 
-  $ pip install veros --user
+  $ pip install veros
 
-and optionally::
+and, optionally::
 
-  $ pip install bohrium --user
+  $ pip install bohrium
 
 to use Veros with Bohrium (Linux and OSX only).
 
 
-Using Anaconda (multi-platform, recommended)
-++++++++++++++++++++++++++++++++++++++++++++
+Using Conda (multi-platform, recommended)
++++++++++++++++++++++++++++++++++++++++++
 
-1. `Download and install Anaconda <https://www.continuum.io/downloads>`_. Make sure to
-   grab the 64-bit version of the Python interpreter.
+1. `Download and install Miniconda <https://docs.conda.io/en/latest/miniconda.html>`__.
 
-2. Clone the Veros repository: ::
+2. Clone the Veros repository::
 
-      $ git clone https://github.com/team-ocean/veros.git
+      $ git clone https://github.com/team-ocean/veros.git -b v0.2.2
 
-2. Create a new conda environment for Veros, and install all relevant dependencies,
-   by running ::
+   (or any other version of Veros)
+
+3. Create a new conda environment for Veros, and install all relevant dependencies by running ::
 
        $ conda env create -f environment-unix.yml
 
@@ -46,35 +43,41 @@ Using Anaconda (multi-platform, recommended)
 
   on Windows.
 
-3. To use Veros, just activate your new conda environment! This can be done through either
+4. To use Veros, just activate your new conda environment! This can be done through either
    :program:`conda activate veros`, :program:`source activate veros`, or :program:`activate veros`,
    depending on your platform and Anaconda installation.
 
 
-On bare metal (Ubuntu / Debian)
-+++++++++++++++++++++++++++++++
+Without Conda (Linux / OSX)
++++++++++++++++++++++++++++
 
-1. Install some dependencies: ::
+1. Ensure you have a working Python 3.x installation.
 
-      $ sudo apt-get install git python3-dev python3-pip libhdf5-dev
+2. Clone our repository::
 
-2. Clone our repository: ::
+      $ git clone https://github.com/team-ocean/veros.git -b v0.2.2
 
-      $ git clone https://github.com/team-ocean/veros.git
+   (or any other version of Veros), or use ::
 
-3. Install Veros (preferably in a virtual environment) via::
+      $ pip download veros
 
-      $ pip3 install -e ./veros --user
+   to download a tarball of the latest version (needs to be unpacked).
 
-4. Optionally, install Bohrium via::
+3. Install Veros (preferably in a virtual environment) via ::
 
-      $ pip3 install bohrium --user
+      $ pip install -e ./veros
+
+   You might have to add the ``--user`` flag to ``pip install`` if you are using your system interpreter. The ``-e`` flag ensures that changes to the code are immediately reflected without reinstalling.
+
+4. Optionally, install Bohrium via ::
+
+      $ pip install bohrium
 
 
 Setting up a model
 ------------------
 
-To run Veros, you need to set up a model - i.e., specify which settings and model domain you want to use. This is done by subclassing the :class:`Veros setup base class <veros.VerosSetup>` in a *setup script* that is written in Python. You should have a look at the pre-implemented model setups in the repository's :file:`setup` folder, or use the :command:`veros copy-setup` command to copy one into your current folder. A good place to start is the :class:`ACC model <acc.ACCSetup>`: ::
+To run Veros, you need to set up a model - i.e., specify which settings and model domain you want to use. This is done by subclassing the :class:`Veros setup base class <veros.VerosSetup>` in a *setup script* that is written in Python. You should have a look at the pre-implemented model setups in the repository's :file:`setup` folder, or use the :command:`veros copy-setup` command to copy one into your current folder. A good place to start is the :class:`ACC model <acc.ACCSetup>`::
 
     $ veros copy-setup acc
 
