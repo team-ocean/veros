@@ -4,6 +4,7 @@
 from setuptools import setup, find_packages
 from codecs import open
 import os
+import re
 
 import versioneer
 
@@ -23,6 +24,11 @@ Operating System :: POSIX
 Operating System :: Unix
 Operating System :: MacOS
 """
+
+MINIMUM_VERSIONS = {
+    'numpy': '1.13',
+    'requests': '2.18',
+}
 
 EXTRAS_REQUIRE = {
     'test': [
@@ -50,8 +56,15 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+install_requires = []
 with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
-    install_requires = [f.replace('==', '<=') for f in f.readlines()]
+    for line in f:
+        line = line.strip()
+        pkg = re.match(r'(\w+)\b.*', line).group(1)
+        if pkg in MINIMUM_VERSIONS:
+            line = ''.join([line, ',>=', MINIMUM_VERSIONS[pkg]])
+        line = line.replace('==', '<=')
+        install_requires.append(line)
 
 setup(
     name='veros',
