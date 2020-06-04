@@ -3,40 +3,37 @@ import warnings
 
 from loguru import logger
 
+# register custom loglevel
+logger.level('DIAGNOSTIC', no=45)
+
 
 def setup_logging(loglevel='info', stream_sink=sys.stdout):
-    from . import runtime_state
+    from . import runtime_state, runtime_settings
 
-    kwargs = {}
-    if sys.stdout.isatty():
-        kwargs.update(
-            colorize=True
+    handler_conf = dict(
+        sink=stream_sink,
+        level=loglevel.upper(),
+        colorize=sys.stdout.isatty(),
+    )
+
+    logger.level('TRACE', color='<dim>')
+    logger.level('DEBUG', color='<dim><cyan>')
+    logger.level('INFO', color='')
+    logger.level('SUCCESS', color='<dim><green>')
+    logger.level('WARNING', color='<yellow>')
+    logger.level('ERROR', color='<bold><red>')
+    logger.level('DIAGNOSTIC', color='<bold><yellow>')
+    logger.level('CRITICAL', color='<bold><red><WHITE>')
+
+    if runtime_settings.log_all_processes:
+        handler_conf.update(
+            format=f'{runtime_state.proc_rank} | <level>{{message}}</level>'
         )
     else:
-        kwargs.update(
-            colorize=False
+        handler_conf.update(
+            format='<level>{message}</level>',
+            filter=lambda record: runtime_state.proc_rank == 0
         )
-
-    logger.level('TRACE', color='<dim>', no=0)
-    logger.level('DEBUG', color='<dim><cyan>', no=10)
-    logger.level('INFO', color='', no=20)
-    logger.level('SUCCESS', color='<dim><green>', no=30)
-    logger.level('WARNING', color='<yellow>', no=30)
-    logger.level('ERROR', color='<bold><red>', no=40)
-    logger.level('DIAGNOSTIC', color='<bold><yellow>', no=50)
-    logger.level('CRITICAL', color='<bold><red><WHITE>', no=60)
-
-    config = {
-        'handlers': [
-            dict(
-                sink=stream_sink,
-                level=loglevel.upper(),
-                format='<level>{message}</level>',
-                filter=lambda record: runtime_state.proc_rank == 0,
-                **kwargs
-            )
-        ]
-    }
 
     def diagnostic(_, message, *args, **kwargs):
         logger.opt(depth=1).log('DIAGNOSTIC', message, *args, **kwargs)
@@ -54,9 +51,7 @@ def setup_logging(loglevel='info', stream_sink=sys.stdout):
 
     warnings.showwarning = showwarning
 
-    if runtime_state.proc_rank == 0:
-        logger.enable('veros')
-    else:
-        logger.disable('veros')
+    veros_logger = logger.configure(handlers=[handler_conf])
+    logger.enable('veros')
 
-    return logger.configure(**config)
+    return veros_logger

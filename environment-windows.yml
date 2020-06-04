@@ -13,7 +13,6 @@ dependencies:
     - h5py
     - pillow
     - ruamel.yaml
-    - pyamg
     - loguru
     - tqdm
     - pip:

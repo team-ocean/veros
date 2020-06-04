@@ -120,7 +120,6 @@ SETTINGS = OrderedDict([
     ('Prandtl_tke0', Setting(10., float, 'Constant Prandtl number when stratification is neglected for kappaH computation in TKE routine')),
     ('use_io_threads', Setting(False, bool, 'Start extra threads for disk writes')),
     ('io_timeout', Setting(20, float, 'Timeout in seconds while waiting for IO locks to be released')),
-    ('enable_netcdf_zlib_compression', Setting(True, bool, 'Use netCDF4\'s native zlib interface, which leads to smaller output files (but carries some computational overhead).')),
     ('enable_hdf5_gzip_compression', Setting(True, bool, 'Use h5py\'s native gzip interface, which leads to smaller restart files (but carries some computational overhead).')),
     ('restart_input_filename', Setting('', str, 'File name of restart input. If not given, no restart data will be read.')),
     ('restart_output_filename', Setting('{identifier}_{itt:0>4d}.restart.h5', str, 'File name of restart output. May contain Python format syntax that is substituted with Veros attributes.')),

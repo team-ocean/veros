@@ -25,26 +25,16 @@ Operating System :: Unix
 Operating System :: MacOS
 """
 
-INSTALL_REQUIRES = [
-    'click',
-    'entrypoints',
-    'requests>=2.18',
-    'numpy>=1.13',
-    'scipy',
-    'h5netcdf',
-    'h5py',
-    'pillow',
-    'ruamel.yaml',
-    'loguru',
-    'tqdm',
-]
-
 EXTRAS_REQUIRE = {
-    'fast': ['pyamg'],
-    'mpi': ['mpi4py', 'petsc4py'],
-    'test': ['pytest', 'pytest-cov', 'pytest-xdist', 'codecov', 'pyopencl', 'pyamg', 'petsc4py', 'mpi4py']
+    'test': [
+        'pytest',
+        'pytest-cov',
+        'pytest-xdist',
+        'codecov',
+        'petsc4py',
+        'mpi4py'
+    ]
 }
-EXTRAS_REQUIRE['all'] = sorted(set(sum(EXTRAS_REQUIRE.values(), [])))
 
 CONSOLE_SCRIPTS = [
     'veros = veros.cli.veros:cli',
@@ -57,8 +47,12 @@ CONSOLE_SCRIPTS = [
 PACKAGE_DATA = ['setup/*/assets.yml', 'setup/*/*.npy', 'setup/*/*.png']
 
 here = os.path.abspath(os.path.dirname(__file__))
+
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
+
+with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
+    install_requires = [f.replace('==', '<=') for f in f.readlines()]
 
 setup(
     name='veros',
@@ -75,7 +69,7 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
-    install_requires=INSTALL_REQUIRES,
+    install_requires=install_requires,
     extras_require=EXTRAS_REQUIRE,
     entry_points={
         'console_scripts': CONSOLE_SCRIPTS,

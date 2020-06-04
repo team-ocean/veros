@@ -35,12 +35,13 @@ class PETScSolver(LinearSolver):
         self._ksp = PETSc.KSP()
         self._ksp.create(rs.mpi_comm)
         self._ksp.setOperators(self._matrix)
-        self._ksp.setType('bcgs')
+        self._ksp.setType('gmres')
         self._ksp.setTolerances(atol=0, rtol=vs.congr_epsilon, max_it=vs.congr_max_iterations)
 
         # preconditioner
         self._ksp.getPC().setType('hypre')
         petsc_options['pc_hypre_type'] = 'boomeramg'
+        petsc_options['pc_hypre_boomeramg_relax_type_all'] = 'SOR/Jacobi'
         self._ksp.getPC().setFromOptions()
 
         self._rhs_petsc = self._da.createGlobalVec()
@@ -116,9 +117,12 @@ class PETScSolver(LinearSolver):
         south_diag = vs.hur[2:-2, 2:-2] / vs.dyu[np.newaxis, 2:-2] / \
             vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2]
 
+        main_diag *= boundary_mask
+        main_diag[main_diag == 0.] = 1.
+
         # construct sparse matrix
         cf = tuple(diag for diag in (
-            boundary_mask * main_diag + (1 - boundary_mask),
+            main_diag,
             boundary_mask * east_diag,
             boundary_mask * west_diag,
             boundary_mask * north_diag,

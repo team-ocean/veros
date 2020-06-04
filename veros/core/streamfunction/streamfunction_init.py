@@ -34,16 +34,9 @@ def _get_solver_class():
             try:
                 from .solvers.petsc import PETScSolver
             except ImportError:
-                logger.warning('PETSc linear solver not available, falling back to pyAMG')
+                logger.warning('PETSc linear solver not available, falling back to SciPy')
             else:
                 return PETScSolver
-
-        try:
-            from .solvers.pyamg import PyAMGSolver
-        except ImportError:
-            logger.warning('pyAMG linear solver not available, falling back to SciPy')
-        else:
-            return PyAMGSolver
 
         from .solvers.scipy import SciPySolver
         return SciPySolver
@@ -53,9 +46,6 @@ def _get_solver_class():
     elif ls == 'petsc':
         from .solvers.petsc import PETScSolver
         return PETScSolver
-    elif ls == 'pyamg':
-        from .solvers.pyamg import PyAMGSolver
-        return PyAMGSolver
     elif ls == 'scipy':
         from .solvers.scipy import SciPySolver
         return SciPySolver

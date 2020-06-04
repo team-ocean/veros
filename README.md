@@ -75,7 +75,7 @@ Veros provides
 A minimal example to install and run Veros:
 
 ```bash
-$ pip install veros[all]
+$ pip install veros
 $ veros copy-setup acc --to /tmp
 $ cd /tmp/acc
 $ python acc.py
