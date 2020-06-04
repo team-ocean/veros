@@ -28,6 +28,12 @@ env:
     - VEROS_BACKEND=numpy PYTHON_EXEC=$PYTHON_EXEC PYOM2_LIB=$PYOM2_LIB
     - VEROS_BACKEND=bohrium BH_STACK=openmp PYTHON_EXEC=$PYTHON_EXEC PYOM2_LIB=$PYOM2_LIB
 
+jobs:
+  allow_failures:
+    - env: VEROS_BACKEND=bohrium
+  fast_finish: true
+
+
 script:
   - docker run -e BH_STACK -t veros $PYTHON_EXEC -m bohrium_api --info
   - "docker run \
