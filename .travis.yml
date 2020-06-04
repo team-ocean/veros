@@ -25,12 +25,12 @@ env:
     - OMP_NUM_THREADS=2
     - OMPI_MCA_mpi_yield_when_idle=1
   matrix:
-    - VEROS_BACKEND=numpy PYTHON_EXEC=$PYTHON_EXEC PYOM2_LIB=$PYOM2_LIB
-    - VEROS_BACKEND=bohrium BH_STACK=openmp PYTHON_EXEC=$PYTHON_EXEC PYOM2_LIB=$PYOM2_LIB
+    - VEROS_BACKEND=numpy
+    - VEROS_BACKEND=bohrium BH_STACK=openmp
 
 jobs:
   allow_failures:
-    - env: VEROS_BACKEND=bohrium
+    - env: VEROS_BACKEND=bohrium BH_STACK=openmp
   fast_finish: true
 
 
