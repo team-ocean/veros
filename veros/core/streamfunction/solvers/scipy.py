@@ -36,10 +36,9 @@ class SciPySolver(LinearSolver):
         boundary_mask = np.prod(1 - vs.boundary_mask, axis=2)
         rhs = utilities.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
-        rhs = onp.asarray(rhs.flatten()) * self._preconditioner.diagonal()
+        rhs = onp.asarray(rhs.flatten()) * self._rhs_scale
         x0 = onp.asarray(sol.flatten())
 
-        rhs = rhs.flatten() * self._rhs_scale
         linear_solution, info = spalg.bicgstab(
             self._matrix, rhs,
             x0=x0, atol=0, tol=vs.congr_epsilon,
