@@ -119,7 +119,7 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.coriolis_t[...] = 2 * vs.omega * np.sin(vs.yt[np.newaxis, :] / 180. * vs.pi)
 
     @veros_method(dist_safe=False, local_variables=[
-        'kbot'
+        'kbot', 'zt'
     ])
     def set_topography(self, vs):
         bathymetry_data = self._read_forcing(vs, 'bathymetry')

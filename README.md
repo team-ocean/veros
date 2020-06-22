@@ -81,60 +81,17 @@ $ cd /tmp/acc
 $ python acc.py
 ```
 
-## Installation
-
-### Dependencies
-
-Veros only has one external library dependency, `HDF5`. The installation
-procedure of this library varies between platforms. The easiest way to
-install Veros and its dependencies (including Bohrium) is [Anaconda
-Python](https://www.continuum.io/downloads) that ships with a package
-manager (`conda`).
-
-If you do not want to use Anaconda, the most convenient way is to use
-your operating system\'s package manager. On Debian / Ubuntu, you can
-e.g. use
-
-```bash
-$ sudo apt-get install libhdf5-dev
-```
-
-Similar package managers on OSX are [Homebrew](https://brew.sh/) or
-[MacPorts](https://www.macports.org/), which both provide the required
-dependencies as pre-compiled binaries.
-
-### Installing Veros
-
-As soon as you have a working environment, installing Veros is simple:
-
-1.  Clone the repository to your hard-drive:
-
-    ```bash
-    $ git clone https://github.com/team-ocean/veros.git
-    ```
-
-2.  Install it, preferably with
-
-    ```bash
-    $ pip install -e veros
-    ```
-
-    If you use the `-e` flag, any changes you make to the model code are
-    immediately reflected without having to re-install.
-
-In case you want to use the Bohrium backend, you will have to install
-[Bohrium](https://github.com/bh107/bohrium), e.g. through `conda` or
-`apt-get`, or by building it from source.
+For more detailed installation instructions, have a look at [our
+documentation](http://veros.readthedocs.io).
 
 ## Basic usage
 
 To run Veros, you need to set up a model - i.e., specify which settings
 and model domain you want to use. This is done by subclassing the
 `Veros` base class in a *setup script* that is written in Python. You
-should have a look at the pre-implemented model setups in the
-repository\'s `setup` folder, or use the `veros copy-setup` command to
-copy one into your current folder. A good place to start is the [ACC
-model](https://github.com/team-ocean/veros/blob/master/setup/acc/acc.py):
+should  use the `veros copy-setup` command to copy one into your current
+folder. A good place to start is the
+[ACC model](https://github.com/team-ocean/veros/blob/master/setup/acc/acc.py):
 
 ```bash
 $ veros copy-setup acc

@@ -46,8 +46,11 @@ def call_veros(cmd, name, n, runlen):
             '{identifier}.restart.h5', '-s', 'runlen', '{}'.format(runlen)]
     if n:
         args += ['-s', 'restart_input_filename', '{prev_id}.restart.h5'.format(prev_id=prev_id)]
+
+    # make sure this isn't buffered
     sys.stdout.write('\n >>> {}\n\n'.format(' '.join(cmd + args)))
     sys.stdout.flush()
+
     try:
         subprocess.check_call(unparse(cmd + args), shell=True)
     except subprocess.CalledProcessError:
@@ -67,7 +70,13 @@ def resubmit(identifier, num_runs, length_per_run, veros_cmd, callback):
         return
 
     call_veros(veros_cmd, identifier, current_n, length_per_run)
-    write_next_n(current_n + 1, last_n_filename)
+
+    next_n = current_n + 1
+    write_next_n(next_n, last_n_filename)
+
+    if next_n >= num_runs:
+        return
+
     next_proc = subprocess.Popen(unparse(callback), shell=True)
 
     # catch immediately crashing processes
