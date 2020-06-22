@@ -119,7 +119,7 @@ class SciPySolver(LinearSolver):
             east_diag = update(east_diag, at[-3, 2:-2], 0.)
 
         main_diag *= boundary_mask
-        main_diag[main_diag == 0.] = 1.
+        main_diag = utilities.where(main_diag == 0., 1., main_diag)
 
         # construct sparse matrix
         cf = tuple(diag.flatten() for diag in (
