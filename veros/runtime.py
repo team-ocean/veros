@@ -21,11 +21,11 @@ def loglevel(v):
     return v
 
 
-def parse_bool(string):
-    if not string:
-        return False
+def parse_bool(obj):
+    if not isinstance(obj, str):
+        return bool(obj)
 
-    return string.lower() in {'1', 'true'}
+    return obj.lower() in {'1', 'true'}
 
 
 AVAILABLE_SETTINGS = (
