@@ -18,15 +18,15 @@ def veros_routine(function=None, **kwargs):
 
       This decorator should be applied to all functions that make use of the computational
       backend (even when subclassing :class:`veros.Veros`). The sole argument to the
-      decorated function must be a Veros instance.
+      decorated function must be a VerosState instance.
 
     Example:
        >>> from veros import VerosSetup, veros_routine
        >>>
        >>> class MyModel(VerosSetup):
        >>>     @veros_routine
-       >>>     def set_topography(self):
-       >>>         self.kbot[...] = np.random.randint(0, self.nz, size=self.kbot.shape)
+       >>>     def set_topography(self, vs):
+       >>>         vs.kbot = np.random.randint(0, vs.nz, size=vs.kbot.shape)
 
     """
     def inner_decorator(function):
@@ -45,13 +45,17 @@ def veros_routine(function=None, **kwargs):
 
 
 def _is_method(function):
-    # spec = inspect.getfullargspec(function)
-    # return spec.args and spec.args[0] == 'self'
-    return inspect.ismethod(function)
+    spec = inspect.getfullargspec(function)
+    return inspect.ismethod(function) or (spec.args and spec.args[0] == 'self')
+
+
+def _deduplicate(l):
+    return sorted(set(l))
 
 
 class VerosRoutine:
-    def __init__(self, function, inputs=(), outputs=(), extra_outputs=(), settings=(), subroutines=(), dist_safe=True, narg=0):
+    def __init__(self, function, inputs=(), outputs=(), extra_outputs=(), settings=(), subroutines=(),
+                 dist_safe=True, narg=0):
         if isinstance(inputs, str):
             inputs = (inputs,)
 
@@ -69,29 +73,29 @@ class VerosRoutine:
 
         self.function = function
         self.inputs = set(inputs)
-        self.this_inputs = set(inputs)
+        self.this_inputs = _deduplicate(inputs)
         self.outputs = set(outputs)
-        self.this_outputs = set(outputs)
-        self.extra_outputs = set(extra_outputs)
+        self.this_outputs = _deduplicate(outputs)
+        self.extra_outputs = _deduplicate(extra_outputs)
         self.settings = set(settings)
-        self.subroutines = set(subroutines)
+        self.subroutines = tuple(subroutines)
 
         for subroutine in subroutines:
             if not isinstance(subroutine, VerosRoutine):
                 raise TypeError('Subroutines must themselves be veros routines')
 
-            self.inputs |= subroutine.inputs
-            self.outputs |= subroutine.outputs
-            self.settings |= subroutine.settings
+            self.inputs |= set(subroutine.inputs)
+            self.outputs |= set(subroutine.outputs)
+            self.settings |= set(subroutine.settings)
+
+        self.inputs = _deduplicate(self.inputs)
+        self.outputs = _deduplicate(self.outputs)
+        self.settings = _deduplicate(self.settings)
 
         self.dist_safe = dist_safe
         self.narg = narg
 
         self.name = f'{inspect.getmodule(self.function).__name__}:{self.function.__name__}'
-
-        self.__call__ = functools.wraps(function)(
-            functools.partial(VerosRoutine.__call__, self=self)
-        )
 
     def __call__(self, *args, **kwargs):
         from veros import runtime_state as rst
@@ -136,22 +140,26 @@ class VerosRoutine:
                 if execute:
                     res = self.function(*newargs, **kwargs)
 
-                if res is None:
-                    res = {}
-                if not isinstance(res, dict):
-                    raise TypeError(f'Veros routines must return a single dict ({self.name})')
-                if set(res.keys()) != self.this_outputs:
-                    raise KeyError(
-                        f'Veros routine {self.name} returned unexpected outputs (expected: {sorted(self.this_outputs)}, got: {sorted(res.keys())})')
+                    if res is None:
+                        res = {}
 
-                for key, val in res.items():
-                    try:
-                        val.block_until_ready()
-                    except AttributeError:
-                        pass
+                    if not isinstance(res, dict):
+                        raise TypeError(f'Veros routines must return a single dict ({self.name})')
 
-                    if hasattr(func_state, key):
-                        setattr(func_state, key, val)
+                    if set(res.keys()) != set(self.this_outputs):
+                        raise KeyError(
+                            f'Veros routine {self.name} returned unexpected outputs '
+                            f'(expected: {sorted(self.this_outputs)}, got: {sorted(res.keys())})'
+                        )
+
+                    for key, val in res.items():
+                        try:
+                            val.block_until_ready()
+                        except AttributeError:
+                            pass
+
+                        if hasattr(func_state, key):
+                            setattr(func_state, key, val)
         except:  # noqa: F722
             if reset_dist_safe:
                 CONTEXT.is_dist_safe = True
@@ -159,7 +167,7 @@ class VerosRoutine:
         else:
             if reset_dist_safe:
                 CONTEXT.is_dist_safe = True
-                dist_state.scatter_arrays()
+                dist_state.scatter_arrays(self.outputs)
         finally:
             CONTEXT.stack_level -= 1
             logger.trace('<{} {} ({:.3f}s)', '-' * CONTEXT.stack_level, self.name, timer.get_last_time())
@@ -167,7 +175,10 @@ class VerosRoutine:
             assert r is self
             flush()
 
-        return veros_state
+    def __get__(self, instance, instancetype):
+        return functools.wraps(self.function)(
+            functools.partial(self.__call__, instance)
+        )
 
 
 def run_kernel(function, veros_state, **kwargs):
@@ -203,10 +214,10 @@ def run_kernel(function, veros_state, **kwargs):
             out = function(*func_args)
 
             if runtime_settings.profile_mode:
-                peel = False
+                squeeze = False
                 if not isinstance(out, tuple):
                     out = (out,)
-                    peel = True
+                    squeeze = True
 
                 for o in out:
                     try:
@@ -214,7 +225,7 @@ def run_kernel(function, veros_state, **kwargs):
                     except AttributeError:
                         pass
 
-                if peel:
+                if squeeze:
                     out = out[0]
     finally:
         CONTEXT.stack_level -= 1
@@ -263,23 +274,31 @@ def veros_kernel(function=None, static_args=()):
     return inner_decorator
 
 
-def dist_context_only(function):
-    @functools.wraps(function)
-    def dist_context_only_wrapper(*args, **kwargs):
-        # args are assumed to be () or (arr, ...)
-        from veros import runtime_state as rst
+def dist_context_only(*outer_args, noop_return_arg=None):
+    def decorator(function):
+        @functools.wraps(function)
+        def dist_context_only_wrapper(*args, **kwargs):
+            # args are assumed to be () or (arr, ...)
+            from veros import runtime_state as rst
 
-        if rst.proc_num == 1 or not CONTEXT.is_dist_safe:
-            # no-op for sequential execution
-            try:
+            if rst.proc_num == 1 or not CONTEXT.is_dist_safe:
+                # no-op for sequential execution
+                if noop_return_arg is None:
+                    return None
+
                 # return input array unchanged
-                return args[0]
-            except IndexError:
-                return
+                return args[noop_return_arg]
 
-        return function(*args, **kwargs)
+            return function(*args, **kwargs)
 
-    return dist_context_only_wrapper
+        return dist_context_only_wrapper
+
+    if outer_args and callable(outer_args[0]):
+        return decorator(outer_args[0])
+
+    return decorator
+
+
 
 
 def do_not_disturb(function):

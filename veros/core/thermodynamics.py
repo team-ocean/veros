@@ -182,8 +182,9 @@ def advect_temp_salt_enthalpy(temp, dtemp, salt, dsalt, u, v, w, nz, tau,
         fxb = np.sum(area_t[2:-2, 2:-2, np.newaxis] * dzw[np.newaxis, np.newaxis, :-1] * maskW[2:-2, 2:-2, :-1] * tke_mask) \
             + np.sum(0.5 * area_t[2:-2, 2:-2] * dzw[-1] * maskW[2:-2, 2:-2, -1])
 
-        fxa = global_sum(fxa)
-        fxb = global_sum(fxb)
+        # TODO: fix when mpi4jax supports scalars
+        fxa = global_sum(np.full(1, fxa))
+        fxb = global_sum(np.full(1, fxb))
 
         P_diss_adv = update(P_diss_adv, at[2:-2, 2:-2, :-1], fxa / fxb * tke_mask)
         P_diss_adv = update(P_diss_adv, at[2:-2, 2:-2, -1], fxa / fxb)

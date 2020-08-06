@@ -196,8 +196,8 @@ def isoneutral_diag_streamfunction(vs):
 
 @veros_routine(
     inputs=('dxt', 'dyt', 'dzt', 'cost'),
-    settings=('dt_tracer', 'enable_neutral_diffusion', 'K_iso_0', 'iso_slopec')
-    # dist_safe=False, local_variables=['dxt', 'dyt', 'dzt', 'cost']
+    settings=('dt_tracer', 'enable_neutral_diffusion', 'K_iso_0', 'iso_slopec'),
+    dist_safe=False,
 )
 def check_isoneutral_slope_crit(vs):
     """

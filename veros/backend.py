@@ -1,6 +1,8 @@
-from loguru import logger
-
 BACKENDS = None
+
+BACKEND_MESSAGES = {
+    'jax': 'Kernels are compiled during first iteration, be patient'
+}
 
 
 def init_environment():
@@ -21,6 +23,7 @@ def init_backends():
         import jax
     except ImportError:
         jax = None
+
     BACKENDS['jax'] = jax
 
 
@@ -38,10 +41,12 @@ def get_backend(backend_name):
     return BACKENDS[backend_name]
 
 
+# TODO: remove
 def get_vector_engine(np):
     from veros import runtime_settings
     return None
 
 
+# TODO: remove
 def flush():
     pass

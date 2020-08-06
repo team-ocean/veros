@@ -4,7 +4,7 @@ import numpy as onp
 import scipy.sparse
 import scipy.sparse.linalg as spalg
 
-from veros import distributed
+from veros import distributed, veros_routine, runtime_state as rst
 from veros.variables import allocate
 from veros.core import utilities
 from veros.core.operators import update, at
@@ -12,12 +12,15 @@ from veros.core.streamfunction.solvers.base import LinearSolver
 
 
 class SciPySolver(LinearSolver):
-    # @veros_method(dist_safe=False, local_variables=[
-    #     'hvr', 'hur',
-    #     'dxu', 'dxt', 'dyu', 'dyt',
-    #     'cosu', 'cost',
-    #     'boundary_mask'
-    # ])
+    @veros_routine(
+        inputs=(
+            'hvr', 'hur',
+            'dxu', 'dxt', 'dyu', 'dyt',
+            'cosu', 'cost',
+            'boundary_mask'
+        ),
+        dist_safe=False,
+    )
     def __init__(self, vs):
         self._matrix = self._assemble_poisson_matrix(vs)
         jacobi_precon = self._jacobi_preconditioner(vs, self._matrix)
@@ -29,11 +32,10 @@ class SciPySolver(LinearSolver):
         ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-6, fill_factor=100)
         self._extra_args['M'] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
 
-    # @veros_method(dist_safe=False, local_variables=['boundary_mask'])
-    def _scipy_solver(self, vs, rhs, sol, boundary_val):
-        sol = utilities.enforce_boundaries(sol, vs.enable_cyclic_x)
+    def _scipy_solver(self, vs, rhs, sol, boundary_mask, boundary_val):
+        sol = utilities.enforce_boundaries(sol, vs.enable_cyclic_x, local=True)
 
-        boundary_mask = np.prod(1 - vs.boundary_mask, axis=2)
+        boundary_mask = np.prod(1 - boundary_mask, axis=2)
         rhs = utilities.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
         rhs = onp.asarray(rhs.flatten()) * self._rhs_scale
@@ -49,9 +51,8 @@ class SciPySolver(LinearSolver):
         if info > 0:
             logger.warning('Streamfunction solver did not converge after {} iterations', info)
 
-        return np.asarray(linear_solution.reshape(vs.nx + 4, vs.ny + 4))
+        return np.asarray(linear_solution.reshape(sol.shape))
 
-    # @veros_method
     def solve(self, vs, rhs, sol, boundary_val=None):
         """
         Main solver for streamfunction. Solves a 2D Poisson equation. Uses scipy.sparse.linalg
@@ -62,19 +63,23 @@ class SciPySolver(LinearSolver):
             sol: Initial guess, gets overwritten with solution
             boundary_val: Array containing values to set on boundary elements. Defaults to `sol`.
         """
-        rhs_global = distributed.gather(rhs, ('xt', 'yt'))
-        sol_global = distributed.gather(sol, ('xt', 'yt'))
+        rhs_global = distributed.gather(vs.nx, vs.ny, rhs, ('xt', 'yt'))
+        sol_global = distributed.gather(vs.nx, vs.ny, sol, ('xt', 'yt'))
+        boundary_mask_global = distributed.gather(vs.nx, vs.ny, vs.boundary_mask, ('xt', 'yt'))
 
         if boundary_val is None:
             boundary_val = sol_global
         else:
-            boundary_val = distributed.gather(boundary_val, ('xt', 'yt'))
+            boundary_val = distributed.gather(vs.nx, vs.ny, boundary_val, ('xt', 'yt'))
 
-        linear_solution = self._scipy_solver(vs, rhs_global, sol_global, boundary_val=boundary_val)
-        return distributed.scatter(linear_solution, ('xt', 'yt'))
+        if rst.proc_rank == 0:
+            linear_solution = self._scipy_solver(vs, rhs_global, sol_global, boundary_mask=boundary_mask_global, boundary_val=boundary_val)
+        else:
+            linear_solution = np.empty_like(rhs)
+
+        return distributed.scatter(vs.nx, vs.ny, linear_solution, ('xt', 'yt'))
 
     @staticmethod
-    # @veros_method(dist_safe=False, local_variables=[])
     def _jacobi_preconditioner(vs, matrix):
         """
         Construct a simple Jacobi preconditioner
@@ -86,7 +91,6 @@ class SciPySolver(LinearSolver):
         return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
 
     @staticmethod
-    # @veros_method(dist_safe=False, local_variables=['boundary_mask'])
     def _assemble_poisson_matrix(vs):
         """
         Construct a sparse matrix based on the stencil for the 2D Poisson equation.

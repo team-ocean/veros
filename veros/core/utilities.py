@@ -4,28 +4,29 @@ from veros import veros_kernel
 from veros.core.operators import update, at
 
 
-@veros_kernel(static_args=('enable_cyclic_x'))
-def enforce_boundaries(arr, enable_cyclic_x, local=False):
-    if not enable_cyclic_x:
+# TODO: handle this in decorator
+@veros_kernel(static_args=('enable_cyclic_x', 'local'))
+def enforce_boundaries_kernel(arr, enable_cyclic_x, local):
+    from .. import runtime_settings as rs, runtime_state as rst
+    from ..distributed import exchange_cyclic_boundaries, exchange_overlap
+    from ..decorators import CONTEXT
+
+    if enable_cyclic_x:
+        if rs.num_proc[0] == 1 or not CONTEXT.is_dist_safe or local:
+            arr = update(arr, at[-2:, ...], arr[2:4, ...])
+            arr = update(arr, at[:2, ...], arr[-4:-2, ...])
+        else:
+            exchange_cyclic_boundaries(arr)
+
+    if local or rst.proc_num == 1:
         return arr
 
-    arr = update(arr, at[-2:, ...], arr[2:4, ...])
-    arr = update(arr, at[:2, ...], arr[-4:-2, ...])
+    exchange_overlap(arr, ['xt', 'yt'])
     return arr
-    # from ..distributed import exchange_cyclic_boundaries, exchange_overlap
-    # from ..decorators import CONTEXT
 
-    # if enable_cyclic_x:
-    #     if rs.num_proc[0] == 1 or not CONTEXT.is_dist_safe or local:
-    #         arr[-2:, ...] = arr[2:4, ...]
-    #         arr[:2, ...] = arr[-4:-2, ...]
-    #     else:
-    #         exchange_cyclic_boundaries(arr)
 
-    # if local or rst.proc_num == 1:
-    #     return
-
-    # exchange_overlap(arr, ['xt', 'yt'])
+def enforce_boundaries(arr, enable_cyclic_x, local=False):
+    return enforce_boundaries_kernel(arr, enable_cyclic_x, local)
 
 
 @veros_kernel

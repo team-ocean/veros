@@ -419,7 +419,7 @@ MAIN_VARIABLES = OrderedDict([
         'Streamfunction tendency', write_to_restart=True
     )),
     ('land_map', Variable(
-        'Land map', T_HOR, '', 'Land map'
+        'Land map', T_HOR, '', 'Land map', dtype='int32'
     )),
     ('isle', Variable(
         'Island number', ISLE, '', 'Island number', output=True

@@ -6,6 +6,14 @@ from loguru import logger
 
 def build_all():
     """Trigger first import of all core modules"""
+    from veros import runtime_settings as rs
+    from veros.backend import BACKEND_MESSAGES
+
+    logger.opt(colors=True).info('Using computational backend <bold>{}</bold>', rs.backend)
+    extra_message = BACKEND_MESSAGES.get(rs.backend)
+    if extra_message:
+        logger.info(' {}', extra_message)
+
     basedir = os.path.dirname(__file__)
 
     for root, dirs, files in os.walk(basedir):
@@ -26,3 +34,5 @@ def build_all():
                 importlib.import_module(module_path)
             except ImportError:
                 pass
+
+    # TODO: lock runtime settings

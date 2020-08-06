@@ -198,7 +198,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 setattr(vs, setting, value)
 
             settings.check_setting_conflicts(vs)
-            distributed.validate_decomposition(vs)
+            distributed.validate_decomposition(vs.nx, vs.ny)
             vs.allocate_variables()
 
             self.set_grid(vs)
@@ -387,7 +387,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                     profile_timings = ['', 'Profile timings:', '(total time spent)', '---']
                     maxwidth = max(len(k) for k in vs.profile_timers.keys())
                     profile_format_string = '{{:<{}}} = {{:.2f}}s ({{:.2f}}%)'.format(maxwidth)
-                    total_time = vs.profile_timers['all'].get_time()
+                    total_time = max(vs.profile_timers['all'].get_time(), 1e-8)  # prevent division by 0
                     for name, timer in vs.profile_timers.items():
                         this_time = timer.get_time()
                         profile_timings.append(profile_format_string.format(name, this_time, 100 * this_time / total_time))

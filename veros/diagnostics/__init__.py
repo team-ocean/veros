@@ -14,7 +14,7 @@ def create_default_diagnostics(vs):
 
 def sanity_check(vs):
     from ..distributed import global_and
-    return global_and(vs, np.all(np.isfinite(vs.u)))
+    return global_and(np.all(np.isfinite(vs.u)))
 
 
 def read_restart(vs):

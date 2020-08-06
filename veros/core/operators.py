@@ -98,4 +98,4 @@ elif runtime_settings.backend == 'jax':
     scan = jax.lax.scan
 
 else:
-    raise ValueError()
+    raise ValueError('Unrecognized backend {}'.format(runtime_settings.backend))

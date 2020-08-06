@@ -31,7 +31,9 @@ def set_tke_diffusivities(vs):
         E_iw = 0
 
     if vs.enable_tke:
-        (sqrttke, mxl, kappaM, kappaH, Prandtlnumber) = run_kernel(set_tke_diffusivities_kernel, vs, alpha_c=alpha_c, E_iw=E_iw)
+        (
+            sqrttke, mxl, kappaM, kappaH, Prandtlnumber
+        ) = run_kernel(set_tke_diffusivities_kernel, vs, alpha_c=alpha_c, E_iw=E_iw)
     else:
         kappaM = vs.kappaM_0 * np.ones_like(vs.kappaM)
         kappaH = vs.kappaH_0 * np.ones_like(vs.kappaH)
@@ -154,15 +156,15 @@ def integrate_tke(vs):
     'pyom_compatibility_mode'
 ))
 def integrate_tke_kernel(K_diss_v, P_diss_v, P_diss_adv, P_diss_nonlin, eke_diss_tke, iw_diss,
-                  eke_diss_iw, K_diss_bot, K_diss_gm, K_diss_h, P_diss_skew, P_diss_hmix,
-                  P_diss_iso, tke, dtke, sqrttke, mxl, kbot, kappaM, dt_mom, alpha_tke,
-                  c_eps, AB_eps, dxt, dxu, dyt, dyu, dzt, dzw, tau, taup1, taum1,
-                  dt_tracer, maskU, maskV, maskW, forc_tke_surface, tke_diss,
-                  tke_surf_corr, K_h_tke, cost, cosu, u_wgrid, v_wgrid, w_wgrid,
-                  enable_tke_hor_diffusion, enable_eke, enable_idemix,
-                  enable_store_cabbeling_heat, enable_tke_superbee_advection,
-                  enable_tke_upwind_advection, enable_store_bottom_friction_tke,
-                  pyom_compatibility_mode):
+                         eke_diss_iw, K_diss_bot, K_diss_gm, K_diss_h, P_diss_skew, P_diss_hmix,
+                         P_diss_iso, tke, dtke, sqrttke, mxl, kbot, kappaM, dt_mom, alpha_tke,
+                         c_eps, AB_eps, dxt, dxu, dyt, dyu, dzt, dzw, tau, taup1, taum1,
+                         dt_tracer, maskU, maskV, maskW, forc_tke_surface, tke_diss,
+                         tke_surf_corr, K_h_tke, cost, cosu, u_wgrid, v_wgrid, w_wgrid,
+                         enable_tke_hor_diffusion, enable_eke, enable_idemix,
+                         enable_store_cabbeling_heat, enable_tke_superbee_advection,
+                         enable_tke_upwind_advection, enable_store_bottom_friction_tke,
+                         pyom_compatibility_mode):
     """
     integrate Tke equation on W grid with surface flux boundary condition
     """

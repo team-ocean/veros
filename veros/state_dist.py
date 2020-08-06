@@ -17,29 +17,32 @@ class DistributedVerosState(VerosStateBase):
         """Gather given variables from parent state object"""
         from .distributed import gather
         for arr in arrays:
-            if not hasattr(self._vs, arr):
+            if not hasattr(self._vs, arr) or arr not in self._vs.variables:
+                logger.warning('Not gathering {}', arr)
                 continue
             self._gathered.add(arr)
             logger.trace(' Gathering {}', arr)
             gathered_arr = gather(
-                self._vs,
+                self._vs.nx, self._vs.ny,
                 getattr(self._vs, arr),
                 self._vs.variables[arr].dims
             )
             setattr(self, arr, gathered_arr)
 
-    def scatter_arrays(self):
+    def scatter_arrays(self, arrays):
         """Sync all changes with parent state object"""
         from .distributed import scatter
-        for arr in sorted(self._gathered):
-            if not hasattr(self._vs, arr):
-                continue
+        for arr in arrays:
             logger.trace(' Scattering {}', arr)
-            getattr(self._vs, arr)[...] = scatter(
-                self._vs,
+            if not hasattr(self._vs, arr):
+                logger.warning('Not scattering {}', arr)
+                continue
+            # TODO: check whether dtype is as expected
+            setattr(self._vs, arr, scatter(
+                self._vs.nx, self._vs.ny,
                 getattr(self, arr),
                 self._vs.variables[arr].dims
-            )
+            ))
 
     def __getattribute__(self, attr):
         if attr in ('_vs', '_gathered', 'gather_arrays', 'scatter_arrays'):

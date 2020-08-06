@@ -445,8 +445,7 @@ def biharmonic_friction(du_mix, dv_mix, K_diss_h, A_hbi, u, v, tau, area_v, area
             - 0.5 * ((u[1:-2, 3:-1, :, tau] - u[1:-2, 2:-2, :, tau]) * flux_north[1:-2, 2:-2, :]
                      + (u[1:-2, 2:-2, :, tau] - u[1:-2, 1:-3, :, tau]) * flux_north[1:-2, 1:-3, :]) \
             / (cost[np.newaxis, 2:-2, np.newaxis] * dyt[np.newaxis, 2:-2, np.newaxis]))
-        K_diss_h = update(K_diss_h, at[...], 0.)
-        K_diss_h = update_add(K_diss_h, at[...], numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu))
+        K_diss_h = numerics.calc_diss_u(diss, kbot, nz, dzw, dxt, dxu)
 
     """
     Meridional velocity

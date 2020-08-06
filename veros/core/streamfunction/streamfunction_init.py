@@ -5,6 +5,7 @@ from veros import (
     veros_kernel, veros_routine, run_kernel,
     runtime_settings as rs, runtime_state as rst
 )
+from veros.distributed import global_max
 from veros.core import utilities as mainutils
 from veros.core.operators import update, at
 from veros.core.streamfunction import island, utilities
@@ -77,7 +78,8 @@ def streamfunction_init(vs):
     logger.info('Initializing streamfunction method')
 
     get_isleperim(vs)
-    nisle = np.max(vs.land_map)
+    # TODO: support scalar variables so this can be computed in get_isleperim
+    nisle = int(global_max(np.max(vs.land_map)))
 
     (boundary_mask, line_dir_east_mask, line_dir_west_mask, line_dir_south_mask,
      line_dir_north_mask) = run_kernel(boundary_masks, vs, nisle=nisle)
@@ -88,8 +90,10 @@ def streamfunction_init(vs):
     """
     precalculate time independent boundary components of streamfunction
     """
-    forc = np.zeros((vs.nx + 4, vs.ny + 4), dtype=vs.default_float_type)
-    psin = np.zeros((vs.nx + 4, vs.ny + 4, nisle), dtype=vs.default_float_type)
+    # TODO: replace with allocate
+    nx, ny = vs.land_map.shape
+    forc = np.zeros((nx, ny), dtype=vs.default_float_type)
+    psin = np.zeros((nx, ny, nisle), dtype=vs.default_float_type)
     dpsin = np.zeros((nisle, 3), dtype=vs.default_float_type)
 
     psin = update(psin, at[...], vs.maskZ[..., -1, np.newaxis])
@@ -124,8 +128,9 @@ def island_integrals(nx, ny, nisle, default_float_type, maskU, maskV, dxt, dyt, 
     """
     precalculate time independent island integrals
     """
-    fpx = np.zeros((nx + 4, ny + 4, nisle), dtype=default_float_type)
-    fpy = np.zeros((nx + 4, ny + 4, nisle), dtype=default_float_type)
+    nx, ny, nisle = psin.shape
+    fpx = np.zeros((nx, ny, nisle), dtype=default_float_type)
+    fpy = np.zeros((nx, ny, nisle), dtype=default_float_type)
 
     fpx = update(fpx, at[1:, 1:, :], -maskU[1:, 1:, -1, np.newaxis] \
         * (psin[1:, 1:, :] - psin[1:, :-1, :]) \
@@ -143,16 +148,18 @@ def island_integrals(nx, ny, nisle, default_float_type, maskU, maskV, dxt, dyt, 
     return line_psin
 
 
-@veros_kernel(static_args=('enable_cyclic_x', 'nx', 'ny', 'nisle'))
-def boundary_masks(land_map, nx, ny, nisle, enable_cyclic_x):
+@veros_kernel(static_args=('enable_cyclic_x', 'nisle'))
+def boundary_masks(land_map, nisle, enable_cyclic_x):
     """
     now that the number of islands is known we can allocate the rest of the variables
     """
-    boundary_mask = np.zeros((nx + 4, ny + 4, nisle), dtype='bool')
-    line_dir_south_mask = np.zeros((nx + 4, ny + 4, nisle), dtype='bool')
-    line_dir_north_mask = np.zeros((nx + 4, ny + 4, nisle), dtype='bool')
-    line_dir_east_mask = np.zeros((nx + 4, ny + 4, nisle), dtype='bool')
-    line_dir_west_mask = np.zeros((nx + 4, ny + 4, nisle), dtype='bool')
+    # TODO: re-introduce allocate function
+    nx, ny = land_map.shape
+    boundary_mask = np.zeros((nx, ny, nisle), dtype='bool')
+    line_dir_south_mask = np.zeros((nx, ny, nisle), dtype='bool')
+    line_dir_north_mask = np.zeros((nx, ny, nisle), dtype='bool')
+    line_dir_east_mask = np.zeros((nx, ny, nisle), dtype='bool')
+    line_dir_west_mask = np.zeros((nx, ny, nisle), dtype='bool')
 
     for isle in range(nisle):
         boundary_map = land_map == (isle + 1)

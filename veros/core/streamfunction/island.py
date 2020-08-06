@@ -10,7 +10,7 @@ import numpy as onp
 def isleperim(kmt, enable_cyclic_x, verbose=False):
     kmt = utilities.enforce_boundaries(kmt, enable_cyclic_x)
 
-    structure = np.ones((3, 3))  # merge diagonally connected land masses
+    structure = onp.ones((3, 3))  # merge diagonally connected land masses
 
     # find all land masses
     labelled, _ = scipy.ndimage.label(kmt == 0, structure=structure)
@@ -19,7 +19,7 @@ def isleperim(kmt, enable_cyclic_x, verbose=False):
     land_masses = labelled > 0
     inner = scipy.ndimage.binary_dilation(land_masses, structure=structure)
 
-    perimeter = np.logical_xor(inner, land_masses)
+    perimeter = onp.logical_xor(inner, land_masses)
     labelled[perimeter] = -1
 
     # match wrapping periodic land masses
@@ -44,7 +44,7 @@ def isleperim(kmt, enable_cyclic_x, verbose=False):
     label_idx = {}
     for label in labels:
         # find index of first island cell, scanning west to east, north to south
-        label_idx[label] = np.argmax(labelled[:, ::-1].T == label)
+        label_idx[label] = onp.argmax(labelled[:, ::-1].T == label)
 
     sorted_labels = list(sorted(labels, key=lambda i: label_idx[i]))
 

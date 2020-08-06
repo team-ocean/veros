@@ -116,7 +116,7 @@ def calc_grid_kernel(dxt, dxu, dyt, dyu,
         'dzt', 'dzw', 'zt', 'zw',
         'x_origin', 'y_origin',
         'cost', 'cosu', 'tantr',
-        'pi', 'radius', 'degtom'
+        'pi', 'radius', 'degtom',
         'area_t', 'area_u', 'area_v',
     ),
     outputs=(
