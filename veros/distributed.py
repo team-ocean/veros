@@ -32,6 +32,27 @@ def recv(buf, source, comm, tag=None):
     return buf
 
 
+def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None):
+    kwargs = {}
+
+    if send is not None:
+        kwargs.update(sendtag=sendtag)
+
+    if recvtag is not None:
+        kwargs.update(recvtag=recvtag)
+
+    if rs.backend == 'jax':
+        from mpi4jax import Sendrecv
+        return Sendrecv(sendbuf, recvbuf, source=source, dest=dest, comm=comm, **kwargs)
+
+    comm.Sendrecv(
+        sendbuf=ascontiguousarray(sendbuf), recvbuf=recvbuf,
+        source=source, dest=dest,
+        **kwargs
+    )
+    return recvbuf
+
+
 def allreduce(buf, op, comm):
     if rs.backend == 'jax':
         from mpi4jax import Allreduce
@@ -231,28 +252,18 @@ def exchange_overlap(arr, var_grid):
         if other_proc is None:
             continue
 
-        if rst.proc_rank > other_proc:
-            # receive first
-            i_r = send_to_recv[i_s]
-            recv_idx = overlap_slices_to[i_s]
-            recv_arr = np.empty_like(arr[recv_idx])
+        i_r = send_to_recv[i_s]
+        recv_idx = overlap_slices_to[i_s]
+        recv_arr = np.empty_like(arr[recv_idx])
+        send_idx = overlap_slices_from[i_s]
+        send_arr = arr[send_idx]
 
-            recv_arr = recv(recv_arr, source=other_proc, tag=i_r, comm=rs.mpi_comm)
-            arr = update(arr, at[recv_idx], recv_arr)
-
-            send_idx = overlap_slices_from[i_s]
-            send(arr[send_idx], dest=other_proc, tag=i_s, comm=rs.mpi_comm)
-        else:
-            # send first
-            send_idx = overlap_slices_from[i_s]
-            send(arr[send_idx], dest=other_proc, tag=i_s, comm=rs.mpi_comm)
-
-            i_r = send_to_recv[i_s]
-            recv_idx = overlap_slices_to[i_s]
-            recv_arr = np.empty_like(arr[recv_idx])
-
-            recv_arr = recv(recv_arr, source=other_proc, tag=i_r, comm=rs.mpi_comm)
-            arr = update(arr, at[recv_idx], recv_arr)
+        recv_arr = sendrecv(
+            send_arr, recv_arr,
+            source=other_proc, dest=other_proc,
+            sendtag=i_s, recvtag=i_r, comm=rs.mpi_comm
+        )
+        arr = update(arr, at[recv_idx], recv_arr)
 
     return arr
 
@@ -283,18 +294,12 @@ def exchange_cyclic_boundaries(arr):
     recv_arr = np.empty_like(arr[recv_idx])
     send_arr = arr[send_idx]
 
-    # TODO: replace with sendrecv
-    if ix == 0:
-        # send, then receive
-        send(send_arr, dest=other_proc, tag=10, comm=rs.mpi_comm)
-        recv_arr = recv(recv_arr, source=other_proc, tag=10, comm=rs.mpi_comm)
-        arr = update(arr, at[recv_idx], recv_arr)
-    else:
-        # receive, then send
-        recv_arr = recv(recv_arr, source=other_proc, tag=10, comm=rs.mpi_comm)
-        arr = update(arr, at[recv_idx], recv_arr)
-        send(send_arr, dest=other_proc, tag=10, comm=rs.mpi_comm)
-
+    recv_arr = sendrecv(
+        send_arr, recv_arr,
+        source=other_proc, dest=other_proc,
+        sendtag=10, recvtag=10, comm=rs.mpi_comm
+    )
+    arr = update(arr, at[recv_idx], recv_arr)
     return arr
 
 
