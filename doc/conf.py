@@ -41,7 +41,6 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
-    'sphinxcontrib.programoutput',
     'sphinx_fontawesome',
 ]
 
@@ -59,7 +58,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Veros'
-copyright = u'2017-2019, The Veros Team, NBI Copenhagen'
+copyright = u'2017-2020, The Veros Team, NBI Copenhagen'
 author = u'The Veros Team, NBI Copenhagen'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -112,7 +111,7 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = []
 
 
 # -- Options for HTMLHelp output ------------------------------------------
@@ -174,6 +173,7 @@ texinfo_documents = [
 # -- Options for autodoc --------------------------------------------------
 autodoc_member_order = "bysource"
 autodoc_default_options = {"show-inheritance": None}
+autodoc_mock_imports = ["loguru", "numpy", "h5netcdf", "scipy", "ruamel"]
 
 # -- Options for intersphinx ----------------------------------------------
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
@@ -187,9 +187,8 @@ try:
 except ImportError:
     from io import StringIO
 
-# from sphinx.util.compat import Directive
 from docutils import nodes, statemachine
-from docutils.parsers.rst import Directive
+from docutils.parsers.rst import Directive, directives
 
 
 class ExecDirective(Directive):
@@ -197,7 +196,7 @@ class ExecDirective(Directive):
     has_content = True
 
     def run(self):
-        oldStdout, sys.stdout = sys.stdout, StringIO()
+        old_stdout, sys.stdout = sys.stdout, StringIO()
 
         tab_width = self.options.get('tab-width', self.state.document.settings.tab_width)
         source = self.state_machine.input_lines.source(self.lineno - self.state_machine.input_offset - 1)
@@ -209,10 +208,58 @@ class ExecDirective(Directive):
             self.state_machine.insert_input(lines, source)
             return []
         except Exception:
-            return [nodes.error(None, nodes.paragraph(text="Unable to execute python code at %s:%d:" % (basename(source), self.lineno)), nodes.paragraph(text=str(sys.exc_info()[1])))]
+            warn_text = "Unable to execute python code at %s:%d" % (basename(source), self.lineno)
+            warning = self.state_machine.reporter.warning(warn_text)
+            return [warning, nodes.error(None, nodes.paragraph(text=warn_text), nodes.paragraph(text=str(sys.exc_info()[1])))]
         finally:
-            sys.stdout = oldStdout
+            sys.stdout = old_stdout
+
+
+class ClickDirective(Directive):
+    """Execute the specified click command and insert the output into the document"""
+    required_arguments = 1
+    optional_arguments = 0
+    option_spec = {
+        'args': directives.unchanged
+    }
+    has_content = False
+
+    def run(self):
+        import importlib
+        import shlex
+        from click.testing import CliRunner
+
+        arg = self.arguments[0]
+        options = shlex.split(self.options.get('args', ''))
+
+        try:
+            modname, funcname = arg.split(':')
+        except ValueError:
+            raise self.error('run-click argument must be "module:function"')
+
+        try:
+            mod = importlib.import_module(modname)
+            func = getattr(mod, funcname)
+
+            runner = CliRunner()
+            with runner.isolated_filesystem():
+                result = runner.invoke(func, options)
+
+            text = result.output
+
+            if result.exit_code != 0:
+                raise RuntimeError('Command exited with non-zero exit code; output: "%s"' % text)
+
+            node = nodes.literal_block(text=text)
+            node['language'] = 'text'
+            return [node]
+
+        except Exception:
+            warn_text = "Error while running command %s %s" % (arg, ' '.join(map(shlex.quote, options)))
+            warning = self.state_machine.reporter.warning(warn_text)
+            return [warning, nodes.error(None, nodes.paragraph(text=warn_text), nodes.paragraph(text=str(sys.exc_info()[1])))]
 
 
 def setup(app):
     app.add_directive('exec', ExecDirective)
+    app.add_directive('run-click', ClickDirective)

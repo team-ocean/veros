@@ -4,6 +4,7 @@
 from setuptools import setup, find_packages
 from codecs import open
 import os
+import re
 
 import versioneer
 
@@ -25,26 +26,21 @@ Operating System :: Unix
 Operating System :: MacOS
 """
 
-INSTALL_REQUIRES = [
-    'click',
-    'entrypoints',
-    'requests>=2.18',
-    'numpy>=1.13',
-    'scipy',
-    'h5netcdf',
-    'h5py',
-    'pillow',
-    'ruamel.yaml',
-    'loguru',
-    'tqdm',
-]
+MINIMUM_VERSIONS = {
+    'numpy': '1.13',
+    'requests': '2.18',
+}
 
 EXTRAS_REQUIRE = {
-    'fast': ['pyamg'],
-    'mpi': ['mpi4py', 'petsc4py'],
-    'test': ['pytest', 'pytest-cov', 'pytest-xdist', 'codecov', 'pyopencl', 'pyamg', 'petsc4py', 'mpi4py']
+    'test': [
+        'pytest',
+        'pytest-cov',
+        'pytest-xdist',
+        'codecov',
+        'petsc4py',
+        'mpi4py'
+    ]
 }
-EXTRAS_REQUIRE['all'] = sorted(set(sum(EXTRAS_REQUIRE.values(), [])))
 
 CONSOLE_SCRIPTS = [
     'veros = veros.cli.veros:cli',
@@ -57,8 +53,19 @@ CONSOLE_SCRIPTS = [
 PACKAGE_DATA = ['setup/*/assets.yml', 'setup/*/*.npy', 'setup/*/*.png']
 
 here = os.path.abspath(os.path.dirname(__file__))
+
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
+
+install_requires = []
+with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
+    for line in f:
+        line = line.strip()
+        pkg = re.match(r'(\w+)\b.*', line).group(1)
+        if pkg in MINIMUM_VERSIONS:
+            line = ''.join([line, ',>=', MINIMUM_VERSIONS[pkg]])
+        line = line.replace('==', '<=')
+        install_requires.append(line)
 
 setup(
     name='veros',
@@ -75,7 +82,7 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
-    install_requires=INSTALL_REQUIRES,
+    install_requires=install_requires,
     extras_require=EXTRAS_REQUIRE,
     entry_points={
         'console_scripts': CONSOLE_SCRIPTS,

@@ -2,7 +2,7 @@ import importlib.util
 
 from loguru import logger
 
-from . import veros, settings, runtime_settings
+from . import veros, settings, runtime_settings, runtime_state
 
 
 def _load_fortran_module(module, path):
@@ -77,14 +77,17 @@ class VerosLegacy(veros.VerosSetup):
         if self.use_mpi and self.mpi_comm.Get_rank() != 0:
             kwargs['loglevel'] = 'critical'
 
-    def set_legacy_parameter(self, *args, **kwargs):
+    def set_legacy_parameter(self):
         m = self.fortran.main_module
-        if self.use_mpi:
-            m.n_pes_i, m.n_pes_j = runtime_settings.num_proc
-        self.if2py = lambda i: i + m.onx - m.is_pe
-        self.jf2py = lambda j: j + m.onx - m.js_pe
-        self.ip2fy = lambda i: i + m.is_pe - m.onx
-        self.jp2fy = lambda j: j + m.js_pe - m.onx
+        m.n_pes_i, m.n_pes_j = runtime_settings.num_proc
+
+        # define processor boundary idx (1-based)
+        ipx, ipy = runtime_state.proc_idx
+        m.is_pe = (m.nx // m.n_pes_i) * ipx + 1
+        m.ie_pe = (m.nx // m.n_pes_i) * (ipx + 1)
+        m.js_pe = (m.ny // m.n_pes_j) * ipy + 1
+        m.je_pe = (m.ny // m.n_pes_j) * (ipy + 1)
+
         self.get_tau = lambda: m.tau - 1 if self.legacy_mode else m.tau
 
         # force settings that are not supported by Veros
@@ -109,8 +112,8 @@ class VerosLegacy(veros.VerosSetup):
                 else:
                     self.fortran.my_mpi_init(0)
                 self.set_parameter(vs)
-                self.set_legacy_parameter()
                 self._set_commandline_settings()
+                self.set_legacy_parameter()
                 self.fortran.pe_decomposition()
                 self.fortran.allocate_main_module()
                 self.fortran.allocate_isoneutral_module()
@@ -133,6 +136,7 @@ class VerosLegacy(veros.VerosSetup):
             else:
                 # self.set_parameter() is called twice, but that shouldn't matter
                 self.set_parameter(vs)
+                self._set_commandline_settings()
                 self.set_legacy_parameter()
                 super(VerosLegacy, self).setup(*args, **kwargs)
 

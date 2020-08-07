@@ -1,3 +1,6 @@
+import os
+
+
 def _default_mpi_comm():
     try:
         from mpi4py import MPI
@@ -18,14 +21,22 @@ def loglevel(v):
     return v
 
 
+def parse_bool(obj):
+    if not isinstance(obj, str):
+        return bool(obj)
+
+    return obj.lower() in {'1', 'true'}
+
+
 AVAILABLE_SETTINGS = (
     # (name, type, default)
-    ('backend', str, 'numpy'),
-    ('linear_solver', str, 'best'),
+    ('backend', str, os.environ.get('VEROS_BACKEND', 'numpy')),
+    ('linear_solver', str, os.environ.get('VEROS_LINEAR_SOLVER', 'best')),
     ('num_proc', twoints, (1, 1)),
-    ('profile_mode', bool, False),
-    ('loglevel', loglevel, 'info'),
-    ('mpi_comm', None, _default_mpi_comm())
+    ('profile_mode', parse_bool, os.environ.get('VEROS_PROFILE_MODE', '')),
+    ('loglevel', loglevel, os.environ.get('VEROS_LOGLEVEL', 'info')),
+    ('mpi_comm', None, _default_mpi_comm()),
+    ('log_all_processes', parse_bool, os.environ.get('VEROS_LOG_ALL_PROCESSES', ''))
 )
 
 

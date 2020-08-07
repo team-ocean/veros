@@ -17,10 +17,15 @@ class SciPySolver(LinearSolver):
     #     'boundary_mask'
     # ])
     def __init__(self, vs):
-        self._extra_args = {}
         self._matrix = self._assemble_poisson_matrix(vs)
-        self._preconditioner = self._jacobi_preconditioner(vs, self._matrix)
-        self._matrix = self._preconditioner * self._matrix
+        jacobi_precon = self._jacobi_preconditioner(vs, self._matrix)
+        self._matrix = jacobi_precon * self._matrix
+        self._rhs_scale = jacobi_precon.diagonal()
+        self._extra_args = {}
+
+        logger.info('Computing ILU preconditioner...')
+        ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-6, fill_factor=100)
+        self._extra_args['M'] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
 
     # @veros_method(dist_safe=False, local_variables=['boundary_mask'])
     def _scipy_solver(self, vs, rhs, sol, boundary_val):
@@ -110,9 +115,12 @@ class SciPySolver(LinearSolver):
             west_diag[2, 2:-2] = 0.
             east_diag[-3, 2:-2] = 0.
 
+        main_diag *= boundary_mask
+        main_diag[main_diag == 0.] = 1.
+
         # construct sparse matrix
         cf = tuple(diag.flatten() for diag in (
-            boundary_mask * main_diag + (1 - boundary_mask),
+            main_diag,
             boundary_mask * east_diag,
             boundary_mask * west_diag,
             boundary_mask * north_diag,

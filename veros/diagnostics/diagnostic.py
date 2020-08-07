@@ -46,11 +46,16 @@ class VerosDiagnostic:
     def initialize_output(self, vs, variables, var_data=None, extra_dimensions=None):
         if vs.diskless_mode or (not self.output_frequency and not self.sampling_frequency):
             return
+
         output_path = self.get_output_file_name(vs)
         if os.path.isfile(output_path) and not vs.force_overwrite:
             raise IOError('output file {} for diagnostic "{}" exists '
                           '(change output path or enable force_overwrite setting)'
                           .format(output_path, self.name))
+
+        # possible race condition!
+        distributed.barrier()
+
         with nctools.threaded_io(vs, output_path, 'w') as outfile:
             nctools.initialize_file(vs, outfile)
             if extra_dimensions:
@@ -123,7 +128,7 @@ class VerosDiagnostic:
             if vs.enable_hdf5_gzip_compression and runtime_state.proc_num == 1:
                 kwargs.update(
                     compression='gzip',
-                    compression_opts=9
+                    compression_opts=1
                 )
             group.require_dataset(key, global_shape, var.dtype, **kwargs)
             group[key][gidx] = var[lidx]

@@ -32,7 +32,9 @@ class StreamfunctionBenchmark(VerosLegacy):
     def set_grid(self, vs):
         m = self.main_module
         m.dxt[:] = 80.0 / m.nx
-        m.dyt[:] = 80.0 / m.ny
+        m.dyt[2:-2] = tools.get_vinokur_grid_steps(
+            m.ny, 80., 0.66 * 80. / m.ny, two_sided_grid=True
+        )[m.js_pe-1:m.je_pe]
         m.dzt[:] = 5000. / m.nz
         m.x_origin = 0.0
         m.y_origin = -40.0
@@ -46,7 +48,16 @@ class StreamfunctionBenchmark(VerosLegacy):
     def set_topography(self, vs):
         m = self.main_module
         (X, Y) = np.meshgrid(m.xt, m.yt, indexing="ij")
-        m.kbot[...] = (X > 1.0) | (Y < -20)
+        bottom_slope = np.linspace(m.nz - 1, 1, m.nx)[m.is_pe-1:m.ie_pe]
+        m.kbot[2:-2] = bottom_slope.reshape(-1, 1).astype('int')
+        m.kbot[...] *= (X > 1.0) | (Y < -20)
+
+        island_mask = np.ones((m.nx + 4, m.ny + 4), dtype='int')
+        island_width = m.nx // 5
+        island_start = 2 * m.nx // 5
+        island_end = island_start + island_width
+        island_mask[island_start:island_end, island_start:island_end] = 0
+        m.kbot[2:-2, 2:-2] *= island_mask[m.is_pe-1:m.ie_pe, m.js_pe-1:m.je_pe]
 
     @veros_method
     def set_initial_conditions(self, vs):
