@@ -1,7 +1,11 @@
 from veros import runtime_settings, veros_kernel
 
+from loguru import logger
+
 
 class Index:
+    __slots__ = ()
+
     @staticmethod
     def __getitem__(key):
         return key
@@ -46,29 +50,36 @@ def scan_numpy(f, init, xs, length=None):
 
 @veros_kernel
 def solve_tridiagonal_jax(a, b, c, d):
-    import jax.numpy as np
+    try:
+        from veros.core.special.tdma import tdma
+    except ImportError:
+        logger.warning('Could not import custom TDMA implementation, falling back to pure JAX')
+    else:
+        return tdma(a, b, c, d)
+
     import jax.lax
+    import jax.numpy as jnp
 
     def compute_primes(last_primes, x):
         last_cp, last_dp = last_primes
         a, b, c, d = x
         cp = c / (b - a * last_cp)
         dp = (d - a * last_dp) / (b - a * last_cp)
-        new_primes = np.stack((cp, dp))
+        new_primes = jnp.stack((cp, dp))
         return new_primes, new_primes
 
-    diags_stacked = np.stack(
+    diags_stacked = jnp.stack(
         [arr.transpose((2, 0, 1)) for arr in (a, b, c, d)],
         axis=1
     )
-    _, primes = jax.lax.scan(compute_primes, np.zeros((2, *a.shape[:-1])), diags_stacked)
+    _, primes = jax.lax.scan(compute_primes, jnp.zeros((2, *a.shape[:-1]), dtype=a.dtype), diags_stacked)
 
     def backsubstitution(last_x, x):
         cp, dp = x
         new_x = dp - cp * last_x
         return new_x, new_x
 
-    _, sol = jax.lax.scan(backsubstitution, np.zeros(a.shape[:-1]), primes[::-1])
+    _, sol = jax.lax.scan(backsubstitution, jnp.zeros(a.shape[:-1], dtype=a.dtype), primes[::-1])
     return sol[::-1].transpose((1, 2, 0))
 
 

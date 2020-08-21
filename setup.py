@@ -2,6 +2,8 @@
 # coding=utf-8
 
 from setuptools import setup, find_packages
+from setuptools.extension import Extension
+
 from codecs import open
 import os
 import re
@@ -57,7 +59,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-install_requires = []
+INSTALL_REQUIRES = []
 with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
     for line in f:
         line = line.strip()
@@ -65,7 +67,22 @@ with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
         if pkg in MINIMUM_VERSIONS:
             line = ''.join([line, ',>=', MINIMUM_VERSIONS[pkg]])
         line = line.replace('==', '<=')
-        install_requires.append(line)
+        INSTALL_REQUIRES.append(line)
+
+EXT_MODULES = []
+for f in os.listdir(os.path.join(here, 'veros', 'core', 'special')):
+    if not f.endswith('.pyx'):
+        continue
+
+    modname = f[:-4]
+    EXT_MODULES.append(
+        Extension(
+            name='veros.core.special.{}'.format(modname),
+            sources=['veros/core/special/{}.pyx'.format(modname)],
+            language='c',
+            optional=True
+        )
+    )
 
 setup(
     name='veros',
@@ -82,8 +99,9 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
-    install_requires=install_requires,
+    install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS_REQUIRE,
+    ext_modules=EXT_MODULES,
     entry_points={
         'console_scripts': CONSOLE_SCRIPTS,
         'veros.setup_dirs': [
