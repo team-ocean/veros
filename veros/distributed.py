@@ -7,35 +7,36 @@ SCATTERED_DIMENSIONS = (
 )
 
 
-def send(buf, dest, comm, tag=None):
+def send(buf, dest, comm, tag=None, token=None):
     kwargs = {}
     if tag is not None:
         kwargs.update(tag=tag)
 
     if rs.backend == 'jax':
         from mpi4jax import Send
-        return Send(buf, dest=dest, comm=comm, **kwargs)
+        return Send(buf, dest=dest, comm=comm, token=token, **kwargs)
 
-    return comm.Send(ascontiguousarray(buf), dest=dest, **kwargs)
+    comm.Send(ascontiguousarray(buf), dest=dest, **kwargs)
+    return None
 
 
-def recv(buf, source, comm, tag=None):
+def recv(buf, source, comm, tag=None, token=None):
     kwargs = {}
     if tag is not None:
         kwargs.update(tag=tag)
 
     if rs.backend == 'jax':
         from mpi4jax import Recv
-        return Recv(buf, source=source, comm=comm, **kwargs)
+        return Recv(buf, source=source, comm=comm, token=token, **kwargs)
 
     comm.Recv(buf, source=source, **kwargs)
-    return buf
+    return buf, None
 
 
-def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None):
+def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None, token=None):
     kwargs = {}
 
-    if send is not None:
+    if sendtag is not None:
         kwargs.update(sendtag=sendtag)
 
     if recvtag is not None:
@@ -43,25 +44,25 @@ def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None):
 
     if rs.backend == 'jax':
         from mpi4jax import Sendrecv
-        return Sendrecv(sendbuf, recvbuf, source=source, dest=dest, comm=comm, **kwargs)
+        return Sendrecv(sendbuf, recvbuf, source=source, dest=dest, comm=comm, token=token, **kwargs)
 
     comm.Sendrecv(
         sendbuf=ascontiguousarray(sendbuf), recvbuf=recvbuf,
         source=source, dest=dest,
         **kwargs
     )
-    return recvbuf
+    return recvbuf, None
 
 
-def allreduce(buf, op, comm):
+def allreduce(buf, op, comm, token=None):
     if rs.backend == 'jax':
         from mpi4jax import Allreduce
-        return Allreduce(buf, op=op, comm=comm)
+        return Allreduce(buf, op=op, comm=comm, token=token)
 
     from veros.core.operators import numpy as np
     recvbuf = np.empty_like(buf)
     comm.Allreduce(ascontiguousarray(buf), recvbuf, op=op)
-    return recvbuf
+    return recvbuf, None
 
 
 def ascontiguousarray(arr):
@@ -160,36 +161,74 @@ def get_chunk_slices(nx, ny, dim_grid, proc_idx=None, include_overlap=False):
     return tuple(global_slice), tuple(local_slice)
 
 
-def get_process_neighbors():
+def get_process_neighbors(cyclic=False):
     this_x, this_y = proc_rank_to_index(rst.proc_rank)
 
-    west = this_x - 1 if this_x > 0 else None
-    south = this_y - 1 if this_y > 0 else None
-    east = this_x + 1 if (this_x + 1) < rs.num_proc[0] else None
-    north = this_y + 1 if (this_y + 1) < rs.num_proc[1] else None
+    if this_x == 0:
+        if cyclic:
+            west = rs.num_proc[0] - 1
+        else:
+            west = None
+    else:
+        west = this_x - 1
 
-    neighbors = [
+    if this_x == rs.num_proc[0] - 1:
+        if cyclic:
+            east = 0
+        else:
+            east = None
+    else:
+        east = this_x + 1
+
+    south = this_y - 1 if this_y != 0 else None
+    north = this_y + 1 if this_y != (rs.num_proc[1] - 1) else None
+
+    neighbors = dict(
         # direct neighbors
-        (west, this_y),
-        (this_x, south),
-        (east, this_y),
-        (this_x, north),
+        west=(west, this_y),
+        south=(this_x, south),
+        east=(east, this_y),
+        north=(this_x, north),
         # corners
-        (west, south),
-        (east, south),
-        (east, north),
-        (west, north),
-    ]
+        southwest=(west, south),
+        southeast=(east, south),
+        northeast=(east, north),
+        northwest=(west, north),
+    )
 
-    global_neighbors = [
-        proc_index_to_rank(*i) if None not in i else None for i in neighbors
-    ]
+    global_neighbors = {
+        k: proc_index_to_rank(*i) if None not in i else None for k, i in neighbors.items()
+    }
     return global_neighbors
 
 
 @dist_context_only
-def exchange_overlap(arr, var_grid):
+def exchange_overlap(arr, var_grid, cyclic):
     from veros.core.operators import numpy as np, update, at
+
+    # start west, go clockwise
+    send_order = (
+        'west',
+        'northwest',
+        'north',
+        'northeast',
+        'east',
+        'southeast',
+        'south',
+        'southwest',
+    )
+
+    # start east, go clockwise
+    recv_order = (
+        'east',
+        'southeast',
+        'south',
+        'southwest',
+        'west',
+        'northwest',
+        'north',
+        'northeast',
+    )
 
     if len(var_grid) < 2:
         d1, d2 = var_grid[0], None
@@ -200,106 +239,83 @@ def exchange_overlap(arr, var_grid):
         # neither x nor y dependent, nothing to do
         return arr
 
+    proc_neighbors = get_process_neighbors(cyclic)
+
     if d1 in SCATTERED_DIMENSIONS[0] and d2 in SCATTERED_DIMENSIONS[1]:
-        proc_neighbors = get_process_neighbors()
-
-        overlap_slices_from = (
-            (slice(2, 4), slice(0, None), Ellipsis), # west
-            (slice(0, None), slice(2, 4), Ellipsis), # south
-            (slice(-4, -2), slice(0, None), Ellipsis), # east
-            (slice(0, None), slice(-4, -2), Ellipsis), # north
-            (slice(2, 4), slice(2, 4), Ellipsis), # south-west
-            (slice(-4, -2), slice(2, 4), Ellipsis), # south-east
-            (slice(-4, -2), slice(-4, -2), Ellipsis), # north-east
-            (slice(2, 4), slice(-4, -2), Ellipsis), # north-west
+        overlap_slices_from = dict(
+            west=(slice(2, 4), slice(0, None), Ellipsis),
+            south=(slice(0, None), slice(2, 4), Ellipsis),
+            east=(slice(-4, -2), slice(0, None), Ellipsis),
+            north=(slice(0, None), slice(-4, -2), Ellipsis),
+            southwest=(slice(2, 4), slice(2, 4), Ellipsis),
+            southeast=(slice(-4, -2), slice(2, 4), Ellipsis),
+            northeast=(slice(-4, -2), slice(-4, -2), Ellipsis),
+            northwest=(slice(2, 4), slice(-4, -2), Ellipsis),
         )
 
-        overlap_slices_to = (
-            (slice(0, 2), slice(0, None), Ellipsis), # west
-            (slice(0, None), slice(0, 2), Ellipsis), # south
-            (slice(-2, None), slice(0, None), Ellipsis), # east
-            (slice(0, None), slice(-2, None), Ellipsis), # north
-            (slice(0, 2), slice(0, 2), Ellipsis), # south-west
-            (slice(-2, None), slice(0, 2), Ellipsis), # south-east
-            (slice(-2, None), slice(-2, None), Ellipsis), # north-east
-            (slice(0, 2), slice(-2, None), Ellipsis), # north-west
+        overlap_slices_to = dict(
+            west=(slice(0, 2), slice(0, None), Ellipsis),
+            south=(slice(0, None), slice(0, 2), Ellipsis),
+            east=(slice(-2, None), slice(0, None), Ellipsis),
+            north=(slice(0, None), slice(-2, None), Ellipsis),
+            southwest=(slice(0, 2), slice(0, 2), Ellipsis),
+            southeast=(slice(-2, None), slice(0, 2), Ellipsis),
+            northeast=(slice(-2, None), slice(-2, None), Ellipsis),
+            northwest=(slice(0, 2), slice(-2, None), Ellipsis),
         )
-
-        # flipped indices of overlap (n <-> s, w <-> e)
-        send_to_recv = [2, 3, 0, 1, 6, 7, 4, 5]
 
     else:
         if d1 in SCATTERED_DIMENSIONS[0]:
-            proc_neighbors = get_process_neighbors()[0:4:2] # west and east
+            send_order = ('west', 'east')
+            recv_order = ('east', 'west')
         elif d1 in SCATTERED_DIMENSIONS[1]:
-            proc_neighbors = get_process_neighbors()[1:4:2] # south and north
+            send_order = ('north', 'south')
+            recv_order = ('south', 'north')
         else:
             raise NotImplementedError()
 
-        overlap_slices_from = (
-            (slice(2, 4), Ellipsis),
-            (slice(-4, -2), Ellipsis),
+        overlap_slices_from = dict(
+            west=(slice(2, 4), Ellipsis),
+            south=(slice(2, 4), Ellipsis),
+            east=(slice(-4, -2), Ellipsis),
+            north=(slice(-4, -2), Ellipsis),
         )
 
-        overlap_slices_to = (
-            (slice(0, 2), Ellipsis),
-            (slice(-2, None), Ellipsis),
+        overlap_slices_to = dict(
+            west=(slice(0, 2), Ellipsis),
+            south=(slice(0, 2), Ellipsis),
+            east=(slice(-2, None), Ellipsis),
+            north=(slice(-2, None), Ellipsis),
         )
 
-        send_to_recv = [1, 0]
+    token = None
 
-    for i_s, other_proc in enumerate(proc_neighbors):
-        if other_proc is None:
+    for send_dir, recv_dir in zip(send_order, recv_order):
+        send_proc = proc_neighbors[send_dir]
+        recv_proc = proc_neighbors[recv_dir]
+
+        if send_proc is None and recv_proc is None:
             continue
 
-        i_r = send_to_recv[i_s]
-        recv_idx = overlap_slices_to[i_s]
+        recv_idx = overlap_slices_to[recv_dir]
         recv_arr = np.empty_like(arr[recv_idx])
-        send_idx = overlap_slices_from[i_s]
+
+        send_idx = overlap_slices_from[send_dir]
         send_arr = arr[send_idx]
 
-        recv_arr = sendrecv(
-            send_arr, recv_arr,
-            source=other_proc, dest=other_proc,
-            sendtag=i_s, recvtag=i_r, comm=rs.mpi_comm
-        )
-        arr = update(arr, at[recv_idx], recv_arr)
+        if send_proc is None:
+            recv_arr, token = recv(recv_arr, recv_proc, rs.mpi_comm, token=token)
+            arr = update(arr, at[recv_idx], recv_arr)
+        elif recv_proc is None:
+            token = send(send_arr, send_proc, rs.mpi_comm, token=token)
+        else:
+            recv_arr, token = sendrecv(
+                send_arr, recv_arr,
+                source=recv_proc, dest=send_proc,
+                comm=rs.mpi_comm, token=token
+            )
+            arr = update(arr, at[recv_idx], recv_arr)
 
-    return arr
-
-
-@dist_context_only
-def exchange_cyclic_boundaries(arr):
-    from veros.core.operators import numpy as np, update, at
-
-    if rs.num_proc[0] == 1:
-        arr = update(arr, at[-2:, ...], arr[2:4, ...])
-        arr = update(arr, at[:2, ...], arr[-4:-2, ...])
-        return arr
-
-    ix, iy = proc_rank_to_index(rst.proc_rank)
-
-    if 0 < ix < (rs.num_proc[0] - 1):
-        return arr
-
-    if ix == 0:
-        other_proc = proc_index_to_rank(rs.num_proc[0] - 1, iy)
-        send_idx = (slice(2, 4), Ellipsis)
-        recv_idx = (slice(0, 2), Ellipsis)
-    else:
-        other_proc = proc_index_to_rank(0, iy)
-        send_idx = (slice(-4, -2), Ellipsis)
-        recv_idx = (slice(-2, None), Ellipsis)
-
-    recv_arr = np.empty_like(arr[recv_idx])
-    send_arr = arr[send_idx]
-
-    recv_arr = sendrecv(
-        send_arr, recv_arr,
-        source=other_proc, dest=other_proc,
-        sendtag=10, recvtag=10, comm=rs.mpi_comm
-    )
-    arr = update(arr, at[recv_idx], recv_arr)
     return arr
 
 
@@ -325,7 +341,7 @@ def _reduce(arr, op, axis=None):
         else:
             squeeze = False
 
-        res = allreduce(arr, op=op, comm=rs.mpi_comm)
+        res, _ = allreduce(arr, op=op, comm=rs.mpi_comm)
 
         if squeeze:
             res = res[0]
@@ -382,6 +398,8 @@ def _gather_1d(nx, ny, arr, dim):
     gidx, idx = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
     sendbuf = arr[idx]
 
+    token = None
+
     if rst.proc_rank == 0:
         buffer_list = []
         for proc in range(1, rst.proc_num):
@@ -390,7 +408,7 @@ def _gather_1d(nx, ny, arr, dim):
                 continue
             idx_g, idx_l = get_chunk_slices(nx, ny, dim_grid, include_overlap=True, proc_idx=pi)
             recvbuf = np.empty_like(arr[idx_l])
-            recvbuf = recv(recvbuf, source=proc, tag=20, comm=rs.mpi_comm)
+            recvbuf, token = recv(recvbuf, source=proc, tag=20, comm=rs.mpi_comm, token=token)
             buffer_list.append((idx_g, recvbuf))
 
         out_shape = ((nx + 4, ny + 4)[dim],) + arr.shape[1:]
@@ -418,6 +436,8 @@ def _gather_xy(nx, ny, arr):
     gidx, idx = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
     sendbuf = arr[idx]
 
+    token = None
+
     if rst.proc_rank == 0:
         buffer_list = []
         for proc in range(1, rst.proc_num):
@@ -426,7 +446,7 @@ def _gather_xy(nx, ny, arr):
                 proc_idx=proc_rank_to_index(proc)
             )
             recvbuf = np.empty_like(arr[idx_l])
-            recvbuf = recv(recvbuf, source=proc, tag=30, comm=rs.mpi_comm)
+            recvbuf, token = recv(recvbuf, source=proc, tag=30, comm=rs.mpi_comm, token=token)
             buffer_list.append((idx_g, recvbuf))
 
         out_shape = (nx + 4, ny + 4) + arr.shape[2:]
@@ -483,7 +503,7 @@ def _scatter_constant(arr):
         for proc in range(1, rst.proc_num):
             send(arr, dest=proc, comm=rs.mpi_comm)
     else:
-        arr = recv(np.empty_like(arr), source=0, comm=rs.mpi_comm)
+        arr, _ = recv(np.empty_like(arr), source=0, comm=rs.mpi_comm)
     return arr
 
 
@@ -497,21 +517,23 @@ def _scatter_1d(nx, ny, arr, dim):
     dim_grid = ['xt' if dim == 0 else 'yt'] + [None] * (arr.ndim - 1)
     _, local_slice = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
 
+    token = None
+
     if rst.proc_rank == 0:
         recvbuf = arr[local_slice]
 
         for proc in range(1, rst.proc_num):
             global_slice, _ = get_chunk_slices(nx, ny, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
             sendbuf = arr[global_slice]
-            send(sendbuf, dest=proc, tag=40, comm=rs.mpi_comm)
+            token = send(sendbuf, dest=proc, tag=40, comm=rs.mpi_comm, token=token)
 
         # arr changes shape in main process
         arr = np.zeros((out_nx + 4,) + arr.shape[1:], dtype=arr.dtype)
     else:
-        recvbuf = recv(arr[local_slice], source=0, tag=40, comm=rs.mpi_comm)
+        recvbuf, _ = recv(arr[local_slice], source=0, tag=40, comm=rs.mpi_comm)
 
     arr = update(arr, at[local_slice], recvbuf)
-    arr = exchange_overlap(arr, ['xt' if dim == 0 else 'yt'])
+    arr = exchange_overlap(arr, ['xt' if dim == 0 else 'yt'], cyclic=False)
 
     return arr
 
@@ -525,22 +547,24 @@ def _scatter_xy(nx, ny, arr):
     dim_grid = ['xt', 'yt'] + [None] * (arr.ndim - 2)
     _, local_slice = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
 
+    token = None
+
     if rst.proc_rank == 0:
         recvbuf = arr[local_slice]
 
         for proc in range(1, rst.proc_num):
             global_slice, _ = get_chunk_slices(nx, ny, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
             sendbuf = arr[global_slice]
-            send(sendbuf, dest=proc, tag=50, comm=rs.mpi_comm)
+            token = send(sendbuf, dest=proc, tag=50, comm=rs.mpi_comm, token=token)
 
         # arr changes shape in main process
         arr = np.empty((nxi + 4, nyi + 4) + arr.shape[2:], dtype=arr.dtype)
     else:
         recvbuf = np.empty_like(arr[local_slice])
-        recvbuf = recv(recvbuf, source=0, tag=50, comm=rs.mpi_comm)
+        recvbuf, _ = recv(recvbuf, source=0, tag=50, comm=rs.mpi_comm)
 
     arr = update(arr, at[local_slice], recvbuf)
-    arr = exchange_overlap(arr, ['xt', 'yt'])
+    arr = exchange_overlap(arr, ['xt', 'yt'], cyclic=False)
 
     return arr
 

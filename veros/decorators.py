@@ -202,7 +202,15 @@ def run_kernel(function, veros_state, **kwargs):
         if param.name not in func_kwargs and param.default is inspect.Parameter.empty:
             raise TypeError(f'{func_name} missing required argument: {param.name}')
 
-    func_args = (func_kwargs.get(param.name, param.default) for param in func_params.values())
+    func_args = [func_kwargs.get(param.name, param.default) for param in func_params.values()]
+
+    # when profiling, make sure all inputs are ready before starting the timer
+    if runtime_settings.profile_mode:
+        for o in func_args:
+            try:
+                o.block_until_ready()
+            except AttributeError:
+                pass
 
     logger.trace('{}> {}', '-' * CONTEXT.stack_level, func_name)
     CONTEXT.stack_level += 1
@@ -297,8 +305,6 @@ def dist_context_only(*outer_args, noop_return_arg=None):
         return decorator(outer_args[0])
 
     return decorator
-
-
 
 
 def do_not_disturb(function):

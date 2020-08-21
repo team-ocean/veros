@@ -364,6 +364,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                     '     pressure             = {:.2f}s'.format(vs.timers['pressure'].get_time()),
                     '     friction             = {:.2f}s'.format(vs.timers['friction'].get_time()),
                     '   thermodynamics         = {:.2f}s'.format(vs.timers['thermodynamics'].get_time()),
+                    # TODO: remove these (timings are garbage with JAX)
                     '     lateral mixing       = {:.2f}s'.format(vs.timers['isoneutral'].get_time()),
                     '     vertical mixing      = {:.2f}s'.format(vs.timers['vmix'].get_time()),
                     '     equation of state    = {:.2f}s'.format(vs.timers['eq_of_state'].get_time()),

@@ -1,15 +1,8 @@
 #!/usr/bin/env python
 
-import os
-os.environ.update(
-    OMP_NUM_THREADS='1',
-    JAX_ENABLE_X64='1',
-    XLA_FLAGS=(
-        '--xla_cpu_multi_thread_eigen=false '
-        'intra_op_parallelism_threads=1 '
-        'inter_op_parallelism_threads=1 '
-    ),
-)
+import jax
+jax.config.enable_omnistaging()
+jax.config.update('jax_enable_x64', True)
 
 from veros import VerosSetup
 from veros.tools import cli, get_vinokur_grid_steps

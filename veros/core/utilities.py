@@ -4,24 +4,20 @@ from veros import veros_kernel
 from veros.core.operators import update, at
 
 
-# TODO: handle this in decorator
+# TODO: handle kwargs in decorator
 @veros_kernel(static_args=('enable_cyclic_x', 'local'))
 def enforce_boundaries_kernel(arr, enable_cyclic_x, local):
-    from .. import runtime_settings as rs, runtime_state as rst
-    from ..distributed import exchange_cyclic_boundaries, exchange_overlap
+    from .. import runtime_settings as rs
+    from ..distributed import exchange_overlap
     from ..decorators import CONTEXT
 
-    if enable_cyclic_x:
-        if rs.num_proc[0] == 1 or not CONTEXT.is_dist_safe or local:
+    if rs.num_proc[0] == 1 or not CONTEXT.is_dist_safe or local:
+        if enable_cyclic_x:
             arr = update(arr, at[-2:, ...], arr[2:4, ...])
             arr = update(arr, at[:2, ...], arr[-4:-2, ...])
-        else:
-            exchange_cyclic_boundaries(arr)
-
-    if local or rst.proc_num == 1:
         return arr
 
-    exchange_overlap(arr, ['xt', 'yt'])
+    exchange_overlap(arr, ['xt', 'yt'], cyclic=enable_cyclic_x)
     return arr
 
 
