@@ -8,6 +8,13 @@ from codecs import open
 import os
 import re
 
+try:
+    from Cython.Build import cythonize
+except ImportError:
+    HAS_CYTHON = False
+else:
+    HAS_CYTHON = True
+
 import versioneer
 
 
@@ -70,19 +77,22 @@ with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
         INSTALL_REQUIRES.append(line)
 
 EXT_MODULES = []
-for f in os.listdir(os.path.join(here, 'veros', 'core', 'special')):
-    if not f.endswith('.pyx'):
-        continue
+if HAS_CYTHON:
+    for f in os.listdir(os.path.join(here, 'veros', 'core', 'special')):
+        if not f.endswith('.pyx'):
+            continue
 
-    modname = f[:-4]
-    EXT_MODULES.append(
-        Extension(
-            name='veros.core.special.{}'.format(modname),
-            sources=['veros/core/special/{}.pyx'.format(modname)],
-            language='c',
-            optional=True
+        modname = f[:-4]
+        EXT_MODULES.append(
+            Extension(
+                name='veros.core.special.{}'.format(modname),
+                sources=['veros/core/special/{}.pyx'.format(modname)],
+                language='c',
+                optional=True,
+                extra_compile_args=['-O3'],
+            )
         )
-    )
+    EXT_MODULES = cythonize(EXT_MODULES, exclude_failures=True)
 
 setup(
     name='veros',
