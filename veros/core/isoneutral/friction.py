@@ -12,6 +12,7 @@ def isoneutral_friction(du_mix, dv_mix, K_diss_gm, u, v, tau, taup1, kbot, kappa
     """
     vertical friction using TEM formalism for eddy driven velocity
     """
+    nz = dzw.shape[0]
     flux_top = np.zeros_like(maskU)
 
     if enable_implicit_vert_friction:
@@ -20,7 +21,9 @@ def isoneutral_friction(du_mix, dv_mix, K_diss_gm, u, v, tau, taup1, kbot, kappa
         aloc = u[:, :, :, tau]
 
     # implicit vertical friction of zonal momentum by GM
-    ks = np.maximum(kbot[1:-2, 1:-2], kbot[2:-1, 1:-2]) - 1
+    ks = np.maximum(kbot[1:-2, 1:-2], kbot[2:-1, 1:-2])
+    _, water_mask, edge_mask = utilities.create_water_masks(ks, nz)
+
     fxa = 0.5 * (kappa_gm[1:-2, 1:-2, :] + kappa_gm[2:-1, 1:-2, :])
     delta, a_tri, b_tri, c_tri = (
         np.zeros_like(maskU[1:-2, 1:-2, :])
@@ -35,10 +38,11 @@ def isoneutral_friction(du_mix, dv_mix, K_diss_gm, u, v, tau, taup1, kbot, kappa
         delta[:, :, :-2] / dzt[np.newaxis, np.newaxis, 1:-1])
     b_tri = update(b_tri, at[:, :, -1], 1 + delta[:, :, -2] / dzt[-1])
     c_tri = update(c_tri, at[...], - delta / dzt[np.newaxis, np.newaxis, :])
-    sol, water_mask = utilities.solve_implicit(
-        ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], b_edge=b_tri_edge
+
+    sol = utilities.solve_implicit(
+        a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], water_mask, b_edge=b_tri_edge, edge_mask=edge_mask
     )
-    u = update(u, at[1:-2, 1:-2, :, taup1], utilities.where(water_mask, sol, u[1:-2, 1:-2, :, taup1]))
+    u = update(u, at[1:-2, 1:-2, :, taup1], np.where(water_mask, sol, u[1:-2, 1:-2, :, taup1]))
     du_mix = update_add(du_mix, at[1:-2, 1:-2, :], (u[1:-2, 1:-2, :, taup1] - aloc[1:-2, 1:-2, :]) / dt_mom * water_mask)
 
     if enable_conserve_energy:
@@ -59,7 +63,9 @@ def isoneutral_friction(du_mix, dv_mix, K_diss_gm, u, v, tau, taup1, kbot, kappa
         aloc = v[:, :, :, tau]
 
     # implicit vertical friction of zonal momentum by GM
-    ks = np.maximum(kbot[1:-2, 1:-2], kbot[1:-2, 2:-1]) - 1
+    ks = np.maximum(kbot[1:-2, 1:-2], kbot[1:-2, 2:-1])
+    _, water_mask, edge_mask = utilities.create_water_masks(ks, nz)
+
     fxa = 0.5 * (kappa_gm[1:-2, 1:-2, :] + kappa_gm[1:-2, 2:-1, :])
     delta, a_tri, b_tri, c_tri = (np.zeros_like(maskV[1:-2, 1:-2, :]) for _ in range(4))
     delta = update(delta, at[:, :, :-1], dt_mom / dzw[np.newaxis, np.newaxis, :-1] * \
@@ -71,10 +77,11 @@ def isoneutral_friction(du_mix, dv_mix, K_diss_gm, u, v, tau, taup1, kbot, kappa
         delta[:, :, :-2] / dzt[np.newaxis, np.newaxis, 1:-1])
     b_tri = update(b_tri, at[:, :, -1], 1 + delta[:, :, -2] / dzt[-1])
     c_tri = update(c_tri, at[...], - delta / dzt[np.newaxis, np.newaxis, :])
-    sol, water_mask = utilities.solve_implicit(
-        ks, a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], b_edge=b_tri_edge
+
+    sol = utilities.solve_implicit(
+        a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], water_mask, b_edge=b_tri_edge, edge_mask=edge_mask
     )
-    v = update(v, at[1:-2, 1:-2, :, taup1], utilities.where(water_mask, sol, v[1:-2, 1:-2, :, taup1]))
+    v = update(v, at[1:-2, 1:-2, :, taup1], np.where(water_mask, sol, v[1:-2, 1:-2, :, taup1]))
     dv_mix = update_add(dv_mix, at[1:-2, 1:-2, :], (v[1:-2, 1:-2, :, taup1] - aloc[1:-2, 1:-2, :]) / dt_mom * water_mask)
 
     if enable_conserve_energy:

@@ -3,15 +3,15 @@ from loguru import logger
 
 from veros import veros_kernel, veros_routine, run_kernel
 from veros.core import density, utilities
-from veros.core.operators import update, update_add, at
+from veros.core.operators import update, update_add, at, tanh
 
 
-@veros_kernel(static_args=('iso_slopec', 'iso_dslope'))
+@veros_kernel
 def dm_taper(sx, iso_slopec, iso_dslope):
     """
     tapering function for isopycnal slopes
     """
-    return 0.5 * (1. + np.tanh((-np.abs(sx) + iso_slopec) / iso_dslope))
+    return 0.5 * (1. + tanh((-np.abs(sx) + iso_slopec) / iso_dslope))
 
 
 @veros_kernel(static_args=('eq_of_state_type',))
@@ -70,7 +70,6 @@ def isoneutral_diffusion_pre(salt, temp, zt, dxt, dxu, dyt, dyu, dzt, dzw, maskT
     dSdy = update(dSdy, at[:, :-1, :], maskV[:, :-1, :] * \
         (salt[:, 1:, :, tau] - salt[:, :-1, :, tau]) \
         / dyu[np.newaxis, :-1, np.newaxis])
-
 
 
     """

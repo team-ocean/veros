@@ -1,5 +1,3 @@
-import math
-
 from veros.core.operators import numpy as np
 
 from veros import veros_kernel, veros_routine, run_kernel
@@ -64,7 +62,7 @@ def set_tke_diffusivities_kernel(tke, mxl_min, Nsqr, ht, maskW, zw, dzt, dzw, ta
     """
     calculate buoyancy length scale
     """
-    mxl = math.sqrt(2) * sqrttke \
+    mxl = np.sqrt(2) * sqrttke \
         / np.sqrt(np.maximum(1e-12, Nsqr[:, :, :, tau])) * maskW
 
     """
@@ -168,6 +166,8 @@ def integrate_tke_kernel(K_diss_v, P_diss_v, P_diss_adv, P_diss_nonlin, eke_diss
     """
     integrate Tke equation on W grid with surface flux boundary condition
     """
+    nz = dzw.shape[0]
+
     flux_east = np.zeros_like(maskU)
     flux_north = np.zeros_like(maskV)
     flux_top = np.zeros_like(maskW)
@@ -216,7 +216,7 @@ def integrate_tke_kernel(K_diss_v, P_diss_v, P_diss_adv, P_diss_nonlin, eke_diss
     """
     vertical mixing and dissipation of TKE
     """
-    ks = kbot[2:-2, 2:-2] - 1
+    _, water_mask, edge_mask = utilities.create_water_masks(kbot[2:-2, 2:-2], nz)
 
     a_tri, b_tri, c_tri, d_tri, delta = (np.zeros_like(kappaM[2:-2, 2:-2, :]) for _ in range(5))
 
@@ -239,8 +239,8 @@ def integrate_tke_kernel(K_diss_v, P_diss_v, P_diss_adv, P_diss_nonlin, eke_diss
     d_tri = update(d_tri, at[...], tke[2:-2, 2:-2, :, tau] + dt_tke * forc[2:-2, 2:-2, :])
     d_tri = update_add(d_tri, at[:, :, -1], dt_tke * forc_tke_surface[2:-2, 2:-2] / (0.5 * dzw[-1]))
 
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    tke = update(tke, at[2:-2, 2:-2, :, taup1], utilities.where(water_mask, sol, tke[2:-2, 2:-2, :, taup1]))
+    sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
+    tke = update(tke, at[2:-2, 2:-2, :, taup1], np.where(water_mask, sol, tke[2:-2, 2:-2, :, taup1]))
 
     """
     store tke dissipation for diagnostics
@@ -252,7 +252,7 @@ def integrate_tke_kernel(K_diss_v, P_diss_v, P_diss_adv, P_diss_nonlin, eke_diss
     """
     mask = tke[2:-2, 2:-2, -1, taup1] < 0.0
     tke_surf_corr = update(tke_surf_corr, at[...], 0.)
-    tke_surf_corr = update(tke_surf_corr, at[2:-2, 2:-2], utilities.where(mask,
+    tke_surf_corr = update(tke_surf_corr, at[2:-2, 2:-2], np.where(mask,
                                                 -tke[2:-2, 2:-2, -1, taup1] * 0.5
                                                 * dzw[-1] / dt_tke, 0.))
     tke = update(tke, at[2:-2, 2:-2, -1, taup1], np.maximum(0., tke[2:-2, 2:-2, -1, taup1]))

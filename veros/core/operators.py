@@ -1,6 +1,6 @@
-from veros import runtime_settings, veros_kernel
+import warnings
 
-from loguru import logger
+from veros import runtime_settings, runtime_state, veros_kernel
 
 
 class Index:
@@ -26,12 +26,18 @@ def update_multiply_numpy(arr, at, to):
     return arr
 
 
-def solve_tridiagonal_numpy(a, b, c, d):
+def solve_tridiagonal_numpy(a, b, c, d, water_mask, edge_mask):
+    import numpy as np
     from scipy.linalg import lapack
+
     # remove couplings between slices
-    a[..., 0] = 0
+    a[edge_mask] = 0
     c[..., -1] = 0
-    return lapack.dgtsv(a.flatten()[1:], b.flatten(), c.flatten()[:-1], d.flatten())[3].reshape(a.shape)
+
+    out = np.full(a.shape, np.nan, dtype=a.dtype)
+    sol = lapack.dgtsv(a[water_mask][1:], b[water_mask], c[water_mask][:-1], d[water_mask])[3]
+    out[water_mask] = sol
+    return out
 
 
 def scan_numpy(f, init, xs, length=None):
@@ -49,16 +55,29 @@ def scan_numpy(f, init, xs, length=None):
 
 
 @veros_kernel
-def solve_tridiagonal_jax(a, b, c, d):
+def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask):
+    import jax.lax
+    import jax.numpy as jnp
+
     try:
         from veros.core.special.tdma import tdma
     except ImportError:
-        logger.warning('Could not import custom TDMA implementation, falling back to pure JAX')
+        has_tdma_special = False
     else:
-        return tdma(a, b, c, d)
+        has_tdma_special = runtime_settings.device == 'cpu'
 
-    import jax.lax
-    import jax.numpy as jnp
+    if has_tdma_special:
+        system_depths = jnp.sum(water_mask, axis=2).astype('int64')
+        return tdma(a, b, c, d, system_depths)
+
+    return d
+    warnings.warn('Could not use custom TDMA implementation, falling back to pure JAX')
+    # TODO: fix / test
+
+    a = water_mask * a * jnp.logical_not(edge_mask)
+    b = jnp.where(water_mask, b, 1.)
+    c = water_mask * c
+    d = water_mask * d
 
     def compute_primes(last_primes, x):
         last_cp, last_dp = last_primes
@@ -79,8 +98,8 @@ def solve_tridiagonal_jax(a, b, c, d):
         new_x = dp - cp * last_x
         return new_x, new_x
 
-    _, sol = jax.lax.scan(backsubstitution, jnp.zeros(a.shape[:-1], dtype=a.dtype), primes[::-1])
-    return sol[::-1].transpose((1, 2, 0))
+    _, sol = jax.lax.scan(backsubstitution, jnp.zeros(a.shape[:-1], dtype=a.dtype), primes, reverse=True)
+    return sol.transpose((1, 2, 0))
 
 
 def update_multiply_jax(arr, at, to):
@@ -88,25 +107,40 @@ def update_multiply_jax(arr, at, to):
     return jax.ops.index_update(arr, at, arr[at] * to)
 
 
+def tanh_jax(arr):
+    import jax.numpy as jnp
+    if runtime_settings.device != 'cpu':
+        return jnp.tanh(arr)
+
+    # https://math.stackexchange.com/questions/107292/rapid-approximation-of-tanhx
+    # TODO: test this
+    arr2 = arr * arr
+    nom = arr * (135135. + arr2 * (17325. + arr2 * (378. + arr2)))
+    denom = 135135. + arr2 * (62370. + arr2 * (3150. + arr2 * 28.))
+    return jnp.clip(nom / denom, -1, 1)
+
+
+numpy = runtime_state.backend_module
+
 if runtime_settings.backend == 'numpy':
-    import numpy
     update = update_numpy
     update_add = update_add_numpy
     update_multiply = update_multiply_numpy
     at = Index()
     solve_tridiagonal = solve_tridiagonal_numpy
     scan = scan_numpy
+    tanh = numpy.tanh
 
 elif runtime_settings.backend == 'jax':
-    import jax
-    import jax.numpy
-    numpy = jax.numpy
+    import jax.ops
+    import jax.lax
     update = jax.ops.index_update
     update_add = jax.ops.index_add
     update_multiply = update_multiply_jax
     at = jax.ops.index
     solve_tridiagonal = solve_tridiagonal_jax
     scan = jax.lax.scan
+    tanh = tanh_jax
 
 else:
     raise ValueError('Unrecognized backend {}'.format(runtime_settings.backend))

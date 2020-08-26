@@ -67,7 +67,7 @@ def _get_solver_class():
         'nisle', 'isle'
     ),
     settings=(
-        'default_float_type', 'enable_cyclic_x'
+        'enable_cyclic_x'
     ),
     subroutines=(get_isleperim)
 )
@@ -92,9 +92,9 @@ def streamfunction_init(vs):
     """
     # TODO: replace with allocate
     nx, ny = vs.land_map.shape
-    forc = np.zeros((nx, ny), dtype=vs.default_float_type)
-    psin = np.zeros((nx, ny, nisle), dtype=vs.default_float_type)
-    dpsin = np.zeros((nisle, 3), dtype=vs.default_float_type)
+    forc = np.zeros((nx, ny), dtype=rs.float_type)
+    psin = np.zeros((nx, ny, nisle), dtype=rs.float_type)
+    dpsin = np.zeros((nisle, 3), dtype=rs.float_type)
 
     psin = update(psin, at[...], vs.maskZ[..., -1, np.newaxis])
 
@@ -122,15 +122,15 @@ def streamfunction_init(vs):
     )
 
 
-@veros_kernel(static_args=('default_float_type', 'nx', 'ny', 'nisle'))
-def island_integrals(nx, ny, nisle, default_float_type, maskU, maskV, dxt, dyt, dxu, dyu, cost, cosu, hur, hvr, psin,
+@veros_kernel(static_args=('nx', 'ny', 'nisle'))
+def island_integrals(nx, ny, nisle, maskU, maskV, dxt, dyt, dxu, dyu, cost, cosu, hur, hvr, psin,
                      line_dir_east_mask, line_dir_west_mask, line_dir_north_mask, line_dir_south_mask, boundary_mask):
     """
     precalculate time independent island integrals
     """
     nx, ny, nisle = psin.shape
-    fpx = np.zeros((nx, ny, nisle), dtype=default_float_type)
-    fpy = np.zeros((nx, ny, nisle), dtype=default_float_type)
+    fpx = np.zeros((nx, ny, nisle), dtype=rs.float_type)
+    fpy = np.zeros((nx, ny, nisle), dtype=rs.float_type)
 
     fpx = update(fpx, at[1:, 1:, :], -maskU[1:, 1:, -1, np.newaxis] \
         * (psin[1:, 1:, :] - psin[1:, :-1, :]) \
@@ -161,6 +161,7 @@ def boundary_masks(land_map, nisle, enable_cyclic_x):
     line_dir_east_mask = np.zeros((nx, ny, nisle), dtype='bool')
     line_dir_west_mask = np.zeros((nx, ny, nisle), dtype='bool')
 
+    # TODO: use fori_loop with JAX
     for isle in range(nisle):
         boundary_map = land_map == (isle + 1)
 

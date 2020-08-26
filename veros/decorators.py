@@ -99,7 +99,7 @@ class VerosRoutine:
 
     def __call__(self, *args, **kwargs):
         from veros import runtime_state as rst
-        from veros.backend import flush
+
         from veros.state import VerosStateBase
         from veros.state_dist import DistributedVerosState
 
@@ -160,7 +160,7 @@ class VerosRoutine:
 
                         if hasattr(func_state, key):
                             setattr(func_state, key, val)
-        except:  # noqa: F722
+        except:  # noqa: E722
             if reset_dist_safe:
                 CONTEXT.is_dist_safe = True
             raise
@@ -173,7 +173,6 @@ class VerosRoutine:
             logger.trace('<{} {} ({:.3f}s)', '-' * CONTEXT.stack_level, self.name, timer.get_last_time())
             r = CONTEXT.routine_stack.pop()
             assert r is self
-            flush()
 
     def __get__(self, instance, instancetype):
         return functools.wraps(self.function)(

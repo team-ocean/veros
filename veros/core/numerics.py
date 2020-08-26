@@ -5,6 +5,7 @@ from veros.core import density, diffusion, utilities
 from veros.core.operators import update, at, solve_tridiagonal
 
 
+# TODO: replace cumsums
 @veros_kernel
 def u_centered_grid(dyt, dyu, yt, yu):
     yu = update(yu, at[0], 0)
@@ -183,6 +184,7 @@ def calc_beta(vs):
     return dict(beta=beta)
 
 
+# TODO: make a kernel
 @veros_routine(
     inputs=(
         'kbot', 'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'dzt'
@@ -216,10 +218,10 @@ def calc_topo(vs):
     """
     Land masks
     """
-    maskT = update(maskT, at[...], 0.0)
     land_mask = kbot > 0
     ks = np.arange(maskT.shape[2])[np.newaxis, np.newaxis, :]
 
+    # TODO: test whether we actually need these boundary exchanges
     maskT = update(maskT, at[...], land_mask[..., np.newaxis] & (kbot[..., np.newaxis] - 1 <= ks))
     maskT = utilities.enforce_boundaries(maskT, enable_cyclic_x)
 
@@ -245,6 +247,7 @@ def calc_topo(vs):
     hu = np.sum(maskU * dzt[np.newaxis, np.newaxis, :], axis=2)
     hv = np.sum(maskV * dzt[np.newaxis, np.newaxis, :], axis=2)
 
+    # TODO: fix this messy logic
     mask = (hu == 0).astype('float')
     hur = 1. / (hu + mask) * (1 - mask)
     mask = (hv == 0).astype('float')
@@ -277,6 +280,7 @@ def calc_initial_conditions(vs):
     """
     calculate dyn. enthalp, etc
     """
+    # TODO: create kernel
     (salt, temp, rho, Hd, int_drhodT, int_drhodS, Nsqr,
      dzw, zt, maskT, maskW, grav, rho_0, enable_cyclic_x, eq_of_state_type) = (
         getattr(vs, k) for k in (
@@ -334,17 +338,6 @@ def vgrid_to_tgrid(a, area_v, area_t):
                      + area_v[:, 1:-3, np.newaxis] * a[:, 1:-3, :]) \
         / (2 * area_t[:, 2:-2, np.newaxis]))
     return b
-
-
-@veros_kernel
-def solve_tridiag(a, b, c, d):
-    """
-    Solves a tridiagonal matrix system with diagonals a, b, c and RHS vector d.
-    Uses LAPACK when running with NumPy, and otherwise the Thomas algorithm iterating over the
-    last axis of the input arrays.
-    """
-    assert a.shape == b.shape and a.shape == c.shape and a.shape == d.shape
-    return solve_tridiagonal(a, b, c, d)
 
 
 @veros_kernel(static_args=('nz',))

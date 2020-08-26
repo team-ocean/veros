@@ -1,5 +1,3 @@
-import math
-
 from veros.core.operators import numpy as np
 
 from veros import veros_routine, veros_kernel, run_kernel
@@ -67,6 +65,7 @@ def implicit_vert_friction(du_mix, dv_mix, K_diss_v, u, v, kbot, kappaM, tau, ta
     vertical friction
     dissipation is calculated and added to K_diss_v
     """
+    nz = maskU.shape[2]
     diss = np.zeros_like(maskU)
     a_tri = np.zeros_like(maskU[1:-2, 1:-2])
     b_tri = np.zeros_like(maskU[1:-2, 1:-2])
@@ -78,7 +77,9 @@ def implicit_vert_friction(du_mix, dv_mix, K_diss_v, u, v, kbot, kappaM, tau, ta
     """
     implicit vertical friction of zonal momentum
     """
-    kss = np.maximum(kbot[1:-2, 1:-2], kbot[2:-1, 1:-2]) - 1
+    kss = np.maximum(kbot[1:-2, 1:-2], kbot[2:-1, 1:-2])
+    _, water_mask, edge_mask = utilities.create_water_masks(kss, nz)
+
     fxa = 0.5 * (kappaM[1:-2, 1:-2, :-1] + kappaM[2:-1, 1:-2, :-1])
     delta = update(delta, at[:, :, :-1], dt_mom / dzw[:-1] * fxa * maskU[1:-2, 1:-2, 1:] * maskU[1:-2, 1:-2, :-1])
     a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, 1:])
@@ -87,8 +88,9 @@ def implicit_vert_friction(du_mix, dv_mix, K_diss_v, u, v, kbot, kappaM, tau, ta
     b_tri_edge = 1 + delta / dzt[np.newaxis, np.newaxis, :]
     c_tri = update(c_tri, at[...], -delta / dzt[np.newaxis, np.newaxis, :])
     d_tri = update(d_tri, at[...], u[1:-2, 1:-2, :, tau])
-    res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    u = update(u, at[1:-2, 1:-2, :, taup1], utilities.where(mask, res, u[1:-2, 1:-2, :, taup1]))
+
+    res = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
+    u = update(u, at[1:-2, 1:-2, :, taup1], np.where(water_mask, res, u[1:-2, 1:-2, :, taup1]))
     du_mix = update(du_mix, at[1:-2, 1:-2], (u[1:-2, 1:-2, :, taup1] - u[1:-2, 1:-2, :, tau]) / dt_mom)
 
     """
@@ -106,7 +108,9 @@ def implicit_vert_friction(du_mix, dv_mix, K_diss_v, u, v, kbot, kappaM, tau, ta
     """
     implicit vertical friction of meridional momentum
     """
-    kss = np.maximum(kbot[1:-2, 1:-2], kbot[1:-2, 2:-1]) - 1
+    kss = np.maximum(kbot[1:-2, 1:-2], kbot[1:-2, 2:-1])
+    _, water_mask, edge_mask = utilities.create_water_masks(kss, nz)
+
     fxa = 0.5 * (kappaM[1:-2, 1:-2, :-1] + kappaM[1:-2, 2:-1, :-1])
     delta = update(delta, at[:, :, :-1], dt_mom / dzw[np.newaxis, np.newaxis, :-1] * \
         fxa * maskV[1:-2, 1:-2, 1:] * maskV[1:-2, 1:-2, :-1])
@@ -117,8 +121,9 @@ def implicit_vert_friction(du_mix, dv_mix, K_diss_v, u, v, kbot, kappaM, tau, ta
     c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, :-1])
     c_tri = update(c_tri, at[:, :, -1], 0.)
     d_tri = update(d_tri, at[...], v[1:-2, 1:-2, :, tau])
-    res, mask = utilities.solve_implicit(kss, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    v = update(v, at[1:-2, 1:-2, :, taup1], utilities.where(mask, res, v[1:-2, 1:-2, :, taup1]))
+
+    res = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
+    v = update(v, at[1:-2, 1:-2, :, taup1], np.where(water_mask, res, v[1:-2, 1:-2, :, taup1]))
     dv_mix = update(dv_mix, at[1:-2, 1:-2], (v[1:-2, 1:-2, :, taup1] - v[1:-2, 1:-2, :, tau]) / dt_mom)
 
     """
@@ -386,7 +391,7 @@ def biharmonic_friction(du_mix, dv_mix, K_diss_h, A_hbi, u, v, tau, area_v, area
     """
     flux_east = np.zeros_like(maskU)
     flux_north = np.zeros_like(maskV)
-    fxa = math.sqrt(abs(A_hbi))
+    fxa = np.sqrt(abs(A_hbi))
 
     """
     Zonal velocity
@@ -569,7 +574,7 @@ def friction(vs):
     """
     vertical friction
     """
-    K_diss_v = update(vs.K_diss_v, at[...], 0.0)
+    K_diss_v = np.zeros_like(vs.K_diss_v)
     if vs.enable_implicit_vert_friction:
         u, v, du_mix, dv_mix, K_diss_v = run_kernel(implicit_vert_friction, vs)
     if vs.enable_explicit_vert_friction:

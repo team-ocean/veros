@@ -26,49 +26,42 @@ def enforce_boundaries(arr, enable_cyclic_x, local=False):
 
 
 @veros_kernel
-def where(mask, a, b):
-    return np.where(mask, a, b)
-
-
-@veros_kernel
 def pad_z_edges(array):
     """
     Pads the z-axis of an array by repeating its edge values
     """
     if array.ndim == 1:
-        newarray = np.zeros(array.shape[0] + 2, dtype=array.dtype)
-        newarray = update(newarray, at[1:-1], array)
-        newarray = update(newarray, at[0], array[0])
-        newarray = update(newarray, at[-1], array[-1])
+        newarray = np.pad(array, 1, mode='edge')
     elif array.ndim >= 3:
-        a = list(array.shape)
-        a[2] += 2
-        newarray = np.zeros(a, dtype=array.dtype)
-        newarray = update(newarray, at[:, :, 1:-1, ...], array)
-        newarray = update(newarray, at[:, :, 0, ...], array[:, :, 0, ...])
-        newarray = update(newarray, at[:, :, -1, ...], array[:, :, -1, ...])
+        newarray = np.pad(array, ((0, 0), (0, 0), (1, 1)), mode='edge')
     else:
         raise ValueError('Array to pad needs to have 1 or at least 3 dimensions')
     return newarray
 
 
+@veros_kernel(static_args=('nz',))
+def create_water_masks(ks, nz):
+    ks = ks - 1
+    land_mask = ks >= 0
+    water_mask = np.logical_and(
+        land_mask[:, :, np.newaxis],
+        np.arange(nz)[np.newaxis, np.newaxis, :] >= ks[:, :, np.newaxis]
+    )
+    edge_mask = np.logical_and(
+        land_mask[:, :, np.newaxis],
+        np.arange(nz)[np.newaxis, np.newaxis, :] == ks[:, :, np.newaxis]
+    )
+    return land_mask, water_mask, edge_mask
+
+
 @veros_kernel
-def solve_implicit(ks, a, b, c, d, b_edge=None, d_edge=None):
-    from .numerics import solve_tridiag  # avoid circular import
+def solve_implicit(a, b, c, d, water_mask, edge_mask, b_edge=None, d_edge=None):
+    from .operators import solve_tridiagonal  # avoid circular import
 
-    land_mask = (ks >= 0)[:, :, np.newaxis]
-    edge_mask = land_mask & (np.arange(a.shape[2])[np.newaxis, np.newaxis, :]
-                             == ks[:, :, np.newaxis])
-    water_mask = land_mask & (np.arange(a.shape[2])[np.newaxis, np.newaxis, :]
-                              >= ks[:, :, np.newaxis])
-
-    a_tri = water_mask * a * np.logical_not(edge_mask)
-    b_tri = where(water_mask, b, 1.)
     if b_edge is not None:
-        b_tri = where(edge_mask, b_edge, b_tri)
-    c_tri = water_mask * c
-    d_tri = water_mask * d
-    if d_edge is not None:
-        d_tri = where(edge_mask, d_edge, d_tri)
+        b += edge_mask * b_edge
 
-    return solve_tridiag(a_tri, b_tri, c_tri, d_tri), water_mask
+    if d_edge is not None:
+        d += edge_mask * d_edge
+
+    return solve_tridiagonal(a, b, c, d, water_mask, edge_mask)

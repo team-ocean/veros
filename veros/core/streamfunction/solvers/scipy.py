@@ -36,10 +36,10 @@ class SciPySolver(LinearSolver):
         sol = utilities.enforce_boundaries(sol, vs.enable_cyclic_x, local=True)
 
         boundary_mask = np.prod(1 - boundary_mask, axis=2)
-        rhs = utilities.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
+        rhs = np.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
-        rhs = onp.asarray(rhs.flatten()) * self._rhs_scale
-        x0 = onp.asarray(sol.flatten())
+        rhs = onp.asarray(rhs.reshape(-1), dtype='float64') * self._rhs_scale
+        x0 = onp.asarray(sol.reshape(-1), dtype='float64')
 
         linear_solution, info = spalg.bicgstab(
             self._matrix, rhs,
@@ -63,6 +63,7 @@ class SciPySolver(LinearSolver):
             sol: Initial guess, gets overwritten with solution
             boundary_val: Array containing values to set on boundary elements. Defaults to `sol`.
         """
+        # TODO: rename sol variable
         rhs_global = distributed.gather(vs.nx, vs.ny, rhs, ('xt', 'yt'))
         sol_global = distributed.gather(vs.nx, vs.ny, sol, ('xt', 'yt'))
         boundary_mask_global = distributed.gather(vs.nx, vs.ny, vs.boundary_mask, ('xt', 'yt'))
@@ -87,8 +88,8 @@ class SciPySolver(LinearSolver):
         eps = 1e-20
         Z = allocate(vs, ('xu', 'yu'), fill=1, local=False)
         Y = np.reshape(matrix.diagonal().copy(), (vs.nx + 4, vs.ny + 4))[2:-2, 2:-2]
-        Z = update(Z, at[2:-2, 2:-2], utilities.where(np.abs(Y) > eps, 1. / (Y + eps), 1.))
-        return scipy.sparse.dia_matrix((Z.flatten(), 0), shape=(Z.size, Z.size)).tocsr()
+        Z = update(Z, at[2:-2, 2:-2], np.where(np.abs(Y) > eps, 1. / (Y + eps), 1.))
+        return scipy.sparse.dia_matrix((Z.reshape(-1), 0), shape=(Z.size, Z.size)).tocsr()
 
     @staticmethod
     def _assemble_poisson_matrix(vs):
@@ -122,10 +123,10 @@ class SciPySolver(LinearSolver):
             east_diag = update(east_diag, at[-3, 2:-2], 0.)
 
         main_diag *= boundary_mask
-        main_diag = utilities.where(main_diag == 0., 1., main_diag)
+        main_diag = np.where(main_diag == 0., 1., main_diag)
 
         # construct sparse matrix
-        cf = tuple(diag.flatten() for diag in (
+        cf = tuple(diag.reshape(-1) for diag in (
             main_diag,
             boundary_mask * east_diag,
             boundary_mask * west_diag,
@@ -136,7 +137,7 @@ class SciPySolver(LinearSolver):
 
         if vs.enable_cyclic_x:
             offsets += (-main_diag.shape[1] * (vs.nx - 1), main_diag.shape[1] * (vs.nx - 1))
-            cf += (wrap_diag_east.flatten(), wrap_diag_west.flatten())
+            cf += (wrap_diag_east.reshape(-1), wrap_diag_west.reshape(-1))
 
-        cf = onp.asarray(cf)
+        cf = onp.asarray(cf, dtype='float64')
         return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()

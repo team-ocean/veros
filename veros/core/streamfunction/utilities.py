@@ -4,6 +4,8 @@ from veros import veros_kernel
 from veros.distributed import global_sum
 from veros.core.operators import update, at
 
+# TODO: fold back into one function
+
 
 @veros_kernel
 def line_integrals_same(dxu, dyu, cost, line_dir_east_mask, line_dir_west_mask,
@@ -72,6 +74,7 @@ def line_integrals_full(dxu, dyu, cost, line_dir_east_mask, line_dir_west_mask,
         * dxu[1:-2, np.newaxis, np.newaxis] \
         * cost[np.newaxis, 2:-1, np.newaxis]
 
+    # TODO: use fori_loop with JAX
     out = np.empty((nisle, nisle))
     for isle in range(nisle):
         east_isle = np.sum(

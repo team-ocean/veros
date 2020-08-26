@@ -1,5 +1,3 @@
-import math
-
 from veros.core.operators import numpy as np
 
 from veros import veros_kernel, veros_routine, run_kernel
@@ -129,7 +127,7 @@ def integrate_eke(vs):
     )
 
 
-@veros_kernel(static_args=('enable_store_cabbeling_heat',
+@veros_kernel(static_args=('nz', 'enable_store_cabbeling_heat',
                            'enable_eke_leewave_dissipation',
                            'pyom_compatibility_mode',
                            'enable_eke_superbee_advection',
@@ -160,7 +158,7 @@ def integrate_eke_kernel(eke, deke, sqrteke, K_diss_h, K_diss_gm, K_gm, kappaM, 
     by non-linear eq.of state either to EKE or to heat
     """
     if not enable_store_cabbeling_heat:
-        forc = update_add(forc, at[...], -P_diss_hmix - P_diss_iso)
+        forc += -P_diss_hmix - P_diss_iso
 
     """
     coefficient for dissipation of EKE:
@@ -170,6 +168,7 @@ def integrate_eke_kernel(eke, deke, sqrteke, K_diss_h, K_diss_gm, K_gm, kappaM, 
         """
         by lee wave generation
         """
+        # TODO: replace these haxx with fancy indexing / take along axis
         c_lee = update(c_lee, at[...], 0.)
         ks = kbot[2:-2, 2:-2] - 1
         ki = np.arange(nz)[np.newaxis, np.newaxis, :]
@@ -211,7 +210,7 @@ def integrate_eke_kernel(eke, deke, sqrteke, K_diss_h, K_diss_gm, K_gm, kappaM, 
         a_loc = update_add(a_loc, at[2:-2, 2:-2], np.sum((c_lee[2:-2, 2:-2, np.newaxis] * eke[2:-2, 2:-2, :, tau]
                                      * maskW[2:-2, 2:-2, :] * dzw[np.newaxis, np.newaxis, :]
                                      + 2 * eke_r_bot * eke[2:-2, 2:-2, :, tau]
-                                     * math.sqrt(2.0) * sqrteke[2:-2, 2:-2, :]
+                                     * np.sqrt(2) * sqrteke[2:-2, 2:-2, :]
                                      * maskW[2:-2, 2:-2, :]) * full_mask, axis=-1) * boundary_mask)
 
         """
@@ -219,7 +218,7 @@ def integrate_eke_kernel(eke, deke, sqrteke, K_diss_h, K_diss_gm, K_gm, kappaM, 
         vertically integrated EKE to account for vertical EKE radiation
         """
         mask = b_loc > 0
-        a_loc = update(a_loc, at[...], utilities.where(mask, a_loc / (b_loc + 1e-20), 0.))
+        a_loc = update(a_loc, at[...], np.where(mask, a_loc / (b_loc + 1e-20), 0.))
         c_int = update(c_int, at[...], a_loc[:, :, np.newaxis])
     else:
         """
@@ -230,7 +229,8 @@ def integrate_eke_kernel(eke, deke, sqrteke, K_diss_h, K_diss_gm, K_gm, kappaM, 
     """
     vertical diffusion of EKE,forcing and dissipation
     """
-    ks = kbot[2:-2, 2:-2] - 1
+    _, water_mask, edge_mask = utilities.create_water_masks(kbot[2:-2, 2:-2], nz)
+
     delta, a_tri, b_tri, c_tri, d_tri = (np.zeros_like(kappaM[2:-2, 2:-2, :]) for _ in range(5))
     delta = update(delta, at[:, :, :-1], dt_tracer / dzt[np.newaxis, np.newaxis, 1:] * 0.5 \
         * (kappaM[2:-2, 2:-2, :-1] + kappaM[2:-2, 2:-2, 1:]) * alpha_eke)
@@ -244,8 +244,9 @@ def integrate_eke_kernel(eke, deke, sqrteke, K_diss_h, K_diss_gm, K_gm, kappaM, 
         + dt_tracer * c_int[2:-2, 2:-2, :]
     c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / dzw[np.newaxis, np.newaxis, :-1])
     d_tri = update(d_tri, at[:, :, :], eke[2:-2, 2:-2, :, tau] + dt_tracer * forc[2:-2, 2:-2, :])
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    eke = update(eke, at[2:-2, 2:-2, :, taup1], utilities.where(water_mask, sol, eke[2:-2, 2:-2, :, taup1]))
+
+    sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
+    eke = update(eke, at[2:-2, 2:-2, :, taup1], np.where(water_mask, sol, eke[2:-2, 2:-2, :, taup1]))
 
     """
     store eke dissipation
@@ -260,10 +261,10 @@ def integrate_eke_kernel(eke, deke, sqrteke, K_diss_h, K_diss_gm, K_gm, kappaM, 
         eke_diss_iw = update_add(eke_diss_iw, at[2:-2, 2:-2, :], (c_lee[2:-2, 2:-2, np.newaxis] * eke[2:-2, 2:-2, :, taup1]
                                        * maskW[2:-2, 2:-2, :]) * full_mask)
         if pyom_compatibility_mode:
-            eke_diss_tke = update_add(eke_diss_tke, at[2:-2, 2:-2, :], (2 * eke_r_bot * eke[2:-2, 2:-2, :, taup1] * np.sqrt(np.float32(2.0))
+            eke_diss_tke = update_add(eke_diss_tke, at[2:-2, 2:-2, :], (2 * eke_r_bot * eke[2:-2, 2:-2, :, taup1] * np.sqrt(np.float32(2))
                                             * sqrteke[2:-2, 2:-2, :] * maskW[2:-2, 2:-2, :] / dzw[np.newaxis, np.newaxis, :]) * full_mask)
         else:
-            eke_diss_tke = update_add(eke_diss_tke, at[2:-2, 2:-2, :], (2 * eke_r_bot * eke[2:-2, 2:-2, :, taup1] * math.sqrt(2.0)
+            eke_diss_tke = update_add(eke_diss_tke, at[2:-2, 2:-2, :], (2 * eke_r_bot * eke[2:-2, 2:-2, :, taup1] * np.sqrt(2)
                                             * sqrteke[2:-2, 2:-2, :] * maskW[2:-2, 2:-2, :] / dzw[np.newaxis, np.newaxis, :]) * full_mask)
         """
         account for sligthly incorrect integral of dissipation due to time stepping
@@ -275,17 +276,17 @@ def integrate_eke_kernel(eke, deke, sqrteke, K_diss_h, K_diss_gm, K_gm, kappaM, 
         a_loc += (eke_diss_iw[:, :, -1] + eke_diss_tke[:, :, -1]) * dzw[-1] * 0.5
         b_loc += c_int[:, :, -1] * eke[:, :, -1, taup1] * dzw[-1] * 0.5
         mask = a_loc != 0.
-        b_loc = update(b_loc, at[...], utilities.where(mask, b_loc / (a_loc + 1e-20), 0.))
+        b_loc = update(b_loc, at[...], np.where(mask, b_loc / (a_loc + 1e-20), 0.))
         eke_diss_iw = update_multiply(eke_diss_iw, at[...], b_loc[:, :, np.newaxis])
         eke_diss_tke = update_multiply(eke_diss_tke, at[...], b_loc[:, :, np.newaxis])
 
         """
         store diagnosed flux by lee waves and bottom friction
         """
-        eke_lee_flux = update(eke_lee_flux, at[2:-2, 2:-2], utilities.where(boundary_mask, np.sum(c_lee[2:-2, 2:-2, np.newaxis] * eke[2:-2, 2:-2, :, taup1]
+        eke_lee_flux = update(eke_lee_flux, at[2:-2, 2:-2], np.where(boundary_mask, np.sum(c_lee[2:-2, 2:-2, np.newaxis] * eke[2:-2, 2:-2, :, taup1]
                                                    * dzw[np.newaxis, np.newaxis, :] * full_mask, axis=-1), eke_lee_flux[2:-2, 2:-2]))
-        eke_bot_flux = update(eke_bot_flux, at[2:-2, 2:-2], utilities.where(boundary_mask, np.sum(2 * eke_r_bot * eke[2:-2, 2:-2, :, taup1]
-                                                   * math.sqrt(2.0) * sqrteke[2:-2, 2:-2, :] * full_mask, axis=-1), eke_bot_flux[2:-2, 2:-2]))
+        eke_bot_flux = update(eke_bot_flux, at[2:-2, 2:-2], np.where(boundary_mask, np.sum(2 * eke_r_bot * eke[2:-2, 2:-2, :, taup1]
+                                                   * np.sqrt(2) * sqrteke[2:-2, 2:-2, :] * full_mask, axis=-1), eke_bot_flux[2:-2, 2:-2]))
     else:
         eke_diss_iw = c_int * eke[:, :, :, taup1]
         eke_diss_tke = update(eke_diss_tke, at[...], 0.)

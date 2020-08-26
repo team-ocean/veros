@@ -7,9 +7,12 @@ from loguru import logger
 def build_all():
     """Trigger first import of all core modules"""
     from veros import runtime_settings as rs
-    from veros.backend import BACKEND_MESSAGES
+    from veros.backend import BACKEND_MESSAGES, get_curent_device_name
 
-    logger.opt(colors=True).info('Using computational backend <bold>{}</bold>', rs.backend)
+    logger.opt(colors=True).info(
+        'Using computational backend <bold>{}</bold> on <bold>{}</bold>',
+        rs.backend, get_curent_device_name()
+    )
     extra_message = BACKEND_MESSAGES.get(rs.backend)
     if extra_message:
         logger.info(' {}', extra_message)

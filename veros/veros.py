@@ -21,15 +21,6 @@ class VerosSetup(metaclass=abc.ABCMeta):
         :meth:`set_coriolis`, :meth:`set_initial_conditions`, :meth:`set_forcing`,
         and :meth:`set_diagnostics`.
 
-    Arguments:
-        backend (:obj:`bool`, optional): Backend to use for array operations.
-            Possible values are ``numpy``. Defaults to ``None``, which
-            tries to read the backend from the command line (set via a flag
-            ``-b``/``--backend``), and uses ``numpy`` if no command line argument is given.
-        loglevel (one of {debug, info, warning, error, critical}, optional): Verbosity
-            of the model. Tries to read value from command line if not given
-            (``-v``/``--loglevel``). Defaults to ``info``.
-
     Example:
         >>> import matplotlib.pyplot as plt
         >>> from veros import VerosSetup
@@ -37,7 +28,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         >>> class MyModel(VerosSetup):
         >>>     ...
         >>>
-        >>> simulation = MyModel(backend='numpy')
+        >>> simulation = MyModel()
         >>> simulation.run()
         >>> plt.imshow(simulation.state.psi[..., 0])
         >>> plt.show()

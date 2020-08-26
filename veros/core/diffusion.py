@@ -1,5 +1,3 @@
-import math
-
 from veros.core.operators import numpy as np
 
 from veros import veros_kernel
@@ -7,6 +5,7 @@ from veros.core import utilities
 from veros.core.operators import update, update_add, update_multiply, at
 
 
+@veros_kernel
 def compute_dissipation(grav, rho_0, dxt, dyt, cost, int_drhodX, flux_east, flux_north):
     diss = np.zeros_like(int_drhodX)
     diss = update(diss, at[1:-1, 1:-1, :], 0.5 * grav / rho_0
@@ -21,20 +20,16 @@ def compute_dissipation(grav, rho_0, dxt, dyt, cost, int_drhodX, flux_east, flux
 
 @veros_kernel(static_args=('nz',))
 def dissipation_on_wgrid(diss, nz, dzw, ks):
-    ks = ks - 1
-    land_mask = ks >= 0
-    edge_mask = land_mask[:, :, np.newaxis] & (
-        np.arange(nz - 1)[np.newaxis, np.newaxis, :] == ks[:, :, np.newaxis])
-    water_mask = land_mask[:, :, np.newaxis] & (
-        np.arange(nz - 1)[np.newaxis, np.newaxis, :] > ks[:, :, np.newaxis])
+    land_mask, water_mask, edge_mask = utilities.create_water_masks(ks, nz)
+    water_mask = np.logical_and(water_mask, np.logical_not(edge_mask))
 
     dzw_pad = utilities.pad_z_edges(dzw)
 
     out = np.zeros_like(diss)
     out = update(out, at[:, :, :-1], (0.5 * (diss[:, :, :-1] + diss[:, :, 1:])
                        + 0.5 * (diss[:, :, :-1] * dzw_pad[np.newaxis, np.newaxis, :-3]
-                                / dzw[np.newaxis, np.newaxis, :-1])) * edge_mask
-                       + 0.5 * (diss[:, :, :-1] + diss[:, :, 1:]) * water_mask)
+                                / dzw[np.newaxis, np.newaxis, :-1])) * edge_mask[:, :, :-1]
+                       + 0.5 * (diss[:, :, :-1] + diss[:, :, 1:]) * water_mask[:, :, :-1])
     out = update(out, at[:, :, -1], diss[:, :, -1] * land_mask)
 
     return out
@@ -49,7 +44,7 @@ def tempsalt_biharmonic(K_hbi, temp, salt, int_drhodT, int_drhodS, maskT, maskU,
     biharmonic mixing of temp and salinity,
     dissipation of dyn. Enthalpy is stored
     """
-    fxa = math.sqrt(abs(K_hbi))
+    fxa = np.sqrt(abs(K_hbi))
 
     # update temp
     dtemp_hmix = np.zeros_like(maskT)

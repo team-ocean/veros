@@ -208,6 +208,8 @@ def vertmix_tempsalt(temp, salt, dtemp_vmix, dsalt_vmix, kappaH, kbot, dzt, dzw,
     """
     vertical mixing of temperature and salinity
     """
+    nz = dzw.shape[0]
+
     dtemp_vmix = update(dtemp_vmix, at[...], temp[:, :, :, taup1])
     dsalt_vmix = update(dsalt_vmix, at[...], salt[:, :, :, taup1])
 
@@ -217,7 +219,8 @@ def vertmix_tempsalt(temp, salt, dtemp_vmix, dsalt_vmix, kappaH, kbot, dzt, dzw,
     d_tri = np.zeros_like(salt[2:-2, 2:-2, :, taup1])
     delta = np.zeros_like(salt[2:-2, 2:-2, :, taup1])
 
-    ks = kbot[2:-2, 2:-2] - 1
+    _, water_mask, edge_mask = utilities.create_water_masks(kbot[2:-2, 2:-2], nz)
+
     delta = update(delta, at[:, :, :-1], dt_tracer / dzw[np.newaxis, np.newaxis, :-1] \
         * kappaH[2:-2, 2:-2, :-1])
     delta = update(delta, at[:, :, -1], 0.)
@@ -228,14 +231,19 @@ def vertmix_tempsalt(temp, salt, dtemp_vmix, dsalt_vmix, kappaH, kbot, dzt, dzw,
     c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, :-1])
     d_tri = temp[2:-2, 2:-2, :, taup1]
     d_tri = update_add(d_tri, at[:, :, -1], dt_tracer * forc_temp_surface[2:-2, 2:-2] / dzt[-1])
-    sol, mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge)
-    temp = update(temp, at[2:-2, 2:-2, :, taup1], utilities.where(mask, sol, temp[2:-2, 2:-2, :, taup1]))
+
+    sol = utilities.solve_implicit(
+        a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask
+    )
+    temp = update(temp, at[2:-2, 2:-2, :, taup1], np.where(water_mask, sol, temp[2:-2, 2:-2, :, taup1]))
+
     d_tri = salt[2:-2, 2:-2, :, taup1]
     d_tri = update_add(d_tri, at[:, :, -1], dt_tracer * forc_salt_surface[2:-2, 2:-2] / dzt[-1])
-    sol, mask = utilities.solve_implicit(
-        ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge
+
+    sol = utilities.solve_implicit(
+        a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask
     )
-    salt = update(salt, at[2:-2, 2:-2, :, taup1], utilities.where(mask, sol, salt[2:-2, 2:-2, :, taup1]))
+    salt = update(salt, at[2:-2, 2:-2, :, taup1], np.where(water_mask, sol, salt[2:-2, 2:-2, :, taup1]))
 
     dtemp_vmix = update(dtemp_vmix, at[...], (temp[:, :, :, taup1] - dtemp_vmix) / dt_tracer)
     dsalt_vmix = update(dsalt_vmix, at[...], (salt[:, :, :, taup1] - dsalt_vmix) / dt_tracer)

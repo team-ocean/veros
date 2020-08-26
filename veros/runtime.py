@@ -14,11 +14,17 @@ def twoints(v):
     return (int(v[0]), int(v[1]))
 
 
-def loglevel(v):
-    loglevels = ('trace', 'debug', 'info', 'warning', 'error')
-    if v not in loglevels:
-        raise ValueError('loglevel must be one of %r' % loglevels)
-    return v
+def parse_choice(choices, preserve_case=False):
+    def validate(choice):
+        if isinstance(choice, str) and not preserve_case:
+            choice = choice.lower()
+
+        if choice not in choices:
+            raise ValueError('must be one of {}'.format(choices))
+
+        return choice
+
+    return validate
 
 
 def parse_bool(obj):
@@ -28,19 +34,32 @@ def parse_bool(obj):
     return obj.lower() in {'1', 'true'}
 
 
+LOGLEVELS = ('trace', 'debug', 'info', 'warning', 'error')
+DEVICES = ('cpu', 'gpu', 'tpu')
+FLOAT_TYPES = ('float64', 'float32')
+
 AVAILABLE_SETTINGS = (
     # (name, type, default)
     ('backend', str, os.environ.get('VEROS_BACKEND', 'numpy')),
+    ('device', parse_choice(DEVICES), os.environ.get('VEROS_DEVICE', 'cpu')),
+    ('float_type', parse_choice(FLOAT_TYPES), os.environ.get('VEROS_FLOAT_TYPE', 'float64')),
     ('linear_solver', str, os.environ.get('VEROS_LINEAR_SOLVER', 'best')),
     ('num_proc', twoints, (1, 1)),
     ('profile_mode', parse_bool, os.environ.get('VEROS_PROFILE_MODE', '')),
-    ('loglevel', loglevel, os.environ.get('VEROS_LOGLEVEL', 'info')),
+    ('loglevel', parse_choice(LOGLEVELS), os.environ.get('VEROS_LOGLEVEL', 'info')),
     ('mpi_comm', None, _default_mpi_comm()),
     ('log_all_processes', parse_bool, os.environ.get('VEROS_LOG_ALL_PROCESSES', ''))
 )
 
 
 class RuntimeSettings:
+    __slots__ = [
+        '__locked__',
+        '__setting_types__',
+        '__settings__',
+        *(setting for setting, _, _ in AVAILABLE_SETTINGS)
+    ]
+
     def __init__(self):
         self.__locked__ = False
         self.__setting_types__ = {}
@@ -63,7 +82,10 @@ class RuntimeSettings:
         # coerce type
         stype = self.__setting_types__.get(attr)
         if stype is not None:
-            val = stype(val)
+            try:
+                val = stype(val)
+            except (TypeError, ValueError) as e:
+                raise ValueError('Got invalid value for runtime setting "{}": {}'.format(attr, str(e))) from None
 
         return super(RuntimeSettings, self).__setattr__(attr, val)
 
@@ -109,12 +131,7 @@ class RuntimeState:
     @property
     def backend_module(self):
         from . import backend, runtime_settings
-        return backend.get_backend(runtime_settings.backend)
-
-    @property
-    def vector_engine(self):
-        from . import backend
-        return backend.get_vector_engine(self.backend_module)
+        return backend.get_backend_module(runtime_settings.backend)
 
     def __setattr__(self, attr, val):
         raise TypeError('Cannot modify runtime state objects')

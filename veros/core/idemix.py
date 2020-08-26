@@ -75,10 +75,10 @@ def integrate_idemix(K_diss_gm, K_diss_h, K_diss_bot, P_diss_skew, P_diss_hmix, 
         ks = np.maximum(0, kbot[2:-2, 2:-2] - 1)
         mask = ks[:, :, np.newaxis] == np.arange(nz)[np.newaxis, np.newaxis, :]
         if enable_eke_diss_bottom:
-            forc = update(forc, at[2:-2, 2:-2, :], utilities.where(mask, a_loc[2:-2, 2:-2, np.newaxis] /
+            forc = update(forc, at[2:-2, 2:-2, :], np.where(mask, a_loc[2:-2, 2:-2, np.newaxis] /
                                                   dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :]))
         else:
-            forc = update(forc, at[2:-2, 2:-2, :], utilities.where(mask, eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, np.newaxis]
+            forc = update(forc, at[2:-2, 2:-2, :], np.where(mask, eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, np.newaxis]
                                            / dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :]))
             forc = update(forc, at[2:-2, 2:-2, -1], (1. - eke_diss_surfbot_frac) \
                                     * a_loc[2:-2, 2:-2] / (0.5 * dzw[-1]))
@@ -97,7 +97,8 @@ def integrate_idemix(K_diss_gm, K_diss_h, K_diss_bot, P_diss_skew, P_diss_hmix, 
     """
     vertical diffusion and dissipation is solved implicitly
     """
-    ks = kbot[2:-2, 2:-2] - 1
+    _, water_mask, edge_mask = utilities.create_water_masks(kbot[2:-2, 2:-2], nz)
+
     delta = update(delta, at[:, :, :-1], dt_tracer * tau_v / dzt[np.newaxis, np.newaxis, 1:] * 0.5 \
         * (c0[2:-2, 2:-2, :-1] + c0[2:-2, 2:-2, 1:]))
     delta = update(delta, at[:, :, -1], 0.)
@@ -117,8 +118,9 @@ def integrate_idemix(K_diss_gm, K_diss_h, K_diss_bot, P_diss_skew, P_diss_hmix, 
     d_tri_edge = d_tri + dt_tracer * \
         forc_iw_bottom[2:-2, 2:-2, np.newaxis] / dzw[np.newaxis, np.newaxis, :]
     d_tri = update_add(d_tri, at[:, :, -1], dt_tracer * forc_iw_surface[2:-2, 2:-2] / (0.5 * dzw[-1:]))
-    sol, water_mask = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, b_edge=b_tri_edge, d_edge=d_tri_edge)
-    E_iw = update(E_iw, at[2:-2, 2:-2, :, taup1], utilities.where(water_mask, sol, E_iw[2:-2, 2:-2, :, taup1]))
+
+    sol = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, d_edge=d_tri_edge, edge_mask=edge_mask)
+    E_iw = update(E_iw, at[2:-2, 2:-2, :, taup1], np.where(water_mask, sol, E_iw[2:-2, 2:-2, :, taup1]))
 
     """
     store IW dissipation

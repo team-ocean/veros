@@ -9,6 +9,14 @@ def init_environment():
     pass
 
 
+def init_jax_config():
+    import jax
+    from veros import runtime_settings
+    jax.config.enable_omnistaging()
+    jax.config.update('jax_enable_x64', runtime_settings.float_type == 'float64')
+    jax.config.update('jax_platform_name', runtime_settings.device)
+
+
 def init_backends():
     init_environment()
 
@@ -20,14 +28,17 @@ def init_backends():
     BACKENDS['numpy'] = numpy
 
     try:
-        import jax
+        import jax  # noqa: F401
     except ImportError:
-        jax = None
+        jnp = None
+    else:
+        init_jax_config()
+        import jax.numpy as jnp
 
-    BACKENDS['jax'] = jax
+    BACKENDS['jax'] = jnp
 
 
-def get_backend(backend_name):
+def get_backend_module(backend_name):
     if BACKENDS is None:
         init_backends()
 
@@ -41,12 +52,9 @@ def get_backend(backend_name):
     return BACKENDS[backend_name]
 
 
-# TODO: remove
-def get_vector_engine(np):
+def get_curent_device_name():
     from veros import runtime_settings
-    return None
+    if runtime_settings.backend != 'jax':
+        return 'cpu'
 
-
-# TODO: remove
-def flush():
-    pass
+    return runtime_settings.device

@@ -1,7 +1,7 @@
 from veros.core.operators import numpy as np
 
 from veros import veros_kernel, veros_routine, run_kernel
-from veros.core.utilities import pad_z_edges, where
+from veros.core.utilities import pad_z_edges
 from veros.core.operators import update, update_add, update_multiply, at
 
 
@@ -11,17 +11,16 @@ def _calc_cr(rjp, rj, rjm, vel):
     Calculates cr value used in superbee advection scheme
     """
     eps = 1e-20  # prevent division by 0
-    return where(vel > 0., rjm, rjp) / where(np.abs(rj) < eps, eps, rj)
+    return np.where(vel > 0., rjm, rjp) / np.where(np.abs(rj) < eps, eps, rj)
 
 
 @veros_kernel
 def limiter(cr):
-    return np.maximum(0., np.maximum(np.minimum(1., 2 * cr), np.minimum(2., cr)))
+    return np.maximum(np.clip(2 * cr, 0, 1), np.clip(cr, 0, 2))
 
 
 @veros_kernel(static_args=('axis',))
 def _adv_superbee(vel, var, mask, dx, axis, cost, cosu, dt_tracer):
-    velfac = 1
     if axis == 0:
         sm1, s, sp1, sp2 = ((slice(1 + n, -2 + n or None), slice(2, -2), slice(None))
                             for n in range(-1, 3))
@@ -30,7 +29,7 @@ def _adv_superbee(vel, var, mask, dx, axis, cost, cosu, dt_tracer):
         sm1, s, sp1, sp2 = ((slice(2, -2), slice(1 + n, -2 + n or None), slice(None))
                             for n in range(-1, 3))
         dx = (cost * dx)[np.newaxis, 1:-2, np.newaxis]
-        velfac = cosu[np.newaxis, 1:-2, np.newaxis]
+        vel = vel * cosu[np.newaxis, :, np.newaxis]
     elif axis == 2:
         vel, var, mask = (pad_z_edges(a) for a in (vel, var, mask))
         sm1, s, sp1, sp2 = ((slice(2, -2), slice(2, -2), slice(1 + n, -2 + n or None))
@@ -38,20 +37,21 @@ def _adv_superbee(vel, var, mask, dx, axis, cost, cosu, dt_tracer):
         dx = dx[np.newaxis, np.newaxis, :-1]
     else:
         raise ValueError('axis must be 0, 1, or 2')
-    uCFL = np.abs(velfac * vel[s] * dt_tracer / dx)
+
+    uCFL = np.abs(vel[s] * dt_tracer / dx)
     rjp = (var[sp2] - var[sp1]) * mask[sp1]
     rj = (var[sp1] - var[s]) * mask[s]
     rjm = (var[s] - var[sm1]) * mask[sm1]
     cr = limiter(_calc_cr(rjp, rj, rjm, vel[s]))
 
-    return velfac * vel[s] * (var[sp1] + var[s]) * 0.5 - np.abs(velfac * vel[s]) * ((1. - cr) + uCFL * cr) * rj * 0.5
+    return vel[s] * (var[sp1] + var[s]) * 0.5 - np.abs(vel[s]) * ((1. - cr) + uCFL * cr) * rj * 0.5
 
 
 @veros_kernel
 def adv_flux_2nd(adv_fe, adv_fn, adv_ft, var, u, v, w,
                  cosu, maskU, maskV, maskW, tau):
     """
-    2th order advective tracer flux
+    2nd order advective tracer flux
     """
     adv_fe = update(adv_fe, at[1:-2, 2:-2, :], 0.5 * (var[1:-2, 2:-2, :] + var[2:-1, 2:-2, :]) \
         * u[1:-2, 2:-2, :, tau] * maskU[1:-2, 2:-2, :])
@@ -104,6 +104,7 @@ def calculate_velocity_on_wgrid(vs):
         u_wgrid=u_wgrid, v_wgrid=v_wgrid, w_wgrid=w_wgrid
     )
 
+
 @veros_kernel
 def calculate_velocity_on_wgrid_kernel(u, v, w, maskU, maskV, maskW, dxt, dyt, dzt, dzw,
                                        cosu, cost, tau):
@@ -147,6 +148,7 @@ def calculate_velocity_on_wgrid_kernel(u, v, w, maskU, maskV, maskW, dxt, dyt, d
 
     # vertical advection velocity on W grid from continuity
     w_wgrid = update(w_wgrid, at[:, :, 0], 0.)
+    # TODO: replace cumsum
     w_wgrid = update(w_wgrid, at[1:, 1:, :], np.cumsum(-dzw[np.newaxis, np.newaxis, :] *
                                    ((u_wgrid[1:, 1:, :] - u_wgrid[:-1, 1:, :]) / (cost[np.newaxis, 1:, np.newaxis] * dxt[1:, np.newaxis, np.newaxis])
                                     + (cosu[np.newaxis, 1:, np.newaxis] * v_wgrid[1:, 1:, :] -

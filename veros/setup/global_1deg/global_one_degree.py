@@ -1,16 +1,6 @@
 #!/usr/bin/env python
 
 import os
-os.environ.update(
-    OMP_NUM_THREADS='1',
-    JAX_ENABLE_X64='1',
-    XLA_FLAGS=(
-        '--xla_cpu_multi_thread_eigen=false '
-        'intra_op_parallelism_threads=1 '
-        'inter_op_parallelism_threads=1 '
-    ),
-)
-
 import h5netcdf
 
 from veros import VerosSetup, tools, time, veros_kernel, run_kernel
@@ -25,6 +15,7 @@ def set_forcing_kernel(f1, f2, n1, n2, surface_taux, surface_tauy, taux, tauy, e
                        t_star, qnec, qnet, forc_temp_surface, temp, tau, cp_0, s_star, forc_salt_surface,
                        t_rest, salt, maskT, dzt, enable_tempsalt_sources, temp_source, divpen_shortwave, qsol):
     from veros.core.operators import numpy as np, update, at
+    # TODO: investigate performance
 
     # linearly interpolate wind stress and shift from MITgcm U/V grid to this grid
     surface_taux = update(surface_taux, at[:-1, :], f1 * taux[1:, :, n1] + f2 * taux[1:, :, n2])

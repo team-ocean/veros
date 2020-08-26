@@ -178,6 +178,7 @@ def vertical_velocity_kernel(u, v, w, maskW, dxt, dyt, dzt, cost, cosu, taup1):
            + (cosu[np.newaxis, 1:, np.newaxis] * v[1:, 1:, 1:, taup1]
               - cosu[np.newaxis, :-1, np.newaxis] * v[1:, :-1, 1:, taup1])
            / (cost[np.newaxis, 1:, np.newaxis] * dyt[np.newaxis, 1:, np.newaxis])))
+    # TODO: replace cumsum
     w = update(w, at[1:, 1:, :, taup1], np.cumsum(fxa, axis=2))
 
     return w

@@ -83,7 +83,8 @@ def _calc_explicit_part(flux_east, flux_north, flux_top, cost, dxt, dyt, dzt, ma
 
 @veros_kernel
 def _calc_implicit_part(tr, kbot, K_33, dzt, dzw, dt_tracer, taup1):
-    ks = kbot[2:-2, 2:-2] - 1
+    nz = dzw.shape[0]
+    _, water_mask, edge_mask = utilities.create_water_masks(kbot[2:-2, 2:-2], nz)
 
     a_tri = np.zeros_like(K_33)[2:-2, 2:-2]
     b_tri = np.zeros_like(K_33)[2:-2, 2:-2]
@@ -98,10 +99,10 @@ def _calc_implicit_part(tr, kbot, K_33, dzt, dzw, dt_tracer, taup1):
     b_tri = update(b_tri, at[:, :, -1], 1 + delta[:, :, -2] / dzt[np.newaxis, np.newaxis, -1])
     b_tri_edge = 1 + (delta[:, :, :] / dzt[np.newaxis, np.newaxis, :])
     c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / dzt[np.newaxis, np.newaxis, :-1])
-    sol, water_mask = utilities.solve_implicit(
-        ks, a_tri, b_tri, c_tri, tr[2:-2, 2:-2, :, taup1], b_edge=b_tri_edge
+    sol = utilities.solve_implicit(
+        a_tri, b_tri, c_tri, tr[2:-2, 2:-2, :, taup1], water_mask, b_edge=b_tri_edge, edge_mask=edge_mask
     )
-    return utilities.where(water_mask, sol, tr[2:-2, 2:-2, :, taup1])
+    return np.where(water_mask, sol, tr[2:-2, 2:-2, :, taup1])
 
 
 @veros_kernel(static_args=('iso', 'skew',))

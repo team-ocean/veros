@@ -23,7 +23,7 @@ def _unpack_builder(c):
     return getattr(c, '_builder', c)
 
 
-def tdma(a, b, c, d):
+def tdma(a, b, c, d, system_depths=None):
     if not a.shape == b.shape == c.shape == d.shape:
         raise ValueError('all inputs must have identical shape')
 
@@ -32,14 +32,20 @@ def tdma(a, b, c, d):
 
     # pre-allocate workspace for TDMA
     cp = jnp.empty(a.shape[-1], dtype=a.dtype)
-    return tdma_p.bind(a, b, c, d, cp)
+
+    if system_depths is None:
+        system_depths = jnp.full(a.shape[:-1], a.shape[-1], dtype='int64')
+    else:
+        system_depths = system_depths.astype('int64')
+
+    return tdma_p.bind(a, b, c, d, cp, system_depths)
 
 
 def tdma_impl(*args, **kwargs):
     return xla.apply_primitive(tdma_p, *args, **kwargs)
 
 
-def tdma_xla_encode(builder, a, b, c, d, cp):
+def tdma_xla_encode(builder, a, b, c, d, cp, system_depths):
     builder = _unpack_builder(builder)
     x_shape = builder.GetShape(a)
     dtype = x_shape.element_type()
@@ -53,12 +59,12 @@ def tdma_xla_encode(builder, a, b, c, d, cp):
     if dtype not in supported_dtypes:
         raise TypeError('TDMA only supports {} arrays, got: {}'.format(supported_dtypes, dtype))
 
-    # compute system size and depth
+    # compute number of elements to vectorize over
     num_systems = 1
     for el in dims[:-1]:
         num_systems *= el
 
-    system_depth = dims[-1]
+    stride = dims[-1]
 
     out_shape = xla_client.Shape.array_shape(
         dtype,
@@ -77,8 +83,9 @@ def tdma_xla_encode(builder, a, b, c, d, cp):
         kernel,
         operands=(
             a, b, c, d,
-            _constant_s64_scalar(builder, system_depth),
+            system_depths,
             _constant_s64_scalar(builder, num_systems),
+            _constant_s64_scalar(builder, stride),
             cp,
         ),
         shape=out_shape,
@@ -87,7 +94,7 @@ def tdma_xla_encode(builder, a, b, c, d, cp):
     return out
 
 
-def tdma_abstract_eval(a, b, c, d, cp):
+def tdma_abstract_eval(a, b, c, d, cp, system_depths):
     return abstract_arrays.ShapedArray(a.shape, a.dtype)
 
 

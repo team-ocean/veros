@@ -4,6 +4,7 @@ import cython
 from cpython.pycapsule cimport PyCapsule_New
 
 from libc.stdint cimport int64_t
+from libc.math cimport NAN
 
 
 @cython.cdivision(True)
@@ -44,56 +45,74 @@ cdef void _tdma_cython_float(int64_t n, float* a, float* b, float* c, float* d, 
 
 cdef void tdma_cython_double(void* out_ptr, void** data_ptr) nogil:
     cdef:
-        int64_t i, ii
+        int64_t i, j, system_depth, system_start
+        int64_t ii = 0
 
         # decode inputs
         double* a = (<double*>data_ptr[0])
         double* b = (<double*>data_ptr[1])
         double* c = (<double*>data_ptr[2])
         double* d = (<double*>data_ptr[3])
-        int64_t system_depth = (<int64_t*>data_ptr[4])[0]
+        int64_t* system_depths = (<int64_t*>data_ptr[4])
         int64_t num_systems = (<int64_t*>data_ptr[5])[0]
-        double* cp = (<double*>data_ptr[6])
+        int64_t stride = (<int64_t*>data_ptr[6])[0]
+        double* cp = (<double*>data_ptr[7])
         double* out = (<double*>out_ptr)
 
     for i in range(num_systems):
-        ii = system_depth * i
+        system_depth = system_depths[i]
+        system_start = stride - system_depth
+
+        for j in range(system_start):
+            out[ii + j] = NAN
+
         _tdma_cython_double(
             system_depth,
-            &a[ii],
-            &b[ii],
-            &c[ii],
-            &d[ii],
+            &a[ii + system_start],
+            &b[ii + system_start],
+            &c[ii + system_start],
+            &d[ii + system_start],
             cp,
-            &out[ii],
+            &out[ii + system_start],
         )
+
+        ii += stride
 
 
 cdef void tdma_cython_float(void* out_ptr, void** data_ptr) nogil:
     cdef:
-        int64_t i, ii
+        int64_t i, j, system_depth, system_start
+        int64_t ii = 0
 
         # decode inputs
         float* a = (<float*>data_ptr[0])
         float* b = (<float*>data_ptr[1])
         float* c = (<float*>data_ptr[2])
         float* d = (<float*>data_ptr[3])
-        int64_t system_depth = (<int64_t*>data_ptr[4])[0]
+        int64_t* system_depths = (<int64_t*>data_ptr[4])
         int64_t num_systems = (<int64_t*>data_ptr[5])[0]
-        float* cp = (<float*>data_ptr[6])
+        int64_t stride = (<int64_t*>data_ptr[6])[0]
+        float* cp = (<float*>data_ptr[7])
         float* out = (<float*>out_ptr)
 
     for i in range(num_systems):
-        ii = system_depth * i
+        system_depth = system_depths[i]
+        system_start = stride - system_depth
+
+        for j in range(system_start):
+            out[ii + j] = NAN
+
         _tdma_cython_float(
             system_depth,
-            &a[ii],
-            &b[ii],
-            &c[ii],
-            &d[ii],
+            &a[ii + system_start],
+            &b[ii + system_start],
+            &c[ii + system_start],
+            &d[ii + system_start],
             cp,
-            &out[ii],
+            &out[ii + system_start],
         )
+
+        ii += stride
 
 
 cpu_custom_call_targets = {}

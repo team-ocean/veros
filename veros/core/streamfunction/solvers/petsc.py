@@ -87,8 +87,8 @@ class PETScSolver(LinearSolver):
 
         sol = utilities.enforce_boundaries(vs, sol)
 
-        boundary_mask = np.logical_and.reduce(~vs.boundary_mask, axis=2)
-        rhs = utilities.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
+        boundary_mask = np.sum(~vs.boundary_mask, axis=2).astype('bool')
+        rhs = np.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
         sol[...] = rhs
         sol[2:-2, 2:-2] = self._petsc_solver(vs, rhs, sol)
@@ -100,7 +100,7 @@ class PETScSolver(LinearSolver):
 
         matrix = self._da.getMatrix()
 
-        boundary_mask = np.logical_and.reduce(~vs.boundary_mask[2:-2, 2:-2], axis=2)
+        boundary_mask = np.sum(~vs.boundary_mask[2:-2, 2:-2], axis=2).astype('bool')
 
         # assemble diagonals
         main_diag = -vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, np.newaxis] / vs.dxt[3:-1, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2 \

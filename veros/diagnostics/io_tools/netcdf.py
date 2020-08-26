@@ -61,7 +61,7 @@ def initialize_variable(vs, key, var, ncfile):
 
     # transpose all dimensions in netCDF output (convention in most ocean models)
     v = ncfile.create_variable(
-        key, dims[::-1], var.dtype or vs.default_float_type,
+        key, dims[::-1], var.dtype or rs.float_type,
         fillvalue=variables.FILL_VALUE,
         chunks=tuple(chunksize[::-1]),
         **kwargs

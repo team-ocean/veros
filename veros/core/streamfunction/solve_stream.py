@@ -28,7 +28,7 @@ from veros.core.streamfunction import utilities
     )
 )
 def solve_streamfunction(vs):
-    forc, dpsi, fpx, fpy = run_kernel(prepare_forcing, vs)
+    du, dv, forc, dpsi, fpx, fpy = run_kernel(prepare_forcing, vs)
 
     linear_sol = vs.linear_solver.solve(
         vs,
@@ -38,7 +38,9 @@ def solve_streamfunction(vs):
 
     dpsi = update(dpsi, at[..., vs.taup1], linear_sol)
 
-    u, v, du, dv, p_hydro, psi, dpsi, dpsin = run_kernel(barotropic_velocity_update, vs, dpsi=dpsi, fpx=fpx, fpy=fpy)
+    u, v, du, dv, p_hydro, psi, dpsi, dpsin = run_kernel(
+        barotropic_velocity_update, vs, dpsi=dpsi, fpx=fpx, fpy=fpy, du=du, dv=dv
+    )
 
     return dict(
         u=u,
@@ -61,6 +63,7 @@ def prepare_forcing(grav, rho_0, tau, taup1, taum1, dzt, maskT, p_hydro, rho, dz
     p_hydro = update(p_hydro, at[:, :, -1], tmp[:, :, -1])
     tmp = update_add(tmp, at[:, :, :-1], 0.5 * rho[:, :, 1:, tau] * \
         fxa * dzw[:-1] * maskT[:, :, :-1])
+    # TODO: replace cumsum
     p_hydro = update(p_hydro, at[:, :, -2::-1], maskT[:, :, -2::-1] * \
         (p_hydro[:, :, -1, np.newaxis] + np.cumsum(tmp[:, :, -2::-1], axis=2)))
 
@@ -92,7 +95,7 @@ def prepare_forcing(grav, rho_0, tau, taup1, taum1, dzt, maskT, p_hydro, rho, dz
     # solve for interior streamfunction
     dpsi = update(dpsi, at[:, :, taup1], 2 * dpsi[:, :, tau] - dpsi[:, :, taum1])
 
-    return forc, dpsi, fpx, fpy
+    return du, dv, forc, dpsi, fpx, fpy
 
 
 @veros_kernel(static_args=('nisle', 'enable_cyclic_x'))
