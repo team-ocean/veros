@@ -70,7 +70,6 @@ def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask):
         system_depths = jnp.sum(water_mask, axis=2).astype('int64')
         return tdma(a, b, c, d, system_depths)
 
-    return d
     warnings.warn('Could not use custom TDMA implementation, falling back to pure JAX')
     # TODO: fix / test
 

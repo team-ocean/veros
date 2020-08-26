@@ -59,9 +59,9 @@ def solve_implicit(a, b, c, d, water_mask, edge_mask, b_edge=None, d_edge=None):
     from .operators import solve_tridiagonal  # avoid circular import
 
     if b_edge is not None:
-        b += edge_mask * b_edge
+        b = np.where(edge_mask, b_edge, b)
 
     if d_edge is not None:
-        d += edge_mask * d_edge
+        d = np.where(edge_mask, d_edge, d)
 
     return solve_tridiagonal(a, b, c, d, water_mask, edge_mask)
