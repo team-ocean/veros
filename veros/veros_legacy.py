@@ -18,12 +18,12 @@ class LowercaseAttributeWrapper:
     """
 
     def __init__(self, wrapped_object):
-        object.__setattr__(self, '_w', wrapped_object)
+        super().__setattr__(self, '_w', wrapped_object)
 
     def __getattr__(self, key):
         if key == '_w':
-            return object.__getattribute__(self, '_w')
-        return getattr(object.__getattribute__(self, '_w'), key.lower())
+            return super().__getattribute__(self, '_w')
+        return getattr(super().__getattribute__(self, '_w'), key.lower())
 
     def __setattr__(self, key, value):
         setattr(self._w, key.lower(), value)
@@ -38,22 +38,22 @@ class VerosLegacy(veros.VerosSetup):
        Do not use this class for new setups!
 
     """
-    def __init__(self, fortran=None, *args, **kwargs):
+    def __init__(self, pyom_lib=None, *args, **kwargs):
         """
-        To use the pyOM2 legacy interface point the fortran argument to the Veros fortran library:
+        To use the pyOM2 legacy interface point the pyom_lib argument to the pyOM2 Fortran library:
 
-        > simulation = GlobalOneDegreeSetup(fortran='pyOM_code.so')
+        > simulation = GlobalOneDegreeSetup(pyom_lib='pyOM_code.so')
 
         """
         super(VerosLegacy, self).__init__(*args, **kwargs)
 
-        if fortran:
+        if pyom_lib:
             self.legacy_mode = True
             try:
-                self.fortran = LowercaseAttributeWrapper(_load_fortran_module('pyOM_code', fortran))
+                self.fortran = LowercaseAttributeWrapper(_load_fortran_module('pyOM_code', pyom_lib))
                 self.use_mpi = False
             except ImportError:
-                self.fortran = LowercaseAttributeWrapper(_load_fortran_module('pyOM_code_MPI', fortran))
+                self.fortran = LowercaseAttributeWrapper(_load_fortran_module('pyOM_code_MPI', pyom_lib))
                 self.use_mpi = True
                 from mpi4py import MPI
                 self.mpi_comm = MPI.COMM_WORLD
@@ -73,9 +73,6 @@ class VerosLegacy(veros.VerosSetup):
             self.eke_module = self.state
         self.modules = (self.main_module, self.isoneutral_module, self.idemix_module,
                         self.tke_module, self.eke_module)
-
-        if self.use_mpi and self.mpi_comm.Get_rank() != 0:
-            kwargs['loglevel'] = 'critical'
 
     def set_legacy_parameter(self):
         m = self.fortran.main_module

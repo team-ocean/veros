@@ -1,8 +1,8 @@
 import os
 
 from loguru import logger
-import numpy as np
 
+from veros.core.operators import numpy as np
 from veros.diagnostics.io_tools import netcdf as nctools, hdf5 as h5tools
 from veros.decorators import do_not_disturb
 from veros import time, runtime_state, distributed
@@ -116,13 +116,13 @@ class VerosDiagnostic:
             except AttributeError:
                 pass
 
-            global_shape = distributed.get_global_size(vs, var.shape, var_meta[key].dims, include_overlap=True)
-            gidx, lidx = distributed.get_chunk_slices(vs, var_meta[key].dims, include_overlap=True)
+            global_shape = distributed.get_global_size(vs.nx, vs.ny, var.shape, var_meta[key].dims, include_overlap=True)
+            gidx, lidx = distributed.get_chunk_slices(vs.nx, vs.ny, var_meta[key].dims, include_overlap=True)
 
             kwargs = dict(
                 exact=True,
                 chunks=tuple(
-                    distributed.get_local_size(vs, var.shape, var_meta[key].dims, include_overlap=False)
+                    distributed.get_local_size(vs.nx, vs.ny, var.shape, var_meta[key].dims, include_overlap=False)
                 )
             )
             if vs.enable_hdf5_gzip_compression and runtime_state.proc_num == 1:

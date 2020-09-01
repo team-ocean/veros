@@ -1,4 +1,7 @@
 import os
+from collections import namedtuple
+
+from veros.backend import BACKENDS
 
 
 def _default_mpi_comm():
@@ -10,7 +13,9 @@ def _default_mpi_comm():
         return MPI.COMM_WORLD
 
 
-def twoints(v):
+# validators
+
+def parse_two_ints(v):
     return (int(v[0]), int(v[1]))
 
 
@@ -31,25 +36,44 @@ def parse_bool(obj):
     if not isinstance(obj, str):
         return bool(obj)
 
-    return obj.lower() in {'1', 'true'}
+    return obj.lower() in {'1', 'true', 'on'}
+
+
+def check_mpi_comm(comm):
+    if comm is not None:
+        from mpi4py import MPI
+
+        if not isinstance(comm, MPI.Comm):
+            raise TypeError('mpi_comm must be Comm instance or None')
+
+    return comm
 
 
 LOGLEVELS = ('trace', 'debug', 'info', 'warning', 'error')
 DEVICES = ('cpu', 'gpu', 'tpu')
 FLOAT_TYPES = ('float64', 'float32')
+LINEAR_SOLVERS = ('scipy', 'petsc', 'best')
 
-AVAILABLE_SETTINGS = (
-    # (name, type, default)
-    ('backend', str, os.environ.get('VEROS_BACKEND', 'numpy')),
-    ('device', parse_choice(DEVICES), os.environ.get('VEROS_DEVICE', 'cpu')),
-    ('float_type', parse_choice(FLOAT_TYPES), os.environ.get('VEROS_FLOAT_TYPE', 'float64')),
-    ('linear_solver', str, os.environ.get('VEROS_LINEAR_SOLVER', 'best')),
-    ('num_proc', twoints, (1, 1)),
-    ('profile_mode', parse_bool, os.environ.get('VEROS_PROFILE_MODE', '')),
-    ('loglevel', parse_choice(LOGLEVELS), os.environ.get('VEROS_LOGLEVEL', 'info')),
-    ('mpi_comm', None, _default_mpi_comm()),
-    ('log_all_processes', parse_bool, os.environ.get('VEROS_LOG_ALL_PROCESSES', ''))
-)
+
+# settings
+
+RuntimeSetting = namedtuple('RuntimeSetting', ('type', 'default', 'read_from_env'))
+RuntimeSetting.__new__.__defaults__ = (None, None, True)
+
+AVAILABLE_SETTINGS = {
+    'backend': RuntimeSetting(parse_choice(BACKENDS), 'numpy'),
+    'device': RuntimeSetting(parse_choice(DEVICES), 'cpu'),
+    'float_type': RuntimeSetting(parse_choice(FLOAT_TYPES), 'float64'),
+    'linear_solver': RuntimeSetting(parse_choice(LINEAR_SOLVERS), 'best'),
+    'num_proc': RuntimeSetting(parse_two_ints, (1, 1), read_from_env=False),
+    'profile_mode': RuntimeSetting(parse_bool, False),
+    'loglevel': RuntimeSetting(parse_choice(LOGLEVELS), 'info'),
+    'mpi_comm': RuntimeSetting(check_mpi_comm, _default_mpi_comm(), read_from_env=False),
+    'log_all_processes': RuntimeSetting(parse_bool, False),
+    'use_io_threads': RuntimeSetting(parse_bool, False),
+    'io_timeout': RuntimeSetting(float, 20),
+    'hdf5_gzip_compression': RuntimeSetting(bool, True),
+}
 
 
 class RuntimeSettings:
@@ -57,27 +81,34 @@ class RuntimeSettings:
         '__locked__',
         '__setting_types__',
         '__settings__',
-        *(setting for setting, _, _ in AVAILABLE_SETTINGS)
+        *AVAILABLE_SETTINGS.keys()
     ]
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.__locked__ = False
         self.__setting_types__ = {}
 
-        for setting, typ, default in AVAILABLE_SETTINGS:
-            setattr(self, setting, default)
-            self.__setting_types__[setting] = typ
+        for name, setting in AVAILABLE_SETTINGS.items():
+            setting_envvar = 'VEROS_{}'.format(name.upper())
+
+            if name in kwargs:
+                val = kwargs[name]
+            elif setting.read_from_env:
+                val = os.environ.get(setting_envvar, setting.default)
+            else:
+                val = setting.default
+
+            self.__setting_types__[name] = setting.type
+            setattr(self, name, val)
 
         self.__settings__ = set(self.__setting_types__.keys())
-        self.__locked__ = True
 
     def __setattr__(self, attr, val):
-        if attr == '__locked__' or not self.__locked__:
-            return super(RuntimeSettings, self).__setattr__(attr, val)
+        if getattr(self, '__locked__', False):
+            raise RuntimeError('Runtime settings cannot be modified after import of core modules')
 
-        # prevent adding new settings
-        if attr not in self.__settings__:
-            raise AttributeError('Unknown runtime setting %s' % attr)
+        if attr.startswith('_'):
+            return super(RuntimeSettings, self).__setattr__(attr, val)
 
         # coerce type
         stype = self.__setting_types__.get(attr)
@@ -99,9 +130,11 @@ class RuntimeSettings:
         )
 
 
+# state
+
 class RuntimeState:
     """Unifies attributes from various modules in a simple read-only object"""
-    __slots__ = []
+    __slots__ = ()
 
     @property
     def proc_rank(self):
@@ -134,4 +167,4 @@ class RuntimeState:
         return backend.get_backend_module(runtime_settings.backend)
 
     def __setattr__(self, attr, val):
-        raise TypeError('Cannot modify runtime state objects')
+        raise TypeError('Cannot modify {} objects'.format(self.__class__.__name__))

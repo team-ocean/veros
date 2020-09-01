@@ -1,7 +1,6 @@
 import os
 
-import numpy as np
-
+from veros.core.operators import numpy as np
 from veros.diagnostics.diagnostic import VerosDiagnostic
 from veros.variables import Variable
 from veros.distributed import global_sum

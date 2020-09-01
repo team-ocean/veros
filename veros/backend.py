@@ -1,55 +1,47 @@
-BACKENDS = None
+BACKENDS = ('numpy', 'jax')
 
 BACKEND_MESSAGES = {
     'jax': 'Kernels are compiled during first iteration, be patient'
 }
 
-
-def init_environment():
-    pass
+_init_done = set()
 
 
 def init_jax_config():
+    if 'jax' in _init_done:
+        return
+
     import jax
     from veros import runtime_settings
     jax.config.enable_omnistaging()
     jax.config.update('jax_enable_x64', runtime_settings.float_type == 'float64')
     jax.config.update('jax_platform_name', runtime_settings.device)
-
-
-def init_backends():
-    init_environment()
-
-    # populate available backend modules
-    global BACKENDS
-    BACKENDS = {}
-
-    import numpy
-    BACKENDS['numpy'] = numpy
-
-    try:
-        import jax  # noqa: F401
-    except ImportError:
-        jnp = None
-    else:
-        init_jax_config()
-        import jax.numpy as jnp
-
-    BACKENDS['jax'] = jnp
+    _init_done.add('jax')
 
 
 def get_backend_module(backend_name):
-    if BACKENDS is None:
-        init_backends()
-
     if backend_name not in BACKENDS:
         raise ValueError('unrecognized backend {} (must be either of: {!r})'
                          .format(backend_name, list(BACKENDS.keys())))
 
-    if BACKENDS[backend_name] is None:
+    backend_module = None
+
+    if backend_name == 'jax':
+        try:
+            import jax  # noqa: F401
+        except ImportError:
+            pass
+        else:
+            init_jax_config()
+            import jax.numpy as backend_module
+
+    elif backend_name == 'numpy':
+        import numpy as backend_module
+
+    if backend_module is None:
         raise ValueError('backend "{}" failed to import'.format(backend_name))
 
-    return BACKENDS[backend_name]
+    return backend_module
 
 
 def get_curent_device_name():

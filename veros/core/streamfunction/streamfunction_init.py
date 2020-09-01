@@ -13,7 +13,7 @@ from veros.core.streamfunction import island, utilities
 
 @veros_routine(
     inputs=('kbot', 'land_map'),
-    outputs=('land_map'),
+    outputs=('land_map', 'nisle'),
     settings=('enable_cyclic_x'),
     dist_safe=False
 )
@@ -24,7 +24,8 @@ def get_isleperim(vs):
     logger.debug(' Determining number of land masses')
     land_map = island.isleperim(vs.kbot, vs.enable_cyclic_x)
     logger.info(_ascii_map(land_map.copy()))
-    return dict(land_map=land_map)
+    nisle = int(global_max(np.max(vs.land_map)))
+    return dict(land_map=land_map, nisle=nisle)
 
 
 def _get_solver_class():
@@ -33,7 +34,7 @@ def _get_solver_class():
     def _get_best_solver():
         if rst.proc_num > 1:
             try:
-                from .solvers.petsc import PETScSolver
+                from .solvers.petsc_ import PETScSolver
             except ImportError:
                 logger.warning('PETSc linear solver not available, falling back to SciPy')
             else:
@@ -45,7 +46,7 @@ def _get_solver_class():
     if ls == 'best':
         return _get_best_solver()
     elif ls == 'petsc':
-        from .solvers.petsc import PETScSolver
+        from .solvers.petsc_ import PETScSolver
         return PETScSolver
     elif ls == 'scipy':
         from .solvers.scipy import SciPySolver
@@ -78,11 +79,9 @@ def streamfunction_init(vs):
     logger.info('Initializing streamfunction method')
 
     get_isleperim(vs)
-    # TODO: support scalar variables so this can be computed in get_isleperim
-    nisle = int(global_max(np.max(vs.land_map)))
 
     (boundary_mask, line_dir_east_mask, line_dir_west_mask, line_dir_south_mask,
-     line_dir_north_mask) = run_kernel(boundary_masks, vs, nisle=nisle)
+     line_dir_north_mask) = run_kernel(boundary_masks, vs)
 
     vs.boundary_mask = boundary_mask
     vs.linear_solver = _get_solver_class()(vs)
@@ -91,7 +90,7 @@ def streamfunction_init(vs):
     precalculate time independent boundary components of streamfunction
     """
     # TODO: replace with allocate
-    nx, ny = vs.land_map.shape
+    nx, ny, nisle = vs.nx, vs.ny, vs.nisle
     forc = np.zeros((nx, ny), dtype=rs.float_type)
     psin = np.zeros((nx, ny, nisle), dtype=rs.float_type)
     dpsin = np.zeros((nisle, 3), dtype=rs.float_type)

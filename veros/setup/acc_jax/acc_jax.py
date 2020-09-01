@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 
-import jax
-jax.config.enable_omnistaging()
-jax.config.update('jax_enable_x64', True)
-
 from veros import VerosSetup
 from veros.tools import cli, get_vinokur_grid_steps
 from veros.variables import allocate

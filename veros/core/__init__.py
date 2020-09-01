@@ -9,13 +9,15 @@ def build_all():
     from veros import runtime_settings as rs
     from veros.backend import BACKEND_MESSAGES, get_curent_device_name
 
+    logger.info('Importing core modules')
+
     logger.opt(colors=True).info(
-        'Using computational backend <bold>{}</bold> on <bold>{}</bold>',
+        ' Using computational backend <bold>{}</bold> on <bold>{}</bold>',
         rs.backend, get_curent_device_name()
     )
     extra_message = BACKEND_MESSAGES.get(rs.backend)
     if extra_message:
-        logger.info(' {}', extra_message)
+        logger.info('  {}', extra_message)
 
     basedir = os.path.dirname(__file__)
 
@@ -24,7 +26,7 @@ def build_all():
 
         for f in files:
             modname, ext = os.path.splitext(f)
-            if modname.startswith('__') or ext != '.py':
+            if modname.endswith('_') or ext != '.py':
                 continue
 
             if py_path:
@@ -38,4 +40,10 @@ def build_all():
             except ImportError:
                 pass
 
-    # TODO: lock runtime settings
+    if not rs.__locked__:
+        rs.__locked__ = True
+        logger.info(' Runtime settings are now locked')
+
+    logger.info('')
+
+build_all()

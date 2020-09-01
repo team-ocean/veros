@@ -6,9 +6,8 @@ import click
 
 from veros import runtime_settings, runtime_state
 from veros.settings import SETTINGS
-
-BACKENDS = ['numpy', 'jax']
-LOGLEVELS = ['trace', 'debug', 'info', 'warning', 'error', 'critical']
+from veros.backend import BACKENDS
+from veros.runtime import LOGLEVELS, DEVICES, FLOAT_TYPES
 
 
 class VerosSetting(click.ParamType):
@@ -69,20 +68,20 @@ def cli(run):
     """
     @click.command('veros-run')
     @click.option('-b', '--backend', default='numpy', type=click.Choice(BACKENDS),
-                  help='Backend to use for computations (default: numpy)', envvar='VEROS_BACKEND')
+                  help='Backend to use for computations', show_default=True)
     @click.option('-v', '--loglevel', default='info', type=click.Choice(LOGLEVELS),
-                  help='Log level used for output (default: info)', envvar='VEROS_LOGLEVEL')
+                  help='Log level used for output', show_default=True)
     @click.option('-s', '--override', nargs=2, multiple=True, metavar='SETTING VALUE',
                   type=VerosSetting(), default=tuple(),
-                  help='Override default setting, may be specified multiple times')
+                  help='Override model setting, may be specified multiple times')
     @click.option('-p', '--profile-mode', is_flag=True, default=False, type=click.BOOL, envvar='VEROS_PROFILE',
-                  help='Write a performance profile for debugging (default: false)')
+                  help='Write a performance profile for debugging', show_default=True)
     @click.option('-n', '--num-proc', nargs=2, default=[1, 1], type=click.INT,
                   help='Number of processes in x and y dimension')
-    @click.option('--device', default='cpu', type=click.Choice(['cpu', 'gpu', 'tpu']),
-                  help='Hardware device to use (JAX backend only)')
-    @click.option('--float-type', default='float64', type=click.Choice(['float32', 'float64']),
-                  help='Floating point precision to use')
+    @click.option('--device', default='cpu', type=click.Choice(DEVICES),
+                  help='Hardware device to use (JAX backend only)', show_default=True)
+    @click.option('--float-type', default='float64', type=click.Choice(FLOAT_TYPES),
+                  help='Floating point precision to use', show_default=True)
     @click.option('--slave', default=False, is_flag=True, hidden=True,
                   help='Indicates that this process is an MPI worker (for internal use)')
     @functools.wraps(run)

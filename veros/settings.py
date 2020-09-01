@@ -1,3 +1,4 @@
+from math import pi
 from collections import namedtuple, OrderedDict
 
 Setting = namedtuple('setting', ('default', 'type', 'description'))
@@ -13,6 +14,16 @@ SETTINGS = OrderedDict([
     ('dt_tracer', Setting(0., float, 'Time step for tracers, can be larger than dt_mom')),
     ('runlen', Setting(0., float, 'Length of simulation in seconds')),
     ('AB_eps', Setting(0.1, float, 'Deviation from Adam-Bashforth weighting')),
+    ('x_origin', Setting(0, float, 'Grid origin in x-direction')),
+    ('y_origin', Setting(0, float, 'Grid origin in y-direction')),
+
+    # Physical constants
+    ('pi', Setting(pi, float, 'Pi')),
+    ('radius', Setting(6370e3, float, 'Earth radius in m')),
+    ('degtom', Setting(6370e3 / 180. * pi, float, 'Conversion factor from degrees latitude to meters')),
+    ('omega', Setting(pi / 43082., float, 'Earth rotation frequency in 1/s')),
+    ('rho_0', Setting(1024., float, 'Boussinesq reference density in :math:`kg/m^3`')),
+    ('grav', Setting(9.81, float, 'Gravitational constant in :math:`m/s^2`')),
 
     # Logical switches for general model setup
     ('coord_degree', Setting(False, bool, 'either spherical (True) or cartesian (False) coordinates')),
@@ -114,18 +125,17 @@ SETTINGS = OrderedDict([
     ('eke_hrms_k0_min', Setting(0.0, float, 'min value for bottom roughness parameter')),
 
     # New
+    ('pyom_compatibility_mode', Setting(False, bool, 'Force compatibility to pyOM2 (even reproducing bugs and other quirks). For testing purposes only.')),
     ('kappaH_min', Setting(0., float, 'minimum value for vertical diffusivity')),
     ('enable_kappaH_profile', Setting(False, bool, 'Compute vertical profile of diffusivity after Bryan and Lewis (1979) in TKE routine')),
     ('enable_Prandtl_tke', Setting(True, bool, 'Compute Prandtl number from stratification levels in TKE routine')),
     ('Prandtl_tke0', Setting(10., float, 'Constant Prandtl number when stratification is neglected for kappaH computation in TKE routine')),
-    ('use_io_threads', Setting(False, bool, 'Start extra threads for disk writes')),
-    ('io_timeout', Setting(20, float, 'Timeout in seconds while waiting for IO locks to be released')),
-    ('enable_hdf5_gzip_compression', Setting(True, bool, 'Use h5py\'s native gzip interface, which leads to smaller restart files (but carries some computational overhead).')),
+
+    # TODO: these should be part of a diagnostic or runtime setting
     ('restart_input_filename', Setting('', str, 'File name of restart input. If not given, no restart data will be read.')),
     ('restart_output_filename', Setting('{identifier}_{itt:0>4d}.restart.h5', str, 'File name of restart output. May contain Python format syntax that is substituted with Veros attributes.')),
     ('restart_frequency', Setting(0, float, 'Frequency (in seconds) to write restart data')),
     ('force_overwrite', Setting(False, bool, 'Overwrite existing output files')),
-    ('pyom_compatibility_mode', Setting(False, bool, 'Force compatibility to pyOM2 (even reproducing bugs and other quirks). For testing purposes only.')),
     ('diskless_mode', Setting(False, bool, 'Suppress all output to disk. Mainly used for testing purposes.')),
 ])
 
@@ -142,4 +152,4 @@ def update_settings(vs, settings):
 def check_setting_conflicts(vs):
     if vs.enable_tke and not vs.enable_implicit_vert_friction:
         raise RuntimeError('use TKE model only with implicit vertical friction'
-                           '(set enable_implicit_vert_fricton)')
+                           '(set enable_implicit_vert_fricton to True)')

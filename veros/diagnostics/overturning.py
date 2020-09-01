@@ -2,12 +2,12 @@ from collections import OrderedDict
 import os
 
 from loguru import logger
-import numpy as np
 
 from veros.diagnostics.diagnostic import VerosDiagnostic
 from veros.core import density
 from veros.variables import Variable, allocate
 from veros.distributed import global_sum
+from veros.core.operators import numpy as np
 
 
 SIGMA = Variable(
@@ -41,8 +41,8 @@ ISONEUTRAL_VARIABLES = OrderedDict([
 ])
 
 
-def zonal_sum(vs, arr):
-    return global_sum(vs, np.sum(arr, axis=0), axis=0)
+def zonal_sum(arr):
+    return global_sum(np.sum(arr, axis=0), axis=0)
 
 
 class Overturning(VerosDiagnostic):
@@ -70,8 +70,8 @@ class Overturning(VerosDiagnostic):
         self._allocate(vs)
 
         # sigma levels
-        self.sige = density.get_potential_rho(vs, 35., -2., press_ref=self.p_ref)
-        self.sigs = density.get_potential_rho(vs, 35., 30., press_ref=self.p_ref)
+        self.sige = density.get_potential_rho(vs.eq_of_state_type, 35., -2., press_ref=self.p_ref)
+        self.sigs = density.get_potential_rho(vs.eq_of_state_type, 35., 30., press_ref=self.p_ref)
         self.dsig = float(self.sige - self.sigs) / (self.nlevel - 1)
 
         logger.debug(' Sigma ranges for overturning diagnostic:')
@@ -84,7 +84,7 @@ class Overturning(VerosDiagnostic):
         self.sigma[...] = self.sigs + self.dsig * np.arange(self.nlevel)
 
         # precalculate area below z levels
-        self.zarea[2:-2, :] = np.cumsum(zonal_sum(vs,
+        self.zarea[2:-2, :] = np.cumsum(zonal_sum(
             vs.dxt[2:-2, np.newaxis, np.newaxis]
             * vs.cosu[np.newaxis, 2:-2, np.newaxis]
             * vs.maskV[2:-2, 2:-2, :]) * vs.dzt[np.newaxis, :], axis=1)
@@ -106,7 +106,7 @@ class Overturning(VerosDiagnostic):
     def diagnose(self, vs):
         # sigma at p_ref
         sig_loc = allocate(vs, ('xt', 'yt', 'zt'))
-        sig_loc[2:-2, 2:-1, :] = density.get_rho(vs,
+        sig_loc[2:-2, 2:-1, :] = density.get_rho(vs.eq_of_state_type,
                                                  vs.salt[2:-2, 2:-1, :, vs.tau],
                                                  vs.temp[2:-2, 2:-1, :, vs.tau],
                                                  self.p_ref)

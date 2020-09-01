@@ -1,4 +1,4 @@
-from . import tdma_cython
+from . import tdma_cython_
 
 import numpy as np
 import jax.numpy as jnp
@@ -11,7 +11,7 @@ from jax.interpreters import xla
 _ops = xla_client.ops
 
 for kernel_name in (b'tdma_cython_double', b'tdma_cython_float'):
-    fn = tdma_cython.cpu_custom_call_targets[kernel_name]
+    fn = tdma_cython_.cpu_custom_call_targets[kernel_name]
     xla_client.register_cpu_custom_call_target(kernel_name, fn)
 
 

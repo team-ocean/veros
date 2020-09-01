@@ -6,7 +6,7 @@ from loguru import logger
 
 @contextlib.contextmanager
 def signals_to_exception(signals=(signal.SIGINT, signal.SIGTERM)):
-    """Context manager that makes sure that converts system signals to exceptions.
+    """Context manager that converts system signals to exceptions.
 
     This allows for a graceful exit after receiving SIGTERM (e.g. through
     `kill` on UNIX systems).

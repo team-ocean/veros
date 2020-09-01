@@ -60,7 +60,7 @@ def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask):
     import jax.numpy as jnp
 
     try:
-        from veros.core.special.tdma import tdma
+        from veros.core.special.tdma_ import tdma
     except ImportError:
         has_tdma_special = False
     else:
@@ -83,22 +83,20 @@ def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask):
         a, b, c, d = x
         cp = c / (b - a * last_cp)
         dp = (d - a * last_dp) / (b - a * last_cp)
-        new_primes = jnp.stack((cp, dp))
+        new_primes = (cp, dp)
         return new_primes, new_primes
 
-    diags_stacked = jnp.stack(
-        [arr.transpose((2, 0, 1)) for arr in (a, b, c, d)],
-        axis=1
-    )
-    _, primes = jax.lax.scan(compute_primes, jnp.zeros((2, *a.shape[:-1]), dtype=a.dtype), diags_stacked)
+    diags_transposed = [jnp.moveaxis(arr, 2, 0) for arr in (a, b, c, d)]
+    init = jnp.zeros(a.shape[:-1], dtype=a.dtype)
+    _, primes = jax.lax.scan(compute_primes, (init, init), diags_transposed)
 
     def backsubstitution(last_x, x):
         cp, dp = x
         new_x = dp - cp * last_x
         return new_x, new_x
 
-    _, sol = jax.lax.scan(backsubstitution, jnp.zeros(a.shape[:-1], dtype=a.dtype), primes, reverse=True)
-    return sol.transpose((1, 2, 0))
+    _, sol = jax.lax.scan(backsubstitution, init, primes, reverse=True)
+    return jnp.moveaxis(sol, 0, 2)
 
 
 def update_multiply_jax(arr, at, to):

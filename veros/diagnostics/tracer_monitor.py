@@ -1,6 +1,6 @@
 from loguru import logger
-import numpy as np
 
+from veros.core.operators import numpy as np
 from veros.diagnostics.diagnostic import VerosDiagnostic
 from veros.distributed import global_sum
 

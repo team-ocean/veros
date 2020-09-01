@@ -1,10 +1,11 @@
-from veros.core.operators import numpy as np
 from petsc4py import PETSc
 from loguru import logger
+import numpy as onp
 
 from veros import runtime_settings as rs, runtime_state as rst
 from veros.core import utilities
 from veros.core.streamfunction.solvers.base import LinearSolver
+from veros.core.operators import numpy as np, update, update_add, at
 
 
 class PETScSolver(LinearSolver):
@@ -51,16 +52,16 @@ class PETScSolver(LinearSolver):
         # add dirichlet BC to rhs
         if not vs.enable_cyclic_x:
             if rst.proc_idx[0] == rs.num_proc[0] - 1:
-                rhs[-3, 2:-2] -= rhs[-2, 2:-2] * self._boundary_fac['east']
+                rhs = update_add(rhs, at[-3, 2:-2], -rhs[-2, 2:-2] * self._boundary_fac['east'])
 
             if rst.proc_idx[0] == 0:
-                rhs[2, 2:-2] -= rhs[1, 2:-2] * self._boundary_fac['west']
+                rhs = update_add(rhs, at[2, 2:-2], -rhs[1, 2:-2] * self._boundary_fac['west'])
 
         if rst.proc_idx[1] == rs.num_proc[1] - 1:
-            rhs[2:-2, -3] -= rhs[2:-2, -2] * self._boundary_fac['north']
+            rhs = update_add(rhs, at[2:-2, -3], -rhs[2:-2, -2] * self._boundary_fac['north'])
 
         if rst.proc_idx[1] == 0:
-            rhs[2:-2, 2] -= rhs[2:-2, 1] * self._boundary_fac['south']
+            rhs = update_add(rhs, at[2:-2, 2], -rhs[2:-2, 1] * self._boundary_fac['south'])
 
         self._da.getVecArray(self._rhs_petsc)[...] = rhs[2:-2, 2:-2]
         self._da.getVecArray(self._sol_petsc)[...] = x0[2:-2, 2:-2]
@@ -85,13 +86,15 @@ class PETScSolver(LinearSolver):
         if boundary_val is None:
             boundary_val = sol
 
-        sol = utilities.enforce_boundaries(vs, sol)
+        sol = utilities.enforce_boundaries(sol, vs.enable_cyclic_x)
 
-        boundary_mask = np.sum(~vs.boundary_mask, axis=2).astype('bool')
-        rhs = np.where(vs, boundary_mask, rhs, boundary_val) # set right hand side on boundaries
+        boundary_mask = np.all(~vs.boundary_mask, axis=2)
+        rhs = np.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
-        sol[...] = rhs
-        sol[2:-2, 2:-2] = self._petsc_solver(vs, rhs, sol)
+        linear_solution = self._petsc_solver(vs, rhs, sol)
+
+        sol = update(sol, at[...], rhs)
+        return update(sol, at[2:-2, 2:-2], linear_solution)
 
     def _assemble_poisson_matrix(self, vs):
         """
@@ -100,7 +103,7 @@ class PETScSolver(LinearSolver):
 
         matrix = self._da.getMatrix()
 
-        boundary_mask = np.sum(~vs.boundary_mask[2:-2, 2:-2], axis=2).astype('bool')
+        boundary_mask = np.all(~vs.boundary_mask[2:-2, 2:-2], axis=2)
 
         # assemble diagonals
         main_diag = -vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, np.newaxis] / vs.dxt[3:-1, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2 \
@@ -118,16 +121,19 @@ class PETScSolver(LinearSolver):
             vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2]
 
         main_diag *= boundary_mask
-        main_diag[main_diag == 0.] = 1.
+        main_diag = np.where(main_diag == 0., 1., main_diag)
 
         # construct sparse matrix
-        cf = tuple(diag for diag in (
-            main_diag,
-            boundary_mask * east_diag,
-            boundary_mask * west_diag,
-            boundary_mask * north_diag,
-            boundary_mask * south_diag
-        ))
+        cf = tuple(
+            # copy to NumPy for speed
+            onp.asarray(diag) for diag in (
+                main_diag,
+                boundary_mask * east_diag,
+                boundary_mask * west_diag,
+                boundary_mask * north_diag,
+                boundary_mask * south_diag
+            )
+        )
 
         row = PETSc.Mat.Stencil()
         col = PETSc.Mat.Stencil()
@@ -148,10 +154,10 @@ class PETScSolver(LinearSolver):
         matrix.assemble()
 
         boundary_scale = {
-            'east': cf[1][-1, :],
-            'west': cf[2][0, :],
-            'north': cf[3][:, -1],
-            'south': cf[4][:, 0]
+            'east': np.asarray(cf[1][-1, :]),
+            'west': np.asarray(cf[2][0, :]),
+            'north': np.asarray(cf[3][:, -1]),
+            'south': np.asarray(cf[4][:, 0])
         }
 
         return matrix, boundary_scale
