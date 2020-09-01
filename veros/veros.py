@@ -304,6 +304,57 @@ class VerosSetup(metaclass=abc.ABCMeta):
             # permutate time indices
             vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
+    def _timing_summary(self, vs):
+        timing_summary = []
+
+        timing_summary.extend([
+            '',
+            'Timing summary:',
+            ' setup time               = {:.2f}s'.format(vs.timers['setup'].get_time()),
+            ' main loop time           = {:.2f}s'.format(vs.timers['main'].get_time()),
+            '   forcing                = {:.2f}s'.format(vs.timers['forcing'].get_time()),
+            '   momentum               = {:.2f}s'.format(vs.timers['momentum'].get_time()),
+            '     pressure             = {:.2f}s'.format(vs.timers['pressure'].get_time()),
+            '     friction             = {:.2f}s'.format(vs.timers['friction'].get_time()),
+            '   thermodynamics         = {:.2f}s'.format(vs.timers['thermodynamics'].get_time()),
+        ])
+
+        if rs.profile_mode:
+            timing_summary.extend([
+                '     lateral mixing       = {:.2f}s'.format(vs.timers['isoneutral'].get_time()),
+                '     vertical mixing      = {:.2f}s'.format(vs.timers['vmix'].get_time()),
+                '     equation of state    = {:.2f}s'.format(vs.timers['eq_of_state'].get_time()),
+            ])
+
+        timing_summary.extend([
+            '   advection              = {:.2f}s'.format(vs.timers['advection'].get_time()),
+            '   EKE                    = {:.2f}s'.format(vs.timers['eke'].get_time()),
+            '   IDEMIX                 = {:.2f}s'.format(vs.timers['idemix'].get_time()),
+            '   TKE                    = {:.2f}s'.format(vs.timers['tke'].get_time()),
+            '   boundary exchange      = {:.2f}s'.format(vs.timers['boundary_exchange'].get_time()),
+            ' diagnostics and I/O      = {:.2f}s'.format(vs.timers['diagnostics'].get_time()),
+            ' plugins                  = {:.2f}s'.format(vs.timers['plugins'].get_time()),
+        ])
+
+        timing_summary.extend([
+            '   {:<22} = {:.2f}s'.format(plugin.name, vs.timers[plugin.name].get_time())
+            for plugin in vs._plugin_interfaces
+        ])
+
+        logger.debug('\n'.join(timing_summary))
+
+        if rs.profile_mode:
+            profile_timings = ['', 'Profile timings:', '(total time spent)', '---']
+            maxwidth = max(len(k) for k in vs.profile_timers.keys())
+            profile_format_string = '{{:<{}}} = {{:.2f}}s ({{:.2f}}%)'.format(maxwidth)
+            total_time = max(vs.profile_timers['all'].get_time(), 1e-8)  # prevent division by 0
+            for name, timer in vs.profile_timers.items():
+                this_time = timer.get_time()
+                profile_timings.append(
+                    profile_format_string.format(name, this_time, 100 * this_time / total_time)
+                )
+            logger.diagnostic('\n'.join(profile_timings))
+
     def run(self, show_progress_bar=None):
         """Main routine of the simulation.
 
@@ -322,7 +373,6 @@ class VerosSetup(metaclass=abc.ABCMeta):
         logger.info('\nStarting integration for {0[0]:.1f} {0[1]}'.format(time.format_time(vs.runlen)))
 
         start_time = vs.time
-        profiler = None
 
         pbar = progress.get_progress_bar(vs, use_tqdm=show_progress_bar)
         first_iteration = True
@@ -352,48 +402,4 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
             finally:
                 diagnostics.write_restart(vs, force=True)
-
-                timing_summary = [
-                    '',
-                    'Timing summary:',
-                    ' setup time               = {:.2f}s'.format(vs.timers['setup'].get_time()),
-                    ' main loop time           = {:.2f}s'.format(vs.timers['main'].get_time()),
-                    '   forcing                = {:.2f}s'.format(vs.timers['forcing'].get_time()),
-                    '   momentum               = {:.2f}s'.format(vs.timers['momentum'].get_time()),
-                    '     pressure             = {:.2f}s'.format(vs.timers['pressure'].get_time()),
-                    '     friction             = {:.2f}s'.format(vs.timers['friction'].get_time()),
-                    '   thermodynamics         = {:.2f}s'.format(vs.timers['thermodynamics'].get_time()),
-                    # TODO: remove these (timings are garbage with JAX)
-                    '     lateral mixing       = {:.2f}s'.format(vs.timers['isoneutral'].get_time()),
-                    '     vertical mixing      = {:.2f}s'.format(vs.timers['vmix'].get_time()),
-                    '     equation of state    = {:.2f}s'.format(vs.timers['eq_of_state'].get_time()),
-                    '   advection              = {:.2f}s'.format(vs.timers['advection'].get_time()),
-                    '   EKE                    = {:.2f}s'.format(vs.timers['eke'].get_time()),
-                    '   IDEMIX                 = {:.2f}s'.format(vs.timers['idemix'].get_time()),
-                    '   TKE                    = {:.2f}s'.format(vs.timers['tke'].get_time()),
-                    '   boundary exchange      = {:.2f}s'.format(vs.timers['boundary_exchange'].get_time()),
-                    ' diagnostics and I/O      = {:.2f}s'.format(vs.timers['diagnostics'].get_time()),
-                    ' plugins                  = {:.2f}s'.format(vs.timers['plugins'].get_time()),
-                ]
-
-                timing_summary.extend([
-                    '   {:<22} = {:.2f}s'.format(plugin.name, vs.timers[plugin.name].get_time())
-                    for plugin in vs._plugin_interfaces
-                ])
-
-                logger.debug('\n'.join(timing_summary))
-
-                if rs.profile_mode:
-                    profile_timings = ['', 'Profile timings:', '(total time spent)', '---']
-                    maxwidth = max(len(k) for k in vs.profile_timers.keys())
-                    profile_format_string = '{{:<{}}} = {{:.2f}}s ({{:.2f}}%)'.format(maxwidth)
-                    total_time = max(vs.profile_timers['all'].get_time(), 1e-8)  # prevent division by 0
-                    for name, timer in vs.profile_timers.items():
-                        this_time = timer.get_time()
-                        profile_timings.append(
-                            profile_format_string.format(name, this_time, 100 * this_time / total_time)
-                        )
-                    logger.diagnostic('\n'.join(profile_timings))
-
-                if profiler is not None:
-                    diagnostics.stop_profiler(profiler)
+                self._timing_summary(vs)

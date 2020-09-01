@@ -61,19 +61,3 @@ def output(vs):
     for diagnostic in vs.diagnostics.values():
         if diagnostic.output_frequency and vs.time % diagnostic.output_frequency < vs.dt_tracer:
             diagnostic.output(vs)
-
-
-def start_profiler():
-    import pyinstrument
-    profiler = pyinstrument.Profiler()
-    profiler.start()
-    return profiler
-
-
-def stop_profiler(profiler):
-    if profiler is None:
-        return
-
-    profiler.stop()
-    with open('profile.html', 'w') as f:
-        f.write(profiler.output_html())

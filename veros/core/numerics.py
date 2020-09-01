@@ -247,11 +247,8 @@ def calc_topo(vs):
     hu = np.sum(maskU * dzt[np.newaxis, np.newaxis, :], axis=2)
     hv = np.sum(maskV * dzt[np.newaxis, np.newaxis, :], axis=2)
 
-    # TODO: fix this messy logic
-    mask = (hu == 0).astype('float')
-    hur = 1. / (hu + mask) * (1 - mask)
-    mask = (hv == 0).astype('float')
-    hvr = 1. / (hv + mask) * (1 - mask)
+    hur = np.where(hu != 0, 1 / hu, 0)
+    hvr = np.where(hv != 0, 1 / hv, 0)
 
     return dict(
         maskT=maskT,
