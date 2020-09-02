@@ -1,16 +1,16 @@
 
 import abc
-from contextlib import ExitStack
 
 from loguru import logger
 
 # do not import veros.core here!
 from veros import (
-    settings, time, handlers, logs, distributed, progress,
+    settings, time, signals, logs, distributed, progress,
     runtime_settings as rs
 )
 from veros.state import VerosState
 from veros.plugins import load_plugin
+from veros.routines import record_routine_stack
 
 
 class VerosSetup(metaclass=abc.ABCMeta):
@@ -304,6 +304,60 @@ class VerosSetup(metaclass=abc.ABCMeta):
             # permutate time indices
             vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
+    def run(self, show_progress_bar=None):
+        """Main routine of the simulation.
+
+        Note:
+            Make sure to call :meth:`setup` prior to this function.
+
+        Arguments:
+            show_progress_bar (:obj:`bool`, optional): Whether to show fancy progress bar via tqdm.
+                By default, only show if stdout is a terminal and Veros is running on a single process.
+
+        """
+        from veros import diagnostics
+
+        vs = self.state
+
+        logger.info('\nStarting integration for {0[0]:.1f} {0[1]}'.format(time.format_time(vs.runlen)))
+
+        start_time = vs.time
+
+        pbar = progress.get_progress_bar(vs, use_tqdm=show_progress_bar)
+        first_iteration = True
+
+        try:
+            with signals.signals_to_exception(), pbar:
+                while vs.time - start_time < vs.runlen:
+                    if first_iteration:
+                        with record_routine_stack() as recorded_stack:
+                            self.step()
+                            print(recorded_stack)
+                    else:
+                        self.step()
+
+                    if first_iteration:
+                        for timer in vs.timers.values():
+                            timer.active = True
+
+                        for timer in vs.profile_timers.values():
+                            timer.active = True
+
+                        first_iteration = False
+
+                    pbar.advance_time(vs.dt_tracer)
+
+        except:  # noqa: E722
+            logger.critical('Stopping integration at iteration {}', vs.itt)
+            raise
+
+        else:
+            logger.success('Integration done\n')
+
+        finally:
+            diagnostics.write_restart(vs, force=True)
+            self._timing_summary(vs)
+
     def _timing_summary(self, vs):
         timing_summary = []
 
@@ -354,52 +408,3 @@ class VerosSetup(metaclass=abc.ABCMeta):
                     profile_format_string.format(name, this_time, 100 * this_time / total_time)
                 )
             logger.diagnostic('\n'.join(profile_timings))
-
-    def run(self, show_progress_bar=None):
-        """Main routine of the simulation.
-
-        Note:
-            Make sure to call :meth:`setup` prior to this function.
-
-        Arguments:
-            show_progress_bar (:obj:`bool`, optional): Whether to show fancy progress bar via tqdm.
-                By default, only show if stdout is a terminal and Veros is running on a single process.
-
-        """
-        from veros import diagnostics
-
-        vs = self.state
-
-        logger.info('\nStarting integration for {0[0]:.1f} {0[1]}'.format(time.format_time(vs.runlen)))
-
-        start_time = vs.time
-
-        pbar = progress.get_progress_bar(vs, use_tqdm=show_progress_bar)
-        first_iteration = True
-
-        with handlers.signals_to_exception():
-            try:
-                with pbar:
-                    while vs.time - start_time < vs.runlen:
-                        self.step()
-
-                        if first_iteration:
-                            for timer in vs.timers.values():
-                                timer.active = True
-                            for timer in vs.profile_timers.values():
-                                timer.active = True
-
-                            first_iteration = False
-
-                        pbar.advance_time(vs.dt_tracer)
-
-            except:  # noqa: E722
-                logger.critical('Stopping integration at iteration {}', vs.itt)
-                raise
-
-            else:
-                logger.success('Integration done\n')
-
-            finally:
-                diagnostics.write_restart(vs, force=True)
-                self._timing_summary(vs)

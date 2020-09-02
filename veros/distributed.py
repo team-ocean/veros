@@ -1,10 +1,34 @@
+import functools
+
 from . import runtime_settings as rs, runtime_state as rst
-from .decorators import dist_context_only
+from .routines import CURRENT_CONTEXT
 
 SCATTERED_DIMENSIONS = (
     ('xt', 'xu'),
     ('yt', 'yu')
 )
+
+
+def dist_context_only(function=None, *, noop_return_arg=None):
+    def decorator(function):
+        @functools.wraps(function)
+        def dist_context_only_wrapper(*args, **kwargs):
+            if rst.proc_num == 1 or not CURRENT_CONTEXT.is_dist_safe:
+                # no-op for sequential execution
+                if noop_return_arg is None:
+                    return None
+
+                # return input array unchanged
+                return args[noop_return_arg]
+
+            return function(*args, **kwargs)
+
+        return dist_context_only_wrapper
+
+    if function is not None:
+        return decorator(function)
+
+    return decorator
 
 
 def send(buf, dest, comm, tag=None, token=None):
@@ -523,7 +547,9 @@ def _scatter_1d(nx, ny, arr, dim):
         recvbuf = arr[local_slice]
 
         for proc in range(1, rst.proc_num):
-            global_slice, _ = get_chunk_slices(nx, ny, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
+            global_slice, _ = get_chunk_slices(
+                nx, ny, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc)
+            )
             sendbuf = arr[global_slice]
             token = send(sendbuf, dest=proc, tag=40, comm=rs.mpi_comm, token=token)
 
@@ -553,7 +579,9 @@ def _scatter_xy(nx, ny, arr):
         recvbuf = arr[local_slice]
 
         for proc in range(1, rst.proc_num):
-            global_slice, _ = get_chunk_slices(nx, ny, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
+            global_slice, _ = get_chunk_slices(
+                nx, ny, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc)
+            )
             sendbuf = arr[global_slice]
             token = send(sendbuf, dest=proc, tag=50, comm=rs.mpi_comm, token=token)
 

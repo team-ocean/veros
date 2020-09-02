@@ -4,7 +4,7 @@ from loguru import logger
 
 from veros.core.operators import numpy as np
 from veros.diagnostics.io_tools import netcdf as nctools, hdf5 as h5tools
-from veros.decorators import do_not_disturb
+from veros.signals import do_not_disturb
 from veros import time, runtime_state, distributed
 
 
