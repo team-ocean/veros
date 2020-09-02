@@ -2,7 +2,7 @@ from veros.core.operators import numpy as np
 
 from veros import veros_kernel, veros_routine, run_kernel
 from veros.core import density, diffusion, utilities
-from veros.core.operators import update, at, solve_tridiagonal
+from veros.core.operators import update, at
 
 
 # TODO: replace cumsums
@@ -184,28 +184,11 @@ def calc_beta(vs):
     return dict(beta=beta)
 
 
-# TODO: make a kernel
-@veros_routine(
-    inputs=(
-        'kbot', 'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'dzt'
-    ),
-    outputs=(
-        'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'kbot'
-    ),
-    settings=('enable_cyclic_x')
-)
-def calc_topo(vs):
-    """
-    calulate masks, total depth etc
-    """
-
+@veros_kernel(static_args=('enable_cyclic_x',))
+def calc_topo_kernel(kbot, maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr, dzt, enable_cyclic_x):
     """
     close domain
     """
-    kbot, maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr, dzt, enable_cyclic_x = (
-        getattr(vs, k) for k in ('kbot', 'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'dzt', 'enable_cyclic_x')
-    )
-
     kbot = update(kbot, at[:, :2], 0)
     kbot = update(kbot, at[:, -2:], 0)
 
@@ -247,8 +230,27 @@ def calc_topo(vs):
     hu = np.sum(maskU * dzt[np.newaxis, np.newaxis, :], axis=2)
     hv = np.sum(maskV * dzt[np.newaxis, np.newaxis, :], axis=2)
 
-    hur = np.where(hu != 0, 1 / hu, 0)
-    hvr = np.where(hv != 0, 1 / hv, 0)
+    hur = np.where(hu != 0, 1 / (hu + 1e-22), 0)
+    hvr = np.where(hv != 0, 1 / (hv + 1e-22), 0)
+
+    return maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr, kbot
+
+
+@veros_routine(
+    inputs=(
+        'kbot', 'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'dzt'
+    ),
+    outputs=(
+        'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'kbot'
+    ),
+    settings=('enable_cyclic_x')
+)
+def calc_topo(vs):
+    """
+    calulate masks, total depth etc
+    """
+
+    (maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr, kbot) = run_kernel(calc_topo_kernel, vs)
 
     return dict(
         maskT=maskT,
@@ -265,29 +267,9 @@ def calc_topo(vs):
     )
 
 
-@veros_routine(
-    inputs=(
-        'salt', 'temp', 'rho', 'Hd', 'int_drhodT', 'int_drhodS', 'Nsqr',
-        'dzw', 'zt', 'maskT', 'maskW', 'grav', 'rho_0',
-    ),
-    outputs=('salt', 'temp', 'rho', 'Hd', 'int_drhodT', 'int_drhodS', 'Nsqr'),
-    settings=('enable_cyclic_x', 'eq_of_state_type')
-)
-def calc_initial_conditions(vs):
-    """
-    calculate dyn. enthalp, etc
-    """
-    # TODO: create kernel
-    (salt, temp, rho, Hd, int_drhodT, int_drhodS, Nsqr,
-     dzw, zt, maskT, maskW, grav, rho_0, enable_cyclic_x, eq_of_state_type) = (
-        getattr(vs, k) for k in (
-            'salt', 'temp', 'rho', 'Hd', 'int_drhodT', 'int_drhodS', 'Nsqr',
-            'dzw', 'zt', 'maskT', 'maskW', 'grav', 'rho_0', 'enable_cyclic_x', 'eq_of_state_type'
-        )
-    )
-    if np.any(salt < 0.0):
-        raise RuntimeError('encountered negative salinity')
-
+@veros_kernel(static_args=('enable_cyclic_x', 'eq_of_state_type'))
+def calc_initial_conditions_kernel(salt, temp, rho, Hd, int_drhodT, int_drhodS, Nsqr,
+                                   dzw, zt, maskT, maskW, grav, rho_0, enable_cyclic_x, eq_of_state_type):
     temp = utilities.enforce_boundaries(temp, enable_cyclic_x)
     salt = utilities.enforce_boundaries(salt, enable_cyclic_x)
 
@@ -303,10 +285,30 @@ def calc_initial_conditions(vs):
     )
 
     fxa = -grav / rho_0 / dzw[np.newaxis, np.newaxis, :] * maskW
-    Nsqr = update(Nsqr, at[:, :, :-1, :], fxa[:, :, :-1, np.newaxis] \
-        * (density.get_rho(eq_of_state_type, salt[:, :, 1:, :], temp[:, :, 1:, :], np.abs(zt)[:-1, np.newaxis])
-           - rho[:, :, :-1, :]))
+    Nsqr = update(Nsqr, at[:, :, :-1, :], fxa[:, :, :-1, np.newaxis]
+                  * (density.get_rho(eq_of_state_type, salt[:, :, 1:, :], temp[:, :, 1:, :], np.abs(zt)[:-1, np.newaxis])
+                     - rho[:, :, :-1, :]))
     Nsqr = update(Nsqr, at[:, :, -1, :], Nsqr[:, :, -2, :])
+
+    return salt, temp, rho, Hd, int_drhodT, int_drhodS, Nsqr
+
+
+@veros_routine(
+    inputs=(
+        'salt', 'temp', 'rho', 'Hd', 'int_drhodT', 'int_drhodS', 'Nsqr',
+        'dzw', 'zt', 'maskT', 'maskW', 'grav', 'rho_0',
+    ),
+    outputs=('salt', 'temp', 'rho', 'Hd', 'int_drhodT', 'int_drhodS', 'Nsqr'),
+    settings=('enable_cyclic_x', 'eq_of_state_type')
+)
+def calc_initial_conditions(vs):
+    """
+    calculate dyn. enthalp, etc
+    """
+    if np.any(vs.salt < 0.0):
+        raise RuntimeError('encountered negative salinity')
+
+    (salt, temp, rho, Hd, int_drhodT, int_drhodS, Nsqr) = run_kernel(calc_initial_conditions_kernel, vs)
 
     return dict(
         salt=salt,
