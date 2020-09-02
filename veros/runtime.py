@@ -103,6 +103,12 @@ class RuntimeSettings:
 
         self.__settings__ = set(self.__setting_types__.keys())
 
+    def update(self, **kwargs):
+        for key, val in kwargs.items():
+            setattr(self, key, val)
+
+        return self
+
     def __setattr__(self, attr, val):
         if getattr(self, '__locked__', False):
             raise RuntimeError('Runtime settings cannot be modified after import of core modules')
@@ -138,7 +144,7 @@ class RuntimeState:
 
     @property
     def proc_rank(self):
-        from . import runtime_settings
+        from veros import runtime_settings
         comm = runtime_settings.mpi_comm
 
         if comm is None:
@@ -148,7 +154,7 @@ class RuntimeState:
 
     @property
     def proc_num(self):
-        from . import runtime_settings
+        from veros import runtime_settings
         comm = runtime_settings.mpi_comm
 
         if comm is None:
@@ -158,12 +164,12 @@ class RuntimeState:
 
     @property
     def proc_idx(self):
-        from . import distributed
+        from veros import distributed
         return distributed.proc_rank_to_index(self.proc_rank)
 
     @property
     def backend_module(self):
-        from . import backend, runtime_settings
+        from veros import backend, runtime_settings
         return backend.get_backend_module(runtime_settings.backend)
 
     def __setattr__(self, attr, val):
