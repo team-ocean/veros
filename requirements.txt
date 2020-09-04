@@ -6,6 +6,6 @@ scipy==1.5.2
 h5netcdf==0.8.1
 h5py==2.10.0
 pillow==7.2.0
-ruamel.yaml==0.16.10
+ruamel.yaml==0.16.11
 loguru==0.5.1
 tqdm==4.48.2
