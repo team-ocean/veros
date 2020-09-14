@@ -8,4 +8,4 @@ h5py==2.10.0
 pillow==7.2.0
 ruamel.yaml==0.16.12
 loguru==0.5.2
-tqdm==4.48.2
+tqdm==4.49.0
