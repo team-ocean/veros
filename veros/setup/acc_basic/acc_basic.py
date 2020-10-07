@@ -61,24 +61,10 @@ class ACCBasicSetup(VerosSetup):
         vs.kappaH_min = 2e-5
         vs.enable_Prandtl_tke = False
         vs.enable_kappaH_profile = True
-        # vs.enable_tke_superbee_advection = True
 
         vs.K_gm_0 = 1000.0
         vs.enable_eke = False
-        vs.eke_k_max = 1e4
-        vs.eke_c_k = 0.4
-        vs.eke_c_eps = 0.5
-        vs.eke_cross = 2.
-        vs.eke_crhin = 1.0
-        vs.eke_lmin = 100.0
-        vs.enable_eke_superbee_advection = False
-        vs.enable_eke_isopycnal_diffusion = False
-
         vs.enable_idemix = False
-        vs.enable_idemix_hor_diffusion = False
-        vs.enable_eke_diss_surfbot = False
-        vs.eke_diss_surfbot_frac = 0.2
-        vs.enable_idemix_superbee_advection = False
 
         vs.eq_of_state_type = 3
 
@@ -127,10 +113,6 @@ class ACCBasicSetup(VerosSetup):
         if vs.enable_tke:
             vs.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / vs.rho_0)**2
                                                       + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / vs.rho_0)**2)**(1.5)
-
-        if vs.enable_idemix:
-            vs.forc_iw_bottom[...] = 1e-6 * vs.maskW[:, :, -1]
-            vs.forc_iw_surface[...] = 1e-7 * vs.maskW[:, :, -1]
 
     @veros_method
     def set_forcing(self, vs):
