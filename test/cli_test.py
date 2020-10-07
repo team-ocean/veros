@@ -17,7 +17,7 @@ def runner():
 
 def test_veros_copy_setup(runner):
     with tempfile.TemporaryDirectory() as tempdir:
-        for setup in ('acc', 'acc_sector', 'global_4deg', 'global_1deg',
+        for setup in ('acc', 'acc_basic', 'acc_sector', 'global_4deg', 'global_1deg',
                       'global_flexible', 'north_atlantic', 'wave_propagation'):
             result = runner.invoke(veros.cli.veros_copy_setup.cli, [setup, '--to', os.path.join(tempdir, setup)])
             assert result.exit_code == 0, setup

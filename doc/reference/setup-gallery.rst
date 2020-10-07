@@ -12,15 +12,25 @@ Idealized configurations
 ------------------------
 
 +-------------------------------------------+-------------------------------------------+
-| :doc:`/reference/setups/acc`              | :doc:`/reference/setups/acc_sector`       |
+| :doc:`/reference/setups/acc`              | :doc:`/reference/setups/acc_basic`        |
 |                                           |                                           |
-| |acc|                                     | |acc_sector|                              |
+| |acc|                                     | |acc_basic|                               |
++-------------------------------------------+-------------------------------------------+
+| :doc:`/reference/setups/acc_sector`       |                                           |
+|                                           |                                           |
+| |acc_sector|                              |                                           |
 +-------------------------------------------+-------------------------------------------+
 
 .. |acc| image:: /_images/gallery/acc.png
   :width: 100%
   :align: middle
   :target: setups/acc.html
+  :alt: Steady-state stream function
+
+.. |acc_basic| image:: /_images/gallery/acc_basic.png
+  :width: 100%
+  :align: middle
+  :target: setups/acc_basic.html
   :alt: Steady-state stream function
 
 .. |acc_sector| image:: /_images/gallery/acc_sector.png
@@ -34,6 +44,7 @@ Idealized configurations
    :hidden:
 
    setups/acc
+   setups/acc_basic
    setups/acc_sector
 
 Realistic configurations

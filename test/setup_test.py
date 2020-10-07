@@ -9,6 +9,16 @@ def test_setup_acc(backend):
     sim.state.runlen = sim.state.dt_tracer * 20
     sim.run()
 
+def test_setup_acc_basic(backend):
+    from veros import runtime_settings as rs
+    from veros.setup.acc_basic import ACCBasicSetup
+    rs.backend = backend
+
+    sim = ACCBasicSetup()
+    sim.state.diskless_mode = True
+    sim.setup()
+    sim.state.runlen = sim.state.dt_tracer * 20
+    sim.run()
 
 def test_setup_acc_sector(backend):
     from veros import runtime_settings as rs
