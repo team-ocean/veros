@@ -10,7 +10,7 @@ from veros.core.operators import numpy as np
 from veros import veros_kernel, veros_routine, run_kernel
 from veros.core import utilities as mainutils
 from veros.core.operators import update, update_add, at
-from veros.core.streamfunction import utilities
+from veros.core.streamfunction import line_integrals
 
 
 @veros_routine(
@@ -58,6 +58,7 @@ def solve_streamfunction(vs):
 def prepare_forcing(grav, rho_0, tau, taup1, taum1, dzt, maskT, p_hydro, rho, dzw, du, dv, dxu, dyu,
                     maskU, maskV, cost, du_mix, dv_mix, hur, hvr, enable_cyclic_x, cosu, dpsi):
     # hydrostatic pressure
+    # TODO: rename these variables
     fxa = grav / rho_0
     tmp = 0.5 * (rho[:, :, :, tau]) * fxa * dzw * maskT
     p_hydro = update(p_hydro, at[:, :, -1], tmp[:, :, -1])
@@ -113,14 +114,14 @@ def barotropic_velocity_update(dxu, dxt, dyu, dyt, dzw, dzt, tau, taup1, taum1,
 
     if nisle > 1:
         # calculate island integrals of forcing, keep psi constant on island 1
-        line_forc = update(line_forc, at[1:], utilities.line_integrals_same(dxu=dxu, dyu=dyu, cost=cost,
+        line_forc = update(line_forc, at[1:], line_integrals.line_integrals(dxu=dxu, dyu=dyu, cost=cost,
                                                  line_dir_east_mask=line_dir_east_mask,
                                                  line_dir_west_mask=line_dir_west_mask,
                                                  line_dir_north_mask=line_dir_north_mask,
                                                  line_dir_south_mask=line_dir_south_mask,
                                                  boundary_mask=boundary_mask, nisle=nisle,
                                                  uloc=fpx[..., np.newaxis],
-                                                 vloc=fpy[..., np.newaxis])[1:])
+                                                 vloc=fpy[..., np.newaxis])[1:], kind='same')
 
         # calculate island integrals of interior streamfunction
         fpx = update(fpx, at[...], 0.)
@@ -131,14 +132,14 @@ def barotropic_velocity_update(dxu, dxt, dyu, dyt, dzw, dzt, tau, taup1, taum1,
         fpy = update(fpy, at[1:, 1:], maskV[1:, 1:, -1] \
             * (dpsi[1:, 1:, taup1] - dpsi[:-1, 1:, taup1]) \
             / (cosu[np.newaxis, 1:] * dxt[1:, np.newaxis]) * hvr[1:, 1:])
-        line_forc = update_add(line_forc, at[1:], -utilities.line_integrals_same(dxu=dxu, dyu=dyu, cost=cost,
+        line_forc = update_add(line_forc, at[1:], -line_integrals.line_integrals(dxu=dxu, dyu=dyu, cost=cost,
                                                    line_dir_east_mask=line_dir_east_mask,
                                                    line_dir_west_mask=line_dir_west_mask,
                                                    line_dir_north_mask=line_dir_north_mask,
                                                    line_dir_south_mask=line_dir_south_mask,
                                                    boundary_mask=boundary_mask, nisle=nisle,
                                                    uloc=fpx[..., np.newaxis],
-                                                   vloc=fpy[..., np.newaxis])[1:])
+                                                   vloc=fpy[..., np.newaxis])[1:], kind='same')
 
         # solve for time dependent boundary values
         dpsin = update(dpsin, at[1:, tau], np.linalg.solve(line_psin[1:, 1:], line_forc[1:]))

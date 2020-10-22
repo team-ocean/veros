@@ -5,6 +5,8 @@ import contextlib
 
 from loguru import logger
 
+from veros.backend import flush
+
 
 # stack helpers
 
@@ -18,20 +20,23 @@ class RoutineStack:
     def stack_level(self):
         return len(self._current_idx)
 
-    def _get_current_frame(self):
+    def append(self, val):
         frame = self._stack
         for i in self._current_idx:
-            frame = frame[i]
-        return frame
+            frame = frame[i][1]
 
-    def append(self, val):
-        self._get_current_frame().append(val)
+        self._current_idx.append(len(frame))
+        frame.append([val, []])
 
     def pop(self):
+        frame = self._stack
+        for i in self._current_idx[:-1]:
+            frame = frame[i][1]
+
         if self.keep_full_stack:
-            last_val = self._get_current_frame()[-1]
+            last_val = frame[-1][0]
         else:
-            last_val = self._get_current_frame().pop()
+            last_val = frame.pop()[0]
         self._current_idx.pop()
         return last_val
 
@@ -102,21 +107,6 @@ def _deduplicate(somelist):
     return sorted(set(somelist))
 
 
-def _flush(arrs):
-    if isinstance(arrs, (list, tuple)):
-        arr_iter = arrs
-    else:
-        arr_iter = [arrs]
-
-    for arr in arr_iter:
-        try:
-            arr.block_until_ready()
-        except AttributeError:
-            pass
-
-    return arrs
-
-
 # routine
 
 def veros_routine(function=None, **kwargs):
@@ -143,9 +133,22 @@ def veros_routine(function=None, **kwargs):
         num_params = len(inspect.signature(function).parameters)
         if narg >= num_params:
             raise TypeError('Veros routines must take at least one argument')
-        return VerosRoutine(
-            function, narg=narg, **kwargs
-        )
+
+        routine_type_sig = inspect.signature(VerosRoutine)
+        bound_args = routine_type_sig.bind(function, state_argnum=narg, **kwargs)
+        bound_args.apply_defaults()
+
+        routine = VerosRoutine(**bound_args.arguments)
+        routine = functools.wraps(function)(routine)
+
+        if routine.__doc__ is None:
+            routine.__doc__ = ''
+
+        routine.__doc__ += ''.join([
+            f'\n\n    {key} = {val}' for key, val in bound_args.arguments.items()
+        ])
+
+        return routine
 
     if function is not None:
         return inner_decorator(function)
@@ -154,6 +157,8 @@ def veros_routine(function=None, **kwargs):
 
 
 class VerosRoutine:
+    """Do not instantiate directly!"""
+
     def __init__(self, function, inputs=(), outputs=(), extra_outputs=(), settings=(), subroutines=(),
                  dist_safe=True, state_argnum=0):
         if isinstance(inputs, str):
@@ -210,7 +215,7 @@ class VerosRoutine:
         func_state._gather_arrays(self.inputs, flush=True)
 
         newargs = list(args)
-        newargs[self.narg] = func_state
+        newargs[self.state_argnum] = func_state
 
         timer = orig_veros_state.profile_timers[self.name]
 
@@ -237,9 +242,10 @@ class VerosRoutine:
             func_state._scatter_arrays(self.outputs, flush=True)
 
     def __get__(self, instance, instancetype):
-        return functools.wraps(self.function)(
-            functools.partial(self.__call__, instance)
-        )
+        return functools.partial(self.__call__, instance)
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__} {self.name} at {hex(id(self))}>'
 
 
 # kernel
@@ -249,18 +255,32 @@ def veros_kernel(function=None, *, static_args=()):
         static_args = (static_args,)
 
     def inner_decorator(function):
+        kernel = VerosKernel(function, static_args=static_args)
+        kernel = functools.wraps(function)(kernel)
+        return kernel
+
+    if function is not None:
+        return inner_decorator(function)
+
+    return inner_decorator
+
+
+class VerosKernel:
+    """Do not instantiate directly!"""
+
+    def __init__(self, function, static_args=()):
         """Do some parameter introspection and apply jax.jit"""
         from veros import runtime_settings
 
         # make sure function signature is in the form we need
-        func_name = _get_func_name(function)
-        func_sig = inspect.signature(function)
-        func_params = func_sig.parameters
+        self.name = _get_func_name(function)
+        self.func_sig = inspect.signature(function)
+        func_params = self.func_sig.parameters
 
         allowed_param_types = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
 
         if any(p.kind not in allowed_param_types for p in func_params.values()):
-            raise ValueError(f'Veros kernels do not support *args, **kwargs, or keyword-only parameters ({func_name})')
+            raise ValueError(f'Veros kernels do not support *args, **kwargs, or keyword-only parameters ({self.name})')
 
         # parse static args
         func_argnames = list(func_params.keys())
@@ -270,61 +290,59 @@ def veros_kernel(function=None, *, static_args=()):
                 arg_index = func_argnames.index(static_arg)
             except ValueError:
                 raise ValueError(
-                    f'Veros kernel {func_name} has no argument "{static_arg}", but it is given in static_args'
+                    f'Veros kernel {self.name} has no argument "{static_arg}", but it is given in static_args'
                 ) from None
 
             static_argnums.append(arg_index)
 
         if runtime_settings.backend == 'jax':
             from jax import jit
-            jitted_function = jit(function, static_argnums=static_argnums)
+            self.function = jit(function, static_argnums=static_argnums)
+        else:
+            self.function = function
 
-            @functools.wraps(function)
-            def veros_kernel_wrapper(*args, **kwargs):
-                # JAX only accepts positional args when using static_argnums
-                bound_args = func_sig.bind(*args, **kwargs)
-                bound_args.apply_defaults()
-                return jitted_function(*bound_args.arguments.values())
+    def run_with_state(self, veros_state, **kwargs):
+        """Unpacks kernel arguments from given VerosState object and calls kernel."""
+        from veros import runtime_settings
 
-            return veros_kernel_wrapper
+        # peel kernel parameters from veros state and given args
+        func_params = self.func_sig.parameters
 
-        return function
+        func_kwargs = {
+            arg: getattr(veros_state, arg)
+            for arg in func_params.keys()
+            if hasattr(veros_state, arg)
+        }
+        func_kwargs.update(kwargs)
 
-    if function is not None:
-        return inner_decorator(function)
-
-    return inner_decorator
-
-
-def run_kernel(function, veros_state, **kwargs):
-    """Unpacks kernel arguments from given VerosState object and calls kernel."""
-    from veros import runtime_settings
-
-    func_name = _get_func_name(function)
-
-    # peel kernel parameters from veros state and given args
-    func_params = inspect.signature(function).parameters
-
-    func_kwargs = {
-        arg: getattr(veros_state, arg)
-        for arg in func_params.keys()
-        if hasattr(veros_state, arg)
-    }
-    func_kwargs.update(kwargs)
-
-    # when profiling, make sure all inputs are ready before starting the timer
-    if runtime_settings.profile_mode:
-        _flush(list(func_kwargs.values()))
-
-    timer = veros_state.profile_timers[func_name]
-
-    with enter_routine(func_name, function, timer):
-        out = function(**func_kwargs)
-
+        # when profiling, make sure all inputs are ready before starting the timer
         if runtime_settings.profile_mode:
-            out = _flush(out)
+            flush(list(func_kwargs.values()))
 
-    return out
+        timer = veros_state.profile_timers[self.name]
+
+        with enter_routine(self.name, self.function, timer):
+            out = self.__call__(**func_kwargs)
+
+            if runtime_settings.profile_mode:
+                out = flush(out)
+
+        return out
+
+    def __call__(self, *args, **kwargs):
+        # JAX only accepts positional args when using static_argnums
+        # so convert everything to positional for consistency
+        bound_args = self.func_sig.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+        return self.function(*bound_args.arguments.values())
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__} {self.name} at {hex(id(self))}>'
+
+
+# TODO: remove
+def run_kernel(func, vs, **kwargs):
+    return func.run_with_state(vs, **kwargs)
 
 
 # global context

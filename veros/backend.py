@@ -7,6 +7,21 @@ BACKEND_MESSAGES = {
 _init_done = set()
 
 
+def flush(arrs):
+    if isinstance(arrs, (list, tuple)):
+        arr_iter = arrs
+    else:
+        arr_iter = [arrs]
+
+    for arr in arr_iter:
+        try:
+            arr.block_until_ready()
+        except AttributeError:
+            pass
+
+    return arrs
+
+
 def init_jax_config():
     if 'jax' in _init_done:
         return

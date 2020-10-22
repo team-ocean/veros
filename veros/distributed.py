@@ -343,38 +343,48 @@ def exchange_overlap(arr, var_grid, cyclic):
     return arr
 
 
+def _memoize(function):
+    cached = {}
+
+    @functools.wraps(function)
+    def memoized(*args):
+        if args not in cached:
+            cached[args] = function(*args)
+
+        return cached[args]
+
+    return memoized
+
+
+@_memoize
+def _mpi_comm_along_axis(comm, procs, rank):
+    return comm.Split(procs, rank)
+
+
 @dist_context_only
 def _reduce(arr, op, axis=None):
     from veros.core.operators import numpy as np
 
     if axis is None:
         comm = rs.mpi_comm
-        disconnect_comm = False
     else:
-        # TODO: fix this
         assert axis in (0, 1)
         pi = proc_rank_to_index(rst.proc_rank)
         other_axis = 1 - axis
-        comm = rs.mpi_comm.Split(pi[other_axis], rst.proc_rank)
-        disconnect_comm = True
+        comm = _mpi_comm_along_axis(rs.mpi_comm, pi[other_axis], rst.proc_rank)
 
-    try:
-        if np.isscalar(arr):
-            squeeze = True
-            arr = np.array([arr])
-        else:
-            squeeze = False
+    if np.isscalar(arr):
+        squeeze = True
+        arr = np.array([arr])
+    else:
+        squeeze = False
 
-        res, _ = allreduce(arr, op=op, comm=rs.mpi_comm)
+    res, _ = allreduce(arr, op=op, comm=comm)
 
-        if squeeze:
-            res = res[0]
+    if squeeze:
+        res = res[0]
 
-        return res
-
-    finally:
-        if disconnect_comm:
-            comm.Disconnect()
+    return res
 
 
 @dist_context_only(noop_return_arg=0)

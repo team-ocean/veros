@@ -76,25 +76,24 @@ class PETScSolver(LinearSolver):
 
         return np.array(self._da.getVecArray(self._sol_petsc)[...])
 
-    def solve(self, vs, rhs, sol, boundary_val=None):
+    def solve(self, vs, rhs, x0, boundary_val=None):
         """
         Arguments:
             rhs: Right-hand side vector
-            sol: Initial guess, gets overwritten with solution
-            boundary_val: Array containing values to set on boundary elements. Defaults to `sol`.
+            x0: Initial guess
+            boundary_val: Array containing values to set on boundary elements. Defaults to `x0`.
         """
         if boundary_val is None:
-            boundary_val = sol
+            boundary_val = x0
 
-        sol = utilities.enforce_boundaries(sol, vs.enable_cyclic_x)
+        x0 = utilities.enforce_boundaries(x0, vs.enable_cyclic_x)
 
         boundary_mask = np.all(~vs.boundary_mask, axis=2)
         rhs = np.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
-        linear_solution = self._petsc_solver(vs, rhs, sol)
+        linear_solution = self._petsc_solver(vs, rhs, x0)
 
-        sol = update(sol, at[...], rhs)
-        return update(sol, at[2:-2, 2:-2], linear_solution)
+        return update(rhs, at[2:-2, 2:-2], linear_solution)
 
     def _assemble_poisson_matrix(self, vs):
         """

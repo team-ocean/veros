@@ -1,8 +1,12 @@
 import os
+import functools
 from collections import namedtuple
 
 from veros.backend import BACKENDS
+from veros.logs import LOGLEVELS
 
+
+# MPI helpers
 
 def _default_mpi_comm():
     try:
@@ -49,7 +53,6 @@ def check_mpi_comm(comm):
     return comm
 
 
-LOGLEVELS = ('trace', 'debug', 'info', 'warning', 'error')
 DEVICES = ('cpu', 'gpu', 'tpu')
 FLOAT_TYPES = ('float64', 'float32')
 LINEAR_SOLVERS = ('scipy', 'petsc', 'best')

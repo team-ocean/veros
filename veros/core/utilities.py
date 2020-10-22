@@ -7,9 +7,9 @@ from veros.core.operators import update, at
 @veros_kernel(static_args=('enable_cyclic_x', 'local'))
 def enforce_boundaries(arr, enable_cyclic_x, local=False):
     from .. import runtime_settings as rs
-    from ..decorators import CONTEXT
+    from ..routines import CURRENT_CONTEXT
 
-    if rs.num_proc[0] == 1 or not CONTEXT.is_dist_safe or local:
+    if rs.num_proc[0] == 1 or not CURRENT_CONTEXT.is_dist_safe or local:
         if enable_cyclic_x:
             arr = update(arr, at[-2:, ...], arr[2:4, ...])
             arr = update(arr, at[:2, ...], arr[-4:-2, ...])

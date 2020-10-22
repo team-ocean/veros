@@ -7,13 +7,16 @@ SETTINGS = OrderedDict([
     ('identifier', Setting('UNNAMED', str, 'Identifier of the current simulation')),
 
     # Model parameters
+    # TODO: these should be protected after allocation
     ('nx', Setting(0, int, 'Grid points in zonal (x) direction')),
     ('ny', Setting(0, int, 'Grid points in meridional (y,j) direction')),
     ('nz', Setting(0, int, 'Grid points in vertical (z,k) direction')),
+    #
     ('dt_mom', Setting(0., float, 'Time step in seconds for momentum')),
     ('dt_tracer', Setting(0., float, 'Time step for tracers, can be larger than dt_mom')),
     ('runlen', Setting(0., float, 'Length of simulation in seconds')),
     ('AB_eps', Setting(0.1, float, 'Deviation from Adam-Bashforth weighting')),
+    # TODO: protect
     ('x_origin', Setting(0, float, 'Grid origin in x-direction')),
     ('y_origin', Setting(0, float, 'Grid origin in y-direction')),
 
@@ -52,7 +55,7 @@ SETTINGS = OrderedDict([
     ('congr_epsilon', Setting(1e-12, float, 'convergence criteria for Poisson solver')),
     ('congr_max_iterations', Setting(1000, int, 'maximum number of Poisson solver iterations')),
 
-    # Mixing parameter
+    # Mixing parameters
     ('A_h', Setting(0.0, float, 'lateral viscosity in m^2/s')),
     ('K_h', Setting(0.0, float, 'lateral diffusivity in m^2/s')),
     ('r_ray', Setting(0.0, float, 'Rayleigh damping coefficient in 1/s')),
@@ -140,13 +143,11 @@ SETTINGS = OrderedDict([
 ])
 
 
-def set_default_settings(vs):
-    update_settings(vs, SETTINGS)
-
-
-def update_settings(vs, settings):
-    for key, setting in settings.items():
-        setattr(vs, key, setting.type(setting.default))
+def get_default_settings():
+    return {
+        key: setting.type(setting.default)
+        for key, setting in SETTINGS.items()
+    }
 
 
 def check_setting_conflicts(vs):

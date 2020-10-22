@@ -32,14 +32,15 @@ class SciPySolver(LinearSolver):
         ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-6, fill_factor=100)
         self._extra_args['M'] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
 
-    def _scipy_solver(self, vs, rhs, sol, boundary_mask, boundary_val):
-        sol = utilities.enforce_boundaries(sol, vs.enable_cyclic_x, local=True)
+    def _scipy_solver(self, vs, rhs, x0, boundary_mask, boundary_val):
+        orig_shape = x0.shape
+        x0 = utilities.enforce_boundaries(x0, vs.enable_cyclic_x, local=True)
 
         boundary_mask = np.prod(1 - boundary_mask, axis=2)
         rhs = np.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
         rhs = onp.asarray(rhs.reshape(-1), dtype='float64') * self._rhs_scale
-        x0 = onp.asarray(sol.reshape(-1), dtype='float64')
+        x0 = onp.asarray(x0.reshape(-1), dtype='float64')
 
         linear_solution, info = spalg.bicgstab(
             self._matrix, rhs,
@@ -51,30 +52,31 @@ class SciPySolver(LinearSolver):
         if info > 0:
             logger.warning('Streamfunction solver did not converge after {} iterations', info)
 
-        return np.asarray(linear_solution.reshape(sol.shape))
+        return np.asarray(linear_solution.reshape(orig_shape))
 
-    def solve(self, vs, rhs, sol, boundary_val=None):
+    def solve(self, vs, rhs, x0, boundary_val=None):
         """
         Main solver for streamfunction. Solves a 2D Poisson equation. Uses scipy.sparse.linalg
         linear solvers.
 
         Arguments:
             rhs: Right-hand side vector
-            sol: Initial guess, gets overwritten with solution
-            boundary_val: Array containing values to set on boundary elements. Defaults to `sol`.
+            x0: Initial guess
+            boundary_val: Array containing values to set on boundary elements. Defaults to `x0`.
         """
-        # TODO: rename sol variable
         rhs_global = distributed.gather(vs.nx, vs.ny, rhs, ('xt', 'yt'))
-        sol_global = distributed.gather(vs.nx, vs.ny, sol, ('xt', 'yt'))
+        x0_global = distributed.gather(vs.nx, vs.ny, x0, ('xt', 'yt'))
         boundary_mask_global = distributed.gather(vs.nx, vs.ny, vs.boundary_mask, ('xt', 'yt'))
 
         if boundary_val is None:
-            boundary_val = sol_global
+            boundary_val = x0_global
         else:
             boundary_val = distributed.gather(vs.nx, vs.ny, boundary_val, ('xt', 'yt'))
 
         if rst.proc_rank == 0:
-            linear_solution = self._scipy_solver(vs, rhs_global, sol_global, boundary_mask=boundary_mask_global, boundary_val=boundary_val)
+            linear_solution = self._scipy_solver(
+                vs, rhs_global, x0_global, boundary_mask=boundary_mask_global, boundary_val=boundary_val
+            )
         else:
             linear_solution = np.empty_like(rhs)
 

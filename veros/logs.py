@@ -6,6 +6,8 @@ from loguru import logger
 # register custom loglevel
 logger.level('DIAGNOSTIC', no=45)
 
+LOGLEVELS = ('trace', 'debug', 'info', 'warning', 'error')
+
 
 def setup_logging(loglevel='info', stream_sink=sys.stdout):
     from . import runtime_state, runtime_settings

@@ -8,7 +8,7 @@ from veros import (
 from veros.distributed import global_max
 from veros.core import utilities as mainutils
 from veros.core.operators import update, at
-from veros.core.streamfunction import island, utilities
+from veros.core.streamfunction import island, line_integrals
 
 
 @veros_routine(
@@ -23,7 +23,7 @@ def get_isleperim(vs):
     """
     logger.debug(' Determining number of land masses')
     land_map = island.isleperim(vs.kbot, vs.enable_cyclic_x)
-    logger.info(_ascii_map(land_map.copy()))
+    logger.debug(_ascii_map(land_map.copy()))
     nisle = int(global_max(np.max(vs.land_map)))
     return dict(land_map=land_map, nisle=nisle)
 
@@ -138,10 +138,10 @@ def island_integrals(nx, ny, nisle, maskU, maskV, dxt, dyt, dxu, dyu, cost, cosu
         * (psin[1:, 1:, :] - psin[:-1, 1:, :]) \
         / (cosu[np.newaxis, 1:, np.newaxis] * dxt[1:, np.newaxis, np.newaxis]) \
         * hvr[1:, 1:, np.newaxis])
-    line_psin = utilities.line_integrals_full(
+    line_psin = line_integrals.line_integrals(
         dxu, dyu, cost, line_dir_east_mask,
         line_dir_west_mask, line_dir_north_mask, line_dir_south_mask, boundary_mask,
-        nisle, uloc=fpx, vloc=fpy
+        nisle, uloc=fpx, vloc=fpy, kind='full'
     )
 
     return line_psin

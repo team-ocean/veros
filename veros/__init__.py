@@ -7,6 +7,7 @@ import types
 
 def _reraise_exceptions(func):
     import functools
+    raised = False
 
     @functools.wraps(func)
     def reraise_wrapper(*args, **kwargs):
@@ -44,19 +45,19 @@ class _PublicAPI(types.ModuleType):
     @property
     @_reraise_exceptions
     def veros_routine(self):
-        from veros.decorators import veros_routine
+        from veros.routines import veros_routine
         return veros_routine
 
     @property
     @_reraise_exceptions
     def veros_kernel(self):
-        from veros.decorators import veros_kernel
+        from veros.routines import veros_kernel
         return veros_kernel
 
     @property
     @_reraise_exceptions
     def run_kernel(self):
-        from veros.decorators import run_kernel
+        from veros.routines import run_kernel
         return run_kernel
 
     @property

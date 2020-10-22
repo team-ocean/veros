@@ -10,12 +10,12 @@ BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = tools.get_assets('global_1deg', os.path.join(BASE_PATH, 'assets.yml'))
 
 
+# TODO: investigate performance
 @veros_kernel(static_args=('enable_tke', 'enable_tempsalt_sources'))
 def set_forcing_kernel(f1, f2, n1, n2, surface_taux, surface_tauy, taux, tauy, enable_tke, forc_tke_surface, rho_0,
                        t_star, qnec, qnet, forc_temp_surface, temp, tau, cp_0, s_star, forc_salt_surface,
                        t_rest, salt, maskT, dzt, enable_tempsalt_sources, temp_source, divpen_shortwave, qsol):
     from veros.core.operators import numpy as np, update, at
-    # TODO: investigate performance
 
     # linearly interpolate wind stress and shift from MITgcm U/V grid to this grid
     surface_taux = update(surface_taux, at[:-1, :], f1 * taux[1:, :, n1] + f2 * taux[1:, :, n2])
@@ -36,9 +36,9 @@ def set_forcing_kernel(f1, f2, n1, n2, surface_taux, surface_tauy, taux, tauy, e
     forc_salt_surface = 1. / t_rest * (s_star_cur - salt[..., -1, tau]) * maskT[..., -1] * dzt[-1]
 
     # apply simple ice mask
-    mask1 = temp[:, :, -1, tau] * maskT[:, :, -1] <= -1.8
-    mask2 = forc_temp_surface <= 0
-    ice = ~(mask1 & mask2)
+    mask1 = temp[:, :, -1, tau] * maskT[:, :, -1] > -1.8
+    mask2 = forc_temp_surface > 0
+    ice = np.logical_or(mask1, mask2)
     forc_temp_surface *= ice
     forc_salt_surface *= ice
 
@@ -57,73 +57,73 @@ class GlobalOneDegreeSetup(VerosSetup):
     `Adapted from pyOM2 <https://wiki.zmaw.de/ifm/TO/pyOM2/1x1%20global%20model>`_.
     """
 
-    def set_parameter(self, vs):
+    def set_parameter(self, settings, var_meta, objects):
         """
         set main parameters
         """
-        vs.nx = 360
-        vs.ny = 160
-        vs.nz = 115
-        vs.dt_mom = 1800.0
-        vs.dt_tracer = 1800.0
-        vs.runlen = 10 * vs.dt_tracer
+        settings.nx = 360
+        settings.ny = 160
+        settings.nz = 115
+        settings.dt_mom = 1800.0
+        settings.dt_tracer = 1800.0
+        settings.runlen = 10 * settings.dt_tracer
 
-        vs.coord_degree = True
-        vs.enable_cyclic_x = True
+        settings.coord_degree = True
+        settings.enable_cyclic_x = True
 
-        vs.congr_epsilon = 1e-10
-        vs.congr_max_iterations = 10000
+        settings.congr_epsilon = 1e-10
+        settings.congr_max_iterations = 10000
 
-        vs.enable_hor_friction = True
-        vs.A_h = 5e4
-        vs.enable_hor_friction_cos_scaling = True
-        vs.hor_friction_cosPower = 1
-        vs.enable_tempsalt_sources = True
-        vs.enable_implicit_vert_friction = True
+        settings.enable_hor_friction = True
+        settings.A_h = 5e4
+        settings.enable_hor_friction_cos_scaling = True
+        settings.hor_friction_cosPower = 1
+        settings.enable_tempsalt_sources = True
+        settings.enable_implicit_vert_friction = True
 
-        vs.eq_of_state_type = 5
+        settings.eq_of_state_type = 5
 
         # isoneutral
-        vs.enable_neutral_diffusion = True
-        vs.K_iso_0 = 1000.0
-        vs.K_iso_steep = 50.0
-        vs.iso_dslope = 0.005
-        vs.iso_slopec = 0.005
-        vs.enable_skew_diffusion = True
+        settings.enable_neutral_diffusion = True
+        settings.K_iso_0 = 1000.0
+        settings.K_iso_steep = 50.0
+        settings.iso_dslope = 0.005
+        settings.iso_slopec = 0.005
+        settings.enable_skew_diffusion = True
 
         # tke
-        vs.enable_tke = True
-        vs.c_k = 0.1
-        vs.c_eps = 0.7
-        vs.alpha_tke = 30.0
-        vs.mxl_min = 1e-8
-        vs.tke_mxl_choice = 1
-        vs.kappaM_min = 2e-4
-        vs.kappaH_min = 2e-5
-        vs.enable_kappaH_profile = True
-        vs.enable_tke_superbee_advection = True
+        settings.enable_tke = True
+        settings.c_k = 0.1
+        settings.c_eps = 0.7
+        settings.alpha_tke = 30.0
+        settings.mxl_min = 1e-8
+        settings.tke_mxl_choice = 1
+        settings.kappaM_min = 2e-4
+        settings.kappaH_min = 2e-5
+        settings.enable_kappaH_profile = True
+        settings.enable_tke_superbee_advection = True
 
         # eke
-        vs.enable_eke = True
-        vs.eke_k_max = 1e4
-        vs.eke_c_k = 0.4
-        vs.eke_c_eps = 0.5
-        vs.eke_cross = 2.
-        vs.eke_crhin = 1.0
-        vs.eke_lmin = 100.0
-        vs.enable_eke_superbee_advection = True
-        vs.enable_eke_isopycnal_diffusion = True
+        settings.enable_eke = True
+        settings.eke_k_max = 1e4
+        settings.eke_c_k = 0.4
+        settings.eke_c_eps = 0.5
+        settings.eke_cross = 2.
+        settings.eke_crhin = 1.0
+        settings.eke_lmin = 100.0
+        settings.enable_eke_superbee_advection = True
+        settings.enable_eke_isopycnal_diffusion = True
 
         # idemix
-        vs.enable_idemix = False
-        vs.enable_eke_diss_surfbot = True
-        vs.eke_diss_surfbot_frac = 0.2
-        vs.enable_idemix_superbee_advection = True
-        vs.enable_idemix_hor_diffusion = True
+        settings.enable_idemix = False
+        settings.enable_eke_diss_surfbot = True
+        settings.eke_diss_surfbot_frac = 0.2
+        settings.enable_idemix_superbee_advection = True
+        settings.enable_idemix_hor_diffusion = True
 
         # custom variables
-        vs.nmonths = 12
-        vs.variables.update(
+        objects.nmonths = 12
+        var_meta.update(
             t_star=Variable('t_star', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
             s_star=Variable('s_star', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
             qnec=Variable('qnec', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
@@ -134,7 +134,7 @@ class GlobalOneDegreeSetup(VerosSetup):
             tauy=Variable('tauy', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
         )
 
-        vs.diskless_mode = True
+        settings.diskless_mode = True
 
     def _read_forcing(self, vs, var):
         from veros.core.operators import numpy as np

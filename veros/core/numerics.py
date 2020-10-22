@@ -204,7 +204,6 @@ def calc_topo_kernel(kbot, maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, h
     land_mask = kbot > 0
     ks = np.arange(maskT.shape[2])[np.newaxis, np.newaxis, :]
 
-    # TODO: test whether we actually need these boundary exchanges
     maskT = update(maskT, at[...], land_mask[..., np.newaxis] & (kbot[..., np.newaxis] - 1 <= ks))
     maskT = utilities.enforce_boundaries(maskT, enable_cyclic_x)
 

@@ -64,6 +64,20 @@ TENSOR_COMP = ('tensor1', 'tensor2')
 BASE_DIMENSIONS = XT + XU + YT + YU + ZT + ZW + ISLE
 GHOST_DIMENSIONS = ('xt', 'yt', 'xu', 'yu')
 
+# these are the settings that are getting used to determine shapes
+DIM_TO_SHAPE_VAR = {
+    'xt': 'nx',
+    'xu': 'nx',
+    'yt': 'ny',
+    'yu': 'ny',
+    'zt': 'nz',
+    'zw': 'nz',
+    'timesteps': 3,
+    'tensor1': 2,
+    'tensor2': 2,
+    'isle': 'nisle',
+}
+
 DEFAULT_MASKS = {
     T_HOR: lambda vs: vs.maskT[:, :, -1],
     U_HOR: lambda vs: vs.maskU[:, :, -1],
@@ -76,49 +90,42 @@ DEFAULT_MASKS = {
     ZETA_GRID: lambda vs: vs.maskZ
 }
 
+# custom mask for streamfunction
 ZETA_HOR_ERODED = lambda vs: vs.maskZ[:, :, -1] | vs.boundary_mask.sum(axis=2)  # noqa: E731
 
 
-def get_dimensions(vs, grid, include_ghosts=True, local=True):
+def get_shape(dimensions, grid, include_ghosts=True, local=True):
     px, py = runtime_settings.num_proc
 
-    dimensions = {
-        'xt': vs.nx,
-        'xu': vs.nx,
-        'yt': vs.ny,
-        'yu': vs.ny,
-        'zt': vs.nz,
-        'zw': vs.nz,
-        'timesteps': 3,
-        'tensor1': 2,
-        'tensor2': 2,
-        'isle': vs.nisle,
-    }
+    grid_shapes = {}
+    for key, val in DIM_TO_SHAPE_VAR.items():
+        if isinstance(val, str):
+            grid_shapes[key] = getattr(dimensions, val)
+        else:
+            grid_shapes[key] = val
 
     if local:
-        dimensions.update({
-            'xt': dimensions['xt'] // px,
-            'xu': dimensions['xu'] // px,
-            'yt': dimensions['yt'] // py,
-            'yu': dimensions['yt'] // py
+        grid_shapes.update({
+            'xt': grid_shapes['xt'] // px,
+            'xu': grid_shapes['xu'] // px,
+            'yt': grid_shapes['yt'] // py,
+            'yu': grid_shapes['yt'] // py
         })
 
     if include_ghosts:
         for d in GHOST_DIMENSIONS:
-            dimensions[d] += 4
+            grid_shapes[d] += 4
 
-    dims = []
+    shape = []
     for grid_dim in grid:
-        if grid_dim in dimensions:
-            dims.append(dimensions[grid_dim])
-        elif isinstance(grid_dim, int):
-            dims.append(grid_dim)
-        elif hasattr(vs, grid_dim):
-            dims.append(getattr(vs, grid_dim))
+        if grid_dim in grid_shapes:
+            shape.append(grid_shapes[grid_dim])
+        elif hasattr(dimensions, grid_dim):
+            shape.append(getattr(dimensions, grid_dim))
         else:
             raise ValueError('unrecognized dimension %s' % grid_dim)
 
-    return tuple(dims)
+    return tuple(shape)
 
 
 def remove_ghosts(array, dims):
@@ -737,7 +744,7 @@ CONDITIONAL_VARIABLES = OrderedDict([
 ])
 
 
-def get_active_variables(vs, main_variables=None, conditional_variables=None):
+def get_active_variables(settings, main_variables=None, conditional_variables=None):
     variables = {}
 
     if main_variables is not None:
@@ -747,9 +754,9 @@ def get_active_variables(vs, main_variables=None, conditional_variables=None):
     if conditional_variables is not None:
         for condition, var_dict in conditional_variables.items():
             if condition.startswith('not '):
-                eval_condition = not bool(getattr(vs, condition[4:]))
+                eval_condition = not bool(getattr(settings, condition[4:]))
             else:
-                eval_condition = bool(getattr(vs, condition))
+                eval_condition = bool(getattr(settings, condition))
             if eval_condition:
                 for var_name, var in var_dict.items():
                     variables[var_name] = var
@@ -757,21 +764,21 @@ def get_active_variables(vs, main_variables=None, conditional_variables=None):
     return variables
 
 
-def get_standard_variables(vs):
+def get_standard_variables(settings):
     return get_active_variables(
-        vs,
+        settings,
         main_variables=MAIN_VARIABLES,
         conditional_variables=CONDITIONAL_VARIABLES
     )
 
 
-def allocate(vs, dimensions, dtype=None, include_ghosts=True, local=True, fill=0):
+def allocate(dimensions, grid, dtype=None, include_ghosts=True, local=True, fill=0):
     from veros import runtime_settings as rs
     from veros.core.operators import numpy as np
 
     if dtype is None:
         dtype = rs.float_type
 
-    shape = get_dimensions(vs, dimensions, include_ghosts=include_ghosts, local=local)
+    shape = get_shape(dimensions, grid, include_ghosts=include_ghosts, local=local)
     out = np.full(shape, fill, dtype=dtype)
     return out

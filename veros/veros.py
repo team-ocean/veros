@@ -8,7 +8,7 @@ from veros import (
     settings, time, signals, logs, distributed, progress,
     runtime_settings as rs
 )
-from veros.state import VerosState
+from veros.state import VerosState, Container, SettingsContainer, create_variable_container
 from veros.plugins import load_plugin
 from veros.routines import record_routine_stack
 
@@ -37,29 +37,19 @@ class VerosSetup(metaclass=abc.ABCMeta):
     """
     __veros_plugins__ = tuple()
 
-    def __init__(self, state=None, override=None, plugins=None):
-        self.override_settings = override or {}
+    def __init__(self, override=None):
         logs.setup_logging(loglevel=rs.loglevel)
+
+        self.state = None
+        self.override_settings = override or {}
 
         # this should be the first time the core routines are imported
         import veros.core  # noqa: F401
 
-        if plugins is not None:
-            self.__veros_plugins__ = tuple(plugins)
-
         self._plugin_interfaces = tuple(load_plugin(p) for p in self.__veros_plugins__)
+        self._setup_done = False
 
-        if state is None:
-            self.state = VerosState(use_plugins=self.__veros_plugins__)
-
-        this_plugins = set(p.module for p in self._plugin_interfaces)
-        state_plugins = set(p.module for p in self.state._plugin_interfaces)
-
-        if this_plugins != state_plugins:
-            raise ValueError(
-                'VerosState was created with plugin modules {}, but this setup uses {}'
-                .format(state_plugins, this_plugins)
-            )
+        # TODO: check that user-implemented methods are VerosRoutines
 
     @abc.abstractmethod
     def set_parameter(self, vs):
@@ -173,25 +163,45 @@ class VerosSetup(metaclass=abc.ABCMeta):
         """
         pass
 
+    def _ensure_setup_done(self):
+        if not self._setup_done:
+            raise RuntimeError('setup() method has to be called before running the model')
+
     def setup(self):
         from veros import diagnostics
         from veros.core import numerics, streamfunction, eke, isoneutral
 
+        logger.info('Running model setup')
+
+        var_meta = {}
+        model_settings = SettingsContainer(
+            **settings.get_default_settings()
+        )
+        model_objects = Container()
+
+        with model_settings.unlock():
+            self.set_parameter(model_settings, var_meta, model_objects)
+
+        model_settings.update(**self.override_settings)
+        settings.check_setting_conflicts(model_settings)
+
+        var_meta.update(variables.get_standard_variables())
+        for plugin in self._plugin_interfaces:
+            plugin_vars = variables.get_active_variables(settings, plugin.variables, plugin.conditional_variables)
+            var_meta.update(plugin_vars)
+
+        model_variables = create_variable_container(var_meta)
+
+        self.state = VerosState(
+            model_variables, model_settings,
+            model_diagnostics, model_objects
+        )
         vs = self.state
+
+        distributed.validate_decomposition(vs.dimensions)
+
         vs.timers['setup'].active = True
-
         with vs.timers['setup']:
-            logger.info('Setting up everything')
-
-            self.set_parameter(vs)
-
-            for setting, value in self.override_settings.items():
-                setattr(vs, setting, value)
-
-            settings.check_setting_conflicts(vs)
-            distributed.validate_decomposition(vs.nx, vs.ny)
-            vs.allocate_variables()
-
             self.set_grid(vs)
             numerics.calc_grid(vs)
 
@@ -217,11 +227,15 @@ class VerosSetup(metaclass=abc.ABCMeta):
             self.set_forcing(vs)
             isoneutral.check_isoneutral_slope_crit(vs)
 
+        self._setup_done = True
+
     def step(self):
         from veros import diagnostics
         from veros.core import (
             idemix, eke, tke, momentum, thermodynamics, advection, utilities, isoneutral
         )
+
+        self._ensure_setup_done()
 
         vs = self.state
 
@@ -316,6 +330,8 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         """
         from veros import diagnostics
+
+        self._ensure_setup_done()
 
         vs = self.state
 
