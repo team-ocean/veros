@@ -4,7 +4,7 @@ requests==2.24.0
 numpy==1.19.4
 scipy==1.5.4
 h5netcdf==0.8.1
-h5py==3.0.0
+h5py==3.1.0
 pillow==8.0.1
 ruamel.yaml==0.16.12
 loguru==0.5.3
