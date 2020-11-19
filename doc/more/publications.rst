@@ -22,7 +22,12 @@ Talks
 
 Theses
 ------
-
+- Franka Jesse. (2020). Verification of various Island Rules using simulations in application 
+  to the Indonesian Throughflow. BSc Thesis, 30 p.
+  `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Franka_Jesse_BSc_thesis.pdf>`__.
+- Denise Ruijsch. (2020). Multiple equilibria in the Eocene ocean circulation leading to the 
+  Eocene-Oligocene transition. BSc Thesis, 48 p.
+  `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Denise_Ruijsch_BSc_thesis.pdf>`__.
 - Marie Cecilie Boysen. (2020). Godfrey's Island Rule and the Indonesian Through Flow,
   BSc Thesis, 30 p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Marie_Cecilie_Boysen_BSc_thesis.pdf>`__.
