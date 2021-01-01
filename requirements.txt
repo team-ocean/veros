@@ -2,7 +2,7 @@ click==7.1.2
 entrypoints==0.3
 requests==2.25.1
 numpy==1.19.4
-scipy==1.5.4
+scipy==1.6.0
 h5netcdf==0.8.1
 h5py==3.1.0
 pillow==8.0.1
