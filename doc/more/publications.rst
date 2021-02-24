@@ -22,11 +22,14 @@ Talks
 
 Theses
 ------
+- Till Grenzdörffer.(2020). Accelerating Ocean Modellin: Adressing performance bottlenecks of 
+  the ocean modelling framework Veros, MSc Thesis, 16p.
+  `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Till_Grenzdorffer_MSc_thesis.pdf>`__.
 - Franka Jesse. (2020). Verification of various Island Rules using simulations in application 
-  to the Indonesian Throughflow. BSc Thesis, 30 p.
+  to the Indonesian Throughflow, BSc Thesis, 30 p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Franka_Jesse_BSc_thesis.pdf>`__.
 - Denise Ruijsch. (2020). Multiple equilibria in the Eocene ocean circulation leading to the 
-  Eocene-Oligocene transition. BSc Thesis, 48 p.
+  Eocene-Oligocene transition, BSc Thesis, 48 p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Denise_Ruijsch_BSc_thesis.pdf>`__.
 - Marie Cecilie Boysen. (2020). Godfrey's Island Rule and the Indonesian Through Flow,
   BSc Thesis, 30 p.
@@ -35,7 +38,6 @@ Theses
   The role of oceanic cross-hemisphere signals,
   Southern Ocean eddies and wind changes, MSc Thesis, 42p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Laurits_Andreasen_MSc_thesis.pdf>`__.
-
 - Steffen Ole Randrup Kristensen. (2019). Extending the Veros climate simulator with biochemistry.
   Model design and AMOC collapse, MSc Thesis, 67p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/SteffenRandrup_MSc_thesis.pdf>`__.
