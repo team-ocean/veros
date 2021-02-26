@@ -4,6 +4,9 @@ Publications
 Papers
 ------
 
+- Lohmann, J., and Ditlevsen, P. D.: Risk of tipping the overturning circulation due to
+  increasing rates of ice melt, PNAS, 118 (9), e2017989118,
+  `https://doi.org/10.1073/pnas.2017989118 <https://doi.org/10.1073/pnas.2017989118>`__, 2021.
 - Häfner, D., Jacobsen, R. L., Eden, C., Kristensen, M. R. B., Jochum, M.,
   Nuterman, R., and Vinter, B.: Veros v0.1 – a fast and versatile ocean
   simulator in pure Python, Geosci. Model Dev., 11, 3299-3312,
@@ -33,7 +36,7 @@ Theses
   Eocene-Oligocene transition, BSc Thesis, 48p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Denise_Ruijsch_BSc_thesis.pdf>`__.
 - Marie Cecilie Boysen. (2020). Godfrey's Island Rule and the Indonesian Through Flow,
-  BSc Thesis, 30 p.
+  BSc Thesis, 30p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Marie_Cecilie_Boysen_BSc_thesis.pdf>`__.
 - Laurits S. Andreasen. (2019). Time scales of the Bipolar seesaw:
   The role of oceanic cross-hemisphere signals,
