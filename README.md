@@ -7,7 +7,7 @@
     <img src="https://readthedocs.org/projects/veros/badge/?version=latest" alt="Documentation status">
   </a>
   <a href="https://travis-ci.org/team-ocean/veros">
-    <img src="https://travis-ci.org/team-ocean/veros.svg?branch=master" alt="Build status">
+    <img src="https://travis-ci.com/team-ocean/veros.svg?branch=master" alt="Build status">
   </a>
   <a href="https://codecov.io/gh/team-ocean/veros">
     <img src="https://codecov.io/gh/team-ocean/veros/branch/master/graph/badge.svg" alt="Code Coverage">
