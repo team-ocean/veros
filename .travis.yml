@@ -26,7 +26,6 @@ env:
     - OMPI_MCA_mpi_yield_when_idle=1
   matrix:
     - VEROS_BACKEND=numpy
-    - VEROS_BACKEND=bohrium BH_STACK=openmp
 
 jobs:
   allow_failures:
