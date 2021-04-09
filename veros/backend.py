@@ -7,30 +7,26 @@ BACKEND_MESSAGES = {
 _init_done = set()
 
 
-def flush(arrs):
-    if isinstance(arrs, (list, tuple)):
-        arr_iter = arrs
-    else:
-        arr_iter = [arrs]
-
-    for arr in arr_iter:
-        try:
-            arr.block_until_ready()
-        except AttributeError:
-            pass
-
-    return arrs
-
-
 def init_jax_config():
     if 'jax' in _init_done:
         return
 
     import jax
     from veros import runtime_settings
+    from veros.state import (
+        VerosState, VerosVariables, DistSafeVariableWrapper,
+        veros_state_pytree_flatten, veros_state_pytree_unflatten,
+        veros_variables_pytree_flatten, veros_variables_pytree_unflatten,
+        dist_safe_wrapper_pytree_flatten, dist_safe_wrapper_pytree_unflatten
+    )
     jax.config.enable_omnistaging()
     jax.config.update('jax_enable_x64', runtime_settings.float_type == 'float64')
     jax.config.update('jax_platform_name', runtime_settings.device)
+
+    jax.tree_util.register_pytree_node(VerosState, veros_state_pytree_flatten, veros_state_pytree_unflatten)
+    jax.tree_util.register_pytree_node(VerosVariables, veros_variables_pytree_flatten, veros_variables_pytree_unflatten)
+    jax.tree_util.register_pytree_node(DistSafeVariableWrapper, dist_safe_wrapper_pytree_flatten, dist_safe_wrapper_pytree_unflatten)
+
     _init_done.add('jax')
 
 

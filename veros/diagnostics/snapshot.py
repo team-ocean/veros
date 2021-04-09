@@ -17,14 +17,14 @@ class Snapshot(VerosDiagnostic):
     #: Attributes to be written to restart file.
     restart_attributes = ('itt', 'time', 'tau', 'taum1', 'taup1')
 
-    def __init__(self, vs):
-        self.output_variables = [key for key, val in vs.variables.items() if val.output]
-        """Variables to be written to output. Defaults to all Veros variables that
-        have the attribute :attr:`output`."""
-        self.restart_variables = [key for key,
-                                  val in vs.variables.items() if val.write_to_restart]
-        """Variables to be written to restart. Defaults to all Veros variables that
-        have the attribute :attr:`write_to_restart`."""
+    # def __init__(self, vs):
+    #     self.output_variables = [key for key, val in vs.variables.items() if val.output]
+    #     """Variables to be written to output. Defaults to all Veros variables that
+    #     have the attribute :attr:`output`."""
+    #     self.restart_variables = [key for key,
+    #                               val in vs.variables.items() if val.write_to_restart]
+    #     """Variables to be written to restart. Defaults to all Veros variables that
+    #     have the attribute :attr:`write_to_restart`."""
 
     def initialize(self, vs):
         var_meta = {var: vs.variables[var] for var in self.output_variables}

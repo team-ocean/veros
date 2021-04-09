@@ -18,7 +18,7 @@ def compute_dissipation(grav, rho_0, dxt, dyt, cost, int_drhodX, flux_east, flux
     return diss
 
 
-@veros_kernel(static_args=('nz',))
+@veros_kernel
 def dissipation_on_wgrid(diss, nz, dzw, ks):
     land_mask, water_mask, edge_mask = utilities.create_water_masks(ks, nz)
     water_mask = np.logical_and(water_mask, np.logical_not(edge_mask))
@@ -35,7 +35,7 @@ def dissipation_on_wgrid(diss, nz, dzw, ks):
     return out
 
 
-@veros_kernel(static_args=('enable_conserve_energy', 'pyom_compatibility_mode',))
+@veros_kernel
 def tempsalt_biharmonic(K_hbi, temp, salt, int_drhodT, int_drhodS, maskT, maskU, maskV, maskW,
                         dxt, dxu, dyt, dyu, dzw, nz, tau, cost, cosu, taup1, dt_tracer,
                         grav, rho_0, flux_east, flux_north, kbot,
@@ -76,7 +76,7 @@ def tempsalt_biharmonic(K_hbi, temp, salt, int_drhodT, int_drhodS, maskT, maskU,
     return temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix
 
 
-@veros_kernel(static_args=('enable_conserve_energy',))
+@veros_kernel
 def tempsalt_diffusion(int_drhodT, int_drhodS, temp, salt, maskT, maskU, maskV, maskW,
                        dxt, dxu, dyt, dyu, nz, dzw, tau, taup1, dt_tracer, K_h, cost, cosu,
                        grav, rho_0, flux_east, flux_north, kbot,
@@ -116,7 +116,7 @@ def tempsalt_diffusion(int_drhodT, int_drhodS, temp, salt, maskT, maskU, maskV, 
     return temp, salt, dtemp_hmix, dsalt_hmix, P_diss_hmix
 
 
-@veros_kernel(static_args=('enable_conserve_energy', 'nz'))
+@veros_kernel
 def tempsalt_sources(temp, salt, temp_source, salt_source, maskT, maskW,
                      tau, taup1, dt_tracer, grav, rho_0, nz, dzw,
                      flux_east, flux_north, dxt, dyt, cost, kbot,
@@ -184,7 +184,7 @@ def biharmonic_diffusion(tr, diffusivity, dxt, dxu, dyt, dyu, maskT, maskU, mask
     return dtr
 
 
-@veros_kernel(static_args=('enable_hor_friction_cos_scaling'))
+@veros_kernel
 def horizontal_diffusion(tr, diffusivity, dxt, dxu, dyt, dyu, maskT, maskU, maskV, cost,
                          cosu, hor_friction_cosPower, enable_hor_friction_cos_scaling):
     """

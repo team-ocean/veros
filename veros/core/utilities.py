@@ -4,7 +4,7 @@ from veros import veros_kernel
 from veros.core.operators import update, at
 
 
-@veros_kernel(static_args=('enable_cyclic_x', 'local'))
+@veros_kernel
 def enforce_boundaries(arr, enable_cyclic_x, local=False):
     from .. import runtime_settings as rs
     from ..routines import CURRENT_CONTEXT
@@ -20,7 +20,6 @@ def enforce_boundaries(arr, enable_cyclic_x, local=False):
     return arr
 
 
-@veros_kernel
 def pad_z_edges(array):
     """
     Pads the z-axis of an array by repeating its edge values
@@ -34,7 +33,7 @@ def pad_z_edges(array):
     return newarray
 
 
-@veros_kernel(static_args=('nz',))
+@veros_kernel
 def create_water_masks(ks, nz):
     ks = ks - 1
     land_mask = ks >= 0

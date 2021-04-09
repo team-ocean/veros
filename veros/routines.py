@@ -1,11 +1,11 @@
 import functools
 import inspect
 import threading
-import contextlib
+from contextlib import ExitStack, contextmanager
 
 from loguru import logger
 
-from veros.backend import flush
+from veros.state import VerosState
 
 
 # stack helpers
@@ -41,7 +41,14 @@ class RoutineStack:
         return last_val
 
 
-@contextlib.contextmanager
+# global context
+
+CURRENT_CONTEXT = threading.local()
+CURRENT_CONTEXT.is_dist_safe = True
+CURRENT_CONTEXT.routine_stack = RoutineStack()
+
+
+@contextmanager
 def record_routine_stack():
     stack = CURRENT_CONTEXT.routine_stack
     if not stack.keep_full_stack:
@@ -55,14 +62,14 @@ def record_routine_stack():
             stack.keep_full_stack = False
 
 
-@contextlib.contextmanager
-def enter_routine(name, obj, timer, dist_safe=True):
+@contextmanager
+def enter_routine(name, routine_obj, timer=None, dist_safe=True):
     from veros import runtime_state as rst
     from veros.distributed import abort
     stack = CURRENT_CONTEXT.routine_stack
 
     logger.trace('{}> {}', '-' * stack.stack_level, name)
-    stack.append(obj)
+    stack.append(routine_obj)
 
     reset_dist_safe = False
     if CURRENT_CONTEXT.is_dist_safe:
@@ -73,7 +80,7 @@ def enter_routine(name, obj, timer, dist_safe=True):
     try:
         yield
 
-    except:  # noqa: F722
+    except:  # noqa: E722
         if reset_dist_safe:
             abort()
         raise
@@ -83,9 +90,14 @@ def enter_routine(name, obj, timer, dist_safe=True):
             CURRENT_CONTEXT.is_dist_safe = True
 
         r = stack.pop()
-        assert r is obj
+        assert r is routine_obj
 
-        logger.trace('<{} {} ({:.3f}s)', '-' * stack.stack_level, name, timer.get_last_time())
+        if timer is None:
+            exec_time = '?'
+        else:
+            exec_time = f'{timer.get_last_time():.3f}'
+
+        logger.trace('<{} {} ({}s)', '-' * stack.stack_level, name, exec_time)
 
 
 # helper functions
@@ -103,13 +115,9 @@ def _is_method(function):
     return spec.args and spec.args[0] == 'self'
 
 
-def _deduplicate(somelist):
-    return sorted(set(somelist))
-
-
 # routine
 
-def veros_routine(function=None, **kwargs):
+def veros_routine(function=None, dist_safe=True, local_variables=()):
     """
     .. note::
 
@@ -134,20 +142,8 @@ def veros_routine(function=None, **kwargs):
         if narg >= num_params:
             raise TypeError('Veros routines must take at least one argument')
 
-        routine_type_sig = inspect.signature(VerosRoutine)
-        bound_args = routine_type_sig.bind(function, state_argnum=narg, **kwargs)
-        bound_args.apply_defaults()
-
-        routine = VerosRoutine(**bound_args.arguments)
+        routine = VerosRoutine(function, state_argnum=narg, dist_safe=dist_safe, local_variables=local_variables)
         routine = functools.wraps(function)(routine)
-
-        if routine.__doc__ is None:
-            routine.__doc__ = ''
-
-        routine.__doc__ += ''.join([
-            f'\n\n    {key} = {val}' for key, val in bound_args.arguments.items()
-        ])
-
         return routine
 
     if function is not None:
@@ -159,89 +155,72 @@ def veros_routine(function=None, **kwargs):
 class VerosRoutine:
     """Do not instantiate directly!"""
 
-    def __init__(self, function, inputs=(), outputs=(), extra_outputs=(), settings=(), subroutines=(),
-                 dist_safe=True, state_argnum=0):
-        if isinstance(inputs, str):
-            inputs = (inputs,)
-
-        if isinstance(outputs, str):
-            outputs = (outputs,)
-
-        if isinstance(extra_outputs, str):
-            extra_outputs = (extra_outputs,)
-
-        if isinstance(settings, str):
-            settings = (settings,)
-
-        if isinstance(subroutines, VerosRoutine):
-            subroutines = (subroutines,)
-
+    def __init__(self, function, dist_safe=True, local_variables=(), state_argnum=0):
         self.function = function
-        self.inputs = set(inputs)
-        self.this_inputs = _deduplicate(inputs)
-        self.outputs = set(outputs)
-        self.this_outputs = _deduplicate(outputs)
-        self.extra_outputs = _deduplicate(extra_outputs)
-        self.settings = set(settings)
-        self.subroutines = tuple(subroutines)
-
-        for subroutine in subroutines:
-            if not isinstance(subroutine, VerosRoutine):
-                raise TypeError('Subroutines must themselves be veros routines')
-
-            self.inputs |= set(subroutine.inputs)
-            self.outputs |= set(subroutine.outputs)
-            self.settings |= set(subroutine.settings)
-
-        self.inputs = _deduplicate(self.inputs)
-        self.outputs = _deduplicate(self.outputs)
-        self.settings = _deduplicate(self.settings)
-
         self.dist_safe = dist_safe
+        self.local_variables = local_variables
         self.state_argnum = state_argnum
-
         self.name = _get_func_name(self.function)
+
+        self._traced = False
+        self.inputs = None
+        self.outputs = None
 
     def __call__(self, *args, **kwargs):
         from veros import runtime_state as rst
-        from veros.state import VerosStateBase, RestrictedVerosState
+        from veros.state import VerosState, DistSafeVariableWrapper
 
-        orig_veros_state = args[self.state_argnum]
+        veros_state = args[self.state_argnum]
 
-        if not isinstance(orig_veros_state, VerosStateBase):
-            raise TypeError('first argument to a Veros routine must be a VerosState object')
+        if not isinstance(veros_state, VerosState):
+            raise TypeError(f'Argument {self.state_argnum} to this Veros routine must be a VerosState object')
 
-        func_state = RestrictedVerosState(orig_veros_state)
-        func_state._gather_arrays(self.inputs, flush=True)
+        timer = veros_state.profile_timers[self.name]
 
-        newargs = list(args)
-        newargs[self.state_argnum] = func_state
+        with ExitStack() as es:
+            es.enter_context(veros_state.variables.unlock())
 
-        timer = orig_veros_state.profile_timers[self.name]
+            if not self._traced:
+                inputs = {}
+                outputs = {}
 
-        with enter_routine(self.name, self, timer, dist_safe=self.dist_safe):
+                inputs['var'], outputs['var'] = es.enter_context(veros_state.variables.trace())
+                inputs['settings'], outputs['settings'] = es.enter_context(veros_state.settings.trace())
+
             execute = True
-            if not CURRENT_CONTEXT.is_dist_safe:
+            restore_vars = False
+
+            if not self.dist_safe:
+                orig_vars = veros_state._variables
+                if not isinstance(orig_vars, DistSafeVariableWrapper):
+                    restore_vars = True
+                    veros_state._variables = DistSafeVariableWrapper(orig_vars, self.local_variables)
+                    veros_state._variables._gather_variables()
+
                 execute = rst.proc_rank == 0
 
-            if execute:
-                res = self.function(*newargs, **kwargs)
+            routine_ctx = enter_routine(
+                name=self.name, routine_obj=self, timer=timer, dist_safe=self.dist_safe
+            )
 
-                if res is None:
-                    res = {}
+            try:
+                with routine_ctx:
+                    if execute:
+                        self.function(*args, **kwargs)
 
-                if not isinstance(res, dict):
-                    raise TypeError(f'Veros routines must return a single dict ({self.name})')
+            finally:
+                if restore_vars:
+                    veros_state._variables._scatter_variables()
+                    veros_state._variables = orig_vars
 
-                if set(res.keys()) != set(self.this_outputs):
-                    raise KeyError(
-                        f'Veros routine {self.name} returned unexpected outputs '
-                        f'(expected: {sorted(self.this_outputs)}, got: {sorted(res.keys())})'
-                    )
+        if not self._traced:
+            self.inputs = inputs
+            self.outputs = outputs
+            self._traced = True
 
-            func_state._scatter_arrays(self.outputs, flush=True)
+        return veros_state
 
-    def __get__(self, instance, instancetype):
+    def __get__(self, instance, _):
         return functools.partial(self.__call__, instance)
 
     def __repr__(self):
@@ -250,28 +229,17 @@ class VerosRoutine:
 
 # kernel
 
-def veros_kernel(function=None, *, static_args=()):
-    if isinstance(static_args, str):
-        static_args = (static_args,)
-
-    def inner_decorator(function):
-        kernel = VerosKernel(function, static_args=static_args)
-        kernel = functools.wraps(function)(kernel)
-        return kernel
-
-    if function is not None:
-        return inner_decorator(function)
-
-    return inner_decorator
+def veros_kernel(function):
+    kernel = VerosKernel(function)
+    kernel = functools.wraps(function)(kernel)
+    return kernel
 
 
 class VerosKernel:
     """Do not instantiate directly!"""
 
-    def __init__(self, function, static_args=()):
-        """Do some parameter introspection and apply jax.jit"""
-        from veros import runtime_settings
-
+    def __init__(self, function):
+        """Do some parameter introspection."""
         # make sure function signature is in the form we need
         self.name = _get_func_name(function)
         self.func_sig = inspect.signature(function)
@@ -282,71 +250,84 @@ class VerosKernel:
         if any(p.kind not in allowed_param_types for p in func_params.values()):
             raise ValueError(f'Veros kernels do not support *args, **kwargs, or keyword-only parameters ({self.name})')
 
-        # parse static args
-        func_argnames = list(func_params.keys())
-        static_argnums = []
-        for static_arg in static_args:
-            try:
-                arg_index = func_argnames.index(static_arg)
-            except ValueError:
-                raise ValueError(
-                    f'Veros kernel {self.name} has no argument "{static_arg}", but it is given in static_args'
-                ) from None
+        self.function = function
 
-            static_argnums.append(arg_index)
-
-        if runtime_settings.backend == 'jax':
-            from jax import jit
-            self.function = jit(function, static_argnums=static_argnums)
-        else:
-            self.function = function
-
-    def run_with_state(self, veros_state, **kwargs):
-        """Unpacks kernel arguments from given VerosState object and calls kernel."""
-        from veros import runtime_settings
-
-        # peel kernel parameters from veros state and given args
-        func_params = self.func_sig.parameters
-
-        func_kwargs = {
-            arg: getattr(veros_state, arg)
-            for arg in func_params.keys()
-            if hasattr(veros_state, arg)
-        }
-        func_kwargs.update(kwargs)
-
-        # when profiling, make sure all inputs are ready before starting the timer
-        if runtime_settings.profile_mode:
-            flush(list(func_kwargs.values()))
-
-        timer = veros_state.profile_timers[self.name]
-
-        with enter_routine(self.name, self.function, timer):
-            out = self.__call__(**func_kwargs)
-
-            if runtime_settings.profile_mode:
-                out = flush(out)
-
-        return out
+        self._traced = False
+        self.inputs = None
+        self.outputs = None
 
     def __call__(self, *args, **kwargs):
+        from veros import runtime_settings
+        from veros.core.operators import flush
+
+        # apply JIT
+        if runtime_settings.backend == "jax":
+            import jax
+            from jaxlib.xla_extension.jax_jit import CompiledFunction
+            if not isinstance(self.function, CompiledFunction):
+                self.function = jax.jit(self.function)
+
         # JAX only accepts positional args when using static_argnums
         # so convert everything to positional for consistency
         bound_args = self.func_sig.bind(*args, **kwargs)
         bound_args.apply_defaults()
-        return self.function(*bound_args.arguments.values())
+
+        veros_state = None
+        for argval in bound_args.arguments.values():
+            if isinstance(argval, VerosState):
+                veros_state = argval
+                break
+
+        called_with_state = veros_state is not None
+
+        if called_with_state:
+            # when profiling, make sure all inputs are ready before starting the timer
+            if runtime_settings.profile_mode:
+                flush()
+
+            timer = veros_state.profile_timers[self.name]
+        else:
+            timer = None
+
+        with ExitStack() as es:
+            if called_with_state:
+                var, settings = veros_state.variables, veros_state.settings
+                es.enter_context(var.lock())
+                es.enter_context(settings.lock())
+
+                if self._traced:
+                    # hack to ensure that callbacks are executed
+                    # for already traced functions
+                    for v in self.inputs['var']:
+                        getattr(var, v)
+
+                    for s in self.inputs['settings']:
+                        getattr(settings, s)
+                else:
+                    inputs = {}
+                    inputs['var'], _ = es.enter_context(var.trace())
+                    inputs['settings'], _ = es.enter_context(settings.trace())
+            else:
+                # no state object -> no traceable inputs
+                inputs = dict(var=set(), settings=set())
+
+            with enter_routine(self.name, self.function, timer):
+                out = self.function(*bound_args.arguments.values())
+
+                if runtime_settings.profile_mode:
+                    flush()
+
+        if type(out).__name__ != 'KernelOutput':
+            raise TypeError(
+                f'Return argument of a Veros kernel must be of type KernelOutput (got: {type(out)}).'
+            )
+
+        if not self._traced:
+            self.inputs = inputs
+            self.outputs = dict(var=set(), settings=set())
+            self._traced = True
+
+        return out
 
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.name} at {hex(id(self))}>'
-
-
-# TODO: remove
-def run_kernel(func, vs, **kwargs):
-    return func.run_with_state(vs, **kwargs)
-
-
-# global context
-
-CURRENT_CONTEXT = threading.local()
-CURRENT_CONTEXT.is_dist_safe = True
-CURRENT_CONTEXT.routine_stack = RoutineStack()

@@ -6,10 +6,10 @@ from .. import time
 from .io_tools import hdf5 as h5tools
 
 
-def create_default_diagnostics(vs):
-    return {Diag.name: Diag(vs) for Diag in (averages.Averages, cfl_monitor.CFLMonitor,
-                                             energy.Energy, overturning.Overturning,
-                                             snapshot.Snapshot, tracer_monitor.TracerMonitor)}
+def create_default_diagnostics():
+    return {Diag.name: Diag() for Diag in (averages.Averages, cfl_monitor.CFLMonitor,
+                                           energy.Energy, overturning.Overturning,
+                                           snapshot.Snapshot, tracer_monitor.TracerMonitor)}
 
 
 def sanity_check(vs):

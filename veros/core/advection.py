@@ -14,12 +14,11 @@ def _calc_cr(rjp, rj, rjm, vel):
     return np.where(vel > 0., rjm, rjp) / np.where(np.abs(rj) < eps, eps, rj)
 
 
-@veros_kernel
 def limiter(cr):
     return np.maximum(np.clip(2 * cr, 0, 1), np.clip(cr, 0, 2))
 
 
-@veros_kernel(static_args=('axis',))
+@veros_kernel
 def _adv_superbee(vel, var, mask, dx, axis, cost, cosu, dt_tracer):
     if axis == 0:
         sm1, s, sp1, sp2 = ((slice(1 + n, -2 + n or None), slice(2, -2), slice(None))
@@ -93,16 +92,10 @@ def adv_flux_superbee(adv_fe, adv_fn, adv_ft, var, u, v, w, dxt, dyt, dzt,
     return adv_fe, adv_fn, adv_ft
 
 
-@veros_routine(
-    inputs=('u', 'v', 'w', 'maskU', 'maskV', 'maskW', 'dxt', 'dyt', 'dzt', 'dzw',
-            'cosu', 'cost', 'tau'),
-    outputs=('u_wgrid', 'v_wgrid', 'w_wgrid')
-)
+@veros_routine
 def calculate_velocity_on_wgrid(vs):
-    u_wgrid, v_wgrid, w_wgrid = run_kernel(calculate_velocity_on_wgrid_kernel, vs)
-    return dict(
-        u_wgrid=u_wgrid, v_wgrid=v_wgrid, w_wgrid=w_wgrid
-    )
+    vs = calculate_velocity_on_wgrid_kernel.run_with_state(vs)
+    return vs
 
 
 @veros_kernel

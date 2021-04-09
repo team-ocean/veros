@@ -1,4 +1,5 @@
 import warnings
+from contextlib import contextmanager
 
 from veros import runtime_settings, runtime_state, veros_kernel
 
@@ -11,18 +12,37 @@ class Index:
         return key
 
 
+def noop(*args, **kwargs):
+    pass
+
+
+@contextmanager
+def ensure_writable(*arrs):
+    orig_writable = [arr.flags.writeable for arr in arrs]
+    try:
+        for arr in arrs:
+            arr.flags.writeable = True
+        yield
+    finally:
+        for arr, orig_val in zip(arrs, orig_writable):
+            arr.flags.writeable = orig_val
+
+
 def update_numpy(arr, at, to):
-    arr[at] = to
+    with ensure_writable(arr):
+        arr[at] = to
     return arr
 
 
 def update_add_numpy(arr, at, to):
-    arr[at] += to
+    with ensure_writable(arr):
+        arr[at] += to
     return arr
 
 
 def update_multiply_numpy(arr, at, to):
-    arr[at] *= to
+    with ensure_writable(arr):
+        arr[at] *= to
     return arr
 
 
@@ -31,8 +51,9 @@ def solve_tridiagonal_numpy(a, b, c, d, water_mask, edge_mask):
     from scipy.linalg import lapack
 
     # remove couplings between slices
-    a[edge_mask] = 0
-    c[..., -1] = 0
+    with ensure_writable(a, c):
+        a[edge_mask] = 0
+        c[..., -1] = 0
 
     out = np.full(a.shape, np.nan, dtype=a.dtype)
     sol = lapack.dgtsv(a[water_mask][1:], b[water_mask], c[water_mask][:-1], d[water_mask])[3]
@@ -117,6 +138,11 @@ def tanh_jax(arr):
     return jnp.clip(nom / denom, -1, 1)
 
 
+def flush_jax():
+    import jax
+    (jax.device_put(0.) + 0.).block_until_ready()
+
+
 numpy = runtime_state.backend_module
 
 if runtime_settings.backend == 'numpy':
@@ -127,6 +153,7 @@ if runtime_settings.backend == 'numpy':
     solve_tridiagonal = solve_tridiagonal_numpy
     scan = scan_numpy
     tanh = numpy.tanh
+    flush = noop
 
 elif runtime_settings.backend == 'jax':
     import jax.ops
@@ -138,6 +165,7 @@ elif runtime_settings.backend == 'jax':
     solve_tridiagonal = solve_tridiagonal_jax
     scan = jax.lax.scan
     tanh = tanh_jax
+    flush = flush_jax
 
 else:
     raise ValueError('Unrecognized backend {}'.format(runtime_settings.backend))

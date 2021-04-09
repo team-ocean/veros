@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import os
 
 from loguru import logger
@@ -15,30 +14,28 @@ SIGMA = Variable(
     time_dependent=False, write_to_restart=True
 )
 
-OVERTURNING_VARIABLES = OrderedDict([
-    ('trans', Variable(
+VARIABLES = {
+    'trans': Variable(
         'Meridional transport', ('yu', 'sigma'), 'm^3/s',
         'Meridional transport', output=True, write_to_restart=True
-    )),
-    ('vsf_iso', Variable(
+    ),
+    'vsf_iso': Variable(
         'Meridional transport', ('yu', 'zw'), 'm^3/s',
         'Meridional transport', output=True, write_to_restart=True
-    )),
-    ('vsf_depth', Variable(
+    ),
+    'vsf_depth': Variable(
         'Meridional transport', ('yu', 'zw'), 'm^3/s',
         'Meridional transport', output=True, write_to_restart=True
-    )),
-])
-ISONEUTRAL_VARIABLES = OrderedDict([
-    ('bolus_iso', Variable(
+    ),
+    'bolus_iso': Variable(
         'Meridional transport', ('yu', 'zw'), 'm^3/s',
         'Meridional transport', output=True, write_to_restart=True
-    )),
-    ('bolus_depth', Variable(
+    ),
+    'bolus_depth': Variable(
         'Meridional transport', ('yu', 'zw'), 'm^3/s',
         'Meridional transport', output=True, write_to_restart=True
-    )),
-])
+    ),
+}
 
 
 def zonal_sum(arr):
@@ -56,11 +53,9 @@ class Overturning(VerosDiagnostic):
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
     p_ref = 2000.  #: Reference pressure for isopycnals
 
-    def __init__(self, vs):
+    def __init__(self):
         self.sigma_var = SIGMA
-        self.mean_variables = OVERTURNING_VARIABLES
-        if vs.enable_neutral_diffusion and vs.enable_skew_diffusion:
-            self.mean_variables.update(ISONEUTRAL_VARIABLES)
+        self.mean_variables = VARIABLES
         self.variables = self.mean_variables.copy()
         self.variables.update({'sigma': self.sigma_var})
 

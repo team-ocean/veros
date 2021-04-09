@@ -18,9 +18,6 @@ class VerosDiagnostic:
     output_frequency = 0.
     output_path = None
 
-    def __init__(self, vs):
-        pass
-
     def _not_implemented(self, vs):
         raise NotImplementedError('must be implemented by subclass')
 

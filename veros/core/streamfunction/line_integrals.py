@@ -5,7 +5,7 @@ from veros.distributed import global_sum
 from veros.core.operators import update, at
 
 
-@veros_kernel(static_args=('kind', 'nisle'))
+@veros_kernel
 def line_integrals(dxu, dyu, cost, line_dir_east_mask, line_dir_west_mask,
                    line_dir_north_mask, line_dir_south_mask, boundary_mask,
                    nisle, uloc, vloc, kind='same'):

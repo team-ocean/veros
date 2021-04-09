@@ -11,12 +11,7 @@ from veros.core.operators import update, at
 from veros.core.streamfunction import island, line_integrals
 
 
-@veros_routine(
-    inputs=('kbot', 'land_map'),
-    outputs=('land_map', 'nisle'),
-    settings=('enable_cyclic_x'),
-    dist_safe=False
-)
+@veros_routine
 def get_isleperim(vs):
     """
     preprocess land map using MOMs algorithm for B-grid to determine number of islands
@@ -55,23 +50,7 @@ def _get_solver_class():
     raise ValueError('unrecognized linear solver %s' % ls)
 
 
-@veros_routine(
-    inputs=(
-        'land_map', 'nisle', 'kbot', 'nx', 'ny', 'isle', 'psin', 'dpsin', 'line_psin', 'boundary_mask',
-        'line_dir_south_mask', 'line_dir_north_mask', 'line_dir_east_mask',
-        'line_dir_west_mask', 'linear_solver', 'dxt', 'dyt', 'hur', 'hvr', 'maskZ',
-        'maskU', 'maskV', 'cosu', 'dxu', 'dyu', 'cost'
-    ),
-    outputs=(
-        'psin', 'dpsin', 'line_psin', 'boundary_mask', 'line_dir_south_mask',
-        'line_dir_north_mask', 'line_dir_east_mask', 'line_dir_west_mask', 'linear_solver',
-        'nisle', 'isle'
-    ),
-    settings=(
-        'enable_cyclic_x'
-    ),
-    subroutines=(get_isleperim)
-)
+@veros_routine
 def streamfunction_init(vs):
     """
     prepare for island integrals
@@ -80,8 +59,7 @@ def streamfunction_init(vs):
 
     get_isleperim(vs)
 
-    (boundary_mask, line_dir_east_mask, line_dir_west_mask, line_dir_south_mask,
-     line_dir_north_mask) = run_kernel(boundary_masks, vs)
+    vs = boundary_masks.run_with_state(vs)
 
     vs.boundary_mask = boundary_mask
     vs.linear_solver = _get_solver_class()(vs)
@@ -121,7 +99,7 @@ def streamfunction_init(vs):
     )
 
 
-@veros_kernel(static_args=('nx', 'ny', 'nisle'))
+@veros_kernel
 def island_integrals(nx, ny, nisle, maskU, maskV, dxt, dyt, dxu, dyu, cost, cosu, hur, hvr, psin,
                      line_dir_east_mask, line_dir_west_mask, line_dir_north_mask, line_dir_south_mask, boundary_mask):
     """
@@ -147,7 +125,7 @@ def island_integrals(nx, ny, nisle, maskU, maskV, dxt, dyt, dxu, dyu, cost, cosu
     return line_psin
 
 
-@veros_kernel(static_args=('enable_cyclic_x', 'nisle'))
+@veros_kernel
 def boundary_masks(land_map, nisle, enable_cyclic_x):
     """
     now that the number of islands is known we can allocate the rest of the variables

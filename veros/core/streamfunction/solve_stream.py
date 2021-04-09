@@ -13,22 +13,9 @@ from veros.core.operators import update, update_add, at
 from veros.core.streamfunction import line_integrals
 
 
-@veros_routine(
-    inputs=(
-        'rho', 'dxu', 'dxt', 'dyu', 'dyt', 'dzw', 'dzt',
-        'maskT', 'maskU', 'maskV', 'du', 'dv', 'du_mix', 'dv_mix', 'cost', 'cosu', 'psi', 'psin',
-        'dpsi', 'dpsin', 'p_hydro', 'hur', 'hvr', 'u', 'v', 'line_psin',
-        'line_dir_east_mask', 'line_dir_west_mask',
-        'line_dir_north_mask', 'line_dir_south_mask', 'boundary_mask',
-    ),
-    outputs=('u', 'v', 'du', 'dv', 'p_hydro', 'psi', 'dpsi', 'dpsin'),
-    settings=(
-        'tau', 'taup1', 'taum1', 'grav', 'rho_0', 'linear_solver', 'enable_cyclic_x',
-        'nisle', 'dt_mom', 'AB_eps'
-    )
-)
+@veros_routine
 def solve_streamfunction(vs):
-    du, dv, forc, dpsi, fpx, fpy = run_kernel(prepare_forcing, vs)
+    vs = prepare_forcing.run_with_state(vs)
 
     linear_sol = vs.linear_solver.solve(
         vs,
@@ -54,7 +41,7 @@ def solve_streamfunction(vs):
     )
 
 
-@veros_kernel(static_args=('enable_cyclic_x',))
+@veros_kernel
 def prepare_forcing(grav, rho_0, tau, taup1, taum1, dzt, maskT, p_hydro, rho, dzw, du, dv, dxu, dyu,
                     maskU, maskV, cost, du_mix, dv_mix, hur, hvr, enable_cyclic_x, cosu, dpsi):
     # hydrostatic pressure
@@ -99,7 +86,7 @@ def prepare_forcing(grav, rho_0, tau, taup1, taum1, dzt, maskT, p_hydro, rho, dz
     return du, dv, forc, dpsi, fpx, fpy
 
 
-@veros_kernel(static_args=('nisle', 'enable_cyclic_x'))
+@veros_kernel
 def barotropic_velocity_update(dxu, dxt, dyu, dyt, dzw, dzt, tau, taup1, taum1,
                                maskT, maskU, maskV, du, dv, du_mix, dv_mix, cost, cosu, psi, psin,
                                dpsi, dpsin, p_hydro, hur, hvr, nisle, dt_mom, AB_eps, u, v, line_psin,

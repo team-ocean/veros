@@ -30,11 +30,7 @@ def set_idemix_parameter(c0, v0, alpha_c, Nsqr, coriolis_t, pi, jstar, gamma, mu
     return c0, v0, alpha_c
 
 
-@veros_kernel(static_args=('enable_eke', 'enable_store_cabbeling_heat',
-                           'enable_eke_diss_bottom', 'enable_store_bottom_friction_tke',
-                           'enable_eke_diss_surfbot', 'enable_idemix_hor_diffusion',
-                           'pyom_compatibility_mode', 'enable_idemix_superbee_advection',
-                           'enable_idemix_upwind_advection'))
+@veros_kernel
 def integrate_idemix(K_diss_gm, K_diss_h, K_diss_bot, P_diss_skew, P_diss_hmix, P_diss_iso,
                      eke_diss_iw, eke_diss_surfbot_frac, E_iw, dE_iw, dxt, dxu, dyt, dyu,
                      dzt, dzw, maskU, maskV, maskW, kbot, cost, cosu, nz, tau, taup1, taum1,
@@ -184,7 +180,7 @@ def integrate_idemix(K_diss_gm, K_diss_h, K_diss_bot, P_diss_skew, P_diss_hmix, 
     return E_iw, dE_iw, iw_diss
 
 
-@veros_kernel(static_args=('pyom_compatibility_mode',))
+@veros_kernel
 def gofx2(x, pi, pyom_compatibility_mode):
     if pyom_compatibility_mode:
         x = update(x, at[x < 3.], 3.)

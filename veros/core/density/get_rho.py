@@ -5,7 +5,7 @@ from veros.core.density import (
 )
 
 
-@veros_kernel(static_args=('eq_of_state_type',))
+@veros_kernel
 def get_rho(eq_of_state_type, salt_loc, temp_loc, press):
     """
     calculate density as a function of temperature, salinity and pressure
@@ -24,7 +24,7 @@ def get_rho(eq_of_state_type, salt_loc, temp_loc, press):
         raise ValueError('unknown equation of state')
 
 
-@veros_kernel(static_args=('eq_of_state_type',))
+@veros_kernel
 def get_potential_rho(eq_of_state_type, salt_loc, temp_loc, press_ref=0.):
     """
     calculate potential density as a function of temperature, salinity
@@ -49,7 +49,7 @@ def get_potential_rho(eq_of_state_type, salt_loc, temp_loc, press_ref=0.):
         raise ValueError('unknown equation of state')
 
 
-@veros_kernel(static_args=('eq_of_state_type',))
+@veros_kernel
 def get_dyn_enthalpy(eq_of_state_type, salt_loc, temp_loc, press):
     """
     calculate dynamic enthalpy as a function of temperature, salinity and pressure
@@ -68,7 +68,7 @@ def get_dyn_enthalpy(eq_of_state_type, salt_loc, temp_loc, press):
         raise ValueError('unknown equation of state')
 
 
-@veros_kernel(static_args=('eq_of_state_type',))
+@veros_kernel
 def get_salt(eq_of_state_type, rho_loc, temp_loc, press_loc):
     """
     calculate salinity as a function of density, temperature and pressure
@@ -85,7 +85,7 @@ def get_salt(eq_of_state_type, rho_loc, temp_loc, press_loc):
         raise ValueError('unknown equation of state')
 
 
-@veros_kernel(static_args=('eq_of_state_type',))
+@veros_kernel
 def get_drhodT(eq_of_state_type, salt_loc, temp_loc, press_loc):
     """
     calculate drho/dT as a function of temperature, salinity and pressure
@@ -104,7 +104,7 @@ def get_drhodT(eq_of_state_type, salt_loc, temp_loc, press_loc):
         raise ValueError('unknown equation of state')
 
 
-@veros_kernel(static_args=('eq_of_state_type',))
+@veros_kernel
 def get_drhodS(eq_of_state_type, salt_loc, temp_loc, press_loc):
     """
     calculate drho/dS as a function of temperature, salinity and pressure
@@ -123,7 +123,7 @@ def get_drhodS(eq_of_state_type, salt_loc, temp_loc, press_loc):
         raise ValueError('unknown equation of state')
 
 
-@veros_kernel(static_args=('eq_of_state_type',))
+@veros_kernel
 def get_drhodp(eq_of_state_type, salt_loc, temp_loc, press_loc):
     """
     calculate drho/dP as a function of temperature, salinity and pressure
@@ -142,7 +142,7 @@ def get_drhodp(eq_of_state_type, salt_loc, temp_loc, press_loc):
         raise ValueError('unknown equation of state')
 
 
-@veros_kernel(static_args=('eq_of_state_type',))
+@veros_kernel
 def get_int_drhodT(eq_of_state_type, salt_loc, temp_loc, press_loc):
     """
     calculate int_z^0 drho/dT dz' as a function of temperature, salinity and pressure
@@ -161,7 +161,7 @@ def get_int_drhodT(eq_of_state_type, salt_loc, temp_loc, press_loc):
         raise ValueError('unknown equation of state')
 
 
-@veros_kernel(static_args=('eq_of_state_type',))
+@veros_kernel
 def get_int_drhodS(eq_of_state_type, salt_loc, temp_loc, press_loc):
     """
     calculate int_z^0 drho/dS dz' as a function of temperature, salinity and pressure

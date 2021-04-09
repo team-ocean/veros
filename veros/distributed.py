@@ -37,8 +37,8 @@ def send(buf, dest, comm, tag=None, token=None):
         kwargs.update(tag=tag)
 
     if rs.backend == 'jax':
-        from mpi4jax import Send
-        return Send(buf, dest=dest, comm=comm, token=token, **kwargs)
+        from mpi4jax import send
+        return send(buf, dest=dest, comm=comm, token=token, **kwargs)
 
     comm.Send(ascontiguousarray(buf), dest=dest, **kwargs)
     return None
@@ -50,8 +50,8 @@ def recv(buf, source, comm, tag=None, token=None):
         kwargs.update(tag=tag)
 
     if rs.backend == 'jax':
-        from mpi4jax import Recv
-        return Recv(buf, source=source, comm=comm, token=token, **kwargs)
+        from mpi4jax import recv
+        return recv(buf, source=source, comm=comm, token=token, **kwargs)
 
     comm.Recv(buf, source=source, **kwargs)
     return buf, None
@@ -67,8 +67,8 @@ def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None, t
         kwargs.update(recvtag=recvtag)
 
     if rs.backend == 'jax':
-        from mpi4jax import Sendrecv
-        return Sendrecv(sendbuf, recvbuf, source=source, dest=dest, comm=comm, token=token, **kwargs)
+        from mpi4jax import sendrecv
+        return sendrecv(sendbuf, recvbuf, source=source, dest=dest, comm=comm, token=token, **kwargs)
 
     comm.Sendrecv(
         sendbuf=ascontiguousarray(sendbuf), recvbuf=recvbuf,
@@ -80,8 +80,8 @@ def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None, t
 
 def allreduce(buf, op, comm, token=None):
     if rs.backend == 'jax':
-        from mpi4jax import Allreduce
-        return Allreduce(buf, op=op, comm=comm, token=token)
+        from mpi4jax import allreduce
+        return allreduce(buf, op=op, comm=comm, token=token)
 
     from veros.core.operators import numpy as np
     recvbuf = np.empty_like(buf)

@@ -141,7 +141,7 @@ def implicit_vert_friction(du_mix, dv_mix, K_diss_v, u, v, kbot, kappaM, tau, ta
     return u, v, du_mix, dv_mix, K_diss_v
 
 
-@veros_kernel(static_args=('enable_conserve_energy', 'nz'))
+@veros_kernel
 def rayleigh_friction(du_mix, dv_mix, K_diss_bot, maskU, maskV, u, v, tau,
                       kbot, nz, dzw, dxt, dxu, r_ray, area_v, area_t,
                       enable_conserve_energy):
@@ -162,7 +162,7 @@ def rayleigh_friction(du_mix, dv_mix, K_diss_bot, maskU, maskV, u, v, tau,
     return du_mix, dv_mix, K_diss_bot
 
 
-@veros_kernel(static_args=('enable_bottom_friction_var', 'enable_conserve_energy', 'nz'))
+@veros_kernel
 def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, maskV,
                            r_bot, r_bot_var_u, r_bot_var_v, tau, dzw,
                            grav, rho_0, flux_east,
@@ -218,7 +218,7 @@ def linear_bottom_friction(u, v, du_mix, dv_mix, K_diss_bot, kbot, nz, maskU, ma
 
     return du_mix, dv_mix, K_diss_bot
 
-@veros_kernel(static_args=('enable_conserve_energy', 'nz'))
+@veros_kernel
 def quadratic_bottom_friction(du_mix, dv_mix, K_diss_bot, u, v, r_quad_bot, dzt,
                               dzw, grav, rho_0, flux_east,
                               flux_north, dxt, dxu, dyt, cost, kbot, maskU, maskV, nz, tau,
@@ -263,10 +263,7 @@ def quadratic_bottom_friction(du_mix, dv_mix, K_diss_bot, u, v, r_quad_bot, dzt,
     return du_mix, dv_mix, K_diss_bot
 
 
-@veros_kernel(
-    static_args=('enable_hor_friction_cos_scaling', 'enable_conserve_energy',
-                 'hor_friction_cosPower', 'enable_noslip_lateral', 'nz',)
-)
+@veros_kernel
 def harmonic_friction(du_mix, dv_mix, K_diss_h, cost, cosu, A_h, u, v, tau,
                       dxt, dxu, dyt, dyu, dzw, maskU, maskV, kbot, nz, area_v, area_t,
                       enable_hor_friction_cos_scaling, enable_noslip_lateral,
@@ -381,7 +378,7 @@ def harmonic_friction(du_mix, dv_mix, K_diss_h, cost, cosu, A_h, u, v, tau,
     return du_mix, dv_mix, K_diss_h
 
 
-@veros_kernel(static_args=('enable_noslip_lateral', 'enable_conserve_energy', 'nz'))
+@veros_kernel
 def biharmonic_friction(du_mix, dv_mix, K_diss_h, A_hbi, u, v, tau, area_v, area_t,
                         cost, cosu, dxt, dxu, dyt, dyu, dzw, maskU, maskV, enable_cyclic_x,
                         kbot, nz, enable_noslip_lateral, enable_conserve_energy):
@@ -513,7 +510,7 @@ def biharmonic_friction(du_mix, dv_mix, K_diss_h, A_hbi, u, v, tau, area_v, area
     return du_mix, dv_mix, K_diss_h
 
 
-@veros_kernel(static_args=('enable_conserve_energy', 'nz',))
+@veros_kernel
 def momentum_sources(du_mix, dv_mix, K_diss_bot, u, v, u_source, v_source, area_v, area_t,
                      tau, maskU, maskV, kbot, nz, dzw, dxt, dxu, enable_conserve_energy):
     """
@@ -532,53 +529,16 @@ def momentum_sources(du_mix, dv_mix, K_diss_bot, u, v, u_source, v_source, area_
     return du_mix, dv_mix, K_diss_bot
 
 
-@veros_routine(
-    inputs=(
-        'u', 'v',
-        'du_mix', 'dv_mix',
-        'K_diss_v', 'K_diss_h', 'K_diss_bot',
-        'u_source', 'v_source',
-        'area_v', 'area_t',
-        'maskU', 'maskV',
-        'dxt', 'dxu', 'dyt', 'dyu', 'dzt', 'dzw',
-        'cost', 'cosu', 'kbot',
-        'kappaM', 'kappa_gm', 'tau', 'taup1',
-        'r_bot_var_u', 'r_bot_var_v',
-    ),
-    outputs=(
-        'u', 'v',
-        'du_mix', 'dv_mix', 'K_diss_gm',
-        'K_diss_h', 'K_diss_v', 'K_diss_bot',
-    ),
-    settings=(
-        'dt_mom', 'nz', 'A_h', 'A_hbi',
-        'r_ray', 'hor_friction_cosPower',
-        'dt_mom', 'r_bot', 'r_quad_bot',
-        'enable_cyclic_x',
-        'enable_bottom_friction_var',
-        'enable_implicit_vert_friction',
-        'enable_explicit_vert_friction',
-        'enable_TEM_friction',
-        'enable_hor_friction_cos_scaling',
-        'enable_hor_friction',
-        'enable_biharmonic_friction',
-        'enable_noslip_lateral',
-        'enable_ray_friction',
-        'enable_bottom_friction',
-        'enable_quadratic_bottom_friction',
-        'enable_momentum_sources',
-        'enable_conserve_energy',
-    )
-)
+@veros_routine
 def friction(vs):
     """
     vertical friction
     """
     K_diss_v = np.zeros_like(vs.K_diss_v)
     if vs.enable_implicit_vert_friction:
-        u, v, du_mix, dv_mix, K_diss_v = run_kernel(implicit_vert_friction, vs)
+        vs = implicit_vert_friction.run_with_state(vs)
     if vs.enable_explicit_vert_friction:
-        du_mix, dv_mix, K_diss_v = run_kernel(explicit_vert_friction, vs)
+        vs = explicit_vert_friction.run_with_state(vs)
 
     """
     TEM formalism for eddy-driven velocity
@@ -593,10 +553,10 @@ def friction(vs):
     horizontal friction
     """
     if vs.enable_hor_friction:
-        du_mix, dv_mix, K_diss_h = run_kernel(harmonic_friction, vs,
+        vs = harmonic_friction.run_with_state(vs,
                                               du_mix=du_mix, dv_mix=dv_mix)
     if vs.enable_biharmonic_friction:
-        du_mix, dv_mix, K_diss_h = run_kernel(biharmonic_friction, vs,
+        vs = biharmonic_friction.run_with_state(vs,
                                               du_mix=du_mix, dv_mix=dv_mix)
 
     """
@@ -604,25 +564,25 @@ def friction(vs):
     """
     K_diss_bot = update(vs.K_diss_bot, at[...], 0.0)
     if vs.enable_ray_friction:
-        du_mix, dv_mix, K_diss_bot = run_kernel(rayleigh_friction, vs,
+        vs = rayleigh_friction.run_with_state(vs,
                                                 du_mix=du_mix, dv_mix=dv_mix)
     if vs.enable_bottom_friction:
         if vs.enable_bottom_friction_var:
             r_bot_var_u, r_bot_var_v = vs.r_bot_var_u, vs.r_bot_var_v
         else:
             r_bot_var_u = r_bot_var_v = 0
-        du_mix, dv_mix, K_diss_bot = run_kernel(linear_bottom_friction, vs,
+        vs = linear_bottom_friction.run_with_state(vs,
                                                 du_mix=du_mix, dv_mix=dv_mix,
                                                 r_bot_var_u=r_bot_var_u, r_bot_var_v=r_bot_var_v)
     if vs.enable_quadratic_bottom_friction:
-        du_mix, dv_mix, K_diss_bot = run_kernel(quadratic_bottom_friction, vs,
+        vs = quadratic_bottom_friction.run_with_state(vs,
                                                 du_mix=du_mix, dv_mix=dv_mix)
 
     """
     add user defined forcing
     """
     if vs.enable_momentum_sources:
-        du_mix, dv_mix, K_diss_bot = run_kernel(momentum_sources, vs,
+        vs = momentum_sources.run_with_state(vs,
                                                 du_mix=du_mix, dv_mix=dv_mix,
                                                 K_diss_bot=K_diss_bot)
 

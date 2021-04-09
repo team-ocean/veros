@@ -23,9 +23,7 @@ def u_centered_grid(dyt, dyu, yt, yu):
     return dyu, yt, yu
 
 
-@veros_kernel(
-    static_args=('enable_cyclic_x', 'coord_degree')
-)
+@veros_kernel
 def calc_grid_kernel(dxt, dxu, dyt, dyu,
                      xt, xu, yt, yu,
                      dzt, dzw, zt, zw,
@@ -110,26 +108,7 @@ def calc_grid_kernel(dxt, dxu, dyt, dyu,
     )
 
 
-@veros_routine(
-    inputs=(
-        'dxt', 'dxu', 'dyt', 'dyu',
-        'xt', 'xu', 'yt', 'yu',
-        'dzt', 'dzw', 'zt', 'zw',
-        'x_origin', 'y_origin',
-        'cost', 'cosu', 'tantr',
-        'pi', 'radius', 'degtom',
-        'area_t', 'area_u', 'area_v',
-    ),
-    outputs=(
-        'dxt', 'dxu', 'dyt', 'dyu',
-        'xt', 'xu', 'yt', 'yu',
-        'dzt', 'dzw', 'zt', 'zw',
-        'cost', 'cosu', 'tantr',
-        'area_t', 'area_u', 'area_v',
-    ),
-    settings=('enable_cyclic_x', 'coord_degree'),
-    dist_safe=False,
-)
+@veros_routine
 def calc_grid(vs):
     """
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
@@ -165,13 +144,7 @@ def calc_grid(vs):
     )
 
 
-@veros_routine(
-    inputs=(
-        'dyu', 'beta', 'coriolis_t'
-    ),
-    outputs=('beta'),
-    settings=('enable_cyclic_x')
-)
+@veros_routine
 def calc_beta(vs):
     """
     calculate beta = df/dy
@@ -184,7 +157,7 @@ def calc_beta(vs):
     return dict(beta=beta)
 
 
-@veros_kernel(static_args=('enable_cyclic_x',))
+@veros_kernel
 def calc_topo_kernel(kbot, maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr, dzt, enable_cyclic_x):
     """
     close domain
@@ -235,38 +208,16 @@ def calc_topo_kernel(kbot, maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, h
     return maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr, kbot
 
 
-@veros_routine(
-    inputs=(
-        'kbot', 'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'dzt'
-    ),
-    outputs=(
-        'maskT', 'maskU', 'maskV', 'maskW', 'maskZ', 'ht', 'hu', 'hv', 'hur', 'hvr', 'kbot'
-    ),
-    settings=('enable_cyclic_x')
-)
+@veros_routine
 def calc_topo(vs):
     """
     calulate masks, total depth etc
     """
-
-    (maskT, maskU, maskV, maskW, maskZ, ht, hu, hv, hur, hvr, kbot) = run_kernel(calc_topo_kernel, vs)
-
-    return dict(
-        maskT=maskT,
-        maskU=maskU,
-        maskV=maskV,
-        maskW=maskW,
-        maskZ=maskZ,
-        ht=ht,
-        hu=hu,
-        hv=hv,
-        hur=hur,
-        hvr=hvr,
-        kbot=kbot
-    )
+    vs = calc_topo_kernel.run_with_state(vs)
+    return vs
 
 
-@veros_kernel(static_args=('enable_cyclic_x', 'eq_of_state_type'))
+@veros_kernel
 def calc_initial_conditions_kernel(salt, temp, rho, Hd, int_drhodT, int_drhodS, Nsqr,
                                    dzw, zt, maskT, maskW, grav, rho_0, enable_cyclic_x, eq_of_state_type):
     temp = utilities.enforce_boundaries(temp, enable_cyclic_x)
@@ -292,14 +243,7 @@ def calc_initial_conditions_kernel(salt, temp, rho, Hd, int_drhodT, int_drhodS, 
     return salt, temp, rho, Hd, int_drhodT, int_drhodS, Nsqr
 
 
-@veros_routine(
-    inputs=(
-        'salt', 'temp', 'rho', 'Hd', 'int_drhodT', 'int_drhodS', 'Nsqr',
-        'dzw', 'zt', 'maskT', 'maskW', 'grav', 'rho_0',
-    ),
-    outputs=('salt', 'temp', 'rho', 'Hd', 'int_drhodT', 'int_drhodS', 'Nsqr'),
-    settings=('enable_cyclic_x', 'eq_of_state_type')
-)
+@veros_routine
 def calc_initial_conditions(vs):
     """
     calculate dyn. enthalp, etc
@@ -307,17 +251,8 @@ def calc_initial_conditions(vs):
     if np.any(vs.salt < 0.0):
         raise RuntimeError('encountered negative salinity')
 
-    (salt, temp, rho, Hd, int_drhodT, int_drhodS, Nsqr) = run_kernel(calc_initial_conditions_kernel, vs)
-
-    return dict(
-        salt=salt,
-        temp=temp,
-        rho=rho,
-        Hd=Hd,
-        int_drhodT=int_drhodT,
-        int_drhodS=int_drhodS,
-        Nsqr=Nsqr
-    )
+    vs = calc_initial_conditions_kernel.run_with_state(vs)
+    return vs
 
 
 @veros_kernel
@@ -338,7 +273,7 @@ def vgrid_to_tgrid(a, area_v, area_t):
     return b
 
 
-@veros_kernel(static_args=('nz',))
+@veros_kernel
 def calc_diss_u(diss, kbot, nz, dzw, dxt, dxu):
     ks = np.zeros_like(kbot)
     ks = update(ks, at[1:-2, 2:-2], np.maximum(kbot[1:-2, 2:-2], kbot[2:-1, 2:-2]))
@@ -346,7 +281,7 @@ def calc_diss_u(diss, kbot, nz, dzw, dxt, dxu):
     return ugrid_to_tgrid(diss_u, dxt, dxu)
 
 
-@veros_kernel(static_args=('nz',))
+@veros_kernel
 def calc_diss_v(diss, kbot, nz, dzw, area_v, area_t):
     ks = np.zeros_like(kbot)
     ks = update(ks, at[2:-2, 1:-2], np.maximum(kbot[2:-2, 1:-2], kbot[2:-2, 2:-1]))

@@ -11,7 +11,7 @@ DATA_FILES = tools.get_assets('global_1deg', os.path.join(BASE_PATH, 'assets.yml
 
 
 # TODO: investigate performance
-@veros_kernel(static_args=('enable_tke', 'enable_tempsalt_sources'))
+@veros_kernel
 def set_forcing_kernel(f1, f2, n1, n2, surface_taux, surface_tauy, taux, tauy, enable_tke, forc_tke_surface, rho_0,
                        t_star, qnec, qnet, forc_temp_surface, temp, tau, cp_0, s_star, forc_salt_surface,
                        t_rest, salt, maskT, dzt, enable_tempsalt_sources, temp_source, divpen_shortwave, qsol):

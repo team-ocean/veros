@@ -13,7 +13,7 @@ from veros.core.streamfunction.solvers.base import LinearSolver
 
 class SciPySolver(LinearSolver):
     @veros_routine(
-        inputs=(
+        local_variables=(
             'hvr', 'hur',
             'dxu', 'dxt', 'dyu', 'dyt',
             'cosu', 'cost',

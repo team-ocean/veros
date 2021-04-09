@@ -1,57 +1,125 @@
-import abc
 import functools
 import contextlib
 from collections import defaultdict, namedtuple
 
 from veros import (
-    timer, plugins, backend,
+    timer, plugins,
     settings as settings_mod, variables as var_mod,
     runtime_settings as rs, runtime_state as rst
 )
 
 
-class Container:
-    """A simple, mutable container"""
-    def __init__(self, **kwargs):
-        self.update(**kwargs)
+def make_namedtuple(**kwargs):
+    return namedtuple("KernelOutput", list(kwargs.keys()))(*kwargs.values())
 
-    def update(self, **kwargs):
-        for key, val in kwargs.items():
-            self.__setattr__(key, val)
+
+KernelOutput = make_namedtuple
+
+
+class StrictContainer:
+    """A mutable container with fixed fields (optionally typed)."""
+    __fields__ = ()
+    __field_types__ = ()
+
+    def __init__(self, fields, *args, field_types=None, default=None, **kwargs):
+        self.__fields__ = fields
+
+        if field_types is None:
+            self.__field_types__ = {}
+        else:
+            if not isinstance(field_types, dict) or not set(field_types.keys()) <= set(fields):
+                raise ValueError("field_types must be a dict with fields as keys")
+
+            self.__field_types__ = field_types
+
+        for k in fields:
+            if k in vars(self):
+                raise ValueError(f"Name collision: {k}")
+
+            if k.startswith("_"):
+                raise ValueError(f"Fields cannot start with _ (got: {k}).")
+
+            super().__setattr__(k, default)
+
+    def __setattr__(self, key, val):
+        if not key.startswith("_") and key not in self.__fields__:
+            raise AttributeError(f"Unknown attribute {key}")
+
+        if key in self.__field_types__:
+            val = self.__field_types__[key](val)
+
+        return super().__setattr__(key, val)
+
+    def fields(self):
+        return self.__fields__
+
+    def values(self):
+        return (getattr(self, k) for k in self.__fields__)
+
+    def items(self):
+        return ((k, getattr(self, k)) for k in self.__fields__)
+
+    def update(self, other=None, **new_fields):
+        if other is not None:
+            if new_fields:
+                raise ValueError("Either other or new_fields can be given")
+
+            if hasattr(other, "_fields"):
+                # other is namedtuple
+                new_fields = dict(zip(other._fields, other))
+            elif isinstance(other, (dict, StrictContainer)):
+                new_fields = other
+            else:
+                raise TypeError(f"Cannot update from {type(other)} type")
+
+        for key, val in new_fields.items():
+            if key not in self.__fields__:
+                raise AttributeError(f"unknown attribute {key}")
+
+        for key, val in new_fields.items():
+            setattr(self, key, val)
 
         return self
-
-    def __repr__(self):
-        attr_str = ',\n'.join(f'    {key}={val!s}' for key, val in vars(self).items())
-        return f'{self.__class__.__qualname__}(\n{attr_str}\n)'
-
-    def __contains__(self, key):
-        return hasattr(self, key)
 
     def get(self, key, default=None):
         return getattr(self, key, default)
 
+    def __repr__(self):
+        attr_str = []
+        for key, val in self.items():
+            # poor-man's check for array-compatible types
+            if hasattr(val, "shape") and hasattr(val, "dtype"):
+                val_repr = f'{type(val)} with shape {val.shape}, dtype {val.dtype}'
+            else:
+                val_repr = repr(val)
+            attr_str.append(f'    {key} = {val_repr}')
+        attr_str = ',\n'.join(attr_str)
+        return f'{self.__class__.__qualname__}(\n{attr_str}\n)'
 
-class LockableContainer(Container):
-    __slots__ = ()
+
+class Lockable:
     __locked__ = True
 
     @contextlib.contextmanager
     def unlock(self):
-        force_setattr = super().__setattr__
-        if self.__locked__:
-            reset = True
-            force_setattr('__locked__', False)
-
+        lock_state = self.__locked__
         try:
+            self.__locked__ = False
             yield
-
         finally:
-            if reset:
-                force_setattr('__locked__', True)
+            self.__locked__ = lock_state
+
+    @contextlib.contextmanager
+    def lock(self):
+        lock_state = self.__locked__
+        try:
+            self.__locked__ = True
+            yield
+        finally:
+            self.__locked__ = lock_state
 
     def __setattr__(self, key, val):
-        if self.__locked__:
+        if not key.startswith("_") and self.__locked__:
             raise RuntimeError(
                 '{0} is locked to modifications. If you know what you are doing, '
                 'you can unlock it via the "{0}.unlock()" context manager.'
@@ -60,23 +128,125 @@ class LockableContainer(Container):
         return super().__setattr__(key, val)
 
 
-class _VariableContainer(LockableContainer, metaclass=abc.ABCMeta):
-    """A mutable container with fixed __slots__ and validation on __setattr__.
+class Traceable:
+    __fields__ = ()
+    __tracing_stack__ = ()
 
-    Must be subclassed (to populate __slots__).
-    """
-    __slots__ = ('__meta__',)
+    def __init__(self, fields, *args, **kwargs):
+        self.__tracing_stack__ = []
+        self.__fields__ = fields
+        super().__init__(*args, fields=fields, **kwargs)
 
-    def __init__(self, __meta__):
-        super().__init__(__meta__=__meta__)
+    @contextlib.contextmanager
+    def trace(self):
+        new_stacks = (set(), set())
+        self.__tracing_stack__.append(new_stacks)
 
-        for key, var in __meta__.items():
-            setattr(self, key, var_mod.allocate(self, var.dims, dtype=var.dtype))
+        try:
+            yield new_stacks
+        finally:
+            for i, s in enumerate(self.__tracing_stack__):
+                if s is new_stacks:
+                    break
+
+            del self.__tracing_stack__[i]
+
+    @contextlib.contextmanager
+    def disable_trace(self):
+        orig_stack = self.__tracing_stack__
+        try:
+            self.__tracing_stack__ = []
+            yield
+        finally:
+            self.__tracing_stack__ = orig_stack
+
+    def __getattribute__(self, attr):
+        orig_getattr = super().__getattribute__
+        if attr in orig_getattr("__fields__"):
+            for input_stack, _ in orig_getattr("__tracing_stack__"):
+                input_stack.add(attr)
+
+        return orig_getattr(attr)
+
+    def __setattr__(self, attr, val):
+        try:
+            super().__setattr__(attr, val)
+        except:  # noqa: E722
+            raise
+        else:
+            if attr in self.__fields__:
+                for _, output_stack in self.__tracing_stack__:
+                    output_stack.add(attr)
+
+    def __repr__(self):
+        with self.disable_trace():
+            return super().__repr__()
+
+
+class VerosSettings(Lockable, Traceable, StrictContainer):
+    def __init__(self, settings_meta):
+        self.__metadata__ = settings_meta
+        super().__init__(fields=settings_meta.keys())
+
+        default_settings = {
+            k: meta.type(meta.default) for k, meta in settings_meta.items()
+        }
+
+        with self.unlock():
+            self.update(default_settings)
 
     def __setattr__(self, key, val):
-        # validate array type, shape and dtype
-        var = self.__meta__[key]
+        if key.startswith("_") or key not in self.__metadata__:
+            return super().__setattr__(key, val)
 
+        meta = self.__metadata__[key]
+        val = meta.type(val)
+        return super().__setattr__(key, val)
+
+
+class VerosVariables(Lockable, Traceable, StrictContainer):
+    """
+    """
+    def __init__(self, var_meta, dimensions):
+        self.__metadata__ = var_meta
+        self.__dimensions__ = dimensions
+
+        active_vars = [key for key, val in var_meta.items() if val.active]
+        super().__init__(fields=active_vars)
+
+        with self.unlock():
+            for key, val in var_meta.items():
+                if val.active:
+                    super().__setattr__(key, None)
+
+    def __getattribute__(self, attr):
+        if attr.startswith("_") or attr not in self.__metadata__:
+            return super().__getattribute__(attr)
+
+        var = self.__metadata__[attr]
+
+        if not var.active:
+            raise RuntimeError(
+                f"Variable {var} is not active in this configuration. "
+                "Check your settings and try again."
+            )
+
+        return super().__getattribute__(attr)
+
+    def __setattr__(self, key, val):
+        if key.startswith("_") or key not in self.__metadata__:
+            return super().__setattr__(key, val)
+
+        var = self.__metadata__[key]
+
+        # check whether variable is active
+        if not var.active:
+            raise RuntimeError(
+                f"Variable {key} is not active in this configuration. "
+                "Check your settings and try again."
+            )
+
+        # validate array type, shape and dtype
         if var.dtype is not None:
             expected_dtype = var.dtype
         else:
@@ -84,134 +254,152 @@ class _VariableContainer(LockableContainer, metaclass=abc.ABCMeta):
 
         val = rst.backend_module.asarray(val, dtype=expected_dtype)
 
-        expected_shape = var_mod.get_dimensions(self, var.dims)
+        expected_shape = self._get_expected_shape(var.dims)
         if val.shape != expected_shape:
             raise ValueError(
                 'Got unexpected shape for variable {} (expected: {}, got: {})'
-                .format(key, val.shape, expected_shape)
+                .format(key, expected_shape, val.shape)
             )
 
         return super().__setattr__(key, val)
 
-
-def create_variable_container(variables):
-    """Factory for variable containers"""
-    return type('VariableContainer', _VariableContainer, dict(__slots__=variables.keys()))(variables)
+    def _get_expected_shape(self, dims):
+        return var_mod.get_shape(self.__dimensions__, dims)
 
 
-class SettingsContainer(LockableContainer):
-    __slots__ = tuple(settings_mod.SETTINGS.keys())
+class DistSafeVariableWrapper(VerosVariables):
+    def __init__(self, parent_state, local_variables):
+        # set internal attributes to be identical to given variables object
+        for attr, val in vars(parent_state).items():
+            if not attr.startswith("__"):
+                continue
+            super().__setattr__(attr, val)
+
+        self.__parent_state__ = parent_state
+        self.__local_variables__ = local_variables
+
+    def __getattr__(self, attr):
+        orig_getattr = super().__getattribute__
+        if attr in orig_getattr("__metadata__") and attr not in orig_getattr("__local_variables__"):
+            raise RuntimeError(f"Cannot access variable {attr} because it was not collected. Consider adding it to the local_variables argument of @veros_routine.")
+
+        return orig_getattr(attr)
+
+    def __setattr__(self, attr, val):
+        if attr.startswith("_"):
+            return super().__setattr__(attr, val)
+
+        if attr in self.__metadata__ and attr not in self.__local_variables__:
+            raise RuntimeError(f"Cannot access variable {attr} because it was not received.")
+
+        return super().__setattr__(attr, val)
+
+    def _gather_variables(self):
+        from veros.distributed import gather
+        nx, ny = self.__dimensions__['xt'], self.__dimensions__['yt']
+
+        for var in self.__local_variables__:
+            gathered_var = gather(nx, ny, getattr(self.__parent_state__, var), self.__metadata__[var].dims)
+            setattr(self, var, gathered_var)
+
+    def _scatter_variables(self):
+        from veros.distributed import scatter
+        nx, ny = self.__dimensions__['xt'], self.__dimensions__['yt']
+
+        for var in self.__local_variables__:
+            scattered_var = scatter(nx, ny, getattr(self, var), self.__metadata__[var].dims)
+            setattr(self.__parent_state__, var, scattered_var)
+
+    def _get_expected_shape(self, dims):
+        return var_mod.get_shape(self.__dimensions__, dims, local=rst.proc_rank != 0)
+
+    def __repr__(self):
+        return f'{self.__class__.__qualname__}(parent_state={self.__parent_state__}, local_variables={self.__local_variables__})'
 
 
 class VerosState:
     """Holds all settings and model state for a given Veros run."""
-    __slots__ = (
-        '_settings',
-        '_variables',
-        '_diagnostics',
-        '_objects',
-        '_dimensions',
-        'dimension_vars'
-    )
 
-    def __init__(self, variables, settings, diagnostics, objects):
-        self.dimension_vars = list(var_mod.DIMENSION_SETTINGS)
+    def __init__(self, var_meta, setting_meta, dimensions, diagnostics=None, plugin_interfaces=None):
+        self._var_meta = var_meta
+        self._variables = None
 
-        self._settings = SettingsContainer()
-        self._variables = VariableContainer(variables)
-        self._diagnostics = {}
-        self._objects = Container()
-        self._dimensions = {}
+        self._settings = VerosSettings(setting_meta)
+        self._dimensions = dimensions
 
-        self.poisson_solver = None
-        self.nisle = 0 # to be overwritten during streamfunction_init
-        self.taum1, self.tau, self.taup1 = 0, 1, 2 # pointers to last, current, and next time step
-        self.time, self.itt = 0., 0 # current time and iteration
-
-        if use_plugins is not None:
-            self._plugin_interfaces = tuple(plugins.load_plugin(p) for p in use_plugins)
+        if diagnostics is not None:
+            self._diagnostics = diagnostics
         else:
-            self._plugin_interfaces = tuple()
+            self._diagnostics = {}
 
-        settings_mod.set_default_settings(self._settings)
-
-        for plugin in self._plugin_interfaces:
-            settings.update_settings(self, plugin.settings)
+        if plugin_interfaces is not None:
+            self._plugin_interfaces = plugin_interfaces
+        else:
+            self._plugin_interfaces = ()
 
         timer_factory = functools.partial(timer.Timer, inactive=True)
         self.timers = defaultdict(timer_factory)
         self.profile_timers = defaultdict(timer_factory)
 
     def __repr__(self):
-        # TODO: write me
-        return f'{self.__class__.__qualname__}()'
+        from textwrap import indent
+        attr_str = []
+        for attr in ("settings", "dimensions", "variables", "diagnostics", "plugin_interfaces"):
+            attr_val = indent(repr(getattr(self, f'_{attr}')), ' ' * 4)[4:]
+            attr_str.append(f'    {attr} = {attr_val}')
+        attr_str = ',\n'.join(attr_str)
+        return f'{self.__class__.__qualname__}(\n{attr_str}\n)'
+
+    def initialize_variables(self):
+        if self._variables is not None:
+            raise RuntimeError("Variables already initialized")
+
+        concrete_dimensions = {}
+        for dim_name, dim_target in self._dimensions.items():
+            if isinstance(dim_target, str):
+                dim_size = getattr(self._settings, dim_target)
+            else:
+                dim_size = dim_target
+
+            if not isinstance(dim_size, int):
+                raise RuntimeError(f"Dimension {dim_name} is not known yet. Please set the {dim_target} setting and try again.")
+
+            concrete_dimensions[dim_name] = dim_size
+
+        fixed_var_meta = var_mod.manifest_metadata(self._var_meta, self._settings)
+        self._variables = VerosVariables(fixed_var_meta, concrete_dimensions)
+
+        with self._variables.unlock():
+            for key, var in fixed_var_meta.items():
+                if not var.active:
+                    continue
+
+                setattr(self._variables, key, var_mod.allocate(concrete_dimensions, var.dims, dtype=var.dtype))
 
     @property
-    def dimensions(self):
-        def _get_val(dim):
-            if hasattr(self.settings, dim):
-                return getattr(self.settings, dim)
-            if hasattr(self.objects, dim):
-                return getattr(self.objects, dim)
-            raise AttributeError(f'unknown value in dimension_vars: {dim}')
-
-        vals = tuple(_get_val(dim) for dim in self.dimension_vars)
-
-        if vals not in self._dimensions:
-            dimension_type = namedtuple('Dimensions', self.dimension_vars)
-            self._dimensions[vals] = dimension_type(vals)
-
-        return self._dimensions[vals]
+    def var_meta(self):
+        return self._var_meta
 
     @property
     def variables(self):
         if self._variables is None:
-            raise RuntimeError()
+            raise RuntimeError("Variables have not been initialized yet.")
         return self._variables
 
     @property
     def settings(self):
         return self._settings
 
-    diagnostics = property()
+    @property
+    def dimensions(self):
+        return self._dimensions
 
-    @diagnostics.getter
+    @property
     def diagnostics(self):
         return self._diagnostics
 
-    @diagnostics.setter
-    def diagnostics(self, val):
-        if not isinstance(val, dict):
-            raise TypeError('Diagnostics object must be dict-like')
-
-        self._diagnostics = val
-
-    @property
-    def objects(self):
-        return self._objects
-
-    def restrict(self, var_subset):
-        pass
-
-    def allocate_variables(self):
-        self.variables.update(variables.get_standard_variables(self))
-
-        for plugin in self._plugin_interfaces:
-            plugin_vars = variables.get_active_variables(self, plugin.variables, plugin.conditional_variables)
-            self.variables.update(plugin_vars)
-
-        container_type = type('VerosVariables', VariableContainer, dict(__slots__=variables))
-        self._variables = container_type(self._var_meta)
-
-    def create_diagnostics(self):
-        from veros import diagnostics
-        self.diagnostics.update(diagnostics.create_default_diagnostics(self))
-
-        for plugin in self._plugin_interfaces:
-            for diagnostic in plugin.diagnostics:
-                self.diagnostics[diagnostic.name] = diagnostic(self)
-
     def to_xarray(self):
+        # TODO: fix this
         import xarray as xr
 
         coords = {}
@@ -253,78 +441,125 @@ class VerosState:
 
         return xr.Dataset(data_vars, coords=coords, attrs=attrs)
 
-    def check_integrity(self):
-        pass
+
+def get_default_state(use_plugins=None):
+    if use_plugins is not None:
+        plugin_interfaces = tuple(plugins.load_plugin(p) for p in use_plugins)
+    else:
+        plugin_interfaces = tuple()
+
+    default_settings = settings_mod.SETTINGS
+
+    for plugin in plugin_interfaces:
+        default_settings.update(plugin.settings)
+
+    default_dimensions = var_mod.DIM_TO_SHAPE_VAR.copy()
+    var_meta = var_mod.VARIABLES
+
+    for plugin in plugin_interfaces:
+        var_meta.update(plugin.variables)
+
+    from veros import diagnostics as diagnostics_mod
+    diagnostics = diagnostics_mod.create_default_diagnostics()
+    diagnostics = {}
+
+    for plugin in plugin_interfaces:
+        for diagnostic in plugin.diagnostics:
+            diagnostics[diagnostic.name] = diagnostic()
+
+    return VerosState(var_meta, default_settings, default_dimensions, diagnostics, plugin_interfaces)
 
 
-class RestrictedVerosState:
-    """A proxy wrapper around VerosState allowing access only to some variables.
+def veros_state_pytree_flatten(state):
+    aux_data = tuple((k, v) for k, v in vars(state).items() if k != "_variables")
 
-    Use `gather_arrays` to retrieve distributed variables from parent VerosState object,
-    and `scatter_arrays` to sync changes back.
-    """
+    # ensure that functions are re-traced when settings change
+    with state.settings.unlock(), state.settings.disable_trace():
+        pseudo_hash = hash(tuple(state.settings.items()))
 
-    def __init__(self, parent_state):
-        super().__setattr__('_vs', parent_state)
-        super().__setattr__('_gathered', set())
+    return ([state.variables], (aux_data, pseudo_hash))
 
-    def _gather_arrays(self, arrays, flush=False):
-        """Gather given variables from parent state object"""
-        from veros.distributed import gather
-        for arr in arrays:
-            # TODO: handle this
-            if arr not in self._vs.variables:
-                continue
 
-            self._gathered.add(arr)
-            gathered_arr = gather(
-                self._vs.nx, self._vs.ny,
-                getattr(self._vs, arr),
-                self._vs.variables[arr].dims
-            )
+def veros_state_pytree_unflatten(aux_data, leaves):
+    assert len(leaves) == 1
+    variables = leaves[0]
 
-            if flush:
-                backend.flush(gathered_arr)
+    # by-pass __init__ and set attributes manually
+    state = VerosState.__new__(VerosState)
+    state._variables = variables
 
-            setattr(self, arr, gathered_arr)
+    state_attrs, _ = aux_data
+    for attr, val in state_attrs:
+        setattr(state, attr, val)
 
-    def _scatter_arrays(self, arrays, flush=False):
-        """Sync all changes with parent state object"""
-        from veros.distributed import scatter
-        for arr in arrays:
-            if flush:
-                backend.flush(arr)
+    return state
 
-            setattr(self._vs, arr, scatter(
-                self._vs.nx, self._vs.ny,
-                getattr(self, arr),
-                self._vs.variables[arr].dims
-            ))
 
-    def __getattribute__(self, attr):
-        if attr in ('_vs', '_gathered', '_gather_arrays', '_scatter_arrays'):
-            return super().__getattribute__(attr)
+def veros_variables_pytree_flatten(variables):
+    aux_attrs = (
+        "__dimensions__",
+        "__metadata__",
+        "__fields__",
+        "__tracing_stack__",
+        "__locked__",
+    )
+    with variables.unlock(), variables.disable_trace():
+        leaves = list(variables.values())
 
-        gathered = self._gathered
-        if attr in gathered:
-            return super().__getattribute__(attr)
+    aux_data = (
+        tuple(variables.fields()),
+        tuple((attr, getattr(variables, attr)) for attr in aux_attrs)
+    )
+    return (leaves, aux_data)
 
-        parent_state = self._vs
-        if attr not in parent_state.variables:
-            # not a variable: pass through
-            return parent_state.__getattribute__(attr)
 
-        raise AttributeError('Cannot access variable %s since it was not retrieved' % attr)
+def veros_variables_pytree_unflatten(aux_data, leaves):
+    keys, aux_attrs = aux_data
 
-    def __setattr__(self, attr, val):
-        if attr in self._gathered:
-            return super().__setattr__(attr, val)
+    # by-pass __init__ and set attributes manually
+    variables = VerosVariables.__new__(VerosVariables)
 
-        if attr not in self._vs.variables:
-            # not a variable: pass through
-            return self._vs.__setattr__(attr, val)
+    for key, val in aux_attrs:
+        setattr(variables, key, val)
 
-        raise AttributeError('Cannot access variable %s since it was not retrieved' % attr)
+    with variables.unlock(), variables.disable_trace():
+        for key, val in zip(keys, leaves):
+            setattr(variables, key, val)
 
-    def __repr__(self):
-        return '{}(parent_state={})'.format(self.__class__.__name__, repr(self._vs))
+    return variables
+
+
+def dist_safe_wrapper_pytree_flatten(variables):
+    aux_attrs = (
+        "__dimensions__",
+        "__metadata__",
+        "__fields__",
+        "__tracing_stack__",
+        "__locked__",
+        "__local_variables__",
+        "__parent_state__",
+    )
+    with variables.unlock(), variables.disable_trace():
+        leaves = [getattr(variables, attr) for attr in variables.__local_variables__]
+
+    aux_data = (
+        tuple(variables.__local_variables__),
+        tuple((attr, getattr(variables, attr)) for attr in aux_attrs)
+    )
+    return (leaves, aux_data)
+
+
+def dist_safe_wrapper_pytree_unflatten(aux_data, leaves):
+    keys, aux_attrs = aux_data
+
+    # by-pass __init__ and set attributes manually
+    variables = DistSafeVariableWrapper.__new__(DistSafeVariableWrapper)
+
+    for key, val in aux_attrs:
+        setattr(variables, key, val)
+
+    with variables.unlock(), variables.disable_trace():
+        for key, val in zip(keys, leaves):
+            setattr(variables, key, val)
+
+    return variables

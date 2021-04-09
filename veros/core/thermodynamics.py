@@ -6,7 +6,7 @@ from veros.core import advection, diffusion, isoneutral, density, utilities
 from veros.core.operators import update, update_add, at
 
 
-@veros_kernel(static_args=('enable_superbee_advection',))
+@veros_kernel
 def advect_tracer(tr, dtr, flux_east, flux_north, flux_top, u_wgrid, v_wgrid, w_wgrid,
                   dxt, dyt, dzt, dzw, maskT, maskU, maskV, maskW, cost, cosu, dt_tracer,
                   tau, enable_superbee_advection):
@@ -33,7 +33,7 @@ def advect_tracer(tr, dtr, flux_east, flux_north, flux_top, u_wgrid, v_wgrid, w_
     return dtr
 
 
-@veros_kernel(static_args=('enable_superbee_advection',))
+@veros_kernel
 def advect_temperature(temp, dtemp, tau, flux_east, flux_north, flux_top, u,
                        v, w, dxt, dyt, dzt, dzw, maskT, maskU, maskV,
                        maskW, cost, cosu, dt_tracer, enable_superbee_advection):
@@ -46,7 +46,7 @@ def advect_temperature(temp, dtemp, tau, flux_east, flux_north, flux_top, u,
                          tau, enable_superbee_advection)
 
 
-@veros_kernel(static_args=('enable_superbee_advection',))
+@veros_kernel
 def advect_salinity(salt, dsalt, tau, flux_east, flux_north, flux_top, u,
                     v, w, dxt, dyt, dzt, dzw, maskT, maskU, maskV,
                     maskW, cost, cosu, dt_tracer, enable_superbee_advection):
@@ -59,7 +59,7 @@ def advect_salinity(salt, dsalt, tau, flux_east, flux_north, flux_top, u,
                          tau, enable_superbee_advection)
 
 
-@veros_kernel(static_args=('enable_conserve_energy', 'eq_of_state_type'))
+@veros_kernel
 def calc_eq_of_state(n, salt, temp, rho, prho, Hd, int_drhodT, int_drhodS, Nsqr,
                      zt, dzw, maskT, maskW, grav, rho_0, enable_conserve_energy, eq_of_state_type):
     """
@@ -100,7 +100,7 @@ def calc_eq_of_state(n, salt, temp, rho, prho, Hd, int_drhodT, int_drhodS, Nsqr,
     return rho, prho, Hd, int_drhodT, int_drhodS, Nsqr
 
 
-@veros_kernel(static_args=('enable_conserve_energy', 'enable_superbee_advection', 'enable_tke', 'nz'))
+@veros_kernel
 def advect_temp_salt_enthalpy(temp, dtemp, salt, dsalt, u, v, w, nz, tau,
                               taup1, taum1, dt_tracer, dxt, dyt, dzt, dzw, maskT, maskU, maskV, maskW, cost, cosu,
                               area_t, Hd, dHd, grav, rho_0, AB_eps, int_drhodT, int_drhodS, rho, P_diss_adv,
@@ -202,7 +202,7 @@ def advect_temp_salt_enthalpy(temp, dtemp, salt, dsalt, u, v, w, nz, tau,
     return temp, salt, dtemp, dsalt, dHd, P_diss_adv
 
 
-@veros_kernel(static_args=('enable_cyclic_x'))
+@veros_kernel
 def vertmix_tempsalt(temp, salt, dtemp_vmix, dsalt_vmix, kappaH, kbot, dzt, dzw, taup1,
                      dt_tracer, forc_temp_surface, forc_salt_surface, enable_cyclic_x):
     """
@@ -257,7 +257,7 @@ def vertmix_tempsalt(temp, salt, dtemp_vmix, dsalt_vmix, kappaH, kbot, dzt, dzw,
     return dtemp_vmix, temp, dsalt_vmix, salt
 
 
-@veros_kernel(static_args=('eq_of_state_type'))
+@veros_kernel
 def surf_densityf(salt, temp, zt, maskT, taup1, forc_temp_surface, forc_salt_surface, eq_of_state_type):
     """
     surface density flux
@@ -274,7 +274,7 @@ def surf_densityf(salt, temp, zt, maskT, taup1, forc_temp_surface, forc_salt_sur
     )
 
 
-@veros_kernel(static_args=('enable_conserve_energy'))
+@veros_kernel
 def diag_P_diss_v(P_diss_v, P_diss_nonlin, int_drhodT, int_drhodS, temp, salt, kappaH,
                   grav, rho_0, dzw, maskT, maskW, taup1, forc_temp_surface,
                   forc_salt_surface, forc_rho_surface, Nsqr, enable_conserve_energy):
@@ -320,70 +320,7 @@ def diag_P_diss_v(P_diss_v, P_diss_nonlin, int_drhodT, int_drhodS, temp, salt, k
     return P_diss_v, P_diss_nonlin
 
 
-@veros_routine(
-    inputs=(
-        'temp', 'salt', 'dtemp', 'dsalt',
-        'dtemp_vmix', 'dsalt_vmix', 'dtemp_iso', 'dsalt_iso',
-        'u', 'v', 'w', 'u_wgrid', 'v_wgrid', 'w_wgrid',
-        'tau', 'taup1', 'taum1', 'dt_tracer', 'kbot',
-        'dxt', 'dxu', 'dyt', 'dyu', 'dzt', 'zt', 'dzw',
-        'maskT', 'maskU', 'maskV', 'maskW', 'cost', 'cosu',
-        'area_t', 'Hd', 'dHd', 'temp_source', 'salt_source',
-        'P_diss_skew', 'P_diss_iso', 'grav', 'rho_0',
-        'int_drhodT', 'int_drhodS',
-        'rho', 'prho', 'P_diss_adv', 'tke',
-        'P_diss_v', 'P_diss_nonlin', 'kappaH',
-        'forc_temp_surface', 'forc_salt_surface',
-        'forc_rho_surface', 'Nsqr',
-        'K_11', 'K_22', 'K_33', 'K_gm', 'K_iso',
-        'Ai_ez', 'Ai_nz', 'Ai_bx', 'Ai_by',
-        'flux_east', 'flux_north', 'flux_top',
-    ),
-    outputs=(
-        'temp', 'salt',
-        'dtemp', 'dsalt',
-        'dtemp_hmix', 'dsalt_hmix',
-        'dtemp_vmix', 'dsalt_vmix',
-        'dtemp_iso', 'dsalt_iso',
-        'P_diss_iso',
-        'P_diss_skew',
-        'P_diss_adv',
-        'P_diss_hmix',
-        'P_diss_sources',
-        'rho', 'prho',
-        'Hd', 'dHd',
-        'int_drhodT',
-        'int_drhodS',
-        'Nsqr',
-        'P_diss_v',
-        'P_diss_nonlin',
-        'forc_rho_surface',
-        'K_11', 'K_22', 'K_33',
-        'Ai_ez', 'Ai_nz', 'Ai_bx', 'Ai_by'
-    ),
-    settings=(
-        'K_h',
-        'K_hbi',
-        'K_iso_steep',
-        'nz',
-        'dt_tracer',
-        'AB_eps',
-        'iso_slopec',
-        'iso_dslope',
-        'enable_superbee_advection',
-        'enable_conserve_energy',
-        'enable_tke',
-        'enable_hor_diffusion',
-        'enable_biharmonic_mixing',
-        'enable_tempsalt_sources',
-        'enable_skew_diffusion',
-        'enable_neutral_diffusion',
-        'hor_friction_cosPower',
-        'enable_hor_friction_cos_scaling',
-        'enable_cyclic_x',
-        'pyom_compatibility_mode',
-    ),
-)
+@veros_routine
 def thermodynamics(vs):
     """
     integrate temperature and salinity and diagnose sources of dynamic enthalpy
@@ -391,7 +328,7 @@ def thermodynamics(vs):
     """
     Advection tendencies for temperature, salinity and dynamic enthalpy
     """
-    temp, salt, dtemp, dsalt, dHd, P_diss_adv = run_kernel(advect_temp_salt_enthalpy, vs)
+    vs = advect_temp_salt_enthalpy.run_with_state(vs)
     """
     horizontal diffusion
     """
@@ -462,7 +399,7 @@ def thermodynamics(vs):
                 )
 
     with vs.timers['vmix']:
-        dtemp_vmix, temp, dsalt_vmix, salt = run_kernel(vertmix_tempsalt, vs, temp=temp, salt=salt)
+        vs = vertmix_tempsalt.run_with_state(vs, temp=temp, salt=salt)
 
     with vs.timers['eq_of_state']:
         rho, prho, Hd, int_drhodT, int_drhodS, Nsqr = run_kernel(
@@ -472,7 +409,7 @@ def thermodynamics(vs):
     """
     surface density flux
     """
-    forc_rho_surface = run_kernel(surf_densityf, vs, salt=salt, temp=temp)
+    vs = surf_densityf.run_with_state(vs, salt=salt, temp=temp)
 
     with vs.timers['vmix']:
         P_diss_v, P_diss_nonlin = run_kernel(

@@ -5,7 +5,7 @@ from veros.core import friction, streamfunction
 from veros.core.operators import update, update_add, at
 
 
-@veros_kernel(static_args=('coord_degree'))
+@veros_kernel
 def tend_coriolisf(du, dv, coriolis_t, maskU, maskV, dxt, dxu, dyt, dyu,
                    cost, cosu, tau, tantr, coord_degree, u, v):
     """
@@ -59,7 +59,7 @@ def tend_coriolisf(du, dv, coriolis_t, maskU, maskV, dxt, dxu, dyt, dyu,
     return du, dv
 
 
-@veros_kernel(static_args=('pyom_compatibility_mode'))
+@veros_kernel
 def tend_tauxyf(tend_u, tend_v, maskU, maskV, dzt, tau,
                 surface_taux, surface_tauy, rho_0, pyom_compatibility_mode):
     """
@@ -146,12 +146,7 @@ def momentum_advection(tend_u, tend_v, u, v, w, maskU, maskV, maskW,
     return tend_u, tend_v
 
 
-@veros_routine(
-    inputs=(
-        'u', 'v', 'w', 'maskW', 'dxt', 'dyt', 'dzt', 'cost', 'cosu', 'taup1'
-    ),
-    outputs=('w')
-)
+@veros_routine
 def vertical_velocity(vs):
     w = run_kernel(vertical_velocity_kernel, vs)
     return dict(w=w)
@@ -184,23 +179,7 @@ def vertical_velocity_kernel(u, v, w, maskW, dxt, dyt, dzt, cost, cosu, taup1):
     return w
 
 
-@veros_routine(
-    inputs=(
-        'u', 'v', 'w',
-        'du_mix', 'dv_mix',
-        'maskU', 'maskV', 'maskW',
-        'dxt', 'dxu', 'dyt', 'dyu', 'dzt', 'dzw',
-        'cost', 'cosu', 'area_t', 'area_u', 'area_v',
-        'coriolis_t', 'tau', 'tantr',
-        'surface_taux', 'surface_tauy', 'rho_0',
-    ),
-    outputs=(),
-    settings=(
-        'coord_degree',
-        'pyom_compatibility_mode',
-    ),
-    subroutines=(friction.friction, streamfunction.solve_streamfunction),
-)
+@veros_routine
 def momentum(vs):
     """
     solve for momentum for taup1
@@ -209,17 +188,17 @@ def momentum(vs):
     """
     time tendency due to Coriolis force
     """
-    du, dv = run_kernel(tend_coriolisf, vs)
+    vs = tend_coriolisf.run_with_state(vs)
 
     """
     wind stress forcing
     """
-    du, dv = run_kernel(tend_tauxyf, vs, tend_u=du, tend_v=dv)
+    vs = tend_tauxyf.run_with_state(vs, tend_u=du, tend_v=dv)
 
     """
     advection
     """
-    du, dv = run_kernel(momentum_advection, vs, tend_u=du, tend_v=dv)
+    vs = momentum_advection.run_with_state(vs, tend_u=du, tend_v=dv)
 
     vs.du = du
     vs.dv = dv

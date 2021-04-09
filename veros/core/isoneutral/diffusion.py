@@ -105,7 +105,7 @@ def _calc_implicit_part(tr, kbot, K_33, dzt, dzw, dt_tracer, taup1):
     return np.where(water_mask, sol, tr[2:-2, 2:-2, :, taup1])
 
 
-@veros_kernel(static_args=('iso', 'skew',))
+@veros_kernel
 def isoneutral_diffusion_tracer(tr, dtracer_iso, K_iso, K_gm, K_11, K_22, K_33,
                                 Ai_ez, Ai_nz, Ai_bx, Ai_by, dxt, dxu, dyt, dyu, dzt,
                                 dzw, cost, cosu, tau, taup1, dt_tracer, maskT, kbot,
@@ -146,7 +146,7 @@ def isoneutral_diffusion_tracer(tr, dtracer_iso, K_iso, K_gm, K_11, K_22, K_33,
     return tr, dtracer_iso, flux_east, flux_north, flux_top
 
 
-@veros_kernel(static_args=('istemp', 'enable_conserve_energy', 'iso', 'skew', 'nz'))
+@veros_kernel
 def isoneutral_diffusion(tr, istemp, dtemp_iso, dsalt_iso, K_iso, K_gm, K_11, K_22, K_33,
                          Ai_ez, Ai_nz, Ai_bx, Ai_by, dxt, dxu, dyt, dyu, dzt,
                          dzw, cost, cosu, tau, taup1, dt_tracer, nz, maskT, maskW, kbot,
@@ -209,7 +209,7 @@ def isoneutral_diffusion(tr, istemp, dtemp_iso, dsalt_iso, K_iso, K_gm, K_11, K_
             return tr, dtracer_iso, P_diss_iso
 
 
-@veros_kernel(static_args=('istemp', 'enable_conserve_energy', 'nz'))
+@veros_kernel
 def isoneutral_skew_diffusion(tr, istemp, dtemp_iso, dsalt_iso, K_iso,
                               K_gm, K_11, K_22, K_33, Ai_ez, Ai_nz, Ai_bx, Ai_by,
                               dxt, dxu, dyt, dyu, dzt, dzw, cost, cosu, tau, taup1,

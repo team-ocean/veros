@@ -5,21 +5,7 @@ from veros.core import advection, utilities
 from veros.core.operators import update, update_add, at
 
 
-@veros_routine(
-    inputs=(
-        'tke', 'mxl_min', 'Nsqr', 'ht', 'maskW', 'zw', 'dzt', 'dzw', 'tau',
-        'nz', 'K_diss_v', 'kappaM_max', 'kappaM_min', 'kappaH_min',
-        'kappaM_0', 'kappaH_0', 'c_k', 'alpha_c', 'E_iw', 'Prandtl_tke0',
-        'kappaM', 'kappaH', 'Prandtlnumber'
-    ),
-    outputs=(
-        'sqrttke', 'mxl', 'kappaM', 'kappaH', 'Prandtlnumber'
-    ),
-    settings=(
-        'enable_cyclic_x', 'enable_Prandtl_tke', 'enable_kappaH_profile', 'enable_tke',
-        'tke_mxl_choice', 'enable_idemix'
-    ),
-)
+@veros_routine
 def set_tke_diffusivities(vs):
     if vs.enable_idemix:
         alpha_c = vs.alpha_c
@@ -45,8 +31,7 @@ def set_tke_diffusivities(vs):
     )
 
 
-@veros_kernel(static_args=('enable_tke', 'tke_mxl_choice', 'enable_idemix',
-                           'enable_Prandtl_tke', 'enable_kappaH_profile', 'nz', 'enable_cyclic_x'))
+@veros_kernel
 def set_tke_diffusivities_kernel(tke, mxl_min, Nsqr, ht, maskW, zw, dzt, dzw, tau,
                                  nz, K_diss_v, kappaM_max, kappaM_min, kappaH_min,
                                  kappaM_0, kappaH_0, c_k, alpha_c, E_iw, Prandtl_tke0,
@@ -123,36 +108,13 @@ def set_tke_diffusivities_kernel(tke, mxl_min, Nsqr, ht, maskW, zw, dzt, dzw, ta
     return (sqrttke, mxl, kappaM, kappaH, Prandtlnumber)
 
 
-@veros_routine(
-    inputs=(
-        'K_diss_v', 'P_diss_v', 'P_diss_adv', 'P_diss_nonlin', 'eke_diss_tke', 'iw_diss',
-        'eke_diss_iw', 'K_diss_bot', 'K_diss_gm', 'K_diss_h', 'P_diss_skew', 'P_diss_hmix',
-        'P_diss_iso', 'tke', 'dtke', 'sqrttke', 'mxl', 'kbot', 'kappaM', 'dt_mom', 'alpha_tke',
-        'c_eps', 'AB_eps', 'dxt', 'dxu', 'dyt', 'dyu', 'dzt', 'dzw', 'tau', 'taup1', 'taum1',
-        'dt_tracer', 'maskU', 'maskV', 'maskW', 'forc_tke_surface', 'tke_diss',
-        'tke_surf_corr', 'K_h_tke', 'cost', 'cosu', 'u_wgrid', 'v_wgrid', 'w_wgrid',
-    ),
-    outputs=(
-        'tke', 'dtke', 'tke_surf_corr'
-    ),
-    settings=(
-        'enable_tke_hor_diffusion', 'enable_eke', 'enable_idemix',
-        'enable_store_cabbeling_heat', 'enable_tke_superbee_advection',
-        'enable_tke_upwind_advection', 'enable_store_bottom_friction_tke',
-        'pyom_compatibility_mode'
-    ),
-)
+@veros_routine
 def integrate_tke(vs):
-    tke, dtke, tke_surf_corr = run_kernel(integrate_tke_kernel, vs, iw_diss=None)
+    vs = integrate_tke_kernel.run_with_state(vs, iw_diss=None)
     return dict(tke=tke, dtke=dtke, tke_surf_corr=tke_surf_corr)
 
 
-@veros_kernel(static_args=(
-    'enable_tke_hor_diffusion', 'enable_eke', 'enable_idemix',
-    'enable_store_cabbeling_heat', 'enable_tke_superbee_advection',
-    'enable_tke_upwind_advection', 'enable_store_bottom_friction_tke',
-    'pyom_compatibility_mode'
-))
+@veros_kernel
 def integrate_tke_kernel(K_diss_v, P_diss_v, P_diss_adv, P_diss_nonlin, eke_diss_tke, iw_diss,
                          eke_diss_iw, K_diss_bot, K_diss_gm, K_diss_h, P_diss_skew, P_diss_hmix,
                          P_diss_iso, tke, dtke, sqrttke, mxl, kbot, kappaM, dt_mom, alpha_tke,

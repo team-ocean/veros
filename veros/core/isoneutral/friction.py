@@ -5,7 +5,7 @@ from veros.core import numerics, utilities
 from veros.core.operators import update, update_add, at
 
 
-@veros_kernel(static_args=('enable_implicit_vert_friction', 'enable_conserve_energy'))
+@veros_kernel
 def isoneutral_friction(du_mix, dv_mix, K_diss_gm, u, v, tau, taup1, kbot, kappa_gm,
                         dt_mom, dxt, dxu, dzt, dzw, maskU, maskV, area_v, area_t,
                         enable_implicit_vert_friction, enable_conserve_energy):

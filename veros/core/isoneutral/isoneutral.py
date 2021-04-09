@@ -14,7 +14,7 @@ def dm_taper(sx, iso_slopec, iso_dslope):
     return 0.5 * (1. + tanh((-np.abs(sx) + iso_slopec) / iso_dslope))
 
 
-@veros_kernel(static_args=('eq_of_state_type',))
+@veros_kernel
 def isoneutral_diffusion_pre(salt, temp, zt, dxt, dxu, dyt, dyu, dzt, dzw, maskT, maskU,
                              maskV, maskW, cost, cosu, iso_slopec, iso_dslope, K_iso,
                              K_iso_steep, K_11, K_22, K_33, Ai_ez, Ai_nz, Ai_bx, Ai_by,
@@ -176,16 +176,13 @@ def isoneutral_diag_streamfunction_kernel(B1_gm, B2_gm, K_gm, Ai_ez, Ai_nz):
     return B1_gm, B2_gm
 
 
-@veros_routine(
-    inputs=('K_gm', 'Ai_ez', 'Ai_nz', 'B1_gm', 'B2_gm'),
-    outputs=('B1_gm', 'B2_gm')
-)
+@veros_routine
 def isoneutral_diag_streamfunction(vs):
     """
     calculate hor. components of streamfunction for eddy driven velocity
     for diagnostics purpose only
     """
-    B1_gm, B2_gm = run_kernel(isoneutral_diag_streamfunction_kernel, vs)
+    vs = isoneutral_diag_streamfunction_kernel.run_with_state(vs)
 
     return dict(
         B1_gm=B1_gm,
@@ -193,11 +190,7 @@ def isoneutral_diag_streamfunction(vs):
     )
 
 
-@veros_routine(
-    inputs=('dxt', 'dyt', 'dzt', 'cost'),
-    settings=('dt_tracer', 'enable_neutral_diffusion', 'K_iso_0', 'iso_slopec'),
-    dist_safe=False,
-)
+@veros_routine
 def check_isoneutral_slope_crit(vs):
     """
     check linear stability criterion from Griffies et al
