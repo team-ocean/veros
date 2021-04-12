@@ -1,4 +1,4 @@
-from loguru import logger
+from veros import logger
 import numpy as np
 
 from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monitor, io_tools

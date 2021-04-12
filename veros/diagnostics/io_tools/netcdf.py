@@ -1,7 +1,7 @@
 import threading
 import contextlib
 
-from loguru import logger
+from veros import logger
 import numpy as np
 
 from veros import variables, runtime_state, runtime_settings as rs, distributed

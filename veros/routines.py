@@ -1,9 +1,10 @@
 import functools
 import inspect
+from os import stat
 import threading
 from contextlib import ExitStack, contextmanager
 
-from loguru import logger
+from veros import logger
 
 from veros.state import VerosState
 
@@ -229,26 +230,46 @@ class VerosRoutine:
 
 # kernel
 
-def veros_kernel(function):
-    kernel = VerosKernel(function)
-    kernel = functools.wraps(function)(kernel)
-    return kernel
+def veros_kernel(function=None, *, static_args=()):
+    def inner_decorator(function):
+        kernel = VerosKernel(function, static_args=static_args)
+        kernel = functools.wraps(function)(kernel)
+        return kernel
+
+    if function is not None:
+        return inner_decorator(function)
+
+    return inner_decorator
 
 
 class VerosKernel:
     """Do not instantiate directly!"""
 
-    def __init__(self, function):
+    def __init__(self, function, static_args=()):
         """Do some parameter introspection."""
         # make sure function signature is in the form we need
         self.name = _get_func_name(function)
         self.func_sig = inspect.signature(function)
+
         func_params = self.func_sig.parameters
 
         allowed_param_types = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
 
         if any(p.kind not in allowed_param_types for p in func_params.values()):
             raise ValueError(f'Veros kernels do not support *args, **kwargs, or keyword-only parameters ({self.name})')
+
+        # parse static args
+        func_argnames = list(func_params.keys())
+        self.static_argnums = []
+        for static_arg in static_args:
+            try:
+                arg_index = func_argnames.index(static_arg)
+            except ValueError:
+                raise ValueError(
+                    f'Veros kernel {self.name} has no argument "{static_arg}", but it is given in static_args'
+                ) from None
+
+            self.static_argnums.append(arg_index)
 
         self.function = function
 
@@ -265,7 +286,7 @@ class VerosKernel:
             import jax
             from jaxlib.xla_extension.jax_jit import CompiledFunction
             if not isinstance(self.function, CompiledFunction):
-                self.function = jax.jit(self.function)
+                self.function = jax.jit(self.function, static_argnums=self.static_argnums)
 
         # JAX only accepts positional args when using static_argnums
         # so convert everything to positional for consistency

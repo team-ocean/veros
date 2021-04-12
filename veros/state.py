@@ -2,6 +2,8 @@ import functools
 import contextlib
 from collections import defaultdict, namedtuple
 
+from numpy import nanpercentile
+
 from veros import (
     timer, plugins,
     settings as settings_mod, variables as var_mod,
@@ -244,6 +246,11 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
             raise RuntimeError(
                 f"Variable {key} is not active in this configuration. "
                 "Check your settings and try again."
+            )
+
+        if not var.time_dependent and getattr(self, key) is not None:
+            raise RuntimeError(
+                f"Variables {key} is constant and cannot be modified after being set once."
             )
 
         # validate array type, shape and dtype

@@ -1,14 +1,15 @@
 import numpy as np
 
-from . import runtime_settings
+from veros import runtime_settings
 
 
 class Variable:
-    def __init__(self, name, dims, units, long_description, dtype=None,
+    def __init__(self, name, dims, units="", long_description="", dtype=None,
                  output=False, time_dependent=True, scale=1.,
                  write_to_restart=False, extra_attributes=None, mask=None,
                  active=True):
-        dims = tuple(dims)
+        if dims is not None:
+            dims = tuple(dims)
 
         self.name = name
         self.dims = dims
@@ -21,17 +22,17 @@ class Variable:
         self.write_to_restart = write_to_restart
         self.active = active
 
+        self.get_mask = lambda vs: None
+
         if mask is not None:
             if not callable(mask):
                 raise TypeError('mask argument has to be callable')
             self.get_mask = mask
-        else:
+        elif dims is not None:
             if dims[:3] in DEFAULT_MASKS:
                 self.get_mask = DEFAULT_MASKS[dims[:3]]
             elif dims[:2] in DEFAULT_MASKS:
                 self.get_mask = DEFAULT_MASKS[dims[:2]]
-            else:
-                self.get_mask = lambda vs: None
 
         #: Additional attributes to be written in netCDF output
         self.extra_attributes = extra_attributes or {}
@@ -148,6 +149,29 @@ def add_ghosts(vs, array, dims):
 
 
 VARIABLES = {
+    # scalars
+    'tau': Variable(
+        'Index of current time step', None, '',
+        'Index of current time step',
+    ),
+    'taup1': Variable(
+        'Index of next time step', None, '',
+        'Index of next time step',
+    ),
+    'taum1': Variable(
+        'Index of last time step', None, '',
+        'Index of last time step',
+    ),
+    'time': Variable(
+        'Current time', None, '',
+        'Current time',
+    ),
+    'itt': Variable(
+        'Current iteration', None, '',
+        'Current iteration',
+    ),
+
+    # base variables
     'dxt': Variable(
         'Zonal T-grid spacing', XT, 'm',
         'Zonal (x) spacing of T-grid point',
@@ -819,16 +843,15 @@ def manifest_metadata(var_meta, settings):
 
 
 def allocate(dimensions, grid, dtype=None, include_ghosts=True, local=True, fill=0):
-    from veros import runtime_settings as rs
     from veros.core.operators import numpy as np
 
     if dtype is None:
-        dtype = rs.float_type
+        dtype = runtime_settings.float_type
 
     shape = get_shape(dimensions, grid, include_ghosts=include_ghosts, local=local)
     out = np.full(shape, fill, dtype=dtype)
 
-    if rs.backend == "numpy":
+    if runtime_settings.backend == "numpy":
         out.flags.writeable = False
 
     return out

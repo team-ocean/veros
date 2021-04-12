@@ -1,7 +1,7 @@
 import os
 import importlib
 
-from loguru import logger
+from veros import logger
 
 
 def build_all():

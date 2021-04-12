@@ -2,7 +2,7 @@ import signal
 import contextlib
 import functools
 
-from loguru import logger
+from veros import logger
 
 
 def do_not_disturb(function):

@@ -1,5 +1,5 @@
 from veros.core.operators import numpy as np
-from loguru import logger
+from veros import logger
 
 from veros import veros_kernel, veros_routine, run_kernel
 from veros.core import density, utilities
@@ -177,11 +177,14 @@ def isoneutral_diag_streamfunction_kernel(B1_gm, B2_gm, K_gm, Ai_ez, Ai_nz):
 
 
 @veros_routine
-def isoneutral_diag_streamfunction(vs):
+def isoneutral_diag_streamfunction(state):
     """
     calculate hor. components of streamfunction for eddy driven velocity
     for diagnostics purpose only
     """
+    settings = state.settings
+    if not (settings.enable_neutral_diffusion and settings.enable_skew_diffusion):
+        return
     vs = isoneutral_diag_streamfunction_kernel.run_with_state(vs)
 
     return dict(

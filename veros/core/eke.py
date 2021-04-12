@@ -1,46 +1,49 @@
 from veros.core.operators import numpy as np
 
-from veros import veros_kernel, veros_routine, run_kernel
+from veros import veros_kernel, veros_routine, KernelOutput
 from veros.core import utilities, advection
 from veros.core.operators import update, update_add, update_multiply, at
 
 
 @veros_routine
-def init_eke(vs):
+def init_eke(state):
     """
     Initialize EKE
     """
-    if vs.enable_eke_leewave_dissipation:
-        hrms_k0 = np.maximum(vs.eke_hrms_k0_min, 2 / vs.pi * vs.eke_topo_hrms**2
+    vs = state.variables
+    settings = state.settings
+
+    if settings.enable_eke_leewave_dissipation:
+        hrms_k0 = np.maximum(settings.eke_hrms_k0_min, 2 / settings.pi * vs.eke_topo_hrms**2
                              / np.maximum(1e-12, vs.eke_topo_lam)**1.5)
     else:
         hrms_k0 = 0
-    return dict(hrms_k0=hrms_k0)
+
+    vs.update(hrms_k0=hrms_k0)
 
 
 @veros_routine
-def set_eke_diffusivities(vs):
-    vs = set_eke_diffusivities_kernel.run_with_state(vs)
+def set_eke_diffusivities(state):
+    vs = state.variables
+    settings = state.settings
 
-    if vs.enable_TEM_friction:
-        vs = update_kappa_gm.run_with_state(vs)
-    else:
-        kappa_gm = None
+    eke_diff_out = set_eke_diffusivities_kernel(vs)
+    vs.update(eke_diff_out)
 
-    return dict(
-        L_rossby=L_rossby,
-        L_rhines=L_rhines,
-        eke_len=eke_len,
-        sqrteke=sqrteke,
-        K_gm=K_gm,
-        K_iso=K_iso,
-        kappa_gm=kappa_gm
-    )
+    if settings.enable_TEM_friction:
+        kappa_gm_out = update_kappa_gm(vs)
+        vs.update(kappa_gm_out)
 
 
 @veros_kernel
-def update_kappa_gm(K_gm, coriolis_t, Nsqr, maskW, tau):
-    return K_gm * np.minimum(0.01, coriolis_t[..., np.newaxis]**2 / np.maximum(1e-9, Nsqr[..., tau])) * maskW
+def update_kappa_gm(state):
+    vs = state.variables
+    settings = state.settings
+
+    kappa_gm = (
+        vs.K_gm * np.minimum(0.01, coriolis_t[..., np.newaxis]**2 / np.maximum(1e-9, Nsqr[..., tau])) * maskW
+    )
+    return KernelOutput(kappa_gm=kappa_gm)
 
 
 @veros_kernel

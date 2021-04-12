@@ -1,6 +1,6 @@
 from veros.core.operators import numpy as np
 
-from veros import veros_kernel, veros_routine, run_kernel
+from veros import veros_kernel, veros_routine
 from veros.core import density, diffusion, utilities
 from veros.core.operators import update, at
 

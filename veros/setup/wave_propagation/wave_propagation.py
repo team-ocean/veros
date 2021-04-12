@@ -6,7 +6,7 @@ import numpy as np
 import h5netcdf
 from PIL import Image
 import scipy.ndimage
-from loguru import logger
+from veros import logger
 
 from veros import veros_method, VerosSetup
 from veros.variables import Variable

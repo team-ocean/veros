@@ -5,7 +5,7 @@ import hashlib
 
 import requests
 import ruamel.yaml as yaml
-from loguru import logger
+from veros import logger
 
 from .filelock import FileLock
 

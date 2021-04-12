@@ -1,4 +1,4 @@
-from loguru import logger
+from veros import logger
 
 from veros.core.operators import numpy as np
 from veros.diagnostics.diagnostic import VerosDiagnostic

@@ -1,5 +1,5 @@
 from petsc4py import PETSc
-from loguru import logger
+from veros import logger
 import numpy as onp
 
 from veros import runtime_settings as rs, runtime_state as rst

@@ -2,7 +2,7 @@ import sys
 import functools
 from time import perf_counter
 
-from loguru import logger
+from veros import logger
 
 try:
     import tqdm

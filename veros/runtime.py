@@ -1,5 +1,4 @@
 import os
-import functools
 from collections import namedtuple
 
 from veros.backend import BACKENDS
@@ -53,6 +52,20 @@ def check_mpi_comm(comm):
     return comm
 
 
+def set_loglevel(loglevel):
+    from veros import logs, runtime_settings as rs
+    loglevel = parse_choice(LOGLEVELS)(loglevel)
+    logs.setup_logging(loglevel=loglevel, log_all_processes=rs.log_all_processes)
+    return loglevel
+
+
+def set_log_all_processes(log_all_processes):
+    from veros import logs, runtime_settings as rs
+    log_all_processes = parse_bool(log_all_processes)
+    logs.setup_logging(loglevel=rs.loglevel, log_all_processes=log_all_processes)
+    return log_all_processes
+
+
 DEVICES = ('cpu', 'gpu', 'tpu')
 FLOAT_TYPES = ('float64', 'float32')
 LINEAR_SOLVERS = ('scipy', 'petsc', 'best')
@@ -70,9 +83,9 @@ AVAILABLE_SETTINGS = {
     'linear_solver': RuntimeSetting(parse_choice(LINEAR_SOLVERS), 'best'),
     'num_proc': RuntimeSetting(parse_two_ints, (1, 1), read_from_env=False),
     'profile_mode': RuntimeSetting(parse_bool, False),
-    'loglevel': RuntimeSetting(parse_choice(LOGLEVELS), 'info'),
+    'loglevel': RuntimeSetting(set_loglevel, 'info'),
     'mpi_comm': RuntimeSetting(check_mpi_comm, _default_mpi_comm(), read_from_env=False),
-    'log_all_processes': RuntimeSetting(parse_bool, False),
+    'log_all_processes': RuntimeSetting(set_log_all_processes, False),
     'use_io_threads': RuntimeSetting(parse_bool, False),
     'io_timeout': RuntimeSetting(float, 20),
     'hdf5_gzip_compression': RuntimeSetting(bool, True),
@@ -102,7 +115,7 @@ class RuntimeSettings:
                 val = setting.default
 
             self.__setting_types__[name] = setting.type
-            setattr(self, name, val)
+            super().__setattr__(name, val)
 
         self.__settings__ = set(self.__setting_types__.keys())
 

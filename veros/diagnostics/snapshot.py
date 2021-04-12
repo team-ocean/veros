@@ -1,6 +1,6 @@
 import os
 
-from loguru import logger
+from veros import logger
 
 from veros import time
 from veros.diagnostics.diagnostic import VerosDiagnostic

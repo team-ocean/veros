@@ -1,6 +1,6 @@
 from veros.core.operators import numpy as np
 
-from veros import veros_kernel, veros_routine, run_kernel
+from veros import veros_kernel, veros_routine
 from veros.core.utilities import pad_z_edges
 from veros.core.operators import update, update_add, update_multiply, at
 
@@ -94,8 +94,8 @@ def adv_flux_superbee(adv_fe, adv_fn, adv_ft, var, u, v, w, dxt, dyt, dzt,
 
 @veros_routine
 def calculate_velocity_on_wgrid(vs):
-    vs = calculate_velocity_on_wgrid_kernel.run_with_state(vs)
-    return vs
+    v_wgrid_out = calculate_velocity_on_wgrid_kernel(vs)
+    vs.update(v_wgrid_out)
 
 
 @veros_kernel

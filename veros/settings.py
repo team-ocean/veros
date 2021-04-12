@@ -140,7 +140,7 @@ SETTINGS = {
 }
 
 
-def check_setting_conflicts(vs):
-    if vs.enable_tke and not vs.enable_implicit_vert_friction:
+def check_setting_conflicts(settings):
+    if settings.enable_tke and not settings.enable_implicit_vert_friction:
         raise RuntimeError('use TKE model only with implicit vertical friction'
                            '(set enable_implicit_vert_fricton to True)')

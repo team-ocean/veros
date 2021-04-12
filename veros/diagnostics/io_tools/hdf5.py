@@ -1,7 +1,7 @@
 import threading
 import contextlib
 
-from loguru import logger
+from veros import logger
 
 from ... import runtime_settings, runtime_state
 

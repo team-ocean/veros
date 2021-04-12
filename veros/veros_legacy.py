@@ -1,6 +1,6 @@
 import importlib.util
 
-from loguru import logger
+from veros import logger
 
 from . import veros, settings, runtime_settings, runtime_state
 
