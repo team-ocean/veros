@@ -95,7 +95,9 @@ def ascontiguousarray(arr):
     return numpy.ascontiguousarray(arr)
 
 
-def validate_decomposition(nx, ny):
+def validate_decomposition(dimensions):
+    nx, ny = dimensions["xt"], dimensions["yt"]
+
     if rs.mpi_comm is None:
         if (rs.num_proc[0] > 1 or rs.num_proc[1] > 1):
             raise RuntimeError('mpi4py is required for distributed execution')
@@ -116,32 +118,6 @@ def validate_decomposition(nx, ny):
 
 def get_chunk_size(nx, ny):
     return (nx // rs.num_proc[0], ny // rs.num_proc[1])
-
-
-def get_global_size(nx, ny, arr_shp, dim_grid, include_overlap=False):
-    ovl = 4 if include_overlap else 0
-    shape = []
-    for s, dim in zip(arr_shp, dim_grid):
-        if dim in SCATTERED_DIMENSIONS[0]:
-            shape.append(nx + ovl)
-        elif dim in SCATTERED_DIMENSIONS[1]:
-            shape.append(ny + ovl)
-        else:
-            shape.append(s)
-    return shape
-
-
-def get_local_size(nx, ny, arr_shp, dim_grid, include_overlap=False):
-    ovl = 4 if include_overlap else 0
-    shape = []
-    for s, dim in zip(arr_shp, dim_grid):
-        if dim in SCATTERED_DIMENSIONS[0]:
-            shape.append(nx // rs.num_proc[0] + ovl)
-        elif dim in SCATTERED_DIMENSIONS[1]:
-            shape.append(ny // rs.num_proc[1] + ovl)
-        else:
-            shape.append(s)
-    return shape
 
 
 def proc_rank_to_index(rank):
@@ -496,8 +472,10 @@ def _gather_xy(nx, ny, arr):
     return arr
 
 
-@dist_context_only(noop_return_arg=2)
-def gather(nx, ny, arr, var_grid):
+@dist_context_only(noop_return_arg=0)
+def gather(arr, dimensions, var_grid):
+    nx, ny = dimensions["xt"], dimensions["yt"]
+
     if len(var_grid) < 2:
         d1, d2 = var_grid[0], None
     else:
@@ -607,9 +585,10 @@ def _scatter_xy(nx, ny, arr):
     return arr
 
 
-@dist_context_only(noop_return_arg=2)
-def scatter(nx, ny, arr, var_grid):
+@dist_context_only(noop_return_arg=0)
+def scatter(arr, dimensions, var_grid):
     from veros.core.operators import numpy as np
+    nx, ny = dimensions["xt"], dimensions["yt"]
 
     if len(var_grid) < 2:
         d1, d2 = var_grid[0], None

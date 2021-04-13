@@ -4,7 +4,6 @@ from veros import veros_kernel
 from veros.core.operators import update, at
 
 
-@veros_kernel
 def enforce_boundaries(arr, enable_cyclic_x, local=False):
     from .. import runtime_settings as rs
     from ..routines import CURRENT_CONTEXT

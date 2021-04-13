@@ -41,25 +41,25 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.runlen = 0.
 
         vs.coord_degree = True
-        vs.enable_cyclic_x = True
+        settings.enable_cyclic_x = True
 
         vs.congr_epsilon = 1e-8
         vs.congr_max_iterations = 20000
 
-        vs.enable_neutral_diffusion = True
+        settings.enable_neutral_diffusion = True
         vs.K_iso_0 = 1000.0
         vs.K_iso_steep = 1000.0
         vs.iso_dslope = 4. / 1000.0
         vs.iso_slopec = 1. / 1000.0
-        vs.enable_skew_diffusion = True
+        settings.enable_skew_diffusion = True
 
-        vs.enable_hor_friction = True
+        settings.enable_hor_friction = True
         vs.A_h = (4 * vs.degtom)**3 * 2e-11
-        vs.enable_hor_friction_cos_scaling = True
+        settings.enable_hor_friction_cos_scaling = True
         vs.hor_friction_cosPower = 1
 
-        vs.enable_implicit_vert_friction = True
-        vs.enable_tke = True
+        settings.enable_implicit_vert_friction = True
+        settings.enable_tke = True
         vs.c_k = 0.1
         vs.c_eps = 0.7
         vs.alpha_tke = 30.0
@@ -67,23 +67,23 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.tke_mxl_choice = 2
         vs.kappaM_min = 2e-4
         vs.kappaH_min = 2e-5
-        vs.enable_kappaH_profile = True
-        vs.enable_tke_superbee_advection = True
+        settings.enable_kappaH_profile = True
+        settings.enable_tke_superbee_advection = True
 
-        vs.enable_eke = True
+        settings.enable_eke = True
         vs.eke_k_max = 1e4
         vs.eke_c_k = 0.4
         vs.eke_c_eps = 0.5
         vs.eke_cross = 2.
         vs.eke_crhin = 1.0
         vs.eke_lmin = 100.0
-        vs.enable_eke_superbee_advection = True
+        settings.enable_eke_superbee_advection = True
 
-        vs.enable_idemix = False
-        vs.enable_idemix_hor_diffusion = True
-        vs.enable_eke_diss_surfbot = True
+        settings.enable_idemix = False
+        settings.enable_idemix_hor_diffusion = True
+        settings.enable_eke_diss_surfbot = True
         vs.eke_diss_surfbot_frac = 0.2
-        vs.enable_idemix_superbee_advection = True
+        settings.enable_idemix_superbee_advection = True
 
         vs.eq_of_state_type = 5
 
@@ -168,7 +168,7 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.sst_clim[2:-2, 2:-2, :] = self._read_forcing(vs, 'sst')
         vs.sss_clim[2:-2, 2:-2, :] = self._read_forcing(vs, 'sss')
 
-        if vs.enable_idemix:
+        if settings.enable_idemix:
             vs.forc_iw_bottom[2:-2, 2:-2] = self._read_forcing(vs, 'tidal_energy') / vs.rho_0
             vs.forc_iw_surface[2:-2, 2:-2] = self._read_forcing(vs, 'wind_energy') / vs.rho_0 * 0.2
 
@@ -184,7 +184,7 @@ class GlobalFourDegreeSetup(VerosSetup):
         vs.surface_tauy[...] = (f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2])
 
         # tke flux
-        if vs.enable_tke:
+        if settings.enable_tke:
             vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
                                                                 + vs.surface_taux[:-2, 1:-1]) / vs.rho_0)**2
                                                       + (0.5 * (vs.surface_tauy[1:-1, 1:-1]

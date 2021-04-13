@@ -7,7 +7,7 @@ class Variable:
     def __init__(self, name, dims, units="", long_description="", dtype=None,
                  output=False, time_dependent=True, scale=1.,
                  write_to_restart=False, extra_attributes=None, mask=None,
-                 active=True):
+                 active=True, initial=None):
         if dims is not None:
             dims = tuple(dims)
 
@@ -21,6 +21,7 @@ class Variable:
         self.scale = scale
         self.write_to_restart = write_to_restart
         self.active = active
+        self.initial = initial
 
         self.get_mask = lambda vs: None
 
@@ -106,6 +107,9 @@ def get_shape(dimensions, grid, include_ghosts=True, local=True):
     from veros.routines import CURRENT_CONTEXT
     from veros.distributed import SCATTERED_DIMENSIONS
 
+    if grid is None:
+        return ()
+
     px, py = runtime_settings.num_proc
     grid_shapes = dimensions.copy()
 
@@ -126,6 +130,8 @@ def get_shape(dimensions, grid, include_ghosts=True, local=True):
     for grid_dim in grid:
         if grid_dim in grid_shapes:
             shape.append(grid_shapes[grid_dim])
+        elif isinstance(grid_dim, int):
+            shape.append(grid_dim)
         elif hasattr(dimensions, grid_dim):
             shape.append(getattr(dimensions, grid_dim))
         else:
@@ -152,15 +158,15 @@ VARIABLES = {
     # scalars
     'tau': Variable(
         'Index of current time step', None, '',
-        'Index of current time step',
+        'Index of current time step', dtype='int', initial=1
     ),
     'taup1': Variable(
         'Index of next time step', None, '',
-        'Index of next time step',
+        'Index of next time step', dtype='int', initial=2
     ),
     'taum1': Variable(
         'Index of last time step', None, '',
-        'Index of last time step',
+        'Index of last time step', dtype='int', initial=0
     ),
     'time': Variable(
         'Current time', None, '',
@@ -168,7 +174,7 @@ VARIABLES = {
     ),
     'itt': Variable(
         'Current iteration', None, '',
-        'Current iteration',
+        'Current iteration', dtype='int', initial=0
     ),
 
     # base variables
@@ -268,23 +274,23 @@ VARIABLES = {
 
     'maskT': Variable(
         'Mask for tracer points', T_GRID, '',
-        'Mask in physical space for tracer points', time_dependent=False
+        'Mask in physical space for tracer points', time_dependent=False, dtype='bool',
     ),
     'maskU': Variable(
         'Mask for U points', U_GRID, '',
-        'Mask in physical space for U points', time_dependent=False
+        'Mask in physical space for U points', time_dependent=False, dtype='bool',
     ),
     'maskV': Variable(
         'Mask for V points', V_GRID, '',
-        'Mask in physical space for V points', time_dependent=False
+        'Mask in physical space for V points', time_dependent=False, dtype='bool',
     ),
     'maskW': Variable(
         'Mask for W points', W_GRID, '',
-        'Mask in physical space for W points', time_dependent=False
+        'Mask in physical space for W points', time_dependent=False, dtype='bool',
     ),
     'maskZ': Variable(
         'Mask for Zeta points', ZETA_GRID, '',
-        'Mask in physical space for Zeta points', time_dependent=False
+        'Mask in physical space for Zeta points', time_dependent=False, dtype='bool',
     ),
 
     'rho': Variable(
@@ -479,19 +485,19 @@ VARIABLES = {
     ),
     'line_dir_south_mask': Variable(
         'Line integral mask', T_HOR + ISLE, '',
-        'Line integral mask', time_dependent=False
+        'Line integral mask', time_dependent=False, dtype='bool'
     ),
     'line_dir_north_mask': Variable(
         'Line integral mask', T_HOR + ISLE, '',
-        'Line integral mask', time_dependent=False
+        'Line integral mask', time_dependent=False, dtype='bool'
     ),
     'line_dir_east_mask': Variable(
         'Line integral mask', T_HOR + ISLE, '',
-        'Line integral mask', time_dependent=False
+        'Line integral mask', time_dependent=False, dtype='bool'
     ),
     'line_dir_west_mask': Variable(
         'Line integral mask', T_HOR + ISLE, '',
-        'Line integral mask', time_dependent=False
+        'Line integral mask', time_dependent=False, dtype='bool'
     ),
 
     'K_gm': Variable(

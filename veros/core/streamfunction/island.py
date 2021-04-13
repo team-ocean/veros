@@ -7,7 +7,7 @@ from veros.core.operators import numpy as np
 import numpy as onp
 
 
-def isleperim(kmt, enable_cyclic_x, verbose=False):
+def isleperim(kmt, enable_cyclic_x):
     kmt = utilities.enforce_boundaries(kmt, enable_cyclic_x)
     kmt = onp.asarray(kmt)
 

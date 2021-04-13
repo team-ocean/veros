@@ -10,7 +10,7 @@ from veros.core.operators import numpy as np, update, update_add, at
 
 class PETScSolver(LinearSolver):
     def __init__(self, vs):
-        if vs.enable_cyclic_x:
+        if settings.enable_cyclic_x:
             boundary_type = ('periodic', 'ghosted')
         else:
             boundary_type = ('ghosted', 'ghosted')
@@ -50,7 +50,7 @@ class PETScSolver(LinearSolver):
 
     def _petsc_solver(self, vs, rhs, x0):
         # add dirichlet BC to rhs
-        if not vs.enable_cyclic_x:
+        if not settings.enable_cyclic_x:
             if rst.proc_idx[0] == rs.num_proc[0] - 1:
                 rhs = update_add(rhs, at[-3, 2:-2], -rhs[-2, 2:-2] * self._boundary_fac['east'])
 
@@ -86,7 +86,7 @@ class PETScSolver(LinearSolver):
         if boundary_val is None:
             boundary_val = x0
 
-        x0 = utilities.enforce_boundaries(x0, vs.enable_cyclic_x)
+        x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x)
 
         boundary_mask = np.all(~vs.boundary_mask, axis=2)
         rhs = np.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries

@@ -2,8 +2,6 @@ import functools
 import contextlib
 from collections import defaultdict, namedtuple
 
-from numpy import nanpercentile
-
 from veros import (
     timer, plugins,
     settings as settings_mod, variables as var_mod,
@@ -218,8 +216,15 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
 
         with self.unlock():
             for key, val in var_meta.items():
-                if val.active:
-                    super().__setattr__(key, None)
+                if not val.active:
+                    continue
+
+                allocate_kwargs = dict(dtype=val.dtype)
+
+                if val.initial is not None:
+                    allocate_kwargs.update(fill=val.initial)
+
+                setattr(self, key, var_mod.allocate(dimensions, val.dims, **allocate_kwargs))
 
     def __getattribute__(self, attr):
         if attr.startswith("_") or attr not in self.__metadata__:
@@ -229,7 +234,7 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
 
         if not var.active:
             raise RuntimeError(
-                f"Variable {var} is not active in this configuration. "
+                f"Variable {attr} is not active in this configuration. "
                 "Check your settings and try again."
             )
 
@@ -246,11 +251,6 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
             raise RuntimeError(
                 f"Variable {key} is not active in this configuration. "
                 "Check your settings and try again."
-            )
-
-        if not var.time_dependent and getattr(self, key) is not None:
-            raise RuntimeError(
-                f"Variables {key} is constant and cannot be modified after being set once."
             )
 
         # validate array type, shape and dtype
@@ -303,18 +303,14 @@ class DistSafeVariableWrapper(VerosVariables):
 
     def _gather_variables(self):
         from veros.distributed import gather
-        nx, ny = self.__dimensions__['xt'], self.__dimensions__['yt']
-
         for var in self.__local_variables__:
-            gathered_var = gather(nx, ny, getattr(self.__parent_state__, var), self.__metadata__[var].dims)
+            gathered_var = gather(getattr(self.__parent_state__, var), self.__dimensions__, self.__metadata__[var].dims)
             setattr(self, var, gathered_var)
 
     def _scatter_variables(self):
         from veros.distributed import scatter
-        nx, ny = self.__dimensions__['xt'], self.__dimensions__['yt']
-
         for var in self.__local_variables__:
-            scattered_var = scatter(nx, ny, getattr(self, var), self.__metadata__[var].dims)
+            scattered_var = scatter(getattr(self, var), self.__dimensions__, self.__metadata__[var].dims)
             setattr(self.__parent_state__, var, scattered_var)
 
     def _get_expected_shape(self, dims):
@@ -361,27 +357,8 @@ class VerosState:
         if self._variables is not None:
             raise RuntimeError("Variables already initialized")
 
-        concrete_dimensions = {}
-        for dim_name, dim_target in self._dimensions.items():
-            if isinstance(dim_target, str):
-                dim_size = getattr(self._settings, dim_target)
-            else:
-                dim_size = dim_target
-
-            if not isinstance(dim_size, int):
-                raise RuntimeError(f"Dimension {dim_name} is not known yet. Please set the {dim_target} setting and try again.")
-
-            concrete_dimensions[dim_name] = dim_size
-
-        fixed_var_meta = var_mod.manifest_metadata(self._var_meta, self._settings)
-        self._variables = VerosVariables(fixed_var_meta, concrete_dimensions)
-
-        with self._variables.unlock():
-            for key, var in fixed_var_meta.items():
-                if not var.active:
-                    continue
-
-                setattr(self._variables, key, var_mod.allocate(concrete_dimensions, var.dims, dtype=var.dtype))
+        self._var_meta = var_mod.manifest_metadata(self._var_meta, self._settings)
+        self._variables = VerosVariables(self._var_meta, self.dimensions)
 
     @property
     def var_meta(self):
@@ -399,7 +376,21 @@ class VerosState:
 
     @property
     def dimensions(self):
-        return self._dimensions
+        concrete_dimensions = {}
+        for dim_name, dim_target in self._dimensions.items():
+            if isinstance(dim_target, str):
+                with self._settings.disable_trace():
+                    dim_size = getattr(self._settings, dim_target)
+            else:
+                dim_size = dim_target
+
+            if not isinstance(dim_size, int):
+                raise RuntimeError(
+                    f"Dimension {dim_name} is not known yet. Please set the {dim_target} setting and try again.")
+
+            concrete_dimensions[dim_name] = dim_size
+
+        return concrete_dimensions
 
     @property
     def diagnostics(self):
@@ -468,7 +459,6 @@ def get_default_state(use_plugins=None):
 
     from veros import diagnostics as diagnostics_mod
     diagnostics = diagnostics_mod.create_default_diagnostics()
-    diagnostics = {}
 
     for plugin in plugin_interfaces:
         for diagnostic in plugin.diagnostics:
@@ -570,3 +560,18 @@ def dist_safe_wrapper_pytree_unflatten(aux_data, leaves):
             setattr(variables, key, val)
 
     return variables
+
+
+def _resize_dimension(state, dimension, new_size):
+    state._dimensions[dimension] = new_size
+    state.variables.__dimensions__[dimension] = new_size
+
+    with state.variables.unlock():
+        for var in state.variables.fields():
+            var_meta = state.variables.__metadata__[var]
+            var_dims = var_meta.dims
+
+            if var_dims is None or dimension not in var_dims:
+                continue
+
+            setattr(state.variables, var, var_mod.allocate(state.dimensions, var_meta.dims, dtype=var_meta.dtype))

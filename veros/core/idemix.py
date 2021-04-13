@@ -1,6 +1,7 @@
 from veros.core.operators import numpy as np
 
-from veros import veros_kernel
+from veros import veros_kernel, veros_routine, KernelOutput
+from veros.variables import allocate
 from veros.core import advection, utilities
 from veros.core.operators import update, update_add, at
 
@@ -10,182 +11,183 @@ IDEMIX as in Olbers and Eden, 2013
 
 
 @veros_kernel
-def set_idemix_parameter(c0, v0, alpha_c, Nsqr, coriolis_t, pi, jstar, gamma, mu0,
-                         dzw, maskW, tau, pyom_compatibility_mode):
+def set_idemix_parameter(state):
     """
     set main IDEMIX parameter
     """
-    bN0 = np.sum(np.sqrt(np.maximum(0., Nsqr[:, :, :-1, tau]))
-                 * dzw[np.newaxis, np.newaxis, :-1] * maskW[:, :, :-1], axis=2) \
-        + np.sqrt(np.maximum(0., Nsqr[:, :, -1, tau])) \
-        * 0.5 * dzw[-1:] * maskW[:, :, -1]
-    fxa = np.sqrt(np.maximum(0., Nsqr[..., tau])) \
-        / (1e-22 + np.abs(coriolis_t[..., np.newaxis]))
-    cstar = np.maximum(1e-2, bN0[:, :, np.newaxis] / (pi * jstar))
-    c0 = update(c0, at[...], np.maximum(0., gamma * cstar * gofx2(fxa, pi, pyom_compatibility_mode) * maskW))
-    v0 = update(v0, at[...], np.maximum(0., gamma * cstar * hofx1(fxa, pi) * maskW))
-    alpha_c = update(alpha_c, at[...], np.maximum(1e-4, mu0 * np.arccosh(np.maximum(1., fxa))
-                              * np.abs(coriolis_t[..., np.newaxis]) / cstar**2) * maskW)
+    vs = state.variables
+    settings = state.settings
 
-    return c0, v0, alpha_c
+    bN0 = np.sum(np.sqrt(np.maximum(0., vs.Nsqr[:, :, :-1, vs.tau]))
+                 * vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[:, :, :-1], axis=2) \
+        + np.sqrt(np.maximum(0., vs.Nsqr[:, :, -1, vs.tau])) \
+        * 0.5 * vs.dzw[-1:] * vs.maskW[:, :, -1]
+    fxa = np.sqrt(np.maximum(0., vs.Nsqr[..., vs.tau])) \
+        / (1e-22 + np.abs(vs.coriolis_t[..., np.newaxis]))
+
+    cstar = np.maximum(1e-2, bN0[:, :, np.newaxis] / (settings.pi * settings.jstar))
+
+    c0 = np.maximum(0., settings.gamma * cstar * gofx2(fxa, settings.pi, settings.pyom_compatibility_mode) * vs.maskW)
+    v0 = np.maximum(0., settings.gamma * cstar * hofx1(fxa, settings.pi) * vs.maskW)
+    alpha_c = np.maximum(1e-4, settings.mu0 * np.arccosh(np.maximum(1., fxa)) * np.abs(vs.coriolis_t[..., np.newaxis]) / cstar**2) * vs.maskW
+
+    return KernelOutput(c0=c0, v0=v0, alpha_c=alpha_c)
 
 
 @veros_kernel
-def integrate_idemix(K_diss_gm, K_diss_h, K_diss_bot, P_diss_skew, P_diss_hmix, P_diss_iso,
-                     eke_diss_iw, eke_diss_surfbot_frac, E_iw, dE_iw, dxt, dxu, dyt, dyu,
-                     dzt, dzw, maskU, maskV, maskW, kbot, cost, cosu, nz, tau, taup1, taum1,
-                     dt_tracer, tau_v, tau_h, c0, v0, alpha_c, AB_eps, forc_iw_bottom, iw_diss,
-                     u_wgrid, v_wgrid, w_wgrid, forc_iw_surface, enable_eke,
-                     enable_store_cabbeling_heat, enable_eke_diss_bottom,
-                     enable_store_bottom_friction_tke, enable_eke_diss_surfbot,
-                     enable_idemix_hor_diffusion, pyom_compatibility_mode,
-                     enable_idemix_superbee_advection, enable_idemix_upwind_advection):
+def integrate_idemix_kernel(state):
     """
     integrate idemix on W grid
     """
-    a_tri, b_tri, c_tri, d_tri, delta = (np.zeros_like(maskW[2:-2, 2:-2, :]) for _ in range(5))
-    forc = np.zeros_like(maskW)
-    maxE_iw = np.zeros_like(maskW)
+    vs = state.variables
+    settings = state.settings
+
+    a_tri, b_tri, c_tri, d_tri, delta = (allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 2:-2] for _ in range(5))
+    forc = allocate(state.dimensions, ("xt", "yt", "zt"))
+    maxE_iw = allocate(state.dimensions, ("xt", "yt", "zt"))
+
+    E_iw = vs.E_iw
 
     """
     forcing by EKE dissipation
     """
-    if enable_eke:
-        forc = update(forc, at[...], eke_diss_iw)
-    else:  # shortcut without EKE model
-        if enable_store_cabbeling_heat:
-            forc = update(forc, at[...], K_diss_gm + K_diss_h -
-                P_diss_skew - P_diss_hmix - P_diss_iso)
-        else:
-            forc = update(forc, at[...], K_diss_gm + K_diss_h - P_diss_skew)
+    if settings.enable_eke:
+        forc = vs.eke_diss_iw
 
-    if enable_eke and (enable_eke_diss_bottom or enable_eke_diss_surfbot):
+    else:  # shortcut without EKE model
+        if settings.enable_store_cabbeling_heat:
+            forc = vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew - vs.P_diss_hmix - vs.P_diss_iso
+
+        else:
+            forc = vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew
+
+    if settings.enable_eke and (settings.enable_eke_diss_bottom or settings.enable_eke_diss_surfbot):
         """
         vertically integrate EKE dissipation and inject at bottom and/or surface
         """
-        a_loc = np.sum(dzw[np.newaxis, np.newaxis, :-1] *
-                       forc[:, :, :-1] * maskW[:, :, :-1], axis=2)
-        a_loc += 0.5 * forc[:, :, -1] * maskW[:, :, -1] * dzw[-1]
-        forc = update(forc, at[...], 0.)
+        a_loc = np.sum(vs.dzw[np.newaxis, np.newaxis, :-1] *
+                       forc[:, :, :-1] * vs.maskW[:, :, :-1], axis=2)
+        a_loc += 0.5 * forc[:, :, -1] * vs.maskW[:, :, -1] * vs.dzw[-1]
 
-        ks = np.maximum(0, kbot[2:-2, 2:-2] - 1)
-        mask = ks[:, :, np.newaxis] == np.arange(nz)[np.newaxis, np.newaxis, :]
-        if enable_eke_diss_bottom:
+        forc = np.zeros_like(forc)
+
+        ks = np.maximum(0, vs.kbot[2:-2, 2:-2] - 1)
+        mask = ks[:, :, np.newaxis] == np.arange(settings.nz)[np.newaxis, np.newaxis, :]
+        if settings.enable_eke_diss_bottom:
             forc = update(forc, at[2:-2, 2:-2, :], np.where(mask, a_loc[2:-2, 2:-2, np.newaxis] /
-                                                  dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :]))
+                                                  vs.dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :]))
         else:
-            forc = update(forc, at[2:-2, 2:-2, :], np.where(mask, eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, np.newaxis]
-                                           / dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :]))
-            forc = update(forc, at[2:-2, 2:-2, -1], (1. - eke_diss_surfbot_frac) \
-                                    * a_loc[2:-2, 2:-2] / (0.5 * dzw[-1]))
+            forc = update(forc, at[2:-2, 2:-2, :], np.where(mask, settings.eke_diss_surfbot_frac * a_loc[2:-2, 2:-2, np.newaxis]
+                                           / vs.dzw[np.newaxis, np.newaxis, :], forc[2:-2, 2:-2, :]))
+            forc = update(forc, at[2:-2, 2:-2, -1], (1. - settings.eke_diss_surfbot_frac) \
+                                    * a_loc[2:-2, 2:-2] / (0.5 * vs.dzw[-1]))
 
     """
     forcing by bottom friction
     """
-    if not enable_store_bottom_friction_tke:
-        forc += K_diss_bot
+    if not settings.enable_store_bottom_friction_tke:
+        forc = forc + vs.K_diss_bot
 
     """
     prevent negative dissipation of IW energy
     """
-    maxE_iw = update(maxE_iw, at[...], np.maximum(0., E_iw[:, :, :, tau]))
+    maxE_iw = np.maximum(0., E_iw[:, :, :, vs.tau])
 
     """
     vertical diffusion and dissipation is solved implicitly
     """
-    _, water_mask, edge_mask = utilities.create_water_masks(kbot[2:-2, 2:-2], nz)
+    _, water_mask, edge_mask = utilities.create_water_masks(vs.kbot[2:-2, 2:-2], settings.nz)
 
-    delta = update(delta, at[:, :, :-1], dt_tracer * tau_v / dzt[np.newaxis, np.newaxis, 1:] * 0.5 \
-        * (c0[2:-2, 2:-2, :-1] + c0[2:-2, 2:-2, 1:]))
+    delta = update(delta, at[:, :, :-1], settings.dt_tracer * settings.tau_v / vs.dzt[np.newaxis, np.newaxis, 1:] * 0.5 \
+        * (vs.c0[2:-2, 2:-2, :-1] + vs.c0[2:-2, 2:-2, 1:]))
     delta = update(delta, at[:, :, -1], 0.)
-    a_tri = update(a_tri, at[:, :, 1:-1], -delta[:, :, :-2] * c0[2:-2, 2:-2, :-2] \
-        / dzw[np.newaxis, np.newaxis, 1:-1])
-    a_tri = update(a_tri, at[:, :, -1], -delta[:, :, -2] / (0.5 * dzw[-1:]) * c0[2:-2, 2:-2, -2])
-    b_tri = update(b_tri, at[:, :, 1:-1], 1 + delta[:, :, 1:-1] * c0[2:-2, 2:-2, 1:-1] / dzw[np.newaxis, np.newaxis, 1:-1] \
-        + delta[:, :, :-2] * c0[2:-2, 2:-2, 1:-1] / dzw[np.newaxis, np.newaxis, 1:-1] \
-        + dt_tracer * alpha_c[2:-2, 2:-2, 1:-1] * maxE_iw[2:-2, 2:-2, 1:-1])
-    b_tri = update(b_tri, at[:, :, -1], 1 + delta[:, :, -2] / (0.5 * dzw[-1:]) * c0[2:-2, 2:-2, -1] \
-        + dt_tracer * alpha_c[2:-2, 2:-2, -1] * maxE_iw[2:-2, 2:-2, -1])
-    b_tri_edge = 1 + delta / dzw * c0[2:-2, 2:-2, :] \
-        + dt_tracer * alpha_c[2:-2, 2:-2, :] * maxE_iw[2:-2, 2:-2, :]
+    a_tri = update(a_tri, at[:, :, 1:-1], -delta[:, :, :-2] * vs.c0[2:-2, 2:-2, :-2] \
+        / vs.dzw[np.newaxis, np.newaxis, 1:-1])
+    a_tri = update(a_tri, at[:, :, -1], -delta[:, :, -2] / (0.5 * vs.dzw[-1:]) * vs.c0[2:-2, 2:-2, -2])
+    b_tri = update(b_tri, at[:, :, 1:-1], 1 + delta[:, :, 1:-1] * vs.c0[2:-2, 2:-2, 1:-1] / vs.dzw[np.newaxis, np.newaxis, 1:-1] \
+        + delta[:, :, :-2] * vs.c0[2:-2, 2:-2, 1:-1] / vs.dzw[np.newaxis, np.newaxis, 1:-1] \
+        + settings.dt_tracer * vs.alpha_c[2:-2, 2:-2, 1:-1] * maxE_iw[2:-2, 2:-2, 1:-1])
+    b_tri = update(b_tri, at[:, :, -1], 1 + delta[:, :, -2] / (0.5 * vs.dzw[-1:]) * vs.c0[2:-2, 2:-2, -1] \
+        + settings.dt_tracer * vs.alpha_c[2:-2, 2:-2, -1] * maxE_iw[2:-2, 2:-2, -1])
+    b_tri_edge = 1 + delta / vs.dzw * vs.c0[2:-2, 2:-2, :] \
+        + settings.dt_tracer * vs.alpha_c[2:-2, 2:-2, :] * maxE_iw[2:-2, 2:-2, :]
     c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / \
-        dzw[np.newaxis, np.newaxis, :-1] * c0[2:-2, 2:-2, 1:])
-    d_tri = update(d_tri, at[...], E_iw[2:-2, 2:-2, :, tau] + dt_tracer * forc[2:-2, 2:-2, :])
-    d_tri_edge = d_tri + dt_tracer * \
-        forc_iw_bottom[2:-2, 2:-2, np.newaxis] / dzw[np.newaxis, np.newaxis, :]
-    d_tri = update_add(d_tri, at[:, :, -1], dt_tracer * forc_iw_surface[2:-2, 2:-2] / (0.5 * dzw[-1:]))
+        vs.dzw[np.newaxis, np.newaxis, :-1] * vs.c0[2:-2, 2:-2, 1:])
+    d_tri = update(d_tri, at[...], E_iw[2:-2, 2:-2, :, vs.tau] + settings.dt_tracer * forc[2:-2, 2:-2, :])
+    d_tri_edge = d_tri + settings.dt_tracer * \
+        vs.forc_iw_bottom[2:-2, 2:-2, np.newaxis] / vs.dzw[np.newaxis, np.newaxis, :]
+    d_tri = update_add(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_iw_surface[2:-2, 2:-2] / (0.5 * vs.dzw[-1:]))
 
     sol = utilities.solve_implicit(ks, a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, d_edge=d_tri_edge, edge_mask=edge_mask)
-    E_iw = update(E_iw, at[2:-2, 2:-2, :, taup1], np.where(water_mask, sol, E_iw[2:-2, 2:-2, :, taup1]))
+    E_iw = update(E_iw, at[2:-2, 2:-2, :, vs.taup1], np.where(water_mask, sol, E_iw[2:-2, 2:-2, :, vs.taup1]))
 
     """
     store IW dissipation
     """
-    iw_diss = update(iw_diss, at[...], alpha_c * maxE_iw * E_iw[..., taup1])
+    iw_diss = vs.alpha_c * maxE_iw * E_iw[..., vs.taup1]
 
     """
     add tendency due to lateral diffusion
     """
-    flux_east = np.zeros_like(maskU)
-    flux_north = np.zeros_like(maskV)
-    flux_top = np.zeros_like(maskW)
-    if enable_idemix_hor_diffusion:
-        flux_east = update(flux_east, at[:-1, :, :], tau_h * 0.5 * (v0[1:, :, :] + v0[:-1, :, :]) \
-            * (v0[1:, :, :] * E_iw[1:, :, :, tau] - v0[:-1, :, :] * E_iw[:-1, :, :, tau]) \
-            / (cost[np.newaxis, :, np.newaxis] * dxu[:-1, np.newaxis, np.newaxis]) * maskU[:-1, :, :])
-        if pyom_compatibility_mode:
+    flux_east = allocate(state.dimensions, ("xt", "yt", "zt"))
+    flux_north = allocate(state.dimensions, ("xt", "yt", "zt"))
+    flux_top = allocate(state.dimensions, ("xt", "yt", "zt"))
+
+    if settings.enable_idemix_hor_diffusion:
+        flux_east = update(flux_east, at[:-1, :, :], settings.tau_h * 0.5 * (vs.v0[1:, :, :] + vs.v0[:-1, :, :]) \
+            * (vs.v0[1:, :, :] * E_iw[1:, :, :, vs.tau] - vs.v0[:-1, :, :] * E_iw[:-1, :, :, vs.tau]) \
+            / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) * vs.maskU[:-1, :, :])
+        if settings.pyom_compatibility_mode:
             flux_east = update(flux_east, at[-5, :, :], 0.)
         else:
             flux_east = update(flux_east, at[-1, :, :], 0.)
-        flux_north = update(flux_north, at[:, :-1, :], tau_h * 0.5 * (v0[:, 1:, :] + v0[:, :-1, :]) \
-            * (v0[:, 1:, :] * E_iw[:, 1:, :, tau] - v0[:, :-1, :] * E_iw[:, :-1, :, tau]) \
-            / dyu[np.newaxis, :-1, np.newaxis] * maskV[:, :-1, :] * cosu[np.newaxis, :-1, np.newaxis])
+        flux_north = update(flux_north, at[:, :-1, :], settings.tau_h * 0.5 * (vs.v0[:, 1:, :] + vs.v0[:, :-1, :]) \
+            * (vs.v0[:, 1:, :] * E_iw[:, 1:, :, vs.tau] - vs.v0[:, :-1, :] * E_iw[:, :-1, :, vs.tau]) \
+            / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] * vs.cosu[np.newaxis, :-1, np.newaxis])
         flux_north = update(flux_north, at[:, -1, :], 0.)
-        E_iw = update_add(E_iw, at[2:-2, 2:-2, :, taup1], dt_tracer * maskW[2:-2, 2:-2, :] \
+        E_iw = update_add(E_iw, at[2:-2, 2:-2, :, vs.taup1], settings.dt_tracer * vs.maskW[2:-2, 2:-2, :] \
             * ((flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-               / (cost[np.newaxis, 2:-2, np.newaxis] * dxt[2:-2, np.newaxis, np.newaxis])
+               / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
                + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-               / (cost[np.newaxis, 2:-2, np.newaxis] * dyt[np.newaxis, 2:-2, np.newaxis])))
+               / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis])))
 
     """
     add tendency due to advection
     """
-    if enable_idemix_superbee_advection:
-        flux_east, flux_north, flux_top = advection.adv_flux_superbee_wgrid(
-            flux_east, flux_north, flux_top, u_wgrid, v_wgrid, w_wgrid,
-            E_iw[:, :, :, tau], maskW, dxt, dyt, dzw, cost, cosu, dt_tracer
-            )
-    if enable_idemix_upwind_advection:
-        flux_east, flux_north, flux_top = advection.adv_flux_upwind_wgrid(
-            flux_east, flux_north, flux_top, u_wgrid, v_wgrid, w_wgrid,
-            E_iw[:, :, :, tau], maskW, cosu
-            )
-    if enable_idemix_superbee_advection or enable_idemix_upwind_advection:
-        dE_iw = update(dE_iw, at[2:-2, 2:-2, :, tau], maskW[2:-2, 2:-2, :] * (-(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-                                                            / (cost[np.newaxis, 2:-2, np.newaxis] * dxt[2:-2, np.newaxis, np.newaxis])
+    if settings.enable_idemix_superbee_advection:
+        flux_east, flux_north, flux_top = advection.adv_flux_superbee_wgrid(state, E_iw[:, :, :, vs.tau])
+
+    if settings.enable_idemix_upwind_advection:
+        flux_east, flux_north, flux_top = advection.adv_flux_upwind_wgrid(state, E_iw[:, :, :, vs.tau])
+
+    if settings.enable_idemix_superbee_advection or settings.enable_idemix_upwind_advection:
+        dE_iw = vs.dE_iw
+        dE_iw = update(dE_iw, at[2:-2, 2:-2, :, vs.tau], vs.maskW[2:-2, 2:-2, :] * (-(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+                                                            / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
                                                             - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                                                            / (cost[np.newaxis, 2:-2, np.newaxis] * dyt[np.newaxis, 2:-2, np.newaxis])))
-        dE_iw = update_add(dE_iw, at[:, :, 0, tau], -flux_top[:, :, 0] / dzw[0:1])
-        dE_iw = update_add(dE_iw, at[:, :, 1:-1, tau], -(flux_top[:, :, 1:-1] - flux_top[:, :, :-2]) \
-            / dzw[np.newaxis, np.newaxis, 1:-1])
-        dE_iw = update_add(dE_iw, at[:, :, -1, tau], - \
-            (flux_top[:, :, -1] - flux_top[:, :, -2]) / (0.5 * dzw[-1:]))
+                                                            / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis])))
+        dE_iw = update_add(dE_iw, at[:, :, 0, vs.tau], -flux_top[:, :, 0] / vs.dzw[0:1])
+        dE_iw = update_add(dE_iw, at[:, :, 1:-1, vs.tau], -(flux_top[:, :, 1:-1] - flux_top[:, :, :-2]) \
+            / vs.dzw[np.newaxis, np.newaxis, 1:-1])
+        dE_iw = update_add(dE_iw, at[:, :, -1, vs.tau], - \
+            (flux_top[:, :, -1] - flux_top[:, :, -2]) / (0.5 * vs.dzw[-1:]))
 
         """
         Adam Bashforth time stepping
         """
-        E_iw = update_add(E_iw, at[:, :, :, taup1], dt_tracer * ((1.5 + AB_eps) * dE_iw[:, :, :, tau]
-                                             - (0.5 + AB_eps) * dE_iw[:, :, :, taum1]))
+        E_iw = update_add(E_iw, at[:, :, :, vs.taup1], settings.dt_tracer * ((1.5 + settings.AB_eps) * dE_iw[:, :, :, vs.tau]
+                                             - (0.5 + settings.AB_eps) * dE_iw[:, :, :, vs.taum1]))
 
     return E_iw, dE_iw, iw_diss
 
 
-@veros_kernel
+@veros_kernel(static_args=("pyom_compatibility_mode"))
 def gofx2(x, pi, pyom_compatibility_mode):
     if pyom_compatibility_mode:
         x = update(x, at[x < 3.], 3.)
     else:
         x = np.maximum(3., x)
+
     c = 1. - (2. / pi) * np.arcsin(1. / x)
     return 2. / pi / c * 0.9 * x**(-2. / 3.) * (1 - np.exp(-x / 4.3))
 
@@ -195,3 +197,9 @@ def hofx1(x, pi):
     eps = np.finfo(x.dtype).eps  # prevent division by zero
     x = np.maximum(1. + eps, x)
     return (2. / pi) / (1. - (2. / pi) * np.arcsin(1. / x)) * (x - 1.) / (x + 1.)
+
+
+@veros_routine
+def integrate_idemix(state):
+    vs = state.variables
+    vs.update(integrate_idemix_kernel(state))

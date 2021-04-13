@@ -52,21 +52,21 @@ class NorthAtlanticSetup(VerosSetup):
         vs.congr_epsilon = 1e-10
         vs.congr_max_iterations = 20000
 
-        vs.enable_neutral_diffusion = True
-        vs.enable_skew_diffusion = True
+        settings.enable_neutral_diffusion = True
+        settings.enable_skew_diffusion = True
         vs.K_iso_0 = 1000.0
         vs.K_iso_steep = 200.0
         vs.iso_dslope = 1. / 1000.0
         vs.iso_slopec = 4. / 1000.0
 
-        vs.enable_hor_friction = True
+        settings.enable_hor_friction = True
         vs.A_h = 1e3
-        vs.enable_hor_friction_cos_scaling = True
+        settings.enable_hor_friction_cos_scaling = True
         vs.hor_friction_cosPower = 1
-        vs.enable_tempsalt_sources = True
+        settings.enable_tempsalt_sources = True
 
-        vs.enable_implicit_vert_friction = True
-        vs.enable_tke = True
+        settings.enable_implicit_vert_friction = True
+        settings.enable_tke = True
         vs.c_k = 0.1
         vs.c_eps = 0.7
         vs.alpha_tke = 30.0
@@ -74,12 +74,12 @@ class NorthAtlanticSetup(VerosSetup):
         vs.tke_mxl_choice = 2
         vs.kappaM_min = 2e-4
         vs.kappaH_min = 2e-5
-        vs.enable_kappaH_profile = True
+        settings.enable_kappaH_profile = True
 
         vs.K_gm_0 = 1000.0
 
-        vs.enable_eke = False
-        vs.enable_idemix = False
+        settings.enable_eke = False
+        settings.enable_idemix = False
 
         vs.eq_of_state_type = 5
 
@@ -214,7 +214,7 @@ class NorthAtlanticSetup(VerosSetup):
         vs.surface_taux[...] = (f1 * vs.taux[:, :, n1] + f2 * vs.taux[:, :, n2])
         vs.surface_tauy[...] = (f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2])
 
-        if vs.enable_tke:
+        if settings.enable_tke:
             vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / vs.rho_0)**2
                                                       + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / vs.rho_0)**2
                                                       ) ** (3. / 2.)
@@ -230,7 +230,7 @@ class NorthAtlanticSetup(VerosSetup):
         vs.forc_temp_surface[...] *= ~ice_mask
         vs.forc_salt_surface[...] *= ~ice_mask
 
-        if vs.enable_tempsalt_sources:
+        if settings.enable_tempsalt_sources:
             vs.temp_source[...] = vs.maskT * vs.rest_tscl \
                 * (f1 * vs.t_star[:, :, :, n1] + f2 * vs.t_star[:, :, :, n2] - vs.temp[:, :, :, vs.tau])
             vs.salt_source[...] = vs.maskT * vs.rest_tscl \

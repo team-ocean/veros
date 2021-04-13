@@ -103,7 +103,7 @@ def run(setup_file, *args, slave, **kwargs):
 
 
 @click.command('veros-run')
-@click.argument("SETUP_FILE", type=click.Path(readable=True, dir_okay=False))
+@click.argument("SETUP_FILE", type=click.Path(readable=True, dir_okay=False, resolve_path=True))
 @click.option('-b', '--backend', default='numpy', type=click.Choice(BACKENDS),
                 help='Backend to use for computations', show_default=True)
 @click.option('-v', '--loglevel', default='info', type=click.Choice(LOGLEVELS),

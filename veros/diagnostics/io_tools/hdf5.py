@@ -12,7 +12,7 @@ def threaded_io(vs, filepath, mode):
     If using IO threads, start a new thread to write the HDF5 data to disk.
     """
     import h5py
-    if vs.use_io_threads:
+    if runtime_settings.use_io_threads:
         _wait_for_disk(vs, filepath)
         _io_locks[filepath].clear()
     kwargs = {}
@@ -25,7 +25,7 @@ def threaded_io(vs, filepath, mode):
     try:
         yield h5file
     finally:
-        if vs.use_io_threads:
+        if runtime_settings.use_io_threads:
             threading.Thread(target=_write_to_disk, args=(vs, h5file, filepath)).start()
         else:
             _write_to_disk(vs, h5file, filepath)
@@ -62,5 +62,5 @@ def _write_to_disk(vs, h5file, file_id):
     try:
         h5file.close()
     finally:
-        if vs.use_io_threads and file_id is not None:
+        if runtime_settings.use_io_threads and file_id is not None:
             _io_locks[file_id].set()

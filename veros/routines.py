@@ -1,6 +1,5 @@
 import functools
 import inspect
-from os import stat
 import threading
 from contextlib import ExitStack, contextmanager
 
@@ -179,9 +178,12 @@ class VerosRoutine:
         timer = veros_state.profile_timers[self.name]
 
         with ExitStack() as es:
-            es.enter_context(veros_state.variables.unlock())
+            vars_initialized = veros_state._variables is not None
 
-            if not self._traced:
+            if vars_initialized:
+                es.enter_context(veros_state.variables.unlock())
+
+            if vars_initialized and not self._traced:
                 inputs = {}
                 outputs = {}
 
@@ -204,22 +206,24 @@ class VerosRoutine:
                 name=self.name, routine_obj=self, timer=timer, dist_safe=self.dist_safe
             )
 
+            out = None
             try:
                 with routine_ctx:
                     if execute:
-                        self.function(*args, **kwargs)
+                        out = self.function(*args, **kwargs)
 
             finally:
                 if restore_vars:
                     veros_state._variables._scatter_variables()
                     veros_state._variables = orig_vars
 
-        if not self._traced:
+        if out is not None:
+            logger.warning(f"Routine {self.name} returned object of type {type(out)}. Return objects are silently dropped.")
+
+        if vars_initialized and not self._traced:
             self.inputs = inputs
             self.outputs = outputs
             self._traced = True
-
-        return veros_state
 
     def __get__(self, instance, _):
         return functools.partial(self.__call__, instance)
@@ -259,6 +263,9 @@ class VerosKernel:
             raise ValueError(f'Veros kernels do not support *args, **kwargs, or keyword-only parameters ({self.name})')
 
         # parse static args
+        if isinstance(static_args, str):
+            static_args = (static_args,)
+
         func_argnames = list(func_params.keys())
         self.static_argnums = []
         for static_arg in static_args:
@@ -338,11 +345,6 @@ class VerosKernel:
                 if runtime_settings.profile_mode:
                     flush()
 
-        if type(out).__name__ != 'KernelOutput':
-            raise TypeError(
-                f'Return argument of a Veros kernel must be of type KernelOutput (got: {type(out)}).'
-            )
-
         if not self._traced:
             self.inputs = inputs
             self.outputs = dict(var=set(), settings=set())
@@ -352,3 +354,13 @@ class VerosKernel:
 
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.name} at {hex(id(self))}>'
+
+
+def is_veros_routine(func):
+    if isinstance(func, functools.partial):
+        func = func.func
+
+    if inspect.ismethod(func):
+        func = func.__self__
+
+    return isinstance(func, VerosRoutine)

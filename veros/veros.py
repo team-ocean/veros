@@ -10,7 +10,7 @@ from veros import (
 )
 from veros.state import get_default_state
 from veros.plugins import load_plugin
-from veros.routines import VerosRoutine, record_routine_stack
+from veros.routines import veros_routine, record_routine_stack, is_veros_routine
 
 
 class VerosSetup(metaclass=abc.ABCMeta):
@@ -181,7 +181,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         )
 
         for f in setup_funcs:
-            if not isinstance(f, VerosRoutine):
+            if not is_veros_routine(f):
                 raise RuntimeError(f"{f.__name__} is not a Veros routine. Please make sure to decorate it with @veros_routine and try again.")
 
         logger.info('Running model setup')
@@ -189,8 +189,13 @@ class VerosSetup(metaclass=abc.ABCMeta):
         with self.state.settings.unlock():
             self.set_parameter(self.state)
 
+            for setting, value in self.override_settings.items():
+                setattr(self.state.settings, setting, value)
+
         settings.check_setting_conflicts(self.state.settings)
         distributed.validate_decomposition(self.state.dimensions)
+
+        self.state.initialize_variables()
 
         self.state.timers['setup'].active = True
         with self.state.timers['setup']:
@@ -211,7 +216,6 @@ class VerosSetup(metaclass=abc.ABCMeta):
             for plugin in self._plugin_interfaces:
                 plugin.setup_entrypoint(self.state)
 
-            self.state.create_diagnostics()
             self.set_diagnostics(self.state)
             diagnostics.initialize(self.state)
             diagnostics.read_restart(self.state)
@@ -221,7 +225,8 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         self._setup_done = True
 
-    def step(self):
+    @veros_routine
+    def step(self, state):
         from veros import diagnostics
         from veros.core import (
             idemix, eke, tke, momentum, thermodynamics, advection, utilities, isoneutral
@@ -229,80 +234,82 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         self._ensure_setup_done()
 
-        with self.state.profile_timers['all']:
-            with self.state.timers['diagnostics']:
-                diagnostics.write_restart(self.state)
+        vs = state.variables
+        settings = state.settings
 
-            with self.state.timers['main']:
-                with self.state.timers['forcing']:
-                    self.set_forcing(self.state)
+        with state.profile_timers['all']:
+            with state.timers['diagnostics']:
+                diagnostics.write_restart(state)
 
-                if self.state.enable_idemix:
-                    with self.state.timers['idemix']:
-                        idemix.set_idemix_parameter(self.state)
+            with state.timers['main']:
+                with state.timers['forcing']:
+                    self.set_forcing(state)
 
-                with self.state.timers['eke']:
-                    eke.set_eke_diffusivities(self.state)
+                if state.settings.enable_idemix:
+                    with state.timers['idemix']:
+                        idemix.set_idemix_parameter(state)
 
-                with self.state.timers['tke']:
-                    tke.set_tke_diffusivities(self.state)
+                with state.timers['eke']:
+                    eke.set_eke_diffusivities(state)
 
-                with self.state.timers['momentum']:
-                    momentum.momentum(self.state)
+                with state.timers['tke']:
+                    tke.set_tke_diffusivities(state)
 
-                with self.state.timers['thermodynamics']:
-                    thermodynamics.thermodynamics(self.state)
+                with state.timers['momentum']:
+                    momentum.momentum(state)
 
-                if self.state.enable_eke or self.state.enable_tke or self.state.enable_idemix:
-                    with self.state.timers['advection']:
-                        advection.calculate_velocity_on_wgrid(self.state)
+                with state.timers['thermodynamics']:
+                    thermodynamics.thermodynamics(state)
 
-                with self.state.timers['eke']:
-                    if self.state.enable_eke:
-                        eke.integrate_eke(self.state)
+                if settings.enable_eke or settings.enable_tke or settings.enable_idemix:
+                    with state.timers['advection']:
+                        advection.calculate_velocity_on_wgrid(state)
 
-                with self.state.timers['idemix']:
-                    if self.state.enable_idemix:
-                        idemix.integrate_idemix(self.state)
+                with state.timers['eke']:
+                    if state.settings.enable_eke:
+                        eke.integrate_eke(state)
 
-                with self.state.timers['tke']:
-                    if self.state.enable_tke:
-                        tke.integrate_tke(self.state)
+                with state.timers['idemix']:
+                    if state.settings.enable_idemix:
+                        idemix.integrate_idemix(state)
 
-                with self.state.timers['boundary_exchange']:
-                    vs = self.state.variables
-                    vs.u = utilities.enforce_boundaries(vs.u, vs.enable_cyclic_x)
-                    vs.v = utilities.enforce_boundaries(vs.v, vs.enable_cyclic_x)
-                    if vs.enable_tke:
-                        vs.tke = utilities.enforce_boundaries(vs.tke, vs.enable_cyclic_x)
-                    if vs.enable_eke:
-                        vs.eke = utilities.enforce_boundaries(vs.eke, vs.enable_cyclic_x)
-                    if vs.enable_idemix:
-                        vs.E_iw = utilities.enforce_boundaries(vs.E_iw, vs.enable_cyclic_x)
+                with state.timers['tke']:
+                    if state.settings.enable_tke:
+                        tke.integrate_tke(state)
 
-                with self.state.timers['momentum']:
-                    momentum.vertical_velocity(self.state)
+                with state.timers['boundary_exchange']:
+                    vs.u = utilities.enforce_boundaries(vs.u, settings.enable_cyclic_x)
+                    vs.v = utilities.enforce_boundaries(vs.v, settings.enable_cyclic_x)
+                    if settings.enable_tke:
+                        vs.tke = utilities.enforce_boundaries(vs.tke, settings.enable_cyclic_x)
+                    if settings.enable_eke:
+                        vs.eke = utilities.enforce_boundaries(vs.eke, settings.enable_cyclic_x)
+                    if settings.enable_idemix:
+                        vs.E_iw = utilities.enforce_boundaries(vs.E_iw, settings.enable_cyclic_x)
 
-            with self.state.timers['plugins']:
+                with state.timers['momentum']:
+                    momentum.vertical_velocity(state)
+
+            with state.timers['plugins']:
                 for plugin in self._plugin_interfaces:
-                    with self.state.timers[plugin.name]:
-                        plugin.run_entrypoint(self.state)
+                    with state.timers[plugin.name]:
+                        plugin.run_entrypoint(state)
 
             vs.itt = vs.itt + 1
-            vs.time = vs.time + vs.dt_tracer
+            vs.time = vs.time + settings.dt_tracer
 
-            self.after_timestep(self.state)
+            self.after_timestep(state)
 
-            with self.state.timers['diagnostics']:
-                if not diagnostics.sanity_check(self.state):
+            with state.timers['diagnostics']:
+                if not diagnostics.sanity_check(state):
                     raise RuntimeError('solution diverged at iteration {}'.format(vs.itt))
 
-                isoneutral.isoneutral_diag_streamfunction(self.state)
-                diagnostics.diagnose(self.state)
-                diagnostics.output(self.state)
+                isoneutral.isoneutral_diag_streamfunction(state)
+                diagnostics.diagnose(state)
+                diagnostics.output(state)
 
             # NOTE: benchmarks parse this, do not change / remove
-            logger.debug(' Time step took {:.2f}s', self.state.timers['main'].get_last_time())
+            logger.debug(' Time step took {:.2f}s', state.timers['main'].get_last_time())
 
             # permutate time indices
             vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
@@ -319,12 +326,13 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         """
         from veros import diagnostics
-
         self._ensure_setup_done()
 
-        logger.info('\nStarting integration for {0[0]:.1f} {0[1]}'.format(time.format_time(vs.runlen)))
-
         vs = self.state.variables
+        settings = self.state.settings
+
+        logger.info('\nStarting integration for {0[0]:.1f} {0[1]}'.format(time.format_time(settings.runlen)))
+
         start_time = vs.time
 
         pbar = progress.get_progress_bar(self.state, use_tqdm=show_progress_bar)
@@ -332,24 +340,24 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         try:
             with signals.signals_to_exception(), pbar:
-                while vs.time - start_time < vs.runlen:
+                while vs.time - start_time < settings.runlen:
                     if first_iteration:
                         with record_routine_stack() as recorded_stack:
-                            self.step()
+                            self.step(self.state)
                             print(recorded_stack)
                     else:
-                        self.step()
+                        self.step(self.state)
 
                     if first_iteration:
                         for timer in self.state.timers.values():
                             timer.active = True
 
-                        for timer in vs.profile_timers.values():
+                        for timer in self.state.profile_timers.values():
                             timer.active = True
 
                         first_iteration = False
 
-                    pbar.advance_time(vs.dt_tracer)
+                    pbar.advance_time(settings.dt_tracer)
 
         except:  # noqa: E722
             logger.critical('Stopping integration at iteration {}', vs.itt)
@@ -359,10 +367,10 @@ class VerosSetup(metaclass=abc.ABCMeta):
             logger.success('Integration done\n')
 
         finally:
-            diagnostics.write_restart(vs, force=True)
-            self._timing_summary(vs)
+            diagnostics.write_restart(self.state, force=True)
+            self._timing_summary()
 
-    def _timing_summary(self, vs):
+    def _timing_summary(self):
         timing_summary = []
 
         timing_summary.extend([

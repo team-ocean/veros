@@ -36,32 +36,32 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.runlen = 86400 * 10
 
         vs.coord_degree = True
-        vs.enable_cyclic_x = True
+        settings.enable_cyclic_x = True
 
         # streamfunction
         vs.congr_epsilon = 1e-10
         vs.congr_max_iterations = 1000
 
         # friction
-        vs.enable_hor_friction = True
+        settings.enable_hor_friction = True
         vs.A_h = 5e4
-        vs.enable_hor_friction_cos_scaling = True
+        settings.enable_hor_friction_cos_scaling = True
         vs.hor_friction_cosPower = 1
-        vs.enable_tempsalt_sources = True
-        vs.enable_implicit_vert_friction = True
+        settings.enable_tempsalt_sources = True
+        settings.enable_implicit_vert_friction = True
 
         vs.eq_of_state_type = 5
 
         # isoneutral
-        vs.enable_neutral_diffusion = True
+        settings.enable_neutral_diffusion = True
         vs.K_iso_0 = 1000.0
         vs.K_iso_steep = 50.0
         vs.iso_dslope = 0.005
         vs.iso_slopec = 0.005
-        vs.enable_skew_diffusion = True
+        settings.enable_skew_diffusion = True
 
         # tke
-        vs.enable_tke = True
+        settings.enable_tke = True
         vs.c_k = 0.1
         vs.c_eps = 0.7
         vs.alpha_tke = 30.0
@@ -69,26 +69,26 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.tke_mxl_choice = 2
         vs.kappaM_min = 2e-4
         vs.kappaH_min = 2e-5
-        vs.enable_kappaH_profile = True
-        vs.enable_tke_superbee_advection = True
+        settings.enable_kappaH_profile = True
+        settings.enable_tke_superbee_advection = True
 
         # eke
-        vs.enable_eke = True
+        settings.enable_eke = True
         vs.eke_k_max = 1e4
         vs.eke_c_k = 0.4
         vs.eke_c_eps = 0.5
         vs.eke_cross = 2.
         vs.eke_crhin = 1.0
         vs.eke_lmin = 100.0
-        vs.enable_eke_superbee_advection = True
-        vs.enable_eke_isopycnal_diffusion = True
+        settings.enable_eke_superbee_advection = True
+        settings.enable_eke_isopycnal_diffusion = True
 
         # idemix
-        vs.enable_idemix = False
-        vs.enable_eke_diss_surfbot = True
+        settings.enable_idemix = False
+        settings.enable_eke_diss_surfbot = True
         vs.eke_diss_surfbot_frac = 0.2
-        vs.enable_idemix_superbee_advection = True
-        vs.enable_idemix_hor_diffusion = True
+        settings.enable_idemix_superbee_advection = True
+        settings.enable_idemix_hor_diffusion = True
 
         # custom variables
         vs.nmonths = 12
@@ -284,7 +284,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
                                            sss_raw, time_grid)
         vs.s_star[2:-2, 2:-2, :] = sss_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis]
 
-        if vs.enable_idemix:
+        if settings.enable_idemix:
             tidal_energy_raw = self._get_data(vs, 'tidal_energy', idx=data_subset)
             tidal_energy_data = veros.tools.interpolate(
                 (xt_forc, yt_forc), tidal_energy_raw, t_grid[:-1]
@@ -319,7 +319,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.surface_taux[...] = f1 * vs.taux[:, :, n1] + f2 * vs.taux[:, :, n2]
         vs.surface_tauy[...] = f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2]
 
-        if vs.enable_tke:
+        if settings.enable_tke:
             vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / vs.rho_0) ** 2
                                                       + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / vs.rho_0) ** 2) ** (3. / 2.)
 
@@ -341,7 +341,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.forc_salt_surface[...] *= ice
 
         # solar radiation
-        if vs.enable_tempsalt_sources:
+        if settings.enable_tempsalt_sources:
             vs.temp_source[..., :] = (f1 * vs.qsol[..., n1, None] + f2 * vs.qsol[..., n2, None]) \
                 * vs.divpen_shortwave[None, None, :] * ice[..., None] \
                 * vs.maskT[..., :] / cp_0 / vs.rho_0
@@ -360,17 +360,17 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
         average_vars = ['surface_taux', 'surface_tauy', 'forc_temp_surface', 'forc_salt_surface',
                         'psi', 'temp', 'salt', 'u', 'v', 'w', 'Nsqr', 'Hd', 'rho', 'kappaH']
-        if vs.enable_skew_diffusion:
+        if settings.enable_skew_diffusion:
             average_vars += ['B1_gm', 'B2_gm']
-        if vs.enable_TEM_friction:
+        if settings.enable_TEM_friction:
             average_vars += ['kappa_gm', 'K_diss_gm']
-        if vs.enable_tke:
+        if settings.enable_tke:
             average_vars += ['tke', 'Prandtlnumber', 'mxl', 'tke_diss',
                              'forc_tke_surface', 'tke_surf_corr']
-        if vs.enable_idemix:
+        if settings.enable_idemix:
             average_vars += ['E_iw', 'forc_iw_surface', 'iw_diss',
                              'c0', 'v0']
-        if vs.enable_eke:
+        if settings.enable_eke:
             average_vars += ['eke', 'K_gm', 'L_rossby', 'L_rhines']
         vs.diagnostics['averages'].output_variables = average_vars
 

@@ -105,47 +105,51 @@ class Energy(VerosDiagnostic):
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
     variables = ENERGY_VARIABLES
 
-    def initialize(self, vs):
+    def initialize(self, state):
         self.nitts = 0
         for var in self.variables.keys():
             setattr(self, var, 0.)
 
         output_variables = {key: val for key, val in self.variables.items() if val.output}
-        self.initialize_output(vs, output_variables)
+        self.initialize_output(state, output_variables)
 
-    def diagnose(self, vs):
+    def diagnose(self, state):
+        vs = state.variables
+        settings = state.settings
+
         # changes of dynamic enthalpy
         vol_t = vs.area_t[2:-2, 2:-2, np.newaxis] \
             * vs.dzt[np.newaxis, np.newaxis, :] \
             * vs.maskT[2:-2, 2:-2, :]
-        dP_iso = global_sum(vs,
-            np.sum(vol_t * vs.grav / vs.rho_0
+
+        dP_iso = global_sum(            np.sum(vol_t * settings.grav / settings.rho_0
                          * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                            * vs.dtemp_iso[2:-2, 2:-2, :]
                            - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
                            * vs.dsalt_iso[2:-2, 2:-2, :]))
         )
-        dP_hmix = global_sum(vs,
-            np.sum(vol_t * vs.grav / vs.rho_0
+
+        dP_hmix = global_sum(            np.sum(vol_t * settings.grav / settings.rho_0
                          * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                             * vs.dtemp_hmix[2:-2, 2:-2, :]
                             - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
                             * vs.dsalt_hmix[2:-2, 2:-2, :]))
         )
-        dP_vmix = global_sum(vs,
-            np.sum(vol_t * vs.grav / vs.rho_0
+
+        dP_vmix = global_sum(            np.sum(vol_t * settings.grav / settings.rho_0
                          * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                             * vs.dtemp_vmix[2:-2, 2:-2, :]
                             - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
                             * vs.dsalt_vmix[2:-2, 2:-2, :]))
         )
-        dP_m = global_sum(vs,
-            np.sum(vol_t * vs.grav / vs.rho_0
+
+        dP_m = global_sum(            np.sum(vol_t * settings.grav / settings.rho_0
                       * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                           * vs.dtemp[2:-2, 2:-2, :, vs.tau]
                           - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
                           * vs.dsalt[2:-2, 2:-2, :, vs.tau]))
         )
+
         dP_m_all = dP_m + dP_vmix + dP_hmix + dP_iso
 
         # changes of kinetic energy
@@ -153,15 +157,13 @@ class Energy(VerosDiagnostic):
             * vs.dzt[np.newaxis, np.newaxis, :]
         vol_v = vs.area_v[2:-2, 2:-2, np.newaxis] \
             * vs.dzt[np.newaxis, np.newaxis, :]
-        k_m = global_sum(vs,
-            np.sum(vol_t * 0.5 * (0.5 * (vs.u[2:-2, 2:-2, :, vs.tau] ** 2
+        k_m = global_sum(            np.sum(vol_t * 0.5 * (0.5 * (vs.u[2:-2, 2:-2, :, vs.tau] ** 2
                                            + vs.u[1:-3, 2:-2, :, vs.tau] ** 2)
                                     + 0.5 * (vs.v[2:-2, 2:-2, :, vs.tau] ** 2)
                                     + vs.v[2:-2, 1:-3, :, vs.tau] ** 2))
         )
-        p_m = global_sum(vs, np.sum(vol_t * vs.Hd[2:-2, 2:-2, :, vs.tau]))
-        dk_m = global_sum(vs,
-            np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du[2:-2, 2:-2, :, vs.tau] * vol_u
+        p_m = global_sum(np.sum(vol_t * vs.Hd[2:-2, 2:-2, :, vs.tau]))
+        dk_m = global_sum(            np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du[2:-2, 2:-2, :, vs.tau] * vol_u
                       + vs.v[2:-2, 2:-2, :, vs.tau]
                       * vs.dv[2:-2, 2:-2, :, vs.tau] * vol_v
                       + vs.u[2:-2, 2:-2, :, vs.tau] * vs.du_mix[2:-2, 2:-2, :] * vol_u
@@ -174,7 +176,7 @@ class Energy(VerosDiagnostic):
         vol_w[:, :, -1] *= 0.5
 
         def mean_w(var):
-            return global_sum(vs, np.sum(var[2:-2, 2:-2, :] * vol_w))
+            return global_sum(np.sum(var[2:-2, 2:-2, :] * vol_w))
 
         mdiss_vmix = mean_w(vs.P_diss_v)
         mdiss_nonlin = mean_w(vs.P_diss_nonlin)
@@ -189,16 +191,15 @@ class Energy(VerosDiagnostic):
         mdiss_gm = mean_w(vs.K_diss_gm)
         mdiss_bot = mean_w(vs.K_diss_bot)
 
-        wrhom = global_sum(vs,
+        wrhom = global_sum(
             np.sum(-vs.area_t[2:-2, 2:-2, np.newaxis] * vs.maskW[2:-2, 2:-2, :-1]
-                       * (vs.p_hydro[2:-2, 2:-2, 1:] - vs.p_hydro[2:-2, 2:-2, :-1])
-                       * vs.w[2:-2, 2:-2, :-1, vs.tau])
+            * (vs.p_hydro[2:-2, 2:-2, 1:] - vs.p_hydro[2:-2, 2:-2, :-1])
+            * vs.w[2:-2, 2:-2, :-1, vs.tau])
         )
 
         # wind work
-        if vs.pyom_compatibility_mode:
+        if settings.pyom_compatibility_mode:
             wind = global_sum(
-                vs,
                 np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2]
                        * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
                        + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2]
@@ -206,38 +207,37 @@ class Energy(VerosDiagnostic):
             )
         else:
             wind = global_sum(
-                vs,
-                np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2] / vs.rho_0
+                np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2] / settings.rho_0
                        * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
-                       + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2] / vs.rho_0
+                       + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2] / settings.rho_0
                        * vs.maskV[2:-2, 2:-2, -1] * vs.area_v[2:-2, 2:-2])
             )
 
         # meso-scale energy
-        if vs.enable_eke:
+        if settings.enable_eke:
             eke_m = mean_w(vs.eke[..., vs.tau])
-            deke_m = global_sum(vs,
+            deke_m = global_sum(
                 np.sum(vol_w * (vs.eke[2:-2, 2:-2, :, vs.taup1]
                                 - vs.eke[2:-2, 2:-2, :, vs.tau])
-                       / vs.dt_tracer)
+                       / settings.dt_tracer)
             )
             eke_diss = mean_w(vs.eke_diss_iw)
             eke_diss_tke = mean_w(vs.eke_diss_tke)
         else:
             eke_m = deke_m = eke_diss_tke = 0.
             eke_diss = mdiss_gm + mdiss_h + mdiss_skew
-            if not vs.enable_store_cabbeling_heat:
+            if not settings.enable_store_cabbeling_heat:
                 eke_diss += -mdiss_hmix - mdiss_iso
 
         # small-scale energy
-        if vs.enable_tke:
-            dt_tke = vs.dt_mom
+        if settings.enable_tke:
+            dt_tke = settings.dt_mom
             tke_m = mean_w(vs.tke[..., vs.tau])
             dtke_m = mean_w((vs.tke[..., vs.taup1]
                              - vs.tke[..., vs.tau])
                             / dt_tke)
             tke_diss = mean_w(vs.tke_diss)
-            tke_forc = global_sum(vs,
+            tke_forc = global_sum(
                 np.sum(vs.area_t[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
                               * (vs.forc_tke_surface[2:-2, 2:-2] + vs.tke_surf_corr[2:-2, 2:-2]))
             )
@@ -245,9 +245,9 @@ class Energy(VerosDiagnostic):
             tke_m = dtke_m = tke_diss = tke_forc = 0.
 
         # internal wave energy
-        if vs.enable_idemix:
+        if settings.enable_idemix:
             iw_m = mean_w(vs.E_iw[..., vs.tau])
-            diw_m = global_sum(vs,
+            diw_m = global_sum(
                 np.sum(vol_w * (vs.E_iw[2:-2, 2:-2, :, vs.taup1]
                                     - vs.E_iw[2:-2, 2:-2, :, vs.tau])
                            / vs.dt_tracer)
@@ -255,8 +255,8 @@ class Energy(VerosDiagnostic):
             iw_diss = mean_w(vs.iw_diss)
 
             k = np.maximum(1, vs.kbot[2:-2, 2:-2]) - 1
-            mask = k[:, :, np.newaxis] == np.arange(vs.nz)[np.newaxis, np.newaxis, :]
-            iwforc = global_sum(vs,
+            mask = k[:, :, np.newaxis] == np.arange(settings.nz)[np.newaxis, np.newaxis, :]
+            iwforc = global_sum(
                 np.sum(vs.area_t[2:-2, 2:-2]
                             * (vs.forc_iw_surface[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
                                + np.sum(mask * vs.forc_iw_bottom[2:-2, 2:-2, np.newaxis]
@@ -298,13 +298,13 @@ class Energy(VerosDiagnostic):
         self.hd_eke_m += -mdiss_skew
         self.ke_tke_m += mdiss_v
         self.tke_hd_m += -mdiss_vmix - mdiss_adv
-        if vs.enable_store_bottom_friction_tke:
+        if settings.enable_store_bottom_friction_tke:
             self.ke_tke_m += mdiss_bot
         else:
             self.ke_iw_m += mdiss_bot
         self.eke_tke_m += eke_diss_tke
         self.eke_iw_m += eke_diss
-        if not vs.enable_store_cabbeling_heat:
+        if not settings.enable_store_cabbeling_heat:
             self.hd_eke_m += -mdiss_hmix - mdiss_iso
             self.tke_hd_m += -mdiss_nonlin
 
@@ -313,27 +313,27 @@ class Energy(VerosDiagnostic):
 
         self.nitts += 1
 
-    def output(self, vs):
+    def output(self, state):
         self.nitts = float(self.nitts or 1)
         output_variables = {key: val for key, val in self.variables.items() if val.output}
-        output_data = {key: getattr(self, key) * vs.rho_0 / self.nitts
+        output_data = {key: getattr(self, key) * state.settings.rho_0 / self.nitts
                        for key in output_variables.keys()}
-        if not os.path.isfile(self.get_output_file_name(vs)):
-            self.initialize_output(vs, output_variables)
-        self.write_output(vs, output_variables, output_data)
+        if not os.path.isfile(self.get_output_file_name(state)):
+            self.initialize_output(state, output_variables)
+        self.write_output(state, output_variables, output_data)
 
         for key in output_variables.keys():
             setattr(self, key, 0.)
         self.nitts = 0
 
-    def read_restart(self, vs, infile):
-        attributes, variables = self.read_h5_restart(vs, self.variables, infile)
+    def read_restart(self, state, infile):
+        attributes, variables = self.read_h5_restart(state, self.variables, infile)
         if attributes:
             for key, val in attributes.items():
                 setattr(self, key, val)
 
-    def write_restart(self, vs, outfile):
+    def write_restart(self, state, outfile):
         restart_data = {key: getattr(self, key)
                         for key, val in self.variables.items() if val.write_to_restart}
         restart_data.update({'nitts': self.nitts})
-        self.write_h5_restart(vs, restart_data, {}, {}, outfile)
+        self.write_h5_restart(state, restart_data, {}, {}, outfile)

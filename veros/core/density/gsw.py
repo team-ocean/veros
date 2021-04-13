@@ -308,36 +308,6 @@ def gsw_dyn_enthalpy(sa, ct, p):
 
 
 @veros_kernel
-def gsw_dHdT1(sa, ct, p):
-    """
-     d/dT of dynamic enthalpy, numerical derivative
-
-     sa     : Absolute Salinity                               [g/kg]
-     ct     : Conservative Temperature                        [deg C]
-     p      : sea pressure                                    [dbar]
-    ==========================================================================
-    """
-    p = np.asarray(p)  # convert scalar value if necessary
-    delta = 1e-4
-    return (gsw_dyn_enthalpy(sa, ct + delta, p) - gsw_dyn_enthalpy(sa, ct, p)) / delta
-
-
-@veros_kernel
-def gsw_dHdS1(sa, ct, p):
-    """
-     d/dS of dynamic enthalpy, numerical derivative
-
-     sa     : Absolute Salinity                               [g/kg]
-     ct     : Conservative Temperature                        [deg C]
-     p      : sea pressure                                    [dbar]
-    ==========================================================================
-    """
-    p = np.asarray(p)  # convert scalar value if necessary
-    delta = 1e-4
-    return (gsw_dyn_enthalpy(sa + delta, ct, p) - gsw_dyn_enthalpy(sa, ct, p)) / delta
-
-
-@veros_kernel
 def gsw_dHdT(sa_in, ct_in, p):
     """
     d/dT of dynamic enthalpy, analytical derivative

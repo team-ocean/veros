@@ -15,9 +15,9 @@ class ACCBasicSetup(VerosSetup):
      - setting up an idealized geometry
      - updating surface forcings
      - constant horizontal and vertical mixing (switched off IDEMIX and GM_EKE)
-     - basic usage of diagnostics 
-    
-    :doc:`Adapted from ACC channel model </reference/setups/acc>`. 
+     - basic usage of diagnostics
+
+    :doc:`Adapted from ACC channel model </reference/setups/acc>`.
     """
     @veros_method
     def set_parameter(self, vs):
@@ -29,29 +29,29 @@ class ACCBasicSetup(VerosSetup):
         vs.runlen = 86400 * 365 * 20
 
         vs.coord_degree = True
-        vs.enable_cyclic_x = True
+        settings.enable_cyclic_x = True
 
         vs.congr_epsilon = 1e-12
         vs.congr_max_iterations = 5000
 
-        vs.enable_neutral_diffusion = True
+        settings.enable_neutral_diffusion = True
         vs.K_iso_0 = 1000.0
         vs.K_iso_steep = 500.0
         vs.iso_dslope = 0.005
         vs.iso_slopec = 0.01
-        vs.enable_skew_diffusion = True
+        settings.enable_skew_diffusion = True
 
-        vs.enable_hor_friction = True
+        settings.enable_hor_friction = True
         vs.A_h = (2 * vs.degtom)**3 * 2e-11
-        vs.enable_hor_friction_cos_scaling = True
+        settings.enable_hor_friction_cos_scaling = True
         vs.hor_friction_cosPower = 1
 
-        vs.enable_bottom_friction = True
+        settings.enable_bottom_friction = True
         vs.r_bot = 1e-5
 
-        vs.enable_implicit_vert_friction = True
+        settings.enable_implicit_vert_friction = True
 
-        vs.enable_tke = True
+        settings.enable_tke = True
         vs.c_k = 0.1
         vs.c_eps = 0.7
         vs.alpha_tke = 30.0
@@ -59,12 +59,12 @@ class ACCBasicSetup(VerosSetup):
         vs.tke_mxl_choice = 2
         vs.kappaM_min = 2e-4
         vs.kappaH_min = 2e-5
-        vs.enable_Prandtl_tke = False
-        vs.enable_kappaH_profile = True
+        settings.enable_Prandtl_tke = False
+        settings.enable_kappaH_profile = True
 
         vs.K_gm_0 = 1000.0
-        vs.enable_eke = False
-        vs.enable_idemix = False
+        settings.enable_eke = False
+        settings.enable_idemix = False
 
         vs.eq_of_state_type = 3
 
@@ -110,7 +110,7 @@ class ACCBasicSetup(VerosSetup):
         vs._t_star[vs.yt > 20] = 15 * (1 - (vs.yt[vs.yt > 20] - 20) / (yt_max - 20))
         vs._t_rest = vs.dzt[None, -1] / (30. * 86400.) * vs.maskT[:, :, -1]
 
-        if vs.enable_tke:
+        if settings.enable_tke:
             vs.forc_tke_surface[2:-2, 2:-2] = np.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / vs.rho_0)**2
                                                       + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / vs.rho_0)**2)**(1.5)
 

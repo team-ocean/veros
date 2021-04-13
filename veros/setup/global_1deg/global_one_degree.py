@@ -3,7 +3,7 @@
 import os
 import h5netcdf
 
-from veros import VerosSetup, tools, time, veros_kernel, run_kernel
+from veros import VerosSetup, tools, time, veros_kernel
 from veros.variables import Variable, allocate
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -21,7 +21,7 @@ def set_forcing_kernel(f1, f2, n1, n2, surface_taux, surface_tauy, taux, tauy, e
     surface_taux = update(surface_taux, at[:-1, :], f1 * taux[1:, :, n1] + f2 * taux[1:, :, n2])
     surface_tauy = update(surface_tauy, at[:, :-1], f1 * tauy[:, 1:, n1] + f2 * tauy[:, 1:, n2])
 
-    if enable_tke:
+    if settings.enable_tke:
         forc_tke_surface = update(forc_tke_surface, at[1:-1, 1:-1], np.sqrt((0.5 * (surface_taux[1:-1, 1:-1]
                                                                                             + surface_taux[:-2, 1:-1]) / rho_0) ** 2
                                                                                     + (0.5 * (surface_tauy[1:-1, 1:-1]
@@ -43,7 +43,7 @@ def set_forcing_kernel(f1, f2, n1, n2, surface_taux, surface_tauy, taux, tauy, e
     forc_salt_surface *= ice
 
     # solar radiation
-    if enable_tempsalt_sources:
+    if settings.enable_tempsalt_sources:
         temp_source = ((f1 * qsol[..., n1, None] + f2 * qsol[..., n2, None])
                                 * divpen_shortwave[None, None, :] * ice[..., None]
                                 * maskT[..., :] / cp_0 / rho_0)
@@ -214,7 +214,7 @@ class GlobalOneDegreeSetup(VerosSetup):
         sss_data = self._read_forcing(vs, 'sss')
         vs.s_star = update(vs.s_star, at[2:-2, 2:-2, :], sss_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis])
 
-        if vs.enable_idemix:
+        if settings.enable_idemix:
             tidal_energy_data = self._read_forcing(vs, 'tidal_energy')
             mask = np.maximum(0, vs.kbot[2:-2, 2:-2] - 1)[:, :, np.newaxis] == np.arange(vs.nz)[np.newaxis, np.newaxis, :]
             tidal_energy_data *= vs.maskW[2:-2, 2:-2, :][mask].reshape(vs.nx, vs.ny) / vs.rho_0

@@ -1,6 +1,8 @@
 import warnings
 from contextlib import contextmanager
 
+from jax.core import Value
+
 from veros import runtime_settings, runtime_state, veros_kernel
 
 
@@ -19,31 +21,44 @@ def noop(*args, **kwargs):
 @contextmanager
 def ensure_writable(*arrs):
     orig_writable = [arr.flags.writeable for arr in arrs]
+    writable_arrs = []
     try:
         for arr in arrs:
-            arr.flags.writeable = True
-        yield
+            try:
+                arr.flags.writeable = True
+            except ValueError:
+                arr = arr.copy()
+            writable_arrs.append(arr)
+
+        if len(writable_arrs) == 1:
+            yield writable_arrs[0]
+        else:
+            yield writable_arrs
+
     finally:
-        for arr, orig_val in zip(arrs, orig_writable):
-            arr.flags.writeable = orig_val
+        for arr, orig_val in zip(writable_arrs, orig_writable):
+            try:
+                arr.flags.writeable = orig_val
+            except ValueError:
+                pass
 
 
 def update_numpy(arr, at, to):
-    with ensure_writable(arr):
-        arr[at] = to
-    return arr
+    with ensure_writable(arr) as warr:
+        warr[at] = to
+    return warr
 
 
 def update_add_numpy(arr, at, to):
-    with ensure_writable(arr):
-        arr[at] += to
-    return arr
+    with ensure_writable(arr) as warr:
+        warr[at] += to
+    return warr
 
 
 def update_multiply_numpy(arr, at, to):
-    with ensure_writable(arr):
-        arr[at] *= to
-    return arr
+    with ensure_writable(arr) as warr:
+        warr[at] *= to
+    return warr
 
 
 def solve_tridiagonal_numpy(a, b, c, d, water_mask, edge_mask):
@@ -51,7 +66,8 @@ def solve_tridiagonal_numpy(a, b, c, d, water_mask, edge_mask):
     from scipy.linalg import lapack
 
     # remove couplings between slices
-    with ensure_writable(a, c):
+    with ensure_writable(a, c) as warr:
+        a, c = warr
         a[edge_mask] = 0
         c[..., -1] = 0
 

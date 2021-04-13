@@ -1,214 +1,221 @@
 from veros.core.operators import numpy as np
 
-from veros import veros_routine, veros_kernel, run_kernel
+from veros import veros_routine, veros_kernel, KernelOutput
+from veros.variables import allocate
 from veros.core import friction, streamfunction
 from veros.core.operators import update, update_add, at
 
 
 @veros_kernel
-def tend_coriolisf(du, dv, coriolis_t, maskU, maskV, dxt, dxu, dyt, dyu,
-                   cost, cosu, tau, tantr, coord_degree, u, v):
+def tend_coriolisf(state):
     """
     time tendency due to Coriolis force
     """
+    vs = state.variables
+    settings = state.settings
 
-    du_cor = np.zeros_like(maskU)
-    dv_cor = np.zeros_like(maskV)
+    du_cor = allocate(state.dimensions, ("xu", "yt", "zt"))
+    dv_cor = allocate(state.dimensions, ("xt", "yu", "zt"))
 
-    du_cor = update(du_cor, at[2:-2, 2:-2], maskU[2:-2, 2:-2] \
-        * (coriolis_t[2:-2, 2:-2, np.newaxis] * (v[2:-2, 2:-2, :, tau] + v[2:-2, 1:-3, :, tau])
-           * dxt[2:-2, np.newaxis, np.newaxis] / dxu[2:-2, np.newaxis, np.newaxis]
-            + coriolis_t[3:-1, 2:-2, np.newaxis] *
-           (v[3:-1, 2:-2, :, tau] + v[3:-1, 1:-3, :, tau])
-           * dxt[3:-1, np.newaxis, np.newaxis] / dxu[2:-2, np.newaxis, np.newaxis]) * 0.25)
-    dv_cor = update(dv_cor, at[2:-2, 2:-2], -maskV[2:-2, 2:-2] \
-        * (coriolis_t[2:-2, 2:-2, np.newaxis] * (u[1:-3, 2:-2, :, tau] + u[2:-2, 2:-2, :, tau])
-           * dyt[np.newaxis, 2:-2, np.newaxis] * cost[np.newaxis, 2:-2, np.newaxis]
-           / (dyu[np.newaxis, 2:-2, np.newaxis] * cosu[np.newaxis, 2:-2, np.newaxis])
-           + coriolis_t[2:-2, 3:-1, np.newaxis]
-           * (u[1:-3, 3:-1, :, tau] + u[2:-2, 3:-1, :, tau])
-           * dyt[np.newaxis, 3:-1, np.newaxis] * cost[np.newaxis, 3:-1, np.newaxis]
-           / (dyu[np.newaxis, 2:-2, np.newaxis] * cosu[np.newaxis, 2:-2, np.newaxis])) * 0.25)
+    du_cor = update(du_cor, at[2:-2, 2:-2], vs.maskU[2:-2, 2:-2] \
+        * (vs.coriolis_t[2:-2, 2:-2, np.newaxis] * (vs.v[2:-2, 2:-2, :, vs.tau] + vs.v[2:-2, 1:-3, :, vs.tau])
+           * vs.dxt[2:-2, np.newaxis, np.newaxis] / vs.dxu[2:-2, np.newaxis, np.newaxis]
+            + vs.coriolis_t[3:-1, 2:-2, np.newaxis] *
+           (vs.v[3:-1, 2:-2, :, vs.tau] + vs.v[3:-1, 1:-3, :, vs.tau])
+           * vs.dxt[3:-1, np.newaxis, np.newaxis] / vs.dxu[2:-2, np.newaxis, np.newaxis]) * 0.25)
+    dv_cor = update(dv_cor, at[2:-2, 2:-2], -1 * vs.maskV[2:-2, 2:-2] \
+        * (vs.coriolis_t[2:-2, 2:-2, np.newaxis] * (vs.u[1:-3, 2:-2, :, vs.tau] + vs.u[2:-2, 2:-2, :, vs.tau])
+           * vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.cost[np.newaxis, 2:-2, np.newaxis]
+           / (vs.dyu[np.newaxis, 2:-2, np.newaxis] * vs.cosu[np.newaxis, 2:-2, np.newaxis])
+           + vs.coriolis_t[2:-2, 3:-1, np.newaxis]
+           * (vs.u[1:-3, 3:-1, :, vs.tau] + vs.u[2:-2, 3:-1, :, vs.tau])
+           * vs.dyt[np.newaxis, 3:-1, np.newaxis] * vs.cost[np.newaxis, 3:-1, np.newaxis]
+           / (vs.dyu[np.newaxis, 2:-2, np.newaxis] * vs.cosu[np.newaxis, 2:-2, np.newaxis])) * 0.25)
 
     """
     time tendency due to metric terms
     """
-    if coord_degree:
-        du_cor = update_add(du_cor, at[2:-2, 2:-2], maskU[2:-2, 2:-2] * 0.125 * tantr[np.newaxis, 2:-2, np.newaxis] \
-            * ((u[2:-2, 2:-2, :, tau] + u[1:-3, 2:-2, :, tau])
-               * (v[2:-2, 2:-2, :, tau] + v[2:-2, 1:-3, :, tau])
-               * dxt[2:-2, np.newaxis, np.newaxis] / dxu[2:-2, np.newaxis, np.newaxis]
-               + (u[3:-1, 2:-2, :, tau] + u[2:-2, 2:-2, :, tau])
-               * (v[3:-1, 2:-2, :, tau] + v[3:-1, 1:-3, :, tau])
-               * dxt[3:-1, np.newaxis, np.newaxis] / dxu[2:-2, np.newaxis, np.newaxis]))
-        dv_cor = update_add(dv_cor, at[2:-2, 2:-2], -maskV[2:-2, 2:-2] * 0.125 \
-            * (tantr[np.newaxis, 2:-2, np.newaxis] * (u[2:-2, 2:-2, :, tau] + u[1:-3, 2:-2, :, tau])**2
-               * dyt[np.newaxis, 2:-2, np.newaxis] * cost[np.newaxis, 2:-2, np.newaxis]
-               / (dyu[np.newaxis, 2:-2, np.newaxis] * cosu[np.newaxis, 2:-2, np.newaxis])
-               + tantr[np.newaxis, 3:-1, np.newaxis]
-               * (u[2:-2, 3:-1, :, tau] + u[1:-3, 3:-1, :, tau])**2
-               * dyt[np.newaxis, 3:-1, np.newaxis] * cost[np.newaxis, 3:-1, np.newaxis]
-               / (dyu[np.newaxis, 2:-2, np.newaxis] * cosu[np.newaxis, 2:-2, np.newaxis])))
+    if settings.coord_degree:
+        du_cor = update_add(du_cor, at[2:-2, 2:-2], vs.maskU[2:-2, 2:-2] * 0.125 * vs.tantr[np.newaxis, 2:-2, np.newaxis] \
+            * ((vs.u[2:-2, 2:-2, :, vs.tau] + vs.u[1:-3, 2:-2, :, vs.tau])
+               * (vs.v[2:-2, 2:-2, :, vs.tau] + vs.v[2:-2, 1:-3, :, vs.tau])
+               * vs.dxt[2:-2, np.newaxis, np.newaxis] / vs.dxu[2:-2, np.newaxis, np.newaxis]
+               + (vs.u[3:-1, 2:-2, :, vs.tau] + vs.u[2:-2, 2:-2, :, vs.tau])
+               * (vs.v[3:-1, 2:-2, :, vs.tau] + vs.v[3:-1, 1:-3, :, vs.tau])
+               * vs.dxt[3:-1, np.newaxis, np.newaxis] / vs.dxu[2:-2, np.newaxis, np.newaxis]))
+        dv_cor = update_add(dv_cor, at[2:-2, 2:-2], -1 * vs.maskV[2:-2, 2:-2] * 0.125 \
+            * (vs.tantr[np.newaxis, 2:-2, np.newaxis] * (vs.u[2:-2, 2:-2, :, vs.tau] + vs.u[1:-3, 2:-2, :, vs.tau])**2
+               * vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.cost[np.newaxis, 2:-2, np.newaxis]
+               / (vs.dyu[np.newaxis, 2:-2, np.newaxis] * vs.cosu[np.newaxis, 2:-2, np.newaxis])
+               + vs.tantr[np.newaxis, 3:-1, np.newaxis]
+               * (vs.u[2:-2, 3:-1, :, vs.tau] + vs.u[1:-3, 3:-1, :, vs.tau])**2
+               * vs.dyt[np.newaxis, 3:-1, np.newaxis] * vs.cost[np.newaxis, 3:-1, np.newaxis]
+               / (vs.dyu[np.newaxis, 2:-2, np.newaxis] * vs.cosu[np.newaxis, 2:-2, np.newaxis])))
 
     """
     transfer to time tendencies
     """
-    du = update(du, at[2:-2, 2:-2, :, tau], du_cor[2:-2, 2:-2])
-    dv = update(dv, at[2:-2, 2:-2, :, tau], dv_cor[2:-2, 2:-2])
+    du = update(vs.du, at[2:-2, 2:-2, :, vs.tau], du_cor[2:-2, 2:-2])
+    dv = update(vs.dv, at[2:-2, 2:-2, :, vs.tau], dv_cor[2:-2, 2:-2])
 
-    return du, dv
+    return KernelOutput(du=du, dv=dv)
 
 
 @veros_kernel
-def tend_tauxyf(tend_u, tend_v, maskU, maskV, dzt, tau,
-                surface_taux, surface_tauy, rho_0, pyom_compatibility_mode):
+def tend_tauxyf(state):
     """
     wind stress forcing
     """
-    if pyom_compatibility_mode:
-        tend_u = update_add(tend_u, at[2:-2, 2:-2, -1, tau], maskU[2:-2, 2:-2, -1] * surface_taux[2:-2, 2:-2] / dzt[-1])
-        tend_v = update_add(tend_v, at[2:-2, 2:-2, -1, tau], maskV[2:-2, 2:-2, -1] * surface_tauy[2:-2, 2:-2] / dzt[-1])
-    else:
-        tend_u = update_add(tend_u, at[2:-2, 2:-2, -1, tau], maskU[2:-2, 2:-2, -1] * surface_taux[2:-2, 2:-2] / dzt[-1] / rho_0)
-        tend_v = update_add(tend_v, at[2:-2, 2:-2, -1, tau], maskV[2:-2, 2:-2, -1] * surface_tauy[2:-2, 2:-2] / dzt[-1] / rho_0)
+    vs = state.variables
+    settings = state.settings
 
-    return tend_u, tend_v
+    if settings.pyom_compatibility_mode:
+        du = update_add(vs.du, at[2:-2, 2:-2, -1, vs.tau], vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1])
+        dv = update_add(vs.dv, at[2:-2, 2:-2, -1, vs.tau], vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1])
+    else:
+        du = update_add(vs.du, at[2:-2, 2:-2, -1, vs.tau], vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1] / settings.rho_0)
+        dv = update_add(vs.dv, at[2:-2, 2:-2, -1, vs.tau], vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1] / settings.rho_0)
+
+    return KernelOutput(du=du, dv=dv)
 
 
 @veros_kernel
-def momentum_advection(tend_u, tend_v, u, v, w, maskU, maskV, maskW,
-                       area_t, area_u, area_v, dxt, dyt, dzt, cosu, tau):
+def momentum_advection(state):
     """
     Advection of momentum with second order which is energy conserving
     """
+    vs = state.variables
 
     """
     Code from MITgcm
     """
 
-    utr = u[..., tau] * maskU * dyt[np.newaxis, :, np.newaxis] \
-        * dzt[np.newaxis, np.newaxis, :]
-    vtr = dzt[np.newaxis, np.newaxis, :] * cosu[np.newaxis, :, np.newaxis] \
-        * dxt[:, np.newaxis, np.newaxis] * v[..., tau] * maskV
-    wtr = w[..., tau] * maskW * area_t[:, :, np.newaxis]
+    utr = vs.u[..., vs.tau] * vs.maskU * vs.dyt[np.newaxis, :, np.newaxis] \
+        * vs.dzt[np.newaxis, np.newaxis, :]
+    vtr = vs.dzt[np.newaxis, np.newaxis, :] * vs.cosu[np.newaxis, :, np.newaxis] \
+        * vs.dxt[:, np.newaxis, np.newaxis] * vs.v[..., vs.tau] * vs.maskV
+    wtr = vs.w[..., vs.tau] * vs.maskW * vs.area_t[:, :, np.newaxis]
 
     """
     for zonal momentum
     """
-    du_adv = np.zeros_like(maskU)
-    dv_adv = np.zeros_like(maskV)
-    flux_east = np.zeros_like(maskU)
-    flux_north = np.zeros_like(maskV)
-    flux_top = np.zeros_like(maskW)
+    du_adv = allocate(state.dimensions, ("xu", "yt", "zt"))
+    dv_adv = allocate(state.dimensions, ("xt", "yu", "zt"))
+    flux_east = allocate(state.dimensions, ("xu", "yt", "zt"))
+    flux_north = allocate(state.dimensions, ("xt", "yu", "zt"))
+    flux_top = allocate(state.dimensions, ("xt", "yt", "zw"))
 
-    flux_top = update(flux_top, at[...], 0.)
-    flux_east = update(flux_east, at[1:-2, 2:-2], 0.25 * (u[1:-2, 2:-2, :, tau]
-                                    + u[2:-1, 2:-2, :, tau]) \
+    flux_east = update(flux_east, at[1:-2, 2:-2], 0.25 * (vs.u[1:-2, 2:-2, :, vs.tau]
+                                    + vs.u[2:-1, 2:-2, :, vs.tau]) \
                                  * (utr[2:-1, 2:-2] + utr[1:-2, 2:-2]))
-    flux_north = update(flux_north, at[2:-2, 1:-2], 0.25 * (u[2:-2, 1:-2, :, tau]
-                                     + u[2:-2, 2:-1, :, tau]) \
+    flux_north = update(flux_north, at[2:-2, 1:-2], 0.25 * (vs.u[2:-2, 1:-2, :, vs.tau]
+                                     + vs.u[2:-2, 2:-1, :, vs.tau]) \
                                   * (vtr[3:-1, 1:-2] + vtr[2:-2, 1:-2]))
-    flux_top = update(flux_top, at[2:-2, 2:-2, :-1], 0.25 * (u[2:-2, 2:-2, 1:, tau]
-                                        + u[2:-2, 2:-2, :-1, tau]) \
+    flux_top = update(flux_top, at[2:-2, 2:-2, :-1], 0.25 * (vs.u[2:-2, 2:-2, 1:, vs.tau]
+                                        + vs.u[2:-2, 2:-2, :-1, vs.tau]) \
                                      * (wtr[2:-2, 2:-2, :-1] + wtr[3:-1, 2:-2, :-1]))
-    du_adv = update(du_adv, at[2:-2, 2:-2], -maskU[2:-2, 2:-2] * (flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2]
+    du_adv = update(du_adv, at[2:-2, 2:-2], -1 * vs.maskU[2:-2, 2:-2] * (flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2]
                                                + flux_north[2:-2, 2:-2] - flux_north[2:-2, 1:-3]) \
-                         / (dzt[np.newaxis, np.newaxis, :] * area_u[2:-2, 2:-2, np.newaxis]))
+                         / (vs.dzt[np.newaxis, np.newaxis, :] * vs.area_u[2:-2, 2:-2, np.newaxis]))
 
-    tmp = np.zeros_like(maskU)
-    tmp = -maskU / (dzt * area_u[:, :, np.newaxis])
-    du_adv += tmp * flux_top
+    tmp = -1 * vs.maskU / (vs.dzt * vs.area_u[:, :, np.newaxis])
+    du_adv = du_adv + tmp * flux_top
     du_adv = update_add(du_adv, at[:, :, 1:], tmp[:, :, 1:] * -flux_top[:, :, :-1])
 
     """
     for meridional momentum
     """
     flux_top = update(flux_top, at[...], 0.)
-    flux_east = update(flux_east, at[1:-2, 2:-2], 0.25 * (v[1:-2, 2:-2, :, tau]
-                                    + v[2:-1, 2:-2, :, tau]) * (utr[1:-2, 3:-1] + utr[1:-2, 2:-2]))
-    flux_north = update(flux_north, at[2:-2, 1:-2], 0.25 * (v[2:-2, 1:-2, :, tau]
-                                     + v[2:-2, 2:-1, :, tau]) * (vtr[2:-2, 2:-1] + vtr[2:-2, 1:-2]))
-    flux_top = update(flux_top, at[2:-2, 2:-2, :-1], 0.25 * (v[2:-2, 2:-2, 1:, tau]
-                                        + v[2:-2, 2:-2, :-1, tau]) * (wtr[2:-2, 2:-2, :-1] + wtr[2:-2, 3:-1, :-1]))
-    dv_adv = update(dv_adv, at[2:-2, 2:-2], -maskV[2:-2, 2:-2] * (flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2]
+    flux_east = update(flux_east, at[1:-2, 2:-2], 0.25 * (vs.v[1:-2, 2:-2, :, vs.tau]
+                                    + vs.v[2:-1, 2:-2, :, vs.tau]) * (utr[1:-2, 3:-1] + utr[1:-2, 2:-2]))
+    flux_north = update(flux_north, at[2:-2, 1:-2], 0.25 * (vs.v[2:-2, 1:-2, :, vs.tau]
+                                     + vs.v[2:-2, 2:-1, :, vs.tau]) * (vtr[2:-2, 2:-1] + vtr[2:-2, 1:-2]))
+    flux_top = update(flux_top, at[2:-2, 2:-2, :-1], 0.25 * (vs.v[2:-2, 2:-2, 1:, vs.tau]
+                                        + vs.v[2:-2, 2:-2, :-1, vs.tau]) * (wtr[2:-2, 2:-2, :-1] + wtr[2:-2, 3:-1, :-1]))
+    dv_adv = update(dv_adv, at[2:-2, 2:-2], -1 * vs.maskV[2:-2, 2:-2] * (flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2]
                                                + flux_north[2:-2, 2:-2] - flux_north[2:-2, 1:-3]) \
-                         / (dzt * area_v[2:-2, 2:-2, np.newaxis]))
+                         / (vs.dzt * vs.area_u[2:-2, 2:-2, np.newaxis]))
 
-    tmp = np.zeros_like(maskV)
-    tmp = dzt * area_v[:, :, np.newaxis]
-    dv_adv = update_add(dv_adv, at[:, :, 0], -maskV[:, :, 0] * flux_top[:, :, 0] / tmp[:, :, 0])
-    dv_adv = update_add(dv_adv, at[:, :, 1:], -maskV[:, :, 1:] \
+    tmp = vs.dzt * vs.area_u[:, :, np.newaxis]
+    dv_adv = update_add(dv_adv, at[:, :, 0], -1 * vs.maskV[:, :, 0] * flux_top[:, :, 0] / tmp[:, :, 0])
+    dv_adv = update_add(dv_adv, at[:, :, 1:], -1 * vs.maskV[:, :, 1:] \
         * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / tmp[:, :, 1:])
 
-    tend_u = update_add(tend_u, at[:, :, :, tau], du_adv)
-    tend_v = update_add(tend_v, at[:, :, :, tau], dv_adv)
+    du = update_add(vs.du, at[:, :, :, vs.tau], du_adv)
+    dv = update_add(vs.dv, at[:, :, :, vs.tau], dv_adv)
 
-    return tend_u, tend_v
+    return KernelOutput(du=du, dv=dv)
 
 
 @veros_routine
-def vertical_velocity(vs):
-    w = run_kernel(vertical_velocity_kernel, vs)
-    return dict(w=w)
+def vertical_velocity(state):
+    vs = state.variables
+    w_out = vertical_velocity_kernel(state)
+    vs.update(w_out)
 
 
 @veros_kernel
-def vertical_velocity_kernel(u, v, w, maskW, dxt, dyt, dzt, cost, cosu, taup1):
+def vertical_velocity_kernel(state):
     """
     vertical velocity from continuity :
     \\int_0^z w_z dz = w(z)-w(0) = - \\int dz (u_x + v_y)
     w(z) = -int dz u_x + v_y
     """
-    fxa = np.zeros_like(maskW[1:, 1:])
-    # integrate from bottom to surface to see error in w
-    fxa = update(fxa, at[:, :, 0], -maskW[1:, 1:, 0] * dzt[0] * \
-        ((u[1:, 1:, 0, taup1] - u[:-1, 1:, 0, taup1])
-         / (cost[np.newaxis, 1:] * dxt[1:, np.newaxis])
-         + (cosu[np.newaxis, 1:] * v[1:, 1:, 0, taup1]
-            - cosu[np.newaxis, :-1] * v[1:, :-1, 0, taup1])
-         / (cost[np.newaxis, 1:] * dyt[np.newaxis, 1:])))
-    fxa = update(fxa, at[:, :, 1:], -maskW[1:, 1:, 1:] * dzt[np.newaxis, np.newaxis, 1:] \
-        * ((u[1:, 1:, 1:, taup1] - u[:-1, 1:, 1:, taup1])
-           / (cost[np.newaxis, 1:, np.newaxis] * dxt[1:, np.newaxis, np.newaxis])
-           + (cosu[np.newaxis, 1:, np.newaxis] * v[1:, 1:, 1:, taup1]
-              - cosu[np.newaxis, :-1, np.newaxis] * v[1:, :-1, 1:, taup1])
-           / (cost[np.newaxis, 1:, np.newaxis] * dyt[np.newaxis, 1:, np.newaxis])))
-    # TODO: replace cumsum
-    w = update(w, at[1:, 1:, :, taup1], np.cumsum(fxa, axis=2))
+    vs = state.variables
 
-    return w
+    fxa = allocate(state.dimensions, ("xt", "yt", "zw"))
+
+    # integrate from bottom to surface to see error in w
+    fxa = update(fxa, at[1:, 1:, 0], -1 * vs.maskW[1:, 1:, 0] * vs.dzt[0] * \
+        ((vs.u[1:, 1:, 0, vs.taup1] - vs.u[:-1, 1:, 0, vs.taup1])
+         / (vs.cost[np.newaxis, 1:] * vs.dxt[1:, np.newaxis])
+         + (vs.cosu[np.newaxis, 1:] * vs.v[1:, 1:, 0, vs.taup1]
+            - vs.cosu[np.newaxis, :-1] * vs.v[1:, :-1, 0, vs.taup1])
+         / (vs.cost[np.newaxis, 1:] * vs.dyt[np.newaxis, 1:])))
+
+    fxa = update(fxa, at[1:, 1:, 1:], -1 * vs.maskW[1:, 1:, 1:] * vs.dzt[np.newaxis, np.newaxis, 1:] \
+        * ((vs.u[1:, 1:, 1:, vs.taup1] - vs.u[:-1, 1:, 1:, vs.taup1])
+           / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])
+           + (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.v[1:, 1:, 1:, vs.taup1]
+              - vs.cosu[np.newaxis, :-1, np.newaxis] * vs.v[1:, :-1, 1:, vs.taup1])
+           / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])))
+
+    # TODO: replace cumsum
+    w = update(vs.w, at[1:, 1:, :, vs.taup1], np.cumsum(fxa[1:, 1:, :], axis=2))
+
+    return KernelOutput(w=w)
 
 
 @veros_routine
-def momentum(vs):
+def momentum(state):
     """
     solve for momentum for taup1
     """
+    vs = state.variables
 
     """
     time tendency due to Coriolis force
     """
-    vs = tend_coriolisf.run_with_state(vs)
+    coriolis_out = tend_coriolisf(state)
+    vs.update(coriolis_out)
 
     """
     wind stress forcing
     """
-    vs = tend_tauxyf.run_with_state(vs, tend_u=du, tend_v=dv)
+    dudv = tend_tauxyf(state)
+    vs.update(dudv)
 
     """
     advection
     """
-    vs = momentum_advection.run_with_state(vs, tend_u=du, tend_v=dv)
+    dudv = momentum_advection(state)
+    vs.update(dudv)
 
-    vs.du = du
-    vs.dv = dv
-
-    with vs.timers['friction']:
-        friction.friction(vs)
+    with state.timers['friction']:
+        friction.friction(state)
 
     """
     external mode
     """
-
-    with vs.timers['pressure']:
-        streamfunction.solve_streamfunction(vs)
+    with state.timers['pressure']:
+        streamfunction.solve_streamfunction(state)
