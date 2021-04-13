@@ -53,6 +53,7 @@ def recv(buf, source, comm, tag=None, token=None):
         from mpi4jax import recv
         return recv(buf, source=source, comm=comm, token=token, **kwargs)
 
+    buf = buf.copy()
     comm.Recv(buf, source=source, **kwargs)
     return buf, None
 
@@ -70,6 +71,7 @@ def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None, t
         from mpi4jax import sendrecv
         return sendrecv(sendbuf, recvbuf, source=source, dest=dest, comm=comm, token=token, **kwargs)
 
+    recvbuf = recvbuf.copy()
     comm.Sendrecv(
         sendbuf=ascontiguousarray(sendbuf), recvbuf=recvbuf,
         source=source, dest=dest,
@@ -320,14 +322,21 @@ def exchange_overlap(arr, var_grid, cyclic):
 
 
 def _memoize(function):
+    from mpi4py import MPI
     cached = {}
 
     @functools.wraps(function)
     def memoized(*args):
-        if args not in cached:
-            cached[args] = function(*args)
+        # MPI Comms are not hashable, so we use the underlying handle instead
+        cache_args = tuple(
+            MPI._handleof(arg) if isinstance(arg, MPI.Comm)
+            else arg for arg in args
+        )
 
-        return cached[args]
+        if cache_args not in cached:
+            cached[cache_args] = function(*args)
+
+        return cached[cache_args]
 
     return memoized
 

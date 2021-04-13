@@ -158,6 +158,9 @@ class VerosRoutine:
     """Do not instantiate directly!"""
 
     def __init__(self, function, dist_safe=True, local_variables=(), state_argnum=0):
+        if isinstance(local_variables, str):
+            local_variables = (local_variables,)
+
         self.function = function
         self.dist_safe = dist_safe
         self.local_variables = local_variables

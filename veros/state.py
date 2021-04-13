@@ -297,7 +297,7 @@ class DistSafeVariableWrapper(VerosVariables):
             return super().__setattr__(attr, val)
 
         if attr in self.__metadata__ and attr not in self.__local_variables__:
-            raise RuntimeError(f"Cannot access variable {attr} because it was not received.")
+            raise RuntimeError(f"Cannot access variable {attr} because it was not collected. Consider adding it to the local_variables argument of @veros_routine.")
 
         return super().__setattr__(attr, val)
 
@@ -308,7 +308,8 @@ class DistSafeVariableWrapper(VerosVariables):
             setattr(self, var, gathered_var)
 
     def _scatter_variables(self):
-        from veros.distributed import scatter
+        from veros.distributed import scatter, barrier
+        barrier()
         for var in self.__local_variables__:
             scattered_var = scatter(getattr(self, var), self.__dimensions__, self.__metadata__[var].dims)
             setattr(self.__parent_state__, var, scattered_var)
@@ -562,7 +563,11 @@ def dist_safe_wrapper_pytree_unflatten(aux_data, leaves):
     return variables
 
 
-def _resize_dimension(state, dimension, new_size):
+def resize_dimension(state, dimension, new_size):
+    """Resize a dimension of an existing VerosState object.
+
+    This re-allocates all variables using the dimension to 0.
+    """
     state._dimensions[dimension] = new_size
     state.variables.__dimensions__[dimension] = new_size
 

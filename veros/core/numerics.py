@@ -105,7 +105,13 @@ def calc_grid_kernel(state):
     )
 
 
-@veros_routine
+@veros_routine(dist_safe=False, local_variables=(
+    'dxt', 'dxu', 'xt', 'xu',
+    'dyt', 'dyu', 'yt', 'yu',
+    'dzt', 'dzw', 'zt', 'zw',
+    'cost', 'cosu', 'tantr',
+    'area_t', 'area_u', 'area_v',
+))
 def calc_grid(state):
     """
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
