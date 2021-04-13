@@ -141,6 +141,7 @@ class Traceable:
     def trace(self):
         new_stacks = (set(), set())
         self.__tracing_stack__.append(new_stacks)
+        self.__getattribute__ = self.__getattribute_trace__
 
         try:
             yield new_stacks
@@ -151,6 +152,9 @@ class Traceable:
 
             del self.__tracing_stack__[i]
 
+            if not self.__tracing_stack__:
+                self.__getattribute__ = super().__getattribute__
+
     @contextlib.contextmanager
     def disable_trace(self):
         orig_stack = self.__tracing_stack__
@@ -160,7 +164,7 @@ class Traceable:
         finally:
             self.__tracing_stack__ = orig_stack
 
-    def __getattribute__(self, attr):
+    def __getattribute_trace__(self, attr):
         orig_getattr = super().__getattribute__
         if attr in orig_getattr("__fields__"):
             for input_stack, _ in orig_getattr("__tracing_stack__"):
@@ -227,10 +231,11 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
                 setattr(self, key, var_mod.allocate(dimensions, val.dims, **allocate_kwargs))
 
     def __getattribute__(self, attr):
-        if attr.startswith("_") or attr not in self.__metadata__:
-            return super().__getattribute__(attr)
-
-        var = self.__metadata__[attr]
+        orig_getattr = super().__getattribute__
+        try:
+            var = orig_getattr("__metadata__")[attr]
+        except (KeyError, AttributeError):
+            return orig_getattr(attr)
 
         if not var.active:
             raise RuntimeError(
@@ -238,7 +243,7 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
                 "Check your settings and try again."
             )
 
-        return super().__getattribute__(attr)
+        return orig_getattr(attr)
 
     def __setattr__(self, key, val):
         if key.startswith("_") or key not in self.__metadata__:

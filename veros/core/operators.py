@@ -45,7 +45,6 @@ def ensure_writable(*arrs):
 
 
 def update_numpy(arr, at, to):
-    # arr = arr.copy()
     with ensure_writable(arr) as warr:
         warr[at] = to
     return warr
