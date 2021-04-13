@@ -28,6 +28,7 @@ def ensure_writable(*arrs):
                 arr.flags.writeable = True
             except ValueError:
                 arr = arr.copy()
+
             writable_arrs.append(arr)
 
         if len(writable_arrs) == 1:
@@ -44,6 +45,7 @@ def ensure_writable(*arrs):
 
 
 def update_numpy(arr, at, to):
+    # arr = arr.copy()
     with ensure_writable(arr) as warr:
         warr[at] = to
     return warr

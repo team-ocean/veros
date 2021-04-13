@@ -186,6 +186,7 @@ class Overturning(VerosDiagnostic):
 
     def _interpolate_along_axis(self, coords, arr, interp_coords, axis=0):
         # TODO: clean up this mess
+        import numpy as onp
 
         if coords.ndim == 1:
             if len(coords) != arr.shape[axis]:
@@ -197,32 +198,32 @@ class Overturning(VerosDiagnostic):
             raise ValueError('Coordinate shape must match array dimensions')
 
         if axis != 0:
-            arr = np.moveaxis(arr, axis, 0)
-            coords = np.moveaxis(coords, axis, 0)
-            interp_coords = np.moveaxis(interp_coords, axis, 0)
+            arr = onp.moveaxis(arr, axis, 0)
+            coords = onp.moveaxis(coords, axis, 0)
+            interp_coords = onp.moveaxis(interp_coords, axis, 0)
 
-        diff = coords[np.newaxis, :, ...] - interp_coords[:, np.newaxis, ...]
-        diff_m = np.where(diff <= 0., np.abs(diff), np.inf)
-        diff_p = np.where(diff > 0., np.abs(diff), np.inf)
-        i_m = np.asarray(np.argmin(diff_m, axis=1))
-        i_p = np.asarray(np.argmin(diff_p, axis=1))
-        mask = np.all(np.isinf(diff_m), axis=1)
+        diff = coords[onp.newaxis, :, ...] - interp_coords[:, onp.newaxis, ...]
+        diff_m = onp.where(diff <= 0., onp.abs(diff), onp.inf)
+        diff_p = onp.where(diff > 0., onp.abs(diff), onp.inf)
+        i_m = onp.asarray(onp.argmin(diff_m, axis=1))
+        i_p = onp.asarray(onp.argmin(diff_p, axis=1))
+        mask = onp.all(onp.isinf(diff_m), axis=1)
         i_m[mask] = i_p[mask]
-        mask = np.all(np.isinf(diff_p), axis=1)
+        mask = onp.all(onp.isinf(diff_p), axis=1)
         i_p[mask] = i_m[mask]
-        full_shape = (slice(None),) + (np.newaxis,) * (arr.ndim - 1)
+        full_shape = (slice(None),) + (onp.newaxis,) * (arr.ndim - 1)
         if coords.ndim == 1:
-            i_p_full = i_p[full_shape] * np.ones(arr.shape)
-            i_m_full = i_m[full_shape] * np.ones(arr.shape)
+            i_p_full = i_p[full_shape] * onp.ones(arr.shape)
+            i_m_full = i_m[full_shape] * onp.ones(arr.shape)
         else:
             i_p_full = i_p
             i_m_full = i_m
-        ii = np.indices(i_p_full.shape)
+        ii = onp.indices(i_p_full.shape)
         i_p_slice = (i_p_full,) + tuple(ii[1:])
         i_m_slice = (i_m_full,) + tuple(ii[1:])
         dx = (coords[i_p_slice] - coords[i_m_slice])
-        pos = np.where(dx == 0., 0., (coords[i_p_slice] - interp_coords) / (dx + 1e-12))
-        return np.moveaxis(arr[i_p_slice] * (1. - pos) + arr[i_m_slice] * pos, 0, axis)
+        pos = onp.where(dx == 0., 0., (coords[i_p_slice] - interp_coords) / (dx + 1e-12))
+        return np.asarray(onp.moveaxis(arr[i_p_slice] * (1. - pos) + arr[i_m_slice] * pos, 0, axis))
 
     def output(self, state):
         if not os.path.isfile(self.get_output_file_name(state)):

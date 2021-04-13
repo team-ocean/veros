@@ -126,7 +126,14 @@ def cli(setup_file, *args, **kwargs):
     if not setup_file.endswith(".py"):
         raise click.Abort(f"The given setup file {setup_file} does not appear to be a Python file.")
 
-    return run(setup_file, *args, **kwargs)
+    import cProfile, pstats
+
+    with cProfile.Profile() as pr:
+        try:
+            return run(setup_file, *args, **kwargs)
+        finally:
+            pass
+            # pstats.Stats(pr).sort_stats("tottime").print_stats(.1)
 
 
 if __name__ == "__main__":

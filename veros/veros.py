@@ -45,6 +45,8 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         self._plugin_interfaces = tuple(load_plugin(p) for p in self.__veros_plugins__)
         self._setup_done = False
+        self._routine_stack = None
+        self._setup_routine_stack = None
 
         self.state = get_default_state(use_plugins=self.__veros_plugins__)
 
@@ -198,7 +200,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         self.state.initialize_variables()
 
         self.state.timers['setup'].active = True
-        with self.state.timers['setup']:
+        with self.state.timers['setup'], record_routine_stack() as recorded_stack:
             self.set_grid(self.state)
             numerics.calc_grid(self.state)
 
@@ -224,6 +226,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
             isoneutral.check_isoneutral_slope_crit(self.state)
 
         self._setup_done = True
+        self._setup_routine_stack = recorded_stack
 
     @veros_routine
     def step(self, state):
@@ -344,7 +347,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                     if first_iteration:
                         with record_routine_stack() as recorded_stack:
                             self.step(self.state)
-                            print(recorded_stack)
+                            self._routine_stack = recorded_stack
                     else:
                         self.step(self.state)
 

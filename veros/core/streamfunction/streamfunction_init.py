@@ -1,10 +1,7 @@
 from veros import logger
 from veros.core.operators import numpy as np
 
-from veros import (
-    veros_kernel, veros_routine, KernelOutput,
-    runtime_settings as rs, runtime_state as rst
-)
+from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.distributed import global_max
 from veros.core import utilities as mainutils
@@ -100,22 +97,28 @@ def boundary_masks(state):
     vs = state.variables
     settings = state.settings
 
+    boundary_mask = vs.boundary_mask
+    line_dir_east_mask = vs.line_dir_east_mask
+    line_dir_west_mask = vs.line_dir_west_mask
+    line_dir_south_mask = vs.line_dir_south_mask
+    line_dir_north_mask = vs.line_dir_north_mask
+
     # TODO: use fori_loop with JAX
     for isle in range(state.dimensions["isle"]):
         boundary_map = vs.land_map == (isle + 1)
 
         if settings.enable_cyclic_x:
-            line_dir_east_mask = update(vs.line_dir_east_mask, at[2:-2, 1:-1, isle], boundary_map[3:-1, 1:-1] & ~boundary_map[3:-1, 2:])
-            line_dir_west_mask = update(vs.line_dir_west_mask, at[2:-2, 1:-1, isle], boundary_map[2:-2, 2:] & ~boundary_map[2:-2, 1:-1])
-            line_dir_south_mask = update(vs.line_dir_south_mask, at[2:-2, 1:-1, isle], boundary_map[2:-2, 1:-1] & ~boundary_map[3:-1, 1:-1])
-            line_dir_north_mask = update(vs.line_dir_north_mask, at[2:-2, 1:-1, isle], boundary_map[3:-1, 2:] & ~boundary_map[2:-2, 2:])
+            line_dir_east_mask = update(line_dir_east_mask, at[2:-2, 1:-1, isle], boundary_map[3:-1, 1:-1] & ~boundary_map[3:-1, 2:])
+            line_dir_west_mask = update(line_dir_west_mask, at[2:-2, 1:-1, isle], boundary_map[2:-2, 2:] & ~boundary_map[2:-2, 1:-1])
+            line_dir_south_mask = update(line_dir_south_mask, at[2:-2, 1:-1, isle], boundary_map[2:-2, 1:-1] & ~boundary_map[3:-1, 1:-1])
+            line_dir_north_mask = update(line_dir_north_mask, at[2:-2, 1:-1, isle], boundary_map[3:-1, 2:] & ~boundary_map[2:-2, 2:])
         else:
-            line_dir_east_mask = update(vs.line_dir_east_mask, at[1:-1, 1:-1, isle], boundary_map[2:, 1:-1] & ~boundary_map[2:, 2:])
-            line_dir_west_mask = update(vs.line_dir_west_mask, at[1:-1, 1:-1, isle], boundary_map[1:-1, 2:] & ~boundary_map[1:-1, 1:-1])
-            line_dir_south_mask = update(vs.line_dir_south_mask, at[1:-1, 1:-1, isle], boundary_map[1:-1, 1:-1] & ~boundary_map[2:, 1:-1])
-            line_dir_north_mask = update(vs.line_dir_north_mask, at[1:-1, 1:-1, isle], boundary_map[2:, 2:] & ~boundary_map[1:-1, 2:])
+            line_dir_east_mask = update(line_dir_east_mask, at[1:-1, 1:-1, isle], boundary_map[2:, 1:-1] & ~boundary_map[2:, 2:])
+            line_dir_west_mask = update(line_dir_west_mask, at[1:-1, 1:-1, isle], boundary_map[1:-1, 2:] & ~boundary_map[1:-1, 1:-1])
+            line_dir_south_mask = update(line_dir_south_mask, at[1:-1, 1:-1, isle], boundary_map[1:-1, 1:-1] & ~boundary_map[2:, 1:-1])
+            line_dir_north_mask = update(line_dir_north_mask, at[1:-1, 1:-1, isle], boundary_map[2:, 2:] & ~boundary_map[1:-1, 2:])
 
-        boundary_mask = update(vs.boundary_mask, at[..., isle], (
+        boundary_mask = update(boundary_mask, at[..., isle], (
             line_dir_east_mask[..., isle]
             | line_dir_west_mask[..., isle]
             | line_dir_north_mask[..., isle]

@@ -1,6 +1,6 @@
 import os
 
-from veros.core.operators import numpy as np
+from veros.core.operators import numpy as np, update_multiply, at
 from veros.diagnostics.diagnostic import VerosDiagnostic
 from veros.variables import Variable
 from veros.distributed import global_sum
@@ -173,7 +173,7 @@ class Energy(VerosDiagnostic):
         # K*Nsqr and KE and dyn. enthalpy dissipation
         vol_w = vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzw[np.newaxis, np.newaxis, :] \
             * vs.maskW[2:-2, 2:-2, :]
-        vol_w[:, :, -1] *= 0.5
+        vol_w = update_multiply(vol_w, at[:, :, -1], 0.5)
 
         def mean_w(var):
             return global_sum(np.sum(var[2:-2, 2:-2, :] * vol_w))

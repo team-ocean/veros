@@ -1,13 +1,12 @@
-from veros import logger
-from veros.core.operators import numpy as np
 import numpy as onp
 import scipy.sparse
 import scipy.sparse.linalg as spalg
 
+from veros import logger
 from veros import distributed, veros_routine, runtime_state as rst
 from veros.variables import allocate
 from veros.core import utilities
-from veros.core.operators import update, at
+from veros.core.operators import update, at, numpy as np
 from veros.core.streamfunction.solvers.base import LinearSolver
 
 

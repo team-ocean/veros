@@ -76,7 +76,7 @@ def prepare_forcing(state):
     dpsi = vs.dpsi
     dpsi = update(dpsi, at[:, :, vs.taup1], 2 * dpsi[:, :, vs.tau] - dpsi[:, :, vs.taum1])
 
-    return KernelOutput(du=du, dv=dv, dpsi=dpsi), (forc, fpx, fpy)
+    return KernelOutput(du=du, dv=dv, dpsi=dpsi, p_hydro=p_hydro), (forc, fpx, fpy)
 
 
 @veros_kernel
@@ -91,6 +91,8 @@ def barotropic_velocity_update(state, fpx, fpy):
     dpsi = update(dpsi, at[:, :, vs.taup1], mainutils.enforce_boundaries(dpsi[:, :, vs.taup1], settings.enable_cyclic_x))
 
     line_forc = allocate(state.dimensions, ("isle",))
+
+    psi = vs.psi
     dpsin = vs.dpsin
 
     if state.dimensions["isle"] > 1:
@@ -117,7 +119,6 @@ def barotropic_velocity_update(state, fpx, fpy):
         dpsin = update(dpsin, at[1:, vs.tau], np.linalg.solve(vs.line_psin[1:, 1:], line_forc[1:]))
 
     # integrate barotropic and baroclinic velocity forward in time
-    psi = vs.psi
     psi = update(psi, at[:, :, vs.taup1], psi[:, :, vs.tau] + settings.dt_mom * ((1.5 + settings.AB_eps) * dpsi[:, :, vs.taup1]
                                                   - (0.5 + settings.AB_eps) * dpsi[:, :, vs.tau]))
     psi = update_add(psi, at[:, :, vs.taup1], settings.dt_mom * np.sum(((1.5 + settings.AB_eps) * dpsin[1:, vs.tau]

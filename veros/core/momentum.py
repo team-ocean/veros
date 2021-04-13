@@ -58,7 +58,7 @@ def tend_coriolisf(state):
     du = update(vs.du, at[2:-2, 2:-2, :, vs.tau], du_cor[2:-2, 2:-2])
     dv = update(vs.dv, at[2:-2, 2:-2, :, vs.tau], dv_cor[2:-2, 2:-2])
 
-    return KernelOutput(du=du, dv=dv)
+    return KernelOutput(du=du, dv=dv, du_cor=du_cor, dv_cor=dv_cor)
 
 
 @veros_kernel
@@ -144,14 +144,13 @@ def momentum_advection(state):
     du = update_add(vs.du, at[:, :, :, vs.tau], du_adv)
     dv = update_add(vs.dv, at[:, :, :, vs.tau], dv_adv)
 
-    return KernelOutput(du=du, dv=dv)
+    return KernelOutput(du=du, dv=dv, du_adv=du_adv, dv_adv=dv_adv)
 
 
 @veros_routine
 def vertical_velocity(state):
     vs = state.variables
-    w_out = vertical_velocity_kernel(state)
-    vs.update(w_out)
+    vs.update(vertical_velocity_kernel(state))
 
 
 @veros_kernel
@@ -196,20 +195,17 @@ def momentum(state):
     """
     time tendency due to Coriolis force
     """
-    coriolis_out = tend_coriolisf(state)
-    vs.update(coriolis_out)
+    vs.update(tend_coriolisf(state))
 
     """
     wind stress forcing
     """
-    dudv = tend_tauxyf(state)
-    vs.update(dudv)
+    vs.update(tend_tauxyf(state))
 
     """
     advection
     """
-    dudv = momentum_advection(state)
-    vs.update(dudv)
+    vs.update(momentum_advection(state))
 
     with state.timers['friction']:
         friction.friction(state)

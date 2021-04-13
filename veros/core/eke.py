@@ -59,16 +59,14 @@ def set_eke_diffusivities_kernel(state):
         """
         C_rossby = update(C_rossby, at[...], np.sum(np.sqrt(np.maximum(0., vs.Nsqr[:, :, :, vs.tau]))
                                * vs.dzw[np.newaxis, np.newaxis, :] * vs.maskW[:, :, :] / settings.pi, axis=2))
-        L_rossby = update(vs.L_rossby, at[...], np.minimum(C_rossby / np.maximum(np.abs(vs.coriolis_t), 1e-16),
-                                   np.sqrt(C_rossby / np.maximum(2 * vs.beta, 1e-16))))
+        L_rossby = np.minimum(C_rossby / np.maximum(np.abs(vs.coriolis_t), 1e-16), np.sqrt(C_rossby / np.maximum(2 * vs.beta, 1e-16)))
+
         """
         calculate vertical viscosity and skew diffusivity
         """
         sqrteke = np.sqrt(np.maximum(0., vs.eke[:, :, :, vs.tau]))
-        L_rhines = update(vs.L_rhines, at[...], np.sqrt(
-            sqrteke / np.maximum(vs.beta[..., np.newaxis], 1e-16)))
-        eke_len = update(vs.eke_len, at[...], np.maximum(settings.eke_lmin, np.minimum(
-            settings.eke_cross * L_rossby[..., np.newaxis], settings.eke_crhin * L_rhines)))
+        L_rhines = np.sqrt(sqrteke / np.maximum(vs.beta[..., np.newaxis], 1e-16))
+        eke_len = np.maximum(settings.eke_lmin, np.minimum(settings.eke_cross * L_rossby[..., np.newaxis], settings.eke_crhin * L_rhines))
         K_gm = np.minimum(settings.eke_k_max, settings.eke_c_k * eke_len * sqrteke)
     else:
         """
@@ -107,14 +105,17 @@ def integrate_eke_kernel(state):
     """
     forcing by dissipation by lateral friction and GM using TRM formalism or skew diffusion
     """
-    forc = vs.K_diss_h + vs.K_diss_gm - vs.P_diss_skew
+    forc = vs.K_diss_h - vs.P_diss_skew
+
+    if settings.enable_TEM_friction:
+        forc = forc + vs.K_diss_gm
 
     """
     store transfer due to isopycnal and horizontal mixing from dyn. enthalpy
     by non-linear eq.of state either to EKE or to heat
     """
     if not settings.enable_store_cabbeling_heat:
-        forc += -vs.P_diss_hmix - vs.P_diss_iso
+        forc = forc - vs.P_diss_hmix - vs.P_diss_iso
 
     eke = vs.eke
 

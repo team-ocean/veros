@@ -49,11 +49,11 @@ def advect_salinity(state):
     """
     vs = state.variables
     dtr = advect_tracer(state, vs.salt[..., vs.tau])
-    dsalt = update(vs.dtemp, at[..., vs.tau], dtr)
+    dsalt = update(vs.dsalt, at[..., vs.tau], dtr)
     return KernelOutput(dsalt=dsalt)
 
 
-@veros_kernel(static_args=("n"))
+@veros_kernel
 def calc_eq_of_state(state, n):
     """
     calculate density, stability frequency, dynamic enthalpy and derivatives

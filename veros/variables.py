@@ -228,10 +228,6 @@ VARIABLES = {
         'Coriolis frequency', T_HOR, '1/s',
         'Coriolis frequency at T grid point', time_dependent=False
     ),
-    'coriolis_h': Variable(
-        'Horizontal Coriolis frequency', T_HOR, '1/s',
-        'Horizontal Coriolis frequency at T grid point', time_dependent=False
-    ),
 
     'kbot': Variable(
         'Index of deepest cell', T_HOR, '',
@@ -379,16 +375,6 @@ VARIABLES = {
         output=True
     ),
 
-    'flux_east': Variable(
-        'Multi-purpose flux', U_GRID, '?', 'Multi-purpose flux'
-    ),
-    'flux_north': Variable(
-        'Multi-purpose flux', V_GRID, '?', 'Multi-purpose flux'
-    ),
-    'flux_top': Variable(
-        'Multi-purpose flux', W_GRID, '?', 'Multi-purpose flux'
-    ),
-
     'u': Variable(
         'Zonal velocity', U_GRID + TIMESTEPS, 'm/s', 'Zonal velocity',
         output=True, write_to_restart=True
@@ -523,7 +509,7 @@ VARIABLES = {
     ),
     'K_diss_gm': Variable(
         'Dissipation of mean energy', W_GRID, 'm^2/s^3',
-        'Mean energy dissipation by GM (TRM formalism only)'
+        'Mean energy dissipation by GM (TRM formalism only)',
     ),
     'P_diss_v': Variable(
         'Dissipation of potential Energy', W_GRID, 'm^2/s^3',
@@ -549,13 +535,9 @@ VARIABLES = {
         'Dissipation of potential Energy', W_GRID, 'm^2/s^3',
         'Potential energy dissipation by advection'
     ),
-    'P_diss_comp': Variable(
-        'Dissipation of potential Energy', W_GRID, 'm^2/s^3',
-        'Potential energy dissipation by compression'
-    ),
     'P_diss_sources': Variable(
         'Dissipation of potential Energy', W_GRID, 'm^2/s^3',
-        'Potential energy dissipation by external sources (e.g. restoring zones)'
+        'Potential energy dissipation by external sources (e.g. restoring zones)',
     ),
 
     'u_wgrid': Variable(
@@ -621,23 +603,7 @@ VARIABLES = {
         'Isopycnal mixing coefficient', T_GRID, '?', 'Isopycnal mixing tensor component',
         active=lambda settings: settings.enable_neutral_diffusion,
     ),
-    'K_13': Variable(
-        'Isopycnal mixing coefficient', T_GRID, '?', 'Isopycnal mixing tensor component',
-        active=lambda settings: settings.enable_neutral_diffusion,
-    ),
     'K_22': Variable(
-        'Isopycnal mixing coefficient', T_GRID, '?', 'Isopycnal mixing tensor component',
-        active=lambda settings: settings.enable_neutral_diffusion,
-    ),
-    'K_23': Variable(
-        'Isopycnal mixing coefficient', T_GRID, '?', 'Isopycnal mixing tensor component',
-        active=lambda settings: settings.enable_neutral_diffusion,
-    ),
-    'K_31': Variable(
-        'Isopycnal mixing coefficient', T_GRID, '?', 'Isopycnal mixing tensor component',
-        active=lambda settings: settings.enable_neutral_diffusion,
-    ),
-    'K_32': Variable(
         'Isopycnal mixing coefficient', T_GRID, '?', 'Isopycnal mixing tensor component',
         active=lambda settings: settings.enable_neutral_diffusion,
     ),
@@ -759,11 +725,11 @@ VARIABLES = {
         'Dissipation of EKE to TKE',
         active=lambda settings: settings.enable_eke,
     ),
+
     'eke_bot_flux': Variable(
         'Flux by bottom friction', T_HOR, 'm^3/s^3', 'Flux by bottom friction',
-        active=lambda settings: settings.enable_eke,
+        active=lambda settings: settings.enable_eke_leewave_dissipation,
     ),
-
     'eke_topo_hrms': Variable(
         '?', T_HOR, '?', '?',
         active=lambda settings: settings.enable_eke_leewave_dissipation,

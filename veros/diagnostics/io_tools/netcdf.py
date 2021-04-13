@@ -125,7 +125,8 @@ def threaded_io(state, filepath, mode):
         _wait_for_disk(state, filepath)
         _io_locks[filepath].clear()
 
-    kwargs = {}
+    kwargs = dict(decode_vlen_strings=True)
+
     if runtime_state.proc_num > 1:
         kwargs.update(
             driver='mpio',
@@ -133,8 +134,10 @@ def threaded_io(state, filepath, mode):
         )
 
     nc_dataset = h5netcdf.File(filepath, mode, **kwargs)
+
     try:
         yield nc_dataset
+
     finally:
         if rs.use_io_threads:
             threading.Thread(target=_write_to_disk, args=(state, nc_dataset, filepath)).start()

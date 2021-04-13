@@ -1,7 +1,7 @@
 import functools
 import inspect
 import threading
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
 
 from veros import logger
 
@@ -77,8 +77,11 @@ def enter_routine(name, routine_obj, timer=None, dist_safe=True):
             CURRENT_CONTEXT.is_dist_safe = False
             reset_dist_safe = True
 
+    timer_ctx = nullcontext() if timer is None else timer
+
     try:
-        yield
+        with timer_ctx:
+            yield
 
     except:  # noqa: E722
         if reset_dist_safe:
@@ -92,12 +95,11 @@ def enter_routine(name, routine_obj, timer=None, dist_safe=True):
         r = stack.pop()
         assert r is routine_obj
 
-        if timer is None:
-            exec_time = '?'
-        else:
-            exec_time = f'{timer.get_last_time():.3f}'
+        exec_time = ''
+        if timer is not None:
+            exec_time = f'({timer.get_last_time():.3f}s)'
 
-        logger.trace('<{} {} ({}s)', '-' * stack.stack_level, name, exec_time)
+        logger.trace('<{} {} {}', '-' * stack.stack_level, name, exec_time)
 
 
 # helper functions
@@ -339,7 +341,7 @@ class VerosKernel:
                 # no state object -> no traceable inputs
                 inputs = dict(var=set(), settings=set())
 
-            with enter_routine(self.name, self.function, timer):
+            with enter_routine(self.name, self, timer):
                 out = self.function(*bound_args.arguments.values())
 
                 if runtime_settings.profile_mode:

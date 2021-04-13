@@ -1,7 +1,7 @@
 from veros.core.operators import numpy as np
 
 from veros import veros_kernel
-from veros.core.operators import update, at
+from veros.core.operators import update, at, solve_tridiagonal
 
 
 def enforce_boundaries(arr, enable_cyclic_x, local=False):
@@ -32,7 +32,7 @@ def pad_z_edges(array):
     return newarray
 
 
-@veros_kernel
+@veros_kernel(static_args=("nz"))
 def create_water_masks(ks, nz):
     ks = ks - 1
     land_mask = ks >= 0
@@ -49,8 +49,6 @@ def create_water_masks(ks, nz):
 
 @veros_kernel
 def solve_implicit(a, b, c, d, water_mask, edge_mask, b_edge=None, d_edge=None):
-    from .operators import solve_tridiagonal  # avoid circular import
-
     if b_edge is not None:
         b = np.where(edge_mask, b_edge, b)
 

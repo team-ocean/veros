@@ -110,8 +110,8 @@ def calc_grid(state):
     """
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
     """
-    calc_grid_out = calc_grid_kernel(state)
-    state.variables.update(calc_grid_out)
+    vs = state.variables
+    vs.update(calc_grid_kernel(state))
 
 
 @veros_routine
@@ -191,8 +191,8 @@ def calc_topo(state):
     """
     calulate masks, total depth etc
     """
-    calc_topo_out = calc_topo_kernel(state)
-    state.variables.update(calc_topo_out)
+    vs = state.variables
+    vs.update(calc_topo_kernel(state))
 
 
 @veros_kernel
@@ -233,8 +233,7 @@ def calc_initial_conditions(state):
     if np.any(vs.salt < 0.0):
         raise RuntimeError('encountered negative salinity')
 
-    initial_conditions_out = calc_initial_conditions_kernel(state)
-    vs.update(initial_conditions_out)
+    vs.update(calc_initial_conditions_kernel(state))
 
 
 @veros_kernel

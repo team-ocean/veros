@@ -71,6 +71,9 @@ def implicit_vert_friction(state):
     vs = state.variables
     settings = state.settings
 
+    u = vs.u
+    v = vs.v
+
     diss = allocate(state.dimensions, ("xt", "yu", "zt"))
     a_tri = allocate(state.dimensions, ("xt", "yu", "zt"))[1:-2, 1:-2]
     b_tri = allocate(state.dimensions, ("xt", "yu", "zt"))[1:-2, 1:-2]
@@ -92,11 +95,11 @@ def implicit_vert_friction(state):
     b_tri = update_add(b_tri, at[:, :, 1:-1], delta[:, :, 1:-1] / vs.dzt[np.newaxis, np.newaxis, 1:-1])
     b_tri_edge = 1 + delta / vs.dzt[np.newaxis, np.newaxis, :]
     c_tri = update(c_tri, at[...], -delta / vs.dzt[np.newaxis, np.newaxis, :])
-    d_tri = update(d_tri, at[...], vs.u[1:-2, 1:-2, :, vs.tau])
+    d_tri = update(d_tri, at[...], u[1:-2, 1:-2, :, vs.tau])
 
     res = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
-    u = update(vs.u, at[1:-2, 1:-2, :, vs.taup1], np.where(water_mask, res, vs.u[1:-2, 1:-2, :, vs.taup1]))
-    du_mix = update(vs.du_mix, at[1:-2, 1:-2], (vs.u[1:-2, 1:-2, :, vs.taup1] - vs.u[1:-2, 1:-2, :, vs.tau]) / settings.dt_mom)
+    u = update(u, at[1:-2, 1:-2, :, vs.taup1], np.where(water_mask, res, u[1:-2, 1:-2, :, vs.taup1]))
+    du_mix = update(vs.du_mix, at[1:-2, 1:-2], (u[1:-2, 1:-2, :, vs.taup1] - u[1:-2, 1:-2, :, vs.tau]) / settings.dt_mom)
 
     """
     diagnose dissipation by vertical friction of zonal momentum
@@ -125,10 +128,10 @@ def implicit_vert_friction(state):
     b_tri_edge = 1 + delta / vs.dzt[np.newaxis, np.newaxis, :]
     c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, :-1])
     c_tri = update(c_tri, at[:, :, -1], 0.)
-    d_tri = update(d_tri, at[...], vs.v[1:-2, 1:-2, :, vs.tau])
+    d_tri = update(d_tri, at[...], v[1:-2, 1:-2, :, vs.tau])
 
     res = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
-    v = update(vs.v, at[1:-2, 1:-2, :, vs.taup1], np.where(water_mask, res, vs.v[1:-2, 1:-2, :, vs.taup1]))
+    v = update(v, at[1:-2, 1:-2, :, vs.taup1], np.where(water_mask, res, v[1:-2, 1:-2, :, vs.taup1]))
     dv_mix = update(vs.dv_mix, at[1:-2, 1:-2], (v[1:-2, 1:-2, :, vs.taup1] - v[1:-2, 1:-2, :, vs.tau]) / settings.dt_mom)
 
     """
@@ -159,8 +162,8 @@ def rayleigh_friction(state):
     if settings.enable_conserve_energy:
         diss = vs.maskU * settings.r_ray * vs.u[..., vs.tau]**2
         K_diss_bot = update_add(vs.K_diss_bot, at[...], numerics.calc_diss_u(state, diss))
-    dv_mix = update_add(vs.dv_mix, at[...], -1 * vs.maskV * settings.r_ray * vs.v[..., vs.tau])
 
+    dv_mix = update_add(vs.dv_mix, at[...], -1 * vs.maskV * settings.r_ray * vs.v[..., vs.tau])
     if settings.enable_conserve_energy:
         diss = vs.maskV * settings.r_ray * vs.v[..., vs.tau]**2
         K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_v(state, diss))
@@ -251,6 +254,7 @@ def quadratic_bottom_friction(state):
     if settings.enable_conserve_energy:
         diss = allocate(state.dimensions, ("xt", "yu", "zt"))
         diss = update(diss, at[1:-2, 2:-2, :], aloc * vs.u[1:-2, 2:-2, :, vs.tau])
+        K_diss_bot = vs.K_diss_bot
         K_diss_bot = update_add(K_diss_bot, at[...], numerics.calc_diss_u(state, diss))
 
     k = np.maximum(vs.kbot[2:-2, 1:-2], vs.kbot[2:-2, 2:-1]) - 1

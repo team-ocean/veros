@@ -114,6 +114,8 @@ def integrate_tke_kernel(state):
 
     conditional_outputs = {}
 
+    tke = vs.tke
+
     flux_east = allocate(state.dimensions, ("xt", "yt", "zt"))
     flux_north = allocate(state.dimensions, ("xt", "yt", "zt"))
     flux_top = allocate(state.dimensions, ("xt", "yt", "zt"))
@@ -155,9 +157,12 @@ def integrate_tke_kernel(state):
 
         else:  # and without EKE model
             if settings.enable_store_cabbeling_heat:
-                forc = forc + vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew - vs.P_diss_hmix - vs.P_diss_iso
+                forc = forc + vs.K_diss_h - vs.P_diss_skew - vs.P_diss_hmix - vs.P_diss_iso
             else:
-                forc = forc + vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew
+                forc = forc + vs.K_diss_h - vs.P_diss_skew
+
+            if settings.enable_TEM_friction:
+                forc = forc + vs.K_diss_gm
 
         forc = forc + vs.K_diss_bot
 
@@ -184,33 +189,32 @@ def integrate_tke_kernel(state):
 
     c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1])
 
-    d_tri = update(d_tri, at[...], vs.tke[2:-2, 2:-2, :, vs.tau] + dt_tke * forc[2:-2, 2:-2, :])
+    d_tri = update(d_tri, at[...], tke[2:-2, 2:-2, :, vs.tau] + dt_tke * forc[2:-2, 2:-2, :])
     d_tri = update_add(d_tri, at[:, :, -1], dt_tke * vs.forc_tke_surface[2:-2, 2:-2] / (0.5 * vs.dzw[-1]))
 
     sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
-    tke = vs.tke
-    tke = update(tke, at[2:-2, 2:-2, :, vs.taup1], np.where(water_mask, sol, vs.tke[2:-2, 2:-2, :, vs.taup1]))
+    tke = update(tke, at[2:-2, 2:-2, :, vs.taup1], np.where(water_mask, sol, tke[2:-2, 2:-2, :, vs.taup1]))
 
     """
     store tke dissipation for diagnostics
     """
-    tke_diss = settings.c_eps / vs.mxl * vs.sqrttke * vs.tke[:, :, :, vs.taup1]
+    tke_diss = settings.c_eps / vs.mxl * vs.sqrttke * tke[:, :, :, vs.taup1]
 
     """
     Add TKE if surface density flux drains TKE in uppermost box
     """
-    mask = vs.tke[2:-2, 2:-2, -1, vs.taup1] < 0.0
+    mask = tke[2:-2, 2:-2, -1, vs.taup1] < 0.0
     tke_surf_corr = np.zeros_like(vs.tke_surf_corr)
     tke_surf_corr = update(tke_surf_corr, at[2:-2, 2:-2], np.where(mask,
                                                 -tke[2:-2, 2:-2, -1, vs.taup1] * 0.5
                                                 * vs.dzw[-1] / dt_tke, 0.))
-    tke = update(tke, at[2:-2, 2:-2, -1, vs.taup1], np.maximum(0., vs.tke[2:-2, 2:-2, -1, vs.taup1]))
+    tke = update(tke, at[2:-2, 2:-2, -1, vs.taup1], np.maximum(0., tke[2:-2, 2:-2, -1, vs.taup1]))
 
     if settings.enable_tke_hor_diffusion:
         """
         add tendency due to lateral diffusion
         """
-        flux_east = update(flux_east, at[:-1, :, :], settings.K_h_tke * (tke[1:, :, :, vs.tau] - vs.tke[:-1, :, :, vs.tau]) \
+        flux_east = update(flux_east, at[:-1, :, :], settings.K_h_tke * (tke[1:, :, :, vs.tau] - tke[:-1, :, :, vs.tau]) \
             / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) * vs.maskU[:-1, :, :])
 
         if settings.pyom_compatibility_mode:
@@ -218,7 +222,7 @@ def integrate_tke_kernel(state):
         else:
             flux_east = update(flux_east, at[-1, :, :], 0.)
 
-        flux_north = update(flux_north, at[:, :-1, :], settings.K_h_tke * (tke[:, 1:, :, vs.tau] - vs.tke[:, :-1, :, vs.tau]) \
+        flux_north = update(flux_north, at[:, :-1, :], settings.K_h_tke * (tke[:, 1:, :, vs.tau] - tke[:, :-1, :, vs.tau]) \
             / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] * vs.cosu[np.newaxis, :-1, np.newaxis])
         flux_north = update(flux_north, at[:, -1, :], 0.)
 
@@ -232,10 +236,10 @@ def integrate_tke_kernel(state):
     add tendency due to advection
     """
     if settings.enable_tke_superbee_advection:
-        flux_east, flux_north, flux_top = advection.adv_flux_superbee_wgrid(state, vs.tke[:, :, :, vs.tau])
+        flux_east, flux_north, flux_top = advection.adv_flux_superbee_wgrid(state, tke[:, :, :, vs.tau])
 
     if settings.enable_tke_upwind_advection:
-        flux_east, flux_north, flux_top = advection.adv_flux_upwind_wgrid(state, vs.tke[:, :, :, vs.tau])
+        flux_east, flux_north, flux_top = advection.adv_flux_upwind_wgrid(state, tke[:, :, :, vs.tau])
 
     if settings.enable_tke_superbee_advection or settings.enable_tke_upwind_advection:
         dtke = vs.dtke
