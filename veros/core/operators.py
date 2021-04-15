@@ -97,19 +97,18 @@ def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask):
     import jax.lax
     import jax.numpy as jnp
 
-    try:
-        from veros.core.special.tdma_ import tdma
-    except ImportError:
-        has_tdma_special = False
-    else:
-        has_tdma_special = runtime_settings.device == 'cpu'
+    from veros.core.special.tdma_ import tdma, HAS_CPU_EXT, HAS_GPU_EXT
 
-    if has_tdma_special:
+    has_ext = (
+        (HAS_CPU_EXT and runtime_settings.device == 'cpu')
+        or (HAS_GPU_EXT and runtime_settings.device == 'gpu')
+    )
+
+    if has_ext:
         system_depths = jnp.sum(water_mask, axis=2).astype('int64')
         return tdma(a, b, c, d, system_depths)
 
     warnings.warn('Could not use custom TDMA implementation, falling back to pure JAX')
-    # TODO: fix / test
 
     a = water_mask * a * jnp.logical_not(edge_mask)
     b = jnp.where(water_mask, b, 1.)

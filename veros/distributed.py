@@ -322,11 +322,12 @@ def exchange_overlap(arr, var_grid, cyclic):
 
 
 def _memoize(function):
-    from mpi4py import MPI
     cached = {}
 
     @functools.wraps(function)
     def memoized(*args):
+        from mpi4py import MPI
+
         # MPI Comms are not hashable, so we use the underlying handle instead
         cache_args = tuple(
             MPI._handleof(arg) if isinstance(arg, MPI.Comm)

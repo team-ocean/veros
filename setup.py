@@ -7,6 +7,7 @@ from setuptools.extension import Extension
 from codecs import open
 import os
 import re
+import sys
 
 try:
     from Cython.Build import cythonize
@@ -15,7 +16,10 @@ except ImportError:
 else:
     HAS_CYTHON = True
 
-import versioneer
+here = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(here)
+import versioneer  # noqa: E402
+import cuda_ext  # noqa: E402
 
 
 CLASSIFIERS = """
@@ -60,8 +64,6 @@ CONSOLE_SCRIPTS = [
 
 PACKAGE_DATA = ['setup/*/assets.yml', 'setup/*/*.npy', 'setup/*/*.png']
 
-here = os.path.abspath(os.path.dirname(__file__))
-
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
@@ -75,23 +77,51 @@ with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
         line = line.replace('==', '<=')
         INSTALL_REQUIRES.append(line)
 
-EXT_MODULES = []
-if HAS_CYTHON:
+
+def get_extensions():
+    if not HAS_CYTHON:
+        return []
+
+    ext_ext = ('pyx', 'cu')
+    extensions = []
+    cuda_extensions = []
+
+    cuda_paths = cuda_ext.cuda_paths
+
     for f in os.listdir(os.path.join(here, 'veros', 'core', 'special')):
-        if not f.endswith('.pyx'):
+        modname, file_ext = os.path.splitext(f)
+        if file_ext not in ext_ext:
             continue
 
-        modname = f[:-4]
-        EXT_MODULES.append(
-            Extension(
-                name='veros.core.special.{}'.format(modname),
-                sources=['veros/core/special/{}.pyx'.format(modname)],
-                language='c',
-                optional=True,
-                extra_compile_args=['-O3'],
-            )
+        ext = Extension(
+            name='veros.core.special.{}'.format(modname),
+            sources=['veros/core/special/{}.{}'.format(modname, file_ext)],
+            language='c',
+            optional=True,
+            ibrary_dirs=[cuda_paths['lib64']],
+            libraries=['cudart'],
+            runtime_library_dirs=[cuda_paths['lib64']],
+            # This syntax is specific to this build system
+            # we're only going to use certain compiler args with nvcc
+            # and not with gcc the implementation of this trick is in
+            # customize_compiler()
+            extra_compile_args={
+                'gcc': [],
+                'nvcc': [
+                    '-gencode=arch=compute_75,code=compute_75', '--ptxas-options=-v', '-c',
+                    '--compiler-options', "'-fPIC'"
+                ]
+            },
+            include_dirs=[cuda_paths['include']]
         )
-    EXT_MODULES = cythonize(EXT_MODULES, exclude_failures=True)
+
+        extensions.append(ext)
+
+    return cythonize(extensions, exclude_failures=True)
+
+
+cmdclass = versioneer.get_cmdclass()
+cmdclass.update(build_ext=cuda_ext.custom_build_ext)
 
 setup(
     name='veros',
@@ -99,18 +129,18 @@ setup(
     author='Dion Häfner (NBI Copenhagen)',
     author_email='dion.haefner@nbi.ku.dk',
     keywords='oceanography python parallel numpy multi-core '
-             'geophysics ocean-model mpi4py',
-    description='The versatile ocean simulator, in pure Python, powered by Bohrium.',
+             'geophysics ocean-model mpi4py jax',
+    description='The versatile ocean simulator, in pure Python, powered by JAX.',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://veros.readthedocs.io',
     python_requires='>=3.6',
     version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    cmdclass=cmdclass,
     packages=find_packages(),
     install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS_REQUIRE,
-    ext_modules=EXT_MODULES,
+    ext_modules=get_extensions(),
     entry_points={
         'console_scripts': CONSOLE_SCRIPTS,
         'veros.setup_dirs': [

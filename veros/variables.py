@@ -600,31 +600,35 @@ VARIABLES = {
     ),
 
     'K_11': Variable(
-        'Isopycnal mixing coefficient', T_GRID, '?', 'Isopycnal mixing tensor component',
+        'Isopycnal mixing coefficient', T_GRID, 'm^2/s', 'Isopycnal mixing tensor component',
         active=lambda settings: settings.enable_neutral_diffusion,
     ),
     'K_22': Variable(
-        'Isopycnal mixing coefficient', T_GRID, '?', 'Isopycnal mixing tensor component',
+        'Isopycnal mixing coefficient', T_GRID, 'm^2/s', 'Isopycnal mixing tensor component',
         active=lambda settings: settings.enable_neutral_diffusion,
     ),
     'K_33': Variable(
-        'Isopycnal mixing coefficient', T_GRID, '?', 'Isopycnal mixing tensor component',
+        'Isopycnal mixing coefficient', T_GRID, 'm^2/s', 'Isopycnal mixing tensor component',
         active=lambda settings: settings.enable_neutral_diffusion,
     ),
     'Ai_ez': Variable(
-        '?', T_GRID + TENSOR_COMP, '?', '?',
+        'Isopycnal diffusion coefficient', T_GRID + TENSOR_COMP,
+        'Vertical isopycnal diffusion coefficient on eastern face of T cell', '1',
         active=lambda settings: settings.enable_neutral_diffusion,
     ),
     'Ai_nz': Variable(
-        '?', T_GRID + TENSOR_COMP, '?', '?',
+        'Isopycnal diffusion coefficient', T_GRID + TENSOR_COMP,
+        'Vertical isopycnal diffusion coefficient on northern face of T cell', '1',
         active=lambda settings: settings.enable_neutral_diffusion,
     ),
     'Ai_bx': Variable(
-        '?', T_GRID + TENSOR_COMP, '?', '?',
+        'Isopycnal diffusion coefficient', T_GRID + TENSOR_COMP,
+        'Zonal isopycnal diffusion coefficient on bottom face of T cell', '1',
         active=lambda settings: settings.enable_neutral_diffusion,
     ),
     'Ai_by': Variable(
-        '?', T_GRID + TENSOR_COMP, '?', '?',
+        'Isopycnal diffusion coefficient', T_GRID + TENSOR_COMP,
+        'Meridional isopycnal diffusion coefficient on bottom face of T cell', '1',
         active=lambda settings: settings.enable_neutral_diffusion,
     ),
 
