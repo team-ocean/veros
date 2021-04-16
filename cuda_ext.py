@@ -53,15 +53,21 @@ def locate_cuda():
         }
 
     cm = os.environ.get("CUDA_COMPUTE_CAPABILITY")
-    if cm is None:
-        print("Warning: CUDA_COMPUTE_CAPABILITY environment variable is not set. Using default value (35).")
-        cm = "35"
 
     cflags = [
-        '-gencode=arch=compute_{cm},code=compute_{cm}'.format(cm=cm),
         '--ptxas-options=-v', '-c',
         '--compiler-options', "'-fPIC'"
     ]
+
+    if cm is not None:
+        cflags.append(
+            '-gencode=arch=compute_{cm},code=compute_{cm}'.format(cm=cm)
+        )
+    else:
+        print(
+            "Warning: Consider settings the CUDA_COMPUTE_CAPABILITY environment "
+            "variable to your GPU's compute capability."
+        )
 
     return {
         'cuda_root': cuda_root,
