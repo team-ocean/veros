@@ -21,35 +21,31 @@ def find_in_path(name, path):
 def locate_cuda():
     """Locate the CUDA environment on the system
 
-    Returns a dict with keys 'home', 'nvcc', 'include', and 'lib64'
+    Returns a dict with keys 'cuda_root', 'nvcc', 'include', and 'lib64'
     and values giving the absolute path to each directory.
 
-    Starts by looking for the CUDAHOME env variable. If not found,
-    everything is based on finding 'nvcc' in the PATH.
+    Starts by looking for the CUDAHOME and CUDA_ROOT env variables.
+    If not found, everything is based on finding 'nvcc' in the PATH.
     """
 
-    # First check if the CUDAHOME env variable is in use
+    # First check if any common env variable is in use
     if 'CUDAHOME' in os.environ:
-        home = os.environ['CUDAHOME']
-        nvcc = os.path.join(home, 'bin', 'nvcc')
+        cuda_root = os.environ['CUDAHOME']
+        nvcc = os.path.join(cuda_root, 'bin', 'nvcc')
+    elif 'CUDA_ROOT' in os.environ:
+        cuda_root = os.environ['CUDA_ROOT']
+        nvcc = os.path.join(cuda_root, 'bin', 'nvcc')
     else:
         # Otherwise, search the PATH for NVCC
         nvcc = find_in_path('nvcc', os.environ['PATH'])
-        if nvcc is None:
-            raise EnvironmentError('The nvcc binary could not be '
-                                   'located in your $PATH. Either add it to your path, '
-                                   'or set $CUDAHOME')
-        home = os.path.dirname(os.path.dirname(nvcc))
+        cuda_root = os.path.dirname(os.path.dirname(nvcc))
 
-    cudaconfig = {'home': home, 'nvcc': nvcc,
-                  'include': os.path.join(home, 'include'),
-                  'lib64': os.path.join(home, 'lib64')}
-    for k, v in iter(cudaconfig.items()):
-        if not os.path.exists(v):
-            raise EnvironmentError('The CUDA %s path could not be '
-                                   'located in %s' % (k, v))
-
-    return cudaconfig
+    return {
+        'cuda_root': cuda_root,
+        'nvcc': nvcc,
+        'include': os.path.join(cuda_root, 'include'),
+        'lib64': os.path.join(cuda_root, 'lib64')
+    }
 
 
 def customize_compiler_for_nvcc(self):
@@ -64,6 +60,7 @@ def customize_compiler_for_nvcc(self):
     # object but distutils doesn't have the ability to change compilers
     # based on source extension: we add it.
     def _compile(obj, src, ext, cc_args, extra_postargs, pp_opts):
+        print("-----", src)
         if os.path.splitext(src)[1] == '.cu':
             # use the cuda for .cu files
             self.set_executable('compiler_so', cuda_paths['nvcc'])

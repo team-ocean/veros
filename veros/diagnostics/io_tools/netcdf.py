@@ -119,13 +119,17 @@ def threaded_io(state, filepath, mode):
     """
     If using IO threads, start a new thread to write the netCDF data to disk.
     """
+    import h5py
     import h5netcdf
 
     if rs.use_io_threads:
         _wait_for_disk(state, filepath)
         _io_locks[filepath].clear()
 
-    kwargs = dict(decode_vlen_strings=True)
+    kwargs = dict()
+
+    if int(h5py.__version__.split(".")[0]) >= 3:
+        kwargs.update(decode_vlen_strings=True)
 
     if runtime_state.proc_num > 1:
         kwargs.update(

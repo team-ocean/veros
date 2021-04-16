@@ -82,42 +82,46 @@ def get_extensions():
     if not HAS_CYTHON:
         return []
 
-    ext_ext = ('pyx', 'cu')
-    extensions = []
-    cuda_extensions = []
-
     cuda_paths = cuda_ext.cuda_paths
 
-    for f in os.listdir(os.path.join(here, 'veros', 'core', 'special')):
-        modname, file_ext = os.path.splitext(f)
-        if file_ext not in ext_ext:
-            continue
+    extension_modules = {
+        "veros.core.special.tdma_cython_": ["tdma_cython_.pyx"],
+        "veros.core.special.tdma_cuda_": ["tdma_cuda_.pyx", "cuda_tdma_kernels.cu"],
+    }
+
+    extensions = []
+    for module, sources in extension_modules.items():
+        extension_dir = os.path.join(here, *module.split(".")[:-1])
+
+        kwargs = dict()
+        if any(source.endswith(".cu") for source in sources):
+            # skip GPU extension if CUDA is not available
+            if cuda_paths['cuda_root'] is None:
+                continue
+
+            kwargs.update(
+                library_dirs=[cuda_paths['lib64']],
+                libraries=['cudart'],
+                runtime_library_dirs=[cuda_paths['lib64']],
+                include_dirs=[cuda_paths['include']],
+            )
 
         ext = Extension(
-            name='veros.core.special.{}'.format(modname),
-            sources=['veros/core/special/{}.{}'.format(modname, file_ext)],
-            language='c',
-            optional=True,
-            ibrary_dirs=[cuda_paths['lib64']],
-            libraries=['cudart'],
-            runtime_library_dirs=[cuda_paths['lib64']],
-            # This syntax is specific to this build system
-            # we're only going to use certain compiler args with nvcc
-            # and not with gcc the implementation of this trick is in
-            # customize_compiler()
+            name=module,
+            sources=[os.path.join(extension_dir, f) for f in sources],
             extra_compile_args={
                 'gcc': [],
                 'nvcc': [
-                    '-gencode=arch=compute_75,code=compute_75', '--ptxas-options=-v', '-c',
+                    '-gencode=arch=compute_60,code=compute_60', '--ptxas-options=-v', '-c',
                     '--compiler-options', "'-fPIC'"
                 ]
             },
-            include_dirs=[cuda_paths['include']]
+            **kwargs
         )
 
         extensions.append(ext)
 
-    return cythonize(extensions, exclude_failures=True)
+    return cythonize(extensions, language_level=3)
 
 
 cmdclass = versioneer.get_cmdclass()

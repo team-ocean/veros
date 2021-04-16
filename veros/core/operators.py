@@ -105,8 +105,7 @@ def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask):
     )
 
     if has_ext:
-        system_depths = jnp.sum(water_mask, axis=2).astype('int64')
-        return tdma(a, b, c, d, system_depths)
+        return tdma(a, b, c, d, water_mask, edge_mask)
 
     warnings.warn('Could not use custom TDMA implementation, falling back to pure JAX')
 
