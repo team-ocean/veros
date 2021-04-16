@@ -82,7 +82,7 @@ def get_extensions():
     if not HAS_CYTHON:
         return []
 
-    cuda_paths = cuda_ext.cuda_paths
+    cuda_info = cuda_ext.cuda_info
 
     extension_modules = {
         "veros.core.special.tdma_cython_": ["tdma_cython_.pyx"],
@@ -96,14 +96,14 @@ def get_extensions():
         kwargs = dict()
         if any(source.endswith(".cu") for source in sources):
             # skip GPU extension if CUDA is not available
-            if cuda_paths['cuda_root'] is None:
+            if cuda_info['cuda_root'] is None:
                 continue
 
             kwargs.update(
-                library_dirs=[cuda_paths['lib64']],
+                library_dirs=cuda_info['lib64'],
                 libraries=['cudart'],
-                runtime_library_dirs=[cuda_paths['lib64']],
-                include_dirs=[cuda_paths['include']],
+                runtime_library_dirs=cuda_info['lib64'],
+                include_dirs=cuda_info['include'],
             )
 
         ext = Extension(
@@ -111,10 +111,7 @@ def get_extensions():
             sources=[os.path.join(extension_dir, f) for f in sources],
             extra_compile_args={
                 'gcc': [],
-                'nvcc': [
-                    '-gencode=arch=compute_60,code=compute_60', '--ptxas-options=-v', '-c',
-                    '--compiler-options', "'-fPIC'"
-                ]
+                'nvcc': cuda_info["cflags"],
             },
             **kwargs
         )

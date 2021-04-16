@@ -38,13 +38,37 @@ def locate_cuda():
     else:
         # Otherwise, search the PATH for NVCC
         nvcc = find_in_path('nvcc', os.environ['PATH'])
-        cuda_root = os.path.dirname(os.path.dirname(nvcc))
+        if nvcc is not None:
+            cuda_root = os.path.dirname(os.path.dirname(nvcc))
+        else:
+            cuda_root = None
+
+    if cuda_root is None:
+        return {
+            'cuda_root': None,
+            'nvcc': None,
+            'include': [],
+            'lib64': [],
+            'cflags': [],
+        }
+
+    cm = os.environ.get("CUDA_COMPUTE_CAPABILITY")
+    if cm is None:
+        print("Warning: CUDA_COMPUTE_CAPABILITY environment variable is not set. Using default value (35).")
+        cm = "35"
+
+    cflags = [
+        '-gencode=arch=compute_{cm},code=compute_{cm}'.format(cm=cm),
+        '--ptxas-options=-v', '-c',
+        '--compiler-options', "'-fPIC'"
+    ]
 
     return {
         'cuda_root': cuda_root,
         'nvcc': nvcc,
-        'include': os.path.join(cuda_root, 'include'),
-        'lib64': os.path.join(cuda_root, 'lib64')
+        'include': [os.path.join(cuda_root, 'include')],
+        'lib64': [os.path.join(cuda_root, 'lib64')],
+        'cflags': cflags,
     }
 
 
@@ -60,10 +84,9 @@ def customize_compiler_for_nvcc(self):
     # object but distutils doesn't have the ability to change compilers
     # based on source extension: we add it.
     def _compile(obj, src, ext, cc_args, extra_postargs, pp_opts):
-        print("-----", src)
         if os.path.splitext(src)[1] == '.cu':
             # use the cuda for .cu files
-            self.set_executable('compiler_so', cuda_paths['nvcc'])
+            self.set_executable('compiler_so', cuda_info['nvcc'])
             # use only a subset of the extra_postargs, which are 1-1
             # translated from the extra_compile_args in the Extension class
             postargs = extra_postargs['nvcc']
@@ -85,4 +108,4 @@ class custom_build_ext(build_ext):
         build_ext.build_extensions(self)
 
 
-cuda_paths = locate_cuda()
+cuda_info = locate_cuda()
