@@ -1,6 +1,7 @@
 import os
 import copy
 
+from veros import veros_routine
 from veros.diagnostics.diagnostic import VerosDiagnostic
 from veros.variables import TIMESTEPS, allocate
 
@@ -40,6 +41,7 @@ class Averages(VerosDiagnostic):
     def _has_timestep_dim(state, var):
         return state.var_meta[var].dims[-1] == TIMESTEPS[0]
 
+    @veros_routine
     def diagnose(self, state):
         vs = state.variables
 

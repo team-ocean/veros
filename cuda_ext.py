@@ -52,13 +52,12 @@ def locate_cuda():
             'cflags': [],
         }
 
-    cm = os.environ.get("CUDA_COMPUTE_CAPABILITY")
-
     cflags = [
         '--ptxas-options=-v', '-c',
         '--compiler-options', "'-fPIC'"
     ]
 
+    cm = os.environ.get("CUDA_COMPUTE_CAPABILITY")
     if cm is not None:
         cflags.append(
             '-gencode=arch=compute_{cm},code=compute_{cm}'.format(cm=cm)

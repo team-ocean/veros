@@ -1,7 +1,7 @@
-from veros import logger
+from veros import logger, runtime_settings
 import numpy as np
 
-from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monitor, io_tools
+from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monitor
 from .. import time
 from .io_tools import hdf5 as h5tools
 
@@ -21,8 +21,10 @@ def read_restart(state):
     settings = state.settings
     if not settings.restart_input_filename:
         return
-    if settings.force_overwrite:
+
+    if runtime_settings.force_overwrite:
         raise RuntimeError('To prevent data loss, force_overwrite cannot be used in restart runs')
+
     logger.info('Reading restarts')
     for diagnostic in state.diagnostics.values():
         diagnostic.read_restart(state, settings.restart_input_filename.format(**vars(state)))
@@ -32,7 +34,7 @@ def write_restart(state, force=False):
     vs = state.variables
     settings = state.settings
 
-    if settings.diskless_mode:
+    if runtime_settings.diskless_mode:
         return
 
     if not settings.restart_output_filename:

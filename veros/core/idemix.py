@@ -1,6 +1,6 @@
 from veros.core.operators import numpy as np
 
-from veros import veros_kernel, veros_routine, KernelOutput
+from veros import veros_kernel, veros_routine, KernelOutput, runtime_settings
 from veros.variables import allocate
 from veros.core import advection, utilities
 from veros.core.operators import update, update_add, at
@@ -27,7 +27,7 @@ def set_idemix_parameter(state):
 
     cstar = np.maximum(1e-2, bN0[:, :, np.newaxis] / (settings.pi * settings.jstar))
 
-    c0 = np.maximum(0., settings.gamma * cstar * gofx2(fxa, settings.pi, settings.pyom_compatibility_mode) * vs.maskW)
+    c0 = np.maximum(0., settings.gamma * cstar * gofx2(fxa, settings.pi) * vs.maskW)
     v0 = np.maximum(0., settings.gamma * cstar * hofx1(fxa, settings.pi) * vs.maskW)
     alpha_c = np.maximum(1e-4, settings.mu0 * np.arccosh(np.maximum(1., fxa)) * np.abs(vs.coriolis_t[..., np.newaxis]) / cstar**2) * vs.maskW
 
@@ -140,7 +140,7 @@ def integrate_idemix_kernel(state):
         flux_east = update(flux_east, at[:-1, :, :], settings.tau_h * 0.5 * (vs.v0[1:, :, :] + vs.v0[:-1, :, :]) \
             * (vs.v0[1:, :, :] * E_iw[1:, :, :, vs.tau] - vs.v0[:-1, :, :] * E_iw[:-1, :, :, vs.tau]) \
             / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) * vs.maskU[:-1, :, :])
-        if settings.pyom_compatibility_mode:
+        if runtime_settings.pyom_compatibility_mode:
             flux_east = update(flux_east, at[-5, :, :], 0.)
         else:
             flux_east = update(flux_east, at[-1, :, :], 0.)
@@ -184,13 +184,9 @@ def integrate_idemix_kernel(state):
     return E_iw, dE_iw, iw_diss
 
 
-@veros_kernel(static_args=("pyom_compatibility_mode"))
-def gofx2(x, pi, pyom_compatibility_mode):
-    if pyom_compatibility_mode:
-        x = update(x, at[x < 3.], 3.)
-    else:
-        x = np.maximum(3., x)
-
+@veros_kernel
+def gofx2(x, pi):
+    x = np.maximum(3., x)
     c = 1. - (2. / pi) * np.arcsin(1. / x)
     return 2. / pi / c * 0.9 * x**(-2. / 3.) * (1 - np.exp(-x / 4.3))
 

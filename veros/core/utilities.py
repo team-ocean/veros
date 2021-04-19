@@ -4,6 +4,7 @@ from veros import veros_kernel
 from veros.core.operators import update, at, solve_tridiagonal
 
 
+@veros_kernel(static_args=("enable_cyclic_x", "local"))
 def enforce_boundaries(arr, enable_cyclic_x, local=False):
     from .. import runtime_settings as rs
     from ..routines import CURRENT_CONTEXT
@@ -19,6 +20,7 @@ def enforce_boundaries(arr, enable_cyclic_x, local=False):
     return arr
 
 
+@veros_kernel
 def pad_z_edges(array):
     """
     Pads the z-axis of an array by repeating its edge values

@@ -1,5 +1,4 @@
-from veros import logger
-
+from veros import logger, veros_routine
 from veros.core.operators import numpy as np
 from veros.diagnostics.diagnostic import VerosDiagnostic
 from veros.distributed import global_max
@@ -17,6 +16,7 @@ class CFLMonitor(VerosDiagnostic):
     def initialize(self, state):
         pass
 
+    @veros_routine
     def diagnose(self, state):
         pass
 

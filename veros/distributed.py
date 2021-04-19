@@ -80,6 +80,14 @@ def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None, t
     return recvbuf, None
 
 
+def bcast(buf, comm, root=0, token=None):
+    if rs.backend == 'jax':
+        from mpi4jax import bcast
+        return bcast(buf, root=root, comm=comm, token=token)
+
+    return comm.bcast(buf, root=root), None
+
+
 def allreduce(buf, op, comm, token=None):
     if rs.backend == 'jax':
         from mpi4jax import allreduce
@@ -512,21 +520,8 @@ def gather(arr, dimensions, var_grid):
 
 
 @dist_context_only(noop_return_arg=0)
-def broadcast(obj):
-    return rs.mpi_comm.bcast(obj, root=0)
-
-
-@dist_context_only(noop_return_arg=0)
 def _scatter_constant(arr):
-    # TODO: use Bcast
-    from veros.core.operators import numpy as np
-
-    if rst.proc_rank == 0:
-        for proc in range(1, rst.proc_num):
-            send(arr, dest=proc, comm=rs.mpi_comm)
-    else:
-        arr, _ = recv(np.empty_like(arr), source=0, comm=rs.mpi_comm)
-    return arr
+    return bcast(arr, rs.mpi_comm, root=0)
 
 
 @dist_context_only(noop_return_arg=2)

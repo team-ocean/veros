@@ -141,6 +141,10 @@ def get_shape(dimensions, grid, include_ghosts=True, local=True):
 
 
 def remove_ghosts(array, dims):
+    if dims is None:
+        # scalar
+        return array
+
     ghost_mask = tuple(slice(2, -2) if dim in GHOST_DIMENSIONS else slice(None) for dim in dims)
     return array[ghost_mask]
 
@@ -644,11 +648,11 @@ VARIABLES = {
     ),
 
     'r_bot_var_u': Variable(
-        'Bottom friction coeff.', U_HOR, '?', 'Zonal bottom friction coefficient',
+        'Bottom friction coeff.', U_HOR, '1/s', 'Zonal bottom friction coefficient',
         active=lambda settings: settings.enable_bottom_friction_var,
     ),
     'r_bot_var_v': Variable(
-        'Bottom friction coeff.', V_HOR, '?', 'Meridional bottom friction coefficient',
+        'Bottom friction coeff.', V_HOR, '1/s', 'Meridional bottom friction coefficient',
         active=lambda settings: settings.enable_bottom_friction_var,
     ),
 

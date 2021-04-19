@@ -19,7 +19,6 @@ def init_jax_config():
         veros_variables_pytree_flatten, veros_variables_pytree_unflatten,
         dist_safe_wrapper_pytree_flatten, dist_safe_wrapper_pytree_unflatten
     )
-    jax.config.enable_omnistaging()
     jax.config.update('jax_enable_x64', runtime_settings.float_type == 'float64')
     jax.config.update('jax_platform_name', runtime_settings.device)
 

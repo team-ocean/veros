@@ -1,6 +1,6 @@
 from veros.core.operators import numpy as np
 
-from veros import veros_kernel, KernelOutput
+from veros import veros_kernel, KernelOutput, runtime_settings
 from veros.variables import allocate
 from veros.core import utilities
 from veros.core.operators import update, update_add, update_multiply, at
@@ -62,7 +62,7 @@ def tempsalt_biharmonic(state, flux_east, flux_north):
 
     P_diss_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
     if settings.enable_conserve_energy:
-        if settings.pyom_compatibility_mode:
+        if runtime_settings.pyom_compatibility_mode:
             fxa = vs.int_drhodT[-3, -3, -1, vs.tau]
 
         diss = compute_dissipation(state, vs.int_drhodT[..., vs.tau], flux_east, flux_north)

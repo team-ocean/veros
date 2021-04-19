@@ -27,6 +27,9 @@ class SciPySolver(LinearSolver):
         self._rhs_scale = jacobi_precon.diagonal()
         self._extra_args = {}
 
+        import matplotlib.pyplot as plt
+        plt.imshow(self._matrix.todense())
+        plt.show()
         logger.info('Computing ILU preconditioner...')
         ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-6, fill_factor=100)
         self._extra_args['M'] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
@@ -135,6 +138,12 @@ class SciPySolver(LinearSolver):
 
         main_diag = main_diag * boundary_mask
         main_diag = np.where(main_diag == 0., 1., main_diag)
+
+        import matplotlib.pyplot as plt
+        print(vs.cost)
+        plt.figure()
+        plt.imshow(main_diag)
+        plt.show()
 
         # construct sparse matrix
         cf = tuple(diag.reshape(-1) for diag in (

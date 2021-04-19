@@ -1,12 +1,10 @@
 
 import abc
 
-from veros import logger
-
 # do not import veros.core here!
 from veros import (
     settings, time, signals, distributed, progress,
-    runtime_settings as rs
+    runtime_settings as rs, logger
 )
 from veros.state import get_default_state
 from veros.plugins import load_plugin
@@ -184,7 +182,10 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         for f in setup_funcs:
             if not is_veros_routine(f):
-                raise RuntimeError(f"{f.__name__} is not a Veros routine. Please make sure to decorate it with @veros_routine and try again.")
+                raise RuntimeError(
+                    f"{f.__name__} method is not a Veros routine. Please make sure to decorate it "
+                    "with @veros_routine and try again."
+                )
 
         logger.info('Running model setup')
 
@@ -199,7 +200,6 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         self.state.initialize_variables()
 
-        self.state.timers['setup'].active = True
         with self.state.timers['setup'], record_routine_stack() as recorded_stack:
             self.set_grid(self.state)
             numerics.calc_grid(self.state)
@@ -348,17 +348,10 @@ class VerosSetup(metaclass=abc.ABCMeta):
                         with record_routine_stack() as recorded_stack:
                             self.step(self.state)
                             self._routine_stack = recorded_stack
-                    else:
-                        self.step(self.state)
-
-                    if first_iteration:
-                        for timer in self.state.timers.values():
-                            timer.active = True
-
-                        for timer in self.state.profile_timers.values():
-                            timer.active = True
 
                         first_iteration = False
+                    else:
+                        self.step(self.state)
 
                     pbar.advance_time(settings.dt_tracer)
 

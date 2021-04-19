@@ -1,6 +1,6 @@
 from veros.core.operators import numpy as np
 
-from veros import veros_routine, veros_kernel, KernelOutput
+from veros import veros_routine, veros_kernel, KernelOutput, runtime_settings
 from veros.variables import allocate
 from veros.core import friction, streamfunction
 from veros.core.operators import update, update_add, at
@@ -69,7 +69,7 @@ def tend_tauxyf(state):
     vs = state.variables
     settings = state.settings
 
-    if settings.pyom_compatibility_mode:
+    if runtime_settings.pyom_compatibility_mode:
         du = update_add(vs.du, at[2:-2, 2:-2, -1, vs.tau], vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1])
         dv = update_add(vs.dv, at[2:-2, 2:-2, -1, vs.tau], vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1])
     else:

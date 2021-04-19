@@ -27,37 +27,35 @@ def calc_grid_kernel(state):
     vs = state.variables
     settings = state.settings
 
-    dxt = vs.dxt
     if settings.enable_cyclic_x:
-        dxt = update(dxt, at[-2:], dxt[2:4])
-        dxt = update(dxt, at[:2], dxt[-4:-2])
+        vs.dxt = update(vs.dxt, at[-2:], vs.dxt[2:4])
+        vs.dxt = update(vs.dxt, at[:2], vs.dxt[-4:-2])
     else:
-        dxt = update(dxt, at[-2:], dxt[-3])
-        dxt = update(dxt, at[:2], dxt[2])
+        vs.dxt = update(vs.dxt, at[-2:], vs.dxt[-3])
+        vs.dxt = update(vs.dxt, at[:2], vs.dxt[2])
 
-    dyt = vs.dyt
-    dyt = update(dyt, at[-2:], dyt[-3])
-    dyt = update(dyt, at[:2], dyt[2])
+    vs.dyt = update(vs.dyt, at[-2:], vs.dyt[-3])
+    vs.dyt = update(vs.dyt, at[:2], vs.dyt[2])
 
     """
     grid in east/west direction
     """
-    dxu, xt, xu = u_centered_grid(dxt, vs.dxu, vs.xt, vs.xu)
-    xt = xt + settings.x_origin - xu[2]
-    xu = xu + settings.x_origin - xu[2]
+    vs.dxu, vs.xt, vs.xu = u_centered_grid(vs.dxt, vs.dxu, vs.xt, vs.xu)
+    vs.xt = vs.xt + settings.x_origin - vs.xu[2]
+    vs.xu = vs.xu + settings.x_origin - vs.xu[2]
 
     if settings.enable_cyclic_x:
-        xt = update(xt, at[-2:], xt[2:4])
-        xt = update(xt, at[:2], xt[-4:-2])
-        xu = update(xu, at[-2:], xt[2:4])
-        xu = update(xu, at[:2], xu[-4:-2])
-        dxu = update(dxu, at[-2:], dxu[2:4])
-        dxu = update(dxu, at[:2], dxu[-4:-2])
+        vs.xt = update(vs.xt, at[-2:], vs.xt[2:4])
+        vs.xt = update(vs.xt, at[:2], vs.xt[-4:-2])
+        vs.xu = update(vs.xu, at[-2:], vs.xt[2:4])
+        vs.xu = update(vs.xu, at[:2], vs.xu[-4:-2])
+        vs.dxu = update(vs.dxu, at[-2:], vs.dxu[2:4])
+        vs.dxu = update(vs.dxu, at[:2], vs.dxu[-4:-2])
 
     """
     grid in north/south direction
     """
-    dyu, yt, yu = u_centered_grid(dyt, vs.dyu, vs.yt, vs.yu)
+    dyu, yt, yu = u_centered_grid(vs.dyt, vs.dyu, vs.yt, vs.yu)
     yt = yt + settings.y_origin - yu[2]
     yu = yu + settings.y_origin - yu[2]
 
@@ -65,9 +63,9 @@ def calc_grid_kernel(state):
         """
         convert from degrees to pseudo cartesian grid
         """
-        dxt = dxt * settings.degtom
-        dxu = dxu * settings.degtom
-        dyt = dyt * settings.degtom
+        vs.dxt = vs.dxt * settings.degtom
+        vs.dxu = vs.dxu * settings.degtom
+        vs.dyt = vs.dyt * settings.degtom
         dyu = dyu * settings.degtom
 
     """
@@ -92,13 +90,13 @@ def calc_grid_kernel(state):
     """
     precalculate area of boxes
     """
-    area_t = update(vs.area_t, at[...], cost * dyt * dxt[:, np.newaxis])
-    area_u = update(vs.area_u, at[...], cost * dyt * dxu[:, np.newaxis])
-    area_v = update(vs.area_v, at[...], cosu * dyu * dxt[:, np.newaxis])
+    area_t = update(vs.area_t, at[...], cost * vs.dyt * vs.dxt[:, np.newaxis])
+    area_u = update(vs.area_u, at[...], cost * vs.dyt * vs.dxu[:, np.newaxis])
+    area_v = update(vs.area_v, at[...], cosu * dyu * vs.dxt[:, np.newaxis])
 
     return KernelOutput(
-        dxt=dxt, dyt=dyt, dxu=dxu, dyu=dyu,
-        xt=xt, yt=yt, xu=xu, yu=yu,
+        dxt=vs.dxt, dyt=vs.dyt, dxu=vs.dxu, dyu=dyu,
+        xt=vs.xt, yt=yt, xu=vs.xu, yu=yu,
         dzw=dzw, zt=zt, zw=zw,
         cost=cost, cosu=cosu, tantr=tantr,
         area_t=area_t, area_u=area_u, area_v=area_v

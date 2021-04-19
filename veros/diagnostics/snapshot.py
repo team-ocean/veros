@@ -1,8 +1,6 @@
 import os
 
-from veros import logger
-
-from veros import time
+from veros import time, logger, veros_routine
 from veros.diagnostics.diagnostic import VerosDiagnostic
 
 
@@ -33,6 +31,7 @@ class Snapshot(VerosDiagnostic):
     def diagnose(self, state):
         pass
 
+    @veros_routine
     def output(self, state):
         vs = state.variables
 

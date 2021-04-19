@@ -1,8 +1,6 @@
 import warnings
 from contextlib import contextmanager
 
-from jax.core import Value
-
 from veros import runtime_settings, runtime_state, veros_kernel
 
 
@@ -76,6 +74,13 @@ def solve_tridiagonal_numpy(a, b, c, d, water_mask, edge_mask):
     sol = lapack.dgtsv(a[water_mask][1:], b[water_mask], c[water_mask][:-1], d[water_mask])[3]
     out[water_mask] = sol
     return out
+
+
+def fori_numpy(lower, upper, body_fun, init_val):
+    val = init_val
+    for i in range(lower, upper):
+        val = body_fun(i, val)
+    return val
 
 
 def scan_numpy(f, init, xs, length=None):
@@ -155,7 +160,12 @@ def tanh_jax(arr):
 
 def flush_jax():
     import jax
-    (jax.device_put(0.) + 0.).block_until_ready()
+    dummy = (jax.device_put(0.) + 0.)
+    try:
+        dummy.block_until_ready()
+    except AttributeError:
+        # if we are jitting, dummy is not a DeviceArray that we can wait for
+        pass
 
 
 numpy = runtime_state.backend_module
@@ -166,6 +176,7 @@ if runtime_settings.backend == 'numpy':
     update_multiply = update_multiply_numpy
     at = Index()
     solve_tridiagonal = solve_tridiagonal_numpy
+    for_loop = fori_numpy
     scan = scan_numpy
     tanh = numpy.tanh
     flush = noop
@@ -178,6 +189,7 @@ elif runtime_settings.backend == 'jax':
     update_multiply = update_multiply_jax
     at = jax.ops.index
     solve_tridiagonal = solve_tridiagonal_jax
+    for_loop = jax.lax.fori_loop
     scan = jax.lax.scan
     tanh = tanh_jax
     flush = flush_jax

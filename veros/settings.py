@@ -124,19 +124,16 @@ SETTINGS = {
     'eke_r_bot': Setting(0.0, float, 'bottom friction coefficient'),
     'eke_hrms_k0_min': Setting(0.0, float, 'min value for bottom roughness parameter'),
 
+    # Restarts
+    'restart_input_filename': Setting('', str, 'File name of restart input. If not given, no restart data will be read.'),
+    'restart_output_filename': Setting('{identifier}_{itt:0>4d}.restart.h5', str, 'File name of restart output. May contain Python format syntax that is substituted with Veros attributes.'),
+    'restart_frequency': Setting(0, float, 'Frequency (in seconds) to write restart data'),
+
     # New
-    'pyom_compatibility_mode': Setting(False, bool, 'Force compatibility to pyOM2 (even reproducing bugs and other quirks). For testing purposes only.'),
     'kappaH_min': Setting(0., float, 'minimum value for vertical diffusivity'),
     'enable_kappaH_profile': Setting(False, bool, 'Compute vertical profile of diffusivity after Bryan and Lewis (1979) in TKE routine'),
     'enable_Prandtl_tke': Setting(True, bool, 'Compute Prandtl number from stratification levels in TKE routine'),
     'Prandtl_tke0': Setting(10., float, 'Constant Prandtl number when stratification is neglected for kappaH computation in TKE routine'),
-
-    # TODO: these should be part of a diagnostic or runtime setting
-    'restart_input_filename': Setting('', str, 'File name of restart input. If not given, no restart data will be read.'),
-    'restart_output_filename': Setting('{identifier}_{itt:0>4d}.restart.h5', str, 'File name of restart output. May contain Python format syntax that is substituted with Veros attributes.'),
-    'restart_frequency': Setting(0, float, 'Frequency (in seconds) to write restart data'),
-    'force_overwrite': Setting(False, bool, 'Overwrite existing output files'),
-    'diskless_mode': Setting(False, bool, 'Suppress all output to disk. Mainly used for testing purposes.'),
 }
 
 

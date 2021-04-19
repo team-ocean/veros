@@ -1,10 +1,10 @@
 from veros.state import KernelOutput
 from veros.core.operators import numpy as np
 
-from veros import veros_kernel, veros_routine
+from veros import veros_kernel, veros_routine, runtime_settings
 from veros.variables import allocate
 from veros.core import advection, utilities
-from veros.core.operators import update, update_add, at
+from veros.core.operators import update, update_add, at, for_loop
 
 
 @veros_routine
@@ -53,18 +53,20 @@ def set_tke_diffusivities_kernel(state):
     elif settings.tke_mxl_choice == 2:
         """
         bound length scale as in mitgcm/OPA code
-
-        Note that the following code doesn't vectorize. If critical for performance,
-        consider re-implementing it in Cython.
         """
         nz = state.dimensions["zt"]
-        # TODO: use scans
-        for k in range(nz - 2, -1, -1):
-            mxl = update(mxl, at[:, :, k], np.minimum(mxl[:, :, k], mxl[:, :, k + 1] + vs.dzt[k + 1]))
+
+        def backwards_pass(k, mxl):
+            return update(mxl, at[:, :, k], np.minimum(mxl[:, :, k], mxl[:, :, k + 1] + vs.dzt[k + 1]))
+
+        mxl = for_loop(nz - 2, -1, backwards_pass, mxl)
         mxl = update(mxl, at[:, :, -1], np.minimum(mxl[:, :, -1], settings.mxl_min + vs.dzt[-1]))
-        for k in range(1, nz):
-            mxl = update(mxl, at[:, :, k], np.minimum(mxl[:, :, k], mxl[:, :, k - 1] + vs.dzt[k]))
-        mxl = update(mxl, at[...], np.maximum(mxl, settings.mxl_min))
+
+        def forwards_pass(k, mxl):
+            return update(mxl, at[:, :, k], np.minimum(mxl[:, :, k], mxl[:, :, k - 1] + vs.dzt[k]))
+
+        mxl = for_loop(1, nz, forwards_pass, mxl)
+        mxl = np.maximum(mxl, settings.mxl_min)
     else:
         raise ValueError('unknown mixing length choice in tke_mxl_choice')
 
@@ -217,7 +219,7 @@ def integrate_tke_kernel(state):
         flux_east = update(flux_east, at[:-1, :, :], settings.K_h_tke * (tke[1:, :, :, vs.tau] - tke[:-1, :, :, vs.tau]) \
             / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) * vs.maskU[:-1, :, :])
 
-        if settings.pyom_compatibility_mode:
+        if runtime_settings.pyom_compatibility_mode:
             flux_east = update(flux_east, at[-5, :, :], 0.)
         else:
             flux_east = update(flux_east, at[-1, :, :], 0.)

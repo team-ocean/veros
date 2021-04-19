@@ -19,14 +19,14 @@ from veros.core.streamfunction.solvers import get_linear_solver
 def solve_streamfunction(state):
     vs = state.variables
 
-    state_update, (forc, fpx, fpy) = prepare_forcing(state)
+    state_update, (forc, uloc, vloc) = prepare_forcing(state)
     vs.update(state_update)
 
     linear_solver = get_linear_solver(state)
     linear_sol = linear_solver.solve(state, forc, vs.dpsi[..., vs.taup1])
     vs.dpsi = update(vs.dpsi, at[..., vs.taup1], linear_sol)
 
-    vs.update(barotropic_velocity_update(state, fpx=fpx, fpy=fpy))
+    vs.update(barotropic_velocity_update(state, uloc=uloc, vloc=vloc))
 
 
 @veros_kernel
@@ -35,16 +35,15 @@ def prepare_forcing(state):
     settings = state.settings
 
     # hydrostatic pressure
-    # TODO: rename these variables
-    fxa = settings.grav / settings.rho_0
-    tmp = 0.5 * (vs.rho[:, :, :, vs.tau]) * fxa * vs.dzw * vs.maskT
+    fac = settings.grav / settings.rho_0
+    ploc = 0.5 * (vs.rho[:, :, :, vs.tau]) * fac * vs.dzw * vs.maskT
     p_hydro = vs.p_hydro
-    p_hydro = update(p_hydro, at[:, :, -1], tmp[:, :, -1])
-    tmp = update_add(tmp, at[:, :, :-1], 0.5 * vs.rho[:, :, 1:, vs.tau] * \
-        fxa * vs.dzw[:-1] * vs.maskT[:, :, :-1])
+    p_hydro = update(p_hydro, at[:, :, -1], ploc[:, :, -1])
+    ploc = update_add(ploc, at[:, :, :-1], 0.5 * vs.rho[:, :, 1:, vs.tau] * \
+        fac * vs.dzw[:-1] * vs.maskT[:, :, :-1])
     # TODO: replace cumsum
     p_hydro = update(p_hydro, at[:, :, -2::-1], vs.maskT[:, :, -2::-1] * \
-        (p_hydro[:, :, -1, np.newaxis] + np.cumsum(tmp[:, :, -2::-1], axis=2)))
+        (p_hydro[:, :, -1, np.newaxis] + np.cumsum(ploc[:, :, -2::-1], axis=2)))
 
     # add hydrostatic pressure gradient
     du, dv = vs.du, vs.dv
@@ -58,29 +57,29 @@ def prepare_forcing(state):
         * vs.maskV[2:-2, 2:-2, :])
 
     # forcing for barotropic streamfunction
-    fpx = np.sum((du[:, :, :, vs.tau] + vs.du_mix)
+    uloc = np.sum((du[:, :, :, vs.tau] + vs.du_mix)
                  * vs.maskU * vs.dzt, axis=(2,)) * vs.hur
-    fpy = np.sum((dv[:, :, :, vs.tau] + vs.dv_mix)
+    vloc = np.sum((dv[:, :, :, vs.tau] + vs.dv_mix)
                  * vs.maskV * vs.dzt, axis=(2,)) * vs.hvr
 
-    fpx = mainutils.enforce_boundaries(fpx, settings.enable_cyclic_x)
-    fpy = mainutils.enforce_boundaries(fpy, settings.enable_cyclic_x)
+    uloc = mainutils.enforce_boundaries(uloc, settings.enable_cyclic_x)
+    vloc = mainutils.enforce_boundaries(vloc, settings.enable_cyclic_x)
 
-    forc = np.zeros_like(fpy)
-    forc = update(forc, at[2:-2, 2:-2], (fpy[3:-1, 2:-2] - fpy[2:-2, 2:-2]) \
+    forc = np.zeros_like(vloc)
+    forc = update(forc, at[2:-2, 2:-2], (vloc[3:-1, 2:-2] - vloc[2:-2, 2:-2]) \
         / (vs.cosu[2:-2] * vs.dxu[2:-2, np.newaxis]) \
-        - (vs.cost[3:-1] * fpx[2:-2, 3:-1] - vs.cost[2:-2] * fpx[2:-2, 2:-2]) \
+        - (vs.cost[3:-1] * uloc[2:-2, 3:-1] - vs.cost[2:-2] * uloc[2:-2, 2:-2]) \
         / (vs.cosu[2:-2] * vs.dyu[2:-2]))
 
     # solve for interior streamfunction
     dpsi = vs.dpsi
     dpsi = update(dpsi, at[:, :, vs.taup1], 2 * dpsi[:, :, vs.tau] - dpsi[:, :, vs.taum1])
 
-    return KernelOutput(du=du, dv=dv, dpsi=dpsi, p_hydro=p_hydro), (forc, fpx, fpy)
+    return KernelOutput(du=du, dv=dv, dpsi=dpsi, p_hydro=p_hydro), (forc, uloc, vloc)
 
 
 @veros_kernel
-def barotropic_velocity_update(state, fpx, fpy):
+def barotropic_velocity_update(state, uloc, vloc):
     """
     solve for barotropic streamfunction
     """
@@ -99,21 +98,21 @@ def barotropic_velocity_update(state, fpx, fpy):
         # calculate island integrals of forcing, keep psi constant on island 1
         line_forc = update(line_forc, at[1:], line_integrals.line_integrals(
             state,
-            uloc=fpx[..., np.newaxis],
-            vloc=fpy[..., np.newaxis], kind='same')[1:])
+            uloc=uloc[..., np.newaxis],
+            vloc=vloc[..., np.newaxis], kind='same')[1:])
 
         # calculate island integrals of interior streamfunction
-        fpx = update(fpx, at[...], 0.)
-        fpy = update(fpy, at[...], 0.)
-        fpx = update(fpx, at[1:, 1:], -1 * vs.maskU[1:, 1:, -1] \
+        uloc = update(uloc, at[...], 0.)
+        vloc = update(vloc, at[...], 0.)
+        uloc = update(uloc, at[1:, 1:], -1 * vs.maskU[1:, 1:, -1] \
             * (dpsi[1:, 1:, vs.taup1] - dpsi[1:, :-1, vs.taup1]) \
             / vs.dyt[np.newaxis, 1:] * vs.hur[1:, 1:])
-        fpy = update(fpy, at[1:, 1:], vs.maskV[1:, 1:, -1] \
+        vloc = update(vloc, at[1:, 1:], vs.maskV[1:, 1:, -1] \
             * (dpsi[1:, 1:, vs.taup1] - dpsi[:-1, 1:, vs.taup1]) \
             / (vs.cosu[np.newaxis, 1:] * vs.dxt[1:, np.newaxis]) * vs.hvr[1:, 1:])
         line_forc = update_add(line_forc, at[1:], -line_integrals.line_integrals(state,
-                                                   uloc=fpx[..., np.newaxis],
-            vloc=fpy[..., np.newaxis], kind='same')[1:])
+                                                   uloc=uloc[..., np.newaxis],
+            vloc=vloc[..., np.newaxis], kind='same')[1:])
 
         # solve for time dependent boundary values
         dpsin = update(dpsin, at[1:, vs.tau], np.linalg.solve(vs.line_psin[1:, 1:], line_forc[1:]))
@@ -130,11 +129,11 @@ def barotropic_velocity_update(state, fpx, fpy):
                                                     - (0.5 + settings.AB_eps) * vs.dv[:, :, :, vs.taum1]) * vs.maskV)
 
     # subtract incorrect vertical mean from baroclinic velocity
-    fpx = np.sum(u[:, :, :, vs.taup1] * vs.maskU * vs.dzt, axis=2)
-    fpy = np.sum(v[:, :, :, vs.taup1] * vs.maskV * vs.dzt, axis=2)
-    u = update_add(u, at[:, :, :, vs.taup1], -fpx[:, :, np.newaxis] * \
+    uloc = np.sum(u[:, :, :, vs.taup1] * vs.maskU * vs.dzt, axis=2)
+    vloc = np.sum(v[:, :, :, vs.taup1] * vs.maskV * vs.dzt, axis=2)
+    u = update_add(u, at[:, :, :, vs.taup1], -uloc[:, :, np.newaxis] * \
         vs.maskU * vs.hur[:, :, np.newaxis])
-    v = update_add(v, at[:, :, :, vs.taup1], -fpy[:, :, np.newaxis] * \
+    v = update_add(v, at[:, :, :, vs.taup1], -vloc[:, :, np.newaxis] * \
         vs.maskV * vs.hvr[:, :, np.newaxis])
 
     # add barotropic mode to baroclinic velocity

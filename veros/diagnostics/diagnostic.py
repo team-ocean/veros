@@ -43,15 +43,13 @@ class VerosDiagnostic:
 
     @do_not_disturb
     def initialize_output(self, state, variables, var_data=None, extra_dimensions=None):
-        settings = state.settings
-
-        if settings.diskless_mode or (not self.output_frequency and not self.sampling_frequency):
+        if runtime_settings.diskless_mode or (not self.output_frequency and not self.sampling_frequency):
             return
 
         output_path = self.get_output_file_name(state)
-        if os.path.isfile(output_path) and not settings.force_overwrite:
+        if os.path.isfile(output_path) and not runtime_settings.force_overwrite:
             raise IOError('output file {} for diagnostic "{}" exists '
-                          '(change output path or enable force_overwrite setting)'
+                          '(change output path or enable force_overwrite runtime setting)'
                           .format(output_path, self.name))
 
         # possible race condition ahead!
@@ -76,9 +74,8 @@ class VerosDiagnostic:
     @do_not_disturb
     def write_output(self, state, variables, variable_data):
         vs = state.variables
-        settings = state.settings
 
-        if settings.diskless_mode:
+        if runtime_settings.diskless_mode:
             return
 
         with nctools.threaded_io(state, self.get_output_file_name(state), 'r+') as outfile:

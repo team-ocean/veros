@@ -74,7 +74,11 @@ def run(setup_file, *args, slave, **kwargs):
 
     kwargs['override'] = dict(kwargs['override'])
 
-    for setting in ('backend', 'profile_mode', 'num_proc', 'loglevel', 'device', 'float_type'):
+    runtime_setting_kwargs = (
+        'backend', 'profile_mode', 'num_proc', 'loglevel', 'device', 'float_type',
+        'diskless_mode', 'force_overwrite',
+    )
+    for setting in runtime_setting_kwargs:
         setattr(runtime_settings, setting, kwargs.pop(setting))
 
     # determine setup class from given Python file
@@ -106,6 +110,8 @@ def run(setup_file, *args, slave, **kwargs):
 @click.argument("SETUP_FILE", type=click.Path(readable=True, dir_okay=False, resolve_path=True))
 @click.option('-b', '--backend', default='numpy', type=click.Choice(BACKENDS),
                 help='Backend to use for computations', show_default=True)
+@click.option('--device', default='cpu', type=click.Choice(DEVICES),
+                help='Hardware device to use (JAX backend only)', show_default=True)
 @click.option('-v', '--loglevel', default='info', type=click.Choice(LOGLEVELS),
                 help='Log level used for output', show_default=True)
 @click.option('-s', '--override', nargs=2, multiple=True, metavar='SETTING VALUE',
@@ -113,12 +119,12 @@ def run(setup_file, *args, slave, **kwargs):
                 help='Override model setting, may be specified multiple times')
 @click.option('-p', '--profile-mode', is_flag=True, default=False, type=click.BOOL, envvar='VEROS_PROFILE',
                 help='Write a performance profile for debugging', show_default=True)
-@click.option('-n', '--num-proc', nargs=2, default=[1, 1], type=click.INT,
-                help='Number of processes in x and y dimension')
-@click.option('--device', default='cpu', type=click.Choice(DEVICES),
-                help='Hardware device to use (JAX backend only)', show_default=True)
+@click.option('--force-overwrite', is_flag=True, help='Silently overwrite existing outputs')
+@click.option('--diskless-mode', is_flag=True, help='Supress all output to disk')
 @click.option('--float-type', default='float64', type=click.Choice(FLOAT_TYPES),
                 help='Floating point precision to use', show_default=True)
+@click.option('-n', '--num-proc', nargs=2, default=[1, 1], type=click.INT,
+                help='Number of processes in x and y dimension')
 @click.option('--slave', default=False, is_flag=True, hidden=True,
                 help='Indicates that this process is an MPI worker (for internal use)')
 @functools.wraps(run)

@@ -1,6 +1,6 @@
 from veros.core.operators import numpy as np
 
-from veros import veros_kernel, veros_routine, KernelOutput
+from veros import veros_kernel, veros_routine, KernelOutput, runtime_settings
 from veros.variables import allocate
 from veros.core import utilities, advection
 from veros.core.operators import update, update_add, update_multiply, at
@@ -223,7 +223,7 @@ def integrate_eke_kernel(state):
         """
         eke_diss_iw = update_add(eke_diss_iw, at[2:-2, 2:-2, :], (c_lee[2:-2, 2:-2, np.newaxis] * eke[2:-2, 2:-2, :, vs.taup1]
                                        * vs.maskW[2:-2, 2:-2, :]) * full_mask)
-        if settings.pyom_compatibility_mode:
+        if runtime_settings.pyom_compatibility_mode:
             eke_diss_tke = update_add(eke_diss_tke, at[2:-2, 2:-2, :], (2 * settings.eke_r_bot * eke[2:-2, 2:-2, :, vs.taup1] * np.sqrt(np.float32(2))
                                             * vs.sqrteke[2:-2, 2:-2, :] * vs.maskW[2:-2, 2:-2, :] / vs.dzw[np.newaxis, np.newaxis, :]) * full_mask)
         else:

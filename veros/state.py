@@ -1,4 +1,3 @@
-import functools
 import contextlib
 from collections import defaultdict, namedtuple
 
@@ -308,14 +307,30 @@ class DistSafeVariableWrapper(VerosVariables):
 
     def _gather_variables(self):
         from veros.distributed import gather
+        var_meta = self.__metadata__
+
         for var in self.__local_variables__:
+            if var not in var_meta:
+                raise ValueError(f"encountered unknown variable {var} in local variables")
+
+            if not var_meta[var].active:
+                continue
+
             gathered_var = gather(getattr(self.__parent_state__, var), self.__dimensions__, self.__metadata__[var].dims)
             setattr(self, var, gathered_var)
 
     def _scatter_variables(self):
         from veros.distributed import scatter, barrier
         barrier()
+        var_meta = self.__metadata__
+
         for var in self.__local_variables__:
+            if var not in var_meta:
+                raise ValueError(f"encountered unknown variable {var} in local variables")
+
+            if not var_meta[var].active:
+                continue
+
             scattered_var = scatter(getattr(self, var), self.__dimensions__, self.__metadata__[var].dims)
             setattr(self.__parent_state__, var, scattered_var)
 
@@ -346,7 +361,7 @@ class VerosState:
         else:
             self._plugin_interfaces = ()
 
-        timer_factory = functools.partial(timer.Timer, inactive=True)
+        timer_factory = timer.Timer
         self.timers = defaultdict(timer_factory)
         self.profile_timers = defaultdict(timer_factory)
 
@@ -403,45 +418,42 @@ class VerosState:
         return self._diagnostics
 
     def to_xarray(self):
-        # TODO: fix this
         import xarray as xr
+
+        vs = self.variables
 
         coords = {}
         data_vars = {}
 
-        for var_name, var in self.variables.items():
+        for var_name, var_meta in self.var_meta.items():
+            if not var_meta.active:
+                continue
+
             data = var_mod.remove_ghosts(
-                getattr(self, var_name), var.dims
+                vs.get(var_name), var_meta.dims
             )
+
             data_vars[var_name] = xr.DataArray(
                 data,
-                dims=var.dims,
+                dims=var_meta.dims,
                 name=var_name,
                 attrs=dict(
-                    long_description=var.long_description,
-                    units=var.units,
-                    scale=var.scale,
+                    long_description=var_meta.long_description,
+                    units=var_meta.units,
+                    scale=var_meta.scale,
                 )
             )
 
-            for dim in var.dims:
+            if var_meta.dims is None:
+                continue
+
+            for dim in var_meta.dims:
                 if dim not in coords:
-                    if hasattr(self, dim):
-                        dim_val = getattr(self, dim)
-                        if isinstance(dim_val, int):
-                            coords[dim] = range(dim_val)
-                        else:
-                            coords[dim] = var_mod.remove_ghosts(dim_val, (dim,))
-                    else:
-                        coords[dim] = range(var_mod.get_dimensions(self, (dim,))[0])
+                    coords[dim] = range(var_mod.get_shape(self.dimensions, (dim,), include_ghosts=False)[0])
 
         data_vars = {k: v for k, v in data_vars.items() if k not in coords}
 
-        attrs = dict(
-            time=self.time,
-            iteration=self.itt,
-            tau=self.tau,
-        )
+        attrs = dict(self.settings.items())
 
         return xr.Dataset(data_vars, coords=coords, attrs=attrs)
 

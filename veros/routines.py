@@ -119,25 +119,37 @@ def _is_method(function):
 
 # routine
 
-def veros_routine(function=None, dist_safe=True, local_variables=()):
+def veros_routine(function=None, *, dist_safe=True, local_variables=()):
     """
     .. note::
 
-      This decorator should be applied to all functions that make use of the computational
-      backend (even when subclassing :class:`veros.Veros`). The sole argument to the
-      decorated function must be a VerosState instance.
+      This decorator should be applied to all functions that access the Veros state object
+      (even when subclassing :class:`veros.VerosSetup`).
+
+    The first argument to the decorated function must be a VerosState instance.
+
+    Veros routines cannot return anything. All changes must be applied to the passed state object.
+
+    Parameters:
+        dist_safe (bool): If set to False, all variables specified in local_variables are synced
+            to the root process before execution and synced back after. This means that the routine
+            will only be executed on rank 0. Has no effect in non-distributed contexts.
+
+        local_variables (Tuple[str]): List of variable names to be synced if dist_safe=False. This
+            must include all variables retrieved from the state object throughout the routine (inputs
+            *and* outputs).
 
     Example:
        >>> from veros import VerosSetup, veros_routine
        >>>
        >>> class MyModel(VerosSetup):
        >>>     @veros_routine
-       >>>     def set_topography(self, vs):
-       >>>         vs.kbot = np.random.randint(0, vs.nz, size=vs.kbot.shape)
+       >>>     def set_topography(self, state):
+       >>>         vs = state.variables
+       >>>         settings = state.settings
+       >>>         vs.kbot = np.random.randint(0, settings.nz, size=vs.kbot.shape)
 
     """
-    # TODO: update docstring
-
     def inner_decorator(function):
         narg = 1 if _is_method(function) else 0
         num_params = len(inspect.signature(function).parameters)
@@ -240,6 +252,25 @@ class VerosRoutine:
 # kernel
 
 def veros_kernel(function=None, *, static_args=()):
+    """Decorator that marks a function as a kernel that can be JIT compiled if supported
+    by the backend.
+
+    Kernels cannot modify the Veros state object. Instead, all modifications have to be
+    returned explicitly.
+
+    Parameters:
+        static_args (Tuple[str]): Names of kernel arguments that should be static.
+
+    Example:
+        >>> from veros import veros_kernel, KernelOutput
+        >>>
+        >>> @veros_kernel
+        >>> def double_psi(state):
+        >>>     vs = state.variables
+        >>>     vs.psi = 2 * vs.psi
+        >>>     return KernelOutput(psi=vs.psi)
+
+    """
     def inner_decorator(function):
         kernel = VerosKernel(function, static_args=static_args)
         kernel = functools.wraps(function)(kernel)
@@ -313,11 +344,11 @@ class VerosKernel:
 
         called_with_state = veros_state is not None
 
-        if called_with_state:
-            # when profiling, make sure all inputs are ready before starting the timer
-            if runtime_settings.profile_mode:
-                flush()
+        # when profiling, make sure all inputs are ready before starting the timer
+        if runtime_settings.profile_mode:
+            flush()
 
+        if called_with_state:
             timer = veros_state.profile_timers[self.name]
         else:
             timer = None
@@ -325,11 +356,10 @@ class VerosKernel:
         with ExitStack() as es:
             if called_with_state:
                 var, settings = veros_state.variables, veros_state.settings
-                es.enter_context(var.lock())
-                es.enter_context(settings.lock())
+                es.enter_context(var.unlock())
 
                 if self._traced:
-                    # hack to ensure that callbacks are executed
+                    # hack to ensure that tracing callbacks are executed
                     # for already traced functions
                     for v in self.inputs['var']:
                         getattr(var, v)

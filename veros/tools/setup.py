@@ -107,10 +107,10 @@ def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
 
     """
     locTime = current_time - rec_spacing * 0.5 + \
-        cycle_length * (2 - round(current_time / cycle_length))
+        cycle_length * (2 - np.around(current_time / cycle_length))
     tmpTime = locTime % cycle_length
-    tRec1 = 1 + int(tmpTime / rec_spacing)
-    tRec2 = 1 + tRec1 % int(n_rec)
+    tRec1 = 1 + (tmpTime / rec_spacing).astype(int)
+    tRec2 = 1 + tRec1 % np.array(n_rec, dtype='int')
     wght2 = (tmpTime - rec_spacing * (tRec1 - 1)) / rec_spacing
     wght1 = 1.0 - wght2
     return (tRec1 - 1, wght1), (tRec2 - 1, wght2)

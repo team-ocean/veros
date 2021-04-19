@@ -10,7 +10,6 @@ BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = tools.get_assets('global_1deg', os.path.join(BASE_PATH, 'assets.yml'))
 
 
-# TODO: investigate performance
 @veros_kernel
 def set_forcing_kernel(f1, f2, n1, n2, surface_taux, surface_tauy, taux, tauy, enable_tke, forc_tke_surface, rho_0,
                        t_star, qnec, qnet, forc_temp_surface, temp, tau, cp_0, s_star, forc_salt_surface,
@@ -133,8 +132,6 @@ class GlobalOneDegreeSetup(VerosSetup):
             taux=Variable('taux', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
             tauy=Variable('tauy', ('xt', 'yt', 'nmonths'), '', '', time_dependent=False),
         )
-
-        settings.diskless_mode = True
 
     def _read_forcing(self, vs, var):
         from veros.core.operators import numpy as np
