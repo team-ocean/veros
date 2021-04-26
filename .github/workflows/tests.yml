@@ -20,7 +20,7 @@ jobs:
         backend: [numpy, jax]
 
     env:
-      - VEROS_BACKEND = ${{ matrix.backend }}
+      VEROS_BACKEND: ${{ matrix.backend }}
 
     steps:
       - uses: actions/checkout@v2
