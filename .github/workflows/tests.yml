@@ -38,9 +38,8 @@ jobs:
       - name: Install system requirements
         run: |
           sudo apt-get update
-          sudo apt-get install libopenmpi-dev petsc-dev libhypre-dev
-          echo "PETSC_DIR=/usr/lib/petscdir/petsc3.12" >> $GITHUB_ENV
-          echo "PETSC_ARCH=x86_64-linux-gnu-real" >> $GITHUB_ENV
+          sudo apt-get install libopenmpi-dev libpetsc-real3.12-dev
+          echo "PETSC_DIR=/usr/lib/petscdir/petsc3.12/x86_64-linux-gnu-real" >> $GITHUB_ENV
 
       - name: Build PyOM2
         run: |
