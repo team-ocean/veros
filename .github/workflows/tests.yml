@@ -21,7 +21,7 @@ jobs:
 
     env:
       VEROS_BACKEND: ${{ matrix.backend }}
-      PYOM2_DIR: $HOME/pyom2
+      PYOM2_DIR: /home/runner/pyom2
 
     steps:
       - uses: actions/checkout@v2
@@ -85,7 +85,9 @@ jobs:
           pip install .[test]
 
       - name: Run tests sequentially
-        run: pytest . -v --cov --pyom2-lib $PYOM2_LIB
+        run: |
+          pwd
+          pytest . -v --cov --pyom2-lib $PYOM2_LIB
 
       - name: Run tests with MPI
         run: mpirun -host localhost:2 -v -np 2 pytest . -v --cov --pyom2-lib $PYOM2_LIB_MPI
