@@ -35,7 +35,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install system requirements
-        run: sudo apt-get install libopenmpi-dev petsc-dev hypre-dev
+        run: sudo apt-get install libopenmpi-dev petsc-dev libhypre-dev
 
       - name: Build PyOM2
         run: |
@@ -46,6 +46,7 @@ jobs:
           cd /pyom2
           tar xzf pyOM2.1.0.tar.gz
           make -C py_src -j 4 > /dev/null
+          export PYOM2_LIB=/pyom2/
 
       - name: Install python dependencies
         run: |
@@ -55,7 +56,7 @@ jobs:
           pip install .[test]
 
       - name: Run tests sequentially
-        run: pytest .
+        run: pytest . -v --cov --pyom2-lib $PYOM2_LIB
 
       - name: Run tests with MPI
         run: mpirun -host localhost:2 -v -np 2 pytest .
