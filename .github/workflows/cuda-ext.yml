@@ -22,8 +22,7 @@ jobs:
       - uses: actions/checkout@v2
 
       # make sure tags are fetched so we can get a version
-      - run: |
-          git fetch --prune --unshallow --tags
+      - run: git fetch --prune --unshallow --tags
 
       - name: Set up Python ${{ matrix.python-version }} on ${{ matrix.os }}
         uses: actions/setup-python@v2

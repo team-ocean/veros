@@ -66,8 +66,8 @@ jobs:
 
       - name: Export PyOM2 paths
         run: |
-          echo "PYOM2_LIB=$(readlink -f py_src/pyOM_code.*.so)" >> $GITHUB_ENV
-          echo "PYOM2_LIB_MPI=$(readlink -f py_src/pyOM_code_MPI.*.so)" >> $GITHUB_ENV
+          echo "PYOM2_LIB=$(readlink -f $PYOM2_DIR/py_src/pyOM_code.*.so)" >> $GITHUB_ENV
+          echo "PYOM2_LIB_MPI=$(readlink -f $PYOM2_DIR/py_src/pyOM_code_MPI.*.so)" >> $GITHUB_ENV
 
       - uses: actions/cache@v2
         id: pip-cache
@@ -81,6 +81,7 @@ jobs:
         run: |
           pip install mpi4py
           pip install petsc4py==3.12 --no-deps
+          if [ ${{ matrix.backend }} == "jax" ]; then pip install jax jaxlib; fi
           pip install .[test]
 
       - name: Run tests sequentially
