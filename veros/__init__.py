@@ -3,10 +3,6 @@
 import sys
 import types
 
-from veros import logs
-logger = logs.setup_logging()
-
-
 # black magic: ensure lazy imports for public API by overriding module.__class__
 
 def _reraise_exceptions(func):
@@ -29,6 +25,14 @@ class _PublicAPI(types.ModuleType):
     def __version__(self):
         from veros._version import get_versions
         return get_versions()['version']
+
+    @property
+    @_reraise_exceptions
+    def logger(self):
+        if not hasattr(self, '_logger'):
+            from veros.logs import setup_logging
+            self._logger = setup_logging()
+        return self._logger
 
     @property
     @_reraise_exceptions
