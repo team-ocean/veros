@@ -21,6 +21,7 @@ jobs:
 
     env:
       VEROS_BACKEND: ${{ matrix.backend }}
+      PYOM2_DIR: $HOME/pyom2
 
     steps:
       - uses: actions/checkout@v2
@@ -40,13 +41,14 @@ jobs:
       - name: Build PyOM2
         run: |
           pip install numpy  # get f2py
-          mkdir -p /pyom2
-          cp vendor/pyom2/pyOM2.1.0.tar.gz /pyom2
-          cp vendor/pyom2/pyOM2_site_specific /pyom2/site_specific.mk_
-          cd /pyom2
+          mkdir -p $PYOM2_DIR
+          cp vendor/pyom2/pyOM2.1.0.tar.gz $PYOM2_DIR
+          cp vendor/pyom2/pyOM2_site_specific $PYOM2_DIR/site_specific.mk_
+          cd $PYOM2_DIR
           tar xzf pyOM2.1.0.tar.gz
           make -C py_src -j 4 > /dev/null
-          export PYOM2_LIB=/pyom2/
+          echo "PYOM2_LIB=$(readlink -f py_src/pyOM_code.*.so)" >> $GITHUB_ENV
+          echo "PYOM2_LIB_MPI=$(readlink -f py_src/pyOM_code_MPI.*.so)" >> $GITHUB_ENV
 
       - name: Install python dependencies
         run: |
@@ -59,4 +61,4 @@ jobs:
         run: pytest . -v --cov --pyom2-lib $PYOM2_LIB
 
       - name: Run tests with MPI
-        run: mpirun -host localhost:2 -v -np 2 pytest .
+        run: mpirun -host localhost:2 -v -np 2 pytest . -v --cov --pyom2-lib $PYOM2_LIB_MPI
