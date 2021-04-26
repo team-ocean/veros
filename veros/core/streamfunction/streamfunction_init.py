@@ -117,7 +117,7 @@ def boundary_masks(state):
 
     (east_mask, west_mask, south_mask, north_mask, boundary_mask) = for_loop(
         0, state.dimensions["isle"], loop_body,
-        (vs.line_dir_east_mask, vs.line_dir_east_mask, vs.line_dir_east_mask, vs.line_dir_east_mask, vs.boundary_mask)
+        (vs.line_dir_east_mask, vs.line_dir_west_mask, vs.line_dir_south_mask, vs.line_dir_north_mask, vs.boundary_mask)
     )
 
     return KernelOutput(

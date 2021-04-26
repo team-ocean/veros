@@ -1,4 +1,5 @@
-import numpy as np
+from veros.core.operators import numpy as np
+
 import scipy.interpolate
 import scipy.spatial
 
@@ -106,14 +107,13 @@ def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
        >>> data_at_current_time = f1 * data[..., n1] + f2 * data[..., n2]
 
     """
-    locTime = current_time - rec_spacing * 0.5 + \
-        cycle_length * (2 - np.around(current_time / cycle_length))
-    tmpTime = locTime % cycle_length
-    tRec1 = 1 + (tmpTime / rec_spacing).astype(int)
-    tRec2 = 1 + tRec1 % np.array(n_rec, dtype='int')
-    wght2 = (tmpTime - rec_spacing * (tRec1 - 1)) / rec_spacing
-    wght1 = 1.0 - wght2
-    return (tRec1 - 1, wght1), (tRec2 - 1, wght2)
+    current_time = current_time % cycle_length
+    # using np.array works with both NumPy and JAX
+    t_idx_1 = np.array(current_time // rec_spacing, dtype='int')
+    t_idx_2 = np.array((1 + t_idx_1) % n_rec, dtype='int')
+    weight_2 = (current_time - rec_spacing * t_idx_1) / rec_spacing
+    weight_1 = 1.0 - weight_2
+    return (t_idx_1, weight_1), (t_idx_2, weight_2)
 
 
 def make_cyclic(longitude, array=None, wrap=360.):

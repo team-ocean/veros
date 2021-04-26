@@ -333,8 +333,10 @@ class Energy(VerosDiagnostic):
         output_variables = {key: val for key, val in self.variables.items() if val.output}
         output_data = {key: getattr(self, key) * state.settings.rho_0 / self.nitts
                        for key in output_variables.keys()}
+
         if not os.path.isfile(self.get_output_file_name(state)):
             self.initialize_output(state, output_variables)
+
         self.write_output(state, output_variables, output_data)
 
         for key in output_variables.keys():

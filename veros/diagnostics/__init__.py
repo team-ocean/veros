@@ -1,5 +1,4 @@
-from veros import logger, runtime_settings
-import numpy as np
+from veros import logger, runtime_settings, veros_kernel
 
 from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monitor
 from .. import time
@@ -12,7 +11,9 @@ def create_default_diagnostics():
                                            snapshot.Snapshot, tracer_monitor.TracerMonitor)}
 
 
+@veros_kernel
 def sanity_check(state):
+    from veros.core.operators import numpy as np
     from veros.distributed import global_and
     return global_and(np.all(np.isfinite(state.variables.u)))
 

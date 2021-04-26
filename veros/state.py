@@ -229,7 +229,7 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
 
                 setattr(self, key, var_mod.allocate(dimensions, val.dims, **allocate_kwargs))
 
-    def __getattribute__(self, attr):
+    def __getattr__(self, attr):
         orig_getattr = super().__getattribute__
         try:
             var = orig_getattr("__metadata__")[attr]

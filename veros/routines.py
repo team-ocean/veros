@@ -186,6 +186,7 @@ class VerosRoutine:
     def __call__(self, *args, **kwargs):
         from veros import runtime_state as rst
         from veros.state import VerosState, DistSafeVariableWrapper
+        from veros.core.operators import flush
 
         veros_state = args[self.state_argnum]
 
@@ -233,6 +234,8 @@ class VerosRoutine:
                 if restore_vars:
                     veros_state._variables._scatter_variables()
                     veros_state._variables = orig_vars
+
+                flush()
 
         if out is not None:
             logger.warning(f"Routine {self.name} returned object of type {type(out)}. Return objects are silently dropped.")

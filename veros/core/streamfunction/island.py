@@ -79,7 +79,9 @@ def _ascii_map(boundary_map):
             return '#'
         return str(c % 10)
 
+    boundary_map = onp.array(boundary_map)
     nx, ny = boundary_map.shape
+
     map_string = ''
     linewidth = 100
     iremain = nx
@@ -87,7 +89,7 @@ def _ascii_map(boundary_map):
     map_string += '\n'
     map_string += ' ' * (5 + min(linewidth, nx) // 2 - 13) + 'Land mass and perimeter'
     map_string += '\n'
-    for isweep in range(1, nx // linewidth + 2):
+    for _ in range(1, nx // linewidth + 2):
         iline = min(iremain, linewidth)
         iremain = iremain - iline
         if iline > 0:
@@ -102,4 +104,5 @@ def _ascii_map(boundary_map):
             map_string += '\n'
             istart = istart + iline
     map_string += '\n'
+
     return map_string

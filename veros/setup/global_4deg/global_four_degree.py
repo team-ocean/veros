@@ -24,7 +24,6 @@ def set_forcing_kernel(state):
     (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(
         vs.time, year_in_seconds, year_in_seconds / 12., 12
     )
-    print(vs.time, n1, f1, n2, f2)
 
     # wind stress
     vs.surface_taux = (f1 * vs.taux[:, :, n1] + f2 * vs.taux[:, :, n2])
@@ -191,7 +190,7 @@ class GlobalFourDegreeSetup(VerosSetup):
 
     @veros_routine(dist_safe=False, local_variables=[
         'taux', 'tauy', 'qnec', 'qnet', 'sss_clim', 'sst_clim',
-        'temp', 'salt', 'area_t', 'maskT', 'forc_iw_bottom', 'forc_iw_surface', 'hvr'
+        'temp', 'salt', 'area_t', 'maskT', 'forc_iw_bottom', 'forc_iw_surface'
     ])
     def set_initial_conditions(self, state):
         vs = state.variables

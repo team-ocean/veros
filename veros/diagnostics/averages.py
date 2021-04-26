@@ -80,10 +80,10 @@ class Averages(VerosDiagnostic):
         if variables:
             self.average_vars = variables
 
-        for key, runsum in self.average_vars.items():
-            runsum.var.time_dependent = True
+        for key, var in self.average_vars.items():
+            var.time_dependent = True
             if self._has_timestep_dim(state, key):
-                runsum.var.dims = runsum.var.dims[:-1]
+                var.dims = var.dims[:-1]
 
     def write_restart(self, state, outfile):
         attributes = {'average_nitts': self.average_nitts}

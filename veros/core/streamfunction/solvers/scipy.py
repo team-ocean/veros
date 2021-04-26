@@ -27,9 +27,6 @@ class SciPySolver(LinearSolver):
         self._rhs_scale = jacobi_precon.diagonal()
         self._extra_args = {}
 
-        import matplotlib.pyplot as plt
-        plt.imshow(self._matrix.todense())
-        plt.show()
         logger.info('Computing ILU preconditioner...')
         ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-6, fill_factor=100)
         self._extra_args['M'] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
@@ -40,7 +37,7 @@ class SciPySolver(LinearSolver):
         orig_shape = x0.shape
         x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x, local=True)
 
-        boundary_mask = np.prod(1 - boundary_mask, axis=2)
+        boundary_mask = ~np.any(boundary_mask, axis=2)
         rhs = np.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
         rhs = onp.asarray(rhs.reshape(-1), dtype='float64') * self._rhs_scale
@@ -110,7 +107,7 @@ class SciPySolver(LinearSolver):
         vs = state.variables
         settings = state.settings
 
-        boundary_mask = np.prod(1 - vs.boundary_mask, axis=2)
+        boundary_mask = ~np.any(vs.boundary_mask, axis=2)
 
         # assemble diagonals
         main_diag = allocate(state.dimensions, ('xu', 'yu'), fill=1, local=False)
@@ -138,12 +135,6 @@ class SciPySolver(LinearSolver):
 
         main_diag = main_diag * boundary_mask
         main_diag = np.where(main_diag == 0., 1., main_diag)
-
-        import matplotlib.pyplot as plt
-        print(vs.cost)
-        plt.figure()
-        plt.imshow(main_diag)
-        plt.show()
 
         # construct sparse matrix
         cf = tuple(diag.reshape(-1) for diag in (
