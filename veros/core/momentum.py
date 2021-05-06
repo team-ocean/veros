@@ -14,16 +14,13 @@ def tend_coriolisf(state):
     vs = state.variables
     settings = state.settings
 
-    du_cor = allocate(state.dimensions, ("xu", "yt", "zt"))
-    dv_cor = allocate(state.dimensions, ("xt", "yu", "zt"))
-
-    du_cor = update(du_cor, at[2:-2, 2:-2], vs.maskU[2:-2, 2:-2] \
+    vs.du_cor = update(vs.du_cor, at[2:-2, 2:-2], vs.maskU[2:-2, 2:-2] \
         * (vs.coriolis_t[2:-2, 2:-2, np.newaxis] * (vs.v[2:-2, 2:-2, :, vs.tau] + vs.v[2:-2, 1:-3, :, vs.tau])
            * vs.dxt[2:-2, np.newaxis, np.newaxis] / vs.dxu[2:-2, np.newaxis, np.newaxis]
             + vs.coriolis_t[3:-1, 2:-2, np.newaxis] *
            (vs.v[3:-1, 2:-2, :, vs.tau] + vs.v[3:-1, 1:-3, :, vs.tau])
            * vs.dxt[3:-1, np.newaxis, np.newaxis] / vs.dxu[2:-2, np.newaxis, np.newaxis]) * 0.25)
-    dv_cor = update(dv_cor, at[2:-2, 2:-2], -1 * vs.maskV[2:-2, 2:-2] \
+    vs.dv_cor = update(vs.dv_cor, at[2:-2, 2:-2], -1 * vs.maskV[2:-2, 2:-2] \
         * (vs.coriolis_t[2:-2, 2:-2, np.newaxis] * (vs.u[1:-3, 2:-2, :, vs.tau] + vs.u[2:-2, 2:-2, :, vs.tau])
            * vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.cost[np.newaxis, 2:-2, np.newaxis]
            / (vs.dyu[np.newaxis, 2:-2, np.newaxis] * vs.cosu[np.newaxis, 2:-2, np.newaxis])
@@ -36,14 +33,14 @@ def tend_coriolisf(state):
     time tendency due to metric terms
     """
     if settings.coord_degree:
-        du_cor = update_add(du_cor, at[2:-2, 2:-2], vs.maskU[2:-2, 2:-2] * 0.125 * vs.tantr[np.newaxis, 2:-2, np.newaxis] \
+        vs.du_cor = update_add(vs.du_cor, at[2:-2, 2:-2], vs.maskU[2:-2, 2:-2] * 0.125 * vs.tantr[np.newaxis, 2:-2, np.newaxis] \
             * ((vs.u[2:-2, 2:-2, :, vs.tau] + vs.u[1:-3, 2:-2, :, vs.tau])
                * (vs.v[2:-2, 2:-2, :, vs.tau] + vs.v[2:-2, 1:-3, :, vs.tau])
                * vs.dxt[2:-2, np.newaxis, np.newaxis] / vs.dxu[2:-2, np.newaxis, np.newaxis]
                + (vs.u[3:-1, 2:-2, :, vs.tau] + vs.u[2:-2, 2:-2, :, vs.tau])
                * (vs.v[3:-1, 2:-2, :, vs.tau] + vs.v[3:-1, 1:-3, :, vs.tau])
                * vs.dxt[3:-1, np.newaxis, np.newaxis] / vs.dxu[2:-2, np.newaxis, np.newaxis]))
-        dv_cor = update_add(dv_cor, at[2:-2, 2:-2], -1 * vs.maskV[2:-2, 2:-2] * 0.125 \
+        vs.dv_cor = update_add(vs.dv_cor, at[2:-2, 2:-2], -1 * vs.maskV[2:-2, 2:-2] * 0.125 \
             * (vs.tantr[np.newaxis, 2:-2, np.newaxis] * (vs.u[2:-2, 2:-2, :, vs.tau] + vs.u[1:-3, 2:-2, :, vs.tau])**2
                * vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.cost[np.newaxis, 2:-2, np.newaxis]
                / (vs.dyu[np.newaxis, 2:-2, np.newaxis] * vs.cosu[np.newaxis, 2:-2, np.newaxis])
@@ -55,10 +52,10 @@ def tend_coriolisf(state):
     """
     transfer to time tendencies
     """
-    du = update(vs.du, at[2:-2, 2:-2, :, vs.tau], du_cor[2:-2, 2:-2])
-    dv = update(vs.dv, at[2:-2, 2:-2, :, vs.tau], dv_cor[2:-2, 2:-2])
+    vs.du = update(vs.du, at[2:-2, 2:-2, :, vs.tau], vs.du_cor[2:-2, 2:-2])
+    vs.dv = update(vs.dv, at[2:-2, 2:-2, :, vs.tau], vs.dv_cor[2:-2, 2:-2])
 
-    return KernelOutput(du=du, dv=dv, du_cor=du_cor, dv_cor=dv_cor)
+    return KernelOutput(du=vs.du, dv=vs.dv, du_cor=vs.du_cor, dv_cor=vs.dv_cor)
 
 
 @veros_kernel
@@ -70,13 +67,13 @@ def tend_tauxyf(state):
     settings = state.settings
 
     if runtime_settings.pyom_compatibility_mode:
-        du = update_add(vs.du, at[2:-2, 2:-2, -1, vs.tau], vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1])
-        dv = update_add(vs.dv, at[2:-2, 2:-2, -1, vs.tau], vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1])
+        vs.du = update_add(vs.du, at[2:-2, 2:-2, -1, vs.tau], vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1])
+        vs.dv = update_add(vs.dv, at[2:-2, 2:-2, -1, vs.tau], vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1])
     else:
-        du = update_add(vs.du, at[2:-2, 2:-2, -1, vs.tau], vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1] / settings.rho_0)
-        dv = update_add(vs.dv, at[2:-2, 2:-2, -1, vs.tau], vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1] / settings.rho_0)
+        vs.du = update_add(vs.du, at[2:-2, 2:-2, -1, vs.tau], vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1] / settings.rho_0)
+        vs.dv = update_add(vs.dv, at[2:-2, 2:-2, -1, vs.tau], vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1] / settings.rho_0)
 
-    return KernelOutput(du=du, dv=dv)
+    return KernelOutput(du=vs.du, dv=vs.dv)
 
 
 @veros_kernel
@@ -99,8 +96,6 @@ def momentum_advection(state):
     """
     for zonal momentum
     """
-    du_adv = allocate(state.dimensions, ("xu", "yt", "zt"))
-    dv_adv = allocate(state.dimensions, ("xt", "yu", "zt"))
     flux_east = allocate(state.dimensions, ("xu", "yt", "zt"))
     flux_north = allocate(state.dimensions, ("xt", "yu", "zt"))
     flux_top = allocate(state.dimensions, ("xt", "yt", "zw"))
@@ -114,13 +109,13 @@ def momentum_advection(state):
     flux_top = update(flux_top, at[2:-2, 2:-2, :-1], 0.25 * (vs.u[2:-2, 2:-2, 1:, vs.tau]
                                         + vs.u[2:-2, 2:-2, :-1, vs.tau]) \
                                      * (wtr[2:-2, 2:-2, :-1] + wtr[3:-1, 2:-2, :-1]))
-    du_adv = update(du_adv, at[2:-2, 2:-2], -1 * vs.maskU[2:-2, 2:-2] * (flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2]
+    vs.du_adv = update(vs.du_adv, at[2:-2, 2:-2], -1 * vs.maskU[2:-2, 2:-2] * (flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2]
                                                + flux_north[2:-2, 2:-2] - flux_north[2:-2, 1:-3]) \
                          / (vs.dzt[np.newaxis, np.newaxis, :] * vs.area_u[2:-2, 2:-2, np.newaxis]))
 
     tmp = -1 * vs.maskU / (vs.dzt * vs.area_u[:, :, np.newaxis])
-    du_adv = du_adv + tmp * flux_top
-    du_adv = update_add(du_adv, at[:, :, 1:], tmp[:, :, 1:] * -flux_top[:, :, :-1])
+    vs.du_adv = vs.du_adv + tmp * flux_top
+    vs.du_adv = update_add(vs.du_adv, at[:, :, 1:], tmp[:, :, 1:] * -flux_top[:, :, :-1])
 
     """
     for meridional momentum
@@ -132,19 +127,19 @@ def momentum_advection(state):
                                      + vs.v[2:-2, 2:-1, :, vs.tau]) * (vtr[2:-2, 2:-1] + vtr[2:-2, 1:-2]))
     flux_top = update(flux_top, at[2:-2, 2:-2, :-1], 0.25 * (vs.v[2:-2, 2:-2, 1:, vs.tau]
                                         + vs.v[2:-2, 2:-2, :-1, vs.tau]) * (wtr[2:-2, 2:-2, :-1] + wtr[2:-2, 3:-1, :-1]))
-    dv_adv = update(dv_adv, at[2:-2, 2:-2], -1 * vs.maskV[2:-2, 2:-2] * (flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2]
+    vs.dv_adv = update(vs.dv_adv, at[2:-2, 2:-2], -1 * vs.maskV[2:-2, 2:-2] * (flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2]
                                                + flux_north[2:-2, 2:-2] - flux_north[2:-2, 1:-3]) \
                          / (vs.dzt * vs.area_u[2:-2, 2:-2, np.newaxis]))
 
     tmp = vs.dzt * vs.area_u[:, :, np.newaxis]
-    dv_adv = update_add(dv_adv, at[:, :, 0], -1 * vs.maskV[:, :, 0] * flux_top[:, :, 0] / tmp[:, :, 0])
-    dv_adv = update_add(dv_adv, at[:, :, 1:], -1 * vs.maskV[:, :, 1:] \
+    vs.dv_adv = update_add(vs.dv_adv, at[:, :, 0], -1 * vs.maskV[:, :, 0] * flux_top[:, :, 0] / tmp[:, :, 0])
+    vs.dv_adv = update_add(vs.dv_adv, at[:, :, 1:], -1 * vs.maskV[:, :, 1:] \
         * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / tmp[:, :, 1:])
 
-    du = update_add(vs.du, at[:, :, :, vs.tau], du_adv)
-    dv = update_add(vs.dv, at[:, :, :, vs.tau], dv_adv)
+    vs.du = update_add(vs.du, at[:, :, :, vs.tau], vs.du_adv)
+    vs.dv = update_add(vs.dv, at[:, :, :, vs.tau], vs.dv_adv)
 
-    return KernelOutput(du=du, dv=dv, du_adv=du_adv, dv_adv=dv_adv)
+    return KernelOutput(du=vs.du, dv=vs.dv, du_adv=vs.du_adv, dv_adv=vs.dv_adv)
 
 
 @veros_routine
@@ -180,9 +175,9 @@ def vertical_velocity_kernel(state):
            / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])))
 
     # TODO: replace cumsum
-    w = update(vs.w, at[1:, 1:, :, vs.taup1], np.cumsum(fxa[1:, 1:, :], axis=2))
+    vs.w = update(vs.w, at[1:, 1:, :, vs.taup1], np.cumsum(fxa[1:, 1:, :], axis=2))
 
-    return KernelOutput(w=w)
+    return KernelOutput(w=vs.w)
 
 
 @veros_routine

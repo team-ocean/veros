@@ -77,11 +77,11 @@ def island_integrals(state):
         * vs.maskV[1:, 1:, -1, np.newaxis]
         / (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
         * vs.hvr[1:, 1:, np.newaxis])
-    line_psin = line_integrals.line_integrals(
+    vs.line_psin = line_integrals.line_integrals(
         state, uloc=uloc, vloc=vloc, kind='full'
     )
 
-    return KernelOutput(line_psin=line_psin)
+    return KernelOutput(line_psin=vs.line_psin)
 
 
 @veros_kernel
@@ -115,12 +115,12 @@ def boundary_masks(state):
         ))
         return (east_mask, west_mask, south_mask, north_mask, boundary_mask)
 
-    (east_mask, west_mask, south_mask, north_mask, boundary_mask) = for_loop(
+    (vs.line_dir_east_mask, vs.line_dir_west_mask, vs.line_dir_south_mask, vs.line_dir_north_mask, vs.boundary_mask) = for_loop(
         0, state.dimensions["isle"], loop_body,
         (vs.line_dir_east_mask, vs.line_dir_west_mask, vs.line_dir_south_mask, vs.line_dir_north_mask, vs.boundary_mask)
     )
 
     return KernelOutput(
-        boundary_mask=boundary_mask, line_dir_east_mask=east_mask, line_dir_west_mask=west_mask,
-        line_dir_south_mask=south_mask, line_dir_north_mask=north_mask,
+        boundary_mask=vs.boundary_mask, line_dir_east_mask=vs.line_dir_east_mask, line_dir_west_mask=vs.line_dir_west_mask,
+        line_dir_south_mask=vs.line_dir_south_mask, line_dir_north_mask=vs.line_dir_north_mask,
     )

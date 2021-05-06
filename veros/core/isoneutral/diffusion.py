@@ -113,7 +113,8 @@ def _calc_implicit_part(state, tr):
     sol = utilities.solve_implicit(
         a_tri, b_tri, c_tri, tr[2:-2, 2:-2, :, vs.taup1], water_mask, b_edge=b_tri_edge, edge_mask=edge_mask
     )
-    return np.where(water_mask, sol, tr[2:-2, 2:-2, :, vs.taup1])
+    implicit_part = np.where(water_mask, sol, tr[2:-2, 2:-2, :, vs.taup1])
+    return implicit_part
 
 
 @veros_kernel(static_args=("iso", "skew"))

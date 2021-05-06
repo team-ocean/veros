@@ -17,5 +17,4 @@ dependencies:
     - loguru
     - tqdm
     - pip:
-        - bohrium
         - -e .

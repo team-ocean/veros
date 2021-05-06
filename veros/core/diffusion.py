@@ -55,30 +55,27 @@ def tempsalt_biharmonic(state, flux_east, flux_north):
     fxa = np.sqrt(abs(settings.K_hbi))
 
     # update temp
-    temp = vs.temp
-    dtemp_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
-    dtemp_hmix = update(dtemp_hmix, at[1:, 1:, :], biharmonic_diffusion(state, temp[:, :, :, vs.tau], fxa)[1:, 1:, :])
-    temp = update_add(temp, at[:, :, :, vs.taup1], settings.dt_tracer * dtemp_hmix * vs.maskT)
+    vs.dtemp_hmix = update(vs.dtemp_hmix, at[1:, 1:, :], biharmonic_diffusion(state, vs.temp[:, :, :, vs.tau], fxa)[1:, 1:, :])
+    vs.temp = update_add(vs.temp, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dtemp_hmix * vs.maskT)
 
-    P_diss_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
+    vs.P_diss_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
     if settings.enable_conserve_energy:
         if runtime_settings.pyom_compatibility_mode:
             fxa = vs.int_drhodT[-3, -3, -1, vs.tau]
 
         diss = compute_dissipation(state, vs.int_drhodT[..., vs.tau], flux_east, flux_north)
-        P_diss_hmix = P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
+        vs.P_diss_hmix = vs.P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
 
     # update salt
-    salt = vs.salt
-    dsalt_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
-    dsalt_hmix = update(dsalt_hmix, at[1:, 1:, :], biharmonic_diffusion(state, salt[:, :, :, vs.tau], fxa)[1:, 1:, :])
-    salt = update_add(salt, at[:, :, :, vs.taup1], settings.dt_tracer * dsalt_hmix * vs.maskT)
+    vs.dsalt_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
+    vs.dsalt_hmix = update(vs.dsalt_hmix, at[1:, 1:, :], biharmonic_diffusion(state, vs.salt[:, :, :, vs.tau], fxa)[1:, 1:, :])
+    vs.salt = update_add(vs.salt, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dsalt_hmix * vs.maskT)
 
     if settings.enable_conserve_energy:
         diss = compute_dissipation(state, vs.int_drhodS[..., vs.tau], flux_east, flux_north)
-        P_diss_hmix = P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
+        vs.P_diss_hmix = vs.P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
 
-    return KernelOutput(temp=temp, salt=salt, dtemp_hmix=dtemp_hmix, dsalt_hmix=dsalt_hmix, P_diss_hmix=P_diss_hmix)
+    return KernelOutput(temp=vs.temp, salt=vs.salt, dtemp_hmix=vs.dtemp_hmix, dsalt_hmix=vs.dsalt_hmix, P_diss_hmix=vs.P_diss_hmix)
 
 
 @veros_kernel
@@ -91,27 +88,22 @@ def tempsalt_diffusion(state, flux_east, flux_north):
     settings = state.settings
 
     # horizontal diffusion of temperature
-    temp = vs.temp
-    dtemp_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
-    dtemp_hmix = update(dtemp_hmix, at[1:, 1:, :], horizontal_diffusion(state, temp[:, :, :, vs.tau], settings.K_h)[1:, 1:, :])
-    temp = update_add(temp, at[:, :, :, vs.taup1], settings.dt_tracer * dtemp_hmix * vs.maskT)
+    vs.dtemp_hmix = update(vs.dtemp_hmix, at[1:, 1:, :], horizontal_diffusion(state, temp[:, :, :, vs.tau], settings.K_h)[1:, 1:, :])
+    vs.temp = update_add(vs.temp, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dtemp_hmix * vs.maskT)
 
-    P_diss_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
     if settings.enable_conserve_energy:
         diss = compute_dissipation(state, vs.int_drhodT[..., vs.tau], flux_east, flux_north)
-        P_diss_hmix = P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
+        vs.P_diss_hmix = vs.P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
 
     # horizontal diffusion of salinity
-    salt = vs.salt
-    dsalt_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
-    dsalt_hmix = update(dsalt_hmix, at[1:, 1:, :], horizontal_diffusion(state, salt[:, :, :, vs.tau], settings.K_h)[1:, 1:, :])
-    salt = update_add(salt, at[:, :, :, vs.taup1], settings.dt_tracer * dsalt_hmix * vs.maskT)
+    vs.dsalt_hmix = update(vs.dsalt_hmix, at[1:, 1:, :], horizontal_diffusion(state, vs.salt[:, :, :, vs.tau], settings.K_h)[1:, 1:, :])
+    vs.salt = update_add(vs.salt, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dsalt_hmix * vs.maskT)
 
     if settings.enable_conserve_energy:
         diss = compute_dissipation(state, vs.int_drhodS[..., vs.tau], flux_east, flux_north)
-        P_diss_hmix = P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
+        vs.P_diss_hmix = vs.P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
 
-    return KernelOutput(temp=temp, salt=salt, dtemp_hmix=dtemp_hmix, dsalt_hmix=dsalt_hmix, P_diss_hmix=P_diss_hmix)
+    return KernelOutput(temp=vs.temp, salt=vs.salt, dtemp_hmix=vs.dtemp_hmix, dsalt_hmix=vs.dsalt_hmix, P_diss_hmix=vs.P_diss_hmix)
 
 
 @veros_kernel
@@ -123,18 +115,17 @@ def tempsalt_sources(state):
     vs = state.variables
     settings = state.settings
 
-    temp = update_add(vs.temp, at[:, :, :, vs.taup1], settings.dt_tracer * vs.temp_source * vs.maskT)
-    salt = update_add(vs.salt, at[:, :, :, vs.taup1], settings.dt_tracer * vs.salt_source * vs.maskT)
+    vs.temp = update_add(vs.temp, at[:, :, :, vs.taup1], settings.dt_tracer * vs.temp_source * vs.maskT)
+    vs.salt = update_add(vs.salt, at[:, :, :, vs.taup1], settings.dt_tracer * vs.salt_source * vs.maskT)
 
-    P_diss_sources = allocate(state.dimensions, ("xt", "yt", "zt"))
     if settings.enable_conserve_energy:
         diss = -settings.grav / settings.rho_0 * vs.maskT * \
             (vs.int_drhodT[..., vs.tau] * vs.temp_source +
              vs.int_drhodS[..., vs.tau] * vs.salt_source)
 
-        P_diss_sources = P_diss_sources + dissipation_on_wgrid(state, diss, vs.kbot)
+        vs.P_diss_sources = vs.P_diss_sources + dissipation_on_wgrid(state, diss, vs.kbot)
 
-    return KernelOutput(temp=temp, salt=salt, P_diss_sources=P_diss_sources)
+    return KernelOutput(temp=vs.temp, salt=vs.salt, P_diss_sources=vs.P_diss_sources)
 
 
 @veros_kernel

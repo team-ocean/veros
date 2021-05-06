@@ -51,35 +51,36 @@ def set_eke_diffusivities_kernel(state):
     vs = state.variables
     settings = state.settings
 
-    C_rossby = allocate(state.dimensions, ("xt", "yt"))
-
     if settings.enable_eke:
         """
         calculate Rossby radius as minimum of mid-latitude and equatorial R. rad.
         """
-        C_rossby = update(C_rossby, at[...], np.sum(np.sqrt(np.maximum(0., vs.Nsqr[:, :, :, vs.tau]))
-                               * vs.dzw[np.newaxis, np.newaxis, :] * vs.maskW[:, :, :] / settings.pi, axis=2))
-        L_rossby = np.minimum(C_rossby / np.maximum(np.abs(vs.coriolis_t), 1e-16), np.sqrt(C_rossby / np.maximum(2 * vs.beta, 1e-16)))
+        C_rossby = np.sum(np.sqrt(np.maximum(0., vs.Nsqr[:, :, :, vs.tau]))
+                               * vs.dzw[np.newaxis, np.newaxis, :] * vs.maskW[:, :, :] / settings.pi, axis=2)
+        vs.L_rossby = np.minimum(C_rossby / np.maximum(np.abs(vs.coriolis_t), 1e-16), np.sqrt(C_rossby / np.maximum(2 * vs.beta, 1e-16)))
 
         """
         calculate vertical viscosity and skew diffusivity
         """
-        sqrteke = np.sqrt(np.maximum(0., vs.eke[:, :, :, vs.tau]))
-        L_rhines = np.sqrt(sqrteke / np.maximum(vs.beta[..., np.newaxis], 1e-16))
-        eke_len = np.maximum(settings.eke_lmin, np.minimum(settings.eke_cross * L_rossby[..., np.newaxis], settings.eke_crhin * L_rhines))
-        K_gm = np.minimum(settings.eke_k_max, settings.eke_c_k * eke_len * sqrteke)
+        vs.sqrteke = np.sqrt(np.maximum(0., vs.eke[:, :, :, vs.tau]))
+        vs.L_rhines = np.sqrt(vs.sqrteke / np.maximum(vs.beta[..., np.newaxis], 1e-16))
+        eke_len = np.maximum(settings.eke_lmin, np.minimum(settings.eke_cross * vs.L_rossby[..., np.newaxis], settings.eke_crhin * vs.L_rhines))
+        vs.K_gm = np.minimum(settings.eke_k_max, settings.eke_c_k * eke_len * vs.sqrteke)
     else:
         """
         use fixed GM diffusivity
         """
-        K_gm = update(vs.K_gm, at[...], settings.K_gm_0)
+        vs.K_gm = update(vs.K_gm, at[...], settings.K_gm_0)
 
     if settings.enable_eke and settings.enable_eke_isopycnal_diffusion:
-        K_iso = update(vs.K_iso, at[...], K_gm)
+        vs.K_iso = update(vs.K_iso, at[...], vs.K_gm)
     else:
-        K_iso = update(vs.K_iso, at[...], settings.K_iso_0)  # always constant
+        vs.K_iso = update(vs.K_iso, at[...], settings.K_iso_0)  # always constant
 
-    return KernelOutput(L_rossby=L_rossby, L_rhines=L_rhines, eke_len=eke_len, sqrteke=sqrteke, K_gm=K_gm, K_iso=K_iso)
+    if not settings.enable_eke:
+        return KernelOutput(K_gm=vs.K_gm, K_iso=vs.K_iso)
+
+    return KernelOutput(L_rossby=vs.L_rossby, L_rhines=vs.L_rhines, eke_len=eke_len, sqrteke=vs.sqrteke, K_gm=vs.K_gm, K_iso=vs.K_iso)
 
 
 @veros_routine
@@ -117,8 +118,6 @@ def integrate_eke_kernel(state):
     if not settings.enable_store_cabbeling_heat:
         forc = forc - vs.P_diss_hmix - vs.P_diss_iso
 
-    eke = vs.eke
-
     conditional_outputs = {}
 
     """
@@ -130,21 +129,21 @@ def integrate_eke_kernel(state):
         by lee wave generation
         """
         # TODO: replace these haxx with fancy indexing / take along axis
-        c_lee = np.zeros_like(vs.c_lee)
+        vs.c_lee = np.zeros_like(vs.c_lee)
         ks = vs.kbot[2:-2, 2:-2] - 1
         ki = np.arange(settings.nz)[np.newaxis, np.newaxis, :]
         boundary_mask = (ks >= 0) & (ks < settings.nz - 1)
         full_mask = boundary_mask[:, :, np.newaxis] & (ki == ks[:, :, np.newaxis])
         fxa = np.maximum(0, vs.Nsqr[2:-2, 2:-2, :, vs.tau])**0.25
         fxa *= 1.5 * fxa / np.sqrt(np.maximum(1e-6, np.abs(vs.coriolis_t[2:-2, 2:-2, np.newaxis]))) - 2
-        c_lee = update(c_lee, at[2:-2, 2:-2], boundary_mask * settings.c_lee0 * settings.hrms_k0[2:-2, 2:-2] \
+        vs.c_lee = update(vs.c_lee, at[2:-2, 2:-2], boundary_mask * settings.c_lee0 * settings.hrms_k0[2:-2, 2:-2] \
                             * np.sum(np.sqrt(vs.sqrteke[2:-2, 2:-2, :]) * np.maximum(0, fxa)
                             / vs.dzw[np.newaxis, np.newaxis, :] * full_mask, axis=-1))
 
         """
         Ri-dependent dissipation by interior loss of balance
         """
-        c_Ri_diss = np.zeros_like(vs.c_Ri_diss)
+        vs.c_Ri_diss = np.zeros_like(vs.c_Ri_diss)
         uz = (((vs.u[1:, 1:, 1:, vs.tau] - vs.u[1:, 1:, :-1, vs.tau]) / vs.dzt[np.newaxis, np.newaxis, :-1] * vs.maskU[1:, 1:, :-1])**2
               + ((vs.u[:-1, 1:, 1:, vs.tau] - vs.u[:-1, 1:, :-1, vs.tau]) / vs.dzt[np.newaxis, np.newaxis, :-1] * vs.maskU[:-1, 1:, :-1])**2) \
             / (vs.maskU[1:, 1:, :-1] + vs.maskU[:-1, 1:, :-1] + 1e-18)
@@ -153,24 +152,24 @@ def integrate_eke_kernel(state):
             / (vs.maskV[1:, 1:, :-1] + vs.maskV[1:, :-1, :-1] + 1e-18)
         Ri = np.maximum(1e-8, vs.Nsqr[1:, 1:, :-1, vs.tau]) / (uz + vz + 1e-18)
         fxa = 1 - 0.5 * (1. + np.tanh((Ri - settings.eke_Ri0) / settings.eke_Ri1))
-        c_Ri_diss = update(c_Ri_diss, at[1:, 1:, :-1], vs.maskW[1:, 1:, :-1] * fxa * settings.eke_int_diss0)
-        c_Ri_diss = update(c_Ri_diss, at[:, :, -1], c_Ri_diss[:, :, -2] * vs.maskW[:, :, -1])
+        vs.c_Ri_diss = update(vs.c_Ri_diss, at[1:, 1:, :-1], vs.maskW[1:, 1:, :-1] * fxa * settings.eke_int_diss0)
+        vs.c_Ri_diss = update(vs.c_Ri_diss, at[:, :, -1], vs.c_Ri_diss[:, :, -2] * vs.maskW[:, :, -1])
 
         """
         vertically integrate Ri-dependent dissipation and EKE
         """
-        a_loc = np.sum(c_Ri_diss[:, :, :-1] * eke[:, :, :-1, vs.tau] * vs.maskW[:, :, :-1] * vs.dzw[:-1], axis=2)
-        b_loc = np.sum(eke[:, :, :-1, vs.tau] *
+        a_loc = np.sum(vs.c_Ri_diss[:, :, :-1] * vs.eke[:, :, :-1, vs.tau] * vs.maskW[:, :, :-1] * vs.dzw[:-1], axis=2)
+        b_loc = np.sum(vs.eke[:, :, :-1, vs.tau] *
                        vs.maskW[:, :, :-1] * vs.dzw[:-1], axis=2)
-        a_loc += c_Ri_diss[:, :, -1] * eke[:, :, -1, vs.tau] * vs.maskW[:, :, -1] * vs.dzw[-1] * 0.5
-        b_loc += eke[:, :, -1, vs.tau] * vs.maskW[:, :, -1] * vs.dzw[-1] * 0.5
+        a_loc += vs.c_Ri_diss[:, :, -1] * vs.eke[:, :, -1, vs.tau] * vs.maskW[:, :, -1] * vs.dzw[-1] * 0.5
+        b_loc += vs.eke[:, :, -1, vs.tau] * vs.maskW[:, :, -1] * vs.dzw[-1] * 0.5
 
         """
         add bottom fluxes by lee waves and bottom friction to a_loc
         """
-        a_loc = update_add(a_loc, at[2:-2, 2:-2], np.sum((c_lee[2:-2, 2:-2, np.newaxis] * eke[2:-2, 2:-2, :, vs.tau]
+        a_loc = update_add(a_loc, at[2:-2, 2:-2], np.sum((vs.c_lee[2:-2, 2:-2, np.newaxis] * vs.eke[2:-2, 2:-2, :, vs.tau]
                                      * vs.maskW[2:-2, 2:-2, :] * vs.dzw[np.newaxis, np.newaxis, :]
-                                     + 2 * settings.eke_r_bot * eke[2:-2, 2:-2, :, vs.tau]
+                                     + 2 * settings.eke_r_bot * vs.eke[2:-2, 2:-2, :, vs.tau]
                                      * np.sqrt(2) * vs.sqrteke[2:-2, 2:-2, :]
                                      * vs.maskW[2:-2, 2:-2, :]) * full_mask, axis=-1) * boundary_mask)
 
@@ -182,7 +181,7 @@ def integrate_eke_kernel(state):
         a_loc = update(a_loc, at[...], np.where(mask, a_loc / (b_loc + 1e-20), 0.))
         c_int = update(c_int, at[...], a_loc[:, :, np.newaxis])
 
-        conditional_outputs.update(c_lee=c_lee, c_Ri_diss=c_Ri_diss)
+        conditional_outputs.update(c_lee=vs.c_lee, c_Ri_diss=vs.c_Ri_diss)
     else:
         """
         dissipation by local interior loss of balance with constant coefficient
@@ -206,70 +205,68 @@ def integrate_eke_kernel(state):
     b_tri_edge = 1 + delta / vs.dzw[np.newaxis, np.newaxis, :] \
         + settings.dt_tracer * c_int[2:-2, 2:-2, :]
     c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1])
-    d_tri = update(d_tri, at[:, :, :], eke[2:-2, 2:-2, :, vs.tau] + settings.dt_tracer * forc[2:-2, 2:-2, :])
+    d_tri = update(d_tri, at[:, :, :], vs.eke[2:-2, 2:-2, :, vs.tau] + settings.dt_tracer * forc[2:-2, 2:-2, :])
 
     sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
-    eke = update(eke, at[2:-2, 2:-2, :, vs.taup1], np.where(water_mask, sol, eke[2:-2, 2:-2, :, vs.taup1]))
+    vs.eke = update(vs.eke, at[2:-2, 2:-2, :, vs.taup1], np.where(water_mask, sol, vs.eke[2:-2, 2:-2, :, vs.taup1]))
 
     """
-    store eke dissipation
+    store vs.eke dissipation
     """
     if settings.enable_eke_leewave_dissipation:
-        eke_diss_iw = np.zeros_like(vs.eke_diss_iw)
-        eke_diss_tke = c_Ri_diss * eke[:, :, :, vs.taup1]
+        vs.eke_diss_iw = np.zeros_like(vs.eke_diss_iw)
+        vs.eke_diss_tke = vs.c_Ri_diss * vs.eke[:, :, :, vs.taup1]
 
         """
         flux by lee wave generation and bottom friction
         """
-        eke_diss_iw = update_add(eke_diss_iw, at[2:-2, 2:-2, :], (c_lee[2:-2, 2:-2, np.newaxis] * eke[2:-2, 2:-2, :, vs.taup1]
+        vs.eke_diss_iw = update_add(vs.eke_diss_iw, at[2:-2, 2:-2, :], (vs.c_lee[2:-2, 2:-2, np.newaxis] * vs.eke[2:-2, 2:-2, :, vs.taup1]
                                        * vs.maskW[2:-2, 2:-2, :]) * full_mask)
         if runtime_settings.pyom_compatibility_mode:
-            eke_diss_tke = update_add(eke_diss_tke, at[2:-2, 2:-2, :], (2 * settings.eke_r_bot * eke[2:-2, 2:-2, :, vs.taup1] * np.sqrt(np.float32(2))
+            vs.eke_diss_tke = update_add(vs.eke_diss_tke, at[2:-2, 2:-2, :], (2 * settings.eke_r_bot * vs.eke[2:-2, 2:-2, :, vs.taup1] * np.sqrt(np.float32(2))
                                             * vs.sqrteke[2:-2, 2:-2, :] * vs.maskW[2:-2, 2:-2, :] / vs.dzw[np.newaxis, np.newaxis, :]) * full_mask)
         else:
-            eke_diss_tke = update_add(eke_diss_tke, at[2:-2, 2:-2, :], (2 * settings.eke_r_bot * eke[2:-2, 2:-2, :, vs.taup1] * np.sqrt(2)
+            vs.eke_diss_tke = update_add(vs.eke_diss_tke, at[2:-2, 2:-2, :], (2 * settings.eke_r_bot * vs.eke[2:-2, 2:-2, :, vs.taup1] * np.sqrt(2)
                                             * vs.sqrteke[2:-2, 2:-2, :] * vs.maskW[2:-2, 2:-2, :] / vs.dzw[np.newaxis, np.newaxis, :]) * full_mask)
         """
         account for sligthly incorrect integral of dissipation due to time stepping
         """
-        a_loc = np.sum((eke_diss_iw[:, :, :-1] + eke_diss_tke[:, :, :-1])
+        a_loc = np.sum((vs.eke_diss_iw[:, :, :-1] + vs.eke_diss_tke[:, :, :-1])
                        * vs.dzw[np.newaxis, np.newaxis, :-1], axis=2)
-        b_loc = np.sum(c_int[:, :, :-1] * eke[:, :, :-1, vs.taup1]
+        b_loc = np.sum(c_int[:, :, :-1] * vs.eke[:, :, :-1, vs.taup1]
                        * vs.dzw[np.newaxis, np.newaxis, :-1], axis=2)
-        a_loc += (eke_diss_iw[:, :, -1] + eke_diss_tke[:, :, -1]) * vs.dzw[-1] * 0.5
-        b_loc += c_int[:, :, -1] * eke[:, :, -1, vs.taup1] * vs.dzw[-1] * 0.5
+        a_loc += (vs.eke_diss_iw[:, :, -1] + vs.eke_diss_tke[:, :, -1]) * vs.dzw[-1] * 0.5
+        b_loc += c_int[:, :, -1] * vs.eke[:, :, -1, vs.taup1] * vs.dzw[-1] * 0.5
         mask = a_loc != 0.
         b_loc = update(b_loc, at[...], np.where(mask, b_loc / (a_loc + 1e-20), 0.))
-        eke_diss_iw = update_multiply(eke_diss_iw, at[...], b_loc[:, :, np.newaxis])
-        eke_diss_tke = update_multiply(eke_diss_tke, at[...], b_loc[:, :, np.newaxis])
+        vs.eke_diss_iw = update_multiply(vs.eke_diss_iw, at[...], b_loc[:, :, np.newaxis])
+        vs.eke_diss_tke = update_multiply(vs.eke_diss_tke, at[...], b_loc[:, :, np.newaxis])
 
         """
         store diagnosed flux by lee waves and bottom friction
         """
-        eke_lee_flux = vs.eke_lee_flux
-        eke_lee_flux = update(eke_lee_flux, at[2:-2, 2:-2], np.where(boundary_mask, np.sum(c_lee[2:-2, 2:-2, np.newaxis] * eke[2:-2, 2:-2, :, vs.taup1]
-                                                   * vs.dzw[np.newaxis, np.newaxis, :] * full_mask, axis=-1), eke_lee_flux[2:-2, 2:-2]))
-        eke_bot_flux = vs.eke_bot_flux
-        eke_bot_flux = update(eke_bot_flux, at[2:-2, 2:-2], np.where(boundary_mask, np.sum(2 * settings.eke_r_bot * eke[2:-2, 2:-2, :, vs.taup1]
-                                                   * np.sqrt(2) * vs.sqrteke[2:-2, 2:-2, :] * full_mask, axis=-1), eke_bot_flux[2:-2, 2:-2]))
+        vs.eke_lee_flux = update(vs.eke_lee_flux, at[2:-2, 2:-2], np.where(boundary_mask, np.sum(vs.c_lee[2:-2, 2:-2, np.newaxis] * vs.eke[2:-2, 2:-2, :, vs.taup1]
+                                                   * vs.dzw[np.newaxis, np.newaxis, :] * full_mask, axis=-1), vs.eke_lee_flux[2:-2, 2:-2]))
+        vs.eke_bot_flux = update(vs.eke_bot_flux, at[2:-2, 2:-2], np.where(boundary_mask, np.sum(2 * settings.eke_r_bot * vs.eke[2:-2, 2:-2, :, vs.taup1]
+                                                   * np.sqrt(2) * vs.sqrteke[2:-2, 2:-2, :] * full_mask, axis=-1), vs.eke_bot_flux[2:-2, 2:-2]))
 
-        conditional_outputs.update(eke_bot_flux=eke_bot_flux, eke_lee_flux=eke_lee_flux)
+        conditional_outputs.update(eke_bot_flux=vs.eke_bot_flux, eke_lee_flux=vs.eke_lee_flux)
     else:
-        eke_diss_iw = c_int * eke[:, :, :, vs.taup1]
-        eke_diss_tke = np.zeros_like(vs.eke_diss_tke)
+        vs.eke_diss_iw = c_int * vs.eke[:, :, :, vs.taup1]
+        vs.eke_diss_tke = np.zeros_like(vs.eke_diss_tke)
 
     """
     add tendency due to lateral diffusion
     """
     flux_east = update(flux_east, at[:-1, :, :], 0.5 * np.maximum(500., vs.K_gm[:-1, :, :] + vs.K_gm[1:, :, :]) \
-        * (eke[1:, :, :, vs.tau] - eke[:-1, :, :, vs.tau]) \
+        * (vs.eke[1:, :, :, vs.tau] - vs.eke[:-1, :, :, vs.tau]) \
         / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) * vs.maskU[:-1, :, :])
     flux_east = update(flux_east, at[-1, :, :], 0.)
     flux_north = update(flux_north, at[:, :-1, :], 0.5 * np.maximum(500., vs.K_gm[:, :-1, :] + vs.K_gm[:, 1:, :]) \
-        * (eke[:, 1:, :, vs.tau] - eke[:, :-1, :, vs.tau]) \
+        * (vs.eke[:, 1:, :, vs.tau] - vs.eke[:, :-1, :, vs.tau]) \
         / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] * vs.cosu[np.newaxis, :-1, np.newaxis])
     flux_north = update(flux_north, at[:, -1, :], 0.)
-    eke = update_add(eke, at[2:-2, 2:-2, :, vs.taup1], settings.dt_tracer * vs.maskW[2:-2, 2:-2, :] \
+    vs.eke = update_add(vs.eke, at[2:-2, 2:-2, :, vs.taup1], settings.dt_tracer * vs.maskW[2:-2, 2:-2, :] \
         * ((flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
            / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
            + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
@@ -279,27 +276,26 @@ def integrate_eke_kernel(state):
     add tendency due to advection
     """
     if settings.enable_eke_superbee_advection:
-        flux_east, flux_north, flux_top = advection.adv_flux_superbee_wgrid(state, eke[:, :, :, vs.tau])
+        flux_east, flux_north, flux_top = advection.adv_flux_superbee_wgrid(state, vs.eke[:, :, :, vs.tau])
 
     if settings.enable_eke_upwind_advection:
-        flux_east, flux_north, flux_top = advection.adv_flux_upwind_wgrid(state, eke[:, :, :, vs.tau])
+        flux_east, flux_north, flux_top = advection.adv_flux_upwind_wgrid(state, vs.eke[:, :, :, vs.tau])
 
     if settings.enable_eke_superbee_advection or settings.enable_eke_upwind_advection:
-        deke = vs.deke
-        deke = update(deke, at[2:-2, 2:-2, :, vs.tau], vs.maskW[2:-2, 2:-2, :] * (-(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+        vs.deke = update(vs.deke, at[2:-2, 2:-2, :, vs.tau], vs.maskW[2:-2, 2:-2, :] * (-(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
                                                            / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
                                                            - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
                                                            / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis])))
-        deke = update_add(deke, at[:, :, 0, vs.tau], -flux_top[:, :, 0] / vs.dzw[0])
-        deke = update_add(deke, at[:, :, 1:-1, vs.tau], -(flux_top[:, :, 1:-1] -
+        vs.deke = update_add(vs.deke, at[:, :, 0, vs.tau], -flux_top[:, :, 0] / vs.dzw[0])
+        vs.deke = update_add(vs.deke, at[:, :, 1:-1, vs.tau], -(flux_top[:, :, 1:-1] -
                                    flux_top[:, :, :-2]) / vs.dzw[np.newaxis, np.newaxis, 1:-1])
-        deke = update_add(deke, at[:, :, -1, vs.tau], -(flux_top[:, :, -1] - flux_top[:, :, -2]) / (0.5 * vs.dzw[-1]))
+        vs.deke = update_add(vs.deke, at[:, :, -1, vs.tau], -(flux_top[:, :, -1] - flux_top[:, :, -2]) / (0.5 * vs.dzw[-1]))
         """
         Adam Bashforth time stepping
         """
-        eke = update_add(eke, at[:, :, :, vs.taup1], settings.dt_tracer * ((1.5 + settings.AB_eps) * deke[:, :, :, vs.tau]
-                                            - (0.5 + settings.AB_eps) * deke[:, :, :, vs.taum1]))
+        vs.eke = update_add(vs.eke, at[:, :, :, vs.taup1], settings.dt_tracer * ((1.5 + settings.AB_eps) * vs.deke[:, :, :, vs.tau]
+                                            - (0.5 + settings.AB_eps) * vs.deke[:, :, :, vs.taum1]))
 
-        conditional_outputs.update(deke=deke)
+        conditional_outputs.update(deke=vs.deke)
 
-    return KernelOutput(eke=eke, eke_diss_iw=eke_diss_iw, eke_diss_tke=eke_diss_tke, **conditional_outputs)
+    return KernelOutput(eke=vs.eke, eke_diss_iw=vs.eke_diss_iw, eke_diss_tke=vs.eke_diss_tke, **conditional_outputs)

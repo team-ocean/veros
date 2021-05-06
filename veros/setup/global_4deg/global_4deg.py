@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import os
 import h5netcdf
 
@@ -11,7 +9,7 @@ from veros.core.operators import numpy as np, update, at
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = veros.tools.get_assets(
     'global_4deg',
-    os.path.join(BASE_PATH, 'assets.yml')
+    os.path.join(BASE_PATH, 'assets.json')
 )
 
 

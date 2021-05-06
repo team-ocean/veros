@@ -19,7 +19,7 @@ def u_centered_grid(dyt, dyu, yt, yu):
 
     dyu = update(dyu, at[:-1], yt[1:] - yt[:-1])
     dyu = update(dyu, at[-1], 2 * dyt[-1] - dyu[-2])
-    return KernelOutput(dyu=dyu, yt=yt, yu=yu)
+    return dyu, yt, yu
 
 
 @veros_kernel
@@ -55,9 +55,9 @@ def calc_grid_kernel(state):
     """
     grid in north/south direction
     """
-    dyu, yt, yu = u_centered_grid(vs.dyt, vs.dyu, vs.yt, vs.yu)
-    yt = yt + settings.y_origin - yu[2]
-    yu = yu + settings.y_origin - yu[2]
+    vs.dyu, vs.yt, vs.yu = u_centered_grid(vs.dyt, vs.dyu, vs.yt, vs.yu)
+    vs.yt = vs.yt + settings.y_origin - vs.yu[2]
+    vs.yu = vs.yu + settings.y_origin - vs.yu[2]
 
     if settings.coord_degree:
         """
@@ -66,40 +66,40 @@ def calc_grid_kernel(state):
         vs.dxt = vs.dxt * settings.degtom
         vs.dxu = vs.dxu * settings.degtom
         vs.dyt = vs.dyt * settings.degtom
-        dyu = dyu * settings.degtom
+        vs.dyu = vs.dyu * settings.degtom
 
     """
     grid in vertical direction
     """
-    dzw, zt, zw = u_centered_grid(vs.dzt, vs.dzw, vs.zt, vs.zw)
-    zt = zt - zw[-1]
-    zw = zw - zw[-1]  # enforce 0 boundary height
+    vs.dzw, vs.zt, vs.zw = u_centered_grid(vs.dzt, vs.dzw, vs.zt, vs.zw)
+    vs.zt = vs.zt - vs.zw[-1]
+    vs.zw = vs.zw - vs.zw[-1]  # enforce 0 boundary height
 
     """
     metric factors
     """
     if settings.coord_degree:
-        cost = update(vs.cost, at[...], np.cos(yt * settings.pi / 180.))
-        cosu = update(vs.cosu, at[...], np.cos(yu * settings.pi / 180.))
-        tantr = update(vs.tantr, at[...], np.tan(yt * settings.pi / 180.) / settings.radius)
+        vs.cost = update(vs.cost, at[...], np.cos(vs.yt * settings.pi / 180.))
+        vs.cosu = update(vs.cosu, at[...], np.cos(vs.yu * settings.pi / 180.))
+        vs.tantr = update(vs.tantr, at[...], np.tan(vs.yt * settings.pi / 180.) / settings.radius)
     else:
-        cost = update(vs.cost, at[...], 1.0)
-        cosu = update(vs.cosu, at[...], 1.0)
-        tantr = update(vs.tantr, at[...], 0.0)
+        vs.cost = update(vs.cost, at[...], 1.0)
+        vs.cosu = update(vs.cosu, at[...], 1.0)
+        vs.tantr = update(vs.tantr, at[...], 0.0)
 
     """
     precalculate area of boxes
     """
-    area_t = update(vs.area_t, at[...], cost * vs.dyt * vs.dxt[:, np.newaxis])
-    area_u = update(vs.area_u, at[...], cost * vs.dyt * vs.dxu[:, np.newaxis])
-    area_v = update(vs.area_v, at[...], cosu * dyu * vs.dxt[:, np.newaxis])
+    vs.area_t = update(vs.area_t, at[...], vs.cost * vs.dyt * vs.dxt[:, np.newaxis])
+    vs.area_u = update(vs.area_u, at[...], vs.cost * vs.dyt * vs.dxu[:, np.newaxis])
+    vs.area_v = update(vs.area_v, at[...], vs.cosu * vs.dyu * vs.dxt[:, np.newaxis])
 
     return KernelOutput(
-        dxt=vs.dxt, dyt=vs.dyt, dxu=vs.dxu, dyu=dyu,
-        xt=vs.xt, yt=yt, xu=vs.xu, yu=yu,
-        dzw=dzw, zt=zt, zw=zw,
-        cost=cost, cosu=cosu, tantr=tantr,
-        area_t=area_t, area_u=area_u, area_v=area_v
+        dxt=vs.dxt, dyt=vs.dyt, dxu=vs.dxu, dyu=vs.dyu,
+        xt=vs.xt, yt=vs.yt, xu=vs.xu, yu=vs.yu,
+        dzw=vs.dzw, zt=vs.zt, zw=vs.zw,
+        cost=vs.cost, cosu=vs.cosu, tantr=vs.tantr,
+        area_t=vs.area_t, area_u=vs.area_u, area_v=vs.area_v
     )
 
 
@@ -138,55 +138,52 @@ def calc_topo_kernel(state):
     """
     close domain
     """
-    kbot = vs.kbot
-    kbot = update(kbot, at[:, :2], 0)
-    kbot = update(kbot, at[:, -2:], 0)
+    vs.kbot = update(vs.kbot, at[:, :2], 0)
+    vs.kbot = update(vs.kbot, at[:, -2:], 0)
 
-    kbot = utilities.enforce_boundaries(kbot, settings.enable_cyclic_x)
+    vs.kbot = utilities.enforce_boundaries(vs.kbot, settings.enable_cyclic_x)
 
     if not settings.enable_cyclic_x:
-        kbot = update(kbot, at[:2, :], 0)
-        kbot = update(kbot, at[-2:, :], 0)
+        vs.kbot = update(vs.kbot, at[:2, :], 0)
+        vs.kbot = update(vs.kbot, at[-2:, :], 0)
 
     """
     Land masks
     """
-    maskT, maskU, maskV, maskW, maskZ = vs.maskT, vs.maskU, vs.maskV, vs.maskW, vs.maskZ
+    land_mask = vs.kbot > 0
+    ks = np.arange(vs.maskT.shape[2])[np.newaxis, np.newaxis, :]
 
-    land_mask = kbot > 0
-    ks = np.arange(maskT.shape[2])[np.newaxis, np.newaxis, :]
+    vs.maskT = update(vs.maskT, at[...], land_mask[..., np.newaxis] & (vs.kbot[..., np.newaxis] - 1 <= ks))
+    vs.maskT = utilities.enforce_boundaries(vs.maskT, settings.enable_cyclic_x)
 
-    maskT = update(maskT, at[...], land_mask[..., np.newaxis] & (kbot[..., np.newaxis] - 1 <= ks))
-    maskT = utilities.enforce_boundaries(maskT, settings.enable_cyclic_x)
+    vs.maskU = update(vs.maskU, at[...], vs.maskT)
+    vs.maskU = update(vs.maskU, at[:-1, :, :], np.minimum(vs.maskT[:-1, :, :], vs.maskT[1:, :, :]))
+    vs.maskU = utilities.enforce_boundaries(vs.maskU, settings.enable_cyclic_x)
 
-    maskU = update(maskU, at[...], maskT)
-    maskU = update(maskU, at[:-1, :, :], np.minimum(maskT[:-1, :, :], maskT[1:, :, :]))
-    maskU = utilities.enforce_boundaries(maskU, settings.enable_cyclic_x)
+    vs.maskV = update(vs.maskV, at[...], vs.maskT)
+    vs.maskV = update(vs.maskV, at[:, :-1], np.minimum(vs.maskT[:, :-1], vs.maskT[:, 1:]))
+    vs.maskV = utilities.enforce_boundaries(vs.maskV, settings.enable_cyclic_x)
 
-    maskV = update(maskV, at[...], maskT)
-    maskV = update(maskV, at[:, :-1], np.minimum(maskT[:, :-1], maskT[:, 1:]))
-    maskV = utilities.enforce_boundaries(maskV, settings.enable_cyclic_x)
+    vs.maskZ = update(vs.maskZ, at[...], vs.maskT)
+    vs.maskZ = update(vs.maskZ, at[:-1, :-1], np.minimum(np.minimum(vs.maskT[:-1, :-1], vs.maskT[:-1, 1:]), vs.maskT[1:, :-1]))
+    vs.maskZ = utilities.enforce_boundaries(vs.maskZ, settings.enable_cyclic_x)
 
-    maskZ = update(maskZ, at[...], maskT)
-    maskZ = update(maskZ, at[:-1, :-1], np.minimum(np.minimum(maskT[:-1, :-1], maskT[:-1, 1:]), maskT[1:, :-1]))
-    maskZ = utilities.enforce_boundaries(maskZ, settings.enable_cyclic_x)
-
-    maskW = update(maskW, at[...], maskT)
-    maskW = update(maskW, at[:, :, :-1], np.minimum(maskT[:, :, :-1], maskT[:, :, 1:]))
+    vs.maskW = update(vs.maskW, at[...], vs.maskT)
+    vs.maskW = update(vs.maskW, at[:, :, :-1], np.minimum(vs.maskT[:, :, :-1], vs.maskT[:, :, 1:]))
 
     """
     total depth
     """
-    ht = np.sum(maskT * vs.dzt[np.newaxis, np.newaxis, :], axis=2)
-    hu = np.sum(maskU * vs.dzt[np.newaxis, np.newaxis, :], axis=2)
-    hv = np.sum(maskV * vs.dzt[np.newaxis, np.newaxis, :], axis=2)
+    vs.ht = np.sum(vs.maskT * vs.dzt[np.newaxis, np.newaxis, :], axis=2)
+    vs.hu = np.sum(vs.maskU * vs.dzt[np.newaxis, np.newaxis, :], axis=2)
+    vs.hv = np.sum(vs.maskV * vs.dzt[np.newaxis, np.newaxis, :], axis=2)
 
-    hur = np.where(hu != 0, 1 / (hu + 1e-22), 0)
-    hvr = np.where(hv != 0, 1 / (hv + 1e-22), 0)
+    vs.hur = np.where(vs.hu != 0, 1 / (vs.hu + 1e-22), 0)
+    vs.hvr = np.where(vs.hv != 0, 1 / (vs.hv + 1e-22), 0)
 
     return KernelOutput(
-        maskT=maskT, maskU=maskU, maskV=maskV, maskW=maskW, maskZ=maskZ,
-        ht=ht, hu=hu, hv=hv, hur=hur, hvr=hvr, kbot=kbot
+        maskT=vs.maskT, maskU=vs.maskU, maskV=vs.maskV, maskW=vs.maskW, maskZ=vs.maskZ,
+        ht=vs.ht, hu=vs.hu, hv=vs.hv, hur=vs.hur, hvr=vs.hvr, kbot=vs.kbot
     )
 
 
@@ -204,27 +201,30 @@ def calc_initial_conditions_kernel(state):
     vs = state.variables
     settings = state.settings
 
-    temp = utilities.enforce_boundaries(vs.temp, settings.enable_cyclic_x)
-    salt = utilities.enforce_boundaries(vs.salt, settings.enable_cyclic_x)
+    vs.temp = utilities.enforce_boundaries(vs.temp, settings.enable_cyclic_x)
+    vs.salt = utilities.enforce_boundaries(vs.salt, settings.enable_cyclic_x)
 
-    rho = density.get_rho(state, salt, temp, np.abs(vs.zt)[:, np.newaxis]) * vs.maskT[..., np.newaxis]
-    Hd = density.get_dyn_enthalpy(state, salt, temp, np.abs(vs.zt)[:, np.newaxis]) * vs.maskT[..., np.newaxis]
-    int_drhodT = update(
+    vs.rho = density.get_rho(state, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis]) * vs.maskT[..., np.newaxis]
+    vs.Hd = density.get_dyn_enthalpy(state, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis]) * vs.maskT[..., np.newaxis]
+    vs.int_drhodT = update(
         vs.int_drhodT, at[...],
-        density.get_int_drhodT(state, salt, temp, np.abs(vs.zt)[:, np.newaxis])
+        density.get_int_drhodT(state, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis])
     )
-    int_drhodS = update(
+    vs.int_drhodS = update(
         vs.int_drhodS, at[...],
-        density.get_int_drhodS(state, salt, temp, np.abs(vs.zt)[:, np.newaxis])
+        density.get_int_drhodS(state, vs.salt, vs.temp, np.abs(vs.zt)[:, np.newaxis])
     )
 
     fxa = -settings.grav / settings.rho_0 / vs.dzw[np.newaxis, np.newaxis, :] * vs.maskW
-    Nsqr = update(vs.Nsqr, at[:, :, :-1, :], fxa[:, :, :-1, np.newaxis]
-                  * (density.get_rho(state, salt[:, :, 1:, :], temp[:, :, 1:, :], np.abs(vs.zt)[:-1, np.newaxis])
-                     - rho[:, :, :-1, :]))
-    Nsqr = update(Nsqr, at[:, :, -1, :], Nsqr[:, :, -2, :])
+    vs.Nsqr = update(vs.Nsqr, at[:, :, :-1, :], fxa[:, :, :-1, np.newaxis]
+                  * (density.get_rho(state, vs.salt[:, :, 1:, :], vs.temp[:, :, 1:, :], np.abs(vs.zt)[:-1, np.newaxis])
+                     - vs.rho[:, :, :-1, :]))
+    vs.Nsqr = update(vs.Nsqr, at[:, :, -1, :], vs.Nsqr[:, :, -2, :])
 
-    return KernelOutput(salt=salt, temp=temp, rho=rho, Hd=Hd, int_drhodT=int_drhodT, int_drhodS=int_drhodS, Nsqr=Nsqr)
+    return KernelOutput(
+        salt=vs.salt, temp=vs.temp, rho=vs.rho, Hd=vs.Hd,
+        int_drhodT=vs.int_drhodT, int_drhodS=vs.int_drhodS, Nsqr=vs.Nsqr
+    )
 
 
 @veros_routine

@@ -115,8 +115,8 @@ class ACCSetup(VerosSetup):
         settings = state.settings
 
         # initial conditions
-        vs.temp = update(vs.temp, at[:, :, :, 0:2], ((1 - vs.zt[None, None, :] / vs.zw[0]) * 15 * vs.maskT)[..., None])
-        vs.salt = update(vs.salt, at[:, :, :, 0:2], 35.0 * vs.maskT[..., None])
+        vs.temp = update(vs.temp, at[...], ((1 - vs.zt[None, None, :] / vs.zw[0]) * 15 * vs.maskT)[..., None])
+        vs.salt = update(vs.salt, at[...], 35.0 * vs.maskT[..., None])
 
         # wind stress forcing
         yt_min = global_min(vs.yt.min())

@@ -7,7 +7,10 @@ import importlib
 
 import click
 
-from veros import runtime_settings, runtime_state, VerosSetup
+from veros import (
+    runtime_settings, runtime_state, VerosSetup,
+    __version__ as veros_version
+)
 from veros.settings import SETTINGS
 from veros.backend import BACKENDS
 from veros.runtime import LOGLEVELS, DEVICES, FLOAT_TYPES
@@ -91,6 +94,14 @@ def run(setup_file, *args, slave, **kwargs):
                 raise RuntimeError("Veros setups can only contain one VerosSetup class")
 
             SetupClass = obj
+
+    from veros import logger
+    target_version = getattr(setup_module, '__VEROS_VERSION__', None)
+    if target_version and target_version != veros_version:
+        logger.warning(
+            f"This is Veros v{veros_version}, but the given setup was generated with v{target_version}. "
+            "Consider switching to this version of Veros or updating your setup file.\n"
+        )
 
     try:
         sim = SetupClass(*args, **kwargs)

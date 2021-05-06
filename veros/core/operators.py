@@ -22,11 +22,8 @@ def ensure_writable(*arrs):
     writable_arrs = []
     try:
         for arr in arrs:
-            try:
-                arr.flags.writeable = True
-            except ValueError:
-                arr = arr.copy()
-
+            arr = arr.copy()
+            arr.flags.writeable = True
             writable_arrs.append(arr)
 
         if len(writable_arrs) == 1:

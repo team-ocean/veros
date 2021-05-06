@@ -120,48 +120,44 @@ def calculate_velocity_on_wgrid_kernel(state):
     """
     vs = state.variables
 
-    u_wgrid = vs.u_wgrid
-    v_wgrid = vs.v_wgrid
-    w_wgrid = vs.w_wgrid
-
-    # lateral advection velocities on vs.W grid
-    u_wgrid = update(u_wgrid, at[:, :, :-1], vs.u[:, :, 1:, vs.tau] * vs.maskU[:, :, 1:] * 0.5 \
+    # lateral advection velocities on W grid
+    vs.u_wgrid = update(vs.u_wgrid, at[:, :, :-1], vs.u[:, :, 1:, vs.tau] * vs.maskU[:, :, 1:] * 0.5 \
         * vs.dzt[np.newaxis, np.newaxis, 1:] / vs.dzw[np.newaxis, np.newaxis, :-1] \
         + vs.u[:, :, :-1, vs.tau] * vs.maskU[:, :, :-1] * 0.5 \
         * vs.dzt[np.newaxis, np.newaxis, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1])
-    v_wgrid = update(v_wgrid, at[:, :, :-1], vs.v[:, :, 1:, vs.tau] * vs.maskV[:, :, 1:] * 0.5 \
+    vs.v_wgrid = update(vs.v_wgrid, at[:, :, :-1], vs.v[:, :, 1:, vs.tau] * vs.maskV[:, :, 1:] * 0.5 \
         * vs.dzt[np.newaxis, np.newaxis, 1:] / vs.dzw[np.newaxis, np.newaxis, :-1] \
         + vs.v[:, :, :-1, vs.tau] * vs.maskV[:, :, :-1] * 0.5 \
         * vs.dzt[np.newaxis, np.newaxis, :-1] / vs.dzw[np.newaxis, np.newaxis, :-1])
-    u_wgrid = update(u_wgrid, at[:, :, -1], vs.u[:, :, -1, vs.tau] * \
+    vs.u_wgrid = update(vs.u_wgrid, at[:, :, -1], vs.u[:, :, -1, vs.tau] * \
         vs.maskU[:, :, -1] * 0.5 * vs.dzt[-1:] / vs.dzw[-1:])
-    v_wgrid = update(v_wgrid, at[:, :, -1], vs.v[:, :, -1, vs.tau] * \
+    vs.v_wgrid = update(vs.v_wgrid, at[:, :, -1], vs.v[:, :, -1, vs.tau] * \
         vs.maskV[:, :, -1] * 0.5 * vs.dzt[-1:] / vs.dzw[-1:])
 
     # redirect velocity at bottom and at topography
-    u_wgrid = update(u_wgrid, at[:, :, 0], u_wgrid[:, :, 0] + vs.u[:, :, 0, vs.tau] \
+    vs.u_wgrid = update(vs.u_wgrid, at[:, :, 0], vs.u_wgrid[:, :, 0] + vs.u[:, :, 0, vs.tau] \
         * vs.maskU[:, :, 0] * 0.5 * vs.dzt[0] / vs.dzw[0])
-    v_wgrid = update(v_wgrid, at[:, :, 0], v_wgrid[:, :, 0] + vs.v[:, :, 0, vs.tau] \
+    vs.v_wgrid = update(vs.v_wgrid, at[:, :, 0], vs.v_wgrid[:, :, 0] + vs.v[:, :, 0, vs.tau] \
         * vs.maskV[:, :, 0] * 0.5 * vs.dzt[0] / vs.dzw[0])
     mask = vs.maskW[:-1, :, :-1] * vs.maskW[1:, :, :-1]
-    u_wgrid = update_add(u_wgrid, at[:-1, :, 1:], (u_wgrid[:-1, :, :-1] * vs.dzw[np.newaxis, np.newaxis, :-1]
+    vs.u_wgrid = update_add(vs.u_wgrid, at[:-1, :, 1:], (vs.u_wgrid[:-1, :, :-1] * vs.dzw[np.newaxis, np.newaxis, :-1]
                             / vs.dzw[np.newaxis, np.newaxis, 1:]) * (1. - mask))
-    u_wgrid = update_multiply(u_wgrid, at[:-1, :, :-1], mask)
+    vs.u_wgrid = update_multiply(vs.u_wgrid, at[:-1, :, :-1], mask)
     mask = vs.maskW[:, :-1, :-1] * vs.maskW[:, 1:, :-1]
-    v_wgrid = update_add(v_wgrid, at[:, :-1, 1:], (v_wgrid[:, :-1, :-1] * vs.dzw[np.newaxis, np.newaxis, :-1]
+    vs.v_wgrid = update_add(vs.v_wgrid, at[:, :-1, 1:], (vs.v_wgrid[:, :-1, :-1] * vs.dzw[np.newaxis, np.newaxis, :-1]
                             / vs.dzw[np.newaxis, np.newaxis, 1:]) * (1. - mask))
-    v_wgrid = update_multiply(v_wgrid, at[:, :-1, :-1], mask)
+    vs.v_wgrid = update_multiply(vs.v_wgrid, at[:, :-1, :-1], mask)
 
-    # vertical advection velocity on vs.W grid from continuity
-    w_wgrid = update(w_wgrid, at[:, :, 0], 0.)
+    # vertical advection velocity on W grid from continuity
+    vs.w_wgrid = update(vs.w_wgrid, at[:, :, 0], 0.)
     # TODO: replace cumsum
-    w_wgrid = update(w_wgrid, at[1:, 1:, :], np.cumsum(-vs.dzw[np.newaxis, np.newaxis, :] *
-                                   ((u_wgrid[1:, 1:, :] - u_wgrid[:-1, 1:, :]) / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])
-                                    + (vs.cosu[np.newaxis, 1:, np.newaxis] * v_wgrid[1:, 1:, :] -
-                                       vs.cosu[np.newaxis, :-1, np.newaxis] * v_wgrid[1:, :-1, :])
+    vs.w_wgrid = update(vs.w_wgrid, at[1:, 1:, :], np.cumsum(-vs.dzw[np.newaxis, np.newaxis, :] *
+                                   ((vs.u_wgrid[1:, 1:, :] - vs.u_wgrid[:-1, 1:, :]) / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])
+                                    + (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.v_wgrid[1:, 1:, :] -
+                                       vs.cosu[np.newaxis, :-1, np.newaxis] * vs.v_wgrid[1:, :-1, :])
                                     / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis])), axis=2))
 
-    return KernelOutput(u_wgrid=u_wgrid, v_wgrid=v_wgrid, w_wgrid=w_wgrid)
+    return KernelOutput(u_wgrid=vs.u_wgrid, v_wgrid=vs.v_wgrid, w_wgrid=vs.w_wgrid)
 
 
 @veros_kernel

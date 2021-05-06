@@ -81,9 +81,6 @@ def isoneutral_diffusion_pre(state):
                                       + vs.K_iso[2:-1, 2:-2, 1:] + vs.K_iso[2:-1, 2:-2, :-1]))
     diffloc = update(diffloc, at[1:-2, 2:-2, 0], 0.5 * (vs.K_iso[1:-2, 2:-2, 0] + vs.K_iso[2:-1, 2:-2, 0]))
 
-    Ai_ez = vs.Ai_ez
-    K_11 = vs.K_11
-
     sumz = allocate(state.dimensions, ("xt", "yt", "zt"))[1:-2, 2:-2]
     for kr in range(2):
         ki = 0 if kr == 1 else 1
@@ -96,8 +93,8 @@ def isoneutral_diffusion_pre(state):
             taper = dm_taper(sxe, settings.iso_slopec, settings.iso_dslope)
             sumz = update_add(sumz, at[:, :, ki:], vs.dzw[np.newaxis, np.newaxis, :-1 + kr or None] * vs.maskU[1:-2, 2:-2, ki:] \
                 * np.maximum(settings.K_iso_steep, diffloc[1:-2, 2:-2, ki:] * taper))
-            Ai_ez = update(Ai_ez, at[1:-2, 2:-2, ki:, ip, kr], taper * sxe * vs.maskU[1:-2, 2:-2, ki:])
-    K_11 = update(K_11, at[1:-2, 2:-2, :], sumz / (4. * vs.dzt[np.newaxis, np.newaxis, :]))
+            vs.Ai_ez = update(vs.Ai_ez, at[1:-2, 2:-2, ki:, ip, kr], taper * sxe * vs.maskU[1:-2, 2:-2, ki:])
+    vs.K_11 = update(vs.K_11, at[1:-2, 2:-2, :], sumz / (4. * vs.dzt[np.newaxis, np.newaxis, :]))
 
     """
     Compute Ai_nz and K_22 on center of north face of T cell.
@@ -106,9 +103,6 @@ def isoneutral_diffusion_pre(state):
     diffloc = update(diffloc, at[2:-2, 1:-2, 1:], 0.25 * (vs.K_iso[2:-2, 1:-2, 1:] + vs.K_iso[2:-2, 1:-2, :-1]
                                       + vs.K_iso[2:-2, 2:-1, 1:] + vs.K_iso[2:-2, 2:-1, :-1]))
     diffloc = update(diffloc, at[2:-2, 1:-2, 0], 0.5 * (vs.K_iso[2:-2, 1:-2, 0] + vs.K_iso[2:-2, 2:-1, 0]))
-
-    Ai_nz = vs.Ai_nz
-    K_22 = vs.K_22
 
     sumz = allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 1:-2]
     for kr in range(2):
@@ -122,18 +116,14 @@ def isoneutral_diffusion_pre(state):
             taper = dm_taper(syn, settings.iso_slopec, settings.iso_dslope)
             sumz = update_add(sumz, at[:, :, ki:], vs.dzw[np.newaxis, np.newaxis, :-1 + kr or None] \
                 * vs.maskV[2:-2, 1:-2, ki:] * np.maximum(settings.K_iso_steep, diffloc[2:-2, 1:-2, ki:] * taper))
-            Ai_nz = update(Ai_nz, at[2:-2, 1:-2, ki:, jp, kr], taper * syn * vs.maskV[2:-2, 1:-2, ki:])
-    K_22 = update(K_22, at[2:-2, 1:-2, :], sumz / (4. * vs.dzt[np.newaxis, np.newaxis, :]))
+            vs.Ai_nz = update(vs.Ai_nz, at[2:-2, 1:-2, ki:, jp, kr], taper * syn * vs.maskV[2:-2, 1:-2, ki:])
+    vs.K_22 = update(vs.K_22, at[2:-2, 1:-2, :], sumz / (4. * vs.dzt[np.newaxis, np.newaxis, :]))
 
     """
     compute Ai_bx, Ai_by and K33 on top face of T cell.
     """
     sumx = allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 2:-2, :-1]
     sumy = allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 2:-2, :-1]
-
-    Ai_bx = vs.Ai_bx
-    Ai_by = vs.Ai_by
-    K_33 = vs.K_33
 
     for kr in range(2):
         drodzb = drdT[2:-2, 2:-2, kr:-1 + kr or None] * dTdz[2:-2, 2:-2, :-1] \
@@ -147,7 +137,7 @@ def isoneutral_diffusion_pre(state):
             taper = dm_taper(sxb, settings.iso_slopec, settings.iso_dslope)
             sumx = sumx + vs.dxu[1 + ip:-3 + ip, np.newaxis, np.newaxis] * \
                 vs.K_iso[2:-2, 2:-2, :-1] * taper * sxb**2 * vs.maskW[2:-2, 2:-2, :-1]
-            Ai_bx = update(Ai_bx, at[2:-2, 2:-2, :-1, ip, kr], taper * sxb * vs.maskW[2:-2, 2:-2, :-1])
+            vs.Ai_bx = update(vs.Ai_bx, at[2:-2, 2:-2, :-1, ip, kr], taper * sxb * vs.maskW[2:-2, 2:-2, :-1])
 
         # northward slopes at the top of T cells
         for jp in range(2):
@@ -158,13 +148,13 @@ def isoneutral_diffusion_pre(state):
             taper = dm_taper(syb, settings.iso_slopec, settings.iso_dslope)
             sumy = sumy + facty[np.newaxis, :, np.newaxis] * vs.K_iso[2:-2, 2:-2, :-1] \
                 * taper * syb**2 * vs.maskW[2:-2, 2:-2, :-1]
-            Ai_by = update(Ai_by, at[2:-2, 2:-2, :-1, jp, kr], taper * syb * vs.maskW[2:-2, 2:-2, :-1])
+            vs.Ai_by = update(vs.Ai_by, at[2:-2, 2:-2, :-1, jp, kr], taper * syb * vs.maskW[2:-2, 2:-2, :-1])
 
-    K_33 = update(K_33, at[2:-2, 2:-2, :-1], sumx / (4 * vs.dxt[2:-2, np.newaxis, np.newaxis]) + \
+    vs.K_33 = update(vs.K_33, at[2:-2, 2:-2, :-1], sumx / (4 * vs.dxt[2:-2, np.newaxis, np.newaxis]) + \
         sumy / (4 * vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.cost[np.newaxis, 2:-2, np.newaxis]))
-    K_33 = update(K_33, at[2:-2, 2:-2, -1], 0.)
+    vs.K_33 = update(vs.K_33, at[2:-2, 2:-2, -1], 0.)
 
-    return KernelOutput(Ai_ez=Ai_ez, Ai_nz=Ai_nz, Ai_bx=Ai_bx, Ai_by=Ai_by, K_11=K_11, K_22=K_22, K_33=K_33)
+    return KernelOutput(Ai_ez=vs.Ai_ez, Ai_nz=vs.Ai_nz, Ai_bx=vs.Ai_bx, Ai_by=vs.Ai_by, K_11=vs.K_11, K_22=vs.K_22, K_33=vs.K_33)
 
 
 @veros_kernel
@@ -178,16 +168,16 @@ def isoneutral_diag_streamfunction_kernel(state):
     """
     diffloc = 0.25 * (K_gm_pad[1:-2, 2:-2, 1:-1] + K_gm_pad[1:-2, 2:-2, :-2]
                       + K_gm_pad[2:-1, 2:-2, 1:-1] + K_gm_pad[2:-1, 2:-2, :-2])
-    B2_gm = update(vs.B2_gm, at[1:-2, 2:-2, :], 0.25 * diffloc * np.sum(vs.Ai_ez[1:-2, 2:-2, ...], axis=(3, 4)))
+    vs.B2_gm = update(vs.B2_gm, at[1:-2, 2:-2, :], 0.25 * diffloc * np.sum(vs.Ai_ez[1:-2, 2:-2, ...], axis=(3, 4)))
 
     """
     zonal component at north face of 'T' cells
     """
     diffloc = 0.25 * (K_gm_pad[2:-2, 1:-2, 1:-1] + K_gm_pad[2:-2, 1:-2, :-2]
                       + K_gm_pad[2:-2, 2:-1, 1:-1] + K_gm_pad[2:-2, 2:-1, :-2])
-    B1_gm = update(vs.B1_gm, at[2:-2, 1:-2, :], -0.25 * diffloc * np.sum(vs.Ai_nz[2:-2, 1:-2, ...], axis=(3, 4)))
+    vs.B1_gm = update(vs.B1_gm, at[2:-2, 1:-2, :], -0.25 * diffloc * np.sum(vs.Ai_nz[2:-2, 1:-2, ...], axis=(3, 4)))
 
-    return KernelOutput(B1_gm=B1_gm, B2_gm=B2_gm)
+    return KernelOutput(B1_gm=vs.B1_gm, B2_gm=vs.B2_gm)
 
 
 @veros_routine

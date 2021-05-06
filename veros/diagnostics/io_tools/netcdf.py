@@ -1,10 +1,14 @@
+import datetime
 import threading
 import contextlib
 
-from veros import logger
 import numpy as np
 
-from veros import variables, runtime_state, runtime_settings as rs, distributed
+from veros import (
+    logger, variables, distributed,
+    runtime_state, runtime_settings as rs,
+    __version__ as veros_version,
+)
 
 """
 netCDF output is designed to follow the COARDS guidelines from
@@ -20,6 +24,12 @@ def initialize_file(state, ncfile, create_time_dimension=True):
 
     if not isinstance(ncfile, h5netcdf.File):
         raise TypeError('Argument needs to be a netCDF4 Dataset')
+
+    ncfile.attrs.update(
+        date_created=datetime.datetime.today().isoformat(),
+        veros_version=veros_version,
+        setup_identifier=state.settings.identifier,
+    )
 
     for dim in variables.BASE_DIMENSIONS:
         var = state.var_meta[dim]
@@ -62,9 +72,15 @@ def initialize_variable(state, key, var, ncfile):
         for d in dims
     ]
 
+    dtype = var.dtype
+    if dtype is None:
+        dtype = rs.float_type
+    elif dtype == 'bool':
+        dtype = 'uint8'
+
     # transpose all dimensions in netCDF output (convention in most ocean models)
     v = ncfile.create_variable(
-        key, dims[::-1], var.dtype or rs.float_type,
+        key, dims[::-1], dtype,
         fillvalue=variables.FILL_VALUE,
         chunks=tuple(chunksize[::-1]),
         **kwargs

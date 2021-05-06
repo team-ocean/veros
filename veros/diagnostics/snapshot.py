@@ -17,6 +17,7 @@ class Snapshot(VerosDiagnostic):
 
     def initialize(self, state):
         vs = state.variables
+        # TODO: initialize this earlier
         self.output_variables = [key for key, val in state.var_meta.items() if val.output and val.active]
         """Variables to be written to output. Defaults to all Veros variables that
         have the attribute :attr:`output`."""

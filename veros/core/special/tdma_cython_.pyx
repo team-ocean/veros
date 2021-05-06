@@ -10,6 +10,9 @@ cdef void _tdma_cython_double(int32_t n, double* a, double* b, double* c, double
         int32_t i
         double denom
 
+    if n < 1:
+        return
+
     cp[0] = c[0] / b[0]
     dp[0] = d[0] / b[0]
 
@@ -27,6 +30,9 @@ cdef void _tdma_cython_float(int32_t n, float* a, float* b, float* c, float* d, 
     cdef:
         int32_t i
         float denom
+
+    if n < 1:
+        return
 
     cp[0] = c[0] / b[0]
     dp[0] = d[0] / b[0]
