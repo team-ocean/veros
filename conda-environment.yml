@@ -1,20 +1,20 @@
 name: veros
+
 channels:
     - conda-forge
+
 dependencies:
-    - python=3.7
+    - python=3.8
     - pip
-    - numpy
     - click
-    - requests>=2.18
-    - numpy>=1.13
+    - entrypoints
+    - requests
+    - numpy
     - scipy
     - h5netcdf
     - h5py
     - pillow
-    - ruamel.yaml
-    - libgcc
     - loguru
     - tqdm
     - pip:
-        - -e .
+        - -e . --no-deps
