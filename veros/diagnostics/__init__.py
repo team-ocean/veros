@@ -1,8 +1,8 @@
 from veros import logger, runtime_settings, veros_kernel
 
-from . import averages, cfl_monitor, energy, overturning, snapshot, tracer_monitor
-from .. import time
-from .io_tools import hdf5 as h5tools
+from veros import time
+from veros.diagnostics import averages, cfl_monitor, energy, overturning, snapshot, tracer_monitor
+import veros.io_tools.hdf5 as h5tools
 
 
 def create_default_diagnostics():
@@ -45,7 +45,7 @@ def write_restart(state, force=False):
         statedict = dict(state.variables.items())
         statedict.update(state.settings.items())
         output_filename = settings.restart_output_filename.format(**statedict)
-        logger.info('Writing restart file {}...', output_filename)
+        logger.info(f'Writing restart file {output_filename} ...')
 
         with h5tools.threaded_io(state, output_filename, 'w') as outfile:
             for diagnostic in state.diagnostics.values():
@@ -55,9 +55,11 @@ def write_restart(state, force=False):
 def initialize(state):
     for name, diagnostic in state.diagnostics.items():
         diagnostic.initialize(state)
+
         if diagnostic.sampling_frequency:
             logger.info(' Running diagnostic "{0}" every {1[0]:.1f} {1[1]}'
                          .format(name, time.format_time(diagnostic.sampling_frequency)))
+
         if diagnostic.output_frequency:
             logger.info(' Writing output for diagnostic "{0}" every {1[0]:.1f} {1[1]}'
                          .format(name, time.format_time(diagnostic.output_frequency)))

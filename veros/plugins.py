@@ -16,7 +16,7 @@ VerosPlugin = namedtuple('VerosPlugin', [
 
 
 def load_plugin(module):
-    from veros.diagnostics.diagnostic import VerosDiagnostic
+    from veros.diagnostics.base import VerosDiagnostic
 
     if not hasattr(module, '__VEROS_INTERFACE__'):
         raise RuntimeError('module {} is not a valid Veros plugin'.format(module.__name__))

@@ -9,7 +9,7 @@ def do_not_disturb(function):
     """Decorator that catches SIGINT and SIGTERM signals (e.g. after keyboard interrupt)
     and makes sure that the function body is executed before exiting.
 
-    Useful e.g. for ensuring that output files are written properly.
+    Useful for ensuring that output files are written properly.
     """
     signals = (signal.SIGINT, signal.SIGTERM)
 
@@ -22,7 +22,7 @@ def do_not_disturb(function):
             if signal_received['sig'] is None:
                 signal_received['sig'] = sig
                 signal_received['frame'] = frame
-                logger.error('Signal {} received - cleaning up before exit', sig)
+                logger.error(f'Signal {sig} received - cleaning up before exit (interrupt again to force exit)')
             else:
                 # force quit if more than one signal is received
                 old_handlers[sig](sig, frame)

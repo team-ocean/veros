@@ -145,7 +145,7 @@ setup(
     entry_points={
         'console_scripts': CONSOLE_SCRIPTS,
         'veros.setup_dirs': [
-            'base = veros.setup'
+            'base = veros.setups'
         ]
     },
     package_data={
