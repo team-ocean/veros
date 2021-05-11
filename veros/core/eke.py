@@ -135,7 +135,7 @@ def integrate_eke_kernel(state):
         boundary_mask = (ks >= 0) & (ks < settings.nz - 1)
         full_mask = boundary_mask[:, :, npx.newaxis] & (ki == ks[:, :, npx.newaxis])
         fxa = npx.maximum(0, vs.Nsqr[2:-2, 2:-2, :, vs.tau])**0.25
-        fxa *= 1.5 * fxa / npx.sqrt(npx.maximum(1e-6, npx.abs(vs.coriolis_t[2:-2, 2:-2, npx.newaxis]))) - 2
+        fxa = fxa * (1.5 * fxa / npx.sqrt(npx.maximum(1e-6, npx.abs(vs.coriolis_t[2:-2, 2:-2, npx.newaxis]))) - 2)
         vs.c_lee = update(vs.c_lee, at[2:-2, 2:-2], boundary_mask * settings.c_lee0 * settings.hrms_k0[2:-2, 2:-2] \
                             * npx.sum(npx.sqrt(vs.sqrteke[2:-2, 2:-2, :]) * npx.maximum(0, fxa)
                             / vs.dzw[npx.newaxis, npx.newaxis, :] * full_mask, axis=-1))

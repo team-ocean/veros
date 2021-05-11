@@ -293,12 +293,12 @@ VARIABLES = {
     ),
 
     'int_drhodT': Variable(
-        'Der. of dyn. enthalpy by temperature', T_GRID + TIMESTEPS, '?',
+        'Der. of dyn. enthalpy by temperature', T_GRID + TIMESTEPS, 'kg / (m^2 deg C)',
         'Partial derivative of dynamic enthalpy by temperature',
         write_to_restart=True
     ),
     'int_drhodS': Variable(
-        'Der. of dyn. enthalpy by salinity', T_GRID + TIMESTEPS, '?',
+        'Der. of dyn. enthalpy by salinity', T_GRID + TIMESTEPS, 'kg / (m^2 g / kg)',
         'Partial derivative of dynamic enthalpy by salinity',
         write_to_restart=True
     ),
@@ -357,7 +357,7 @@ VARIABLES = {
 
     ),
     'forc_temp_surface': Variable(
-        'Surface temperature flux', T_HOR, 'm K/s', 'Surface temperature flux',
+        'Surface temperature flux', T_HOR, 'm deg C/s', 'Surface temperature flux',
     ),
     'forc_salt_surface': Variable(
         'Surface salinity flux', T_HOR, 'm g/s kg', 'Surface salinity flux',
@@ -423,7 +423,7 @@ VARIABLES = {
         'Surface wind stress', V_HOR, 'N/m^2', 'Meridional surface wind stress',
     ),
     'forc_rho_surface': Variable(
-        'Surface density flux', T_HOR, '?', 'Surface potential density flux'
+        'Surface density flux', T_HOR, 'kg / (m^2 s)', 'Surface potential density flux'
     ),
 
     'psi': Variable(
@@ -446,11 +446,11 @@ VARIABLES = {
         mask=ZETA_HOR_ERODED
     ),
     'dpsin': Variable(
-        'Boundary streamfunction factor', ISLE + TIMESTEPS, '?',
+        'Boundary streamfunction factor', ISLE + TIMESTEPS, 'm^3/s^2',
         'Boundary streamfunction factor', write_to_restart=True
     ),
     'line_psin': Variable(
-        'Boundary line integrals', ISLE + ISLE, '?',
+        'Boundary line integrals', ISLE + ISLE, 'm^4/s^2',
         'Boundary line integrals', time_dependent=False
     ),
     'boundary_mask': Variable(
@@ -537,6 +537,7 @@ VARIABLES = {
     'w_wgrid': Variable(
         'W on W grid', W_GRID, 'm/s', 'Vertical velocity interpolated to W grid points'
     ),
+
     'xt': Variable(
         'Zonal coordinate (T)', XT,
         lambda settings: 'degrees_east' if settings.coord_degree else 'km',
@@ -565,6 +566,7 @@ VARIABLES = {
         time_dependent=False,
         scale=lambda settings: 1 if settings.coord_degree else 1e-3,
     ),
+
     'temp_source': Variable(
         'Source of temperature', T_GRID, 'K/s',
         'Non-conservative source of temperature',
