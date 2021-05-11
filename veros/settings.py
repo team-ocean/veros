@@ -58,10 +58,10 @@ SETTINGS = {
     'r_ray': Setting(0.0, float, 'Rayleigh damping coefficient in 1/s'),
     'r_bot': Setting(0.0, float, 'bottom friction coefficient in 1/s'),
     'r_quad_bot': Setting(0.0, float, 'qudratic bottom friction coefficient'),
-    'hor_friction_cosPower': Setting(3, float, ''),
+    'hor_friction_cosPower': Setting(3, float, 'power to scale cos term by in horizontal friction'),
     'A_hbi': Setting(0.0, float, 'lateral biharmonic viscosity in m^4/s'),
     'K_hbi': Setting(0.0, float, 'lateral biharmonic diffusivity in m^4/s'),
-    'kappaH_0': Setting(0.0, float, ''),
+    'kappaH_0': Setting(0.0, float, 'fixed values for vertical viscosity/diffusivity which are set for no TKE model'),
     'kappaM_0': Setting(0.0, float, 'fixed values for vertical viscosity/diffusivity which are set for no TKE model'),
 
     # Options for isopycnal mixing
@@ -114,15 +114,6 @@ SETTINGS = {
     'enable_eke_superbee_advection': Setting(False, bool, ''),
     'enable_eke_upwind_advection': Setting(False, bool, ''),
     'enable_eke_isopycnal_diffusion': Setting(False, bool, 'use K_gm also for isopycnal diffusivity'),
-
-    'enable_eke_leewave_dissipation': Setting(False, bool, ''),
-    'c_lee0': Setting(1., float, ''),
-    'eke_Ri0': Setting(200., float, ''),
-    'eke_Ri1': Setting(50., float, ''),
-    'eke_int_diss0': Setting(1. / (20 * 86400.), float, ''),
-    'kappa_EKE0': Setting(0.1, float, ''),
-    'eke_r_bot': Setting(0.0, float, 'bottom friction coefficient'),
-    'eke_hrms_k0_min': Setting(0.0, float, 'min value for bottom roughness parameter'),
 
     # Restarts
     'restart_input_filename': Setting('', str, 'File name of restart input. If not given, no restart data will be read.'),

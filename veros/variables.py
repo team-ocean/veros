@@ -720,37 +720,6 @@ VARIABLES = {
         active=lambda settings: settings.enable_eke,
     ),
 
-    'eke_bot_flux': Variable(
-        'Flux by bottom friction', T_HOR, 'm^3/s^3', 'Flux by bottom friction',
-        active=lambda settings: settings.enable_eke_leewave_dissipation,
-    ),
-    'eke_topo_hrms': Variable(
-        '?', T_HOR, '?', '?',
-        active=lambda settings: settings.enable_eke_leewave_dissipation,
-    ),
-    'eke_topo_lam': Variable(
-        '?', T_HOR, '?', '?',
-        active=lambda settings: settings.enable_eke_leewave_dissipation,
-    ),
-    'hrms_k0': Variable(
-        '?', T_HOR, '?', '?',
-        active=lambda settings: settings.enable_eke_leewave_dissipation,
-    ),
-    'c_lee': Variable(
-        'Lee wave dissipation coefficient', T_HOR, '1/s',
-        'Lee wave dissipation coefficient',
-        active=lambda settings: settings.enable_eke_leewave_dissipation,
-    ),
-    'eke_lee_flux': Variable(
-        'Lee wave flux', T_HOR, 'm^3/s^3', 'Lee wave flux',
-        active=lambda settings: settings.enable_eke_leewave_dissipation,
-    ),
-    'c_Ri_diss': Variable(
-        'Interior dissipation coefficient', W_GRID, '1/s',
-        'Interior dissipation coefficient',
-        active=lambda settings: settings.enable_eke_leewave_dissipation,
-    ),
-
     'E_iw': Variable(
         'Internal wave energy', W_GRID + TIMESTEPS, 'm^2/s^2',
         'Internal wave energy', write_to_restart=True,
