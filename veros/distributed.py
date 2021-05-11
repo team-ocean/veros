@@ -1,7 +1,7 @@
 import functools
 
-from . import runtime_settings as rs, runtime_state as rst
-from .routines import CURRENT_CONTEXT
+from veros import runtime_settings as rs, runtime_state as rst
+from veros.routines import CURRENT_CONTEXT
 
 SCATTERED_DIMENSIONS = (
     ('xt', 'xu'),
@@ -139,6 +139,9 @@ def proc_index_to_rank(ix, iy):
 
 
 def get_chunk_slices(nx, ny, dim_grid, proc_idx=None, include_overlap=False):
+    if not dim_grid:
+        return Ellipsis, Ellipsis
+
     if proc_idx is None:
         proc_idx = proc_rank_to_index(rst.proc_rank)
 
@@ -212,7 +215,7 @@ def get_process_neighbors(cyclic=False):
     return global_neighbors
 
 
-@dist_context_only
+@dist_context_only(noop_return_arg=0)
 def exchange_overlap(arr, var_grid, cyclic):
     from veros.core.operators import numpy as np, update, at
 
@@ -355,7 +358,7 @@ def _mpi_comm_along_axis(comm, procs, rank):
     return comm.Split(procs, rank)
 
 
-@dist_context_only
+@dist_context_only(noop_return_arg=0)
 def _reduce(arr, op, axis=None):
     from veros.core.operators import numpy as np
 

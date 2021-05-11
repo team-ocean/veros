@@ -1,1 +1,1 @@
-from .get_rho import *
+from veros.core.density.get_rho import *

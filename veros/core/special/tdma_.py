@@ -1,12 +1,12 @@
 try:
-    from . import tdma_cython_
+    from veros.core.special import tdma_cython_
 except ImportError:
     HAS_CPU_EXT = False
 else:
     HAS_CPU_EXT = True
 
 try:
-    from . import tdma_cuda_
+    from veros.core.special import tdma_cuda_
 except ImportError:
     HAS_GPU_EXT = False
 else:

@@ -171,7 +171,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
             raise RuntimeError('setup() method has to be called before running the model')
 
     def setup(self):
-        from veros import diagnostics
+        from veros import diagnostics, restart
         from veros.core import numerics, streamfunction, eke, isoneutral
 
         setup_funcs = (
@@ -200,6 +200,14 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         self.state.initialize_variables()
 
+        self.state.diagnostics.update(
+            diagnostics.create_default_diagnostics(self.state)
+        )
+
+        for plugin in self.state.plugin_interfaces:
+            for diagnostic in plugin.diagnostics:
+                self.state.diagnostics[diagnostic.name] = diagnostic()
+
         with self.state.timers['setup'], record_routine_stack() as recorded_stack:
             self.set_grid(self.state)
             numerics.calc_grid(self.state)
@@ -220,7 +228,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
             self.set_diagnostics(self.state)
             diagnostics.initialize(self.state)
-            diagnostics.read_restart(self.state)
+            restart.read_restart(self.state)
 
             self.set_forcing(self.state)
             isoneutral.check_isoneutral_slope_crit(self.state)
@@ -230,9 +238,9 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
     @veros_routine
     def step(self, state):
-        from veros import diagnostics
+        from veros import diagnostics, restart
         from veros.core import (
-            idemix, eke, tke, momentum, thermodynamics, advection, utilities, isoneutral
+            idemix, eke, tke, momentum, thermodynamics, advection, utilities, isoneutral, numerics
         )
 
         self._ensure_setup_done()
@@ -242,7 +250,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         with state.profile_timers['all']:
             with state.timers['diagnostics']:
-                diagnostics.write_restart(state)
+                restart.write_restart(state)
 
             with state.timers['main']:
                 with state.timers['forcing']:
@@ -304,7 +312,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
             self.after_timestep(state)
 
             with state.timers['diagnostics']:
-                if not diagnostics.sanity_check(state):
+                if not numerics.sanity_check(state):
                     raise RuntimeError('solution diverged at iteration {}'.format(vs.itt))
 
                 isoneutral.isoneutral_diag_streamfunction(state)
@@ -328,7 +336,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 By default, only show if stdout is a terminal and Veros is running on a single process.
 
         """
-        from veros import diagnostics
+        from veros import restart
         self._ensure_setup_done()
 
         vs = self.state.variables
@@ -363,7 +371,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
             logger.success('Integration done\n')
 
         finally:
-            diagnostics.write_restart(self.state, force=True)
+            restart.write_restart(self.state, force=True)
             self._timing_summary()
 
     def _timing_summary(self):

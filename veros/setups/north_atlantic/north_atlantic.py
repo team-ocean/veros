@@ -17,46 +17,6 @@ DATA_FILES = veros.tools.get_assets('north_atlantic', os.path.join(BASE_PATH, 'a
 TOPO_MASK_FILE = os.path.join(BASE_PATH, 'topo_mask.png')
 
 
-@veros_kernel
-def set_forcing_kernel(state):
-    vs = state.variables
-    settings = state.settings
-
-    year_in_seconds = 360 * 86400.0
-    (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(vs.time, year_in_seconds,
-                                                            year_in_seconds / 12., 12)
-
-    vs.surface_taux = (f1 * vs.taux[:, :, n1] + f2 * vs.taux[:, :, n2])
-    vs.surface_tauy = (f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2])
-
-    if settings.enable_tke:
-        vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / vs.rho_0)**2
-                                                    + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / vs.rho_0)**2
-                                                    ) ** (3. / 2.)
-    cp_0 = 3991.86795711963
-    vs.forc_temp_surface = (f1 * vs.sst_rest[:, :, n1] + f2 * vs.sst_rest[:, :, n2]) * \
-                                (f1 * vs.sst_clim[:, :, n1] + f2 * vs.sst_clim[:, :, n2]
-                                    - vs.temp[:, :, -1, vs.tau]) * vs.maskT[:, :, -1] / cp_0 / vs.rho_0
-    vs.forc_salt_surface = (f1 * vs.sss_rest[:, :, n1] + f2 * vs.sss_rest[:, :, n2]) * \
-                                (f1 * vs.sss_clim[:, :, n1] + f2 * vs.sss_clim[:, :, n2]
-                                    - vs.salt[:, :, -1, vs.tau]) * vs.maskT[:, :, -1]
-
-    ice_mask = (vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] <= -1.8) & (vs.forc_temp_surface <= 0.0)
-    vs.forc_temp_surface *= ~ice_mask
-    vs.forc_salt_surface *= ~ice_mask
-
-    if settings.enable_tempsalt_sources:
-        vs.temp_source = vs.maskT * vs.rest_tscl \
-            * (f1 * vs.t_star[:, :, :, n1] + f2 * vs.t_star[:, :, :, n2] - vs.temp[:, :, :, vs.tau])
-        vs.salt_source = vs.maskT * vs.rest_tscl \
-            * (f1 * vs.s_star[:, :, :, n1] + f2 * vs.s_star[:, :, :, n2] - vs.salt[:, :, :, vs.tau])
-
-    return KernelOutput(
-        surface_taux=vs.surface_taux, surface_tauy=vs.surface_tauy, temp_source=vs.temp_source, salt_source=vs.salt_source,
-        forc_tke_surface=vs.forc_tke_surface, forc_temp_surface=vs.forc_temp_surface, forc_salt_surface=vs.forc_salt_surface,
-    )
-
-
 class NorthAtlanticSetup(VerosSetup):
     """ A regional model of the North Atlantic, inspired by `Smith et al., 2000`_.
 
@@ -279,3 +239,44 @@ class NorthAtlanticSetup(VerosSetup):
     @veros_routine
     def after_timestep(self, state):
         pass
+
+
+@veros_kernel
+def set_forcing_kernel(state):
+    vs = state.variables
+    settings = state.settings
+
+    year_in_seconds = 360 * 86400.0
+    (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(vs.time, year_in_seconds,
+                                                           year_in_seconds / 12., 12)
+
+    vs.surface_taux = (f1 * vs.taux[:, :, n1] + f2 * vs.taux[:, :, n2])
+    vs.surface_tauy = (f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2])
+
+    if settings.enable_tke:
+        vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / vs.rho_0)**2
+                                                  + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
+                                                     + vs.surface_tauy[1:-1, :-2]) / vs.rho_0)**2
+                                                  ) ** (3. / 2.)
+    cp_0 = 3991.86795711963
+    vs.forc_temp_surface = (f1 * vs.sst_rest[:, :, n1] + f2 * vs.sst_rest[:, :, n2]) * \
+        (f1 * vs.sst_clim[:, :, n1] + f2 * vs.sst_clim[:, :, n2]
+         - vs.temp[:, :, -1, vs.tau]) * vs.maskT[:, :, -1] / cp_0 / vs.rho_0
+    vs.forc_salt_surface = (f1 * vs.sss_rest[:, :, n1] + f2 * vs.sss_rest[:, :, n2]) * \
+        (f1 * vs.sss_clim[:, :, n1] + f2 * vs.sss_clim[:, :, n2]
+         - vs.salt[:, :, -1, vs.tau]) * vs.maskT[:, :, -1]
+
+    ice_mask = (vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] <= -1.8) & (vs.forc_temp_surface <= 0.0)
+    vs.forc_temp_surface *= ~ice_mask
+    vs.forc_salt_surface *= ~ice_mask
+
+    if settings.enable_tempsalt_sources:
+        vs.temp_source = vs.maskT * vs.rest_tscl \
+            * (f1 * vs.t_star[:, :, :, n1] + f2 * vs.t_star[:, :, :, n2] - vs.temp[:, :, :, vs.tau])
+        vs.salt_source = vs.maskT * vs.rest_tscl \
+            * (f1 * vs.s_star[:, :, :, n1] + f2 * vs.s_star[:, :, :, n2] - vs.salt[:, :, :, vs.tau])
+
+    return KernelOutput(
+        surface_taux=vs.surface_taux, surface_tauy=vs.surface_tauy, temp_source=vs.temp_source, salt_source=vs.salt_source,
+        forc_tke_surface=vs.forc_tke_surface, forc_temp_surface=vs.forc_temp_surface, forc_salt_surface=vs.forc_salt_surface,
+    )

@@ -1,9 +1,7 @@
 import threading
 import contextlib
 
-from veros import logger
-
-from ... import runtime_settings, runtime_state
+from veros import logger, runtime_settings, runtime_state
 
 
 @contextlib.contextmanager
@@ -47,7 +45,7 @@ def _wait_for_disk(file_id):
     """
     Wait for the lock of file_id to be released
     """
-    logger.debug('Waiting for lock {} to be released'.format(file_id))
+    logger.debug(f'Waiting for lock {file_id} to be released')
     _add_to_locks(file_id)
     lock_released = _io_locks[file_id].wait(runtime_settings.io_timeout)
     if not lock_released:

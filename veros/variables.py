@@ -5,9 +5,8 @@ from veros import runtime_settings
 
 class Variable:
     def __init__(self, name, dims, units="", long_description="", dtype=None,
-                 output=False, time_dependent=True, scale=1.,
-                 write_to_restart=False, extra_attributes=None, mask=None,
-                 active=True, initial=None):
+                 time_dependent=True, scale=1., write_to_restart=False,
+                 extra_attributes=None, mask=None, active=True, initial=None):
         if dims is not None:
             dims = tuple(dims)
 
@@ -16,7 +15,6 @@ class Variable:
         self.units = units
         self.long_description = long_description
         self.dtype = dtype
-        self.output = output
         self.time_dependent = time_dependent
         self.scale = scale
         self.write_to_restart = write_to_restart
@@ -185,36 +183,36 @@ VARIABLES = {
     'dxt': Variable(
         'Zonal T-grid spacing', XT, 'm',
         'Zonal (x) spacing of T-grid point',
-        output=True, time_dependent=False
+        time_dependent=False
     ),
     'dxu': Variable(
         'Zonal U-grid spacing', XU, 'm',
         'Zonal (x) spacing of U-grid point',
-        output=True, time_dependent=False
+        time_dependent=False
     ),
     'dyt': Variable(
         'Meridional T-grid spacing', YT, 'm',
         'Meridional (y) spacing of T-grid point',
-        output=True, time_dependent=False
+        time_dependent=False
     ),
     'dyu': Variable(
         'Meridional U-grid spacing', YU, 'm',
         'Meridional (y) spacing of U-grid point',
-        output=True, time_dependent=False
+        time_dependent=False
     ),
     'zt': Variable(
         'Vertical coordinate (T)', ZT, 'm', 'Vertical coordinate',
-        output=True, time_dependent=False, extra_attributes={'positive': 'up'}
+        time_dependent=False, extra_attributes={'positive': 'up'}
     ),
     'zw': Variable(
-        'Vertical coordinate (W)', ZW, 'm', 'Vertical coordinate', output=True,
+        'Vertical coordinate (W)', ZW, 'm', 'Vertical coordinate',
         time_dependent=False, extra_attributes={'positive': 'up'}
     ),
     'dzt': Variable(
-        'Vertical spacing (T)', ZT, 'm', 'Vertical spacing', output=True, time_dependent=False
+        'Vertical spacing (T)', ZT, 'm', 'Vertical spacing', time_dependent=False
     ),
     'dzw': Variable(
-        'Vertical spacing (W)', ZW, 'm', 'Vertical spacing', output=True, time_dependent=False
+        'Vertical spacing (W)', ZW, 'm', 'Vertical spacing', time_dependent=False
     ),
     'cost': Variable(
         'Metric factor (T)', YT, '1', 'Metric factor for spherical coordinates',
@@ -239,15 +237,15 @@ VARIABLES = {
         dtype='int', time_dependent=False
     ),
     'ht': Variable(
-        'Total depth (T)', T_HOR, 'm', 'Total depth of the water column', output=True,
+        'Total depth (T)', T_HOR, 'm', 'Total depth of the water column',
         time_dependent=False
     ),
     'hu': Variable(
-        'Total depth (U)', U_HOR, 'm', 'Total depth of the water column', output=True,
+        'Total depth (U)', U_HOR, 'm', 'Total depth of the water column',
         time_dependent=False
     ),
     'hv': Variable(
-        'Total depth (V)', V_HOR, 'm', 'Total depth of the water column', output=True,
+        'Total depth (V)', V_HOR, 'm', 'Total depth of the water column',
         time_dependent=False
     ),
     'hur': Variable(
@@ -260,16 +258,16 @@ VARIABLES = {
     ),
     'beta': Variable(
         'Change of Coriolis freq.', T_HOR, '1/(ms)',
-        'Change of Coriolis frequency with latitude', output=True, time_dependent=False
+        'Change of Coriolis frequency with latitude', time_dependent=False
     ),
     'area_t': Variable(
-        'Area of T-box', T_HOR, 'm^2', 'Area of T-box', output=True, time_dependent=False
+        'Area of T-box', T_HOR, 'm^2', 'Area of T-box', time_dependent=False
     ),
     'area_u': Variable(
-        'Area of U-box', U_HOR, 'm^2', 'Area of U-box', output=True, time_dependent=False
+        'Area of U-box', U_HOR, 'm^2', 'Area of U-box', time_dependent=False
     ),
     'area_v': Variable(
-        'Area of V-box', V_HOR, 'm^2', 'Area of V-box', output=True, time_dependent=False
+        'Area of V-box', V_HOR, 'm^2', 'Area of V-box', time_dependent=False
     ),
 
     'maskT': Variable(
@@ -296,33 +294,32 @@ VARIABLES = {
     'rho': Variable(
         'Density', T_GRID + TIMESTEPS, 'kg/m^3',
         'In-situ density anomaly, relative to the surface mean value of 1024 kg/m^3',
-        output=True, write_to_restart=True
+        write_to_restart=True
     ),
 
     'prho': Variable(
         'Potential density', T_GRID, 'kg/m^3',
         'Potential density anomaly, relative to the surface mean value of 1024 kg/m^3 '
         '(identical to in-situ density anomaly for equation of state type 1, 2, and 4)',
-        output=True
     ),
 
     'int_drhodT': Variable(
         'Der. of dyn. enthalpy by temperature', T_GRID + TIMESTEPS, '?',
-        'Partial derivative of dynamic enthalpy by temperature', output=True,
+        'Partial derivative of dynamic enthalpy by temperature',
         write_to_restart=True
     ),
     'int_drhodS': Variable(
         'Der. of dyn. enthalpy by salinity', T_GRID + TIMESTEPS, '?',
-        'Partial derivative of dynamic enthalpy by salinity', output=True,
+        'Partial derivative of dynamic enthalpy by salinity',
         write_to_restart=True
     ),
     'Nsqr': Variable(
         'Square of stability frequency', W_GRID + TIMESTEPS, '1/s^2',
-        'Square of stability frequency', output=True, write_to_restart=True
+        'Square of stability frequency', write_to_restart=True
     ),
     'Hd': Variable(
         'Dynamic enthalpy', T_GRID + TIMESTEPS, 'm^2/s^2', 'Dynamic enthalpy',
-        output=True, write_to_restart=True
+        write_to_restart=True
     ),
     'dHd': Variable(
         'Change of dyn. enth. by adv.', T_GRID + TIMESTEPS, 'm^2/s^3',
@@ -331,14 +328,14 @@ VARIABLES = {
 
     'temp': Variable(
         'Temperature', T_GRID + TIMESTEPS, 'deg C',
-        'Conservative temperature', output=True, write_to_restart=True
+        'Conservative temperature', write_to_restart=True
     ),
     'dtemp': Variable(
         'Temperature tendency', T_GRID + TIMESTEPS, 'deg C/s',
         'Conservative temperature tendency', write_to_restart=True
     ),
     'salt': Variable(
-        'Salinity', T_GRID + TIMESTEPS, 'g/kg', 'Salinity', output=True,
+        'Salinity', T_GRID + TIMESTEPS, 'g/kg', 'Salinity',
         write_to_restart=True
     ),
     'dsalt': Variable(
@@ -372,24 +369,22 @@ VARIABLES = {
     ),
     'forc_temp_surface': Variable(
         'Surface temperature flux', T_HOR, 'm K/s', 'Surface temperature flux',
-        output=True
     ),
     'forc_salt_surface': Variable(
         'Surface salinity flux', T_HOR, 'm g/s kg', 'Surface salinity flux',
-        output=True
     ),
 
     'u': Variable(
         'Zonal velocity', U_GRID + TIMESTEPS, 'm/s', 'Zonal velocity',
-        output=True, write_to_restart=True
+        write_to_restart=True
     ),
     'v': Variable(
         'Meridional velocity', V_GRID + TIMESTEPS, 'm/s', 'Meridional velocity',
-        output=True, write_to_restart=True
+        write_to_restart=True
     ),
     'w': Variable(
         'Vertical velocity', W_GRID + TIMESTEPS, 'm/s', 'Vertical velocity',
-        output=True, write_to_restart=True
+        write_to_restart=True
     ),
     'du': Variable(
         'Zonal velocity tendency', U_GRID + TIMESTEPS, 'm/s',
@@ -424,27 +419,27 @@ VARIABLES = {
         'Change of v due to advection'
     ),
     'p_hydro': Variable(
-        'Hydrostatic pressure', T_GRID, 'm^2/s^2', 'Hydrostatic pressure', output=True
+        'Hydrostatic pressure', T_GRID, 'm^2/s^2', 'Hydrostatic pressure'
     ),
     'kappaM': Variable(
-        'Vertical viscosity', T_GRID, 'm^2/s', 'Vertical viscosity', output=True
+        'Vertical viscosity', T_GRID, 'm^2/s', 'Vertical viscosity'
     ),
     'kappaH': Variable(
-        'Vertical diffusivity', W_GRID, 'm^2/s', 'Vertical diffusivity', output=True
+        'Vertical diffusivity', W_GRID, 'm^2/s', 'Vertical diffusivity'
     ),
     'surface_taux': Variable(
-        'Surface wind stress', U_HOR, 'N/m^2', 'Zonal surface wind stress', output=True,
+        'Surface wind stress', U_HOR, 'N/m^2', 'Zonal surface wind stress',
     ),
     'surface_tauy': Variable(
-        'Surface wind stress', V_HOR, 'N/m^2', 'Meridional surface wind stress', output=True,
+        'Surface wind stress', V_HOR, 'N/m^2', 'Meridional surface wind stress',
     ),
     'forc_rho_surface': Variable(
-        'Surface density flux', T_HOR, '?', 'Surface potential density flux', output=True
+        'Surface density flux', T_HOR, '?', 'Surface potential density flux'
     ),
 
     'psi': Variable(
         'Streamfunction', ZETA_HOR + TIMESTEPS, 'm^3/s', 'Barotropic streamfunction',
-        output=True, write_to_restart=True, mask=ZETA_HOR_ERODED
+        write_to_restart=True, mask=ZETA_HOR_ERODED
     ),
     'dpsi': Variable(
         'Streamfunction tendency', ZETA_HOR + TIMESTEPS, 'm^3/s^2',
@@ -454,11 +449,11 @@ VARIABLES = {
         'Land map', T_HOR, '', 'Land map', dtype='int32'
     ),
     'isle': Variable(
-        'Island number', ISLE, '', 'Island number', output=True
+        'Island number', ISLE, '', 'Island number'
     ),
     'psin': Variable(
         'Boundary streamfunction', ZETA_HOR + ISLE, 'm^3/s',
-        'Boundary streamfunction', output=True, time_dependent=False,
+        'Boundary streamfunction', time_dependent=False,
         mask=ZETA_HOR_ERODED
     ),
     'dpsin': Variable(
@@ -557,49 +552,49 @@ VARIABLES = {
         'Zonal coordinate (T)', XT,
         lambda settings: 'degrees_east' if settings.coord_degree else 'km',
         'Zonal (x) coordinate of T-grid point',
-        output=True, time_dependent=False,
+        time_dependent=False,
         scale=lambda settings: 1 if settings.coord_degree else 1e-3,
     ),
     'xu': Variable(
         'Zonal coordinate (U)', XU,
         lambda settings: 'degrees_east' if settings.coord_degree else 'km',
         'Zonal (x) coordinate of U-grid point',
-        output=True, time_dependent=False,
+        time_dependent=False,
         scale=lambda settings: 1 if settings.coord_degree else 1e-3,
     ),
     'yt': Variable(
         'Meridional coordinate (T)', YT,
         lambda settings: 'degrees_north' if settings.coord_degree else 'km',
         'Meridional (y) coordinate of T-grid point',
-        output=True, time_dependent=False,
+        time_dependent=False,
         scale=lambda settings: 1 if settings.coord_degree else 1e-3,
     ),
     'yu': Variable(
         'Meridional coordinate (U)', YU,
         lambda settings: 'degrees_north' if settings.coord_degree else 'km',
         'Meridional (y) coordinate of U-grid point',
-        output=True, time_dependent=False,
+        time_dependent=False,
         scale=lambda settings: 1 if settings.coord_degree else 1e-3,
     ),
     'temp_source': Variable(
         'Source of temperature', T_GRID, 'K/s',
-        'Non-conservative source of temperature', output=True,
+        'Non-conservative source of temperature',
         active=lambda settings: settings.enable_tempsalt_sources,
     ),
     'salt_source': Variable(
         'Source of salt', T_GRID, 'g/(kg s)',
-        'Non-conservative source of salt', output=True,
+        'Non-conservative source of salt',
         active=lambda settings: settings.enable_tempsalt_sources,
     ),
 
     'u_source': Variable(
         'Source of zonal velocity', U_GRID, 'm/s^2',
-        'Non-conservative source of zonal velocity', output=True,
+        'Non-conservative source of zonal velocity',
         active=lambda settings: settings.enable_momentum_sources,
     ),
     'v_source': Variable(
         'Source of meridional velocity', V_GRID, 'm/s^2',
-        'Non-conservative source of meridional velocity', output=True,
+        'Non-conservative source of meridional velocity',
         active=lambda settings: settings.enable_momentum_sources,
     ),
 
@@ -663,7 +658,7 @@ VARIABLES = {
 
     'tke': Variable(
         'Turbulent kinetic energy', W_GRID + TIMESTEPS, 'm^2/s^2',
-        'Turbulent kinetic energy', output=True, write_to_restart=True,
+        'Turbulent kinetic energy', write_to_restart=True,
         active=lambda settings: settings.enable_tke,
     ),
     'sqrttke': Variable(
@@ -684,7 +679,7 @@ VARIABLES = {
         active=lambda settings: settings.enable_tke,
     ),
     'forc_tke_surface': Variable(
-        'TKE surface flux', T_HOR, 'm^3/s^3', 'TKE surface flux', output=True,
+        'TKE surface flux', T_HOR, 'm^3/s^3', 'TKE surface flux',
         active=lambda settings: settings.enable_tke,
     ),
     'tke_diss': Variable(
@@ -699,7 +694,7 @@ VARIABLES = {
 
     'eke': Variable(
         'meso-scale energy', W_GRID + TIMESTEPS, 'm^2/s^2',
-        'meso-scale energy', output=True, write_to_restart=True,
+        'meso-scale energy', write_to_restart=True,
         active=lambda settings: settings.enable_eke,
     ),
     'deke': Variable(
@@ -767,7 +762,7 @@ VARIABLES = {
 
     'E_iw': Variable(
         'Internal wave energy', W_GRID + TIMESTEPS, 'm^2/s^2',
-        'Internal wave energy', output=True, write_to_restart=True,
+        'Internal wave energy', write_to_restart=True,
         active=lambda settings: settings.enable_idemix,
     ),
     'dE_iw': Variable(
@@ -795,12 +790,12 @@ VARIABLES = {
     ),
     'forc_iw_surface': Variable(
         'IW surface forcing', T_HOR, 'm^3/s^3',
-        'Internal wave surface forcing', time_dependent=False, output=True,
+        'Internal wave surface forcing', time_dependent=False,
         active=lambda settings: settings.enable_idemix,
     ),
     'forc_iw_bottom': Variable(
         'IW bottom forcing', T_HOR, 'm^3/s^3',
-        'Internal wave bottom forcing', time_dependent=False, output=True,
+        'Internal wave bottom forcing', time_dependent=False,
         active=lambda settings: settings.enable_idemix,
     ),
 }

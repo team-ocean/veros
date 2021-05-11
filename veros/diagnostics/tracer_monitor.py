@@ -1,7 +1,8 @@
 from veros import logger
 
+from veros.variables import Variable
 from veros.core.operators import numpy as np
-from veros.diagnostics.diagnostic import VerosDiagnostic
+from veros.diagnostics.base import VerosDiagnostic
 from veros.distributed import global_sum
 
 
@@ -10,16 +11,19 @@ class TracerMonitor(VerosDiagnostic):
 
     Writes output to stdout (no binary output).
     """
-    name = 'tracer_monitor' #:
-    output_frequency = None  #: Frequency (in seconds) in which output is written.
-    #: internal attributes to write to restart file
-    restart_attributes = ('tempm1', 'vtemp1', 'saltm1', 'vsalt1')
+    name = 'tracer_monitor'
+    output_frequency = None
+
+    def __init__(self, state):
+        self.var_meta = {
+            "tempm1": Variable("tempm1", None, write_to_restart=True),
+            "vtemp1": Variable("vtemp1", None, write_to_restart=True),
+            "saltm1": Variable("saltm1", None, write_to_restart=True),
+            "vsalt1": Variable("vsalt1", None, write_to_restart=True),
+        }
 
     def initialize(self, state):
-        self.tempm1 = 0.
-        self.vtemp1 = 0.
-        self.saltm1 = 0.
-        self.vsalt1 = 0.
+        self.initialize_variables(state)
 
     def diagnose(self, state):
         pass
@@ -29,6 +33,7 @@ class TracerMonitor(VerosDiagnostic):
         Diagnose tracer content
         """
         vs = state.variables
+        tracer_vs = self.variables
 
         cell_volume = vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzt[np.newaxis, np.newaxis, :] \
             * vs.maskT[2:-2, 2:-2, :]
@@ -38,25 +43,15 @@ class TracerMonitor(VerosDiagnostic):
         vtemp = global_sum(np.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau]**2))
         vsalt = global_sum(np.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau]**2))
 
-        logger.diagnostic(' Mean temperature {:.2e} change to last {:.2e}'
-                          .format(float(tempm / volm), float((tempm - self.tempm1) / volm)))
+        logger.diagnostic(f' Mean temperature {tempm / volm:.2e} change to last {(tempm - tracer_vs.tempm1) / volm:.2e}')
         logger.diagnostic(' Mean salinity    {:.2e} change to last {:.2e}'
-                          .format(float(saltm / volm), float((saltm - self.saltm1) / volm)))
+                          .format(float(saltm / volm), float((saltm - tracer_vs.saltm1) / volm)))
         logger.diagnostic(' Temperature var. {:.2e} change to last {:.2e}'
-                          .format(float(vtemp / volm), float((vtemp - self.vtemp1) / volm)))
+                          .format(float(vtemp / volm), float((vtemp - tracer_vs.vtemp1) / volm)))
         logger.diagnostic(' Salinity var.    {:.2e} change to last {:.2e}'
-                          .format(float(vsalt / volm), float((vsalt - self.vsalt1) / volm)))
+                          .format(float(vsalt / volm), float((vsalt - tracer_vs.vsalt1) / volm)))
 
-        self.tempm1 = tempm
-        self.vtemp1 = vtemp
-        self.saltm1 = saltm
-        self.vsalt1 = vsalt
-
-    def read_restart(self, state, infile):
-        attributes, _ = self.read_h5_restart(state, {}, infile)
-        for attr in self.restart_attributes:
-            setattr(self, attr, attributes[attr])
-
-    def write_restart(self, state, outfile):
-        attributes = {key: getattr(self, key) for key in self.restart_attributes}
-        self.write_h5_restart(state, attributes, {}, {}, outfile)
+        tracer_vs.tempm1 = tempm
+        tracer_vs.vtemp1 = vtemp
+        tracer_vs.saltm1 = saltm
+        tracer_vs.vsalt1 = vsalt

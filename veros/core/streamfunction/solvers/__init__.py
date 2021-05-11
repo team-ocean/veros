@@ -21,22 +21,22 @@ def _get_solver_class():
     def _get_best_solver():
         if rst.proc_num > 1:
             try:
-                from .petsc_ import PETScSolver
+                from veros.core.streamfunction.solvers.petsc_ import PETScSolver
             except ImportError:
                 logger.warning('PETSc linear solver not available, falling back to SciPy')
             else:
                 return PETScSolver
 
-        from .scipy import SciPySolver
+        from veros.core.streamfunction.solvers.scipy import SciPySolver
         return SciPySolver
 
     if ls == 'best':
         return _get_best_solver()
     elif ls == 'petsc':
-        from .petsc_ import PETScSolver
+        from veros.core.streamfunction.solvers.petsc_ import PETScSolver
         return PETScSolver
     elif ls == 'scipy':
-        from .scipy import SciPySolver
+        from veros.core.streamfunction.solvers.scipy import SciPySolver
         return SciPySolver
 
     raise ValueError('unrecognized linear solver %s' % ls)

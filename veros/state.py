@@ -417,6 +417,10 @@ class VerosState:
     def diagnostics(self):
         return self._diagnostics
 
+    @property
+    def plugin_interfaces(self):
+        return self._plugin_interfaces
+
     def to_xarray(self):
         import xarray as xr
 
@@ -475,14 +479,7 @@ def get_default_state(use_plugins=None):
     for plugin in plugin_interfaces:
         var_meta.update(plugin.variables)
 
-    from veros import diagnostics as diagnostics_mod
-    diagnostics = diagnostics_mod.create_default_diagnostics()
-
-    for plugin in plugin_interfaces:
-        for diagnostic in plugin.diagnostics:
-            diagnostics[diagnostic.name] = diagnostic()
-
-    return VerosState(var_meta, default_settings, default_dimensions, diagnostics, plugin_interfaces)
+    return VerosState(var_meta, default_settings, default_dimensions, plugin_interfaces=plugin_interfaces)
 
 
 def veros_state_pytree_flatten(state):

@@ -1,7 +1,22 @@
 import os
+import copy
 
-from veros import time, logger, veros_routine
-from veros.diagnostics.diagnostic import VerosDiagnostic
+from veros import time, logger
+from veros.diagnostics.base import VerosDiagnostic
+
+
+DEFAULT_OUTPUT_VARS = [
+    "dxt", "dxu", "dyt", "dyu", "zt", "zw", "dzt", "dzw",
+    "ht", "hu", "hv", "beta", "area_t", "area_u", "area_v",
+    "rho", "prho", "int_drhodT", "int_drhodS", "Nsqr", "Hd",
+    "temp", "salt", "forc_temp_surface", "forc_salt_surface",
+    "u", "v", "w", "p_hydro", "kappaM", "kappaH",
+    "surface_taux", "surface_tauy", "forc_rho_surface", "psi",
+    "isle", "psin", "xt", "xu", "yt", "yu",
+    "temp_source", "salt_source", "u_source", "v_source",
+    "tke", "forc_tke_surface", "eke", "E_iw",
+    "forc_iw_surface", "forc_iw_bottom",
+]
 
 
 class Snapshot(VerosDiagnostic):
@@ -12,74 +27,37 @@ class Snapshot(VerosDiagnostic):
     """File to write to. May contain format strings that are replaced with Veros attributes."""
     name = 'snapshot' #:
     output_frequency = None  #: Frequency (in seconds) in which output is written.
-    #: Attributes to be written to restart file.
-    restart_attributes = ('itt', 'time', 'tau', 'taum1', 'taup1')
+
+    def __init__(self, state):
+        self.output_variables = []
+
+        for var in DEFAULT_OUTPUT_VARS:
+            active = state.var_meta[var].active
+            if callable(active):
+                active = active(state.settings)
+
+            if active:
+                self.output_variables.append(var)
 
     def initialize(self, state):
         vs = state.variables
-        # TODO: initialize this earlier
-        self.output_variables = [key for key, val in state.var_meta.items() if val.output and val.active]
-        """Variables to be written to output. Defaults to all Veros variables that
-        have the attribute :attr:`output`."""
-        self.restart_variables = [key for key,
-                                  val in state.var_meta.items() if val.write_to_restart and val.active]
-        """Variables to be written to restart. Defaults to all Veros variables that
-        have the attribute :attr:`write_to_restart`."""
-        var_meta = {var: state.var_meta[var] for var in self.output_variables}
-        var_data = {var: getattr(vs, var) for var in self.output_variables}
-        self.initialize_output(state, var_meta, var_data)
+
+        self.var_meta = {var: copy.copy(state.var_meta[var]) for var in self.output_variables}
+        for var in self.var_meta.values():
+            var.write_to_restart = False
+
+        self.variables = vs
+        self.initialize_output(state)
 
     def diagnose(self, state):
         pass
 
-    @veros_routine
     def output(self, state):
         vs = state.variables
 
         logger.info(' Writing snapshot at {0[0]:.2f} {0[1]}', time.format_time(vs.time))
 
         if not os.path.isfile(self.get_output_file_name(state)):
-            self.initialize(state)
+            self.initialize_output(state, self.var_meta)
 
-        var_meta = {var: state.var_meta[var]
-                    for var in self.output_variables if state.var_meta[var].time_dependent}
-        var_data = {var: getattr(vs, var) for var in var_meta.keys()}
-        self.write_output(state, var_meta, var_data)
-
-    def read_restart(self, state, infile):
-        restart_vars = {var: state.variables[var] for var in self.restart_variables}
-        restart_data = {var: getattr(state, var) for var in self.restart_variables}
-        attributes, variables = self.read_h5_restart(state, restart_vars, infile)
-
-        for key, arr in restart_data.items():
-            try:
-                restart_var = variables[key]
-
-            except KeyError:
-                logger.warning('Not reading restart data for variable {}: '
-                               'no matching data found in restart file'
-                               .format(key))
-                continue
-
-            if not arr.shape == restart_var.shape:
-                logger.warning('Not reading restart data for variable {}: '
-                               'restart data dimensions do not match model '
-                               'grid'.format(key))
-                continue
-
-            arr[...] = restart_var
-
-        for attr in self.restart_attributes:
-            try:
-                setattr(state, attr, attributes[attr])
-            except KeyError:
-                logger.warning('Not reading restart data for attribute {}: '
-                               'attribute not found in restart file'
-                               .format(attr))
-
-    def write_restart(self, state, outfile):
-        vs = state.variables
-        restart_attributes = {key: getattr(vs, key) for key in self.restart_attributes}
-        restart_vars = {var: state.var_meta[var] for var in self.restart_variables}
-        restart_data = {var: getattr(vs, var) for var in self.restart_variables}
-        self.write_h5_restart(state, restart_attributes, restart_vars, restart_data, outfile)
+        self.write_output(state)

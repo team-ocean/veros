@@ -2,8 +2,6 @@ import sys
 import functools
 from time import perf_counter
 
-from veros import logger
-
 try:
     import tqdm
 except ImportError:
@@ -11,7 +9,7 @@ except ImportError:
 else:
     has_tqdm = True
 
-from . import time, logs, runtime_settings as rs, runtime_state as rst
+from veros import logger, time, logs, runtime_settings as rs, runtime_state as rst
 
 BAR_FORMAT = (
     ' Current iteration: {iteration:<5} ({time:.2f}/{total:.2f}{unit} | {percentage:>4.1f}% | '

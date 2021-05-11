@@ -9,55 +9,6 @@ BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = tools.get_assets('global_1deg', os.path.join(BASE_PATH, 'assets.json'))
 
 
-@veros_kernel
-def set_forcing_kernel(state):
-    vs = state.variables
-    settings = state.settings
-
-    t_rest = 30. * 86400.
-    cp_0 = 3991.86795711963  # J/kg /K
-
-    year_in_seconds = time.convert_time(1., 'years', 'seconds')
-    (n1, f1), (n2, f2) = tools.get_periodic_interval(vs.time, year_in_seconds,
-                                                     year_in_seconds / 12., 12)
-
-    # linearly interpolate wind stress and shift from MITgcm U/V grid to this grid
-    vs.surface_taux = update(vs.surface_taux, at[:-1, :], f1 * vs.taux[1:, :, n1] + f2 * vs.taux[1:, :, n2])
-    vs.surface_tauy = update(vs.surface_tauy, at[:, :-1], f1 * vs.tauy[:, 1:, n1] + f2 * vs.tauy[:, 1:, n2])
-
-    if settings.enable_tke:
-        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
-                                                                                            + vs.surface_taux[:-2, 1:-1]) / settings.rho_0) ** 2
-                                                                                    + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
-                                                                                            + vs.surface_tauy[1:-1, :-2]) / settings.rho_0) ** 2) ** (3. / 2.))
-
-    # W/m^2 K kg/J m^3/kg = K m/s
-    t_star_cur = f1 * vs.t_star[..., n1] + f2 * vs.t_star[..., n2]
-    qqnec = f1 * vs.qnec[..., n1] + f2 * vs.qnec[..., n2]
-    qqnet = f1 * vs.qnet[..., n1] + f2 * vs.qnet[..., n2]
-    vs.forc_temp_surface = (qqnet + qqnec * (t_star_cur - vs.temp[..., -1, vs.tau])) * vs.maskT[..., -1] / cp_0 / settings.rho_0
-    s_star_cur = f1 * vs.s_star[..., n1] + f2 * vs.s_star[..., n2]
-    vs.forc_salt_surface = 1. / t_rest * (s_star_cur - vs.salt[..., -1, vs.tau]) * vs.maskT[..., -1] * vs.dzt[-1]
-
-    # apply simple ice mask
-    mask1 = vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] > -1.8
-    mask2 = vs.forc_temp_surface > 0
-    ice = np.logical_or(mask1, mask2)
-    vs.forc_temp_surface *= ice
-    vs.forc_salt_surface *= ice
-
-    # solar radiation
-    if settings.enable_tempsalt_sources:
-        vs.temp_source = ((f1 * vs.qsol[..., n1, None] + f2 * vs.qsol[..., n2, None])
-                                * vs.divpen_shortwave[None, None, :] * ice[..., None]
-                                * vs.maskT[..., :] / cp_0 / settings.rho_0)
-
-    return KernelOutput(
-        surface_taux=vs.surface_taux, surface_tauy=vs.surface_tauy, temp_source=vs.temp_source,
-        forc_tke_surface=vs.forc_tke_surface, forc_temp_surface=vs.forc_temp_surface, forc_salt_surface=vs.forc_salt_surface,
-    )
-
-
 class GlobalOneDegreeSetup(VerosSetup):
     """Global 1 degree model with 115 vertical levels.
 
@@ -289,3 +240,53 @@ class GlobalOneDegreeSetup(VerosSetup):
     @veros_routine
     def after_timestep(self, state):
         pass
+
+
+@veros_kernel
+def set_forcing_kernel(state):
+    vs = state.variables
+    settings = state.settings
+
+    t_rest = 30. * 86400.
+    cp_0 = 3991.86795711963  # J/kg /K
+
+    year_in_seconds = time.convert_time(1., 'years', 'seconds')
+    (n1, f1), (n2, f2) = tools.get_periodic_interval(vs.time, year_in_seconds,
+                                                     year_in_seconds / 12., 12)
+
+    # linearly interpolate wind stress and shift from MITgcm U/V grid to this grid
+    vs.surface_taux = update(vs.surface_taux, at[:-1, :], f1 * vs.taux[1:, :, n1] + f2 * vs.taux[1:, :, n2])
+    vs.surface_tauy = update(vs.surface_tauy, at[:, :-1], f1 * vs.tauy[:, 1:, n1] + f2 * vs.tauy[:, 1:, n2])
+
+    if settings.enable_tke:
+        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
+                                                                                          + vs.surface_taux[:-2, 1:-1]) / settings.rho_0) ** 2
+                                                                                  + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
+                                                                                            + vs.surface_tauy[1:-1, :-2]) / settings.rho_0) ** 2) ** (3. / 2.))
+
+    # W/m^2 K kg/J m^3/kg = K m/s
+    t_star_cur = f1 * vs.t_star[..., n1] + f2 * vs.t_star[..., n2]
+    qqnec = f1 * vs.qnec[..., n1] + f2 * vs.qnec[..., n2]
+    qqnet = f1 * vs.qnet[..., n1] + f2 * vs.qnet[..., n2]
+    vs.forc_temp_surface = (
+        qqnet + qqnec * (t_star_cur - vs.temp[..., -1, vs.tau])) * vs.maskT[..., -1] / cp_0 / settings.rho_0
+    s_star_cur = f1 * vs.s_star[..., n1] + f2 * vs.s_star[..., n2]
+    vs.forc_salt_surface = 1. / t_rest * (s_star_cur - vs.salt[..., -1, vs.tau]) * vs.maskT[..., -1] * vs.dzt[-1]
+
+    # apply simple ice mask
+    mask1 = vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] > -1.8
+    mask2 = vs.forc_temp_surface > 0
+    ice = np.logical_or(mask1, mask2)
+    vs.forc_temp_surface *= ice
+    vs.forc_salt_surface *= ice
+
+    # solar radiation
+    if settings.enable_tempsalt_sources:
+        vs.temp_source = ((f1 * vs.qsol[..., n1, None] + f2 * vs.qsol[..., n2, None])
+                          * vs.divpen_shortwave[None, None, :] * ice[..., None]
+                          * vs.maskT[..., :] / cp_0 / settings.rho_0)
+
+    return KernelOutput(
+        surface_taux=vs.surface_taux, surface_tauy=vs.surface_tauy, temp_source=vs.temp_source,
+        forc_tke_surface=vs.forc_tke_surface, forc_temp_surface=vs.forc_temp_surface, forc_salt_surface=vs.forc_salt_surface,
+    )

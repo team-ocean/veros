@@ -63,7 +63,7 @@ def rewrite_main_file(target_file, setup_name):
                 f"Try `veros run {{__file__}}` instead."
             )
 
-        # (end of auto-generated header, original file below)
+        # -- end of auto-generated header, original file below --
     ''').strip()
 
     with open(target_file, 'r') as f:

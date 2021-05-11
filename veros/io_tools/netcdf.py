@@ -47,12 +47,16 @@ def initialize_file(state, ncfile, create_time_dimension=True):
 
 
 def initialize_variable(state, key, var, ncfile):
-    dims = tuple(d for d in var.dims if d in ncfile.dimensions)
+    if var.dims is None:
+        dims = ()
+    else:
+        dims = tuple(d for d in var.dims if d in ncfile.dimensions)
+
     if var.time_dependent and 'Time' in ncfile.dimensions:
         dims += ('Time',)
 
     if key in ncfile.variables:
-        logger.warning('Variable {} already initialized'.format(key))
+        logger.warning(f'Variable {key} already initialized')
         return
 
     kwargs = {}
@@ -95,7 +99,11 @@ def advance_time(time_value, ncfile):
     ncfile.variables['Time'][current_time_step] = time_value
 
 
-def write_variable(state, key, var, var_data, ncfile, time_step=None, tau=None):
+def add_dimension(dim, dim_size, ncfile):
+    ncfile.dimensions[dim] = int(dim_size)
+
+
+def write_variable(state, key, var, var_data, ncfile, time_step=-1):
     var_data = var_data * var.scale
 
     gridmask = var.get_mask(state.variables)
@@ -103,8 +111,7 @@ def write_variable(state, key, var, var_data, ncfile, time_step=None, tau=None):
         newaxes = (slice(None),) * gridmask.ndim + (np.newaxis,) * (var_data.ndim - gridmask.ndim)
         var_data = np.where(gridmask.astype(np.bool)[newaxes], var_data, variables.FILL_VALUE)
 
-    if not np.isscalar(var_data):
-        if
+    if var.dims:
         tmask = tuple(state.variables.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
         var_data = variables.remove_ghosts(var_data, var.dims)[tmask].T
 
@@ -115,10 +122,6 @@ def write_variable(state, key, var, var_data, ncfile, time_step=None, tau=None):
 
     if 'Time' in var_obj.dimensions:
         assert var_obj.dimensions[0] == 'Time'
-
-        if time_step is None:
-            raise ValueError('time step must be given for non-constant data')
-
         chunk = (time_step,) + chunk[1:]
 
     var_obj[chunk] = var_data

@@ -13,52 +13,6 @@ DATA_FILES = veros.tools.get_assets(
 )
 
 
-@veros_kernel
-def set_forcing_kernel(state):
-    vs = state.variables
-    settings = state.settings
-
-    year_in_seconds = 360 * 86400.
-    (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(
-        vs.time, year_in_seconds, year_in_seconds / 12., 12
-    )
-
-    # wind stress
-    vs.surface_taux = (f1 * vs.taux[:, :, n1] + f2 * vs.taux[:, :, n2])
-    vs.surface_tauy = (f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2])
-
-    # tke flux
-    if settings.enable_tke:
-        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
-                                                            + vs.surface_taux[:-2, 1:-1]) / settings.rho_0)**2
-                                                    + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
-                                                            + vs.surface_tauy[1:-1, :-2]) / settings.rho_0)**2)**(3. / 2.))
-    # heat flux : W/m^2 K kg/J m^3/kg = K m/s
-    cp_0 = 3991.86795711963
-    sst = f1 * vs.sst_clim[:, :, n1] + f2 * vs.sst_clim[:, :, n2]
-    qnec = f1 * vs.qnec[:, :, n1] + f2 * vs.qnec[:, :, n2]
-    qnet = f1 * vs.qnet[:, :, n1] + f2 * vs.qnet[:, :, n2]
-    vs.forc_temp_surface = (qnet + qnec * (sst - vs.temp[:, :, -1, vs.tau])) \
-                                    * vs.maskT[:, :, -1] / cp_0 / settings.rho_0
-
-    # salinity restoring
-    t_rest = 30 * 86400.0
-    sss = f1 * vs.sss_clim[:, :, n1] + f2 * vs.sss_clim[:, :, n2]
-    vs.forc_salt_surface = 1. / t_rest * \
-        (sss - vs.salt[:, :, -1, vs.tau]) * vs.maskT[:, :, -1] * vs.dzt[-1]
-
-    # apply simple ice mask
-    mask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
-                            vs.forc_temp_surface < 0.)
-    vs.forc_temp_surface = np.where(mask, 0.0, vs.forc_temp_surface)
-    vs.forc_salt_surface = np.where(mask, 0.0, vs.forc_salt_surface)
-
-    return KernelOutput(
-        surface_taux=vs.surface_taux, surface_tauy=vs.surface_tauy, forc_tke_surface=vs.forc_tke_surface,
-        forc_temp_surface=vs.forc_temp_surface, forc_salt_surface=vs.forc_salt_surface
-    )
-
-
 class GlobalFourDegreeSetup(VerosSetup):
     """Global 4 degree model with 15 vertical levels.
 
@@ -249,3 +203,95 @@ class GlobalFourDegreeSetup(VerosSetup):
     @veros_routine
     def after_timestep(self, state):
         pass
+
+
+@veros_kernel
+def set_forcing_kernel(state):
+    vs = state.variables
+    settings = state.settings
+
+    year_in_seconds = 360 * 86400.
+    (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(
+        vs.time, year_in_seconds, year_in_seconds / 12., 12
+    )
+
+    # wind stress
+    vs.surface_taux = (f1 * vs.taux[:, :, n1] + f2 * vs.taux[:, :, n2])
+    vs.surface_tauy = (f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2])
+
+    # tke flux
+    if settings.enable_tke:
+        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
+                                                                                          + vs.surface_taux[:-2, 1:-1]) / settings.rho_0)**2
+                                                                                  + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
+                                                                                            + vs.surface_tauy[1:-1, :-2]) / settings.rho_0)**2)**(3. / 2.))
+    # heat flux : W/m^2 K kg/J m^3/kg = K m/s
+    cp_0 = 3991.86795711963
+    sst = f1 * vs.sst_clim[:, :, n1] + f2 * vs.sst_clim[:, :, n2]
+    qnec = f1 * vs.qnec[:, :, n1] + f2 * vs.qnec[:, :, n2]
+    qnet = f1 * vs.qnet[:, :, n1] + f2 * vs.qnet[:, :, n2]
+    vs.forc_temp_surface = (qnet + qnec * (sst - vs.temp[:, :, -1, vs.tau])) \
+        * vs.maskT[:, :, -1] / cp_0 / settings.rho_0
+
+    # salinity restoring
+    t_rest = 30 * 86400.0
+    sss = f1 * vs.sss_clim[:, :, n1] + f2 * vs.sss_clim[:, :, n2]
+    vs.forc_salt_surface = 1. / t_rest * \
+        (sss - vs.salt[:, :, -1, vs.tau]) * vs.maskT[:, :, -1] * vs.dzt[-1]
+
+    # apply simple ice mask
+    mask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
+                          vs.forc_temp_surface < 0.)
+    vs.forc_temp_surface = np.where(mask, 0.0, vs.forc_temp_surface)
+    vs.forc_salt_surface = np.where(mask, 0.0, vs.forc_salt_surface)
+
+    return KernelOutput(
+        surface_taux=vs.surface_taux, surface_tauy=vs.surface_tauy, forc_tke_surface=vs.forc_tke_surface,
+        forc_temp_surface=vs.forc_temp_surface, forc_salt_surface=vs.forc_salt_surface
+    )
+
+
+@veros_kernel
+def set_forcing_kernel(state):
+    vs = state.variables
+    settings = state.settings
+
+    year_in_seconds = 360 * 86400.
+    (n1, f1), (n2, f2) = veros.tools.get_periodic_interval(
+        vs.time, year_in_seconds, year_in_seconds / 12., 12
+    )
+
+    # wind stress
+    vs.surface_taux = (f1 * vs.taux[:, :, n1] + f2 * vs.taux[:, :, n2])
+    vs.surface_tauy = (f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2])
+
+    # tke flux
+    if settings.enable_tke:
+        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
+                                                                                          + vs.surface_taux[:-2, 1:-1]) / settings.rho_0)**2
+                                                                                  + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
+                                                                                            + vs.surface_tauy[1:-1, :-2]) / settings.rho_0)**2)**(3. / 2.))
+    # heat flux : W/m^2 K kg/J m^3/kg = K m/s
+    cp_0 = 3991.86795711963
+    sst = f1 * vs.sst_clim[:, :, n1] + f2 * vs.sst_clim[:, :, n2]
+    qnec = f1 * vs.qnec[:, :, n1] + f2 * vs.qnec[:, :, n2]
+    qnet = f1 * vs.qnet[:, :, n1] + f2 * vs.qnet[:, :, n2]
+    vs.forc_temp_surface = (qnet + qnec * (sst - vs.temp[:, :, -1, vs.tau])) \
+        * vs.maskT[:, :, -1] / cp_0 / settings.rho_0
+
+    # salinity restoring
+    t_rest = 30 * 86400.0
+    sss = f1 * vs.sss_clim[:, :, n1] + f2 * vs.sss_clim[:, :, n2]
+    vs.forc_salt_surface = 1. / t_rest * \
+        (sss - vs.salt[:, :, -1, vs.tau]) * vs.maskT[:, :, -1] * vs.dzt[-1]
+
+    # apply simple ice mask
+    mask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
+                          vs.forc_temp_surface < 0.)
+    vs.forc_temp_surface = np.where(mask, 0.0, vs.forc_temp_surface)
+    vs.forc_salt_surface = np.where(mask, 0.0, vs.forc_salt_surface)
+
+    return KernelOutput(
+        surface_taux=vs.surface_taux, surface_tauy=vs.surface_tauy, forc_tke_surface=vs.forc_tke_surface,
+        forc_temp_surface=vs.forc_temp_surface, forc_salt_surface=vs.forc_salt_surface
+    )

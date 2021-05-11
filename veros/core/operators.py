@@ -17,22 +17,22 @@ def noop(*args, **kwargs):
 
 
 @contextmanager
-def ensure_writable(*arrs):
-    orig_writable = [arr.flags.writeable for arr in arrs]
-    writable_arrs = []
+def make_writeable(*arrs):
+    orig_writeable = [arr.flags.writeable for arr in arrs]
+    writeable_arrs = []
     try:
         for arr in arrs:
             arr = arr.copy()
             arr.flags.writeable = True
-            writable_arrs.append(arr)
+            writeable_arrs.append(arr)
 
-        if len(writable_arrs) == 1:
-            yield writable_arrs[0]
+        if len(writeable_arrs) == 1:
+            yield writeable_arrs[0]
         else:
-            yield writable_arrs
+            yield writeable_arrs
 
     finally:
-        for arr, orig_val in zip(writable_arrs, orig_writable):
+        for arr, orig_val in zip(writeable_arrs, orig_writeable):
             try:
                 arr.flags.writeable = orig_val
             except ValueError:
@@ -40,19 +40,19 @@ def ensure_writable(*arrs):
 
 
 def update_numpy(arr, at, to):
-    with ensure_writable(arr) as warr:
+    with make_writeable(arr) as warr:
         warr[at] = to
     return warr
 
 
 def update_add_numpy(arr, at, to):
-    with ensure_writable(arr) as warr:
+    with make_writeable(arr) as warr:
         warr[at] += to
     return warr
 
 
 def update_multiply_numpy(arr, at, to):
-    with ensure_writable(arr) as warr:
+    with make_writeable(arr) as warr:
         warr[at] *= to
     return warr
 
@@ -62,7 +62,7 @@ def solve_tridiagonal_numpy(a, b, c, d, water_mask, edge_mask):
     from scipy.linalg import lapack
 
     # remove couplings between slices
-    with ensure_writable(a, c) as warr:
+    with make_writeable(a, c) as warr:
         a, c = warr
         a[edge_mask] = 0
         c[..., -1] = 0

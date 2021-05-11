@@ -6,8 +6,8 @@ from veros.core.operators import update, at, solve_tridiagonal
 
 @veros_kernel(static_args=("enable_cyclic_x", "local"))
 def enforce_boundaries(arr, enable_cyclic_x, local=False):
-    from .. import runtime_settings as rs
-    from ..routines import CURRENT_CONTEXT
+    from veros import runtime_settings as rs
+    from veros.routines import CURRENT_CONTEXT
 
     if rs.num_proc[0] == 1 or not CURRENT_CONTEXT.is_dist_safe or local:
         if enable_cyclic_x:
@@ -15,7 +15,7 @@ def enforce_boundaries(arr, enable_cyclic_x, local=False):
             arr = update(arr, at[:2, ...], arr[-4:-2, ...])
         return arr
 
-    from ..distributed import exchange_overlap
+    from veros.distributed import exchange_overlap
     exchange_overlap(arr, ['xt', 'yt'], cyclic=enable_cyclic_x)
     return arr
 

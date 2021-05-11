@@ -90,8 +90,8 @@ def run(setup_file, *args, slave, **kwargs):
     SetupClass = None
     for obj in vars(setup_module).values():
         if inspect.isclass(obj) and issubclass(obj, VerosSetup) and obj is not VerosSetup:
-            if SetupClass is not None:
-                raise RuntimeError("Veros setups can only contain one VerosSetup class")
+            if SetupClass is not None and SetupClass is not obj:
+                raise RuntimeError("Veros setups can only define one VerosSetup class")
 
             SetupClass = obj
 

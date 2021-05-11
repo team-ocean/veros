@@ -1,5 +1,6 @@
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
+from veros.distributed import global_and
 from veros.core import density, diffusion, utilities
 from veros.core.operators import update, at, numpy as np
 
@@ -276,3 +277,8 @@ def calc_diss_v(state, diss):
     ks = update(ks, at[2:-2, 1:-2], np.maximum(vs.kbot[2:-2, 1:-2], vs.kbot[2:-2, 2:-1]))
     diss_v = diffusion.dissipation_on_wgrid(state, diss, ks)
     return vgrid_to_tgrid(state, diss_v)
+
+
+@veros_kernel
+def sanity_check(state):
+    return global_and(np.all(np.isfinite(state.variables.u)))

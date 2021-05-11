@@ -193,7 +193,7 @@ def integrate_tke_kernel(state):
     vs.tke = update(vs.tke, at[2:-2, 2:-2, :, vs.taup1], np.where(water_mask, sol, vs.tke[2:-2, 2:-2, :, vs.taup1]))
 
     """
-    store vs.tke dissipation for diagnostics
+    store tke dissipation for diagnostics
     """
     vs.tke_diss = settings.c_eps / vs.mxl * vs.sqrttke * vs.tke[:, :, :, vs.taup1]
 
