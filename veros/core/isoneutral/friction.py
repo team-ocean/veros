@@ -27,35 +27,60 @@ def isoneutral_friction(state):
 
     fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :] + vs.kappa_gm[2:-1, 1:-2, :])
 
-    delta, a_tri, b_tri, c_tri = (
-        allocate(state.dimensions, ("xt", "yt", "zt"))[1:-2, 1:-2, :]
-        for _ in range(4)
-    )
+    delta, a_tri, b_tri, c_tri = (allocate(state.dimensions, ("xt", "yt", "zt"))[1:-2, 1:-2, :] for _ in range(4))
 
-    delta = update(delta, at[:, :, :-1], settings.dt_mom / vs.dzw[npx.newaxis, npx.newaxis, :-1] * \
-        fxa[:, :, :-1] * vs.maskU[1:-2, 1:-2, 1:] * vs.maskU[1:-2, 1:-2, :-1])
-    delta = update(delta, at[-1], 0.)
+    delta = update(
+        delta,
+        at[:, :, :-1],
+        settings.dt_mom
+        / vs.dzw[npx.newaxis, npx.newaxis, :-1]
+        * fxa[:, :, :-1]
+        * vs.maskU[1:-2, 1:-2, 1:]
+        * vs.maskU[1:-2, 1:-2, :-1],
+    )
+    delta = update(delta, at[-1], 0.0)
     a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
     b_tri_edge = 1 + delta / vs.dzt[npx.newaxis, npx.newaxis, :]
-    b_tri = update(b_tri, at[:, :, 1:-1], 1 + delta[:, :, 1:-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:-1] + \
-        delta[:, :, :-2] / vs.dzt[npx.newaxis, npx.newaxis, 1:-1])
+    b_tri = update(
+        b_tri,
+        at[:, :, 1:-1],
+        1
+        + delta[:, :, 1:-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:-1]
+        + delta[:, :, :-2] / vs.dzt[npx.newaxis, npx.newaxis, 1:-1],
+    )
     b_tri = update(b_tri, at[:, :, -1], 1 + delta[:, :, -2] / vs.dzt[-1])
-    c_tri = update(c_tri, at[...], - delta / vs.dzt[npx.newaxis, npx.newaxis, :])
+    c_tri = update(c_tri, at[...], -delta / vs.dzt[npx.newaxis, npx.newaxis, :])
 
     sol = utilities.solve_implicit(
         a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], water_mask, b_edge=b_tri_edge, edge_mask=edge_mask
     )
     vs.u = update(vs.u, at[1:-2, 1:-2, :, vs.taup1], npx.where(water_mask, sol, vs.u[1:-2, 1:-2, :, vs.taup1]))
-    vs.du_mix = update_add(vs.du_mix, at[1:-2, 1:-2, :], (vs.u[1:-2, 1:-2, :, vs.taup1] - aloc[1:-2, 1:-2, :]) / settings.dt_mom * water_mask)
+    vs.du_mix = update_add(
+        vs.du_mix,
+        at[1:-2, 1:-2, :],
+        (vs.u[1:-2, 1:-2, :, vs.taup1] - aloc[1:-2, 1:-2, :]) / settings.dt_mom * water_mask,
+    )
 
     if settings.enable_conserve_energy:
         # diagnose dissipation
         diss = npx.zeros_like(vs.maskU)
         fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :-1] + vs.kappa_gm[2:-1, 1:-2, :-1])
-        flux_top = update(flux_top, at[1:-2, 1:-2, :-1], fxa * (vs.u[1:-2, 1:-2, 1:, vs.taup1] - vs.u[1:-2, 1:-2, :-1, vs.taup1]) \
-            / vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.maskU[1:-2, 1:-2, 1:] * vs.maskU[1:-2, 1:-2, :-1])
-        diss = update(diss, at[1:-2, 1:-2, :-1], (vs.u[1:-2, 1:-2, 1:, vs.tau] - vs.u[1:-2, 1:-2, :-1, vs.tau]) \
-            * flux_top[1:-2, 1:-2, :-1] / vs.dzw[npx.newaxis, npx.newaxis, :-1])
+        flux_top = update(
+            flux_top,
+            at[1:-2, 1:-2, :-1],
+            fxa
+            * (vs.u[1:-2, 1:-2, 1:, vs.taup1] - vs.u[1:-2, 1:-2, :-1, vs.taup1])
+            / vs.dzw[npx.newaxis, npx.newaxis, :-1]
+            * vs.maskU[1:-2, 1:-2, 1:]
+            * vs.maskU[1:-2, 1:-2, :-1],
+        )
+        diss = update(
+            diss,
+            at[1:-2, 1:-2, :-1],
+            (vs.u[1:-2, 1:-2, 1:, vs.tau] - vs.u[1:-2, 1:-2, :-1, vs.tau])
+            * flux_top[1:-2, 1:-2, :-1]
+            / vs.dzw[npx.newaxis, npx.newaxis, :-1],
+        )
         diss = update(diss, at[:, :, -1], 0.0)
         diss = numerics.ugrid_to_tgrid(state, diss)
         vs.K_diss_gm = diss
@@ -71,30 +96,58 @@ def isoneutral_friction(state):
 
     fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :] + vs.kappa_gm[1:-2, 2:-1, :])
     delta, a_tri, b_tri, c_tri = (npx.zeros_like(vs.maskV[1:-2, 1:-2, :]) for _ in range(4))
-    delta = update(delta, at[:, :, :-1], settings.dt_mom / vs.dzw[npx.newaxis, npx.newaxis, :-1] * \
-        fxa[:, :, :-1] * vs.maskV[1:-2, 1:-2, 1:] * vs.maskV[1:-2, 1:-2, :-1])
-    delta = update(delta, at[-1], 0.)
+    delta = update(
+        delta,
+        at[:, :, :-1],
+        settings.dt_mom
+        / vs.dzw[npx.newaxis, npx.newaxis, :-1]
+        * fxa[:, :, :-1]
+        * vs.maskV[1:-2, 1:-2, 1:]
+        * vs.maskV[1:-2, 1:-2, :-1],
+    )
+    delta = update(delta, at[-1], 0.0)
     a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
     b_tri_edge = 1 + delta / vs.dzt[npx.newaxis, npx.newaxis, :]
-    b_tri = update(b_tri, at[:, :, 1:-1], 1 + delta[:, :, 1:-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:-1] + \
-        delta[:, :, :-2] / vs.dzt[npx.newaxis, npx.newaxis, 1:-1])
+    b_tri = update(
+        b_tri,
+        at[:, :, 1:-1],
+        1
+        + delta[:, :, 1:-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:-1]
+        + delta[:, :, :-2] / vs.dzt[npx.newaxis, npx.newaxis, 1:-1],
+    )
     b_tri = update(b_tri, at[:, :, -1], 1 + delta[:, :, -2] / vs.dzt[-1])
-    c_tri = update(c_tri, at[...], - delta / vs.dzt[npx.newaxis, npx.newaxis, :])
+    c_tri = update(c_tri, at[...], -delta / vs.dzt[npx.newaxis, npx.newaxis, :])
 
     sol = utilities.solve_implicit(
         a_tri, b_tri, c_tri, aloc[1:-2, 1:-2, :], water_mask, b_edge=b_tri_edge, edge_mask=edge_mask
     )
     vs.v = update(vs.v, at[1:-2, 1:-2, :, vs.taup1], npx.where(water_mask, sol, vs.v[1:-2, 1:-2, :, vs.taup1]))
-    vs.dv_mix = update_add(vs.dv_mix, at[1:-2, 1:-2, :], (vs.v[1:-2, 1:-2, :, vs.taup1] - aloc[1:-2, 1:-2, :]) / settings.dt_mom * water_mask)
+    vs.dv_mix = update_add(
+        vs.dv_mix,
+        at[1:-2, 1:-2, :],
+        (vs.v[1:-2, 1:-2, :, vs.taup1] - aloc[1:-2, 1:-2, :]) / settings.dt_mom * water_mask,
+    )
 
     if settings.enable_conserve_energy:
         # diagnose dissipation
         diss = npx.zeros_like(vs.maskV)
         fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :-1] + vs.kappa_gm[1:-2, 2:-1, :-1])
-        flux_top = update(flux_top, at[1:-2, 1:-2, :-1], fxa * (vs.v[1:-2, 1:-2, 1:, vs.taup1] - vs.v[1:-2, 1:-2, :-1, vs.taup1]) \
-            / vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.maskV[1:-2, 1:-2, 1:] * vs.maskV[1:-2, 1:-2, :-1])
-        diss = update(diss, at[1:-2, 1:-2, :-1], (vs.v[1:-2, 1:-2, 1:, vs.tau] - vs.v[1:-2, 1:-2, :-1, vs.tau]) \
-            * flux_top[1:-2, 1:-2, :-1] / vs.dzw[npx.newaxis, npx.newaxis, :-1])
+        flux_top = update(
+            flux_top,
+            at[1:-2, 1:-2, :-1],
+            fxa
+            * (vs.v[1:-2, 1:-2, 1:, vs.taup1] - vs.v[1:-2, 1:-2, :-1, vs.taup1])
+            / vs.dzw[npx.newaxis, npx.newaxis, :-1]
+            * vs.maskV[1:-2, 1:-2, 1:]
+            * vs.maskV[1:-2, 1:-2, :-1],
+        )
+        diss = update(
+            diss,
+            at[1:-2, 1:-2, :-1],
+            (vs.v[1:-2, 1:-2, 1:, vs.tau] - vs.v[1:-2, 1:-2, :-1, vs.tau])
+            * flux_top[1:-2, 1:-2, :-1]
+            / vs.dzw[npx.newaxis, npx.newaxis, :-1],
+        )
         diss = update(diss, at[:, :, -1], 0.0)
         diss = numerics.vgrid_to_tgrid(state, diss)
         vs.K_diss_gm = vs.K_diss_gm + diss

@@ -23,33 +23,56 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
     construct total isoneutral tracer flux at east face of 'T' cells
     """
     diffloc = npx.zeros_like(K1)[1:-2, 2:-2]
-    diffloc = update(diffloc, at[:, :, 1:], 0.25 * (K1[1:-2, 2:-2, 1:] + K1[1:-2, 2:-2, :-1] +
-                                K1[2:-1, 2:-2, 1:] + K1[2:-1, 2:-2, :-1]))
+    diffloc = update(
+        diffloc,
+        at[:, :, 1:],
+        0.25 * (K1[1:-2, 2:-2, 1:] + K1[1:-2, 2:-2, :-1] + K1[2:-1, 2:-2, 1:] + K1[2:-1, 2:-2, :-1]),
+    )
     diffloc = update(diffloc, at[:, :, 0], 0.5 * (K1[1:-2, 2:-2, 0] + K1[2:-1, 2:-2, 0]))
     sumz = npx.zeros_like(K1)[1:-2, 2:-2]
     for kr in range(2):
         for ip in range(2):
             sumz = sumz + diffloc * vs.Ai_ez[1:-2, 2:-2, :, ip, kr] * (
-                tr_pad[1 + ip:-2 + ip, 2:-2, 1 + kr:-1 + kr or None] - tr_pad[1 + ip:-2 + ip, 2:-2, kr:-2 + kr])
+                tr_pad[1 + ip : -2 + ip, 2:-2, 1 + kr : -1 + kr or None] - tr_pad[1 + ip : -2 + ip, 2:-2, kr : -2 + kr]
+            )
 
-    flux_east = update(flux_east, at[1:-2, 2:-2, :], sumz / (4. * vs.dzt[npx.newaxis, npx.newaxis, :]) + (tr[2:-1, 2:-2, :, vs.tau] - tr[1:-2, 2:-2, :, vs.tau]) \
-                             / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxu[1:-2, npx.newaxis, npx.newaxis]) * vs.K_11[1:-2, 2:-2, :])
+    flux_east = update(
+        flux_east,
+        at[1:-2, 2:-2, :],
+        sumz / (4.0 * vs.dzt[npx.newaxis, npx.newaxis, :])
+        + (tr[2:-1, 2:-2, :, vs.tau] - tr[1:-2, 2:-2, :, vs.tau])
+        / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxu[1:-2, npx.newaxis, npx.newaxis])
+        * vs.K_11[1:-2, 2:-2, :],
+    )
 
     """
     construct total isoneutral tracer flux at north face of 'T' cells
     """
     diffloc = npx.zeros_like(K1)[2:-2, 1:-2]
-    diffloc = update(diffloc, at[:, :, 1:], 0.25 * (K1[2:-2, 1:-2, 1:] + K1[2:-2, 1:-2, :-1] +
-                                K1[2:-2, 2:-1, 1:] + K1[2:-2, 2:-1, :-1]))
+    diffloc = update(
+        diffloc,
+        at[:, :, 1:],
+        0.25 * (K1[2:-2, 1:-2, 1:] + K1[2:-2, 1:-2, :-1] + K1[2:-2, 2:-1, 1:] + K1[2:-2, 2:-1, :-1]),
+    )
     diffloc = update(diffloc, at[:, :, 0], 0.5 * (K1[2:-2, 1:-2, 0] + K1[2:-2, 2:-1, 0]))
     sumz = npx.zeros_like(K1)[2:-2, 1:-2]
     for kr in range(2):
         for jp in range(2):
             sumz = sumz + diffloc * vs.Ai_nz[2:-2, 1:-2, :, jp, kr] * (
-                tr_pad[2:-2, 1 + jp:-2 + jp, 1 + kr:-1 + kr or None] - tr_pad[2:-2, 1 + jp:-2 + jp, kr:-2 + kr])
+                tr_pad[2:-2, 1 + jp : -2 + jp, 1 + kr : -1 + kr or None] - tr_pad[2:-2, 1 + jp : -2 + jp, kr : -2 + kr]
+            )
 
-    flux_north = update(flux_north, at[2:-2, 1:-2, :], vs.cosu[npx.newaxis, 1:-2, npx.newaxis] * (sumz / (4. * vs.dzt[npx.newaxis, npx.newaxis, :])
-                                + (tr[2:-2, 2:-1, :, vs.tau] - tr[2:-2, 1:-2, :, vs.tau]) / vs.dyu[npx.newaxis, 1:-2, npx.newaxis] * vs.K_22[2:-2, 1:-2, :]))
+    flux_north = update(
+        flux_north,
+        at[2:-2, 1:-2, :],
+        vs.cosu[npx.newaxis, 1:-2, npx.newaxis]
+        * (
+            sumz / (4.0 * vs.dzt[npx.newaxis, npx.newaxis, :])
+            + (tr[2:-2, 2:-1, :, vs.tau] - tr[2:-2, 1:-2, :, vs.tau])
+            / vs.dyu[npx.newaxis, 1:-2, npx.newaxis]
+            * vs.K_22[2:-2, 1:-2, :]
+        ),
+    )
 
     """
     compute the vertical tracer flux 'flux_top' containing the K31
@@ -58,19 +81,29 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
     cancellations of dxu(i-1+ip) and dyu(jrow-1+jp)
     """
     diffloc = K2[2:-2, 2:-2, :-1]
-    sumx = 0.
+    sumx = 0.0
     for ip in range(2):
         for kr in range(2):
-            sumx = sumx + diffloc * vs.Ai_bx[2:-2, 2:-2, :-1, ip, kr] / vs.cost[npx.newaxis, 2:-2, npx.newaxis] \
-                * (tr[2 + ip:-2 + ip, 2:-2, kr:-1 + kr or None, vs.tau] - tr[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None, vs.tau])
-    sumy = 0.
+            sumx = sumx + diffloc * vs.Ai_bx[2:-2, 2:-2, :-1, ip, kr] / vs.cost[npx.newaxis, 2:-2, npx.newaxis] * (
+                tr[2 + ip : -2 + ip, 2:-2, kr : -1 + kr or None, vs.tau]
+                - tr[1 + ip : -3 + ip, 2:-2, kr : -1 + kr or None, vs.tau]
+            )
+    sumy = 0.0
     for jp in range(2):
         for kr in range(2):
-            sumy = sumy + diffloc * vs.Ai_by[2:-2, 2:-2, :-1, jp, kr] * vs.cosu[npx.newaxis, 1 + jp:-3 + jp, npx.newaxis] \
-                * (tr[2:-2, 2 + jp:-2 + jp, kr:-1 + kr or None, vs.tau] - tr[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None, vs.tau])
-    flux_top = update(flux_top, at[2:-2, 2:-2, :-1], sumx / (4 * vs.dxt[2:-2, npx.newaxis, npx.newaxis]) \
-                              + sumy / (4 * vs.dyt[npx.newaxis, 2:-2, npx.newaxis] * vs.cost[npx.newaxis, 2:-2, npx.newaxis]))
-    flux_top = update(flux_top, at[:, :, -1], 0.)
+            sumy = sumy + diffloc * vs.Ai_by[2:-2, 2:-2, :-1, jp, kr] * vs.cosu[
+                npx.newaxis, 1 + jp : -3 + jp, npx.newaxis
+            ] * (
+                tr[2:-2, 2 + jp : -2 + jp, kr : -1 + kr or None, vs.tau]
+                - tr[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None, vs.tau]
+            )
+    flux_top = update(
+        flux_top,
+        at[2:-2, 2:-2, :-1],
+        sumx / (4 * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+        + sumy / (4 * vs.dyt[npx.newaxis, 2:-2, npx.newaxis] * vs.cost[npx.newaxis, 2:-2, npx.newaxis]),
+    )
+    flux_top = update(flux_top, at[:, :, -1], 0.0)
 
     return flux_east, flux_north, flux_top
 
@@ -80,12 +113,23 @@ def _calc_explicit_part(state, flux_east, flux_north, flux_top):
     vs = state.variables
 
     explicit_part = allocate(state.dimensions, ("xt", "yt", "zt"))
-    explicit_part = update(explicit_part, at[2:-2, 2:-2, :], vs.maskT[2:-2, 2:-2, :] * ((flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :]) / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
-                                                  + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :]) / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])))
+    explicit_part = update(
+        explicit_part,
+        at[2:-2, 2:-2, :],
+        vs.maskT[2:-2, 2:-2, :]
+        * (
+            (flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+            / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+            + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
+            / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
+        ),
+    )
     explicit_part = update_add(explicit_part, at[:, :, 0], vs.maskT[:, :, 0] * flux_top[:, :, 0] / vs.dzt[0])
-    explicit_part = update_add(explicit_part, at[:, :, 1:], vs.maskT[:, :, 1:] * \
-        (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / \
-        vs.dzt[npx.newaxis, npx.newaxis, 1:])
+    explicit_part = update_add(
+        explicit_part,
+        at[:, :, 1:],
+        vs.maskT[:, :, 1:] * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / vs.dzt[npx.newaxis, npx.newaxis, 1:],
+    )
 
     return explicit_part
 
@@ -102,11 +146,14 @@ def _calc_implicit_part(state, tr):
     c_tri = allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 2:-2]
     delta = allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 2:-2]
 
-    delta = update(delta, at[:, :, :-1], settings.dt_tracer / vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.K_33[2:-2, 2:-2, :-1])
-    delta = update(delta, at[:, :, -1], 0.)
+    delta = update(
+        delta, at[:, :, :-1], settings.dt_tracer / vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.K_33[2:-2, 2:-2, :-1]
+    )
+    delta = update(delta, at[:, :, -1], 0.0)
     a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
-    b_tri = update(b_tri, at[:, :, 1:-1], 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) \
-                        / vs.dzt[npx.newaxis, npx.newaxis, 1:-1])
+    b_tri = update(
+        b_tri, at[:, :, 1:-1], 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / vs.dzt[npx.newaxis, npx.newaxis, 1:-1]
+    )
     b_tri = update(b_tri, at[:, :, -1], 1 + delta[:, :, -2] / vs.dzt[npx.newaxis, npx.newaxis, -1])
     b_tri_edge = 1 + (delta[:, :, :] / vs.dzt[npx.newaxis, npx.newaxis, :])
     c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, :-1])
@@ -191,8 +238,7 @@ def isoneutral_diffusion_kernel(state, tr, istemp, iso=True, skew=False):
         """
         diagnose dissipation of dynamic enthalpy by explicit and implicit vertical mixing
         """
-        fxa = (-int_drhodX[2:-2, 2:-2, 1:] + int_drhodX[2:-2, 2:-2, :-1]) / \
-            vs.dzw[npx.newaxis, npx.newaxis, :-1]
+        fxa = (-int_drhodX[2:-2, 2:-2, 1:] + int_drhodX[2:-2, 2:-2, :-1]) / vs.dzw[npx.newaxis, npx.newaxis, :-1]
 
         if istemp:
             tracer = vs.temp
@@ -200,16 +246,27 @@ def isoneutral_diffusion_kernel(state, tr, istemp, iso=True, skew=False):
             tracer = vs.salt
 
         if not iso:
-            P_diss_skew = update_add(P_diss_skew, at[2:-2, 2:-2, :-1], - settings.grav / settings.rho_0 * \
-                fxa * flux_top[2:-2, 2:-2, :-1] * vs.maskW[2:-2, 2:-2, :-1])
+            P_diss_skew = update_add(
+                P_diss_skew,
+                at[2:-2, 2:-2, :-1],
+                -settings.grav / settings.rho_0 * fxa * flux_top[2:-2, 2:-2, :-1] * vs.maskW[2:-2, 2:-2, :-1],
+            )
 
             return (tracer, dtracer_iso, P_diss_skew)
 
         else:
-            P_diss_iso = update_add(P_diss_iso, at[2:-2, 2:-2, :-1], - settings.grav / settings.rho_0 * fxa * flux_top[2:-2, 2:-2, :-1] * vs.maskW[2:-2, 2:-2, :-1] \
-                - settings.grav / settings.rho_0 * fxa * vs.K_33[2:-2, 2:-2, :-1] * (tracer[2:-2, 2:-2, 1:, vs.taup1]
-                                                                - tracer[2:-2, 2:-2, :-1, vs.taup1]) \
-                / vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1])
+            P_diss_iso = update_add(
+                P_diss_iso,
+                at[2:-2, 2:-2, :-1],
+                -settings.grav / settings.rho_0 * fxa * flux_top[2:-2, 2:-2, :-1] * vs.maskW[2:-2, 2:-2, :-1]
+                - settings.grav
+                / settings.rho_0
+                * fxa
+                * vs.K_33[2:-2, 2:-2, :-1]
+                * (tracer[2:-2, 2:-2, 1:, vs.taup1] - tracer[2:-2, 2:-2, :-1, vs.taup1])
+                / vs.dzw[npx.newaxis, npx.newaxis, :-1]
+                * vs.maskW[2:-2, 2:-2, :-1],
+            )
 
             return (tracer, dtracer_iso, P_diss_iso)
 

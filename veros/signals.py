@@ -16,13 +16,13 @@ def do_not_disturb(function):
     @functools.wraps(function)
     def dnd_wrapper(*args, **kwargs):
         old_handlers = {s: signal.getsignal(s) for s in signals}
-        signal_received = {'sig': None, 'frame': None}
+        signal_received = {"sig": None, "frame": None}
 
         def handler(sig, frame):
-            if signal_received['sig'] is None:
-                signal_received['sig'] = sig
-                signal_received['frame'] = frame
-                logger.error(f'Signal {sig} received - cleaning up before exit')
+            if signal_received["sig"] is None:
+                signal_received["sig"] = sig
+                signal_received["frame"] = frame
+                logger.error(f"Signal {sig} received - cleaning up before exit")
             else:
                 # force quit if more than one signal is received
                 old_handlers[sig](sig, frame)
@@ -36,9 +36,9 @@ def do_not_disturb(function):
         finally:
             for s in signals:
                 signal.signal(s, old_handlers[s])
-            sig = signal_received['sig']
+            sig = signal_received["sig"]
             if sig is not None:
-                old_handlers[sig](signal_received['sig'], signal_received['frame'])
+                old_handlers[sig](signal_received["sig"], signal_received["frame"])
 
         return res
 
@@ -59,9 +59,10 @@ def signals_to_exception(signals=(signal.SIGINT, signal.SIGTERM)):
        >>>     except SystemExit:
        >>>         # graceful exit even upon receiving interrupt signal
     """
+
     def signal_to_exception(sig, frame):
-        logger.critical('Received interrupt signal {}', sig)
-        raise SystemExit('Aborted')
+        logger.critical("Received interrupt signal {}", sig)
+        raise SystemExit("Aborted")
 
     old_signals = {}
     for s in signals:

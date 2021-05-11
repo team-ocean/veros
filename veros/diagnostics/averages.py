@@ -11,9 +11,10 @@ class Averages(VerosDiagnostic):
     All registered variables are summed up when :meth:`diagnose` is called,
     and averaged and output upon calling :meth:`output`.
     """
-    name = 'averages' #:
-    output_path = '{identifier}.averages.nc'  #: File to write to. May contain format strings that are replaced with Veros attributes.
-    output_variables = None #: Iterable containing all variables to be averaged. Changes have no effect after ``initialize`` has been called.
+
+    name = "averages"  #:
+    output_path = "{identifier}.averages.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
+    output_variables = None  #: Iterable containing all variables to be averaged. Changes have no effect after ``initialize`` has been called.
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
 
@@ -23,8 +24,7 @@ class Averages(VerosDiagnostic):
         }
 
     def initialize(self, state):
-        """Register all variables to be averaged
-        """
+        """Register all variables to be averaged"""
         if not self.output_variables:
             return
 

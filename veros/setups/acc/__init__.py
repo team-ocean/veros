@@ -1,1 +1,1 @@
-from veros.setups.acc.acc import ACCSetup
+from veros.setups.acc.acc import ACCSetup  # noqa: F401

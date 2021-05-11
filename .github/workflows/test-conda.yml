@@ -25,12 +25,16 @@ jobs:
           miniconda-version: "latest"
           activate-environment: veros
 
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-xdist
+
       - name: List
         run: |
           conda info
           conda list
 
-      - name: Test
+      - name: Run tests
         run: pytest
 
   osx:
@@ -46,12 +50,16 @@ jobs:
           miniconda-version: "latest"
           activate-environment: veros
 
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-xdist
+
       - name: List
         run: |
           conda info
           conda list
 
-      - name: Test
+      - name: Run tests
         run: pytest
 
   windows:
@@ -67,10 +75,14 @@ jobs:
           miniconda-version: "latest"
           activate-environment: veros
 
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-xdist
+
       - name: List
         run: |
           conda info
           conda list
 
-      - name: Test
+      - name: Run tests
         run: pytest

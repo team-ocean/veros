@@ -27,12 +27,11 @@ def set_tke_diffusivities_kernel(state):
 
     Rinumber = allocate(state.dimensions, ("xt", "yt", "zt"))
 
-    vs.sqrttke = npx.sqrt(npx.maximum(0., vs.tke[:, :, :, vs.tau]))
+    vs.sqrttke = npx.sqrt(npx.maximum(0.0, vs.tke[:, :, :, vs.tau]))
     """
     calculate buoyancy length scale
     """
-    vs.mxl = npx.sqrt(2) * vs.sqrttke \
-        / npx.sqrt(npx.maximum(1e-12, vs.Nsqr[:, :, :, vs.tau])) * vs.maskW
+    vs.mxl = npx.sqrt(2) * vs.sqrttke / npx.sqrt(npx.maximum(1e-12, vs.Nsqr[:, :, :, vs.tau])) * vs.maskW
 
     """
     apply limits for mixing length
@@ -42,9 +41,8 @@ def set_tke_diffusivities_kernel(state):
         bounded by the distance to surface/bottom
         """
         vs.mxl = npx.minimum(
-            npx.minimum(vs.mxl, -vs.zw[npx.newaxis, npx.newaxis, :]
-                        + vs.dzw[npx.newaxis, npx.newaxis, :] * 0.5
-                        ), vs.ht[:, :, npx.newaxis] + vs.zw[npx.newaxis, npx.newaxis, :]
+            npx.minimum(vs.mxl, -vs.zw[npx.newaxis, npx.newaxis, :] + vs.dzw[npx.newaxis, npx.newaxis, :] * 0.5),
+            vs.ht[:, :, npx.newaxis] + vs.zw[npx.newaxis, npx.newaxis, :],
         )
         vs.mxl = npx.maximum(vs.mxl, settings.mxl_min)
     elif settings.tke_mxl_choice == 2:
@@ -65,20 +63,27 @@ def set_tke_diffusivities_kernel(state):
         vs.mxl = for_loop(1, nz, forwards_pass, vs.mxl)
         vs.mxl = npx.maximum(vs.mxl, settings.mxl_min)
     else:
-        raise ValueError('unknown mixing length choice in tke_mxl_choice')
+        raise ValueError("unknown mixing length choice in tke_mxl_choice")
 
     """
     calculate viscosity and diffusivity based on Prandtl number
     """
     vs.K_diss_v = utilities.enforce_boundaries(vs.K_diss_v, settings.enable_cyclic_x)
     vs.kappaM = update(vs.kappaM, at[...], npx.minimum(settings.kappaM_max, settings.c_k * vs.mxl * vs.sqrttke))
-    Rinumber = update(Rinumber, at[...], vs.Nsqr[:, :, :, vs.tau] / \
-        npx.maximum(vs.K_diss_v / npx.maximum(1e-12, vs.kappaM), 1e-12))
+    Rinumber = update(
+        Rinumber, at[...], vs.Nsqr[:, :, :, vs.tau] / npx.maximum(vs.K_diss_v / npx.maximum(1e-12, vs.kappaM), 1e-12)
+    )
     if settings.enable_idemix:
-        Rinumber = update(Rinumber, at[...], npx.minimum(Rinumber, vs.kappaM * vs.Nsqr[:, :, :, vs.tau]
-                                    / npx.maximum(1e-12, vs.alpha_c * vs.E_iw[:, :, :, vs.tau]**2)))
+        Rinumber = update(
+            Rinumber,
+            at[...],
+            npx.minimum(
+                Rinumber,
+                vs.kappaM * vs.Nsqr[:, :, :, vs.tau] / npx.maximum(1e-12, vs.alpha_c * vs.E_iw[:, :, :, vs.tau] ** 2),
+            ),
+        )
     if settings.enable_Prandtl_tke:
-        vs.Prandtlnumber = npx.maximum(1., npx.minimum(10, 6.6 * Rinumber))
+        vs.Prandtlnumber = npx.maximum(1.0, npx.minimum(10, 6.6 * Rinumber))
     else:
         vs.Prandtlnumber = update(vs.Prandtlnumber, at[...], settings.Prandtl_tke0)
     vs.kappaH = npx.maximum(settings.kappaH_min, vs.kappaM / vs.Prandtlnumber)
@@ -88,12 +93,20 @@ def set_tke_diffusivities_kernel(state):
         # Bryan, K., and L. J. Lewis, 1979:
         # A water mass model of the world ocean. J. Geophys. Res., 84, 2503–2517.
         # It mainly modifies kappaH within 20S - 20N deg. belt
-        vs.kappaH = npx.maximum(vs.kappaH, (0.8 + 1.05 / settings.pi
-                                            * npx.arctan((-vs.zw[npx.newaxis, npx.newaxis, :] - 2500.)
-                                                        / 222.2)) * 1e-4)
+        vs.kappaH = npx.maximum(
+            vs.kappaH,
+            (0.8 + 1.05 / settings.pi * npx.arctan((-vs.zw[npx.newaxis, npx.newaxis, :] - 2500.0) / 222.2)) * 1e-4,
+        )
     vs.kappaM = npx.maximum(settings.kappaM_min, vs.kappaM)
 
-    return KernelOutput(sqrttke=vs.sqrttke, mxl=vs.mxl, kappaM=vs.kappaM, kappaH=vs.kappaH, Prandtlnumber=vs.Prandtlnumber, K_diss_v=vs.K_diss_v)
+    return KernelOutput(
+        sqrttke=vs.sqrttke,
+        mxl=vs.mxl,
+        kappaM=vs.kappaM,
+        kappaH=vs.kappaH,
+        Prandtlnumber=vs.Prandtlnumber,
+        K_diss_v=vs.K_diss_v,
+    )
 
 
 @veros_routine
@@ -170,19 +183,38 @@ def integrate_tke_kernel(state):
 
     a_tri, b_tri, c_tri, d_tri, delta = (npx.zeros_like(vs.kappaM[2:-2, 2:-2, :]) for _ in range(5))
 
-    delta = update(delta, at[:, :, :-1], dt_tke / vs.dzt[npx.newaxis, npx.newaxis, 1:] * settings.alpha_tke * 0.5 \
-        * (vs.kappaM[2:-2, 2:-2, :-1] + vs.kappaM[2:-2, 2:-2, 1:]))
+    delta = update(
+        delta,
+        at[:, :, :-1],
+        dt_tke
+        / vs.dzt[npx.newaxis, npx.newaxis, 1:]
+        * settings.alpha_tke
+        * 0.5
+        * (vs.kappaM[2:-2, 2:-2, :-1] + vs.kappaM[2:-2, 2:-2, 1:]),
+    )
 
     a_tri = update(a_tri, at[:, :, 1:-1], -delta[:, :, :-2] / vs.dzw[npx.newaxis, npx.newaxis, 1:-1])
     a_tri = update(a_tri, at[:, :, -1], -delta[:, :, -2] / (0.5 * vs.dzw[-1]))
 
-    b_tri = update(b_tri, at[:, :, 1:-1], 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / vs.dzw[npx.newaxis, npx.newaxis, 1:-1] \
-        + dt_tke * settings.c_eps \
-        * vs.sqrttke[2:-2, 2:-2, 1:-1] / vs.mxl[2:-2, 2:-2, 1:-1])
-    b_tri = update(b_tri, at[:, :, -1], 1 + delta[:, :, -2] / (0.5 * vs.dzw[-1]) \
-        + dt_tke * settings.c_eps / vs.mxl[2:-2, 2:-2, -1] * vs.sqrttke[2:-2, 2:-2, -1])
-    b_tri_edge = 1 + delta / vs.dzw[npx.newaxis, npx.newaxis, :] \
+    b_tri = update(
+        b_tri,
+        at[:, :, 1:-1],
+        1
+        + (delta[:, :, 1:-1] + delta[:, :, :-2]) / vs.dzw[npx.newaxis, npx.newaxis, 1:-1]
+        + dt_tke * settings.c_eps * vs.sqrttke[2:-2, 2:-2, 1:-1] / vs.mxl[2:-2, 2:-2, 1:-1],
+    )
+    b_tri = update(
+        b_tri,
+        at[:, :, -1],
+        1
+        + delta[:, :, -2] / (0.5 * vs.dzw[-1])
+        + dt_tke * settings.c_eps / vs.mxl[2:-2, 2:-2, -1] * vs.sqrttke[2:-2, 2:-2, -1],
+    )
+    b_tri_edge = (
+        1
+        + delta / vs.dzw[npx.newaxis, npx.newaxis, :]
         + dt_tke * settings.c_eps / vs.mxl[2:-2, 2:-2, :] * vs.sqrttke[2:-2, 2:-2, :]
+    )
 
     c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzw[npx.newaxis, npx.newaxis, :-1])
 
@@ -201,32 +233,54 @@ def integrate_tke_kernel(state):
     Add TKE if surface density flux drains TKE in uppermost box
     """
     mask = vs.tke[2:-2, 2:-2, -1, vs.taup1] < 0.0
-    vs.tke_surf_corr = update(vs.tke_surf_corr, at[2:-2, 2:-2], npx.where(mask,
-                                                -vs.tke[2:-2, 2:-2, -1, vs.taup1] * 0.5
-                                                * vs.dzw[-1] / dt_tke, 0.))
-    vs.tke = update(vs.tke, at[2:-2, 2:-2, -1, vs.taup1], npx.maximum(0., vs.tke[2:-2, 2:-2, -1, vs.taup1]))
+    vs.tke_surf_corr = update(
+        vs.tke_surf_corr,
+        at[2:-2, 2:-2],
+        npx.where(mask, -vs.tke[2:-2, 2:-2, -1, vs.taup1] * 0.5 * vs.dzw[-1] / dt_tke, 0.0),
+    )
+    vs.tke = update(vs.tke, at[2:-2, 2:-2, -1, vs.taup1], npx.maximum(0.0, vs.tke[2:-2, 2:-2, -1, vs.taup1]))
 
     if settings.enable_tke_hor_diffusion:
         """
         add tendency due to lateral diffusion
         """
-        flux_east = update(flux_east, at[:-1, :, :], settings.K_h_tke * (vs.tke[1:, :, :, vs.tau] - vs.tke[:-1, :, :, vs.tau]) \
-            / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis]) * vs.maskU[:-1, :, :])
+        flux_east = update(
+            flux_east,
+            at[:-1, :, :],
+            settings.K_h_tke
+            * (vs.tke[1:, :, :, vs.tau] - vs.tke[:-1, :, :, vs.tau])
+            / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
+            * vs.maskU[:-1, :, :],
+        )
 
         if runtime_settings.pyom_compatibility_mode:
-            flux_east = update(flux_east, at[-5, :, :], 0.)
+            flux_east = update(flux_east, at[-5, :, :], 0.0)
         else:
-            flux_east = update(flux_east, at[-1, :, :], 0.)
+            flux_east = update(flux_east, at[-1, :, :], 0.0)
 
-        flux_north = update(flux_north, at[:, :-1, :], settings.K_h_tke * (vs.tke[:, 1:, :, vs.tau] - vs.tke[:, :-1, :, vs.tau]) \
-            / vs.dyu[npx.newaxis, :-1, npx.newaxis] * vs.maskV[:, :-1, :] * vs.cosu[npx.newaxis, :-1, npx.newaxis])
-        flux_north = update(flux_north, at[:, -1, :], 0.)
+        flux_north = update(
+            flux_north,
+            at[:, :-1, :],
+            settings.K_h_tke
+            * (vs.tke[:, 1:, :, vs.tau] - vs.tke[:, :-1, :, vs.tau])
+            / vs.dyu[npx.newaxis, :-1, npx.newaxis]
+            * vs.maskV[:, :-1, :]
+            * vs.cosu[npx.newaxis, :-1, npx.newaxis],
+        )
+        flux_north = update(flux_north, at[:, -1, :], 0.0)
 
-        vs.tke = update_add(vs.tke, at[2:-2, 2:-2, :, vs.taup1], dt_tke * vs.maskW[2:-2, 2:-2, :] * \
-            ((flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-             / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
-             + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-             / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])))
+        vs.tke = update_add(
+            vs.tke,
+            at[2:-2, 2:-2, :, vs.taup1],
+            dt_tke
+            * vs.maskW[2:-2, 2:-2, :]
+            * (
+                (flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+                + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
+                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
+            ),
+        )
 
     """
     add tendency due to advection
@@ -238,19 +292,37 @@ def integrate_tke_kernel(state):
         flux_east, flux_north, flux_top = advection.adv_flux_upwind_wgrid(state, vs.tke[:, :, :, vs.tau])
 
     if settings.enable_tke_superbee_advection or settings.enable_tke_upwind_advection:
-        vs.dtke = update(vs.dtke, at[2:-2, 2:-2, :, vs.tau], vs.maskW[2:-2, 2:-2, :] * (-(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-                                                           / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
-                                                           - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                                                           / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])))
+        vs.dtke = update(
+            vs.dtke,
+            at[2:-2, 2:-2, :, vs.tau],
+            vs.maskW[2:-2, 2:-2, :]
+            * (
+                -(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+                - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
+                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
+            ),
+        )
         vs.dtke = update_add(vs.dtke, at[:, :, 0, vs.tau], -flux_top[:, :, 0] / vs.dzw[0])
-        vs.dtke = update_add(vs.dtke, at[:, :, 1:-1, vs.tau], -(flux_top[:, :, 1:-1] - flux_top[:, :, :-2]) / vs.dzw[1:-1])
-        vs.dtke = update_add(vs.dtke, at[:, :, -1, vs.tau], -(flux_top[:, :, -1] - flux_top[:, :, -2]) / (0.5 * vs.dzw[-1]))
+        vs.dtke = update_add(
+            vs.dtke, at[:, :, 1:-1, vs.tau], -(flux_top[:, :, 1:-1] - flux_top[:, :, :-2]) / vs.dzw[1:-1]
+        )
+        vs.dtke = update_add(
+            vs.dtke, at[:, :, -1, vs.tau], -(flux_top[:, :, -1] - flux_top[:, :, -2]) / (0.5 * vs.dzw[-1])
+        )
 
         """
         Adam Bashforth time stepping
         """
-        vs.tke = update_add(vs.tke, at[:, :, :, vs.taup1], settings.dt_tracer * ((1.5 + settings.AB_eps) * vs.dtke[:, :, :, vs.tau]
-                                            - (0.5 + settings.AB_eps) * vs.dtke[:, :, :, vs.taum1]))
+        vs.tke = update_add(
+            vs.tke,
+            at[:, :, :, vs.taup1],
+            settings.dt_tracer
+            * (
+                (1.5 + settings.AB_eps) * vs.dtke[:, :, :, vs.tau]
+                - (0.5 + settings.AB_eps) * vs.dtke[:, :, :, vs.taum1]
+            ),
+        )
 
         conditional_outputs.update(dtke=vs.dtke)
 

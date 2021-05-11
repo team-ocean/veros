@@ -2,9 +2,12 @@ import contextlib
 from collections import defaultdict, namedtuple
 
 from veros import (
-    timer, plugins,
-    settings as settings_mod, variables as var_mod,
-    runtime_settings as rs, runtime_state as rst
+    timer,
+    plugins,
+    settings as settings_mod,
+    variables as var_mod,
+    runtime_settings as rs,
+    runtime_state as rst,
 )
 
 
@@ -17,6 +20,7 @@ KernelOutput = make_namedtuple
 
 class StrictContainer:
     """A mutable container with fixed fields (optionally typed)."""
+
     __fields__ = ()
     __field_types__ = ()
 
@@ -88,12 +92,12 @@ class StrictContainer:
         for key, val in self.items():
             # poor-man's check for array-compatible types
             if hasattr(val, "shape") and hasattr(val, "dtype"):
-                val_repr = f'{type(val)} with shape {val.shape}, dtype {val.dtype}'
+                val_repr = f"{type(val)} with shape {val.shape}, dtype {val.dtype}"
             else:
                 val_repr = repr(val)
-            attr_str.append(f'    {key} = {val_repr}')
-        attr_str = ',\n'.join(attr_str)
-        return f'{self.__class__.__qualname__}(\n{attr_str}\n)'
+            attr_str.append(f"    {key} = {val_repr}")
+        attr_str = ",\n".join(attr_str)
+        return f"{self.__class__.__qualname__}(\n{attr_str}\n)"
 
 
 class Lockable:
@@ -121,7 +125,7 @@ class Lockable:
         if not key.startswith("_") and self.__locked__:
             clsname = self.__class__.__qualname__
             raise RuntimeError(
-                f'{clsname} is locked to modifications. If you know what you are doing, '
+                f"{clsname} is locked to modifications. If you know what you are doing, "
                 f'you can unlock it via the "{clsname}.unlock()" context manager.'
             )
         return super().__setattr__(key, val)
@@ -191,9 +195,7 @@ class VerosSettings(Lockable, Traceable, StrictContainer):
         self.__metadata__ = settings_meta
         super().__init__(fields=settings_meta.keys())
 
-        default_settings = {
-            k: meta.type(meta.default) for k, meta in settings_meta.items()
-        }
+        default_settings = {k: meta.type(meta.default) for k, meta in settings_meta.items()}
 
         with self.unlock():
             self.update(default_settings)
@@ -208,8 +210,8 @@ class VerosSettings(Lockable, Traceable, StrictContainer):
 
 
 class VerosVariables(Lockable, Traceable, StrictContainer):
-    """
-    """
+    """ """
+
     def __init__(self, var_meta, dimensions):
         self.__metadata__ = var_meta
         self.__dimensions__ = dimensions
@@ -238,8 +240,7 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
 
         if not var.active:
             raise RuntimeError(
-                f"Variable {attr} is not active in this configuration. "
-                "Check your settings and try again."
+                f"Variable {attr} is not active in this configuration. " "Check your settings and try again."
             )
 
         return orig_getattr(attr)
@@ -253,8 +254,7 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
         # check whether variable is active
         if not var.active:
             raise RuntimeError(
-                f"Variable {key} is not active in this configuration. "
-                "Check your settings and try again."
+                f"Variable {key} is not active in this configuration. " "Check your settings and try again."
             )
 
         # validate array type, shape and dtype
@@ -268,8 +268,7 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
         expected_shape = self._get_expected_shape(var.dims)
         if val.shape != expected_shape:
             raise ValueError(
-                f'Got unexpected shape for variable {key} '
-                f'(expected: {expected_shape}, got: {val.shape})'
+                f"Got unexpected shape for variable {key} " f"(expected: {expected_shape}, got: {val.shape})"
             )
 
         return super().__setattr__(key, val)
@@ -292,7 +291,9 @@ class DistSafeVariableWrapper(VerosVariables):
     def __getattr__(self, attr):
         orig_getattr = super().__getattribute__
         if attr in orig_getattr("__metadata__") and attr not in orig_getattr("__local_variables__"):
-            raise RuntimeError(f"Cannot access variable {attr} because it was not collected. Consider adding it to the local_variables argument of @veros_routine.")
+            raise RuntimeError(
+                f"Cannot access variable {attr} because it was not collected. Consider adding it to the local_variables argument of @veros_routine."
+            )
 
         return orig_getattr(attr)
 
@@ -301,12 +302,15 @@ class DistSafeVariableWrapper(VerosVariables):
             return super().__setattr__(attr, val)
 
         if attr in self.__metadata__ and attr not in self.__local_variables__:
-            raise RuntimeError(f"Cannot access variable {attr} because it was not collected. Consider adding it to the local_variables argument of @veros_routine.")
+            raise RuntimeError(
+                f"Cannot access variable {attr} because it was not collected. Consider adding it to the local_variables argument of @veros_routine."
+            )
 
         return super().__setattr__(attr, val)
 
     def _gather_variables(self):
         from veros.distributed import gather
+
         var_meta = self.__metadata__
 
         for var in self.__local_variables__:
@@ -321,6 +325,7 @@ class DistSafeVariableWrapper(VerosVariables):
 
     def _scatter_variables(self):
         from veros.distributed import scatter, barrier
+
         barrier()
         var_meta = self.__metadata__
 
@@ -338,7 +343,7 @@ class DistSafeVariableWrapper(VerosVariables):
         return var_mod.get_shape(self.__dimensions__, dims, local=rst.proc_rank != 0)
 
     def __repr__(self):
-        return f'{self.__class__.__qualname__}(parent_state={self.__parent_state__}, local_variables={self.__local_variables__})'
+        return f"{self.__class__.__qualname__}(parent_state={self.__parent_state__}, local_variables={self.__local_variables__})"
 
 
 class VerosState:
@@ -367,12 +372,13 @@ class VerosState:
 
     def __repr__(self):
         from textwrap import indent
+
         attr_str = []
         for attr in ("settings", "dimensions", "variables", "diagnostics", "plugin_interfaces"):
-            attr_val = indent(repr(getattr(self, f'_{attr}')), ' ' * 4)[4:]
-            attr_str.append(f'    {attr} = {attr_val}')
-        attr_str = ',\n'.join(attr_str)
-        return f'{self.__class__.__qualname__}(\n{attr_str}\n)'
+            attr_val = indent(repr(getattr(self, f"_{attr}")), " " * 4)[4:]
+            attr_str.append(f"    {attr} = {attr_val}")
+        attr_str = ",\n".join(attr_str)
+        return f"{self.__class__.__qualname__}(\n{attr_str}\n)"
 
     def initialize_variables(self):
         if self._variables is not None:
@@ -407,7 +413,8 @@ class VerosState:
 
             if not isinstance(dim_size, int):
                 raise RuntimeError(
-                    f"Dimension {dim_name} is not known yet. Please set the {dim_target} setting and try again.")
+                    f"Dimension {dim_name} is not known yet. Please set the {dim_target} setting and try again."
+                )
 
             concrete_dimensions[dim_name] = dim_size
 
@@ -433,9 +440,7 @@ class VerosState:
             if not var_meta.active:
                 continue
 
-            data = var_mod.remove_ghosts(
-                vs.get(var_name), var_meta.dims
-            )
+            data = var_mod.remove_ghosts(vs.get(var_name), var_meta.dims)
 
             data_vars[var_name] = xr.DataArray(
                 data,
@@ -445,7 +450,7 @@ class VerosState:
                     long_description=var_meta.long_description,
                     units=var_meta.units,
                     scale=var_meta.scale,
-                )
+                ),
             )
 
             if var_meta.dims is None:
@@ -518,10 +523,7 @@ def veros_variables_pytree_flatten(variables):
     with variables.unlock(), variables.disable_trace():
         leaves = list(variables.values())
 
-    aux_data = (
-        tuple(variables.fields()),
-        tuple((attr, getattr(variables, attr)) for attr in aux_attrs)
-    )
+    aux_data = (tuple(variables.fields()), tuple((attr, getattr(variables, attr)) for attr in aux_attrs))
     return (leaves, aux_data)
 
 
@@ -554,10 +556,7 @@ def dist_safe_wrapper_pytree_flatten(variables):
     with variables.unlock(), variables.disable_trace():
         leaves = [getattr(variables, attr) for attr in variables.__local_variables__]
 
-    aux_data = (
-        tuple(variables.__local_variables__),
-        tuple((attr, getattr(variables, attr)) for attr in aux_attrs)
-    )
+    aux_data = (tuple(variables.__local_variables__), tuple((attr, getattr(variables, attr)) for attr in aux_attrs))
     return (leaves, aux_data)
 
 

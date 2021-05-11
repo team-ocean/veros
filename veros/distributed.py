@@ -3,10 +3,7 @@ import functools
 from veros import runtime_settings as rs, runtime_state as rst
 from veros.routines import CURRENT_CONTEXT
 
-SCATTERED_DIMENSIONS = (
-    ('xt', 'xu'),
-    ('yt', 'yu')
-)
+SCATTERED_DIMENSIONS = (("xt", "xu"), ("yt", "yu"))
 
 
 def dist_context_only(function=None, *, noop_return_arg=None):
@@ -36,8 +33,9 @@ def send(buf, dest, comm, tag=None, token=None):
     if tag is not None:
         kwargs.update(tag=tag)
 
-    if rs.backend == 'jax':
+    if rs.backend == "jax":
         from mpi4jax import send
+
         return send(buf, dest=dest, comm=comm, token=token, **kwargs)
 
     comm.Send(ascontiguousarray(buf), dest=dest, **kwargs)
@@ -49,8 +47,9 @@ def recv(buf, source, comm, tag=None, token=None):
     if tag is not None:
         kwargs.update(tag=tag)
 
-    if rs.backend == 'jax':
+    if rs.backend == "jax":
         from mpi4jax import recv
+
         return recv(buf, source=source, comm=comm, token=token, **kwargs)
 
     buf = buf.copy()
@@ -67,41 +66,42 @@ def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None, t
     if recvtag is not None:
         kwargs.update(recvtag=recvtag)
 
-    if rs.backend == 'jax':
+    if rs.backend == "jax":
         from mpi4jax import sendrecv
+
         return sendrecv(sendbuf, recvbuf, source=source, dest=dest, comm=comm, token=token, **kwargs)
 
     recvbuf = recvbuf.copy()
-    comm.Sendrecv(
-        sendbuf=ascontiguousarray(sendbuf), recvbuf=recvbuf,
-        source=source, dest=dest,
-        **kwargs
-    )
+    comm.Sendrecv(sendbuf=ascontiguousarray(sendbuf), recvbuf=recvbuf, source=source, dest=dest, **kwargs)
     return recvbuf, None
 
 
 def bcast(buf, comm, root=0, token=None):
-    if rs.backend == 'jax':
+    if rs.backend == "jax":
         from mpi4jax import bcast
+
         return bcast(buf, root=root, comm=comm, token=token)
 
     return comm.bcast(buf, root=root), None
 
 
 def allreduce(buf, op, comm, token=None):
-    if rs.backend == 'jax':
+    if rs.backend == "jax":
         from mpi4jax import allreduce
+
         return allreduce(buf, op=op, comm=comm, token=token)
 
     from veros.core.operators import numpy as npx
+
     recvbuf = npx.empty_like(buf)
     comm.Allreduce(ascontiguousarray(buf), recvbuf, op=op)
     return recvbuf, None
 
 
 def ascontiguousarray(arr):
-    assert rs.backend == 'numpy'
+    assert rs.backend == "numpy"
     import numpy
+
     return numpy.ascontiguousarray(arr)
 
 
@@ -109,20 +109,20 @@ def validate_decomposition(dimensions):
     nx, ny = dimensions["xt"], dimensions["yt"]
 
     if rs.mpi_comm is None:
-        if (rs.num_proc[0] > 1 or rs.num_proc[1] > 1):
-            raise RuntimeError('mpi4py is required for distributed execution')
+        if rs.num_proc[0] > 1 or rs.num_proc[1] > 1:
+            raise RuntimeError("mpi4py is required for distributed execution")
         return
 
     comm_size = rs.mpi_comm.Get_size()
     proc_num = rs.num_proc[0] * rs.num_proc[1]
     if proc_num != comm_size:
-        raise RuntimeError(f'number of processes ({proc_num}) does not match size of communicator ({comm_size})')
+        raise RuntimeError(f"number of processes ({proc_num}) does not match size of communicator ({comm_size})")
 
     if nx % rs.num_proc[0]:
-        raise ValueError('processes do not divide domain evenly in x-direction')
+        raise ValueError("processes do not divide domain evenly in x-direction")
 
     if ny % rs.num_proc[1]:
-        raise ValueError('processes do not divide domain evenly in y-direction')
+        raise ValueError("processes do not divide domain evenly in y-direction")
 
 
 def get_chunk_size(nx, ny):
@@ -208,9 +208,7 @@ def get_process_neighbors(cyclic=False):
         northwest=(west, north),
     )
 
-    global_neighbors = {
-        k: proc_index_to_rank(*i) if None not in i else None for k, i in neighbors.items()
-    }
+    global_neighbors = {k: proc_index_to_rank(*i) if None not in i else None for k, i in neighbors.items()}
     return global_neighbors
 
 
@@ -220,26 +218,26 @@ def exchange_overlap(arr, var_grid, cyclic):
 
     # start west, go clockwise
     send_order = (
-        'west',
-        'northwest',
-        'north',
-        'northeast',
-        'east',
-        'southeast',
-        'south',
-        'southwest',
+        "west",
+        "northwest",
+        "north",
+        "northeast",
+        "east",
+        "southeast",
+        "south",
+        "southwest",
     )
 
     # start east, go clockwise
     recv_order = (
-        'east',
-        'southeast',
-        'south',
-        'southwest',
-        'west',
-        'northwest',
-        'north',
-        'northeast',
+        "east",
+        "southeast",
+        "south",
+        "southwest",
+        "west",
+        "northwest",
+        "north",
+        "northeast",
     )
 
     if len(var_grid) < 2:
@@ -278,11 +276,11 @@ def exchange_overlap(arr, var_grid, cyclic):
 
     else:
         if d1 in SCATTERED_DIMENSIONS[0]:
-            send_order = ('west', 'east')
-            recv_order = ('east', 'west')
+            send_order = ("west", "east")
+            recv_order = ("east", "west")
         elif d1 in SCATTERED_DIMENSIONS[1]:
-            send_order = ('north', 'south')
-            recv_order = ('south', 'north')
+            send_order = ("north", "south")
+            recv_order = ("south", "north")
         else:
             raise NotImplementedError()
 
@@ -322,9 +320,7 @@ def exchange_overlap(arr, var_grid, cyclic):
             token = send(send_arr, send_proc, rs.mpi_comm, token=token)
         else:
             recv_arr, token = sendrecv(
-                send_arr, recv_arr,
-                source=recv_proc, dest=send_proc,
-                comm=rs.mpi_comm, token=token
+                send_arr, recv_arr, source=recv_proc, dest=send_proc, comm=rs.mpi_comm, token=token
             )
             arr = update(arr, at[recv_idx], recv_arr)
 
@@ -339,10 +335,7 @@ def _memoize(function):
         from mpi4py import MPI
 
         # MPI Comms are not hashable, so we use the underlying handle instead
-        cache_args = tuple(
-            MPI._handleof(arg) if isinstance(arg, MPI.Comm)
-            else arg for arg in args
-        )
+        cache_args = tuple(MPI._handleof(arg) if isinstance(arg, MPI.Comm) else arg for arg in args)
 
         if cache_args not in cached:
             cached[cache_args] = function(*args)
@@ -386,30 +379,35 @@ def _reduce(arr, op, axis=None):
 @dist_context_only(noop_return_arg=0)
 def global_and(arr, axis=None):
     from mpi4py import MPI
+
     return _reduce(arr, MPI.LAND, axis=axis)
 
 
 @dist_context_only(noop_return_arg=0)
 def global_or(arr, axis=None):
     from mpi4py import MPI
+
     return _reduce(arr, MPI.LOR, axis=axis)
 
 
 @dist_context_only(noop_return_arg=0)
 def global_max(arr, axis=None):
     from mpi4py import MPI
+
     return _reduce(arr, MPI.MAX, axis=axis)
 
 
 @dist_context_only(noop_return_arg=0)
 def global_min(arr, axis=None):
     from mpi4py import MPI
+
     return _reduce(arr, MPI.MIN, axis=axis)
 
 
 @dist_context_only(noop_return_arg=0)
 def global_sum(arr, axis=None):
     from mpi4py import MPI
+
     return _reduce(arr, MPI.SUM, axis=axis)
 
 
@@ -424,7 +422,7 @@ def _gather_1d(nx, ny, arr, dim):
     if pi[otherdim] != 0:
         return arr
 
-    dim_grid = ['xt' if dim == 0 else 'yt'] + [None] * (arr.ndim - 1)
+    dim_grid = ["xt" if dim == 0 else "yt"] + [None] * (arr.ndim - 1)
     gidx, idx = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
     sendbuf = arr[idx]
 
@@ -462,7 +460,7 @@ def _gather_xy(nx, ny, arr):
     nxi, nyi = get_chunk_size(nx, ny)
     assert arr.shape[:2] == (nxi + 4, nyi + 4), arr.shape
 
-    dim_grid = ['xt', 'yt'] + [None] * (arr.ndim - 2)
+    dim_grid = ["xt", "yt"] + [None] * (arr.ndim - 2)
     gidx, idx = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
     sendbuf = arr[idx]
 
@@ -471,10 +469,7 @@ def _gather_xy(nx, ny, arr):
     if rst.proc_rank == 0:
         buffer_list = []
         for proc in range(1, rst.proc_num):
-            idx_g, idx_l = get_chunk_slices(
-                nx, ny, dim_grid, include_overlap=True,
-                proc_idx=proc_rank_to_index(proc)
-            )
+            idx_g, idx_l = get_chunk_slices(nx, ny, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
             recvbuf = npx.empty_like(arr[idx_l])
             recvbuf, token = recv(recvbuf, source=proc, tag=30, comm=rs.mpi_comm, token=token)
             buffer_list.append((idx_g, recvbuf))
@@ -533,7 +528,7 @@ def _scatter_1d(nx, ny, arr, dim):
     assert dim in (0, 1)
 
     out_nx = get_chunk_size(nx, ny)[dim]
-    dim_grid = ['xt' if dim == 0 else 'yt'] + [None] * (arr.ndim - 1)
+    dim_grid = ["xt" if dim == 0 else "yt"] + [None] * (arr.ndim - 1)
     _, local_slice = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
 
     token = None
@@ -554,7 +549,7 @@ def _scatter_1d(nx, ny, arr, dim):
         recvbuf, _ = recv(arr[local_slice], source=0, tag=40, comm=rs.mpi_comm)
 
     arr = update(arr, at[local_slice], recvbuf)
-    arr = exchange_overlap(arr, ['xt' if dim == 0 else 'yt'], cyclic=False)
+    arr = exchange_overlap(arr, ["xt" if dim == 0 else "yt"], cyclic=False)
 
     return arr
 
@@ -565,7 +560,7 @@ def _scatter_xy(nx, ny, arr):
 
     nxi, nyi = get_chunk_size(nx, ny)
 
-    dim_grid = ['xt', 'yt'] + [None] * (arr.ndim - 2)
+    dim_grid = ["xt", "yt"] + [None] * (arr.ndim - 2)
     _, local_slice = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
 
     token = None
@@ -587,7 +582,7 @@ def _scatter_xy(nx, ny, arr):
         recvbuf, _ = recv(recvbuf, source=0, tag=50, comm=rs.mpi_comm)
 
     arr = update(arr, at[local_slice], recvbuf)
-    arr = exchange_overlap(arr, ['xt', 'yt'], cyclic=False)
+    arr = exchange_overlap(arr, ["xt", "yt"], cyclic=False)
 
     return arr
 
@@ -595,6 +590,7 @@ def _scatter_xy(nx, ny, arr):
 @dist_context_only(noop_return_arg=0)
 def scatter(arr, dimensions, var_grid):
     from veros.core.operators import numpy as npx
+
     nx, ny = dimensions["xt"], dimensions["yt"]
 
     if len(var_grid) < 2:

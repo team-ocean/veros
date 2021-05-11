@@ -16,12 +16,12 @@ class LowercaseAttributeWrapper:
     """
 
     def __init__(self, wrapped_object):
-        super().__setattr__(self, '_w', wrapped_object)
+        super().__setattr__(self, "_w", wrapped_object)
 
     def __getattr__(self, key):
-        if key == '_w':
-            return super().__getattribute__(self, '_w')
-        return getattr(super().__getattribute__(self, '_w'), key.lower())
+        if key == "_w":
+            return super().__getattribute__(self, "_w")
+        return getattr(super().__getattribute__(self, "_w"), key.lower())
 
     def __setattr__(self, key, value):
         setattr(self._w, key.lower(), value)
@@ -36,6 +36,7 @@ class VerosLegacy(VerosSetup):
        Do not use this class for new setups!
 
     """
+
     def __init__(self, pyom_lib=None, *args, **kwargs):
         """
         To use the pyOM2 legacy interface point the pyom_lib argument to the pyOM2 Fortran library:
@@ -53,13 +54,14 @@ class VerosLegacy(VerosSetup):
             self.legacy_mode = True
 
             try:
-                self.fortran = LowercaseAttributeWrapper(_load_fortran_module('pyOM_code', pyom_lib))
+                self.fortran = LowercaseAttributeWrapper(_load_fortran_module("pyOM_code", pyom_lib))
                 self.use_mpi = False
             except ImportError:
-                self.fortran = LowercaseAttributeWrapper(_load_fortran_module('pyOM_code_MPI', pyom_lib))
+                self.fortran = LowercaseAttributeWrapper(_load_fortran_module("pyOM_code_MPI", pyom_lib))
                 self.use_mpi = True
 
                 from mpi4py import MPI
+
                 self.mpi_comm = MPI.COMM_WORLD
 
             self.main_module = LowercaseAttributeWrapper(self.fortran.main_module)
@@ -78,8 +80,7 @@ class VerosLegacy(VerosSetup):
             self.tke_module = self.state
             self.eke_module = self.state
 
-        self.modules = (self.main_module, self.isoneutral_module, self.idemix_module,
-                        self.tke_module, self.eke_module)
+        self.modules = (self.main_module, self.isoneutral_module, self.idemix_module, self.tke_module, self.eke_module)
 
     def set_legacy_parameter(self):
         m = self.fortran.main_module
@@ -109,7 +110,7 @@ class VerosLegacy(VerosSetup):
 
     def setup(self, *args, **kwargs):
         vs = self.state
-        with vs.timers['setup']:
+        with vs.timers["setup"]:
             if self.legacy_mode:
                 if self.use_mpi:
                     self.fortran.my_mpi_init(self.mpi_comm.py2f())
@@ -146,15 +147,15 @@ class VerosLegacy(VerosSetup):
                 super().setup(*args, **kwargs)
 
                 diag_legacy_settings = (
-                    (vs.diagnostics['cfl_monitor'], 'output_frequency', 'ts_monint'),
-                    (vs.diagnostics['tracer_monitor'], 'output_frequency', 'trac_cont_int'),
-                    (vs.diagnostics['snapshot'], 'output_frequency', 'snapint'),
-                    (vs.diagnostics['averages'], 'output_frequency', 'aveint'),
-                    (vs.diagnostics['averages'], 'sampling_frequency', 'avefreq'),
-                    (vs.diagnostics['overturning'], 'output_frequency', 'overint'),
-                    (vs.diagnostics['overturning'], 'sampling_frequency', 'overfreq'),
-                    (vs.diagnostics['energy'], 'output_frequency', 'energint'),
-                    (vs.diagnostics['energy'], 'sampling_frequency', 'energfreq'),
+                    (vs.diagnostics["cfl_monitor"], "output_frequency", "ts_monint"),
+                    (vs.diagnostics["tracer_monitor"], "output_frequency", "trac_cont_int"),
+                    (vs.diagnostics["snapshot"], "output_frequency", "snapint"),
+                    (vs.diagnostics["averages"], "output_frequency", "aveint"),
+                    (vs.diagnostics["averages"], "sampling_frequency", "avefreq"),
+                    (vs.diagnostics["overturning"], "output_frequency", "overint"),
+                    (vs.diagnostics["overturning"], "sampling_frequency", "overfreq"),
+                    (vs.diagnostics["energy"], "output_frequency", "energint"),
+                    (vs.diagnostics["energy"], "sampling_frequency", "energfreq"),
                 )
 
                 for diag, param, attr in diag_legacy_settings:
@@ -172,12 +173,12 @@ class VerosLegacy(VerosSetup):
         ekm = self.eke_module
         tkm = self.tke_module
 
-        logger.info(f'Starting integration for {float(m.runlen):.2e}s')
+        logger.info(f"Starting integration for {float(m.runlen):.2e}s")
 
         while vs.time < m.runlen:
-            logger.info(f'Current iteration: {m.itt}')
+            logger.info(f"Current iteration: {m.itt}")
 
-            with vs.timers['main']:
+            with vs.timers["main"]:
                 self.set_forcing(vs)
 
                 if idm.enable_idemix:
@@ -186,24 +187,24 @@ class VerosLegacy(VerosSetup):
                 f.set_eke_diffusivities()
                 f.set_tke_diffusivities()
 
-                with vs.timers['momentum']:
+                with vs.timers["momentum"]:
                     f.momentum()
 
-                with vs.timers['temperature']:
+                with vs.timers["temperature"]:
                     f.thermodynamics()
 
                 if ekm.enable_eke or tkm.enable_tke or idm.enable_idemix:
                     f.calculate_velocity_on_wgrid()
 
-                with vs.timers['eke']:
+                with vs.timers["eke"]:
                     if ekm.enable_eke:
                         f.integrate_eke()
 
-                with vs.timers['idemix']:
+                with vs.timers["idemix"]:
                     if idm.enable_idemix:
                         f.integrate_idemix()
 
-                with vs.timers['tke']:
+                with vs.timers["tke"]:
                     if tkm.enable_tke:
                         f.integrate_tke()
 
@@ -211,30 +212,70 @@ class VerosLegacy(VerosSetup):
                 Main boundary exchange
                 for density, temp and salt this is done in integrate_tempsalt.f90
                 """
-                f.border_exchg_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe -
-                                   m.onx, m.je_pe + m.onx, m.u[:, :, :, m.taup1 - 1], m.nz)
-                f.setcyclic_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx,
-                                m.je_pe + m.onx, m.u[:, :, :, m.taup1 - 1], m.nz)
-                f.border_exchg_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe -
-                                   m.onx, m.je_pe + m.onx, m.v[:, :, :, m.taup1 - 1], m.nz)
-                f.setcyclic_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx,
-                                m.je_pe + m.onx, m.v[:, :, :, m.taup1 - 1], m.nz)
+                f.border_exchg_xyz(
+                    m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx, m.je_pe + m.onx, m.u[:, :, :, m.taup1 - 1], m.nz
+                )
+                f.setcyclic_xyz(
+                    m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx, m.je_pe + m.onx, m.u[:, :, :, m.taup1 - 1], m.nz
+                )
+                f.border_exchg_xyz(
+                    m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx, m.je_pe + m.onx, m.v[:, :, :, m.taup1 - 1], m.nz
+                )
+                f.setcyclic_xyz(
+                    m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx, m.je_pe + m.onx, m.v[:, :, :, m.taup1 - 1], m.nz
+                )
 
                 if tkm.enable_tke:
-                    f.border_exchg_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe -
-                                       m.onx, m.je_pe + m.onx, tkm.tke[:, :, :, m.taup1 - 1], m.nz)
-                    f.setcyclic_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx,
-                                    m.je_pe + m.onx, tkm.tke[:, :, :, m.taup1 - 1], m.nz)
+                    f.border_exchg_xyz(
+                        m.is_pe - m.onx,
+                        m.ie_pe + m.onx,
+                        m.js_pe - m.onx,
+                        m.je_pe + m.onx,
+                        tkm.tke[:, :, :, m.taup1 - 1],
+                        m.nz,
+                    )
+                    f.setcyclic_xyz(
+                        m.is_pe - m.onx,
+                        m.ie_pe + m.onx,
+                        m.js_pe - m.onx,
+                        m.je_pe + m.onx,
+                        tkm.tke[:, :, :, m.taup1 - 1],
+                        m.nz,
+                    )
                 if ekm.enable_eke:
-                    f.border_exchg_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe -
-                                       m.onx, m.je_pe + m.onx, ekm.eke[:, :, :, m.taup1 - 1], m.nz)
-                    f.setcyclic_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx,
-                                    m.je_pe + m.onx, ekm.eke[:, :, :, m.taup1 - 1], m.nz)
+                    f.border_exchg_xyz(
+                        m.is_pe - m.onx,
+                        m.ie_pe + m.onx,
+                        m.js_pe - m.onx,
+                        m.je_pe + m.onx,
+                        ekm.eke[:, :, :, m.taup1 - 1],
+                        m.nz,
+                    )
+                    f.setcyclic_xyz(
+                        m.is_pe - m.onx,
+                        m.ie_pe + m.onx,
+                        m.js_pe - m.onx,
+                        m.je_pe + m.onx,
+                        ekm.eke[:, :, :, m.taup1 - 1],
+                        m.nz,
+                    )
                 if idm.enable_idemix:
-                    f.border_exchg_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe -
-                                       m.onx, m.je_pe + m.onx, idm.e_iw[:, :, :, m.taup1 - 1], m.nz)
-                    f.setcyclic_xyz(m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx,
-                                    m.je_pe + m.onx, idm.e_iw[:, :, :, m.taup1 - 1], m.nz)
+                    f.border_exchg_xyz(
+                        m.is_pe - m.onx,
+                        m.ie_pe + m.onx,
+                        m.js_pe - m.onx,
+                        m.je_pe + m.onx,
+                        idm.e_iw[:, :, :, m.taup1 - 1],
+                        m.nz,
+                    )
+                    f.setcyclic_xyz(
+                        m.is_pe - m.onx,
+                        m.ie_pe + m.onx,
+                        m.js_pe - m.onx,
+                        m.je_pe + m.onx,
+                        idm.e_iw[:, :, :, m.taup1 - 1],
+                        m.nz,
+                    )
 
                 # diagnose vertical velocity at taup1
                 f.vertical_velocity()
@@ -254,13 +295,13 @@ class VerosLegacy(VerosSetup):
             m.taup1 = otaum1
 
             # NOTE: benchmarks parse this, do not change / remove
-            logger.debug('Time step took {}s', vs.timers['main'].get_last_time())
+            logger.debug("Time step took {}s", vs.timers["main"].get_last_time())
 
-        logger.debug('Timing summary:')
-        logger.debug(' setup time summary       = {}s', vs.timers['setup'].get_time())
-        logger.debug(' main loop time summary   = {}s', vs.timers['main'].get_time())
-        logger.debug('     momentum             = {}s', vs.timers['momentum'].get_time())
-        logger.debug('     thermodynamics       = {}s', vs.timers['temperature'].get_time())
-        logger.debug('     EKE                  = {}s', vs.timers['eke'].get_time())
-        logger.debug('     IDEMIX               = {}s', vs.timers['idemix'].get_time())
-        logger.debug('     TKE                  = {}s', vs.timers['tke'].get_time())
+        logger.debug("Timing summary:")
+        logger.debug(" setup time summary       = {}s", vs.timers["setup"].get_time())
+        logger.debug(" main loop time summary   = {}s", vs.timers["main"].get_time())
+        logger.debug("     momentum             = {}s", vs.timers["momentum"].get_time())
+        logger.debug("     thermodynamics       = {}s", vs.timers["temperature"].get_time())
+        logger.debug("     EKE                  = {}s", vs.timers["eke"].get_time())
+        logger.debug("     IDEMIX               = {}s", vs.timers["idemix"].get_time())
+        logger.debug("     TKE                  = {}s", vs.timers["tke"].get_time())

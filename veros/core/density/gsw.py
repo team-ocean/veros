@@ -11,7 +11,7 @@ from veros import veros_kernel
 ==========================================================================
 """
 
-v01 = 9.998420897506056e+2
+v01 = 9.998420897506056e2
 v02 = 2.839940833161907e0
 v03 = -3.147759265588511e-2
 v04 = 1.181805545074306e-3
@@ -74,17 +74,30 @@ def gsw_rho(sa, ct, p):
     # convert scalar values if necessary
     sa, ct, p = npx.asarray(sa), npx.asarray(ct), npx.asarray(p)
     sqrtsa = npx.sqrt(sa)
-    v_hat_denominator = v01 + ct * (v02 + ct * (v03 + v04 * ct)) \
-        + sa * (v05 + ct * (v06 + v07 * ct)
-                + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct)))) \
-        + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct)
-               + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
-    v_hat_numerator = v21 + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct)))  \
-        + sa * (v26 + ct * (v27 + ct * (v28 + ct * (v29 + v30 * ct))) + v36 * sa
-                + sqrtsa * (v31 + ct * (v32 + ct * (v33 + ct * (v34 + v35 * ct))))) \
-        + p * (v37 + ct * (v38 + ct * (v39 + v40 * ct))
-               + sa * (v41 + v42 * ct) + p * (v43 + ct * (v44 + v45 * ct + v46 * sa)
-                                              + p * (v47 + v48 * ct)))
+    v_hat_denominator = (
+        v01
+        + ct * (v02 + ct * (v03 + v04 * ct))
+        + sa * (v05 + ct * (v06 + v07 * ct) + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct))))
+        + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct) + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
+    )
+    v_hat_numerator = (
+        v21
+        + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct)))
+        + sa
+        * (
+            v26
+            + ct * (v27 + ct * (v28 + ct * (v29 + v30 * ct)))
+            + v36 * sa
+            + sqrtsa * (v31 + ct * (v32 + ct * (v33 + ct * (v34 + v35 * ct))))
+        )
+        + p
+        * (
+            v37
+            + ct * (v38 + ct * (v39 + v40 * ct))
+            + sa * (v41 + v42 * ct)
+            + p * (v43 + ct * (v44 + v45 * ct + v46 * sa) + p * (v47 + v48 * ct))
+        )
+    )
     return v_hat_denominator / v_hat_numerator - rho0
 
 
@@ -133,21 +146,45 @@ def gsw_drhodT(sa, ct, p):
     a33 = 6.057902487546866e-17
 
     sqrtsa = npx.sqrt(sa)
-    v_hat_denominator = v01 + ct * (v02 + ct * (v03 + v04 * ct)) + sa * (v05 + ct * (v06 + v07 * ct)
-                                                                         + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct)))) + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct)
-                                                                                                                                       + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
+    v_hat_denominator = (
+        v01
+        + ct * (v02 + ct * (v03 + v04 * ct))
+        + sa * (v05 + ct * (v06 + v07 * ct) + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct))))
+        + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct) + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
+    )
 
-    v_hat_numerator = v21 + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct))) \
-        + sa * (v26 + ct * (v27 + ct * (v28 + ct * (v29 + v30 * ct))) + v36 * sa
-                + sqrtsa * (v31 + ct * (v32 + ct * (v33 + ct * (v34 + v35 * ct))))) + p * (v37 + ct * (v38 + ct * (v39 + v40 * ct))
-                                                                                           + sa * (v41 + v42 * ct) + p * (v43 + ct * (v44 + v45 * ct + v46 * sa) + p * (v47 + v48 * ct)))
+    v_hat_numerator = (
+        v21
+        + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct)))
+        + sa
+        * (
+            v26
+            + ct * (v27 + ct * (v28 + ct * (v29 + v30 * ct)))
+            + v36 * sa
+            + sqrtsa * (v31 + ct * (v32 + ct * (v33 + ct * (v34 + v35 * ct))))
+        )
+        + p
+        * (
+            v37
+            + ct * (v38 + ct * (v39 + v40 * ct))
+            + sa * (v41 + v42 * ct)
+            + p * (v43 + ct * (v44 + v45 * ct + v46 * sa) + p * (v47 + v48 * ct))
+        )
+    )
 
-    dvhatden_dct = a01 + ct * (a02 + a03 * ct) + sa * (a04 + a05 * ct + sqrtsa * (a06 + ct * (a07 + a08 * ct))) \
+    dvhatden_dct = (
+        a01
+        + ct * (a02 + a03 * ct)
+        + sa * (a04 + a05 * ct + sqrtsa * (a06 + ct * (a07 + a08 * ct)))
         + p * (a09 + a10 * ct + a11 * sa + p * (a12 + a13 * ct))
+    )
 
-    dvhatnum_dct = a14 + ct * (a15 + ct * (a16 + a17 * ct)) + sa * (a18 + ct * (a19 + ct * (a20 + a21 * ct))
-                                                                    + sqrtsa * (a22 + ct * (a23 + ct * (a24 + a25 * ct)))) \
+    dvhatnum_dct = (
+        a14
+        + ct * (a15 + ct * (a16 + a17 * ct))
+        + sa * (a18 + ct * (a19 + ct * (a20 + a21 * ct)) + sqrtsa * (a22 + ct * (a23 + ct * (a24 + a25 * ct))))
         + p * (a26 + ct * (a27 + a28 * ct) + a29 * sa + p * (a30 + a31 * ct + a32 * sa + a33 * p))
+    )
 
     rec_num = 1.0 / v_hat_numerator
     rho = rec_num * v_hat_denominator
@@ -190,22 +227,46 @@ def gsw_drhodS(sa, ct, p):
     b24 = 1.119522344879478e-14
 
     sqrtsa = npx.sqrt(sa)
-    v_hat_denominator = v01 + ct * (v02 + ct * (v03 + v04 * ct)) + sa * (v05 + ct * (v06 + v07 * ct)
-                                                                         + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct)))) + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct)
-                                                                                                                                       + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
+    v_hat_denominator = (
+        v01
+        + ct * (v02 + ct * (v03 + v04 * ct))
+        + sa * (v05 + ct * (v06 + v07 * ct) + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct))))
+        + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct) + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
+    )
 
-    v_hat_numerator = v21 + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct))) \
-        + sa * (v26 + ct * (v27 + ct * (v28 + ct * (v29 + v30 * ct))) + v36 * sa
-                + sqrtsa * (v31 + ct * (v32 + ct * (v33 + ct * (v34 + v35 * ct))))) \
-        + p * (v37 + ct * (v38 + ct * (v39 + v40 * ct)) + sa * (v41 + v42 * ct) + p * (v43 + ct * (v44 + v45 * ct + v46 * sa)
-                                                                                       + p * (v47 + v48 * ct)))
+    v_hat_numerator = (
+        v21
+        + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct)))
+        + sa
+        * (
+            v26
+            + ct * (v27 + ct * (v28 + ct * (v29 + v30 * ct)))
+            + v36 * sa
+            + sqrtsa * (v31 + ct * (v32 + ct * (v33 + ct * (v34 + v35 * ct))))
+        )
+        + p
+        * (
+            v37
+            + ct * (v38 + ct * (v39 + v40 * ct))
+            + sa * (v41 + v42 * ct)
+            + p * (v43 + ct * (v44 + v45 * ct + v46 * sa) + p * (v47 + v48 * ct))
+        )
+    )
 
-    dvhatden_dsa = b01 + ct * (b02 + b03 * ct) + sqrtsa * (b04 + ct * (b05 + ct * (b06 + b07 * ct))) \
+    dvhatden_dsa = (
+        b01
+        + ct * (b02 + b03 * ct)
+        + sqrtsa * (b04 + ct * (b05 + ct * (b06 + b07 * ct)))
         + p * (b08 + b09 * ct + b10 * p)
+    )
 
-    dvhatnum_dsa = b11 + ct * (b12 + ct * (b13 + ct * (b14 + b15 * ct))) \
-        + sqrtsa * (b16 + ct * (b17 + ct * (b18 + ct * (b19 + b20 * ct)))) \
-        + b21 * sa + p * (b22 + ct * (b23 + b24 * p))
+    dvhatnum_dsa = (
+        b11
+        + ct * (b12 + ct * (b13 + ct * (b14 + b15 * ct)))
+        + sqrtsa * (b16 + ct * (b17 + ct * (b18 + ct * (b19 + b20 * ct))))
+        + b21 * sa
+        + p * (b22 + ct * (b23 + b24 * p))
+    )
 
     rec_num = 1.0 / v_hat_numerator
     rho = rec_num * v_hat_denominator
@@ -246,21 +307,40 @@ def gsw_drhodP(sa, ct, p):
     pa2db = 1e-4
 
     sqrtsa = npx.sqrt(sa)
-    v_hat_denominator = v01 + ct * (v02 + ct * (v03 + v04 * ct)) + sa * (v05 + ct * (v06 + v07 * ct)
-                                                                         + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct)))) + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct)
-                                                                                                                                       + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
+    v_hat_denominator = (
+        v01
+        + ct * (v02 + ct * (v03 + v04 * ct))
+        + sa * (v05 + ct * (v06 + v07 * ct) + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct))))
+        + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct) + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
+    )
 
-    v_hat_numerator = v21 + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct))) \
-        + sa * (v26 + ct * (v27 + ct * (v28 + ct * (v29 + v30 * ct))) + v36 * sa
-                + sqrtsa * (v31 + ct * (v32 + ct * (v33 + ct * (v34 + v35 * ct)))))   \
-        + p * (v37 + ct * (v38 + ct * (v39 + v40 * ct)) + sa * (v41 + v42 * ct) + p * (v43 + ct * (v44 + v45 * ct + v46 * sa)
-                                                                                       + p * (v47 + v48 * ct)))
+    v_hat_numerator = (
+        v21
+        + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct)))
+        + sa
+        * (
+            v26
+            + ct * (v27 + ct * (v28 + ct * (v29 + v30 * ct)))
+            + v36 * sa
+            + sqrtsa * (v31 + ct * (v32 + ct * (v33 + ct * (v34 + v35 * ct))))
+        )
+        + p
+        * (
+            v37
+            + ct * (v38 + ct * (v39 + v40 * ct))
+            + sa * (v41 + v42 * ct)
+            + p * (v43 + ct * (v44 + v45 * ct + v46 * sa) + p * (v47 + v48 * ct))
+        )
+    )
 
-    dvhatden_dp = c01 + ct * (c02 + c03 * ct) + sa * (c04 + c05 * ct) + \
-        p * (c06 + ct * (c07 + c08 * ct) + c09 * sa)
+    dvhatden_dp = c01 + ct * (c02 + c03 * ct) + sa * (c04 + c05 * ct) + p * (c06 + ct * (c07 + c08 * ct) + c09 * sa)
 
-    dvhatnum_dp = c10 + ct * (c11 + ct * (c12 + c13 * ct)) \
-        + sa * (c14 + c15 * ct) + p * (c16 + ct * (c17 + c18 * ct + c19 * sa) + p * (c20 + c21 * ct))
+    dvhatnum_dp = (
+        c10
+        + ct * (c11 + ct * (c12 + c13 * ct))
+        + sa * (c14 + c15 * ct)
+        + p * (c16 + ct * (c17 + c18 * ct + c19 * sa) + p * (c20 + c21 * ct))
+    )
 
     rec_num = 1.0 / v_hat_numerator
     rho = rec_num * v_hat_denominator
@@ -283,16 +363,27 @@ def gsw_dyn_enthalpy(sa, ct, p):
     ==========================================================================
     """
     p = npx.asarray(p)  # convert scalar value if necessary
-    db2pa = 1e4                             # factor to convert from dbar to Pa
+    db2pa = 1e4  # factor to convert from dbar to Pa
     sqrtsa = npx.sqrt(sa)
-    a0 = v21 + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct))) \
-        + sa * (v26 + ct * (v27 + ct * (v28 + ct * (v29 + v30 * ct))) + v36 * sa
-                + sqrtsa * (v31 + ct * (v32 + ct * (v33 + ct * (v34 + v35 * ct)))))
+    a0 = (
+        v21
+        + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct)))
+        + sa
+        * (
+            v26
+            + ct * (v27 + ct * (v28 + ct * (v29 + v30 * ct)))
+            + v36 * sa
+            + sqrtsa * (v31 + ct * (v32 + ct * (v33 + ct * (v34 + v35 * ct))))
+        )
+    )
     a1 = v37 + ct * (v38 + ct * (v39 + v40 * ct)) + sa * (v41 + v42 * ct)
     a2 = v43 + ct * (v44 + v45 * ct + v46 * sa)
     a3 = v47 + v48 * ct
-    b0 = v01 + ct * (v02 + ct * (v03 + v04 * ct)) + sa * (v05 + ct * (v06 + v07 * ct)
-                                                          + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct))))
+    b0 = (
+        v01
+        + ct * (v02 + ct * (v03 + v04 * ct))
+        + sa * (v05 + ct * (v06 + v07 * ct) + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct))))
+    )
     b1 = 0.5 * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct))
     b2 = v17 + ct * (v18 + v19 * ct) + v20 * sa
     b1sq = b1 * b1
@@ -302,8 +393,11 @@ def gsw_dyn_enthalpy(sa, ct, p):
     ca = b1 - sqrt_disc
     cb = b1 + sqrt_disc
     part = (cn * b2 - cm * b1) / (b2 * (cb - ca))
-    Hd = db2pa * (p * (a2 - 2.0 * a3 * b1 / b2 + 0.5 * a3 * p) / b2 + (cm / (2.0 * b2)) * npx.log(1.0 + p * (2.0 * b1 + b2 * p) / b0)
-                  + part * npx.log(1.0 + (b2 * p * (cb - ca)) / (ca * (cb + b2 * p))))
+    Hd = db2pa * (
+        p * (a2 - 2.0 * a3 * b1 / b2 + 0.5 * a3 * p) / b2
+        + (cm / (2.0 * b2)) * npx.log(1.0 + p * (2.0 * b1 + b2 * p) / b0)
+        + part * npx.log(1.0 + (b2 * p * (cb - ca)) / (ca * (cb + b2 * p)))
+    )
     return Hd - p * db2pa / rho0
 
 
@@ -357,16 +451,21 @@ def gsw_dHdT(sa_in, ct_in, p):
     t85 = ct * (v10 + t83)
     t92 = v01 + ct * (v02 + t76) + sa * (v05 + ct * (v06 + t79) + t82 * (v08 + ct * (v09 + t85)))
     t93 = v48 * t92
-    t105 = v02 + t76 + ct * (v03 + 2.0 * t74) + sa * (v06 + 2.0 * t79 +
-                                                      t82 * (v09 + t85 + ct * (v10 + 2.0 * t83)))
+    t105 = v02 + t76 + ct * (v03 + 2.0 * t74) + sa * (v06 + 2.0 * t79 + t82 * (v09 + t85 + ct * (v10 + 2.0 * t83)))
     t106 = t24 * t105
     t107 = v44 + t2 + t3
     t110 = v43 + t48
     t117 = t24 * t92
     t120 = 4.0 * t71 * t20 - t117 - 2.0 * t110 * t13
-    t123 = v38 + t59 + ct * (v39 + 2.0 * t57) + sa * v42 + (4.0 *
-                                                            v48 * t64 * t20 + 8.0 * t33 * t68 - 4.0 * t71 * t38 - t93 - t106
-                                                            - 2.0 * t107 * t13 - 2.0 * t110 * t29) * t20 - t120 * t35 * t37
+    t123 = (
+        v38
+        + t59
+        + ct * (v39 + 2.0 * t57)
+        + sa * v42
+        + (4.0 * v48 * t64 * t20 + 8.0 * t33 * t68 - 4.0 * t71 * t38 - t93 - t106 - 2.0 * t107 * t13 - 2.0 * t110 * t29)
+        * t20
+        - t120 * t35 * t37
+    )
     t128 = t19 * p
     t130 = p * (1.0 * v12 + 1.0 * t7 + 1.0 * t11 + t128)
     t131 = 1.0 / t92
@@ -386,8 +485,12 @@ def gsw_dHdT(sa_in, ct_in, p):
     t189 = ct * (v33 + t187)
     t199 = t13 * t20
     t217 = 2.0 * t117 * t199 - t110 * t92
-    t234 = v21 + ct * (v22 + t169) + sa * (v26 + ct * (v27 + t179) + v36 *
-                                           sa + t82 * (v31 + ct * (v32 + t189))) + t217 * t20
+    t234 = (
+        v21
+        + ct * (v22 + t169)
+        + sa * (v26 + ct * (v27 + t179) + v36 * sa + t82 * (v31 + ct * (v32 + t189)))
+        + t217 * t20
+    )
     t241 = t64 - t92 * t19
     t242 = npx.sqrt(t241)
     t243 = 1.0 / t242
@@ -406,23 +509,59 @@ def gsw_dHdT(sa_in, ct_in, p):
     t283 = t244 ** 2
     t287 = t243 * t272 / 2.0
     t292 = t247 ** 2
-    t305 = 0.1e5 * p * (v44 + t2 + t3 - 2.0 * v48 * t13 * t20
-                        - 2.0 * t24 * t29 * t20 + 2.0 * t33 * t38 + 0.5 * v48 * p) * t20  \
-        - 0.1e5 * p * (v43 + t48 - 2.0 * t33 * t20 + 0.5 * t24 * p) * t38 \
-        + 0.5e4 * t123 * t20 * t134 - 0.5e4 * t143 * t35 * t134 * t37 \
-        + 0.5e4 * t143 * t20 * (p * (1.0 * v13 + 2.0 * t5 + 1.0 * t27 + t152) * t131
-                                - t130 / t156 * t105) / t133 \
-        + 0.5e4 * ((v22 + t169 + ct * (v23 + t167 + ct * (v24 + 2.0 * t165))
-                    + sa * (v27 + t179 + ct * (v28 + t177 + ct * (v29 + 2.0 * t175)) + t82 * (v32 + t189
-                                                                                            + ct * (v33 + t187 + ct * (v34 + 2.0 * t185)))) + (2.0 * t93 * t199 + 2.0 * t106 *
-                                                                                                                                                t199 + 2.0 * t117 * t68 - 2.0 * t117 * t13 * t35 * t37 - t107
-                                                                                                                                                * t92 - t110 * t105) * t20 - t217 * t35 * t37) * t19 + t234 * t37
-                - t123 * t13 - t143 * t29) * t20 * t254 - 0.5e4 * t259 * \
-        t35 * t254 * t37 - 0.25e4 * t264 / t242 / t241 * t253 * t272 \
-        + 0.5e4 * t264 * t243 * (2.0 * t152 * t249 + t128 *
-                                t243 * t245 * t248 * t272 - 2.0 * t282 /
-                                t283 * t248 * (t25 + t26 + t28 - t287)
-                                - 2.0 * t282 * t245 / t292 * (t25 + t26 + t28 + t287 + t152)) / t252
+    t305 = (
+        0.1e5
+        * p
+        * (v44 + t2 + t3 - 2.0 * v48 * t13 * t20 - 2.0 * t24 * t29 * t20 + 2.0 * t33 * t38 + 0.5 * v48 * p)
+        * t20
+        - 0.1e5 * p * (v43 + t48 - 2.0 * t33 * t20 + 0.5 * t24 * p) * t38
+        + 0.5e4 * t123 * t20 * t134
+        - 0.5e4 * t143 * t35 * t134 * t37
+        + 0.5e4 * t143 * t20 * (p * (1.0 * v13 + 2.0 * t5 + 1.0 * t27 + t152) * t131 - t130 / t156 * t105) / t133
+        + 0.5e4
+        * (
+            (
+                v22
+                + t169
+                + ct * (v23 + t167 + ct * (v24 + 2.0 * t165))
+                + sa
+                * (
+                    v27
+                    + t179
+                    + ct * (v28 + t177 + ct * (v29 + 2.0 * t175))
+                    + t82 * (v32 + t189 + ct * (v33 + t187 + ct * (v34 + 2.0 * t185)))
+                )
+                + (
+                    2.0 * t93 * t199
+                    + 2.0 * t106 * t199
+                    + 2.0 * t117 * t68
+                    - 2.0 * t117 * t13 * t35 * t37
+                    - t107 * t92
+                    - t110 * t105
+                )
+                * t20
+                - t217 * t35 * t37
+            )
+            * t19
+            + t234 * t37
+            - t123 * t13
+            - t143 * t29
+        )
+        * t20
+        * t254
+        - 0.5e4 * t259 * t35 * t254 * t37
+        - 0.25e4 * t264 / t242 / t241 * t253 * t272
+        + 0.5e4
+        * t264
+        * t243
+        * (
+            2.0 * t152 * t249
+            + t128 * t243 * t245 * t248 * t272
+            - 2.0 * t282 / t283 * t248 * (t25 + t26 + t28 - t287)
+            - 2.0 * t282 * t245 / t292 * (t25 + t26 + t28 + t287 + t152)
+        )
+        / t252
+    )
 
     return t305
 
@@ -470,8 +609,9 @@ def gsw_dHdS(sa_in, ct_in, p):
     t86 = v01 + ct * (v02 + ct * (v03 + v04 * ct)) + sa * (v05 + t58 + t66)
     t87 = t3 * t86
     t90 = 4.0 * t53 * t14 - t87 - 2.0 * t72 * t25
-    t93 = v41 + t48 + (8.0 * t26 * t49 - 4.0 * t53 * t29 - t69 - 2.0 *
-                       t1 * t25 - 2.0 * t72 * t7) * t14 - t90 * t28 * v20
+    t93 = (
+        v41 + t48 + (8.0 * t26 * t49 - 4.0 * t53 * t29 - t69 - 2.0 * t1 * t25 - 2.0 * t72 * t7) * t14 - t90 * t28 * v20
+    )
     t98 = t13 * p
     t100 = p * (1.0 * v12 + 1.0 * t20 + 1.0 * t23 + t98)
     t101 = 1.0 / t86
@@ -486,8 +626,7 @@ def gsw_dHdS(sa_in, ct_in, p):
     t152 = t59 * t151
     t158 = t25 * t14
     t174 = 2.0 * t87 * t158 - t72 * t86
-    t189 = v21 + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct))) + \
-        sa * (v26 + t142 + t143 + t152) + t174 * t14
+    t189 = v21 + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct))) + sa * (v26 + t142 + t143 + t152) + t174 * t14
     t196 = t52 - t86 * t13
     t197 = npx.sqrt(t196)
     t198 = 1.0 / t197
@@ -506,17 +645,41 @@ def gsw_dHdS(sa_in, ct_in, p):
     t238 = t199 ** 2
     t242 = t198 * t227 / 2.0
     t247 = t202 ** 2
-    t260 = 0.1e5 * p * (t1 - 2.0 * t3 * t7 * t14 + 2.0 * t26 * t29) * t14 \
-        - 0.1e5 * p * (v43 + t39 - 2.0 * t26 * t14 + 0.5 * t3 * p) * t29 \
-        + 0.5e4 * t93 * t14 * t104 - 0.5e4 * t115 * t28 * t104 * v20 \
-        + 0.5e4 * t115 * t14 * (p * (1.0 * v15 + 1.0 * t5 + t123) * t101 - t100 / t127 * t68) / t103 \
-        + 0.5e4 * ((v26 + t142 + t143 + t152 + sa * (v36 + 1.0 / t59 * t151 / 2.0)
-                    + (2.0 * t69 * t158 + 2.0 * t87 * t49 - 2.0 * t87 *
-                       t25 * t28 * v20 - t1 * t86 - t72 * t68) * t14
-                    - t174 * t28 * v20) * t13 + t189 * v20 - t93 * t25 - t115 * t7) * t14 * t209 - 0.5e4 * t214 * t28 * t209 * v20 \
-        - 0.25e4 * t219 / t197 / t196 * t208 * t227 + 0.5e4 * t219 * t198 * (2.0 * t123 * t204
-                                                                             + t98 * t198 * t200 * t203 * t227 - 2.0 *
-                                                                             t237 / t238 * t203 *
-                                                                             (t4 + t6 - t242)
-                                                                             - 2.0 * t237 * t200 / t247 * (t4 + t6 + t242 + t123)) / t207
+    t260 = (
+        0.1e5 * p * (t1 - 2.0 * t3 * t7 * t14 + 2.0 * t26 * t29) * t14
+        - 0.1e5 * p * (v43 + t39 - 2.0 * t26 * t14 + 0.5 * t3 * p) * t29
+        + 0.5e4 * t93 * t14 * t104
+        - 0.5e4 * t115 * t28 * t104 * v20
+        + 0.5e4 * t115 * t14 * (p * (1.0 * v15 + 1.0 * t5 + t123) * t101 - t100 / t127 * t68) / t103
+        + 0.5e4
+        * (
+            (
+                v26
+                + t142
+                + t143
+                + t152
+                + sa * (v36 + 1.0 / t59 * t151 / 2.0)
+                + (2.0 * t69 * t158 + 2.0 * t87 * t49 - 2.0 * t87 * t25 * t28 * v20 - t1 * t86 - t72 * t68) * t14
+                - t174 * t28 * v20
+            )
+            * t13
+            + t189 * v20
+            - t93 * t25
+            - t115 * t7
+        )
+        * t14
+        * t209
+        - 0.5e4 * t214 * t28 * t209 * v20
+        - 0.25e4 * t219 / t197 / t196 * t208 * t227
+        + 0.5e4
+        * t219
+        * t198
+        * (
+            2.0 * t123 * t204
+            + t98 * t198 * t200 * t203 * t227
+            - 2.0 * t237 / t238 * t203 * (t4 + t6 - t242)
+            - 2.0 * t237 * t200 / t247 * (t4 + t6 + t242 + t123)
+        )
+        / t207
+    )
     return t260

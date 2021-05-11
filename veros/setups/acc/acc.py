@@ -3,9 +3,7 @@
 from veros import VerosSetup, veros_routine
 from veros.variables import allocate, Variable
 from veros.distributed import global_min, global_max
-from veros.core.operators import (
-    numpy as np, update, at
-)
+from veros.core.operators import numpy as npx, update, at
 
 
 class ACCSetup(VerosSetup):
@@ -20,14 +18,15 @@ class ACCSetup(VerosSetup):
 
     `Adapted from pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2/ACC%202>`_.
     """
+
     @veros_routine
     def set_parameter(self, state):
         settings = state.settings
-        settings.identifier = 'acc'
+        settings.identifier = "acc"
 
         settings.nx, settings.ny, settings.nz = 30, 42, 15
         settings.dt_mom = 4800
-        settings.dt_tracer = 86400 / 2.
+        settings.dt_tracer = 86400 / 2.0
         settings.runlen = 86400 * 365
 
         settings.x_origin = 0.0
@@ -47,7 +46,7 @@ class ACCSetup(VerosSetup):
         settings.enable_skew_diffusion = True
 
         settings.enable_hor_friction = True
-        settings.A_h = (2 * settings.degtom)**3 * 2e-11
+        settings.A_h = (2 * settings.degtom) ** 3 * 2e-11
         settings.enable_hor_friction_cos_scaling = True
         settings.hor_friction_cosPower = 1
 
@@ -72,7 +71,7 @@ class ACCSetup(VerosSetup):
         settings.eke_k_max = 1e4
         settings.eke_c_k = 0.4
         settings.eke_c_eps = 0.5
-        settings.eke_cross = 2.
+        settings.eke_cross = 2.0
         settings.eke_crhin = 1.0
         settings.eke_lmin = 100.0
         settings.enable_eke_superbee_advection = True
@@ -91,8 +90,9 @@ class ACCSetup(VerosSetup):
     @veros_routine
     def set_grid(self, state):
         vs = state.variables
-        ddz = npx.array([50., 70., 100., 140., 190., 240., 290., 340.,
-                        390., 440., 490., 540., 590., 640., 690.])
+        ddz = npx.array(
+            [50.0, 70.0, 100.0, 140.0, 190.0, 240.0, 290.0, 340.0, 390.0, 440.0, 490.0, 540.0, 590.0, 640.0, 690.0]
+        )
         vs.dxt = update(vs.dxt, at[...], 2.0)
         vs.dyt = update(vs.dyt, at[...], 2.0)
         vs.dzt = update(vs.dzt, at[...], ddz[::-1] / 2.5)
@@ -101,13 +101,15 @@ class ACCSetup(VerosSetup):
     def set_coriolis(self, state):
         vs = state.variables
         settings = state.settings
-        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * settings.omega * npx.sin(vs.yt[None, :] / 180. * settings.pi))
+        vs.coriolis_t = update(
+            vs.coriolis_t, at[...], 2 * settings.omega * npx.sin(vs.yt[None, :] / 180.0 * settings.pi)
+        )
 
     @veros_routine
     def set_topography(self, state):
         vs = state.variables
-        x, y = npx.meshgrid(vs.xt, vs.yt, indexing='ij')
-        vs.kbot = npx.logical_or(x > 1.0, y < -20).astype('int')
+        x, y = npx.meshgrid(vs.xt, vs.yt, indexing="ij")
+        vs.kbot = npx.logical_or(x > 1.0, y < -20).astype("int")
 
     @veros_routine
     def set_initial_conditions(self, state):
@@ -124,20 +126,27 @@ class ACCSetup(VerosSetup):
         yt_max = global_max(vs.yt.max())
         yu_max = global_max(vs.yu.max())
 
-        taux = allocate(state.dimensions, ('yt',))
+        taux = allocate(state.dimensions, ("yt",))
         taux = npx.where(vs.yt < -20, 0.1 * npx.sin(settings.pi * (vs.yu - yu_min) / (-20.0 - yt_min)), taux)
         taux = npx.where(vs.yt > 10, 0.1 * (1 - npx.cos(2 * settings.pi * (vs.yu - 10.0) / (yu_max - 10.0))), taux)
         vs.surface_taux = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing
-        vs.t_star = allocate(state.dimensions, ('yt',), fill=15)
+        vs.t_star = allocate(state.dimensions, ("yt",), fill=15)
         vs.t_star = npx.where(vs.yt < -20, 15 * (vs.yt - yt_min) / (-20 - yt_min), vs.t_star)
         vs.t_star = npx.where(vs.yt > 20, 15 * (1 - (vs.yt - 20) / (yt_max - 20)), vs.t_star)
-        vs.t_rest = vs.dzt[npx.newaxis, -1] / (30. * 86400.) * vs.maskT[:, :, -1]
+        vs.t_rest = vs.dzt[npx.newaxis, -1] / (30.0 * 86400.0) * vs.maskT[:, :, -1]
 
         if settings.enable_tke:
-            vs.forc_tke_surface = update(vs.forc_tke_surface, at[2:-2, 2:-2], npx.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / settings.rho_0)**2
-                                                      + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / settings.rho_0)**2)**(1.5))
+            vs.forc_tke_surface = update(
+                vs.forc_tke_surface,
+                at[2:-2, 2:-2],
+                npx.sqrt(
+                    (0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / settings.rho_0) ** 2
+                    + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / settings.rho_0) ** 2
+                )
+                ** (1.5),
+            )
 
         if settings.enable_idemix:
             vs.forc_iw_bottom = 1e-6 * vs.maskW[:, :, -1]
@@ -153,17 +162,24 @@ class ACCSetup(VerosSetup):
         settings = state.settings
         diagnostics = state.diagnostics
 
-        diagnostics['snapshot'].output_frequency = 86400 * 10
-        diagnostics['averages'].output_variables = (
-            'salt', 'temp', 'u', 'v', 'w', 'psi', 'surface_taux', 'surface_tauy'
+        diagnostics["snapshot"].output_frequency = 86400 * 10
+        diagnostics["averages"].output_variables = (
+            "salt",
+            "temp",
+            "u",
+            "v",
+            "w",
+            "psi",
+            "surface_taux",
+            "surface_tauy",
         )
-        diagnostics['averages'].output_frequency = 365 * 86400.
-        diagnostics['averages'].sampling_frequency = settings.dt_tracer * 10
-        diagnostics['overturning'].output_frequency = 365 * 86400. / 48.
-        diagnostics['overturning'].sampling_frequency = settings.dt_tracer * 10
-        diagnostics['tracer_monitor'].output_frequency = 365 * 86400. / 12.
-        diagnostics['energy'].output_frequency = 365 * 86400. / 48
-        diagnostics['energy'].sampling_frequency = settings.dt_tracer * 10
+        diagnostics["averages"].output_frequency = 365 * 86400.0
+        diagnostics["averages"].sampling_frequency = settings.dt_tracer * 10
+        diagnostics["overturning"].output_frequency = 365 * 86400.0 / 48.0
+        diagnostics["overturning"].sampling_frequency = settings.dt_tracer * 10
+        diagnostics["tracer_monitor"].output_frequency = 365 * 86400.0 / 12.0
+        diagnostics["energy"].output_frequency = 365 * 86400.0 / 48
+        diagnostics["energy"].sampling_frequency = settings.dt_tracer * 10
 
     @veros_routine
     def after_timestep(self, state):

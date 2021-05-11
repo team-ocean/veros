@@ -82,6 +82,7 @@ def fori_numpy(lower, upper, body_fun, init_val):
 
 def scan_numpy(f, init, xs, length=None):
     import numpy as np
+
     if xs is None:
         xs = [None] * length
 
@@ -101,18 +102,15 @@ def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask):
 
     from veros.core.special.tdma_ import tdma, HAS_CPU_EXT, HAS_GPU_EXT
 
-    has_ext = (
-        (HAS_CPU_EXT and runtime_settings.device == 'cpu')
-        or (HAS_GPU_EXT and runtime_settings.device == 'gpu')
-    )
+    has_ext = (HAS_CPU_EXT and runtime_settings.device == "cpu") or (HAS_GPU_EXT and runtime_settings.device == "gpu")
 
     if has_ext:
         return tdma(a, b, c, d, water_mask, edge_mask)
 
-    warnings.warn('Could not use custom TDMA implementation, falling back to pure JAX')
+    warnings.warn("Could not use custom TDMA implementation, falling back to pure JAX")
 
     a = water_mask * a * jnp.logical_not(edge_mask)
-    b = jnp.where(water_mask, b, 1.)
+    b = jnp.where(water_mask, b, 1.0)
     c = water_mask * c
     d = water_mask * d
 
@@ -139,25 +137,28 @@ def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask):
 
 def update_multiply_jax(arr, at, to):
     import jax
+
     return jax.ops.index_update(arr, at, arr[at] * to)
 
 
 def tanh_jax(arr):
     import jax.numpy as jnp
-    if runtime_settings.device != 'cpu':
+
+    if runtime_settings.device != "cpu":
         return jnp.tanh(arr)
 
     # https://math.stackexchange.com/questions/107292/rapid-approximation-of-tanhx
     # TODO: test this
     arr2 = arr * arr
-    nom = arr * (135135. + arr2 * (17325. + arr2 * (378. + arr2)))
-    denom = 135135. + arr2 * (62370. + arr2 * (3150. + arr2 * 28.))
+    nom = arr * (135135.0 + arr2 * (17325.0 + arr2 * (378.0 + arr2)))
+    denom = 135135.0 + arr2 * (62370.0 + arr2 * (3150.0 + arr2 * 28.0))
     return jnp.clip(nom / denom, -1, 1)
 
 
 def flush_jax():
     import jax
-    dummy = (jax.device_put(0.) + 0.)
+
+    dummy = jax.device_put(0.0) + 0.0
     try:
         dummy.block_until_ready()
     except AttributeError:
@@ -167,7 +168,7 @@ def flush_jax():
 
 numpy = runtime_state.backend_module
 
-if runtime_settings.backend == 'numpy':
+if runtime_settings.backend == "numpy":
     update = update_numpy
     update_add = update_add_numpy
     update_multiply = update_multiply_numpy
@@ -178,9 +179,10 @@ if runtime_settings.backend == 'numpy':
     tanh = numpy.tanh
     flush = noop
 
-elif runtime_settings.backend == 'jax':
+elif runtime_settings.backend == "jax":
     import jax.ops
     import jax.lax
+
     update = jax.ops.index_update
     update_add = jax.ops.index_add
     update_multiply = update_multiply_jax
@@ -192,4 +194,4 @@ elif runtime_settings.backend == 'jax':
     flush = flush_jax
 
 else:
-    raise ValueError(f'Unrecognized backend {runtime_settings.backend}')
+    raise ValueError(f"Unrecognized backend {runtime_settings.backend}")

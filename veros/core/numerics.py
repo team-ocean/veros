@@ -80,9 +80,9 @@ def calc_grid_kernel(state):
     metric factors
     """
     if settings.coord_degree:
-        vs.cost = update(vs.cost, at[...], npx.cos(vs.yt * settings.pi / 180.))
-        vs.cosu = update(vs.cosu, at[...], npx.cos(vs.yu * settings.pi / 180.))
-        vs.tantr = update(vs.tantr, at[...], npx.tan(vs.yt * settings.pi / 180.) / settings.radius)
+        vs.cost = update(vs.cost, at[...], npx.cos(vs.yt * settings.pi / 180.0))
+        vs.cosu = update(vs.cosu, at[...], npx.cos(vs.yu * settings.pi / 180.0))
+        vs.tantr = update(vs.tantr, at[...], npx.tan(vs.yt * settings.pi / 180.0) / settings.radius)
     else:
         vs.cost = update(vs.cost, at[...], 1.0)
         vs.cosu = update(vs.cosu, at[...], 1.0)
@@ -96,21 +96,49 @@ def calc_grid_kernel(state):
     vs.area_v = update(vs.area_v, at[...], vs.cosu * vs.dyu * vs.dxt[:, npx.newaxis])
 
     return KernelOutput(
-        dxt=vs.dxt, dyt=vs.dyt, dxu=vs.dxu, dyu=vs.dyu,
-        xt=vs.xt, yt=vs.yt, xu=vs.xu, yu=vs.yu,
-        dzw=vs.dzw, zt=vs.zt, zw=vs.zw,
-        cost=vs.cost, cosu=vs.cosu, tantr=vs.tantr,
-        area_t=vs.area_t, area_u=vs.area_u, area_v=vs.area_v
+        dxt=vs.dxt,
+        dyt=vs.dyt,
+        dxu=vs.dxu,
+        dyu=vs.dyu,
+        xt=vs.xt,
+        yt=vs.yt,
+        xu=vs.xu,
+        yu=vs.yu,
+        dzw=vs.dzw,
+        zt=vs.zt,
+        zw=vs.zw,
+        cost=vs.cost,
+        cosu=vs.cosu,
+        tantr=vs.tantr,
+        area_t=vs.area_t,
+        area_u=vs.area_u,
+        area_v=vs.area_v,
     )
 
 
-@veros_routine(dist_safe=False, local_variables=(
-    'dxt', 'dxu', 'xt', 'xu',
-    'dyt', 'dyu', 'yt', 'yu',
-    'dzt', 'dzw', 'zt', 'zw',
-    'cost', 'cosu', 'tantr',
-    'area_t', 'area_u', 'area_v',
-))
+@veros_routine(
+    dist_safe=False,
+    local_variables=(
+        "dxt",
+        "dxu",
+        "xt",
+        "xu",
+        "dyt",
+        "dyu",
+        "yt",
+        "yu",
+        "dzt",
+        "dzw",
+        "zt",
+        "zw",
+        "cost",
+        "cosu",
+        "tantr",
+        "area_t",
+        "area_u",
+        "area_v",
+    ),
+)
 def calc_grid(state):
     """
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
@@ -126,8 +154,15 @@ def calc_beta(state):
     """
     vs = state.variables
     settings = state.settings
-    vs.beta = update(vs.beta, at[:, 2:-2], 0.5 * ((vs.coriolis_t[:, 3:-1] - vs.coriolis_t[:, 2:-2]) / vs.dyu[2:-2]
-                           + (vs.coriolis_t[:, 2:-2] - vs.coriolis_t[:, 1:-3]) / vs.dyu[1:-3]))
+    vs.beta = update(
+        vs.beta,
+        at[:, 2:-2],
+        0.5
+        * (
+            (vs.coriolis_t[:, 3:-1] - vs.coriolis_t[:, 2:-2]) / vs.dyu[2:-2]
+            + (vs.coriolis_t[:, 2:-2] - vs.coriolis_t[:, 1:-3]) / vs.dyu[1:-3]
+        ),
+    )
     vs.beta = utilities.enforce_boundaries(vs.beta, settings.enable_cyclic_x)
 
 
@@ -166,7 +201,9 @@ def calc_topo_kernel(state):
     vs.maskV = utilities.enforce_boundaries(vs.maskV, settings.enable_cyclic_x)
 
     vs.maskZ = update(vs.maskZ, at[...], vs.maskT)
-    vs.maskZ = update(vs.maskZ, at[:-1, :-1], npx.minimum(npx.minimum(vs.maskT[:-1, :-1], vs.maskT[:-1, 1:]), vs.maskT[1:, :-1]))
+    vs.maskZ = update(
+        vs.maskZ, at[:-1, :-1], npx.minimum(npx.minimum(vs.maskT[:-1, :-1], vs.maskT[:-1, 1:]), vs.maskT[1:, :-1])
+    )
     vs.maskZ = utilities.enforce_boundaries(vs.maskZ, settings.enable_cyclic_x)
 
     vs.maskW = update(vs.maskW, at[...], vs.maskT)
@@ -183,8 +220,17 @@ def calc_topo_kernel(state):
     vs.hvr = npx.where(vs.hv != 0, 1 / (vs.hv + 1e-22), 0)
 
     return KernelOutput(
-        maskT=vs.maskT, maskU=vs.maskU, maskV=vs.maskV, maskW=vs.maskW, maskZ=vs.maskZ,
-        ht=vs.ht, hu=vs.hu, hv=vs.hv, hur=vs.hur, hvr=vs.hvr, kbot=vs.kbot
+        maskT=vs.maskT,
+        maskU=vs.maskU,
+        maskV=vs.maskV,
+        maskW=vs.maskW,
+        maskZ=vs.maskZ,
+        ht=vs.ht,
+        hu=vs.hu,
+        hv=vs.hv,
+        hur=vs.hur,
+        hvr=vs.hvr,
+        kbot=vs.kbot,
     )
 
 
@@ -206,25 +252,36 @@ def calc_initial_conditions_kernel(state):
     vs.salt = utilities.enforce_boundaries(vs.salt, settings.enable_cyclic_x)
 
     vs.rho = density.get_rho(state, vs.salt, vs.temp, npx.abs(vs.zt)[:, npx.newaxis]) * vs.maskT[..., npx.newaxis]
-    vs.Hd = density.get_dyn_enthalpy(state, vs.salt, vs.temp, npx.abs(vs.zt)[:, npx.newaxis]) * vs.maskT[..., npx.newaxis]
+    vs.Hd = (
+        density.get_dyn_enthalpy(state, vs.salt, vs.temp, npx.abs(vs.zt)[:, npx.newaxis]) * vs.maskT[..., npx.newaxis]
+    )
     vs.int_drhodT = update(
-        vs.int_drhodT, at[...],
-        density.get_int_drhodT(state, vs.salt, vs.temp, npx.abs(vs.zt)[:, npx.newaxis])
+        vs.int_drhodT, at[...], density.get_int_drhodT(state, vs.salt, vs.temp, npx.abs(vs.zt)[:, npx.newaxis])
     )
     vs.int_drhodS = update(
-        vs.int_drhodS, at[...],
-        density.get_int_drhodS(state, vs.salt, vs.temp, npx.abs(vs.zt)[:, npx.newaxis])
+        vs.int_drhodS, at[...], density.get_int_drhodS(state, vs.salt, vs.temp, npx.abs(vs.zt)[:, npx.newaxis])
     )
 
     fxa = -settings.grav / settings.rho_0 / vs.dzw[npx.newaxis, npx.newaxis, :] * vs.maskW
-    vs.Nsqr = update(vs.Nsqr, at[:, :, :-1, :], fxa[:, :, :-1, npx.newaxis]
-                  * (density.get_rho(state, vs.salt[:, :, 1:, :], vs.temp[:, :, 1:, :], npx.abs(vs.zt)[:-1, npx.newaxis])
-                     - vs.rho[:, :, :-1, :]))
+    vs.Nsqr = update(
+        vs.Nsqr,
+        at[:, :, :-1, :],
+        fxa[:, :, :-1, npx.newaxis]
+        * (
+            density.get_rho(state, vs.salt[:, :, 1:, :], vs.temp[:, :, 1:, :], npx.abs(vs.zt)[:-1, npx.newaxis])
+            - vs.rho[:, :, :-1, :]
+        ),
+    )
     vs.Nsqr = update(vs.Nsqr, at[:, :, -1, :], vs.Nsqr[:, :, -2, :])
 
     return KernelOutput(
-        salt=vs.salt, temp=vs.temp, rho=vs.rho, Hd=vs.Hd,
-        int_drhodT=vs.int_drhodT, int_drhodS=vs.int_drhodS, Nsqr=vs.Nsqr
+        salt=vs.salt,
+        temp=vs.temp,
+        rho=vs.rho,
+        Hd=vs.Hd,
+        int_drhodT=vs.int_drhodT,
+        int_drhodS=vs.int_drhodS,
+        Nsqr=vs.Nsqr,
     )
 
 
@@ -236,7 +293,7 @@ def calc_initial_conditions(state):
     vs = state.variables
 
     if npx.any(vs.salt < 0.0):
-        raise RuntimeError('encountered negative salinity')
+        raise RuntimeError("encountered negative salinity")
 
     vs.update(calc_initial_conditions_kernel(state))
 
@@ -245,9 +302,15 @@ def calc_initial_conditions(state):
 def ugrid_to_tgrid(state, a):
     vs = state.variables
     b = npx.zeros_like(a)
-    b = update(b, at[2:-2, :, :], (vs.dxu[2:-2, npx.newaxis, npx.newaxis] * a[2:-2, :, :]
-                     + vs.dxu[1:-3, npx.newaxis, npx.newaxis] * a[1:-3, :, :]) \
-        / (2 * vs.dxt[2:-2, npx.newaxis, npx.newaxis]))
+    b = update(
+        b,
+        at[2:-2, :, :],
+        (
+            vs.dxu[2:-2, npx.newaxis, npx.newaxis] * a[2:-2, :, :]
+            + vs.dxu[1:-3, npx.newaxis, npx.newaxis] * a[1:-3, :, :]
+        )
+        / (2 * vs.dxt[2:-2, npx.newaxis, npx.newaxis]),
+    )
     return b
 
 
@@ -255,9 +318,12 @@ def ugrid_to_tgrid(state, a):
 def vgrid_to_tgrid(state, a):
     vs = state.variables
     b = npx.zeros_like(a)
-    b = update(b, at[:, 2:-2, :], (vs.area_v[:, 2:-2, npx.newaxis] * a[:, 2:-2, :]
-                     + vs.area_v[:, 1:-3, npx.newaxis] * a[:, 1:-3, :]) \
-        / (2 * vs.area_t[:, 2:-2, npx.newaxis]))
+    b = update(
+        b,
+        at[:, 2:-2, :],
+        (vs.area_v[:, 2:-2, npx.newaxis] * a[:, 2:-2, :] + vs.area_v[:, 1:-3, npx.newaxis] * a[:, 1:-3, :])
+        / (2 * vs.area_t[:, 2:-2, npx.newaxis]),
+    )
     return b
 
 

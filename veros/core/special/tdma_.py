@@ -24,12 +24,12 @@ from jax.interpreters import xla
 _ops = xla_client.ops
 
 if HAS_CPU_EXT:
-    for kernel_name in (b'tdma_cython_double', b'tdma_cython_float'):
+    for kernel_name in (b"tdma_cython_double", b"tdma_cython_float"):
         fn = tdma_cython_.cpu_custom_call_targets[kernel_name]
         xla_client.register_custom_call_target(kernel_name, fn, platform="cpu")
 
 if HAS_GPU_EXT:
-    for kernel_name in (b'tdma_cuda_double', b'tdma_cuda_float'):
+    for kernel_name in (b"tdma_cuda_double", b"tdma_cuda_float"):
         fn = tdma_cuda_.gpu_custom_call_targets[kernel_name]
         xla_client.register_custom_call_target(kernel_name, fn, platform="gpu")
 
@@ -43,17 +43,17 @@ def tdma(a, b, c, d, interior_mask, edge_mask, device=None):
         device = jax.default_backend()
 
     if not a.shape == b.shape == c.shape == d.shape:
-        raise ValueError('all inputs must have identical shape')
+        raise ValueError("all inputs must have identical shape")
 
     if not a.dtype == b.dtype == c.dtype == d.dtype:
-        raise ValueError('all inputs must have the same dtype')
+        raise ValueError("all inputs must have the same dtype")
 
     if device == "cpu":
-        system_depths = jnp.sum(interior_mask, axis=-1, dtype='int32')
+        system_depths = jnp.sum(interior_mask, axis=-1, dtype="int32")
         return tdma_p.bind(a, b, c, d, system_depths)
 
     a = interior_mask * a * jnp.logical_not(edge_mask)
-    b = jnp.where(interior_mask, b, 1.)
+    b = jnp.where(interior_mask, b, 1.0)
     c = interior_mask * c
     d = interior_mask * d
 
@@ -78,7 +78,7 @@ def tdma_xla_encode_cpu(builder, a, b, c, d, system_depths):
     )
 
     if dtype not in supported_dtypes:
-        raise TypeError(f'TDMA only supports {supported_dtypes} arrays, got: {dtype}')
+        raise TypeError(f"TDMA only supports {supported_dtypes} arrays, got: {dtype}")
 
     # compute number of elements to vectorize over
     num_systems = 1
@@ -94,23 +94,23 @@ def tdma_xla_encode_cpu(builder, a, b, c, d, system_depths):
     assert tuple(sys_depth_dims) == tuple(dims[:-1])
 
     arr_shape = xla_client.Shape.array_shape(dtype, dims)
-    out_shape = xla_client.Shape.tuple_shape([
-        arr_shape,
-        xla_client.Shape.array_shape(dtype, (stride,))
-    ])
+    out_shape = xla_client.Shape.tuple_shape([arr_shape, xla_client.Shape.array_shape(dtype, (stride,))])
 
     if dtype is np.dtype(np.float32):
-        kernel = b'tdma_cython_float'
+        kernel = b"tdma_cython_float"
     elif dtype is np.dtype(np.float64):
-        kernel = b'tdma_cython_double'
+        kernel = b"tdma_cython_double"
     else:
-        raise RuntimeError('got unrecognized dtype')
+        raise RuntimeError("got unrecognized dtype")
 
     out = _ops.CustomCall(
         builder,
         kernel,
         operands=(
-            a, b, c, d,
+            a,
+            b,
+            c,
+            d,
             system_depths,
             _constant_s64_scalar(builder, num_systems),
             _constant_s64_scalar(builder, stride),
@@ -137,7 +137,7 @@ def tdma_xla_encode_gpu(builder, a, b, c, d, system_depths):
     )
 
     if dtype not in supported_dtypes:
-        raise TypeError(f'TDMA only supports {supported_dtypes} arrays, got: {dtype}')
+        raise TypeError(f"TDMA only supports {supported_dtypes} arrays, got: {dtype}")
 
     # compute number of elements to vectorize over
     num_systems = 1
@@ -147,11 +147,11 @@ def tdma_xla_encode_gpu(builder, a, b, c, d, system_depths):
     system_depth = dims[-1]
 
     if dtype is np.dtype(np.float32):
-        kernel = b'tdma_cuda_float'
+        kernel = b"tdma_cuda_float"
     elif dtype is np.dtype(np.float64):
-        kernel = b'tdma_cuda_double'
+        kernel = b"tdma_cuda_double"
     else:
-        raise RuntimeError('got unrecognized dtype')
+        raise RuntimeError("got unrecognized dtype")
 
     opaque = tdma_cuda_.build_tridiag_descriptor(num_systems, system_depth)
 
@@ -166,7 +166,7 @@ def tdma_xla_encode_gpu(builder, a, b, c, d, system_depths):
         operands=(a, b, c, d),
         shape_with_layout=out_shape,
         operand_shapes_with_layout=(arr_shape,) * 4,
-        opaque=opaque
+        opaque=opaque,
     )
     return _ops.GetTupleElement(out, 0)
 
@@ -175,9 +175,9 @@ def tdma_abstract_eval(a, b, c, d, system_depths):
     return abstract_arrays.ShapedArray(a.shape, a.dtype)
 
 
-tdma_p = Primitive('tdma')
+tdma_p = Primitive("tdma")
 tdma_p.def_impl(tdma_impl)
 tdma_p.def_abstract_eval(tdma_abstract_eval)
 
-xla.backend_specific_translations['cpu'][tdma_p] = tdma_xla_encode_cpu
-xla.backend_specific_translations['gpu'][tdma_p] = tdma_xla_encode_gpu
+xla.backend_specific_translations["cpu"][tdma_p] = tdma_xla_encode_cpu
+xla.backend_specific_translations["gpu"][tdma_p] = tdma_xla_encode_gpu

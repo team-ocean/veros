@@ -10,6 +10,7 @@ from veros.state import VerosState
 
 # stack helpers
 
+
 class RoutineStack:
     def __init__(self):
         self.keep_full_stack = False
@@ -66,9 +67,10 @@ def record_routine_stack():
 def enter_routine(name, routine_obj, timer=None, dist_safe=True):
     from veros import runtime_state as rst
     from veros.distributed import abort
+
     stack = CURRENT_CONTEXT.routine_stack
 
-    logger.trace('{}> {}', '-' * stack.stack_level, name)
+    logger.trace("{}> {}", "-" * stack.stack_level, name)
     stack.append(routine_obj)
 
     reset_dist_safe = False
@@ -95,17 +97,18 @@ def enter_routine(name, routine_obj, timer=None, dist_safe=True):
         r = stack.pop()
         assert r is routine_obj
 
-        exec_time = ''
+        exec_time = ""
         if timer is not None:
-            exec_time = f'({timer.get_last_time():.3f}s)'
+            exec_time = f"({timer.get_last_time():.3f}s)"
 
-        logger.trace('<{} {} {}', '-' * stack.stack_level, name, exec_time)
+        logger.trace("<{} {} {}", "-" * stack.stack_level, name, exec_time)
 
 
 # helper functions
 
+
 def _get_func_name(function):
-    return f'{inspect.getmodule(function).__name__}:{function.__qualname__}'
+    return f"{inspect.getmodule(function).__name__}:{function.__qualname__}"
 
 
 def _is_method(function):
@@ -114,10 +117,11 @@ def _is_method(function):
 
     # hack for unbound methods: check if first argument is called "self"
     spec = inspect.getfullargspec(function)
-    return spec.args and spec.args[0] == 'self'
+    return spec.args and spec.args[0] == "self"
 
 
 # routine
+
 
 def veros_routine(function=None, *, dist_safe=True, local_variables=()):
     """
@@ -150,11 +154,12 @@ def veros_routine(function=None, *, dist_safe=True, local_variables=()):
        >>>         vs.kbot = npx.random.randint(0, settings.nz, size=vs.kbot.shape)
 
     """
+
     def inner_decorator(function):
         narg = 1 if _is_method(function) else 0
         num_params = len(inspect.signature(function).parameters)
         if narg >= num_params:
-            raise TypeError('Veros routines must take at least one argument')
+            raise TypeError("Veros routines must take at least one argument")
 
         routine = VerosRoutine(function, state_argnum=narg, dist_safe=dist_safe, local_variables=local_variables)
         routine = functools.wraps(function)(routine)
@@ -191,7 +196,7 @@ class VerosRoutine:
         veros_state = args[self.state_argnum]
 
         if not isinstance(veros_state, VerosState):
-            raise TypeError(f'Argument {self.state_argnum} to this Veros routine must be a VerosState object')
+            raise TypeError(f"Argument {self.state_argnum} to this Veros routine must be a VerosState object")
 
         timer = veros_state.profile_timers[self.name]
 
@@ -205,8 +210,8 @@ class VerosRoutine:
                 inputs = {}
                 outputs = {}
 
-                inputs['var'], outputs['var'] = es.enter_context(veros_state.variables.trace())
-                inputs['settings'], outputs['settings'] = es.enter_context(veros_state.settings.trace())
+                inputs["var"], outputs["var"] = es.enter_context(veros_state.variables.trace())
+                inputs["settings"], outputs["settings"] = es.enter_context(veros_state.settings.trace())
 
             execute = True
             restore_vars = False
@@ -220,9 +225,7 @@ class VerosRoutine:
 
                 execute = rst.proc_rank == 0
 
-            routine_ctx = enter_routine(
-                name=self.name, routine_obj=self, timer=timer, dist_safe=self.dist_safe
-            )
+            routine_ctx = enter_routine(name=self.name, routine_obj=self, timer=timer, dist_safe=self.dist_safe)
 
             out = None
             try:
@@ -238,7 +241,9 @@ class VerosRoutine:
                 flush()
 
         if out is not None:
-            logger.warning(f"Routine {self.name} returned object of type {type(out)}. Return objects are silently dropped.")
+            logger.warning(
+                f"Routine {self.name} returned object of type {type(out)}. Return objects are silently dropped."
+            )
 
         if vars_initialized and not self._traced:
             self.inputs = inputs
@@ -249,10 +254,11 @@ class VerosRoutine:
         return functools.partial(self.__call__, instance)
 
     def __repr__(self):
-        return f'<{self.__class__.__name__} {self.name} at {hex(id(self))}>'
+        return f"<{self.__class__.__name__} {self.name} at {hex(id(self))}>"
 
 
 # kernel
+
 
 def veros_kernel(function=None, *, static_args=()):
     """Decorator that marks a function as a kernel that can be JIT compiled if supported
@@ -274,6 +280,7 @@ def veros_kernel(function=None, *, static_args=()):
         >>>     return KernelOutput(psi=vs.psi)
 
     """
+
     def inner_decorator(function):
         kernel = VerosKernel(function, static_args=static_args)
         kernel = functools.wraps(function)(kernel)
@@ -299,7 +306,7 @@ class VerosKernel:
         allowed_param_types = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
 
         if any(p.kind not in allowed_param_types for p in func_params.values()):
-            raise ValueError(f'Veros kernels do not support *args, **kwargs, or keyword-only parameters ({self.name})')
+            raise ValueError(f"Veros kernels do not support *args, **kwargs, or keyword-only parameters ({self.name})")
 
         # parse static args
         if isinstance(static_args, str):
@@ -331,6 +338,7 @@ class VerosKernel:
         if runtime_settings.backend == "jax":
             import jax
             from jaxlib.xla_extension.jax_jit import CompiledFunction
+
             if not isinstance(self.function, CompiledFunction):
                 self.function = jax.jit(self.function, static_argnums=self.static_argnums)
 
@@ -364,15 +372,15 @@ class VerosKernel:
                 if self._traced:
                     # hack to ensure that tracing callbacks are executed
                     # for already traced functions
-                    for v in self.inputs['var']:
+                    for v in self.inputs["var"]:
                         getattr(var, v)
 
-                    for s in self.inputs['settings']:
+                    for s in self.inputs["settings"]:
                         getattr(settings, s)
                 else:
                     inputs = {}
-                    inputs['var'], _ = es.enter_context(var.trace())
-                    inputs['settings'], _ = es.enter_context(settings.trace())
+                    inputs["var"], _ = es.enter_context(var.trace())
+                    inputs["settings"], _ = es.enter_context(settings.trace())
             else:
                 # no state object -> no traceable inputs
                 inputs = dict(var=set(), settings=set())
@@ -391,7 +399,7 @@ class VerosKernel:
         return out
 
     def __repr__(self):
-        return f'<{self.__class__.__name__} {self.name} at {hex(id(self))}>'
+        return f"<{self.__class__.__name__} {self.name} at {hex(id(self))}>"
 
 
 def is_veros_routine(func):

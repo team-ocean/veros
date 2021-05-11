@@ -1,41 +1,47 @@
-BACKENDS = ('numpy', 'jax')
+BACKENDS = ("numpy", "jax")
 
-BACKEND_MESSAGES = {
-    'jax': 'Kernels are compiled during first iteration, be patient'
-}
+BACKEND_MESSAGES = {"jax": "Kernels are compiled during first iteration, be patient"}
 
 _init_done = set()
 
 
 def init_jax_config():
-    if 'jax' in _init_done:
+    if "jax" in _init_done:
         return
 
     import jax
     from veros import runtime_settings
     from veros.state import (
-        VerosState, VerosVariables, DistSafeVariableWrapper,
-        veros_state_pytree_flatten, veros_state_pytree_unflatten,
-        veros_variables_pytree_flatten, veros_variables_pytree_unflatten,
-        dist_safe_wrapper_pytree_flatten, dist_safe_wrapper_pytree_unflatten
+        VerosState,
+        VerosVariables,
+        DistSafeVariableWrapper,
+        veros_state_pytree_flatten,
+        veros_state_pytree_unflatten,
+        veros_variables_pytree_flatten,
+        veros_variables_pytree_unflatten,
+        dist_safe_wrapper_pytree_flatten,
+        dist_safe_wrapper_pytree_unflatten,
     )
-    jax.config.update('jax_enable_x64', runtime_settings.float_type == 'float64')
-    jax.config.update('jax_platform_name', runtime_settings.device)
+
+    jax.config.update("jax_enable_x64", runtime_settings.float_type == "float64")
+    jax.config.update("jax_platform_name", runtime_settings.device)
 
     jax.tree_util.register_pytree_node(VerosState, veros_state_pytree_flatten, veros_state_pytree_unflatten)
     jax.tree_util.register_pytree_node(VerosVariables, veros_variables_pytree_flatten, veros_variables_pytree_unflatten)
-    jax.tree_util.register_pytree_node(DistSafeVariableWrapper, dist_safe_wrapper_pytree_flatten, dist_safe_wrapper_pytree_unflatten)
+    jax.tree_util.register_pytree_node(
+        DistSafeVariableWrapper, dist_safe_wrapper_pytree_flatten, dist_safe_wrapper_pytree_unflatten
+    )
 
-    _init_done.add('jax')
+    _init_done.add("jax")
 
 
 def get_backend_module(backend_name):
     if backend_name not in BACKENDS:
-        raise ValueError(f'unrecognized backend {backend_name} (must be either of: {list(BACKENDS.keys())!r})')
+        raise ValueError(f"unrecognized backend {backend_name} (must be either of: {list(BACKENDS.keys())!r})")
 
     backend_module = None
 
-    if backend_name == 'jax':
+    if backend_name == "jax":
         try:
             import jax  # noqa: F401
         except ImportError:
@@ -44,7 +50,7 @@ def get_backend_module(backend_name):
             init_jax_config()
             import jax.numpy as backend_module
 
-    elif backend_name == 'numpy':
+    elif backend_name == "numpy":
         import numpy as backend_module
 
     if backend_module is None:
@@ -55,7 +61,8 @@ def get_backend_module(backend_name):
 
 def get_curent_device_name():
     from veros import runtime_settings
-    if runtime_settings.backend != 'jax':
-        return 'cpu'
+
+    if runtime_settings.backend != "jax":
+        return "cpu"
 
     return runtime_settings.device

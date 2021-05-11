@@ -16,7 +16,8 @@ def enforce_boundaries(arr, enable_cyclic_x, local=False):
         return arr
 
     from veros.distributed import exchange_overlap
-    exchange_overlap(arr, ['xt', 'yt'], cyclic=enable_cyclic_x)
+
+    exchange_overlap(arr, ["xt", "yt"], cyclic=enable_cyclic_x)
     return arr
 
 
@@ -26,11 +27,11 @@ def pad_z_edges(array):
     Pads the z-axis of an array by repeating its edge values
     """
     if array.ndim == 1:
-        newarray = npx.pad(array, 1, mode='edge')
+        newarray = npx.pad(array, 1, mode="edge")
     elif array.ndim >= 3:
-        newarray = npx.pad(array, ((0, 0), (0, 0), (1, 1)), mode='edge')
+        newarray = npx.pad(array, ((0, 0), (0, 0), (1, 1)), mode="edge")
     else:
-        raise ValueError('Array to pad needs to have 1 or at least 3 dimensions')
+        raise ValueError("Array to pad needs to have 1 or at least 3 dimensions")
     return newarray
 
 
@@ -39,12 +40,10 @@ def create_water_masks(ks, nz):
     ks = ks - 1
     land_mask = ks >= 0
     water_mask = npx.logical_and(
-        land_mask[:, :, npx.newaxis],
-        npx.arange(nz)[npx.newaxis, npx.newaxis, :] >= ks[:, :, npx.newaxis]
+        land_mask[:, :, npx.newaxis], npx.arange(nz)[npx.newaxis, npx.newaxis, :] >= ks[:, :, npx.newaxis]
     )
     edge_mask = npx.logical_and(
-        land_mask[:, :, npx.newaxis],
-        npx.arange(nz)[npx.newaxis, npx.newaxis, :] == ks[:, :, npx.newaxis]
+        land_mask[:, :, npx.newaxis], npx.arange(nz)[npx.newaxis, npx.newaxis, :] == ks[:, :, npx.newaxis]
     )
     return land_mask, water_mask, edge_mask
 

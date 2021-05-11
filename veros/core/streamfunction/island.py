@@ -66,7 +66,7 @@ def isleperim(state):
     vs = state.variables
     settings = state.settings
 
-    logger.debug(' Determining number of land masses')
+    logger.debug(" Determining number of land masses")
     vs.land_map = _compute_isleperim(vs.kbot, settings.enable_cyclic_x)
     logger.debug(_ascii_map(vs.land_map))
 
@@ -74,35 +74,35 @@ def isleperim(state):
 def _ascii_map(boundary_map):
     def _get_char(c):
         if c == 0:
-            return '.'
+            return "."
         if c < 0:
-            return '#'
+            return "#"
         return str(c % 10)
 
     boundary_map = onp.array(boundary_map)
     nx, ny = boundary_map.shape
 
-    map_string = ''
+    map_string = ""
     linewidth = 100
     iremain = nx
     istart = 0
-    map_string += '\n'
-    map_string += ' ' * (5 + min(linewidth, nx) // 2 - 13) + 'Land mass and perimeter'
-    map_string += '\n'
+    map_string += "\n"
+    map_string += " " * (5 + min(linewidth, nx) // 2 - 13) + "Land mass and perimeter"
+    map_string += "\n"
     for _ in range(1, nx // linewidth + 2):
         iline = min(iremain, linewidth)
         iremain = iremain - iline
         if iline > 0:
-            map_string += '\n'
-            map_string += ''.join([f'{istart + i + 1 - 2:5d}' for i in range(1, iline + 1, 5)])
-            map_string += '\n'
+            map_string += "\n"
+            map_string += "".join([f"{istart + i + 1 - 2:5d}" for i in range(1, iline + 1, 5)])
+            map_string += "\n"
             for j in range(ny - 1, -1, -1):
-                map_string += f'{j:3d} '
-                map_string += ''.join([_get_char(boundary_map[istart + i - 2, j]) for i in range(2, iline + 2)])
-                map_string += '\n'
-            map_string += ''.join([f'{istart + i + 1 - 2:5d}' for i in range(1, iline + 1, 5)])
-            map_string += '\n'
+                map_string += f"{j:3d} "
+                map_string += "".join([_get_char(boundary_map[istart + i - 2, j]) for i in range(2, iline + 2)])
+                map_string += "\n"
+            map_string += "".join([f"{istart + i + 1 - 2:5d}" for i in range(1, iline + 1, 5)])
+            map_string += "\n"
             istart = istart + iline
-    map_string += '\n'
+    map_string += "\n"
 
     return map_string

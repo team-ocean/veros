@@ -10,15 +10,13 @@ def threaded_io(filepath, mode):
     If using IO threads, start a new thread to write the HDF5 data to disk.
     """
     import h5py
+
     if runtime_settings.use_io_threads:
         _wait_for_disk(filepath)
         _io_locks[filepath].clear()
     kwargs = {}
     if runtime_state.proc_num > 1:
-        kwargs.update(
-            driver='mpio',
-            comm=runtime_settings.mpi_comm
-        )
+        kwargs.update(driver="mpio", comm=runtime_settings.mpi_comm)
     h5file = h5py.File(filepath, mode, **kwargs)
     try:
         yield h5file
@@ -45,11 +43,11 @@ def _wait_for_disk(file_id):
     """
     Wait for the lock of file_id to be released
     """
-    logger.debug(f'Waiting for lock {file_id} to be released')
+    logger.debug(f"Waiting for lock {file_id} to be released")
     _add_to_locks(file_id)
     lock_released = _io_locks[file_id].wait(runtime_settings.io_timeout)
     if not lock_released:
-        raise RuntimeError('Timeout while waiting for disk IO to finish')
+        raise RuntimeError("Timeout while waiting for disk IO to finish")
 
 
 def _write_to_disk(h5file, file_id):

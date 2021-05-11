@@ -1,8 +1,5 @@
 from veros import veros_kernel
-from veros.core.density import (
-    gsw, linear_eq as lq, nonlinear_eq1 as nq1,
-    nonlinear_eq2 as nq2, nonlinear_eq3 as nq3
-)
+from veros.core.density import gsw, linear_eq as lq, nonlinear_eq1 as nq1, nonlinear_eq2 as nq2, nonlinear_eq3 as nq3
 
 
 @veros_kernel
@@ -23,11 +20,11 @@ def get_rho(state, salt_loc, temp_loc, press):
     elif settings.eq_of_state_type == 5:
         return gsw.gsw_rho(salt_loc, temp_loc, press)
     else:
-        raise ValueError('unknown equation of state')
+        raise ValueError("unknown equation of state")
 
 
 @veros_kernel
-def get_potential_rho(state, salt_loc, temp_loc, press_ref=0.):
+def get_potential_rho(state, salt_loc, temp_loc, press_ref=0.0):
     """
     calculate potential density as a function of temperature, salinity
     and reference pressure
@@ -50,7 +47,7 @@ def get_potential_rho(state, salt_loc, temp_loc, press_ref=0.):
     elif settings.eq_of_state_type == 5:
         return gsw.gsw_rho(salt_loc, temp_loc, press_ref)
     else:
-        raise ValueError('unknown equation of state')
+        raise ValueError("unknown equation of state")
 
 
 @veros_kernel
@@ -71,7 +68,7 @@ def get_dyn_enthalpy(state, salt_loc, temp_loc, press):
     elif settings.eq_of_state_type == 5:
         return gsw.gsw_dyn_enthalpy(salt_loc, temp_loc, press)
     else:
-        raise ValueError('unknown equation of state')
+        raise ValueError("unknown equation of state")
 
 
 @veros_kernel
@@ -90,7 +87,7 @@ def get_salt(state, rho_loc, temp_loc, press_loc):
     elif settings.eq_of_state_type == 4:
         return nq3.nonlin3_eq_of_state_salt(rho_loc, temp_loc)
     else:
-        raise ValueError('unknown equation of state')
+        raise ValueError("unknown equation of state")
 
 
 @veros_kernel
@@ -111,7 +108,7 @@ def get_drhodT(state, salt_loc, temp_loc, press_loc):
     elif settings.eq_of_state_type == 5:
         return gsw.gsw_drhodT(salt_loc, temp_loc, press_loc)
     else:
-        raise ValueError('unknown equation of state')
+        raise ValueError("unknown equation of state")
 
 
 @veros_kernel
@@ -132,7 +129,7 @@ def get_drhodS(state, salt_loc, temp_loc, press_loc):
     elif settings.eq_of_state_type == 5:
         return gsw.gsw_drhodS(salt_loc, temp_loc, press_loc)
     else:
-        raise ValueError('unknown equation of state')
+        raise ValueError("unknown equation of state")
 
 
 @veros_kernel
@@ -153,7 +150,7 @@ def get_drhodp(state, salt_loc, temp_loc, press_loc):
     elif settings.eq_of_state_type == 5:
         return gsw.gsw_drhodp(salt_loc, temp_loc, press_loc)
     else:
-        raise ValueError('unknown equation of state')
+        raise ValueError("unknown equation of state")
 
 
 @veros_kernel
@@ -174,7 +171,7 @@ def get_int_drhodT(state, salt_loc, temp_loc, press_loc):
     elif settings.eq_of_state_type == 5:
         return -(1024.0 / 9.81) * gsw.gsw_dHdT(salt_loc, temp_loc, press_loc)
     else:
-        raise ValueError('unknown equation of state')
+        raise ValueError("unknown equation of state")
 
 
 @veros_kernel
@@ -195,4 +192,4 @@ def get_int_drhodS(state, salt_loc, temp_loc, press_loc):
     elif settings.eq_of_state_type == 5:
         return -(1024.0 / 9.81) * gsw.gsw_dHdS(salt_loc, temp_loc, press_loc)
     else:
-        raise ValueError('unknown equation of state')
+        raise ValueError("unknown equation of state")

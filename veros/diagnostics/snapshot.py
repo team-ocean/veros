@@ -6,16 +6,57 @@ from veros.diagnostics.base import VerosDiagnostic
 
 
 DEFAULT_OUTPUT_VARS = [
-    "dxt", "dxu", "dyt", "dyu", "zt", "zw", "dzt", "dzw",
-    "ht", "hu", "hv", "beta", "area_t", "area_u", "area_v",
-    "rho", "prho", "int_drhodT", "int_drhodS", "Nsqr", "Hd",
-    "temp", "salt", "forc_temp_surface", "forc_salt_surface",
-    "u", "v", "w", "p_hydro", "kappaM", "kappaH",
-    "surface_taux", "surface_tauy", "forc_rho_surface", "psi",
-    "isle", "psin", "xt", "xu", "yt", "yu",
-    "temp_source", "salt_source", "u_source", "v_source",
-    "tke", "forc_tke_surface", "eke", "E_iw",
-    "forc_iw_surface", "forc_iw_bottom",
+    "dxt",
+    "dxu",
+    "dyt",
+    "dyu",
+    "zt",
+    "zw",
+    "dzt",
+    "dzw",
+    "ht",
+    "hu",
+    "hv",
+    "beta",
+    "area_t",
+    "area_u",
+    "area_v",
+    "rho",
+    "prho",
+    "int_drhodT",
+    "int_drhodS",
+    "Nsqr",
+    "Hd",
+    "temp",
+    "salt",
+    "forc_temp_surface",
+    "forc_salt_surface",
+    "u",
+    "v",
+    "w",
+    "p_hydro",
+    "kappaM",
+    "kappaH",
+    "surface_taux",
+    "surface_tauy",
+    "forc_rho_surface",
+    "psi",
+    "isle",
+    "psin",
+    "xt",
+    "xu",
+    "yt",
+    "yu",
+    "temp_source",
+    "salt_source",
+    "u_source",
+    "v_source",
+    "tke",
+    "forc_tke_surface",
+    "eke",
+    "E_iw",
+    "forc_iw_surface",
+    "forc_iw_bottom",
 ]
 
 
@@ -23,9 +64,10 @@ class Snapshot(VerosDiagnostic):
     """Writes snapshots of the current solution. Also reads and writes the main restart
     data required for restarting a Veros simulation.
     """
-    output_path = '{identifier}.snapshot.nc'
+
+    output_path = "{identifier}.snapshot.nc"
     """File to write to. May contain format strings that are replaced with Veros attributes."""
-    name = 'snapshot' #:
+    name = "snapshot"  #:
     output_frequency = None  #: Frequency (in seconds) in which output is written.
 
     def __init__(self, state):
@@ -56,7 +98,7 @@ class Snapshot(VerosDiagnostic):
         vs = state.variables
 
         time_length, time_unit = time.format_time(vs.time)
-        logger.info(f' Writing snapshot at {time_length:.2f} {time_unit}')
+        logger.info(f" Writing snapshot at {time_length:.2f} {time_unit}")
 
         if not os.path.isfile(self.get_output_file_name(state)):
             self.initialize_output(state, self.var_meta)

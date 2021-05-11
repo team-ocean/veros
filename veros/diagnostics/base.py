@@ -13,15 +13,16 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
 
     Any diagnostic needs to implement the 5 interface methods and set some attributes.
     """
-    name = None #: Name that identifies the current diagnostic
-    sampling_frequency = 0.
-    output_frequency = 0.
+
+    name = None  #: Name that identifies the current diagnostic
+    sampling_frequency = 0.0
+    output_frequency = 0.0
 
     output_path = None
     output_variables = None
 
-    var_meta = None #: Metadata of internal variables
-    extra_dimensions = None #: Dict of extra dimensions used in var_meta
+    var_meta = None  #: Metadata of internal variables
+    extra_dimensions = None  #: Dict of extra dimensions used in var_meta
 
     def __init__(self, state):
         pass
@@ -71,13 +72,15 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
 
         output_path = self.get_output_file_name(state)
         if os.path.isfile(output_path) and not runtime_settings.force_overwrite:
-            raise IOError(f'output file {output_path} for diagnostic "{self.name}" exists '
-                          '(change output path or enable force_overwrite runtime setting)')
+            raise IOError(
+                f'output file {output_path} for diagnostic "{self.name}" exists '
+                "(change output path or enable force_overwrite runtime setting)"
+            )
 
         # possible race condition ahead!
         distributed.barrier()
 
-        with nctools.threaded_io(output_path, 'w') as outfile:
+        with nctools.threaded_io(output_path, "w") as outfile:
             nctools.initialize_file(state, outfile)
             if self.extra_dimensions:
                 for dim_id, size in self.extra_dimensions.items():
@@ -99,8 +102,8 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
         if runtime_settings.diskless_mode:
             return
 
-        with nctools.threaded_io(self.get_output_file_name(state), 'r+') as outfile:
-            current_days = time.convert_time(vs.time, 'seconds', 'days')
+        with nctools.threaded_io(self.get_output_file_name(state), "r+") as outfile:
+            current_days = time.convert_time(vs.time, "seconds", "days")
             nctools.advance_time(current_days, outfile)
 
             for key in self.output_variables:

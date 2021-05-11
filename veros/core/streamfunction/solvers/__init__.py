@@ -5,6 +5,7 @@ from veros import runtime_settings as rs, runtime_state as rst, logger
 
 def memoize(func):
     cache = {}
+
     @functools.wraps(func)
     def inner(*args):
         if args not in cache:
@@ -23,23 +24,26 @@ def _get_solver_class():
             try:
                 from veros.core.streamfunction.solvers.petsc_ import PETScSolver
             except ImportError:
-                logger.warning('PETSc linear solver not available, falling back to SciPy')
+                logger.warning("PETSc linear solver not available, falling back to SciPy")
             else:
                 return PETScSolver
 
         from veros.core.streamfunction.solvers.scipy import SciPySolver
+
         return SciPySolver
 
-    if ls == 'best':
+    if ls == "best":
         return _get_best_solver()
-    elif ls == 'petsc':
+    elif ls == "petsc":
         from veros.core.streamfunction.solvers.petsc_ import PETScSolver
+
         return PETScSolver
-    elif ls == 'scipy':
+    elif ls == "scipy":
         from veros.core.streamfunction.solvers.scipy import SciPySolver
+
         return SciPySolver
 
-    raise ValueError('unrecognized linear solver %s' % ls)
+    raise ValueError("unrecognized linear solver %s" % ls)
 
 
 @memoize

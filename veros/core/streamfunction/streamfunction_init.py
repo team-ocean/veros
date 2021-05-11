@@ -1,4 +1,3 @@
-
 from veros import logger, veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.distributed import global_max
@@ -14,6 +13,7 @@ def get_isleperim(state):
     preprocess land map using MOMs algorithm for B-grid to determine number of islands
     """
     from veros.state import resize_dimension
+
     vs = state.variables
 
     island.isleperim(state)
@@ -32,7 +32,7 @@ def streamfunction_init(state):
     vs = state.variables
     settings = state.settings
 
-    logger.info('Initializing streamfunction method')
+    logger.info("Initializing streamfunction method")
 
     get_isleperim(state)
 
@@ -50,7 +50,7 @@ def streamfunction_init(state):
     vs.psin = update(vs.psin, at[...], vs.maskZ[..., -1, npx.newaxis])
 
     for isle in range(state.dimensions["isle"]):
-        logger.info(f' Solving for boundary contribution by island {isle:d}')
+        logger.info(f" Solving for boundary contribution by island {isle:d}")
         isle_sol = linear_solver.solve(state, forc, vs.psin[:, :, isle], boundary_val=vs.boundary_mask[:, :, isle])
         vs.psin = update(vs.psin, at[:, :, isle], isle_sol)
 
@@ -70,16 +70,23 @@ def island_integrals(state):
     uloc = allocate(state.dimensions, ("xt", "yt", "isle"))
     vloc = allocate(state.dimensions, ("xt", "yt", "isle"))
 
-    uloc = update(uloc, at[1:, 1:, :], -(vs.psin[1:, 1:, :] - vs.psin[1:, :-1, :])
+    uloc = update(
+        uloc,
+        at[1:, 1:, :],
+        -(vs.psin[1:, 1:, :] - vs.psin[1:, :-1, :])
         * vs.maskU[1:, 1:, -1, npx.newaxis]
-        / vs.dyt[npx.newaxis, 1:, npx.newaxis] * vs.hur[1:, 1:, npx.newaxis])
-    vloc = update(vloc, at[1:, 1:, ...], (vs.psin[1:, 1:, :] - vs.psin[:-1, 1:, :]) \
-        * vs.maskV[1:, 1:, -1, npx.newaxis]
-        / (vs.cosu[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis]) \
-        * vs.hvr[1:, 1:, npx.newaxis])
-    vs.line_psin = line_integrals.line_integrals(
-        state, uloc=uloc, vloc=vloc, kind='full'
+        / vs.dyt[npx.newaxis, 1:, npx.newaxis]
+        * vs.hur[1:, 1:, npx.newaxis],
     )
+    vloc = update(
+        vloc,
+        at[1:, 1:, ...],
+        (vs.psin[1:, 1:, :] - vs.psin[:-1, 1:, :])
+        * vs.maskV[1:, 1:, -1, npx.newaxis]
+        / (vs.cosu[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis])
+        * vs.hvr[1:, 1:, npx.newaxis],
+    )
+    vs.line_psin = line_integrals.line_integrals(state, uloc=uloc, vloc=vloc, kind="full")
 
     return KernelOutput(line_psin=vs.line_psin)
 
@@ -107,20 +114,36 @@ def boundary_masks(state):
             south_mask = update(south_mask, at[1:-1, 1:-1, isle], boundary_map[1:-1, 1:-1] & ~boundary_map[2:, 1:-1])
             north_mask = update(north_mask, at[1:-1, 1:-1, isle], boundary_map[2:, 2:] & ~boundary_map[1:-1, 2:])
 
-        boundary_mask = update(boundary_mask, at[..., isle], (
-            east_mask[..., isle]
-            | west_mask[..., isle]
-            | north_mask[..., isle]
-            | south_mask[..., isle]
-        ))
+        boundary_mask = update(
+            boundary_mask,
+            at[..., isle],
+            (east_mask[..., isle] | west_mask[..., isle] | north_mask[..., isle] | south_mask[..., isle]),
+        )
         return (east_mask, west_mask, south_mask, north_mask, boundary_mask)
 
-    (vs.line_dir_east_mask, vs.line_dir_west_mask, vs.line_dir_south_mask, vs.line_dir_north_mask, vs.boundary_mask) = for_loop(
-        0, state.dimensions["isle"], loop_body,
-        (vs.line_dir_east_mask, vs.line_dir_west_mask, vs.line_dir_south_mask, vs.line_dir_north_mask, vs.boundary_mask)
+    (
+        vs.line_dir_east_mask,
+        vs.line_dir_west_mask,
+        vs.line_dir_south_mask,
+        vs.line_dir_north_mask,
+        vs.boundary_mask,
+    ) = for_loop(
+        0,
+        state.dimensions["isle"],
+        loop_body,
+        (
+            vs.line_dir_east_mask,
+            vs.line_dir_west_mask,
+            vs.line_dir_south_mask,
+            vs.line_dir_north_mask,
+            vs.boundary_mask,
+        ),
     )
 
     return KernelOutput(
-        boundary_mask=vs.boundary_mask, line_dir_east_mask=vs.line_dir_east_mask, line_dir_west_mask=vs.line_dir_west_mask,
-        line_dir_south_mask=vs.line_dir_south_mask, line_dir_north_mask=vs.line_dir_north_mask,
+        boundary_mask=vs.boundary_mask,
+        line_dir_east_mask=vs.line_dir_east_mask,
+        line_dir_west_mask=vs.line_dir_west_mask,
+        line_dir_south_mask=vs.line_dir_south_mask,
+        line_dir_north_mask=vs.line_dir_north_mask,
     )

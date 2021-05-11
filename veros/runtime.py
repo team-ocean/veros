@@ -7,6 +7,7 @@ from veros.logs import LOGLEVELS
 
 # MPI helpers
 
+
 def _default_mpi_comm():
     try:
         from mpi4py import MPI
@@ -18,6 +19,7 @@ def _default_mpi_comm():
 
 # validators
 
+
 def parse_two_ints(v):
     return (int(v[0]), int(v[1]))
 
@@ -28,7 +30,7 @@ def parse_choice(choices, preserve_case=False):
             choice = choice.lower()
 
         if choice not in choices:
-            raise ValueError(f'must be one of {choices}')
+            raise ValueError(f"must be one of {choices}")
 
         return choice
 
@@ -39,7 +41,7 @@ def parse_bool(obj):
     if not isinstance(obj, str):
         return bool(obj)
 
-    return obj.lower() in {'1', 'true', 'on'}
+    return obj.lower() in {"1", "true", "on"}
 
 
 def check_mpi_comm(comm):
@@ -47,13 +49,14 @@ def check_mpi_comm(comm):
         from mpi4py import MPI
 
         if not isinstance(comm, MPI.Comm):
-            raise TypeError('mpi_comm must be Comm instance or None')
+            raise TypeError("mpi_comm must be Comm instance or None")
 
     return comm
 
 
 def set_loglevel(loglevel):
     from veros import logs, runtime_settings as rs
+
     loglevel = parse_choice(LOGLEVELS)(loglevel)
     logs.setup_logging(loglevel=loglevel, log_all_processes=rs.log_all_processes)
     return loglevel
@@ -61,55 +64,50 @@ def set_loglevel(loglevel):
 
 def set_log_all_processes(log_all_processes):
     from veros import logs, runtime_settings as rs
+
     log_all_processes = parse_bool(log_all_processes)
     logs.setup_logging(loglevel=rs.loglevel, log_all_processes=log_all_processes)
     return log_all_processes
 
 
-DEVICES = ('cpu', 'gpu', 'tpu')
-FLOAT_TYPES = ('float64', 'float32')
-LINEAR_SOLVERS = ('scipy', 'petsc', 'best')
+DEVICES = ("cpu", "gpu", "tpu")
+FLOAT_TYPES = ("float64", "float32")
+LINEAR_SOLVERS = ("scipy", "petsc", "best")
 
 
 # settings
 
-RuntimeSetting = namedtuple('RuntimeSetting', ('type', 'default', 'read_from_env'))
+RuntimeSetting = namedtuple("RuntimeSetting", ("type", "default", "read_from_env"))
 RuntimeSetting.__new__.__defaults__ = (None, None, True)
 
 AVAILABLE_SETTINGS = {
-    'backend': RuntimeSetting(parse_choice(BACKENDS), 'numpy'),
-    'device': RuntimeSetting(parse_choice(DEVICES), 'cpu'),
-    'float_type': RuntimeSetting(parse_choice(FLOAT_TYPES), 'float64'),
-    'linear_solver': RuntimeSetting(parse_choice(LINEAR_SOLVERS), 'best'),
-    'num_proc': RuntimeSetting(parse_two_ints, (1, 1), read_from_env=False),
-    'profile_mode': RuntimeSetting(parse_bool, False),
-    'loglevel': RuntimeSetting(set_loglevel, 'info'),
-    'mpi_comm': RuntimeSetting(check_mpi_comm, _default_mpi_comm(), read_from_env=False),
-    'log_all_processes': RuntimeSetting(set_log_all_processes, False),
-    'use_io_threads': RuntimeSetting(parse_bool, False),
-    'io_timeout': RuntimeSetting(float, 20),
-    'hdf5_gzip_compression': RuntimeSetting(bool, True),
-    'force_overwrite': RuntimeSetting(bool, False),
-    'diskless_mode': RuntimeSetting(bool, False),
-    'pyom_compatibility_mode': RuntimeSetting(bool, False),
-
+    "backend": RuntimeSetting(parse_choice(BACKENDS), "numpy"),
+    "device": RuntimeSetting(parse_choice(DEVICES), "cpu"),
+    "float_type": RuntimeSetting(parse_choice(FLOAT_TYPES), "float64"),
+    "linear_solver": RuntimeSetting(parse_choice(LINEAR_SOLVERS), "best"),
+    "num_proc": RuntimeSetting(parse_two_ints, (1, 1), read_from_env=False),
+    "profile_mode": RuntimeSetting(parse_bool, False),
+    "loglevel": RuntimeSetting(set_loglevel, "info"),
+    "mpi_comm": RuntimeSetting(check_mpi_comm, _default_mpi_comm(), read_from_env=False),
+    "log_all_processes": RuntimeSetting(set_log_all_processes, False),
+    "use_io_threads": RuntimeSetting(parse_bool, False),
+    "io_timeout": RuntimeSetting(float, 20),
+    "hdf5_gzip_compression": RuntimeSetting(bool, True),
+    "force_overwrite": RuntimeSetting(bool, False),
+    "diskless_mode": RuntimeSetting(bool, False),
+    "pyom_compatibility_mode": RuntimeSetting(bool, False),
 }
 
 
 class RuntimeSettings:
-    __slots__ = [
-        '__locked__',
-        '__setting_types__',
-        '__settings__',
-        *AVAILABLE_SETTINGS.keys()
-    ]
+    __slots__ = ["__locked__", "__setting_types__", "__settings__", *AVAILABLE_SETTINGS.keys()]
 
     def __init__(self, **kwargs):
         self.__locked__ = False
         self.__setting_types__ = {}
 
         for name, setting in AVAILABLE_SETTINGS.items():
-            setting_envvar = f'VEROS_{name.upper()}'
+            setting_envvar = f"VEROS_{name.upper()}"
 
             if name in kwargs:
                 val = kwargs[name]
@@ -130,10 +128,10 @@ class RuntimeSettings:
         return self
 
     def __setattr__(self, attr, val):
-        if getattr(self, '__locked__', False):
-            raise RuntimeError('Runtime settings cannot be modified after import of core modules')
+        if getattr(self, "__locked__", False):
+            raise RuntimeError("Runtime settings cannot be modified after import of core modules")
 
-        if attr.startswith('_'):
+        if attr.startswith("_"):
             return super(RuntimeSettings, self).__setattr__(attr, val)
 
         # coerce type
@@ -147,21 +145,22 @@ class RuntimeSettings:
         return super(RuntimeSettings, self).__setattr__(attr, val)
 
     def __repr__(self):
-        setval = ', '.join(
-            '%s=%s' % (key, repr(getattr(self, key))) for key in self.__settings__
-        )
-        return f'{self.__class__.__name__}({setval})'
+        setval = ", ".join("%s=%s" % (key, repr(getattr(self, key))) for key in self.__settings__)
+        return f"{self.__class__.__name__}({setval})"
 
 
 # state
 
+
 class RuntimeState:
     """Unifies attributes from various modules in a simple read-only object"""
+
     __slots__ = ()
 
     @property
     def proc_rank(self):
         from veros import runtime_settings
+
         comm = runtime_settings.mpi_comm
 
         if comm is None:
@@ -172,6 +171,7 @@ class RuntimeState:
     @property
     def proc_num(self):
         from veros import runtime_settings
+
         comm = runtime_settings.mpi_comm
 
         if comm is None:
@@ -182,12 +182,14 @@ class RuntimeState:
     @property
     def proc_idx(self):
         from veros import distributed
+
         return distributed.proc_rank_to_index(self.proc_rank)
 
     @property
     def backend_module(self):
         from veros import backend, runtime_settings
+
         return backend.get_backend_module(runtime_settings.backend)
 
     def __setattr__(self, attr, val):
-        raise TypeError(f'Cannot modify {self.__class__.__name__} objects')
+        raise TypeError(f"Cannot modify {self.__class__.__name__} objects")

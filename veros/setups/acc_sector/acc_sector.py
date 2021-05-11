@@ -30,17 +30,18 @@ class ACCSectorSetup(VerosSetup):
             `<https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Laurits_Andreasen_MSc_thesis.pdf>`_.
 
     """
-    max_depth = 4000.
+
+    max_depth = 4000.0
 
     @veros_routine
     def set_parameter(self, state):
         settings = state.settings
 
-        settings.identifier = 'acc_sector'
+        settings.identifier = "acc_sector"
 
         settings.nx, settings.ny, settings.nz = 15, 62, 40
-        settings.dt_mom = 3600.
-        settings.dt_tracer = 3600.
+        settings.dt_mom = 3600.0
+        settings.dt_tracer = 3600.0
         settings.runlen = 86400 * 365
 
         settings.x_origin = 0.0
@@ -85,7 +86,7 @@ class ACCSectorSetup(VerosSetup):
         settings.eke_k_max = 1e4
         settings.eke_c_k = 0.4
         settings.eke_c_eps = 0.5
-        settings.eke_cross = 2.
+        settings.eke_cross = 2.0
         settings.eke_crhin = 1.0
         settings.eke_lmin = 100.0
         settings.enable_eke_superbee_advection = False
@@ -113,25 +114,27 @@ class ACCSectorSetup(VerosSetup):
         # keep total domain size constant when nx or ny changes
         vs.dxt = update(vs.dxt, at[...], 2.0 * 15 / settings.nx)
         vs.dyt = update(vs.dyt, at[...], 2.0 * 62 / settings.ny)
-        vs.dzt = veros.tools.get_vinokur_grid_steps(settings.nz, self.max_depth, 10., refine_towards='lower')
+        vs.dzt = veros.tools.get_vinokur_grid_steps(settings.nz, self.max_depth, 10.0, refine_towards="lower")
 
     @veros_routine
     def set_coriolis(self, state):
         vs = state.variables
         settings = state.settings
-        vs.coriolis_t = update(vs.coriolis_t, at[:, :], 2 * settings.omega * npx.sin(vs.yt[None, :] / 180. * settings.pi))
+        vs.coriolis_t = update(
+            vs.coriolis_t, at[:, :], 2 * settings.omega * npx.sin(vs.yt[None, :] / 180.0 * settings.pi)
+        )
 
     @veros_routine
     def set_topography(self, state):
         vs = state.variables
 
-        x, y = npx.meshgrid(vs.xt, vs.yt, indexing='ij')
-        vs.kbot = npx.logical_or((x > 1.0) & (x < 27), y < -40).astype('int')
+        x, y = npx.meshgrid(vs.xt, vs.yt, indexing="ij")
+        vs.kbot = npx.logical_or((x > 1.0) & (x < 27), y < -40).astype("int")
 
         # A half depth (ridge) is appended to the domain within the confines
         # of the circumpolar channel at the inflow and outflow regions
         bathymetry = npx.logical_or(((x <= 1.0) & (y < -40)), ((x >= 27) & (y < -40)))
-        kzt2000 = npx.sum((vs.zt < -2000.).astype('int'))
+        kzt2000 = npx.sum((vs.zt < -2000.0).astype("int"))
         vs.kbot = npx.where(bathymetry, kzt2000, vs.kbot)
 
     @veros_routine
@@ -149,7 +152,7 @@ class ACCSectorSetup(VerosSetup):
         yt_max = global_max(vs.yt.max())
         yu_max = global_max(vs.yu.max())
 
-        taux = allocate(state.dimensions, ('yt',))
+        taux = allocate(state.dimensions, ("yt",))
         north = vs.yt > 30
         subequatorial_north_n = (vs.yt >= 15) & (vs.yt < 30)
         subequatorial_north_s = (vs.yt > 0) & (vs.yt < 15)
@@ -158,25 +161,38 @@ class ACCSectorSetup(VerosSetup):
         subequatorial_south_s = (vs.yt <= -15) & (vs.yt > -30)
         south = vs.yt < -30
 
-        taux = npx.where(north, -5e-2 * npx.sin(settings.pi * (vs.yu - yu_max) / (yt_max - 30.)), taux)
-        taux = npx.where(subequatorial_north_s, 5e-2 * npx.sin(settings.pi * (vs.yu - 30.) / 30.), taux)
-        taux = npx.where(subequatorial_north_n, 5e-2 * npx.sin(settings.pi * (vs.yt - 30.) / 30.), taux)
-        taux = npx.where(subequatorial_south_n, -5e-2 * npx.sin(settings.pi * (vs.yu - 30.) / 30.), taux)
-        taux = npx.where(subequatorial_south_s, -5e-2 * npx.sin(settings.pi * (vs.yt - 30.) / 30.), taux)
-        taux = npx.where(equator, -1.5e-2 * npx.cos(settings.pi * (vs.yu - 10.) / 10.) - 2.5e-2, taux)
-        taux = npx.where(south, 15e-2 * npx.sin(settings.pi * (vs.yu - yu_min) / (-30. - yt_min)), taux)
+        taux = npx.where(north, -5e-2 * npx.sin(settings.pi * (vs.yu - yu_max) / (yt_max - 30.0)), taux)
+        taux = npx.where(subequatorial_north_s, 5e-2 * npx.sin(settings.pi * (vs.yu - 30.0) / 30.0), taux)
+        taux = npx.where(subequatorial_north_n, 5e-2 * npx.sin(settings.pi * (vs.yt - 30.0) / 30.0), taux)
+        taux = npx.where(subequatorial_south_n, -5e-2 * npx.sin(settings.pi * (vs.yu - 30.0) / 30.0), taux)
+        taux = npx.where(subequatorial_south_s, -5e-2 * npx.sin(settings.pi * (vs.yt - 30.0) / 30.0), taux)
+        taux = npx.where(equator, -1.5e-2 * npx.cos(settings.pi * (vs.yu - 10.0) / 10.0) - 2.5e-2, taux)
+        taux = npx.where(south, 15e-2 * npx.sin(settings.pi * (vs.yu - yu_min) / (-30.0 - yt_min)), taux)
         vs.surface_taux = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing
-        delta_t, ts, tn = 25., 0., 5.
-        vs.t_star = allocate(state.dimensions, ('yt',), fill=delta_t)
-        vs.t_star = npx.where(vs.yt < 0, ts + delta_t * npx.sin(settings.pi * (vs.yt + 60.) / npx.abs(2 * settings.y_origin)), vs.t_star)
-        vs.t_star = npx.where(vs.yt > 0, tn + (delta_t + ts - tn) * npx.sin(settings.pi * (vs.yt + 60.) / npx.abs(2 * settings.y_origin)), vs.t_star)
-        vs.t_rest = vs.dzt[-1] / (10. * 86400.) * vs.maskT[:, :, -1]
+        delta_t, ts, tn = 25.0, 0.0, 5.0
+        vs.t_star = allocate(state.dimensions, ("yt",), fill=delta_t)
+        vs.t_star = npx.where(
+            vs.yt < 0, ts + delta_t * npx.sin(settings.pi * (vs.yt + 60.0) / npx.abs(2 * settings.y_origin)), vs.t_star
+        )
+        vs.t_star = npx.where(
+            vs.yt > 0,
+            tn + (delta_t + ts - tn) * npx.sin(settings.pi * (vs.yt + 60.0) / npx.abs(2 * settings.y_origin)),
+            vs.t_star,
+        )
+        vs.t_rest = vs.dzt[-1] / (10.0 * 86400.0) * vs.maskT[:, :, -1]
 
         if settings.enable_tke:
-            vs.forc_tke_surface = update(vs.forc_tke_surface, at[2:-2, 2:-2], npx.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / settings.rho_0)**2
-                                                      + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / settings.rho_0)**2)**(1.5))
+            vs.forc_tke_surface = update(
+                vs.forc_tke_surface,
+                at[2:-2, 2:-2],
+                npx.sqrt(
+                    (0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / settings.rho_0) ** 2
+                    + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / settings.rho_0) ** 2
+                )
+                ** (1.5),
+            )
 
         if settings.enable_idemix:
             vs.forc_iw_bottom = 1e-6 * vs.maskW[:, :, -1]
@@ -190,17 +206,25 @@ class ACCSectorSetup(VerosSetup):
     @veros_routine
     def set_diagnostics(self, state):
         settings = state.settings
-        state.diagnostics['snapshot'].output_frequency = 86400 * 10
-        state.diagnostics['averages'].output_variables = (
-            'salt', 'temp', 'u', 'v', 'w', 'psi', 'rho', 'surface_taux', 'surface_tauy'
+        state.diagnostics["snapshot"].output_frequency = 86400 * 10
+        state.diagnostics["averages"].output_variables = (
+            "salt",
+            "temp",
+            "u",
+            "v",
+            "w",
+            "psi",
+            "rho",
+            "surface_taux",
+            "surface_tauy",
         )
-        state.diagnostics['averages'].output_frequency = 365 * 86400.
-        state.diagnostics['averages'].sampling_frequency = settings.dt_tracer * 10
-        state.diagnostics['overturning'].output_frequency = 365 * 86400. / 48.
-        state.diagnostics['overturning'].sampling_frequency = settings.dt_tracer * 10
-        state.diagnostics['tracer_monitor'].output_frequency = 365 * 86400. / 12.
-        state.diagnostics['energy'].output_frequency = 365 * 86400. / 48
-        state.diagnostics['energy'].sampling_frequency = settings.dt_tracer * 10
+        state.diagnostics["averages"].output_frequency = 365 * 86400.0
+        state.diagnostics["averages"].sampling_frequency = settings.dt_tracer * 10
+        state.diagnostics["overturning"].output_frequency = 365 * 86400.0 / 48.0
+        state.diagnostics["overturning"].sampling_frequency = settings.dt_tracer * 10
+        state.diagnostics["tracer_monitor"].output_frequency = 365 * 86400.0 / 12.0
+        state.diagnostics["energy"].output_frequency = 365 * 86400.0 / 48
+        state.diagnostics["energy"].sampling_frequency = settings.dt_tracer * 10
 
     @veros_routine
     def after_timestep(self, state):

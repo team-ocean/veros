@@ -41,8 +41,7 @@ def write_to_h5(dimensions, var_meta, var_data, outfile, groupname, attributes=N
             var_dims = []
 
         global_shape = get_shape(dimensions, var_dims, local=False)
-        gidx, lidx = get_chunk_slices(
-            dimensions["xt"], dimensions["yt"], var_dims, include_overlap=True)
+        gidx, lidx = get_chunk_slices(dimensions["xt"], dimensions["yt"], var_dims, include_overlap=True)
 
         kwargs = dict(
             exact=True,
@@ -59,10 +58,7 @@ def write_to_h5(dimensions, var_meta, var_data, outfile, groupname, attributes=N
             kwargs.update(chunks=tuple(chunksize))
 
             if runtime_settings.hdf5_gzip_compression and runtime_state.proc_num == 1:
-                kwargs.update(
-                    compression='gzip',
-                    compression_opts=1
-                )
+                kwargs.update(compression="gzip", compression_opts=1)
 
         group.require_dataset(key, global_shape, var.dtype, **kwargs)
         group[key][gidx] = var[lidx]
@@ -82,14 +78,14 @@ def read_restart(state):
         return
 
     if runtime_settings.force_overwrite:
-        raise RuntimeError('To prevent data loss, force_overwrite cannot be used in restart runs')
+        raise RuntimeError("To prevent data loss, force_overwrite cannot be used in restart runs")
 
     if not os.path.isfile(restart_filename):
-        raise IOError(f'restart file {restart_filename} not found')
+        raise IOError(f"restart file {restart_filename} not found")
 
-    logger.info(f'Reading restart data from {restart_filename}')
+    logger.info(f"Reading restart data from {restart_filename}")
 
-    with h5tools.threaded_io(restart_filename, 'r') as infile, state.variables.unlock():
+    with h5tools.threaded_io(restart_filename, "r") as infile, state.variables.unlock():
         # core restart
         restart_vars = {var: meta for var, meta in state.var_meta.items() if meta.write_to_restart and meta.active}
         _, restart_data = read_from_h5(state.dimensions, restart_vars, infile, "core")
@@ -98,7 +94,7 @@ def read_restart(state):
             try:
                 var_data = restart_data[key]
             except KeyError:
-                raise RuntimeError(f'No restart data found for variable {key} in {restart_filename}') from None
+                raise RuntimeError(f"No restart data found for variable {key} in {restart_filename}") from None
 
             setattr(state.variables, key, var_data)
 
@@ -112,14 +108,18 @@ def read_restart(state):
             if diagnostic.extra_dimensions:
                 dimensions.update(diagnostic.extra_dimensions)
 
-            restart_vars = {var: meta for var, meta in diagnostic.var_meta.items() if meta.write_to_restart and meta.active}
+            restart_vars = {
+                var: meta for var, meta in diagnostic.var_meta.items() if meta.write_to_restart and meta.active
+            }
             _, restart_data = read_from_h5(dimensions, restart_vars, infile, diag_name)
 
             for key in restart_vars.keys():
                 try:
                     var_data = restart_data[key]
                 except KeyError:
-                    raise RuntimeError(f'No restart data found for variable {key} in {restart_filename} (from diagnostic "{diag_name}")') from None
+                    raise RuntimeError(
+                        f'No restart data found for variable {key} in {restart_filename} (from diagnostic "{diag_name}")'
+                    ) from None
 
                 setattr(diagnostic.variables, key, var_data)
 
@@ -137,11 +137,7 @@ def write_restart(state, force=False):
     if not settings.restart_output_filename:
         return
 
-    write_now = (
-        force or (
-            settings.restart_frequency and vs.time % settings.restart_frequency < settings.dt_tracer
-        )
-    )
+    write_now = force or (settings.restart_frequency and vs.time % settings.restart_frequency < settings.dt_tracer)
 
     if not write_now:
         return
@@ -150,9 +146,9 @@ def write_restart(state, force=False):
     statedict.update(state.settings.items())
     restart_filename = settings.restart_output_filename.format(**statedict)
 
-    logger.info(f'Writing restart file {restart_filename} ...')
+    logger.info(f"Writing restart file {restart_filename} ...")
 
-    with h5tools.threaded_io(restart_filename, 'w') as outfile:
+    with h5tools.threaded_io(restart_filename, "w") as outfile:
         # core restart
         vs = state.variables
         restart_vars = {var: meta for var, meta in state.var_meta.items() if meta.write_to_restart and meta.active}
@@ -169,8 +165,10 @@ def write_restart(state, force=False):
             if diagnostic.extra_dimensions:
                 dimensions.update(diagnostic.extra_dimensions)
 
-            restart_vars = {var: meta for var, meta in diagnostic.var_meta.items() if meta.write_to_restart and meta.active}
+            restart_vars = {
+                var: meta for var, meta in diagnostic.var_meta.items() if meta.write_to_restart and meta.active
+            }
             restart_data = {var: getattr(diagnostic.variables, var) for var in restart_vars}
             write_to_h5(dimensions, restart_vars, restart_data, outfile, diag_name)
 
-    logger.success('Done')
+    logger.success("Done")

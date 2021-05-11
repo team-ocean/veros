@@ -1,1 +1,1 @@
-from veros.setups.north_atlantic.north_atlantic import NorthAtlanticSetup
+from veros.setups.north_atlantic.north_atlantic import NorthAtlanticSetup  # noqa: F401
