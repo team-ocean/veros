@@ -3,7 +3,7 @@ from veros import logger, veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.distributed import global_max
 from veros.core import utilities as mainutils
-from veros.core.operators import numpy as np, for_loop, update, at
+from veros.core.operators import numpy as npx, for_loop, update, at
 from veros.core.streamfunction import island, line_integrals
 from veros.core.streamfunction.solvers import get_linear_solver
 
@@ -20,7 +20,7 @@ def get_isleperim(state):
 
     # now that we know the number of islands we can resize
     # all arrays depending on that
-    nisle = int(global_max(np.max(vs.land_map)))
+    nisle = int(global_max(npx.max(vs.land_map)))
     resize_dimension(state, "isle", nisle)
 
 
@@ -47,7 +47,7 @@ def streamfunction_init(state):
     """
     forc = allocate(state.dimensions, ("xt", "yt"))
 
-    vs.psin = update(vs.psin, at[...], vs.maskZ[..., -1, np.newaxis])
+    vs.psin = update(vs.psin, at[...], vs.maskZ[..., -1, npx.newaxis])
 
     for isle in range(state.dimensions["isle"]):
         logger.info(f' Solving for boundary contribution by island {isle:d}')
@@ -71,12 +71,12 @@ def island_integrals(state):
     vloc = allocate(state.dimensions, ("xt", "yt", "isle"))
 
     uloc = update(uloc, at[1:, 1:, :], -(vs.psin[1:, 1:, :] - vs.psin[1:, :-1, :])
-        * vs.maskU[1:, 1:, -1, np.newaxis]
-        / vs.dyt[np.newaxis, 1:, np.newaxis] * vs.hur[1:, 1:, np.newaxis])
+        * vs.maskU[1:, 1:, -1, npx.newaxis]
+        / vs.dyt[npx.newaxis, 1:, npx.newaxis] * vs.hur[1:, 1:, npx.newaxis])
     vloc = update(vloc, at[1:, 1:, ...], (vs.psin[1:, 1:, :] - vs.psin[:-1, 1:, :]) \
-        * vs.maskV[1:, 1:, -1, np.newaxis]
-        / (vs.cosu[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
-        * vs.hvr[1:, 1:, np.newaxis])
+        * vs.maskV[1:, 1:, -1, npx.newaxis]
+        / (vs.cosu[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis]) \
+        * vs.hvr[1:, 1:, npx.newaxis])
     vs.line_psin = line_integrals.line_integrals(
         state, uloc=uloc, vloc=vloc, kind='full'
     )

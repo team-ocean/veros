@@ -1,7 +1,7 @@
 import os
 
 from veros import veros_kernel, KernelOutput, runtime_settings
-from veros.core.operators import numpy as np, update_multiply, at
+from veros.core.operators import numpy as npx, update_multiply, at
 from veros.diagnostics.base import VerosDiagnostic
 from veros.variables import Variable
 from veros.distributed import global_sum
@@ -154,32 +154,32 @@ def diagnose_kernel(state):
     settings = state.settings
 
     # changes of dynamic enthalpy
-    vol_t = vs.area_t[2:-2, 2:-2, np.newaxis] \
-        * vs.dzt[np.newaxis, np.newaxis, :] \
+    vol_t = vs.area_t[2:-2, 2:-2, npx.newaxis] \
+        * vs.dzt[npx.newaxis, npx.newaxis, :] \
         * vs.maskT[2:-2, 2:-2, :]
 
-    dP_iso = global_sum(np.sum(vol_t * settings.grav / settings.rho_0
+    dP_iso = global_sum(npx.sum(vol_t * settings.grav / settings.rho_0
                                * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                                   * vs.dtemp_iso[2:-2, 2:-2, :]
                                   - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
                                   * vs.dsalt_iso[2:-2, 2:-2, :]))
                         )
 
-    dP_hmix = global_sum(np.sum(vol_t * settings.grav / settings.rho_0
+    dP_hmix = global_sum(npx.sum(vol_t * settings.grav / settings.rho_0
                                 * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                                     * vs.dtemp_hmix[2:-2, 2:-2, :]
                                     - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
                                     * vs.dsalt_hmix[2:-2, 2:-2, :]))
                          )
 
-    dP_vmix = global_sum(np.sum(vol_t * settings.grav / settings.rho_0
+    dP_vmix = global_sum(npx.sum(vol_t * settings.grav / settings.rho_0
                                 * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                                     * vs.dtemp_vmix[2:-2, 2:-2, :]
                                     - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
                                     * vs.dsalt_vmix[2:-2, 2:-2, :]))
                          )
 
-    dP_m = global_sum(np.sum(vol_t * settings.grav / settings.rho_0
+    dP_m = global_sum(npx.sum(vol_t * settings.grav / settings.rho_0
                              * (-vs.int_drhodT[2:-2, 2:-2, :, vs.tau]
                                 * vs.dtemp[2:-2, 2:-2, :, vs.tau]
                                 - vs.int_drhodS[2:-2, 2:-2, :, vs.tau]
@@ -189,17 +189,17 @@ def diagnose_kernel(state):
     dP_m_all = dP_m + dP_vmix + dP_hmix + dP_iso
 
     # changes of kinetic energy
-    vol_u = vs.area_u[2:-2, 2:-2, np.newaxis] \
-        * vs.dzt[np.newaxis, np.newaxis, :]
-    vol_v = vs.area_v[2:-2, 2:-2, np.newaxis] \
-        * vs.dzt[np.newaxis, np.newaxis, :]
-    k_m = global_sum(np.sum(vol_t * 0.5 * (0.5 * (vs.u[2:-2, 2:-2, :, vs.tau] ** 2
+    vol_u = vs.area_u[2:-2, 2:-2, npx.newaxis] \
+        * vs.dzt[npx.newaxis, npx.newaxis, :]
+    vol_v = vs.area_v[2:-2, 2:-2, npx.newaxis] \
+        * vs.dzt[npx.newaxis, npx.newaxis, :]
+    k_m = global_sum(npx.sum(vol_t * 0.5 * (0.5 * (vs.u[2:-2, 2:-2, :, vs.tau] ** 2
                                                   + vs.u[1:-3, 2:-2, :, vs.tau] ** 2)
                                            + 0.5 * (vs.v[2:-2, 2:-2, :, vs.tau] ** 2)
                                            + vs.v[2:-2, 1:-3, :, vs.tau] ** 2))
                      )
-    p_m = global_sum(np.sum(vol_t * vs.Hd[2:-2, 2:-2, :, vs.tau]))
-    dk_m = global_sum(np.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du[2:-2, 2:-2, :, vs.tau] * vol_u
+    p_m = global_sum(npx.sum(vol_t * vs.Hd[2:-2, 2:-2, :, vs.tau]))
+    dk_m = global_sum(npx.sum(vs.u[2:-2, 2:-2, :, vs.tau] * vs.du[2:-2, 2:-2, :, vs.tau] * vol_u
                                 + vs.v[2:-2, 2:-2, :, vs.tau]
                                 * vs.dv[2:-2, 2:-2, :, vs.tau] * vol_v
                                 + vs.u[2:-2, 2:-2, :, vs.tau] * vs.du_mix[2:-2, 2:-2, :] * vol_u
@@ -207,12 +207,12 @@ def diagnose_kernel(state):
                       )
 
     # K*Nsqr and KE and dyn. enthalpy dissipation
-    vol_w = vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzw[np.newaxis, np.newaxis, :] \
+    vol_w = vs.area_t[2:-2, 2:-2, npx.newaxis] * vs.dzw[npx.newaxis, npx.newaxis, :] \
         * vs.maskW[2:-2, 2:-2, :]
     vol_w = update_multiply(vol_w, at[:, :, -1], 0.5)
 
     def mean_w(var):
-        return global_sum(np.sum(var[2:-2, 2:-2, :] * vol_w))
+        return global_sum(npx.sum(var[2:-2, 2:-2, :] * vol_w))
 
     mdiss_vmix = mean_w(vs.P_diss_v)
     mdiss_nonlin = mean_w(vs.P_diss_nonlin)
@@ -228,7 +228,7 @@ def diagnose_kernel(state):
     mdiss_bot = mean_w(vs.K_diss_bot)
 
     wrhom = global_sum(
-        np.sum(-vs.area_t[2:-2, 2:-2, np.newaxis] * vs.maskW[2:-2, 2:-2, :-1]
+        npx.sum(-vs.area_t[2:-2, 2:-2, npx.newaxis] * vs.maskW[2:-2, 2:-2, :-1]
                * (vs.p_hydro[2:-2, 2:-2, 1:] - vs.p_hydro[2:-2, 2:-2, :-1])
                * vs.w[2:-2, 2:-2, :-1, vs.tau])
     )
@@ -236,14 +236,14 @@ def diagnose_kernel(state):
     # wind work
     if runtime_settings.pyom_compatibility_mode:
         wind = global_sum(
-            np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2]
+            npx.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2]
                    * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
                    + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2]
                    * vs.maskV[2:-2, 2:-2, -1] * vs.area_v[2:-2, 2:-2])
         )
     else:
         wind = global_sum(
-            np.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2] / settings.rho_0
+            npx.sum(vs.u[2:-2, 2:-2, -1, vs.tau] * vs.surface_taux[2:-2, 2:-2] / settings.rho_0
                    * vs.maskU[2:-2, 2:-2, -1] * vs.area_u[2:-2, 2:-2]
                    + vs.v[2:-2, 2:-2, -1, vs.tau] * vs.surface_tauy[2:-2, 2:-2] / settings.rho_0
                    * vs.maskV[2:-2, 2:-2, -1] * vs.area_v[2:-2, 2:-2])
@@ -253,7 +253,7 @@ def diagnose_kernel(state):
     if settings.enable_eke:
         eke_m = mean_w(vs.eke[..., vs.tau])
         deke_m = global_sum(
-            np.sum(vol_w * (vs.eke[2:-2, 2:-2, :, vs.taup1]
+            npx.sum(vol_w * (vs.eke[2:-2, 2:-2, :, vs.taup1]
                             - vs.eke[2:-2, 2:-2, :, vs.tau])
                    / settings.dt_tracer)
         )
@@ -274,7 +274,7 @@ def diagnose_kernel(state):
                         / dt_tke)
         tke_diss = mean_w(vs.tke_diss)
         tke_forc = global_sum(
-            np.sum(vs.area_t[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
+            npx.sum(vs.area_t[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
                    * (vs.forc_tke_surface[2:-2, 2:-2] + vs.tke_surf_corr[2:-2, 2:-2]))
         )
     else:
@@ -284,18 +284,18 @@ def diagnose_kernel(state):
     if settings.enable_idemix:
         iw_m = mean_w(vs.E_iw[..., vs.tau])
         diw_m = global_sum(
-            np.sum(vol_w * (vs.E_iw[2:-2, 2:-2, :, vs.taup1]
+            npx.sum(vol_w * (vs.E_iw[2:-2, 2:-2, :, vs.taup1]
                             - vs.E_iw[2:-2, 2:-2, :, vs.tau])
                    / vs.dt_tracer)
         )
         iw_diss = mean_w(vs.iw_diss)
 
-        k = np.maximum(1, vs.kbot[2:-2, 2:-2]) - 1
-        mask = k[:, :, np.newaxis] == np.arange(settings.nz)[np.newaxis, np.newaxis, :]
+        k = npx.maximum(1, vs.kbot[2:-2, 2:-2]) - 1
+        mask = k[:, :, npx.newaxis] == npx.arange(settings.nz)[npx.newaxis, npx.newaxis, :]
         iwforc = global_sum(
-            np.sum(vs.area_t[2:-2, 2:-2]
+            npx.sum(vs.area_t[2:-2, 2:-2]
                    * (vs.forc_iw_surface[2:-2, 2:-2] * vs.maskW[2:-2, 2:-2, -1]
-                      + np.sum(mask * vs.forc_iw_bottom[2:-2, 2:-2, np.newaxis]
+                      + npx.sum(mask * vs.forc_iw_bottom[2:-2, 2:-2, npx.newaxis]
                                * vs.maskW[2:-2, 2:-2, :], axis=2)))
         )
     else:

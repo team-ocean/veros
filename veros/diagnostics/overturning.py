@@ -6,7 +6,7 @@ from veros.diagnostics.base import VerosDiagnostic
 from veros.core import density
 from veros.variables import Variable, allocate
 from veros.distributed import global_sum
-from veros.core.operators import numpy as np, update, update_add, at, for_loop
+from veros.core.operators import numpy as npx, update, update_add, at, for_loop
 
 
 VARIABLES = {
@@ -92,13 +92,13 @@ class Overturning(VerosDiagnostic):
 
         ovt_vs = self.variables
 
-        ovt_vs.sigma = sigs + dsig * np.arange(nlevel)
+        ovt_vs.sigma = sigs + dsig * npx.arange(nlevel)
 
         # precalculate area below z levels
-        ovt_vs.zarea = update(ovt_vs.zarea, at[2:-2, :], np.cumsum(zonal_sum(
-            vs.dxt[2:-2, np.newaxis, np.newaxis]
-            * vs.cosu[np.newaxis, 2:-2, np.newaxis]
-            * vs.maskV[2:-2, 2:-2, :]) * vs.dzt[np.newaxis, :], axis=1))
+        ovt_vs.zarea = update(ovt_vs.zarea, at[2:-2, :], npx.cumsum(zonal_sum(
+            vs.dxt[2:-2, npx.newaxis, npx.newaxis]
+            * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
+            * vs.maskV[2:-2, 2:-2, :]) * vs.dzt[npx.newaxis, :], axis=1))
 
         self.initialize_output(state)
 
@@ -141,7 +141,7 @@ def _interpolate_depth_coords(coords, arr, interp_coords):
     coords = -coords
     interp_coords = -interp_coords
 
-    interp_vectorized = np.vectorize(np.interp, signature="(n),(m),(m)->(n)")
+    interp_vectorized = npx.vectorize(npx.interp, signature="(n),(m),(m)->(n)")
     return interp_vectorized(interp_coords, coords, arr)
 
 
@@ -166,16 +166,16 @@ def diagnose_kernel(state, ovt_vs, p_ref):
     trans = allocate(state.dimensions, ('yu', nlevel))
     z_sig = allocate(state.dimensions, ('yu', nlevel))
 
-    fac = (vs.dxt[2:-2, np.newaxis, np.newaxis]
-           * vs.cosu[np.newaxis, 2:-2, np.newaxis]
-           * vs.dzt[np.newaxis, np.newaxis, :]
+    fac = (vs.dxt[2:-2, npx.newaxis, npx.newaxis]
+           * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
+           * vs.dzt[npx.newaxis, npx.newaxis, :]
            * vs.maskV[2:-2, 2:-2, :])
 
     def loop_body(m, values):
         trans, z_sig = values
         mask = sig_loc_face > ovt_vs.sigma[m]
-        trans = update(trans, at[2:-2, m], zonal_sum(np.sum(vs.v[2:-2, 2:-2, :, vs.tau] * fac * mask, axis=2)))
-        z_sig = update(z_sig, at[2:-2, m], zonal_sum(np.sum(fac * mask, axis=2)))
+        trans = update(trans, at[2:-2, m], zonal_sum(npx.sum(vs.v[2:-2, 2:-2, :, vs.tau] * fac * mask, axis=2)))
+        z_sig = update(z_sig, at[2:-2, m], zonal_sum(npx.sum(fac * mask, axis=2)))
         return (trans, z_sig)
 
     trans, z_sig = for_loop(0, nlevel, loop_body, init_val=(trans, z_sig))
@@ -188,18 +188,18 @@ def diagnose_kernel(state, ovt_vs, p_ref):
         def loop_body(m, bolus_trans):
             mask = sig_loc_face > ovt_vs.sigma[m]
             bolus_trans = update(bolus_trans, at[2:-2, m], zonal_sum(
-                np.sum(
+                npx.sum(
                     (vs.B1_gm[2:-2, 2:-2, 1:] - vs.B1_gm[2:-2, 2:-2, :-1])
-                    * vs.dxt[2:-2, np.newaxis, np.newaxis]
-                    * vs.cosu[np.newaxis, 2:-2, np.newaxis]
+                    * vs.dxt[2:-2, npx.newaxis, npx.newaxis]
+                    * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
                     * vs.maskV[2:-2, 2:-2, 1:]
                     * mask[:, :, 1:],
                     axis=2
                 )
 
                 + vs.B1_gm[2:-2, 2:-2, 0]
-                * vs.dxt[2:-2, np.newaxis]
-                * vs.cosu[np.newaxis, 2:-2]
+                * vs.dxt[2:-2, npx.newaxis]
+                * vs.cosu[npx.newaxis, 2:-2]
                 * vs.maskV[2:-2, 2:-2, 0]
                 * mask[:, :, 0]
             ))
@@ -208,17 +208,17 @@ def diagnose_kernel(state, ovt_vs, p_ref):
         bolus_trans = for_loop(0, nlevel, loop_body, init_val=bolus_trans)
 
     # streamfunction on geopotentials
-    ovt_vs.vsf_depth = update_add(ovt_vs.vsf_depth, at[2:-2, :], np.cumsum(zonal_sum(
-        vs.dxt[2:-2, np.newaxis, np.newaxis]
-        * vs.cosu[np.newaxis, 2:-2, np.newaxis]
+    ovt_vs.vsf_depth = update_add(ovt_vs.vsf_depth, at[2:-2, :], npx.cumsum(zonal_sum(
+        vs.dxt[2:-2, npx.newaxis, npx.newaxis]
+        * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
         * vs.v[2:-2, 2:-2, :, vs.tau]
-        * vs.maskV[2:-2, 2:-2, :]) * vs.dzt[np.newaxis, :], axis=1))
+        * vs.maskV[2:-2, 2:-2, :]) * vs.dzt[npx.newaxis, :], axis=1))
 
     if settings.enable_neutral_diffusion and settings.enable_skew_diffusion:
         # streamfunction for eddy driven velocity on geopotentials
         ovt_vs.bolus_depth = update_add(ovt_vs.bolus_depth, at[2:-2, :], zonal_sum(
-            vs.dxt[2:-2, np.newaxis, np.newaxis]
-            * vs.cosu[np.newaxis, 2:-2, np.newaxis]
+            vs.dxt[2:-2, npx.newaxis, npx.newaxis]
+            * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
             * vs.B1_gm[2:-2, 2:-2, :]))
 
     # interpolate from isopycnals to depth
@@ -236,4 +236,4 @@ def diagnose_kernel(state, ovt_vs, p_ref):
 
 @veros_kernel
 def zonal_sum(arr):
-    return global_sum(np.sum(arr, axis=0), axis=0)
+    return global_sum(npx.sum(arr, axis=0), axis=0)

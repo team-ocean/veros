@@ -4,7 +4,7 @@ import h5netcdf
 import veros.tools
 from veros import VerosSetup, veros_routine, veros_kernel, KernelOutput, logger
 from veros.variables import Variable
-from veros.core.operators import numpy as np, update, at
+from veros.core.operators import numpy as npx, update, at
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = veros.tools.get_assets(
@@ -105,22 +105,22 @@ class GlobalFourDegreeSetup(VerosSetup):
     def _read_forcing(self, var):
         with h5netcdf.File(DATA_FILES['forcing'], 'r') as infile:
             var_obj = infile.variables[var]
-            return np.array(var_obj).T
+            return npx.array(var_obj).T
 
     @veros_routine
     def set_grid(self, state):
         vs = state.variables
-        ddz = np.array([50., 70., 100., 140., 190., 240., 290., 340.,
+        ddz = npx.array([50., 70., 100., 140., 190., 240., 290., 340.,
                         390., 440., 490., 540., 590., 640., 690.])
         vs.dzt = ddz[::-1]
-        vs.dxt = 4.0 * np.ones_like(vs.dxt)
-        vs.dyt = 4.0 * np.ones_like(vs.dyt)
+        vs.dxt = 4.0 * npx.ones_like(vs.dxt)
+        vs.dyt = 4.0 * npx.ones_like(vs.dyt)
 
     @veros_routine
     def set_coriolis(self, state):
         vs = state.variables
         settings = state.settings
-        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * settings.omega * np.sin(vs.yt[np.newaxis, :] / 180. * settings.pi))
+        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * settings.omega * npx.sin(vs.yt[npx.newaxis, :] / 180. * settings.pi))
 
     @veros_routine(dist_safe=False, local_variables=['kbot', 'zt'])
     def set_topography(self, state):
@@ -130,15 +130,15 @@ class GlobalFourDegreeSetup(VerosSetup):
         bathymetry_data = self._read_forcing('bathymetry')
         salt_data = self._read_forcing('salinity')[:, :, ::-1]
         land_mask = (
-            (vs.zt[np.newaxis, np.newaxis, :] <= bathymetry_data[..., np.newaxis])
+            (vs.zt[npx.newaxis, npx.newaxis, :] <= bathymetry_data[..., npx.newaxis])
             | (salt_data == 0.)
         )
 
-        vs.kbot = update(vs.kbot, at[2:-2, 2:-2], 1 + np.sum(land_mask.astype('int'), axis=2))
+        vs.kbot = update(vs.kbot, at[2:-2, 2:-2], 1 + npx.sum(land_mask.astype('int'), axis=2))
 
         # set all-land cells
         all_land_mask = (bathymetry_data == 0) | (vs.kbot[2:-2, 2:-2] == settings.nz)
-        vs.kbot = update(vs.kbot, at[2:-2, 2:-2], np.where(all_land_mask, 0, vs.kbot[2:-2, 2:-2]))
+        vs.kbot = update(vs.kbot, at[2:-2, 2:-2], npx.where(all_land_mask, 0, vs.kbot[2:-2, 2:-2]))
 
     @veros_routine(dist_safe=False, local_variables=[
         'taux', 'tauy', 'qnec', 'qnet', 'sss_clim', 'sst_clim',
@@ -150,10 +150,10 @@ class GlobalFourDegreeSetup(VerosSetup):
 
         # initial conditions for T and S
         temp_data = self._read_forcing('temperature')[:, :, ::-1]
-        vs.temp = update(vs.temp, at[2:-2, 2:-2, :, :2], temp_data[:, :, :, np.newaxis] * vs.maskT[2:-2, 2:-2, :, np.newaxis])
+        vs.temp = update(vs.temp, at[2:-2, 2:-2, :, :2], temp_data[:, :, :, npx.newaxis] * vs.maskT[2:-2, 2:-2, :, npx.newaxis])
 
         salt_data = self._read_forcing('salinity')[:, :, ::-1]
-        vs.salt = update(vs.salt, at[2:-2, 2:-2, :, :2], salt_data[..., np.newaxis] * vs.maskT[2:-2, 2:-2, :, np.newaxis])
+        vs.salt = update(vs.salt, at[2:-2, 2:-2, :, :2], salt_data[..., npx.newaxis] * vs.maskT[2:-2, 2:-2, :, npx.newaxis])
 
         # use Trenberth wind stress from MITgcm instead of ECMWF (also contained in ecmwf_4deg.cdf)
         vs.taux = update(vs.taux, at[2:-2, 2:-2, :], self._read_forcing('tau_x'))
@@ -162,17 +162,17 @@ class GlobalFourDegreeSetup(VerosSetup):
         # heat flux
         with h5netcdf.File(DATA_FILES['ecmwf'], 'r') as ecmwf_data:
             qnec_var = ecmwf_data.variables['Q3']
-            vs.qnec = update(vs.qnec, at[2:-2, 2:-2, :], np.array(qnec_var).T)
-            vs.qnec = np.where(vs.qnec <= -1e10, 0.0, vs.qnec)
+            vs.qnec = update(vs.qnec, at[2:-2, 2:-2, :], npx.array(qnec_var).T)
+            vs.qnec = npx.where(vs.qnec <= -1e10, 0.0, vs.qnec)
 
         q = self._read_forcing('q_net')
         vs.qnet = update(vs.qnet, at[2:-2, 2:-2, :], -q)
-        vs.qnet = np.where(vs.qnet <= -1e10, 0.0, vs.qnet)
+        vs.qnet = npx.where(vs.qnet <= -1e10, 0.0, vs.qnet)
 
-        mean_flux = np.sum(vs.qnet[2:-2, 2:-2, :] * vs.area_t[2:-2, 2:-2, np.newaxis]) \
-              / 12 / np.sum(vs.area_t[2:-2, 2:-2])
+        mean_flux = npx.sum(vs.qnet[2:-2, 2:-2, :] * vs.area_t[2:-2, 2:-2, npx.newaxis]) \
+              / 12 / npx.sum(vs.area_t[2:-2, 2:-2])
         logger.info(' removing an annual mean heat flux imbalance of %e W/m^2' % mean_flux)
-        vs.qnet = (vs.qnet - mean_flux) * vs.maskT[:, :, -1, np.newaxis]
+        vs.qnet = (vs.qnet - mean_flux) * vs.maskT[:, :, -1, npx.newaxis]
 
         # SST and SSS
         vs.sst_clim = update(vs.sst_clim, at[2:-2, 2:-2, :], self._read_forcing('sst'))
@@ -221,7 +221,7 @@ def set_forcing_kernel(state):
 
     # tke flux
     if settings.enable_tke:
-        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
+        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], npx.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
                                                                                           + vs.surface_taux[:-2, 1:-1]) / settings.rho_0)**2
                                                                                   + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
                                                                                             + vs.surface_tauy[1:-1, :-2]) / settings.rho_0)**2)**(3. / 2.))
@@ -240,10 +240,10 @@ def set_forcing_kernel(state):
         (sss - vs.salt[:, :, -1, vs.tau]) * vs.maskT[:, :, -1] * vs.dzt[-1]
 
     # apply simple ice mask
-    mask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
+    mask = npx.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
                           vs.forc_temp_surface < 0.)
-    vs.forc_temp_surface = np.where(mask, 0.0, vs.forc_temp_surface)
-    vs.forc_salt_surface = np.where(mask, 0.0, vs.forc_salt_surface)
+    vs.forc_temp_surface = npx.where(mask, 0.0, vs.forc_temp_surface)
+    vs.forc_salt_surface = npx.where(mask, 0.0, vs.forc_salt_surface)
 
     return KernelOutput(
         surface_taux=vs.surface_taux, surface_tauy=vs.surface_tauy, forc_tke_surface=vs.forc_tke_surface,
@@ -267,7 +267,7 @@ def set_forcing_kernel(state):
 
     # tke flux
     if settings.enable_tke:
-        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
+        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], npx.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
                                                                                           + vs.surface_taux[:-2, 1:-1]) / settings.rho_0)**2
                                                                                   + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
                                                                                             + vs.surface_tauy[1:-1, :-2]) / settings.rho_0)**2)**(3. / 2.))
@@ -286,10 +286,10 @@ def set_forcing_kernel(state):
         (sss - vs.salt[:, :, -1, vs.tau]) * vs.maskT[:, :, -1] * vs.dzt[-1]
 
     # apply simple ice mask
-    mask = np.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
+    mask = npx.logical_and(vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] < -1.8,
                           vs.forc_temp_surface < 0.)
-    vs.forc_temp_surface = np.where(mask, 0.0, vs.forc_temp_surface)
-    vs.forc_salt_surface = np.where(mask, 0.0, vs.forc_salt_surface)
+    vs.forc_temp_surface = npx.where(mask, 0.0, vs.forc_temp_surface)
+    vs.forc_salt_surface = npx.where(mask, 0.0, vs.forc_salt_surface)
 
     return KernelOutput(
         surface_taux=vs.surface_taux, surface_tauy=vs.surface_tauy, forc_tke_surface=vs.forc_tke_surface,

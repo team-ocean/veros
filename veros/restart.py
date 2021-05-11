@@ -8,19 +8,19 @@ from veros.variables import get_shape
 
 
 def read_from_h5(dimensions, var_meta, infile, groupname):
-    from veros.core.operators import numpy as np, update, at
+    from veros.core.operators import numpy as npx, update, at
 
     variables = {}
 
     for key, var in infile[groupname].items():
-        if np.isscalar(var):
+        if npx.isscalar(var):
             variables[key] = var
             continue
 
         local_shape = get_shape(dimensions, var_meta[key].dims, local=True, include_ghosts=True)
         gidx, lidx = get_chunk_slices(dimensions["xt"], dimensions["yt"], var_meta[key].dims, include_overlap=True)
 
-        variables[key] = np.empty(local_shape, dtype=str(var.dtype))
+        variables[key] = npx.empty(local_shape, dtype=str(var.dtype))
         variables[key] = update(variables[key], at[lidx], var[gidx])
         variables[key] = exchange_overlap(variables[key], var_meta[key].dims)
 

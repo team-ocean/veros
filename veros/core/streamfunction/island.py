@@ -2,7 +2,7 @@ import scipy.ndimage
 
 from veros import veros_routine, logger
 from veros.core import utilities
-from veros.core.operators import numpy as np
+from veros.core.operators import numpy as npx
 
 # fall back to vanilla NumPy for some operations
 import numpy as onp
@@ -58,7 +58,7 @@ def _compute_isleperim(kmt, enable_cyclic_x):
             continue
         relabelled[labelled == label] = new_label
 
-    return np.asarray(relabelled)
+    return npx.asarray(relabelled)
 
 
 @veros_routine(dist_safe=False, local_variables=("kbot", "land_map"))

@@ -74,7 +74,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
           >>> @veros_method
           >>> def set_initial_conditions(self, state):
           >>>     vs = state.variables
-          >>>     vs.u = update(vs.u, at[:, :, :, vs.tau], np.random.rand(vs.u.shape[:-1]))
+          >>>     vs.u = update(vs.u, at[:, :, :, vs.tau], npx.random.rand(vs.u.shape[:-1]))
         """
         pass
 
@@ -107,7 +107,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
           >>> @veros_method
           >>> def set_coriolis(self, state):
           >>>     vs = state.variables
-          >>>     vs.coriolis_t = 2 * vs.omega * np.sin(vs.yt[np.newaxis, :] / 180. * vs.pi)
+          >>>     vs.coriolis_t = 2 * vs.omega * npx.sin(vs.yt[npx.newaxis, :] / 180. * vs.pi)
         """
         pass
 

@@ -91,7 +91,7 @@ class ACCSetup(VerosSetup):
     @veros_routine
     def set_grid(self, state):
         vs = state.variables
-        ddz = np.array([50., 70., 100., 140., 190., 240., 290., 340.,
+        ddz = npx.array([50., 70., 100., 140., 190., 240., 290., 340.,
                         390., 440., 490., 540., 590., 640., 690.])
         vs.dxt = update(vs.dxt, at[...], 2.0)
         vs.dyt = update(vs.dyt, at[...], 2.0)
@@ -101,13 +101,13 @@ class ACCSetup(VerosSetup):
     def set_coriolis(self, state):
         vs = state.variables
         settings = state.settings
-        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * settings.omega * np.sin(vs.yt[None, :] / 180. * settings.pi))
+        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * settings.omega * npx.sin(vs.yt[None, :] / 180. * settings.pi))
 
     @veros_routine
     def set_topography(self, state):
         vs = state.variables
-        x, y = np.meshgrid(vs.xt, vs.yt, indexing='ij')
-        vs.kbot = np.logical_or(x > 1.0, y < -20).astype('int')
+        x, y = npx.meshgrid(vs.xt, vs.yt, indexing='ij')
+        vs.kbot = npx.logical_or(x > 1.0, y < -20).astype('int')
 
     @veros_routine
     def set_initial_conditions(self, state):
@@ -125,18 +125,18 @@ class ACCSetup(VerosSetup):
         yu_max = global_max(vs.yu.max())
 
         taux = allocate(state.dimensions, ('yt',))
-        taux = np.where(vs.yt < -20, 0.1 * np.sin(settings.pi * (vs.yu - yu_min) / (-20.0 - yt_min)), taux)
-        taux = np.where(vs.yt > 10, 0.1 * (1 - np.cos(2 * settings.pi * (vs.yu - 10.0) / (yu_max - 10.0))), taux)
+        taux = npx.where(vs.yt < -20, 0.1 * npx.sin(settings.pi * (vs.yu - yu_min) / (-20.0 - yt_min)), taux)
+        taux = npx.where(vs.yt > 10, 0.1 * (1 - npx.cos(2 * settings.pi * (vs.yu - 10.0) / (yu_max - 10.0))), taux)
         vs.surface_taux = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing
         vs.t_star = allocate(state.dimensions, ('yt',), fill=15)
-        vs.t_star = np.where(vs.yt < -20, 15 * (vs.yt - yt_min) / (-20 - yt_min), vs.t_star)
-        vs.t_star = np.where(vs.yt > 20, 15 * (1 - (vs.yt - 20) / (yt_max - 20)), vs.t_star)
-        vs.t_rest = vs.dzt[np.newaxis, -1] / (30. * 86400.) * vs.maskT[:, :, -1]
+        vs.t_star = npx.where(vs.yt < -20, 15 * (vs.yt - yt_min) / (-20 - yt_min), vs.t_star)
+        vs.t_star = npx.where(vs.yt > 20, 15 * (1 - (vs.yt - 20) / (yt_max - 20)), vs.t_star)
+        vs.t_rest = vs.dzt[npx.newaxis, -1] / (30. * 86400.) * vs.maskT[:, :, -1]
 
         if settings.enable_tke:
-            vs.forc_tke_surface = update(vs.forc_tke_surface, at[2:-2, 2:-2], np.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / settings.rho_0)**2
+            vs.forc_tke_surface = update(vs.forc_tke_surface, at[2:-2, 2:-2], npx.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / settings.rho_0)**2
                                                       + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / settings.rho_0)**2)**(1.5))
 
         if settings.enable_idemix:

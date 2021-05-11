@@ -1,7 +1,7 @@
 from veros import VerosSetup, veros_routine
 from veros.variables import allocate, Variable
 from veros.distributed import global_min, global_max
-from veros.core.operators import numpy as np, update, at
+from veros.core.operators import numpy as npx, update, at
 import veros.tools
 
 
@@ -119,20 +119,20 @@ class ACCSectorSetup(VerosSetup):
     def set_coriolis(self, state):
         vs = state.variables
         settings = state.settings
-        vs.coriolis_t = update(vs.coriolis_t, at[:, :], 2 * settings.omega * np.sin(vs.yt[None, :] / 180. * settings.pi))
+        vs.coriolis_t = update(vs.coriolis_t, at[:, :], 2 * settings.omega * npx.sin(vs.yt[None, :] / 180. * settings.pi))
 
     @veros_routine
     def set_topography(self, state):
         vs = state.variables
 
-        x, y = np.meshgrid(vs.xt, vs.yt, indexing='ij')
-        vs.kbot = np.logical_or((x > 1.0) & (x < 27), y < -40).astype('int')
+        x, y = npx.meshgrid(vs.xt, vs.yt, indexing='ij')
+        vs.kbot = npx.logical_or((x > 1.0) & (x < 27), y < -40).astype('int')
 
         # A half depth (ridge) is appended to the domain within the confines
         # of the circumpolar channel at the inflow and outflow regions
-        bathymetry = np.logical_or(((x <= 1.0) & (y < -40)), ((x >= 27) & (y < -40)))
-        kzt2000 = np.sum((vs.zt < -2000.).astype('int'))
-        vs.kbot = np.where(bathymetry, kzt2000, vs.kbot)
+        bathymetry = npx.logical_or(((x <= 1.0) & (y < -40)), ((x >= 27) & (y < -40)))
+        kzt2000 = npx.sum((vs.zt < -2000.).astype('int'))
+        vs.kbot = npx.where(bathymetry, kzt2000, vs.kbot)
 
     @veros_routine
     def set_initial_conditions(self, state):
@@ -158,24 +158,24 @@ class ACCSectorSetup(VerosSetup):
         subequatorial_south_s = (vs.yt <= -15) & (vs.yt > -30)
         south = vs.yt < -30
 
-        taux = np.where(north, -5e-2 * np.sin(settings.pi * (vs.yu - yu_max) / (yt_max - 30.)), taux)
-        taux = np.where(subequatorial_north_s, 5e-2 * np.sin(settings.pi * (vs.yu - 30.) / 30.), taux)
-        taux = np.where(subequatorial_north_n, 5e-2 * np.sin(settings.pi * (vs.yt - 30.) / 30.), taux)
-        taux = np.where(subequatorial_south_n, -5e-2 * np.sin(settings.pi * (vs.yu - 30.) / 30.), taux)
-        taux = np.where(subequatorial_south_s, -5e-2 * np.sin(settings.pi * (vs.yt - 30.) / 30.), taux)
-        taux = np.where(equator, -1.5e-2 * np.cos(settings.pi * (vs.yu - 10.) / 10.) - 2.5e-2, taux)
-        taux = np.where(south, 15e-2 * np.sin(settings.pi * (vs.yu - yu_min) / (-30. - yt_min)), taux)
+        taux = npx.where(north, -5e-2 * npx.sin(settings.pi * (vs.yu - yu_max) / (yt_max - 30.)), taux)
+        taux = npx.where(subequatorial_north_s, 5e-2 * npx.sin(settings.pi * (vs.yu - 30.) / 30.), taux)
+        taux = npx.where(subequatorial_north_n, 5e-2 * npx.sin(settings.pi * (vs.yt - 30.) / 30.), taux)
+        taux = npx.where(subequatorial_south_n, -5e-2 * npx.sin(settings.pi * (vs.yu - 30.) / 30.), taux)
+        taux = npx.where(subequatorial_south_s, -5e-2 * npx.sin(settings.pi * (vs.yt - 30.) / 30.), taux)
+        taux = npx.where(equator, -1.5e-2 * npx.cos(settings.pi * (vs.yu - 10.) / 10.) - 2.5e-2, taux)
+        taux = npx.where(south, 15e-2 * npx.sin(settings.pi * (vs.yu - yu_min) / (-30. - yt_min)), taux)
         vs.surface_taux = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing
         delta_t, ts, tn = 25., 0., 5.
         vs.t_star = allocate(state.dimensions, ('yt',), fill=delta_t)
-        vs.t_star = np.where(vs.yt < 0, ts + delta_t * np.sin(settings.pi * (vs.yt + 60.) / np.abs(2 * settings.y_origin)), vs.t_star)
-        vs.t_star = np.where(vs.yt > 0, tn + (delta_t + ts - tn) * np.sin(settings.pi * (vs.yt + 60.) / np.abs(2 * settings.y_origin)), vs.t_star)
+        vs.t_star = npx.where(vs.yt < 0, ts + delta_t * npx.sin(settings.pi * (vs.yt + 60.) / npx.abs(2 * settings.y_origin)), vs.t_star)
+        vs.t_star = npx.where(vs.yt > 0, tn + (delta_t + ts - tn) * npx.sin(settings.pi * (vs.yt + 60.) / npx.abs(2 * settings.y_origin)), vs.t_star)
         vs.t_rest = vs.dzt[-1] / (10. * 86400.) * vs.maskT[:, :, -1]
 
         if settings.enable_tke:
-            vs.forc_tke_surface = update(vs.forc_tke_surface, at[2:-2, 2:-2], np.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / settings.rho_0)**2
+            vs.forc_tke_surface = update(vs.forc_tke_surface, at[2:-2, 2:-2], npx.sqrt((0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / settings.rho_0)**2
                                                       + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / settings.rho_0)**2)**(1.5))
 
         if settings.enable_idemix:

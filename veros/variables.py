@@ -1,5 +1,3 @@
-import numpy as np
-
 from veros import runtime_settings
 
 
@@ -145,15 +143,6 @@ def remove_ghosts(array, dims):
 
     ghost_mask = tuple(slice(2, -2) if dim in GHOST_DIMENSIONS else slice(None) for dim in dims)
     return array[ghost_mask]
-
-
-def add_ghosts(vs, array, dims):
-    full_shape = tuple([i + 4 if dim in GHOST_DIMENSIONS else i for i,
-                        dim in zip(array.shape, dims)])
-    newarr = np.zeros(full_shape, dtype=array.dtype)
-    ghost_mask = tuple(slice(2, -2) if dim in GHOST_DIMENSIONS else slice(None) for dim in dims)
-    newarr[ghost_mask] = array
-    return newarr
 
 
 VARIABLES = {
@@ -818,13 +807,13 @@ def manifest_metadata(var_meta, settings):
 
 
 def allocate(dimensions, grid, dtype=None, include_ghosts=True, local=True, fill=0):
-    from veros.core.operators import numpy as np
+    from veros.core.operators import numpy as npx
 
     if dtype is None:
         dtype = runtime_settings.float_type
 
     shape = get_shape(dimensions, grid, include_ghosts=include_ghosts, local=local)
-    out = np.full(shape, fill, dtype=dtype)
+    out = npx.full(shape, fill, dtype=dtype)
 
     if runtime_settings.backend == "numpy":
         out.flags.writeable = False

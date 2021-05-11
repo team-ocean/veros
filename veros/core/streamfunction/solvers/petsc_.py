@@ -5,7 +5,7 @@ import numpy as onp
 from veros import runtime_settings as rs, runtime_state as rst
 from veros.core import utilities
 from veros.core.streamfunction.solvers.base import LinearSolver
-from veros.core.operators import numpy as np, update, update_add, at
+from veros.core.operators import numpy as npx, update, update_add, at
 
 
 class PETScSolver(LinearSolver):
@@ -74,7 +74,7 @@ class PETScSolver(LinearSolver):
         if info < 0:
             logger.warning('Streamfunction solver did not converge after {} iterations (error code: {})', iterations, info)
 
-        return np.array(self._da.getVecArray(self._sol_petsc)[...])
+        return npx.array(self._da.getVecArray(self._sol_petsc)[...])
 
     def solve(self, vs, rhs, x0, boundary_val=None):
         """
@@ -88,8 +88,8 @@ class PETScSolver(LinearSolver):
 
         x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x)
 
-        boundary_mask = np.all(~vs.boundary_mask, axis=2)
-        rhs = np.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
+        boundary_mask = npx.all(~vs.boundary_mask, axis=2)
+        rhs = npx.where(boundary_mask, rhs, boundary_val) # set right hand side on boundaries
 
         linear_solution = self._petsc_solver(vs, rhs, x0)
 
@@ -102,25 +102,25 @@ class PETScSolver(LinearSolver):
 
         matrix = self._da.getMatrix()
 
-        boundary_mask = np.all(~vs.boundary_mask[2:-2, 2:-2], axis=2)
+        boundary_mask = npx.all(~vs.boundary_mask[2:-2, 2:-2], axis=2)
 
         # assemble diagonals
-        main_diag = -vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, np.newaxis] / vs.dxt[3:-1, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2 \
-            - vs.hvr[2:-2, 2:-2] / vs.dxu[2:-2, np.newaxis] / vs.dxt[2:-2, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2 \
-            - vs.hur[2:-2, 2:-2] / vs.dyu[np.newaxis, 2:-2] / vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2] \
-            - vs.hur[2:-2, 3:-1] / vs.dyu[np.newaxis, 2:-2] / vs.dyt[np.newaxis, 3:-1] * \
-            vs.cost[np.newaxis, 3:-1] / vs.cosu[np.newaxis, 2:-2]
-        east_diag = vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, np.newaxis] / \
-            vs.dxt[3:-1, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2
-        west_diag = vs.hvr[2:-2, 2:-2] / vs.dxu[2:-2, np.newaxis] / \
-            vs.dxt[2:-2, np.newaxis] / vs.cosu[np.newaxis, 2:-2]**2
-        north_diag = vs.hur[2:-2, 3:-1] / vs.dyu[np.newaxis, 2:-2] / \
-            vs.dyt[np.newaxis, 3:-1] * vs.cost[np.newaxis, 3:-1] / vs.cosu[np.newaxis, 2:-2]
-        south_diag = vs.hur[2:-2, 2:-2] / vs.dyu[np.newaxis, 2:-2] / \
-            vs.dyt[np.newaxis, 2:-2] * vs.cost[np.newaxis, 2:-2] / vs.cosu[np.newaxis, 2:-2]
+        main_diag = -vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, npx.newaxis] / vs.dxt[3:-1, npx.newaxis] / vs.cosu[npx.newaxis, 2:-2]**2 \
+            - vs.hvr[2:-2, 2:-2] / vs.dxu[2:-2, npx.newaxis] / vs.dxt[2:-2, npx.newaxis] / vs.cosu[npx.newaxis, 2:-2]**2 \
+            - vs.hur[2:-2, 2:-2] / vs.dyu[npx.newaxis, 2:-2] / vs.dyt[npx.newaxis, 2:-2] * vs.cost[npx.newaxis, 2:-2] / vs.cosu[npx.newaxis, 2:-2] \
+            - vs.hur[2:-2, 3:-1] / vs.dyu[npx.newaxis, 2:-2] / vs.dyt[npx.newaxis, 3:-1] * \
+            vs.cost[npx.newaxis, 3:-1] / vs.cosu[npx.newaxis, 2:-2]
+        east_diag = vs.hvr[3:-1, 2:-2] / vs.dxu[2:-2, npx.newaxis] / \
+            vs.dxt[3:-1, npx.newaxis] / vs.cosu[npx.newaxis, 2:-2]**2
+        west_diag = vs.hvr[2:-2, 2:-2] / vs.dxu[2:-2, npx.newaxis] / \
+            vs.dxt[2:-2, npx.newaxis] / vs.cosu[npx.newaxis, 2:-2]**2
+        north_diag = vs.hur[2:-2, 3:-1] / vs.dyu[npx.newaxis, 2:-2] / \
+            vs.dyt[npx.newaxis, 3:-1] * vs.cost[npx.newaxis, 3:-1] / vs.cosu[npx.newaxis, 2:-2]
+        south_diag = vs.hur[2:-2, 2:-2] / vs.dyu[npx.newaxis, 2:-2] / \
+            vs.dyt[npx.newaxis, 2:-2] * vs.cost[npx.newaxis, 2:-2] / vs.cosu[npx.newaxis, 2:-2]
 
         main_diag *= boundary_mask
-        main_diag = np.where(main_diag == 0., 1., main_diag)
+        main_diag = npx.where(main_diag == 0., 1., main_diag)
 
         # construct sparse matrix
         cf = tuple(
@@ -153,10 +153,10 @@ class PETScSolver(LinearSolver):
         matrix.assemble()
 
         boundary_scale = {
-            'east': np.asarray(cf[1][-1, :]),
-            'west': np.asarray(cf[2][0, :]),
-            'north': np.asarray(cf[3][:, -1]),
-            'south': np.asarray(cf[4][:, 0])
+            'east': npx.asarray(cf[1][-1, :]),
+            'west': npx.asarray(cf[2][0, :]),
+            'north': npx.asarray(cf[3][:, -1]),
+            'south': npx.asarray(cf[4][:, 0])
         }
 
         return matrix, boundary_scale

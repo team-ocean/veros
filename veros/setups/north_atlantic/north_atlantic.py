@@ -9,7 +9,7 @@ import scipy.ndimage
 
 from veros import VerosSetup, veros_routine, veros_kernel, KernelOutput
 from veros.variables import Variable
-from veros.core.operators import numpy as np, update, at
+from veros.core.operators import numpy as npx, update, at
 import veros.tools
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -111,7 +111,7 @@ class NorthAtlanticSetup(VerosSetup):
     def set_coriolis(self, state):
         vs = state.variables
         settings = state.settings
-        vs.coriolis_t[:, :] = 2 * settings.omega * np.sin(vs.yt[np.newaxis, :] / 180. * settings.pi)
+        vs.coriolis_t[:, :] = 2 * settings.omega * npx.sin(vs.yt[npx.newaxis, :] / 180. * settings.pi)
 
     @veros_routine(dist_safe=False, local_variables=[
         'kbot', 'xt', 'yt', 'zt'
@@ -125,23 +125,23 @@ class NorthAtlanticSetup(VerosSetup):
                 self._get_data(topo_file, k) for k in ('x', 'y', 'z')
             )
 
-        topo_mask = np.flipud(np.asarray(Image.open(TOPO_MASK_FILE))).T
-        topo_bottom_depth = np.where(topo_mask, 0, topo_bottom_depth)
+        topo_mask = npx.flipud(npx.asarray(Image.open(TOPO_MASK_FILE))).T
+        topo_bottom_depth = npx.where(topo_mask, 0, topo_bottom_depth)
         topo_bottom_depth = scipy.ndimage.gaussian_filter(
             topo_bottom_depth, sigma=(len(topo_x) / settings.nx, len(topo_y) / settings.ny)
         )
-        interp_coords = np.meshgrid(vs.xt[2:-2], vs.yt[2:-2], indexing='ij')
-        interp_coords = np.rollaxis(np.asarray(interp_coords), 0, 3)
+        interp_coords = npx.meshgrid(vs.xt[2:-2], vs.yt[2:-2], indexing='ij')
+        interp_coords = npx.rollaxis(npx.asarray(interp_coords), 0, 3)
         z_interp = scipy.interpolate.interpn((topo_x, topo_y), topo_bottom_depth, interp_coords,
                                              method='nearest', bounds_error=False, fill_value=0)
-        vs.kbot = update(vs.kbot, at[2:-2, 2:-2], np.where(z_interp < 0., 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis]
-                                       - vs.zt[np.newaxis, np.newaxis, :]), axis=2), 0))
-        vs.kbot = np.where(vs.kbot < vs.nz, vs.kbot, 0)
+        vs.kbot = update(vs.kbot, at[2:-2, 2:-2], npx.where(z_interp < 0., 1 + npx.argmin(npx.abs(z_interp[:, :, npx.newaxis]
+                                       - vs.zt[npx.newaxis, npx.newaxis, :]), axis=2), 0))
+        vs.kbot = npx.where(vs.kbot < vs.nz, vs.kbot, 0)
 
     def _get_data(self, f, var):
         """Retrieve variable from h5netcdf file"""
         var_obj = f.variables[var]
-        return np.array(var_obj).T
+        return npx.array(var_obj).T
 
     @veros_routine(dist_safe=False, local_variables=[
         'xt', 'yt', 'zt', 'temp', 'maskT', 'salt', 'taux', 'tauy',
@@ -254,7 +254,7 @@ def set_forcing_kernel(state):
     vs.surface_tauy = (f1 * vs.tauy[:, :, n1] + f2 * vs.tauy[:, :, n2])
 
     if settings.enable_tke:
-        vs.forc_tke_surface[1:-1, 1:-1] = np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / vs.rho_0)**2
+        vs.forc_tke_surface[1:-1, 1:-1] = npx.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / vs.rho_0)**2
                                                   + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
                                                      + vs.surface_tauy[1:-1, :-2]) / vs.rho_0)**2
                                                   ) ** (3. / 2.)

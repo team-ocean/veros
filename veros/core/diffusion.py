@@ -1,4 +1,4 @@
-from veros.core.operators import numpy as np
+from veros.core.operators import numpy as npx
 
 from veros import veros_kernel, KernelOutput, runtime_settings
 from veros.variables import allocate
@@ -15,10 +15,10 @@ def compute_dissipation(state, int_drhodX, flux_east, flux_north):
     diss = update(diss, at[1:-1, 1:-1, :], 0.5 * settings.grav / settings.rho_0
                   * ((int_drhodX[2:, 1:-1, :] - int_drhodX[1:-1, 1:-1, :]) * flux_east[1:-1, 1:-1, :]
                      + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[:-2, 1:-1, :]) * flux_east[:-2, 1:-1, :])
-                  / (vs.dxt[1:-1, np.newaxis, np.newaxis] * vs.cost[np.newaxis, 1:-1, np.newaxis])
+                  / (vs.dxt[1:-1, npx.newaxis, npx.newaxis] * vs.cost[npx.newaxis, 1:-1, npx.newaxis])
                   + 0.5 * settings.grav / settings.rho_0 * ((int_drhodX[1:-1, 2:, :] - int_drhodX[1:-1, 1:-1, :]) * flux_north[1:-1, 1:-1, :]
                                           + (int_drhodX[1:-1, 1:-1, :] - int_drhodX[1:-1, :-2, :]) * flux_north[1:-1, :-2, :])
-                  / (vs.dyt[np.newaxis, 1:-1, np.newaxis] * vs.cost[np.newaxis, 1:-1, np.newaxis]))
+                  / (vs.dyt[npx.newaxis, 1:-1, npx.newaxis] * vs.cost[npx.newaxis, 1:-1, npx.newaxis]))
 
     return diss
 
@@ -29,14 +29,14 @@ def dissipation_on_wgrid(state, diss, ks):
     settings = state.settings
 
     land_mask, water_mask, edge_mask = utilities.create_water_masks(ks, settings.nz)
-    water_mask = np.logical_and(water_mask, np.logical_not(edge_mask))
+    water_mask = npx.logical_and(water_mask, npx.logical_not(edge_mask))
 
     dzw_pad = utilities.pad_z_edges(vs.dzw)
 
     diss_w = allocate(state.dimensions, ("xt", "yt", "zt"))
     diss_w = update(diss_w, at[:, :, :-1], (0.5 * (diss[:, :, :-1] + diss[:, :, 1:])
-                       + 0.5 * (diss[:, :, :-1] * dzw_pad[np.newaxis, np.newaxis, :-3]
-                                / vs.dzw[np.newaxis, np.newaxis, :-1])) * edge_mask[:, :, :-1]
+                       + 0.5 * (diss[:, :, :-1] * dzw_pad[npx.newaxis, npx.newaxis, :-3]
+                                / vs.dzw[npx.newaxis, npx.newaxis, :-1])) * edge_mask[:, :, :-1]
                        + 0.5 * (diss[:, :, :-1] + diss[:, :, 1:]) * water_mask[:, :, :-1])
     diss_w = update(diss_w, at[:, :, -1], diss[:, :, -1] * land_mask)
 
@@ -52,7 +52,7 @@ def tempsalt_biharmonic(state, flux_east, flux_north):
     vs = state.variables
     settings = state.settings
 
-    fxa = np.sqrt(abs(settings.K_hbi))
+    fxa = npx.sqrt(abs(settings.K_hbi))
 
     # update temp
     vs.dtemp_hmix = update(vs.dtemp_hmix, at[1:, 1:, :], biharmonic_diffusion(state, vs.temp[:, :, :, vs.tau], fxa)[1:, 1:, :])
@@ -143,34 +143,34 @@ def biharmonic_diffusion(state, tr, diffusivity):
     flux_north = allocate(state.dimensions, ("xt", "yt", "zt"))
 
     flux_east = update(flux_east, at[:-1, :, :], -diffusivity * (tr[1:, :, :] - tr[:-1, :, :]) \
-        / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+        / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis]) \
         * vs.maskU[:-1, :, :])
 
     flux_north = update(flux_north, at[:, :-1, :], -diffusivity * (tr[:, 1:, :] - tr[:, :-1, :]) \
-        / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] \
-        * vs.cosu[np.newaxis, :-1, np.newaxis])
+        / vs.dyu[npx.newaxis, :-1, npx.newaxis] * vs.maskV[:, :-1, :] \
+        * vs.cosu[npx.newaxis, :-1, npx.newaxis])
 
     del2 = update(del2, at[1:, 1:, :], vs.maskT[1:, 1:, :] * (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
-        / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
+        / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis]) \
         + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
-        / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis]))
+        / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dyt[npx.newaxis, 1:, npx.newaxis]))
 
     del2 = utilities.enforce_boundaries(del2, settings.enable_cyclic_x)
 
     flux_east = update(flux_east, at[:-1, :, :], diffusivity * (del2[1:, :, :] - del2[:-1, :, :]) \
-        / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis]) \
+        / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis]) \
         * vs.maskU[:-1, :, :])
     flux_north = update(flux_north, at[:, :-1, :], diffusivity * (del2[:, 1:, :] - del2[:, :-1, :]) \
-        / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :] \
-        * vs.cosu[np.newaxis, :-1, np.newaxis])
+        / vs.dyu[npx.newaxis, :-1, npx.newaxis] * vs.maskV[:, :-1, :] \
+        * vs.cosu[npx.newaxis, :-1, npx.newaxis])
 
     flux_east = update(flux_east, at[-1, :, :], 0.)
     flux_north = update(flux_north, at[:, -1, :], 0.)
 
     dtr = update(dtr, at[1:, 1:, :], (flux_east[1:, 1:, :] - flux_east[:-1, 1:, :]) \
-        / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis]) \
+        / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis]) \
         + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :]) \
-        / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis]))
+        / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dyt[npx.newaxis, 1:, npx.newaxis]))
 
     dtr = dtr * vs.maskT
 
@@ -192,23 +192,23 @@ def horizontal_diffusion(state, tr, diffusivity):
 
     # horizontal diffusion of tracer
     flux_east = update(flux_east, at[:-1, :, :], diffusivity * (tr[1:, :, :] - tr[:-1, :, :]) \
-        / (vs.cost[np.newaxis, :, np.newaxis] * vs.dxu[:-1, np.newaxis, np.newaxis])\
+        / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])\
         * vs.maskU[:-1, :, :])
     flux_east = update(flux_east, at[-1, :, :], 0.)
 
     flux_north = update(flux_north, at[:, :-1, :], diffusivity * (tr[:, 1:, :] - tr[:, :-1, :]) \
-        / vs.dyu[np.newaxis, :-1, np.newaxis] * vs.maskV[:, :-1, :]\
-        * vs.cosu[np.newaxis, :-1, np.newaxis])
+        / vs.dyu[npx.newaxis, :-1, npx.newaxis] * vs.maskV[:, :-1, :]\
+        * vs.cosu[npx.newaxis, :-1, npx.newaxis])
     flux_north = update(flux_north, at[:, -1, :], 0.)
 
     if settings.enable_hor_friction_cos_scaling:
-        flux_east = update_multiply(flux_east, at[...], vs.cost[np.newaxis, :, np.newaxis] ** settings.hor_friction_cosPower)
-        flux_north = update_multiply(flux_north, at[...], vs.cosu[np.newaxis, :, np.newaxis] ** settings.hor_friction_cosPower)
+        flux_east = update_multiply(flux_east, at[...], vs.cost[npx.newaxis, :, npx.newaxis] ** settings.hor_friction_cosPower)
+        flux_north = update_multiply(flux_north, at[...], vs.cosu[npx.newaxis, :, npx.newaxis] ** settings.hor_friction_cosPower)
 
     dtr_hmix = update(dtr_hmix, at[1:, 1:, :], ((flux_east[1:, 1:, :] - flux_east[:-1, 1:, :])
-                           / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dxt[1:, np.newaxis, np.newaxis])
+                           / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis])
                            + (flux_north[1:, 1:, :] - flux_north[1:, :-1, :])
-                           / (vs.cost[np.newaxis, 1:, np.newaxis] * vs.dyt[np.newaxis, 1:, np.newaxis]))\
+                           / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dyt[npx.newaxis, 1:, npx.newaxis]))\
                         * vs.maskT[1:, 1:, :])
 
     return dtr_hmix

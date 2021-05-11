@@ -1,4 +1,4 @@
-from veros.core.operators import numpy as np
+from veros.core.operators import numpy as npx
 
 from veros import veros_kernel
 
@@ -72,8 +72,8 @@ def gsw_rho(sa, ct, p):
     ==========================================================================
     """
     # convert scalar values if necessary
-    sa, ct, p = np.asarray(sa), np.asarray(ct), np.asarray(p)
-    sqrtsa = np.sqrt(sa)
+    sa, ct, p = npx.asarray(sa), npx.asarray(ct), npx.asarray(p)
+    sqrtsa = npx.sqrt(sa)
     v_hat_denominator = v01 + ct * (v02 + ct * (v03 + v04 * ct)) \
         + sa * (v05 + ct * (v06 + v07 * ct)
                 + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct)))) \
@@ -97,7 +97,7 @@ def gsw_drhodT(sa, ct, p):
     p      : sea pressure                                    [dbar]
     ==========================================================================
     """
-    p = np.asarray(p)  # convert scalar value if necessary
+    p = npx.asarray(p)  # convert scalar value if necessary
     a01 = 2.839940833161907e0
     a02 = -6.295518531177023e-2
     a03 = 3.545416635222918e-3
@@ -132,7 +132,7 @@ def gsw_drhodT(sa, ct, p):
     a32 = 1.119522344879478e-14
     a33 = 6.057902487546866e-17
 
-    sqrtsa = np.sqrt(sa)
+    sqrtsa = npx.sqrt(sa)
     v_hat_denominator = v01 + ct * (v02 + ct * (v03 + v04 * ct)) + sa * (v05 + ct * (v06 + v07 * ct)
                                                                          + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct)))) + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct)
                                                                                                                                        + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
@@ -163,7 +163,7 @@ def gsw_drhodS(sa, ct, p):
      p      : sea pressure                                    [dbar]
     ==========================================================================
     """
-    p = np.asarray(p)  # convert scalar value if necessary
+    p = npx.asarray(p)  # convert scalar value if necessary
     b01 = -6.698001071123802e0
     b02 = -2.986498947203215e-2
     b03 = 2.327859407479162e-4
@@ -189,7 +189,7 @@ def gsw_drhodS(sa, ct, p):
     b23 = 6.211426728363857e-10
     b24 = 1.119522344879478e-14
 
-    sqrtsa = np.sqrt(sa)
+    sqrtsa = npx.sqrt(sa)
     v_hat_denominator = v01 + ct * (v02 + ct * (v03 + v04 * ct)) + sa * (v05 + ct * (v06 + v07 * ct)
                                                                          + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct)))) + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct)
                                                                                                                                        + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
@@ -221,7 +221,7 @@ def gsw_drhodP(sa, ct, p):
      p      : sea pressure                                    [dbar]
     ==========================================================================
     """
-    p = np.asarray(p)  # convert scalar value if necessary
+    p = npx.asarray(p)  # convert scalar value if necessary
     c01 = -2.233269627352527e-2
     c02 = -3.436090079851880e-4
     c03 = 3.726050720345733e-6
@@ -245,7 +245,7 @@ def gsw_drhodP(sa, ct, p):
     c21 = 1.817370746264060e-16
     pa2db = 1e-4
 
-    sqrtsa = np.sqrt(sa)
+    sqrtsa = npx.sqrt(sa)
     v_hat_denominator = v01 + ct * (v02 + ct * (v03 + v04 * ct)) + sa * (v05 + ct * (v06 + v07 * ct)
                                                                          + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct)))) + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct)
                                                                                                                                        + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
@@ -282,9 +282,9 @@ def gsw_dyn_enthalpy(sa, ct, p):
      p      : sea pressure                                    [dbar]
     ==========================================================================
     """
-    p = np.asarray(p)  # convert scalar value if necessary
+    p = npx.asarray(p)  # convert scalar value if necessary
     db2pa = 1e4                             # factor to convert from dbar to Pa
-    sqrtsa = np.sqrt(sa)
+    sqrtsa = npx.sqrt(sa)
     a0 = v21 + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct))) \
         + sa * (v26 + ct * (v27 + ct * (v28 + ct * (v29 + v30 * ct))) + v36 * sa
                 + sqrtsa * (v31 + ct * (v32 + ct * (v33 + ct * (v34 + v35 * ct)))))
@@ -296,14 +296,14 @@ def gsw_dyn_enthalpy(sa, ct, p):
     b1 = 0.5 * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct))
     b2 = v17 + ct * (v18 + v19 * ct) + v20 * sa
     b1sq = b1 * b1
-    sqrt_disc = np.sqrt(b1sq - b0 * b2)
+    sqrt_disc = npx.sqrt(b1sq - b0 * b2)
     cn = a0 + (2 * a3 * b0 * b1 / b2 - a2 * b0) / b2
     cm = a1 + (4 * a3 * b1sq / b2 - a3 * b0 - 2 * a2 * b1) / b2
     ca = b1 - sqrt_disc
     cb = b1 + sqrt_disc
     part = (cn * b2 - cm * b1) / (b2 * (cb - ca))
-    Hd = db2pa * (p * (a2 - 2.0 * a3 * b1 / b2 + 0.5 * a3 * p) / b2 + (cm / (2.0 * b2)) * np.log(1.0 + p * (2.0 * b1 + b2 * p) / b0)
-                  + part * np.log(1.0 + (b2 * p * (cb - ca)) / (ca * (cb + b2 * p))))
+    Hd = db2pa * (p * (a2 - 2.0 * a3 * b1 / b2 + 0.5 * a3 * p) / b2 + (cm / (2.0 * b2)) * npx.log(1.0 + p * (2.0 * b1 + b2 * p) / b0)
+                  + part * npx.log(1.0 + (b2 * p * (cb - ca)) / (ca * (cb + b2 * p))))
     return Hd - p * db2pa / rho0
 
 
@@ -316,9 +316,9 @@ def gsw_dHdT(sa_in, ct_in, p):
     ct     : Conservative Temperature                        [deg C]
     p      : sea pressure                                    [dbar]
     """
-    p = np.asarray(p)  # convert scalar value if necessary
-    sa = np.maximum(1e-1, sa_in)  # prevent division by zero
-    ct = np.maximum(-12, ct_in)  # prevent blowing up for values smaller than -15 degC
+    p = npx.asarray(p)  # convert scalar value if necessary
+    sa = npx.maximum(1e-1, sa_in)  # prevent division by zero
+    ct = npx.maximum(-12, ct_in)  # prevent blowing up for values smaller than -15 degC
     t1 = v45 * ct
     t2 = 0.2e1 * t1
     t3 = v46 * sa
@@ -352,7 +352,7 @@ def gsw_dHdT(sa_in, ct_in, p):
     t74 = v04 * ct
     t76 = ct * (v03 + t74)
     t79 = v07 * ct
-    t82 = np.sqrt(sa)
+    t82 = npx.sqrt(sa)
     t83 = v11 * ct
     t85 = ct * (v10 + t83)
     t92 = v01 + ct * (v02 + t76) + sa * (v05 + ct * (v06 + t79) + t82 * (v08 + ct * (v09 + t85)))
@@ -371,7 +371,7 @@ def gsw_dHdT(sa_in, ct_in, p):
     t130 = p * (1.0 * v12 + 1.0 * t7 + 1.0 * t11 + t128)
     t131 = 1.0 / t92
     t133 = 1.0 + t130 * t131
-    t134 = np.log(t133)
+    t134 = npx.log(t133)
     t143 = v37 + ct * (v38 + t59) + sa * (v41 + v42 * ct) + t120 * t20
     t152 = t37 * p
     t156 = t92 ** 2
@@ -389,7 +389,7 @@ def gsw_dHdT(sa_in, ct_in, p):
     t234 = v21 + ct * (v22 + t169) + sa * (v26 + ct * (v27 + t179) + v36 *
                                            sa + t82 * (v31 + ct * (v32 + t189))) + t217 * t20
     t241 = t64 - t92 * t19
-    t242 = np.sqrt(t241)
+    t242 = npx.sqrt(t241)
     t243 = 1.0 / t242
     t244 = t4 + t8 + t12 - t242
     t245 = 1.0 / t244
@@ -397,7 +397,7 @@ def gsw_dHdT(sa_in, ct_in, p):
     t248 = 1.0 / t247
     t249 = t242 * t245 * t248
     t252 = 1.0 + 2.0 * t128 * t249
-    t253 = np.log(t252)
+    t253 = npx.log(t252)
     t254 = t243 * t253
     t259 = t234 * t19 - t143 * t13
     t264 = t259 * t20
@@ -435,9 +435,9 @@ def gsw_dHdS(sa_in, ct_in, p):
     ct     : Conservative Temperature                        [deg C]
     p      : sea pressure                                    [dbar]
     """
-    p = np.asarray(p)  # convert scalar value if necessary
-    sa = np.maximum(1e-1, sa_in)  # prevent division by zero
-    ct = np.maximum(-12.0, ct_in)  # prevent blowing up for values smaller than -15 degC
+    p = npx.asarray(p)  # convert scalar value if necessary
+    sa = npx.maximum(1e-1, sa_in)  # prevent division by zero
+    ct = npx.maximum(-12.0, ct_in)  # prevent blowing up for values smaller than -15 degC
     t1 = ct * v46
     t3 = v47 + v48 * ct
     t4 = 0.5 * v15
@@ -462,7 +462,7 @@ def gsw_dHdS(sa_in, ct_in, p):
     t52 = t25 ** 2
     t53 = t3 * t52
     t58 = ct * (v06 + v07 * ct)
-    t59 = np.sqrt(sa)
+    t59 = npx.sqrt(sa)
     t66 = t59 * (v08 + ct * (v09 + ct * (v10 + v11 * ct)))
     t68 = v05 + t58 + 3.0 / 2.0 * t66
     t69 = t3 * t68
@@ -476,7 +476,7 @@ def gsw_dHdS(sa_in, ct_in, p):
     t100 = p * (1.0 * v12 + 1.0 * t20 + 1.0 * t23 + t98)
     t101 = 1.0 / t86
     t103 = 1.0 + t100 * t101
-    t104 = np.log(t103)
+    t104 = npx.log(t103)
     t115 = v37 + ct * (v38 + ct * (v39 + v40 * ct)) + sa * (v41 + t48) + t90 * t14
     t123 = v20 * p
     t127 = t86 ** 2
@@ -489,7 +489,7 @@ def gsw_dHdS(sa_in, ct_in, p):
     t189 = v21 + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct))) + \
         sa * (v26 + t142 + t143 + t152) + t174 * t14
     t196 = t52 - t86 * t13
-    t197 = np.sqrt(t196)
+    t197 = npx.sqrt(t196)
     t198 = 1.0 / t197
     t199 = t17 + t21 + t24 - t197
     t200 = 1.0 / t199
@@ -497,7 +497,7 @@ def gsw_dHdS(sa_in, ct_in, p):
     t203 = 1.0 / t202
     t204 = t197 * t200 * t203
     t207 = 1.0 + 2.0 * t98 * t204
-    t208 = np.log(t207)
+    t208 = npx.log(t207)
     t209 = t198 * t208
     t214 = t189 * t13 - t115 * t25
     t219 = t214 * t14

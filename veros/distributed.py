@@ -93,8 +93,8 @@ def allreduce(buf, op, comm, token=None):
         from mpi4jax import allreduce
         return allreduce(buf, op=op, comm=comm, token=token)
 
-    from veros.core.operators import numpy as np
-    recvbuf = np.empty_like(buf)
+    from veros.core.operators import numpy as npx
+    recvbuf = npx.empty_like(buf)
     comm.Allreduce(ascontiguousarray(buf), recvbuf, op=op)
     return recvbuf, None
 
@@ -216,7 +216,7 @@ def get_process_neighbors(cyclic=False):
 
 @dist_context_only(noop_return_arg=0)
 def exchange_overlap(arr, var_grid, cyclic):
-    from veros.core.operators import numpy as np, update, at
+    from veros.core.operators import numpy as npx, update, at
 
     # start west, go clockwise
     send_order = (
@@ -310,7 +310,7 @@ def exchange_overlap(arr, var_grid, cyclic):
             continue
 
         recv_idx = overlap_slices_to[recv_dir]
-        recv_arr = np.empty_like(arr[recv_idx])
+        recv_arr = npx.empty_like(arr[recv_idx])
 
         send_idx = overlap_slices_from[send_dir]
         send_arr = arr[send_idx]
@@ -359,7 +359,7 @@ def _mpi_comm_along_axis(comm, procs, rank):
 
 @dist_context_only(noop_return_arg=0)
 def _reduce(arr, op, axis=None):
-    from veros.core.operators import numpy as np
+    from veros.core.operators import numpy as npx
 
     if axis is None:
         comm = rs.mpi_comm
@@ -369,9 +369,9 @@ def _reduce(arr, op, axis=None):
         other_axis = 1 - axis
         comm = _mpi_comm_along_axis(rs.mpi_comm, pi[other_axis], rst.proc_rank)
 
-    if np.isscalar(arr):
+    if npx.isscalar(arr):
         squeeze = True
-        arr = np.array([arr])
+        arr = npx.array([arr])
     else:
         squeeze = False
 
@@ -415,7 +415,7 @@ def global_sum(arr, axis=None):
 
 @dist_context_only(noop_return_arg=2)
 def _gather_1d(nx, ny, arr, dim):
-    from veros.core.operators import numpy as np, update, at
+    from veros.core.operators import numpy as npx, update, at
 
     assert dim in (0, 1)
 
@@ -437,12 +437,12 @@ def _gather_1d(nx, ny, arr, dim):
             if pi[otherdim] != 0:
                 continue
             idx_g, idx_l = get_chunk_slices(nx, ny, dim_grid, include_overlap=True, proc_idx=pi)
-            recvbuf = np.empty_like(arr[idx_l])
+            recvbuf = npx.empty_like(arr[idx_l])
             recvbuf, token = recv(recvbuf, source=proc, tag=20, comm=rs.mpi_comm, token=token)
             buffer_list.append((idx_g, recvbuf))
 
         out_shape = ((nx + 4, ny + 4)[dim],) + arr.shape[1:]
-        out = np.empty(out_shape, dtype=arr.dtype)
+        out = npx.empty(out_shape, dtype=arr.dtype)
         out = update(out, at[gidx], sendbuf)
 
         for idx, val in buffer_list:
@@ -457,7 +457,7 @@ def _gather_1d(nx, ny, arr, dim):
 
 @dist_context_only(noop_return_arg=2)
 def _gather_xy(nx, ny, arr):
-    from veros.core.operators import numpy as np, update, at
+    from veros.core.operators import numpy as npx, update, at
 
     nxi, nyi = get_chunk_size(nx, ny)
     assert arr.shape[:2] == (nxi + 4, nyi + 4), arr.shape
@@ -475,12 +475,12 @@ def _gather_xy(nx, ny, arr):
                 nx, ny, dim_grid, include_overlap=True,
                 proc_idx=proc_rank_to_index(proc)
             )
-            recvbuf = np.empty_like(arr[idx_l])
+            recvbuf = npx.empty_like(arr[idx_l])
             recvbuf, token = recv(recvbuf, source=proc, tag=30, comm=rs.mpi_comm, token=token)
             buffer_list.append((idx_g, recvbuf))
 
         out_shape = (nx + 4, ny + 4) + arr.shape[2:]
-        out = np.empty(out_shape, dtype=arr.dtype)
+        out = npx.empty(out_shape, dtype=arr.dtype)
         out = update(out, at[gidx], sendbuf)
 
         for idx, val in buffer_list:
@@ -528,7 +528,7 @@ def _scatter_constant(arr):
 
 @dist_context_only(noop_return_arg=2)
 def _scatter_1d(nx, ny, arr, dim):
-    from veros.core.operators import numpy as np, update, at
+    from veros.core.operators import numpy as npx, update, at
 
     assert dim in (0, 1)
 
@@ -549,7 +549,7 @@ def _scatter_1d(nx, ny, arr, dim):
             token = send(sendbuf, dest=proc, tag=40, comm=rs.mpi_comm, token=token)
 
         # arr changes shape in main process
-        arr = np.zeros((out_nx + 4,) + arr.shape[1:], dtype=arr.dtype)
+        arr = npx.zeros((out_nx + 4,) + arr.shape[1:], dtype=arr.dtype)
     else:
         recvbuf, _ = recv(arr[local_slice], source=0, tag=40, comm=rs.mpi_comm)
 
@@ -561,7 +561,7 @@ def _scatter_1d(nx, ny, arr, dim):
 
 @dist_context_only(noop_return_arg=2)
 def _scatter_xy(nx, ny, arr):
-    from veros.core.operators import numpy as np, update, at
+    from veros.core.operators import numpy as npx, update, at
 
     nxi, nyi = get_chunk_size(nx, ny)
 
@@ -581,9 +581,9 @@ def _scatter_xy(nx, ny, arr):
             token = send(sendbuf, dest=proc, tag=50, comm=rs.mpi_comm, token=token)
 
         # arr changes shape in main process
-        arr = np.empty((nxi + 4, nyi + 4) + arr.shape[2:], dtype=arr.dtype)
+        arr = npx.empty((nxi + 4, nyi + 4) + arr.shape[2:], dtype=arr.dtype)
     else:
-        recvbuf = np.empty_like(arr[local_slice])
+        recvbuf = npx.empty_like(arr[local_slice])
         recvbuf, _ = recv(recvbuf, source=0, tag=50, comm=rs.mpi_comm)
 
     arr = update(arr, at[local_slice], recvbuf)
@@ -594,7 +594,7 @@ def _scatter_xy(nx, ny, arr):
 
 @dist_context_only(noop_return_arg=0)
 def scatter(arr, dimensions, var_grid):
-    from veros.core.operators import numpy as np
+    from veros.core.operators import numpy as npx
     nx, ny = dimensions["xt"], dimensions["yt"]
 
     if len(var_grid) < 2:
@@ -602,7 +602,7 @@ def scatter(arr, dimensions, var_grid):
     else:
         d1, d2 = var_grid[:2]
 
-    arr = np.asarray(arr)
+    arr = npx.asarray(arr)
 
     if d1 not in SCATTERED_DIMENSIONS[0] and d1 not in SCATTERED_DIMENSIONS[1] and d2 not in SCATTERED_DIMENSIONS[1]:
         # neither x nor y dependent

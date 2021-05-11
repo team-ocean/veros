@@ -11,7 +11,7 @@ from veros import (
 )
 from veros.variables import Variable, allocate
 from veros.core.utilities import enforce_boundaries
-from veros.core.operators import numpy as np, update, at
+from veros.core.operators import numpy as npx, update, at
 import veros.tools
 import veros.time
 
@@ -127,7 +127,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
         with h5netcdf.File(DATA_FILES['forcing'], 'r', **kwargs) as forcing_file:
             var_obj = forcing_file.variables[var]
-            return np.array(var_obj[idx]).T
+            return npx.array(var_obj[idx]).T
 
     @veros_routine(dist_safe=False, local_variables=[
         'dxt', 'dyt', 'dzt'
@@ -160,12 +160,12 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
     def set_coriolis(self, state):
         vs = state.variables
         settings = state.settings
-        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * settings.omega * np.sin(vs.yt[np.newaxis, :] / 180. * settings.pi))
+        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * settings.omega * npx.sin(vs.yt[npx.newaxis, :] / 180. * settings.pi))
 
     def _shift_longitude_array(self, vs, lon, arr):
-        wrap_i = np.where((lon[:-1] < vs.xt.min()) & (lon[1:] >= vs.xt.min()))[0][0]
-        new_lon = np.concatenate((lon[wrap_i:-1], lon[:wrap_i] + 360.))
-        new_arr = np.concatenate((arr[wrap_i:-1, ...], arr[:wrap_i, ...]))
+        wrap_i = npx.where((lon[:-1] < vs.xt.min()) & (lon[1:] >= vs.xt.min()))[0][0]
+        new_lon = npx.concatenate((lon[wrap_i:-1], lon[:wrap_i] + 360.))
+        new_arr = npx.concatenate((arr[wrap_i:-1, ...], arr[:wrap_i, ...]))
         return new_lon, new_arr
 
     @veros_routine(dist_safe=False, local_variables=[
@@ -177,16 +177,16 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
         with h5netcdf.File(DATA_FILES['topography'], 'r') as topography_file:
             topo_x, topo_y, topo_z = (
-                np.array(topography_file.variables[k], dtype='float').T
+                npx.array(topography_file.variables[k], dtype='float').T
                 for k in ('x', 'y', 'z')
             )
 
-        topo_z = np.minimum(topo_z, 0.)
+        topo_z = npx.minimum(topo_z, 0.)
 
         # smooth topography to match grid resolution
         gaussian_sigma = (0.5 * len(topo_x) / settings.nx, 0.5 * len(topo_y) / settings.ny)
         topo_z_smoothed = scipy.ndimage.gaussian_filter(topo_z, sigma=gaussian_sigma)
-        topo_z_smoothed = np.where(topo_z >= -1, 0, topo_z_smoothed)
+        topo_z_smoothed = npx.where(topo_z >= -1, 0, topo_z_smoothed)
 
         topo_x_shifted, topo_z_shifted = self._shift_longitude_array(vs, topo_x, topo_z_smoothed)
         coords = (vs.xt[2:-2], vs.yt[2:-2])
@@ -195,9 +195,9 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
             (topo_x_shifted, topo_y), topo_z_shifted, coords, kind='nearest', fill=False
         ))
 
-        depth_levels = 1 + np.argmin(np.abs(z_interp[:, :, np.newaxis] - vs.zt[np.newaxis, np.newaxis, :]), axis=2)
-        vs.kbot = update(vs.kbot, at[2:-2, 2:-2], np.where(z_interp < 0., depth_levels, 0)[2:-2, 2:-2])
-        vs.kbot = np.where(vs.kbot < settings.nz, vs.kbot, 0)
+        depth_levels = 1 + npx.argmin(npx.abs(z_interp[:, :, npx.newaxis] - vs.zt[npx.newaxis, npx.newaxis, :]), axis=2)
+        vs.kbot = update(vs.kbot, at[2:-2, 2:-2], npx.where(z_interp < 0., depth_levels, 0)[2:-2, 2:-2])
+        vs.kbot = npx.where(vs.kbot < settings.nz, vs.kbot, 0)
         vs.kbot = enforce_boundaries(vs.kbot, settings.enable_cyclic_x, local=True)
 
         # remove marginal seas
@@ -210,7 +210,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
             )
         )
 
-        vs.kbot = np.where(marginal, 0, vs.kbot)
+        vs.kbot = npx.where(marginal, 0, vs.kbot)
 
     @veros_routine
     def set_initial_conditions(self, state):
@@ -226,18 +226,18 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         zt_forc = zt_forc[::-1]
 
         # coordinates must be monotonous for this to work
-        assert np.diff(xt_forc).all() > 0
-        assert np.diff(yt_forc).all() > 0
+        assert npx.diff(xt_forc).all() > 0
+        assert npx.diff(yt_forc).all() > 0
 
         # determine slice to read from forcing file
         data_subset = (
             slice(
-                max(0, int(np.argmax(xt_forc >= vs.xt.min())) - 1),
-                len(xt_forc) - max(0, int(np.argmax(xt_forc[::-1] <= vs.xt.max())) - 1)
+                max(0, int(npx.argmax(xt_forc >= vs.xt.min())) - 1),
+                len(xt_forc) - max(0, int(npx.argmax(xt_forc[::-1] <= vs.xt.max())) - 1)
             ),
             slice(
-                max(0, int(np.argmax(yt_forc >= vs.yt.min())) - 1),
-                len(yt_forc) - max(0, int(np.argmax(yt_forc[::-1] <= vs.yt.max())) - 1)
+                max(0, int(npx.argmax(yt_forc >= vs.yt.min())) - 1),
+                len(yt_forc) - max(0, int(npx.argmax(yt_forc[::-1] <= vs.yt.max())) - 1)
             ),
             Ellipsis
         )
@@ -249,22 +249,22 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         temp_raw = self._get_data(vs, 'temperature', idx=data_subset)[..., ::-1]
         temp_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), temp_raw,
                                             t_grid)
-        vs.temp = update(vs.temp, at[2:-2, 2:-2, :, :], (temp_data * vs.maskT[2:-2, 2:-2, :])[..., np.newaxis])
+        vs.temp = update(vs.temp, at[2:-2, 2:-2, :, :], (temp_data * vs.maskT[2:-2, 2:-2, :])[..., npx.newaxis])
 
         salt_raw = self._get_data(vs, 'salinity', idx=data_subset)[..., ::-1]
         salt_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), salt_raw,
                                             t_grid)
-        vs.salt = update(vs.salt, at[2:-2, 2:-2, :, :], (salt_data * vs.maskT[2:-2, 2:-2, :])[..., np.newaxis])
+        vs.salt = update(vs.salt, at[2:-2, 2:-2, :, :], (salt_data * vs.maskT[2:-2, 2:-2, :])[..., npx.newaxis])
 
         # wind stress on MIT grid
-        time_grid = (vs.xt[2:-2], vs.yt[2:-2], np.arange(12))
+        time_grid = (vs.xt[2:-2], vs.yt[2:-2], npx.arange(12))
         taux_raw = self._get_data(vs, 'tau_x', idx=data_subset)
-        taux_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+        taux_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)),
                                             taux_raw, time_grid)
         vs.taux = update(vs.taux, at[2:-2, 2:-2, :], taux_data)
 
         tauy_raw = self._get_data(vs, 'tau_y', idx=data_subset)
-        tauy_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+        tauy_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)),
                                             tauy_raw, time_grid)
         vs.tauy = update(vs.tauy, at[2:-2, 2:-2, :], tauy_data)
 
@@ -273,38 +273,38 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
         # Qnet and dQ/dT and Qsol
         qnet_raw = self._get_data(vs, 'q_net', idx=data_subset)
-        qnet_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+        qnet_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)),
                                             qnet_raw, time_grid)
-        vs.qnet = update(vs.qnet, at[2:-2, 2:-2, :], -qnet_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis])
+        vs.qnet = update(vs.qnet, at[2:-2, 2:-2, :], -qnet_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
         qnec_raw = self._get_data(vs, 'dqdt', idx=data_subset)
-        qnec_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+        qnec_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)),
                                             qnec_raw, time_grid)
-        vs.qnec = update(vs.qnec, at[2:-2, 2:-2, :], qnec_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis])
+        vs.qnec = update(vs.qnec, at[2:-2, 2:-2, :], qnec_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
         qsol_raw = self._get_data(vs, 'swf', idx=data_subset)
-        qsol_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+        qsol_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)),
                                             qsol_raw, time_grid)
-        vs.qsol = update(vs.qsol, at[2:-2, 2:-2, :], -qsol_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis])
+        vs.qsol = update(vs.qsol, at[2:-2, 2:-2, :], -qsol_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
         # SST and SSS
         sst_raw = self._get_data(vs, 'sst', idx=data_subset)
-        sst_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+        sst_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)),
                                            sst_raw, time_grid)
-        vs.t_star = update(vs.t_star, at[2:-2, 2:-2, :], sst_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis])
+        vs.t_star = update(vs.t_star, at[2:-2, 2:-2, :], sst_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
         sss_raw = self._get_data(vs, 'sss', idx=data_subset)
-        sss_data = veros.tools.interpolate((xt_forc, yt_forc, np.arange(12)),
+        sss_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)),
                                            sss_raw, time_grid)
-        vs.s_star = update(vs.s_star, at[2:-2, 2:-2, :], sss_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis])
+        vs.s_star = update(vs.s_star, at[2:-2, 2:-2, :], sss_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
         if settings.enable_idemix:
             tidal_energy_raw = self._get_data(vs, 'tidal_energy', idx=data_subset)
             tidal_energy_data = veros.tools.interpolate(
                 (xt_forc, yt_forc), tidal_energy_raw, t_grid[:-1]
             )
-            mask_x, mask_y = (i + 2 for i in np.indices((vs.nx, vs.ny)))
-            mask_z = np.maximum(0, vs.kbot[2:-2, 2:-2] - 1)
+            mask_x, mask_y = (i + 2 for i in npx.indices((vs.nx, vs.ny)))
+            mask_z = npx.maximum(0, vs.kbot[2:-2, 2:-2] - 1)
             tidal_energy_data[:, :] *= vs.maskW[mask_x, mask_y, mask_z] / vs.rho_0
             vs.forc_iw_bottom[2:-2, 2:-2] = tidal_energy_data
 
@@ -315,7 +315,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         """
         swarg1 = vs.zw / efold1_shortwave
         swarg2 = vs.zw / efold2_shortwave
-        pen = rpart_shortwave * np.exp(swarg1) + (1.0 - rpart_shortwave) * np.exp(swarg2)
+        pen = rpart_shortwave * npx.exp(swarg1) + (1.0 - rpart_shortwave) * npx.exp(swarg2)
         pen = update(pen, at[-1], 0.)
         vs.divpen_shortwave = update(vs.divpen_shortwave, at[1:], (pen[1:] - pen[:-1]) / vs.dzt[1:])
         vs.divpen_shortwave = update(vs.divpen_shortwave, at[0], pen[0] / vs.dzt[0])
@@ -378,7 +378,7 @@ def set_forcing_kernel(state):
     vs.surface_tauy = update(vs.surface_tauy, at[:, :-1], f1 * vs.tauy[:, 1:, n1] + f2 * vs.tauy[:, 1:, n2])
 
     if settings.enable_tke:
-        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
+        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], npx.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
                                                                                           + vs.surface_taux[:-2, 1:-1]) / settings.rho_0) ** 2
                                                                                   + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
                                                                                             + vs.surface_tauy[1:-1, :-2]) / settings.rho_0) ** 2) ** (3. / 2.))
@@ -395,7 +395,7 @@ def set_forcing_kernel(state):
     # apply simple ice mask
     mask1 = vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] > -1.8
     mask2 = vs.forc_temp_surface > 0
-    ice = np.logical_or(mask1, mask2)
+    ice = npx.logical_or(mask1, mask2)
     vs.forc_temp_surface *= ice
     vs.forc_salt_surface *= ice
 

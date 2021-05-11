@@ -147,7 +147,7 @@ def veros_routine(function=None, *, dist_safe=True, local_variables=()):
        >>>     def set_topography(self, state):
        >>>         vs = state.variables
        >>>         settings = state.settings
-       >>>         vs.kbot = np.random.randint(0, settings.nz, size=vs.kbot.shape)
+       >>>         vs.kbot = npx.random.randint(0, settings.nz, size=vs.kbot.shape)
 
     """
     def inner_decorator(function):

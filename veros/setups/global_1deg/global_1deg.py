@@ -3,7 +3,7 @@ import h5netcdf
 
 from veros import VerosSetup, tools, time, veros_routine, veros_kernel, KernelOutput
 from veros.variables import Variable, allocate
-from veros.core.operators import numpy as np, update, update_multiply, at
+from veros.core.operators import numpy as npx, update, update_multiply, at
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = tools.get_assets('global_1deg', os.path.join(BASE_PATH, 'assets.json'))
@@ -96,10 +96,10 @@ class GlobalOneDegreeSetup(VerosSetup):
         )
 
     def _read_forcing(self, var):
-        from veros.core.operators import numpy as np
+        from veros.core.operators import numpy as npx
         with h5netcdf.File(DATA_FILES['forcing'], 'r') as infile:
             var = infile.variables[var]
-            return np.asarray(var).T
+            return npx.asarray(var).T
 
     @veros_routine
     def set_grid(self, state):
@@ -113,7 +113,7 @@ class GlobalOneDegreeSetup(VerosSetup):
     @veros_routine
     def set_coriolis(self, state):
         vs = state.variables
-        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * vs.omega * np.sin(vs.yt[np.newaxis, :] / 180. * vs.pi))
+        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * vs.omega * npx.sin(vs.yt[npx.newaxis, :] / 180. * vs.pi))
 
     @veros_routine
     def set_topography(self, state):
@@ -124,7 +124,7 @@ class GlobalOneDegreeSetup(VerosSetup):
         salt_data = self._read_forcing('salinity')[:, :, ::-1]
 
         mask_salt = salt_data == 0.
-        vs.kbot = update(vs.kbot, at[2:-2, 2:-2], 1 + np.sum(mask_salt.astype('int'), axis=2))
+        vs.kbot = update(vs.kbot, at[2:-2, 2:-2], 1 + npx.sum(mask_salt.astype('int'), axis=2))
 
         mask_bathy = bathymetry_data == 0
         vs.kbot = update_multiply(vs.kbot, at[2:-2, 2:-2], ~mask_bathy)
@@ -167,21 +167,21 @@ class GlobalOneDegreeSetup(VerosSetup):
         vs.tauy = update(vs.tauy, at[2:-2, 2:-2, :], self._read_forcing('tau_y'))
 
         qnec_data = self._read_forcing('dqdt')
-        vs.qnec = update(vs.qnec, at[2:-2, 2:-2, :], qnec_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis])
+        vs.qnec = update(vs.qnec, at[2:-2, 2:-2, :], qnec_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
         qsol_data = self._read_forcing('swf')
-        vs.qsol = update(vs.qsol, at[2:-2, 2:-2, :], -qsol_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis])
+        vs.qsol = update(vs.qsol, at[2:-2, 2:-2, :], -qsol_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
         # SST and SSS
         sst_data = self._read_forcing('sst')
-        vs.t_star = update(vs.t_star, at[2:-2, 2:-2, :], sst_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis])
+        vs.t_star = update(vs.t_star, at[2:-2, 2:-2, :], sst_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
         sss_data = self._read_forcing('sss')
-        vs.s_star = update(vs.s_star, at[2:-2, 2:-2, :], sss_data * vs.maskT[2:-2, 2:-2, -1, np.newaxis])
+        vs.s_star = update(vs.s_star, at[2:-2, 2:-2, :], sss_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
         if settings.enable_idemix:
             tidal_energy_data = self._read_forcing('tidal_energy')
-            mask = np.maximum(0, vs.kbot[2:-2, 2:-2] - 1)[:, :, np.newaxis] == np.arange(vs.nz)[np.newaxis, np.newaxis, :]
+            mask = npx.maximum(0, vs.kbot[2:-2, 2:-2] - 1)[:, :, npx.newaxis] == npx.arange(vs.nz)[npx.newaxis, npx.newaxis, :]
             tidal_energy_data *= vs.maskW[2:-2, 2:-2, :][mask].reshape(vs.nx, vs.ny) / vs.rho_0
             vs.forc_iw_bottom = update(vs.forc_iw_bottom, at[2:-2, 2:-2], tidal_energy_data)
 
@@ -196,7 +196,7 @@ class GlobalOneDegreeSetup(VerosSetup):
         """
         swarg1 = vs.zw / efold1_shortwave
         swarg2 = vs.zw / efold2_shortwave
-        pen = rpart_shortwave * np.exp(swarg1) + (1.0 - rpart_shortwave) * np.exp(swarg2)
+        pen = rpart_shortwave * npx.exp(swarg1) + (1.0 - rpart_shortwave) * npx.exp(swarg2)
         pen = update(pen, at[-1], 0.)
         vs.divpen_shortwave = allocate(vs, ('zt',))
         vs.divpen_shortwave = update(vs.divpen_shortwave, at[1:], (pen[1:] - pen[:-1]) / vs.dzt[1:])
@@ -259,7 +259,7 @@ def set_forcing_kernel(state):
     vs.surface_tauy = update(vs.surface_tauy, at[:, :-1], f1 * vs.tauy[:, 1:, n1] + f2 * vs.tauy[:, 1:, n2])
 
     if settings.enable_tke:
-        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], np.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
+        vs.forc_tke_surface = update(vs.forc_tke_surface, at[1:-1, 1:-1], npx.sqrt((0.5 * (vs.surface_taux[1:-1, 1:-1]
                                                                                           + vs.surface_taux[:-2, 1:-1]) / settings.rho_0) ** 2
                                                                                   + (0.5 * (vs.surface_tauy[1:-1, 1:-1]
                                                                                             + vs.surface_tauy[1:-1, :-2]) / settings.rho_0) ** 2) ** (3. / 2.))
@@ -276,7 +276,7 @@ def set_forcing_kernel(state):
     # apply simple ice mask
     mask1 = vs.temp[:, :, -1, vs.tau] * vs.maskT[:, :, -1] > -1.8
     mask2 = vs.forc_temp_surface > 0
-    ice = np.logical_or(mask1, mask2)
+    ice = npx.logical_or(mask1, mask2)
     vs.forc_temp_surface *= ice
     vs.forc_salt_surface *= ice
 

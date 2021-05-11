@@ -1,4 +1,4 @@
-from veros.core.operators import numpy as np
+from veros.core.operators import numpy as npx
 from veros import logger
 
 from veros import veros_kernel, veros_routine, KernelOutput
@@ -12,7 +12,7 @@ def dm_taper(sx, iso_slopec, iso_dslope):
     """
     tapering function for isopycnal slopes
     """
-    return 0.5 * (1. + tanh((-np.abs(sx) + iso_slopec) / iso_dslope))
+    return 0.5 * (1. + tanh((-npx.abs(sx) + iso_slopec) / iso_dslope))
 
 
 @veros_kernel
@@ -38,10 +38,10 @@ def isoneutral_diffusion_pre(state):
     drho_dt and drho_ds at centers of T cells
     """
     drdT = vs.maskT * density.get_drhodT(
-        state, vs.salt[:, :, :, vs.tau], vs.temp[:, :, :, vs.tau], np.abs(vs.zt)
+        state, vs.salt[:, :, :, vs.tau], vs.temp[:, :, :, vs.tau], npx.abs(vs.zt)
     )
     drdS = vs.maskT * density.get_drhodS(
-        state, vs.salt[:, :, :, vs.tau], vs.temp[:, :, :, vs.tau], np.abs(vs.zt)
+        state, vs.salt[:, :, :, vs.tau], vs.temp[:, :, :, vs.tau], npx.abs(vs.zt)
     )
 
     """
@@ -49,34 +49,34 @@ def isoneutral_diffusion_pre(state):
     """
     dTdz = update(dTdz, at[:, :, :-1], vs.maskW[:, :, :-1] * \
         (vs.temp[:, :, 1:, vs.tau] - vs.temp[:, :, :-1, vs.tau]) / \
-        vs.dzw[np.newaxis, np.newaxis, :-1])
+        vs.dzw[npx.newaxis, npx.newaxis, :-1])
     dSdz = update(dSdz, at[:, :, :-1], vs.maskW[:, :, :-1] * \
         (vs.salt[:, :, 1:, vs.tau] - vs.salt[:, :, :-1, vs.tau]) / \
-        vs.dzw[np.newaxis, np.newaxis, :-1])
+        vs.dzw[npx.newaxis, npx.newaxis, :-1])
 
     """
     gradients at eastern face of T cells
     """
     dTdx = update(dTdx, at[:-1, :, :], vs.maskU[:-1, :, :] * (vs.temp[1:, :, :, vs.tau] - vs.temp[:-1, :, :, vs.tau]) \
-        / (vs.dxu[:-1, np.newaxis, np.newaxis] * vs.cost[np.newaxis, :, np.newaxis]))
+        / (vs.dxu[:-1, npx.newaxis, npx.newaxis] * vs.cost[npx.newaxis, :, npx.newaxis]))
     dSdx = update(dSdx, at[:-1, :, :], vs.maskU[:-1, :, :] * (vs.salt[1:, :, :, vs.tau] - vs.salt[:-1, :, :, vs.tau]) \
-        / (vs.dxu[:-1, np.newaxis, np.newaxis] * vs.cost[np.newaxis, :, np.newaxis]))
+        / (vs.dxu[:-1, npx.newaxis, npx.newaxis] * vs.cost[npx.newaxis, :, npx.newaxis]))
 
     """
     gradients at northern face of T cells
     """
     dTdy = update(dTdy, at[:, :-1, :], vs.maskV[:, :-1, :] * \
         (vs.temp[:, 1:, :, vs.tau] - vs.temp[:, :-1, :, vs.tau]) \
-        / vs.dyu[np.newaxis, :-1, np.newaxis])
+        / vs.dyu[npx.newaxis, :-1, npx.newaxis])
     dSdy = update(dSdy, at[:, :-1, :], vs.maskV[:, :-1, :] * \
         (vs.salt[:, 1:, :, vs.tau] - vs.salt[:, :-1, :, vs.tau]) \
-        / vs.dyu[np.newaxis, :-1, np.newaxis])
+        / vs.dyu[npx.newaxis, :-1, npx.newaxis])
 
 
     """
     Compute Ai_ez and K11 on center of east face of T cell.
     """
-    diffloc = np.zeros_like(vs.maskT)
+    diffloc = npx.zeros_like(vs.maskT)
     diffloc = update(diffloc, at[1:-2, 2:-2, 1:], 0.25 * (vs.K_iso[1:-2, 2:-2, 1:] + vs.K_iso[1:-2, 2:-2, :-1]
                                       + vs.K_iso[2:-1, 2:-2, 1:] + vs.K_iso[2:-1, 2:-2, :-1]))
     diffloc = update(diffloc, at[1:-2, 2:-2, 0], 0.5 * (vs.K_iso[1:-2, 2:-2, 0] + vs.K_iso[2:-1, 2:-2, 0]))
@@ -89,12 +89,12 @@ def isoneutral_diffusion_pre(state):
                 + drdS[1 + ip:-2 + ip, 2:-2, ki:] * dSdx[1:-2, 2:-2, ki:]
             drodze = drdT[1 + ip:-2 + ip, 2:-2, ki:] * dTdz[1 + ip:-2 + ip, 2:-2, :-1 + kr or None] \
                 + drdS[1 + ip:-2 + ip, 2:-2, ki:] * dSdz[1 + ip:-2 + ip, 2:-2, :-1 + kr or None]
-            sxe = -drodxe / (np.minimum(0., drodze) - epsln)
+            sxe = -drodxe / (npx.minimum(0., drodze) - epsln)
             taper = dm_taper(sxe, settings.iso_slopec, settings.iso_dslope)
-            sumz = update_add(sumz, at[:, :, ki:], vs.dzw[np.newaxis, np.newaxis, :-1 + kr or None] * vs.maskU[1:-2, 2:-2, ki:] \
-                * np.maximum(settings.K_iso_steep, diffloc[1:-2, 2:-2, ki:] * taper))
+            sumz = update_add(sumz, at[:, :, ki:], vs.dzw[npx.newaxis, npx.newaxis, :-1 + kr or None] * vs.maskU[1:-2, 2:-2, ki:] \
+                * npx.maximum(settings.K_iso_steep, diffloc[1:-2, 2:-2, ki:] * taper))
             vs.Ai_ez = update(vs.Ai_ez, at[1:-2, 2:-2, ki:, ip, kr], taper * sxe * vs.maskU[1:-2, 2:-2, ki:])
-    vs.K_11 = update(vs.K_11, at[1:-2, 2:-2, :], sumz / (4. * vs.dzt[np.newaxis, np.newaxis, :]))
+    vs.K_11 = update(vs.K_11, at[1:-2, 2:-2, :], sumz / (4. * vs.dzt[npx.newaxis, npx.newaxis, :]))
 
     """
     Compute Ai_nz and K_22 on center of north face of T cell.
@@ -112,12 +112,12 @@ def isoneutral_diffusion_pre(state):
                 drdS[2:-2, 1 + jp:-2 + jp, ki:] * dSdy[2:-2, 1:-2, ki:]
             drodzn = drdT[2:-2, 1 + jp:-2 + jp, ki:] * dTdz[2:-2, 1 + jp:-2 + jp, :-1 + kr or None] \
                 + drdS[2:-2, 1 + jp:-2 + jp, ki:] * dSdz[2:-2, 1 + jp:-2 + jp, :-1 + kr or None]
-            syn = -drodyn / (np.minimum(0., drodzn) - epsln)
+            syn = -drodyn / (npx.minimum(0., drodzn) - epsln)
             taper = dm_taper(syn, settings.iso_slopec, settings.iso_dslope)
-            sumz = update_add(sumz, at[:, :, ki:], vs.dzw[np.newaxis, np.newaxis, :-1 + kr or None] \
-                * vs.maskV[2:-2, 1:-2, ki:] * np.maximum(settings.K_iso_steep, diffloc[2:-2, 1:-2, ki:] * taper))
+            sumz = update_add(sumz, at[:, :, ki:], vs.dzw[npx.newaxis, npx.newaxis, :-1 + kr or None] \
+                * vs.maskV[2:-2, 1:-2, ki:] * npx.maximum(settings.K_iso_steep, diffloc[2:-2, 1:-2, ki:] * taper))
             vs.Ai_nz = update(vs.Ai_nz, at[2:-2, 1:-2, ki:, jp, kr], taper * syn * vs.maskV[2:-2, 1:-2, ki:])
-    vs.K_22 = update(vs.K_22, at[2:-2, 1:-2, :], sumz / (4. * vs.dzt[np.newaxis, np.newaxis, :]))
+    vs.K_22 = update(vs.K_22, at[2:-2, 1:-2, :], sumz / (4. * vs.dzt[npx.newaxis, npx.newaxis, :]))
 
     """
     compute Ai_bx, Ai_by and K33 on top face of T cell.
@@ -133,9 +133,9 @@ def isoneutral_diffusion_pre(state):
         for ip in range(2):
             drodxb = drdT[2:-2, 2:-2, kr:-1 + kr or None] * dTdx[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None] \
                 + drdS[2:-2, 2:-2, kr:-1 + kr or None] * dSdx[1 + ip:-3 + ip, 2:-2, kr:-1 + kr or None]
-            sxb = -drodxb / (np.minimum(0., drodzb) - epsln)
+            sxb = -drodxb / (npx.minimum(0., drodzb) - epsln)
             taper = dm_taper(sxb, settings.iso_slopec, settings.iso_dslope)
-            sumx = sumx + vs.dxu[1 + ip:-3 + ip, np.newaxis, np.newaxis] * \
+            sumx = sumx + vs.dxu[1 + ip:-3 + ip, npx.newaxis, npx.newaxis] * \
                 vs.K_iso[2:-2, 2:-2, :-1] * taper * sxb**2 * vs.maskW[2:-2, 2:-2, :-1]
             vs.Ai_bx = update(vs.Ai_bx, at[2:-2, 2:-2, :-1, ip, kr], taper * sxb * vs.maskW[2:-2, 2:-2, :-1])
 
@@ -144,14 +144,14 @@ def isoneutral_diffusion_pre(state):
             facty = vs.cosu[1 + jp:-3 + jp] * vs.dyu[1 + jp:-3 + jp]
             drodyb = drdT[2:-2, 2:-2, kr:-1 + kr or None] * dTdy[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None] \
                 + drdS[2:-2, 2:-2, kr:-1 + kr or None] * dSdy[2:-2, 1 + jp:-3 + jp, kr:-1 + kr or None]
-            syb = -drodyb / (np.minimum(0., drodzb) - epsln)
+            syb = -drodyb / (npx.minimum(0., drodzb) - epsln)
             taper = dm_taper(syb, settings.iso_slopec, settings.iso_dslope)
-            sumy = sumy + facty[np.newaxis, :, np.newaxis] * vs.K_iso[2:-2, 2:-2, :-1] \
+            sumy = sumy + facty[npx.newaxis, :, npx.newaxis] * vs.K_iso[2:-2, 2:-2, :-1] \
                 * taper * syb**2 * vs.maskW[2:-2, 2:-2, :-1]
             vs.Ai_by = update(vs.Ai_by, at[2:-2, 2:-2, :-1, jp, kr], taper * syb * vs.maskW[2:-2, 2:-2, :-1])
 
-    vs.K_33 = update(vs.K_33, at[2:-2, 2:-2, :-1], sumx / (4 * vs.dxt[2:-2, np.newaxis, np.newaxis]) + \
-        sumy / (4 * vs.dyt[np.newaxis, 2:-2, np.newaxis] * vs.cost[np.newaxis, 2:-2, np.newaxis]))
+    vs.K_33 = update(vs.K_33, at[2:-2, 2:-2, :-1], sumx / (4 * vs.dxt[2:-2, npx.newaxis, npx.newaxis]) + \
+        sumy / (4 * vs.dyt[npx.newaxis, 2:-2, npx.newaxis] * vs.cost[npx.newaxis, 2:-2, npx.newaxis]))
     vs.K_33 = update(vs.K_33, at[2:-2, 2:-2, -1], 0.)
 
     return KernelOutput(Ai_ez=vs.Ai_ez, Ai_nz=vs.Ai_nz, Ai_bx=vs.Ai_bx, Ai_by=vs.Ai_by, K_11=vs.K_11, K_22=vs.K_22, K_33=vs.K_33)
@@ -168,14 +168,14 @@ def isoneutral_diag_streamfunction_kernel(state):
     """
     diffloc = 0.25 * (K_gm_pad[1:-2, 2:-2, 1:-1] + K_gm_pad[1:-2, 2:-2, :-2]
                       + K_gm_pad[2:-1, 2:-2, 1:-1] + K_gm_pad[2:-1, 2:-2, :-2])
-    vs.B2_gm = update(vs.B2_gm, at[1:-2, 2:-2, :], 0.25 * diffloc * np.sum(vs.Ai_ez[1:-2, 2:-2, ...], axis=(3, 4)))
+    vs.B2_gm = update(vs.B2_gm, at[1:-2, 2:-2, :], 0.25 * diffloc * npx.sum(vs.Ai_ez[1:-2, 2:-2, ...], axis=(3, 4)))
 
     """
     zonal component at north face of 'T' cells
     """
     diffloc = 0.25 * (K_gm_pad[2:-2, 1:-2, 1:-1] + K_gm_pad[2:-2, 1:-2, :-2]
                       + K_gm_pad[2:-2, 2:-1, 1:-1] + K_gm_pad[2:-2, 2:-1, :-2])
-    vs.B1_gm = update(vs.B1_gm, at[2:-2, 1:-2, :], -0.25 * diffloc * np.sum(vs.Ai_nz[2:-2, 1:-2, ...], axis=(3, 4)))
+    vs.B1_gm = update(vs.B1_gm, at[2:-2, 1:-2, :], -0.25 * diffloc * npx.sum(vs.Ai_nz[2:-2, 1:-2, ...], axis=(3, 4)))
 
     return KernelOutput(B1_gm=vs.B1_gm, B2_gm=vs.B2_gm)
 
@@ -206,10 +206,10 @@ def check_isoneutral_slope_crit(state):
     epsln = 1e-20
     if settings.enable_neutral_diffusion:
         ft1 = 1.0 / (4.0 * settings.K_iso_0 * settings.dt_tracer + epsln)
-        delta1a = np.min(vs.dxt[2:-2, np.newaxis, np.newaxis] * np.abs(vs.cost[np.newaxis, 2:-2, np.newaxis])
-                  * vs.dzt[np.newaxis, np.newaxis, :] * ft1)
-        delta1b = np.min(vs.dyt[np.newaxis, 2:-2, np.newaxis] *
-                         vs.dzt[np.newaxis, np.newaxis, :] * ft1)
+        delta1a = npx.min(vs.dxt[2:-2, npx.newaxis, npx.newaxis] * npx.abs(vs.cost[npx.newaxis, 2:-2, npx.newaxis])
+                  * vs.dzt[npx.newaxis, npx.newaxis, :] * ft1)
+        delta1b = npx.min(vs.dyt[npx.newaxis, 2:-2, npx.newaxis] *
+                         vs.dzt[npx.newaxis, npx.newaxis, :] * ft1)
         delta_iso1 = min(
             vs.dzt[0] * ft1 * vs.dxt[-1] * abs(vs.cost[-1]),
             min(delta1a, delta1b)

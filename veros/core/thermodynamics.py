@@ -1,4 +1,4 @@
-from veros.core.operators import numpy as np
+from veros.core.operators import numpy as npx
 
 from veros import veros_routine, veros_kernel, KernelOutput
 from veros.distributed import global_sum
@@ -22,9 +22,9 @@ def advect_tracer(state, tr):
 
     dtr = allocate(state.dimensions, ("xt", "yt", "zt"))
     dtr = update(dtr, at[2:-2, 2:-2, :], vs.maskT[2:-2, 2:-2, :] * (-(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-                                                 / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
+                                                 / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
                                                  - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                                                 / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis])))
+                                                 / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])))
     dtr = update_add(dtr, at[:, :, 0], -1 * vs.maskT[:, :, 0] * flux_top[:, :, 0] / vs.dzt[0])
     dtr = update_add(dtr, at[:, :, 1:], -1 * vs.maskT[:, :, 1:] * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / vs.dzt[1:])
 
@@ -64,7 +64,7 @@ def calc_eq_of_state(state, n):
 
     salt = vs.salt[..., n]
     temp = vs.temp[..., n]
-    press = np.abs(vs.zt)
+    press = npx.abs(vs.zt)
 
     """
     calculate new density
@@ -87,7 +87,7 @@ def calc_eq_of_state(state, n):
     """
     new stability frequency
     """
-    fxa = -settings.grav / settings.rho_0 / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[:, :, :-1]
+    fxa = -settings.grav / settings.rho_0 / vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.maskW[:, :, :-1]
     vs.Nsqr = update(vs.Nsqr, at[:, :, :-1, n], fxa * (density.get_rho(
                                     state, salt[:, :, 1:], temp[:, :, 1:], press[:-1]
                                 ) - vs.rho[:, :, :-1, n]))
@@ -117,14 +117,14 @@ def advect_temp_salt_enthalpy(state):
             flux_east, flux_north, flux_top = advection.adv_flux_2nd(state, vs.Hd[:, :, :, vs.tau])
 
         vs.dHd = update(vs.dHd, at[2:-2, 2:-2, :, vs.tau], vs.maskT[2:-2, 2:-2, :] * (-(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-                                                          / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dxt[2:-2, np.newaxis, np.newaxis])
+                                                          / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
                                                           - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                                                          / (vs.cost[np.newaxis, 2:-2, np.newaxis] * vs.dyt[np.newaxis, 2:-2, np.newaxis])))
+                                                          / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])))
         vs.dHd = update_add(vs.dHd, at[:, :, 0, vs.tau], -1 * vs.maskT[:, :, 0] \
             * flux_top[:, :, 0] / vs.dzt[0])
         vs.dHd = update_add(vs.dHd, at[:, :, 1:, vs.tau], -1 * vs.maskT[:, :, 1:] \
             * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) \
-            / vs.dzt[np.newaxis, np.newaxis, 1:])
+            / vs.dzt[npx.newaxis, npx.newaxis, 1:])
 
         """
         changes in dyn. Enthalpy due to advection
@@ -139,10 +139,10 @@ def advect_temp_salt_enthalpy(state):
         """
         diss = update_add(diss, at[:, :, :-1], -0.25 * settings.grav / settings.rho_0 * vs.w[:, :, :-1, vs.tau] \
             * (vs.rho[:, :, :-1, vs.tau] + vs.rho[:, :, 1:, vs.tau]) \
-            * vs.dzw[np.newaxis, np.newaxis, :-1] / vs.dzt[np.newaxis, np.newaxis, :-1])
+            * vs.dzw[npx.newaxis, npx.newaxis, :-1] / vs.dzt[npx.newaxis, npx.newaxis, :-1])
         diss = update_add(diss, at[:, :, 1:], -0.25 * settings.grav / settings.rho_0 * vs.w[:, :, :-1, vs.tau] \
             * (vs.rho[:, :, 1:, vs.tau] + vs.rho[:, :, :-1, vs.tau]) \
-            * vs.dzw[np.newaxis, np.newaxis, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:])
+            * vs.dzw[npx.newaxis, npx.newaxis, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
 
     if settings.enable_conserve_energy and settings.enable_tke:
         """
@@ -153,13 +153,13 @@ def advect_temp_salt_enthalpy(state):
         """
         distribute P_diss_adv_w over domain, prevent draining of TKE
         """
-        fxa = np.sum(vs.area_t[2:-2, 2:-2, np.newaxis] * P_diss_adv_w[2:-2, 2:-2, :-1]
-                     * vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1]) \
-            + np.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.P_diss_adv[2:-2, 2:-2, -1]
+        fxa = npx.sum(vs.area_t[2:-2, 2:-2, npx.newaxis] * P_diss_adv_w[2:-2, 2:-2, :-1]
+                     * vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1]) \
+            + npx.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.P_diss_adv[2:-2, 2:-2, -1]
                      * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
         tke_mask = vs.tke[2:-2, 2:-2, :-1, vs.tau] > 0.
-        fxb = np.sum(vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1] * tke_mask) \
-            + np.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
+        fxb = npx.sum(vs.area_t[2:-2, 2:-2, npx.newaxis] * vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1] * tke_mask) \
+            + npx.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
 
         fxa = global_sum(fxa)
         fxb = global_sum(fxb)
@@ -199,21 +199,21 @@ def vertmix_tempsalt(state):
 
     _, water_mask, edge_mask = utilities.create_water_masks(vs.kbot[2:-2, 2:-2], settings.nz)
 
-    delta = update(delta, at[:, :, :-1], settings.dt_tracer / vs.dzw[np.newaxis, np.newaxis, :-1] \
+    delta = update(delta, at[:, :, :-1], settings.dt_tracer / vs.dzw[npx.newaxis, npx.newaxis, :-1] \
         * vs.kappaH[2:-2, 2:-2, :-1])
     delta = update(delta, at[:, :, -1], 0.)
-    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, 1:])
+    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
     b_tri = update(b_tri, at[:, :, 1:], 1 + (delta[:, :, 1:] + delta[:, :, :-1]) \
-        / vs.dzt[np.newaxis, np.newaxis, 1:])
-    b_tri_edge = 1 + delta / vs.dzt[np.newaxis, np.newaxis, :]
-    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzt[np.newaxis, np.newaxis, :-1])
+        / vs.dzt[npx.newaxis, npx.newaxis, 1:])
+    b_tri_edge = 1 + delta / vs.dzt[npx.newaxis, npx.newaxis, :]
+    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, :-1])
     d_tri = vs.temp[2:-2, 2:-2, :, vs.taup1]
     d_tri = update_add(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_temp_surface[2:-2, 2:-2] / vs.dzt[-1])
 
     sol = utilities.solve_implicit(
         a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask
     )
-    vs.temp = update(vs.temp, at[2:-2, 2:-2, :, vs.taup1], np.where(water_mask, sol, vs.temp[2:-2, 2:-2, :, vs.taup1]))
+    vs.temp = update(vs.temp, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.temp[2:-2, 2:-2, :, vs.taup1]))
 
     d_tri = vs.salt[2:-2, 2:-2, :, vs.taup1]
     d_tri = update_add(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_salt_surface[2:-2, 2:-2] / vs.dzt[-1])
@@ -221,7 +221,7 @@ def vertmix_tempsalt(state):
     sol = utilities.solve_implicit(
         a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask
     )
-    vs.salt = update(vs.salt, at[2:-2, 2:-2, :, vs.taup1], np.where(water_mask, sol, vs.salt[2:-2, 2:-2, :, vs.taup1]))
+    vs.salt = update(vs.salt, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.salt[2:-2, 2:-2, :, vs.taup1]))
 
     vs.dtemp_vmix = (vs.temp[:, :, :, vs.taup1] - vs.dtemp_vmix) / settings.dt_tracer
     vs.dsalt_vmix = (vs.salt[:, :, :, vs.taup1] - vs.dsalt_vmix) / settings.dt_tracer
@@ -246,11 +246,11 @@ def surf_densityf(state):
         density.get_drhodT(state,
                            vs.salt[:, :, -1, vs.taup1],
                            vs.temp[:, :, -1, vs.taup1],
-                           np.abs(vs.zt[-1])) * vs.forc_temp_surface
+                           npx.abs(vs.zt[-1])) * vs.forc_temp_surface
         + density.get_drhodS(state,
                              vs.salt[:, :, -1, vs.taup1],
                              vs.temp[:, :, -1, vs.taup1],
-                             np.abs(vs.zt[-1])) * vs.forc_salt_surface
+                             npx.abs(vs.zt[-1])) * vs.forc_salt_surface
     )
 
     return KernelOutput(forc_rho_surface=vs.forc_rho_surface)
@@ -269,15 +269,15 @@ def diag_P_diss_v(state):
         diagnose dissipation of dynamic enthalpy by vertical mixing
         """
         fxa = (-vs.int_drhodT[2:-2, 2:-2, 1:, vs.taup1] + vs.int_drhodT[2:-2, 2:-2, :-1, vs.taup1]) \
-            / vs.dzw[np.newaxis, np.newaxis, :-1]
+            / vs.dzw[npx.newaxis, npx.newaxis, :-1]
         vs.P_diss_v = update_add(vs.P_diss_v, at[2:-2, 2:-2, :-1], -settings.grav / settings.rho_0 * fxa * vs.kappaH[2:-2, 2:-2, :-1] \
             * (vs.temp[2:-2, 2:-2, 1:, vs.taup1] - vs.temp[2:-2, 2:-2, :-1, vs.taup1]) \
-            / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1])
+            / vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1])
         fxa = (-vs.int_drhodS[2:-2, 2:-2, 1:, vs.taup1] + vs.int_drhodS[2:-2, 2:-2, :-1, vs.taup1]) \
-            / vs.dzw[np.newaxis, np.newaxis, :-1]
+            / vs.dzw[npx.newaxis, npx.newaxis, :-1]
         vs.P_diss_v = update_add(vs.P_diss_v, at[2:-2, 2:-2, :-1], -settings.grav / settings.rho_0 * fxa * vs.kappaH[2:-2, 2:-2, :-1] \
             * (vs.salt[2:-2, 2:-2, 1:, vs.taup1] - vs.salt[2:-2, 2:-2, :-1, vs.taup1]) \
-            / vs.dzw[np.newaxis, np.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1])
+            / vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.maskW[2:-2, 2:-2, :-1])
 
         fxa = 2 * vs.int_drhodT[2:-2, 2:-2, -1, vs.taup1] / vs.dzw[-1]
         vs.P_diss_v = update_add(vs.P_diss_v, at[2:-2, 2:-2, -1], - settings.grav / settings.rho_0 * fxa * \
