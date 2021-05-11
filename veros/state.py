@@ -119,10 +119,10 @@ class Lockable:
 
     def __setattr__(self, key, val):
         if not key.startswith("_") and self.__locked__:
+            clsname = self.__class__.__qualname__
             raise RuntimeError(
-                '{0} is locked to modifications. If you know what you are doing, '
-                'you can unlock it via the "{0}.unlock()" context manager.'
-                .format(self.__class__.__qualname__)
+                f'{clsname} is locked to modifications. If you know what you are doing, '
+                f'you can unlock it via the "{clsname}.unlock()" context manager.'
             )
         return super().__setattr__(key, val)
 
@@ -268,8 +268,8 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
         expected_shape = self._get_expected_shape(var.dims)
         if val.shape != expected_shape:
             raise ValueError(
-                'Got unexpected shape for variable {} (expected: {}, got: {})'
-                .format(key, expected_shape, val.shape)
+                f'Got unexpected shape for variable {key} '
+                f'(expected: {expected_shape}, got: {val.shape})'
             )
 
         return super().__setattr__(key, val)

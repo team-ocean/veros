@@ -50,7 +50,7 @@ def streamfunction_init(state):
     vs.psin = update(vs.psin, at[...], vs.maskZ[..., -1, np.newaxis])
 
     for isle in range(state.dimensions["isle"]):
-        logger.info(' Solving for boundary contribution by island {:d}'.format(isle))
+        logger.info(f' Solving for boundary contribution by island {isle:d}')
         isle_sol = linear_solver.solve(state, forc, vs.psin[:, :, isle], boundary_val=vs.boundary_mask[:, :, isle])
         vs.psin = update(vs.psin, at[:, :, isle], isle_sol)
 

@@ -94,13 +94,13 @@ def _ascii_map(boundary_map):
         iremain = iremain - iline
         if iline > 0:
             map_string += '\n'
-            map_string += ''.join(['{:5d}'.format(istart + i + 1 - 2) for i in range(1, iline + 1, 5)])
+            map_string += ''.join([f'{istart + i + 1 - 2:5d}' for i in range(1, iline + 1, 5)])
             map_string += '\n'
             for j in range(ny - 1, -1, -1):
-                map_string += '{:3d} '.format(j)
+                map_string += f'{j:3d} '
                 map_string += ''.join([_get_char(boundary_map[istart + i - 2, j]) for i in range(2, iline + 2)])
                 map_string += '\n'
-            map_string += ''.join(['{:5d}'.format(istart + i + 1 - 2) for i in range(1, iline + 1, 5)])
+            map_string += ''.join([f'{istart + i + 1 - 2:5d}' for i in range(1, iline + 1, 5)])
             map_string += '\n'
             istart = istart + iline
     map_string += '\n'

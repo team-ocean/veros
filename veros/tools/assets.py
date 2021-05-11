@@ -49,7 +49,7 @@ class AssetStore:
 
     def __getitem__(self, key):
         if key not in self:
-            raise KeyError('unknown asset {}'.format(key))
+            raise KeyError(f'unknown asset {key}')
 
         if key not in self._stored_assets:
             self._stored_assets[key] = self._get_asset(key)
@@ -57,9 +57,7 @@ class AssetStore:
         return self._stored_assets[key]
 
     def __repr__(self):
-        out = '{}(asset_dir={}, asset_config={})'.format(
-            self.__class__.__name__, self._asset_dir, self._asset_config
-        )
+        out = f'{self.__class__.__name__}(asset_dir={self._asset_dir}, asset_config={self._asset_config})'
         return out
 
 

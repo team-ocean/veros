@@ -172,10 +172,10 @@ class VerosLegacy(VerosSetup):
         ekm = self.eke_module
         tkm = self.tke_module
 
-        logger.info('Starting integration for {:.2e}s'.format(float(m.runlen)))
+        logger.info(f'Starting integration for {float(m.runlen):.2e}s')
 
         while vs.time < m.runlen:
-            logger.info('Current iteration: {}'.format(m.itt))
+            logger.info(f'Current iteration: {m.itt}')
 
             with vs.timers['main']:
                 self.set_forcing(vs)

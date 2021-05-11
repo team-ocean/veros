@@ -55,7 +55,8 @@ class Snapshot(VerosDiagnostic):
     def output(self, state):
         vs = state.variables
 
-        logger.info(' Writing snapshot at {0[0]:.2f} {0[1]}', time.format_time(vs.time))
+        time_length, time_unit = time.format_time(vs.time)
+        logger.info(f' Writing snapshot at {time_length:.2f} {time_unit}')
 
         if not os.path.isfile(self.get_output_file_name(state)):
             self.initialize_output(state, self.var_meta)

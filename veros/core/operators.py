@@ -192,4 +192,4 @@ elif runtime_settings.backend == 'jax':
     flush = flush_jax
 
 else:
-    raise ValueError('Unrecognized backend {}'.format(runtime_settings.backend))
+    raise ValueError(f'Unrecognized backend {runtime_settings.backend}')

@@ -220,5 +220,4 @@ def check_isoneutral_slope_crit(state):
             raise RuntimeError('Without latitudinal filtering, delta_iso1 is the steepest '
                                'isoneutral slope available for linear stability of '
                                'Redi and GM. Maximum allowable isoneutral slope is '
-                               'specified as iso_slopec = {}.'
-                               .format(settings.iso_slopec))
+                               f'specified as iso_slopec = {settings.iso_slopec}.')

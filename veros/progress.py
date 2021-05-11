@@ -72,7 +72,7 @@ class LoggingProgressBar:
             percentage=percentage,
             iteration=self._iteration,
             rate=rate,
-            rate_unit='{}/(model year)'.format(rate_unit[0]),
+            rate_unit=f'{rate_unit[0]}/(model year)',
             eta=eta,
             eta_unit=eta_unit[0],
         )
@@ -128,7 +128,7 @@ class FancyProgressBar:
                     unit=self._time_unit[0],
                     percentage=percentage,
                     rate=rate,
-                    rate_unit='{}/(model year)'.format(rate_unit[0]),
+                    rate_unit=f'{rate_unit[0]}/(model year)',
                     eta=eta,
                     eta_unit=eta_unit[0],
                 )

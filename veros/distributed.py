@@ -116,8 +116,7 @@ def validate_decomposition(dimensions):
     comm_size = rs.mpi_comm.Get_size()
     proc_num = rs.num_proc[0] * rs.num_proc[1]
     if proc_num != comm_size:
-        raise RuntimeError('number of processes ({}) does not match size of communicator ({})'
-                           .format(proc_num, comm_size))
+        raise RuntimeError(f'number of processes ({proc_num}) does not match size of communicator ({comm_size})')
 
     if nx % rs.num_proc[0]:
         raise ValueError('processes do not divide domain evenly in x-direction')

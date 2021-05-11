@@ -31,8 +31,7 @@ def init_jax_config():
 
 def get_backend_module(backend_name):
     if backend_name not in BACKENDS:
-        raise ValueError('unrecognized backend {} (must be either of: {!r})'
-                         .format(backend_name, list(BACKENDS.keys())))
+        raise ValueError(f'unrecognized backend {backend_name} (must be either of: {list(BACKENDS.keys())!r})')
 
     backend_module = None
 
@@ -49,7 +48,7 @@ def get_backend_module(backend_name):
         import numpy as backend_module
 
     if backend_module is None:
-        raise ValueError('backend "{}" failed to import'.format(backend_name))
+        raise ValueError(f'backend "{backend_name}" failed to import')
 
     return backend_module
 

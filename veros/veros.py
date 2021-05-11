@@ -313,7 +313,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
             with state.timers['diagnostics']:
                 if not numerics.sanity_check(state):
-                    raise RuntimeError('solution diverged at iteration {}'.format(vs.itt))
+                    raise RuntimeError(f'solution diverged at iteration {vs.itt}')
 
                 isoneutral.isoneutral_diag_streamfunction(state)
                 diagnostics.diagnose(state)
@@ -342,7 +342,8 @@ class VerosSetup(metaclass=abc.ABCMeta):
         vs = self.state.variables
         settings = self.state.settings
 
-        logger.info('\nStarting integration for {0[0]:.1f} {0[1]}'.format(time.format_time(settings.runlen)))
+        time_length, time_unit = time.format_time(settings.runlen)
+        logger.info(f'\nStarting integration for {time_length:.1f} {time_unit}')
 
         start_time = vs.time
 

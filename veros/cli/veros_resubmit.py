@@ -40,21 +40,21 @@ def unparse(args):
 
 
 def call_veros(cmd, name, n, runlen):
-    identifier = '{name}.{n:0>4}'.format(name=name, n=n)
-    prev_id = '{name}.{n:0>4}'.format(name=name, n=n - 1)
+    identifier = f'{name}.{n:0>4}'
+    prev_id = f'{name}.{n-1:0>4}'
     args = ['-s', 'identifier', identifier, '-s', 'restart_output_filename',
-            '{identifier}.restart.h5', '-s', 'runlen', '{}'.format(runlen)]
+            '{identifier}.restart.h5', '-s', 'runlen', str(runlen)]
     if n:
-        args += ['-s', 'restart_input_filename', '{prev_id}.restart.h5'.format(prev_id=prev_id)]
+        args += ['-s', 'restart_input_filename', f'{prev_id}.restart.h5']
 
     # make sure this isn't buffered
-    sys.stdout.write('\n >>> {}\n\n'.format(' '.join(cmd + args)))
+    sys.stdout.write(f'\n >>> {" ".join(cmd + args)}\n\n')
     sys.stdout.flush()
 
     try:
         subprocess.check_call(unparse(cmd + args), shell=True)
     except subprocess.CalledProcessError:
-        raise RuntimeError('Run {} failed, exiting'.format(n))
+        raise RuntimeError(f'Run {n} failed, exiting')
 
 
 def resubmit(identifier, num_runs, length_per_run, veros_cmd, callback):
@@ -87,7 +87,7 @@ def resubmit(identifier, num_runs, length_per_run, veros_cmd, callback):
         if retcode is not None:
             if retcode > 0:
                 # process crashed
-                raise RuntimeError('Callback exited with {}'.format(retcode))
+                raise RuntimeError(f'Callback exited with {retcode}')
             else:
                 break
         time.sleep(POLL_DELAY)

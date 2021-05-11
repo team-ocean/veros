@@ -276,7 +276,7 @@ def get_stretched_grid_steps(n_cells, total_length, minimum_stepsize, stretching
         raise ValueError('refine_towards must be "upper" or "lower"')
     if two_sided_grid:
         if n_cells % 2:
-            raise ValueError('number of grid points must be even integer number (given: {})'.format(n_cells))
+            raise ValueError(f'number of grid points must be even integer number (given: {n_cells})')
         n_cells = n_cells / 2
 
     stretching_function = np.tanh(stretching_factor * np.linspace(-1, 1, n_cells))
@@ -347,7 +347,7 @@ def get_vinokur_grid_steps(n_cells, total_length, lower_stepsize, upper_stepsize
         raise ValueError('refine_towards must be "upper" or "lower"')
     if two_sided_grid:
         if n_cells % 2:
-            raise ValueError('number of grid points must be an even integer (given: {})'.format(n_cells))
+            raise ValueError(f'number of grid points must be an even integer (given: {n_cells})')
         n_cells = n_cells // 2
 
     n_cells += 1

@@ -44,12 +44,9 @@ class TracerMonitor(VerosDiagnostic):
         vsalt = global_sum(np.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau]**2))
 
         logger.diagnostic(f' Mean temperature {tempm / volm:.2e} change to last {(tempm - tracer_vs.tempm1) / volm:.2e}')
-        logger.diagnostic(' Mean salinity    {:.2e} change to last {:.2e}'
-                          .format(float(saltm / volm), float((saltm - tracer_vs.saltm1) / volm)))
-        logger.diagnostic(' Temperature var. {:.2e} change to last {:.2e}'
-                          .format(float(vtemp / volm), float((vtemp - tracer_vs.vtemp1) / volm)))
-        logger.diagnostic(' Salinity var.    {:.2e} change to last {:.2e}'
-                          .format(float(vsalt / volm), float((vsalt - tracer_vs.vsalt1) / volm)))
+        logger.diagnostic(f' Mean salinity    {saltm / volm:.2e} change to last {(saltm - tracer_vs.saltm1) / volm:.2e}')
+        logger.diagnostic(f' Temperature var. {vtemp / volm:.2e} change to last {(vtemp - tracer_vs.vtemp1) / volm:.2e}')
+        logger.diagnostic(f' Salinity var.    {vsalt / volm:.2e} change to last {(vsalt - tracer_vs.vsalt1) / volm:.2e}')
 
         tracer_vs.tempm1 = tempm
         tracer_vs.vtemp1 = vtemp

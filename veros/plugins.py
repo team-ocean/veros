@@ -10,7 +10,6 @@ VerosPlugin = namedtuple('VerosPlugin', [
     'run_entrypoint',
     'settings',
     'variables',
-    'conditional_variables',
     'diagnostics',
 ])
 
@@ -18,43 +17,39 @@ VerosPlugin = namedtuple('VerosPlugin', [
 def load_plugin(module):
     from veros.diagnostics.base import VerosDiagnostic
 
+    modname = module.__name__
+
     if not hasattr(module, '__VEROS_INTERFACE__'):
-        raise RuntimeError('module {} is not a valid Veros plugin'.format(module.__name__))
+        raise RuntimeError(f'module {modname} is not a valid Veros plugin')
 
     interface = module.__VEROS_INTERFACE__
 
     setup_entrypoint = interface.get('setup_entrypoint')
 
     if not callable(setup_entrypoint):
-        raise RuntimeError('module {} is missing a valid setup entrypoint'.format(module.__name__))
+        raise RuntimeError(f'module {modname} is missing a valid setup entrypoint')
 
     run_entrypoint = interface.get('run_entrypoint')
 
     if not callable(run_entrypoint):
-        raise RuntimeError('module {} is missing a valid run entrypoint'.format(module.__name__))
+        raise RuntimeError(f'module {modname} is missing a valid run entrypoint')
 
     name = interface.get('name', module.__name__)
 
     settings = interface.get('settings', [])
     for setting, val in settings.items():
         if not isinstance(val, Setting):
-            raise TypeError('got unexpected type {} for setting {}'.format(type(val), setting))
+            raise TypeError(f'got unexpected type {type(val)} for setting {setting}')
 
     variables = interface.get('variables', [])
     for variable, val in variables.items():
         if not isinstance(val, Variable):
-            raise TypeError('got unexpected type {} for variable {}'.format(type(val), variable))
-
-    conditional_variables = interface.get('conditional_variables', [])
-    for _, sub_variables in conditional_variables.items():
-        for variable, val in sub_variables.items():
-            if not isinstance(val, Variable):
-                raise TypeError('got unexpected type {} for variable {}'.format(type(val), variable))
+            raise TypeError(f'got unexpected type {type(val)} for variable {variable}')
 
     diagnostics = interface.get('diagnostics', [])
     for diagnostic in diagnostics:
         if not issubclass(diagnostic, VerosDiagnostic):
-            raise TypeError('got unexpected type {} for diagnostic {}'.format(type(diagnostic), diagnostic))
+            raise TypeError(f'got unexpected type {type(diagnostic)} for diagnostic {diagnostic}')
 
     return VerosPlugin(
         name=name,
@@ -63,6 +58,5 @@ def load_plugin(module):
         run_entrypoint=run_entrypoint,
         settings=settings,
         variables=variables,
-        conditional_variables=conditional_variables,
         diagnostics=diagnostics
     )

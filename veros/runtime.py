@@ -28,7 +28,7 @@ def parse_choice(choices, preserve_case=False):
             choice = choice.lower()
 
         if choice not in choices:
-            raise ValueError('must be one of {}'.format(choices))
+            raise ValueError(f'must be one of {choices}')
 
         return choice
 
@@ -109,7 +109,7 @@ class RuntimeSettings:
         self.__setting_types__ = {}
 
         for name, setting in AVAILABLE_SETTINGS.items():
-            setting_envvar = 'VEROS_{}'.format(name.upper())
+            setting_envvar = f'VEROS_{name.upper()}'
 
             if name in kwargs:
                 val = kwargs[name]
@@ -142,7 +142,7 @@ class RuntimeSettings:
             try:
                 val = stype(val)
             except (TypeError, ValueError) as e:
-                raise ValueError('Got invalid value for runtime setting "{}": {}'.format(attr, str(e))) from None
+                raise ValueError(f'Got invalid value for runtime setting "{attr}": {e!s}') from None
 
         return super(RuntimeSettings, self).__setattr__(attr, val)
 
@@ -150,10 +150,7 @@ class RuntimeSettings:
         setval = ', '.join(
             '%s=%s' % (key, repr(getattr(self, key))) for key in self.__settings__
         )
-        return '{clsname}({setval})'.format(
-            clsname=self.__class__.__name__,
-            setval=setval
-        )
+        return f'{self.__class__.__name__}({setval})'
 
 
 # state
@@ -193,4 +190,4 @@ class RuntimeState:
         return backend.get_backend_module(runtime_settings.backend)
 
     def __setattr__(self, attr, val):
-        raise TypeError('Cannot modify {} objects'.format(self.__class__.__name__))
+        raise TypeError(f'Cannot modify {self.__class__.__name__} objects')

@@ -78,7 +78,7 @@ def tdma_xla_encode_cpu(builder, a, b, c, d, system_depths):
     )
 
     if dtype not in supported_dtypes:
-        raise TypeError('TDMA only supports {} arrays, got: {}'.format(supported_dtypes, dtype))
+        raise TypeError(f'TDMA only supports {supported_dtypes} arrays, got: {dtype}')
 
     # compute number of elements to vectorize over
     num_systems = 1
@@ -137,7 +137,7 @@ def tdma_xla_encode_gpu(builder, a, b, c, d, system_depths):
     )
 
     if dtype not in supported_dtypes:
-        raise TypeError('TDMA only supports {} arrays, got: {}'.format(supported_dtypes, dtype))
+        raise TypeError(f'TDMA only supports {supported_dtypes} arrays, got: {dtype}')
 
     # compute number of elements to vectorize over
     num_systems = 1
