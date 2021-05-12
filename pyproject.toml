@@ -1,3 +1,10 @@
 [tool.black]
 line-length = 120
 target-version = ['py36', 'py37', 'py38', 'py39']
+
+
+[tool.pytest.ini_options]
+testpaths = [
+    "test",
+]
+addopts = "--forked"

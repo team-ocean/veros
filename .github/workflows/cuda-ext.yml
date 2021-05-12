@@ -8,7 +8,9 @@ on:
       - master
 
 jobs:
-  test:
+  build-ext:
+    name: Build CUDA extensions
+
     runs-on: ${{ matrix.os }}
 
     strategy:

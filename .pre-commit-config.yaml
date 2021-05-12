@@ -4,9 +4,12 @@ repos:
     hooks:
     - id: black
       language_version: python3
-      exclude: (veros/_version|versioneer).py
+
 -   repo: https://gitlab.com/pycqa/flake8
     rev: 3.8.3
     hooks:
     - id: flake8
       args: ['--config=setup.cfg']
+
+files: veros/
+exclude: veros/_version.py

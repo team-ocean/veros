@@ -13,7 +13,7 @@ on:
 
 jobs:
   linux:
-    name: Linux
+    name: Test conda env (Linux)
     runs-on: "ubuntu-latest"
     defaults:
       run:
@@ -38,7 +38,7 @@ jobs:
         run: pytest
 
   osx:
-    name: OSX
+    name: Test conda env (OSX)
     runs-on: "macos-latest"
     defaults:
       run:
@@ -63,7 +63,7 @@ jobs:
         run: pytest
 
   windows:
-    name: Windows
+    name: Test conda env (Windows)
     runs-on: "windows-latest"
     defaults:
       run:
