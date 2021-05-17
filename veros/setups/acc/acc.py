@@ -64,7 +64,6 @@ class ACCSetup(VerosSetup):
         settings.kappaM_min = 2e-4
         settings.kappaH_min = 2e-5
         settings.enable_kappaH_profile = True
-        # settings.enable_tke_superbee_advection = True
 
         settings.K_gm_0 = 1000.0
         settings.enable_eke = True

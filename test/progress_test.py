@@ -3,17 +3,22 @@ import re
 import time
 
 
+class Dummy:
+    pass
+
+
 def test_progress_format(capsys):
     from veros.logs import setup_logging
     setup_logging(stream_sink=sys.stdout)
 
-    from veros.state import VerosState
     from veros.progress import get_progress_bar
 
-    dummy_state = VerosState()
-    dummy_state.runlen = 8000
-    dummy_state.time = 2000
-    dummy_state.itt = 2
+    dummy_state = Dummy()
+    dummy_state.settings = Dummy()
+    dummy_state.variables = Dummy()
+    dummy_state.settings.runlen = 8000
+    dummy_state.variables.time = 2000
+    dummy_state.variables.itt = 2
 
     with get_progress_bar(dummy_state, use_tqdm=False) as pbar:
         for _ in range(8):

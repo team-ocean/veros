@@ -1,3 +1,4 @@
+from copy import deepcopy
 import contextlib
 from collections import defaultdict, namedtuple
 
@@ -52,6 +53,9 @@ class StrictContainer:
             val = self.__field_types__[key](val)
 
         return super().__setattr__(key, val)
+
+    def __contains__(self, val):
+        return val in self.__fields__
 
     def fields(self):
         return self.__fields__
@@ -375,6 +379,7 @@ class VerosState:
 
         attr_str = []
         for attr in ("settings", "dimensions", "variables", "diagnostics", "plugin_interfaces"):
+            # indent all lines of attr repr except the first
             attr_val = indent(repr(getattr(self, f"_{attr}")), " " * 4)[4:]
             attr_str.append(f"    {attr} = {attr_val}")
         attr_str = ",\n".join(attr_str)
@@ -411,7 +416,9 @@ class VerosState:
             else:
                 dim_size = dim_target
 
-            if not isinstance(dim_size, int):
+            try:
+                dim_size = int(dim_size)
+            except TypeError:
                 raise RuntimeError(
                     f"Dimension {dim_name} is not known yet. Please set the {dim_target} setting and try again."
                 )
@@ -473,13 +480,13 @@ def get_default_state(use_plugins=None):
     else:
         plugin_interfaces = tuple()
 
-    default_settings = settings_mod.SETTINGS
+    default_settings = deepcopy(settings_mod.SETTINGS)
 
     for plugin in plugin_interfaces:
         default_settings.update(plugin.settings)
 
-    default_dimensions = var_mod.DIM_TO_SHAPE_VAR.copy()
-    var_meta = var_mod.VARIABLES
+    default_dimensions = deepcopy(var_mod.DIM_TO_SHAPE_VAR)
+    var_meta = deepcopy(var_mod.VARIABLES)
 
     for plugin in plugin_interfaces:
         var_meta.update(plugin.variables)

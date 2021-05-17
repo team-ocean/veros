@@ -37,7 +37,7 @@ class AssetStore:
                 _download_file(url, target_path)
 
             if md5 is not None and _filehash(target_path) != md5:
-                raise AssetError("Mismatching MD5 checksum on asset %s" % target_filename)
+                raise AssetError(f"Mismatching MD5 checksum on asset {target_filename}")
 
         return target_path
 

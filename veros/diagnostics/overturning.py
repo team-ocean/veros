@@ -114,7 +114,7 @@ class Overturning(VerosDiagnostic):
 
     def output(self, state):
         if not os.path.isfile(self.get_output_file_name(state)):
-            self.initialize_output(state, self.var_meta)
+            self.initialize_output(state)
 
         ovt_vs = self.variables
 

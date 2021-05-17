@@ -518,7 +518,7 @@ def gather(arr, dimensions, var_grid):
 
 @dist_context_only(noop_return_arg=0)
 def _scatter_constant(arr):
-    return bcast(arr, rs.mpi_comm, root=0)
+    return bcast(arr, rs.mpi_comm, root=0)[0]
 
 
 @dist_context_only(noop_return_arg=2)
@@ -617,7 +617,7 @@ def scatter(arr, dimensions, var_grid):
         return _scatter_xy(nx, ny, arr)
 
     else:
-        raise NotImplementedError()
+        raise NotImplementedError("unreachable")
 
 
 @dist_context_only

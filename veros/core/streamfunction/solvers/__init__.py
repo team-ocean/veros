@@ -43,7 +43,7 @@ def _get_solver_class():
 
         return SciPySolver
 
-    raise ValueError("unrecognized linear solver %s" % ls)
+    raise ValueError(f"unrecognized linear solver {ls}")
 
 
 @memoize

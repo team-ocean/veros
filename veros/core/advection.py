@@ -1,9 +1,7 @@
-from veros.core.operators import numpy as npx
-
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core.utilities import pad_z_edges
-from veros.core.operators import update, update_add, update_multiply, at
+from veros.core.operators import numpy as npx, update, update_add, update_multiply, at
 
 
 @veros_kernel
@@ -33,9 +31,9 @@ def _adv_superbee(state, vel, var, mask, dx, axis):
         dx = (vs.cost * dx)[npx.newaxis, 1:-2, npx.newaxis]
         vel = vel * vs.cosu[npx.newaxis, :, npx.newaxis]
     elif axis == 2:
-        vel, var, mask = (pad_z_edges(a) for a in (vel, var, mask))
         sm1, s, sp1, sp2 = ((slice(2, -2), slice(2, -2), slice(1 + n, -2 + n or None)) for n in range(-1, 3))
         dx = dx[npx.newaxis, npx.newaxis, :-1]
+        vel, var, mask = (pad_z_edges(a) for a in (vel, var, mask))
     else:
         raise ValueError("axis must be 0, 1, or 2")
 

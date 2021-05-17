@@ -63,7 +63,7 @@ def dissipation_on_wgrid(state, diss, ks):
 
 
 @veros_kernel
-def tempsalt_biharmonic(state, flux_east, flux_north):
+def tempsalt_biharmonic(state):
     """
     biharmonic mixing of temp and salinity,
     dissipation of dyn. Enthalpy is stored
@@ -74,9 +74,8 @@ def tempsalt_biharmonic(state, flux_east, flux_north):
     fxa = npx.sqrt(abs(settings.K_hbi))
 
     # update temp
-    vs.dtemp_hmix = update(
-        vs.dtemp_hmix, at[1:, 1:, :], biharmonic_diffusion(state, vs.temp[:, :, :, vs.tau], fxa)[1:, 1:, :]
-    )
+    dtemp, flux_east, flux_north = biharmonic_diffusion(state, vs.temp[:, :, :, vs.tau], fxa)
+    vs.dtemp_hmix = update(vs.dtemp_hmix, at[1:, 1:, :], dtemp[1:, 1:, :])
     vs.temp = update_add(vs.temp, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dtemp_hmix * vs.maskT)
 
     vs.P_diss_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
@@ -88,10 +87,8 @@ def tempsalt_biharmonic(state, flux_east, flux_north):
         vs.P_diss_hmix = vs.P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
 
     # update salt
-    vs.dsalt_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
-    vs.dsalt_hmix = update(
-        vs.dsalt_hmix, at[1:, 1:, :], biharmonic_diffusion(state, vs.salt[:, :, :, vs.tau], fxa)[1:, 1:, :]
-    )
+    dsalt, flux_east, flux_north = biharmonic_diffusion(state, vs.salt[:, :, :, vs.tau], fxa)
+    vs.dsalt_hmix = update(vs.dsalt_hmix, at[1:, 1:, :], dsalt[1:, 1:, :])
     vs.salt = update_add(vs.salt, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dsalt_hmix * vs.maskT)
 
     if settings.enable_conserve_energy:
@@ -104,7 +101,7 @@ def tempsalt_biharmonic(state, flux_east, flux_north):
 
 
 @veros_kernel
-def tempsalt_diffusion(state, flux_east, flux_north):
+def tempsalt_diffusion(state):
     """
     Diffusion of temp and salinity,
     dissipation of dyn. Enthalpy is stored
@@ -113,9 +110,8 @@ def tempsalt_diffusion(state, flux_east, flux_north):
     settings = state.settings
 
     # horizontal diffusion of temperature
-    vs.dtemp_hmix = update(
-        vs.dtemp_hmix, at[1:, 1:, :], horizontal_diffusion(state, vs.temp[:, :, :, vs.tau], settings.K_h)[1:, 1:, :]
-    )
+    dtemp, flux_east, flux_north = horizontal_diffusion(state, vs.temp[:, :, :, vs.tau], settings.K_h)
+    vs.dtemp_hmix = update(vs.dtemp_hmix, at[1:, 1:, :], dtemp[1:, 1:, :])
     vs.temp = update_add(vs.temp, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dtemp_hmix * vs.maskT)
 
     if settings.enable_conserve_energy:
@@ -123,9 +119,8 @@ def tempsalt_diffusion(state, flux_east, flux_north):
         vs.P_diss_hmix = vs.P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
 
     # horizontal diffusion of salinity
-    vs.dsalt_hmix = update(
-        vs.dsalt_hmix, at[1:, 1:, :], horizontal_diffusion(state, vs.salt[:, :, :, vs.tau], settings.K_h)[1:, 1:, :]
-    )
+    dsalt, flux_east, flux_north = horizontal_diffusion(state, vs.salt[:, :, :, vs.tau], settings.K_h)
+    vs.dsalt_hmix = update(vs.dsalt_hmix, at[1:, 1:, :], dsalt[1:, 1:, :])
     vs.salt = update_add(vs.salt, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dsalt_hmix * vs.maskT)
 
     if settings.enable_conserve_energy:
@@ -239,7 +234,7 @@ def biharmonic_diffusion(state, tr, diffusivity):
 
     dtr = dtr * vs.maskT
 
-    return dtr
+    return dtr, flux_east, flux_north
 
 
 @veros_kernel
@@ -297,4 +292,4 @@ def horizontal_diffusion(state, tr, diffusivity):
         * vs.maskT[1:, 1:, :],
     )
 
-    return dtr_hmix
+    return dtr_hmix, flux_east, flux_north

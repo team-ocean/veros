@@ -145,7 +145,7 @@ class RuntimeSettings:
         return super(RuntimeSettings, self).__setattr__(attr, val)
 
     def __repr__(self):
-        setval = ", ".join("%s=%s" % (key, repr(getattr(self, key))) for key in self.__settings__)
+        setval = ", ".join(f"{key}={repr(getattr(self, key))}" for key in self.__settings__)
         return f"{self.__class__.__name__}({setval})"
 
 

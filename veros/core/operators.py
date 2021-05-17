@@ -67,7 +67,7 @@ def solve_tridiagonal_numpy(a, b, c, d, water_mask, edge_mask):
         a[edge_mask] = 0
         c[..., -1] = 0
 
-    out = np.full(a.shape, np.nan, dtype=a.dtype)
+    out = np.zeros(a.shape, dtype=a.dtype)
     sol = lapack.dgtsv(a[water_mask][1:], b[water_mask], c[water_mask][:-1], d[water_mask])[3]
     out[water_mask] = sol
     return out
@@ -95,16 +95,19 @@ def scan_numpy(f, init, xs, length=None):
     return carry, np.stack(ys)
 
 
-@veros_kernel
-def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask):
+@veros_kernel(static_args=("use_ext",))
+def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask, use_ext=None):
     import jax.lax
     import jax.numpy as jnp
 
     from veros.core.special.tdma_ import tdma, HAS_CPU_EXT, HAS_GPU_EXT
 
-    has_ext = (HAS_CPU_EXT and runtime_settings.device == "cpu") or (HAS_GPU_EXT and runtime_settings.device == "gpu")
+    if use_ext is None:
+        use_ext = (HAS_CPU_EXT and runtime_settings.device == "cpu") or (
+            HAS_GPU_EXT and runtime_settings.device == "gpu"
+        )
 
-    if has_ext:
+    if use_ext:
         return tdma(a, b, c, d, water_mask, edge_mask)
 
     warnings.warn("Could not use custom TDMA implementation, falling back to pure JAX")

@@ -66,7 +66,7 @@ class Averages(VerosDiagnostic):
         avg_vs = self.variables
 
         if not os.path.isfile(self.get_output_file_name(state)):
-            self.initialize_output(state, self.var_meta)
+            self.initialize_output(state)
 
         if avg_vs.average_nitts > 0:
             for key in self.output_variables:

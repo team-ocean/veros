@@ -20,7 +20,7 @@ def read_from_h5(dimensions, var_meta, infile, groupname):
         local_shape = get_shape(dimensions, var_meta[key].dims, local=True, include_ghosts=True)
         gidx, lidx = get_chunk_slices(dimensions["xt"], dimensions["yt"], var_meta[key].dims, include_overlap=True)
 
-        variables[key] = npx.empty(local_shape, dtype=str(var.dtype))
+        variables[key] = npx.empty(local_shape, dtype=var.dtype)
         variables[key] = update(variables[key], at[lidx], var[gidx])
         variables[key] = exchange_overlap(variables[key], var_meta[key].dims)
 
@@ -70,15 +70,15 @@ def write_to_h5(dimensions, var_meta, var_data, outfile, groupname, attributes=N
 def read_restart(state):
     settings = state.settings
 
-    statedict = dict(state.variables.items())
-    statedict.update(state.settings.items())
-    restart_filename = settings.restart_input_filename.format(**statedict)
-
-    if not restart_filename:
+    if not settings.restart_input_filename:
         return
 
     if runtime_settings.force_overwrite:
         raise RuntimeError("To prevent data loss, force_overwrite cannot be used in restart runs")
+
+    statedict = dict(state.variables.items())
+    statedict.update(state.settings.items())
+    restart_filename = settings.restart_input_filename.format(**statedict)
 
     if not os.path.isfile(restart_filename):
         raise IOError(f"restart file {restart_filename} not found")

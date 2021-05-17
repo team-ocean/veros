@@ -22,7 +22,7 @@ class VerosSetting(click.ParamType):
 
         if self.current_key is None:
             if value not in SETTINGS:
-                self.fail("Unknown setting %s" % value)
+                self.fail(f"Unknown setting {value}")
             self.current_key = value
             return value
 

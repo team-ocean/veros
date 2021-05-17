@@ -133,7 +133,6 @@ class WavePropagationSetup(VerosSetup):
                 "Mask for North Atlantic",
                 dtype="bool",
                 time_dependent=False,
-                output=True,
             ),
         )
 
@@ -386,6 +385,7 @@ class WavePropagationSetup(VerosSetup):
         diagnostics["cfl_monitor"].output_frequency = 86400.0
         diagnostics["tracer_monitor"].output_frequency = 86400.0
         diagnostics["snapshot"].output_frequency = 10 * 86400.0
+        diagnostics["snapshot"].output_vars += ["na_mask"]
         diagnostics["overturning"].output_frequency = 360 * 86400
         diagnostics["overturning"].sampling_frequency = 10 * 86400
         diagnostics["energy"].output_frequency = 360 * 86400

@@ -3,6 +3,17 @@ from collections import namedtuple
 
 Setting = namedtuple("setting", ("default", "type", "description"))
 
+
+def optional(type_):
+    def wrapped(arg):
+        if arg is None:
+            return arg
+
+        return type_(arg)
+
+    return wrapped
+
+
 SETTINGS = {
     "identifier": Setting("UNNAMED", str, "Identifier of the current simulation"),
     # Model parameters
@@ -113,11 +124,11 @@ SETTINGS = {
     "enable_eke_isopycnal_diffusion": Setting(False, bool, "use K_gm also for isopycnal diffusivity"),
     # Restarts
     "restart_input_filename": Setting(
-        "", str, "File name of restart input. If not given, no restart data will be read."
+        None, optional(str), "File name of restart input. If not given, no restart data will be read."
     ),
     "restart_output_filename": Setting(
         "{identifier}_{itt:0>4d}.restart.h5",
-        str,
+        optional(str),
         "File name of restart output. May contain Python format syntax that is substituted with Veros attributes.",
     ),
     "restart_frequency": Setting(0, float, "Frequency (in seconds) to write restart data"),

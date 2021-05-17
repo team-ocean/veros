@@ -1,1 +1,1 @@
-from veros.setups.global_1deg.global_one_degree import GlobalOneDegreeSetup  # noqa: F401
+from veros.setups.global_1deg.global_1deg import GlobalOneDegreeSetup  # noqa: F401

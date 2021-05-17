@@ -137,7 +137,7 @@ class Energy(VerosDiagnostic):
 
     def output(self, state):
         if not os.path.isfile(self.get_output_file_name(state)):
-            self.initialize_output(state, self.var_meta)
+            self.initialize_output(state)
 
         energy_vs = self.variables
         nitts = float(energy_vs.nitts or 1)

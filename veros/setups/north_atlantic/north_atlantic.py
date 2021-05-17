@@ -112,7 +112,7 @@ class NorthAtlanticSetup(VerosSetup):
 
         vs.dxt = update(vs.dxt, at[2:-2], (self.x_boundary - settings.x_origin) / settings.nx)
         vs.dyt = update(vs.dyt, at[2:-2], (self.y_boundary - settings.y_origin) / settings.ny)
-        vs.dzt = veros.tools.get_vinokur_grid_steps(vs.nz, self.max_depth, 10.0, refine_towards="lower")
+        vs.dzt = veros.tools.get_vinokur_grid_steps(settings.nz, self.max_depth, 10.0, refine_towards="lower")
 
     @veros_routine
     def set_coriolis(self, state):

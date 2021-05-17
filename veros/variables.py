@@ -143,7 +143,7 @@ def get_shape(dimensions, grid, include_ghosts=True, local=True):
         elif hasattr(dimensions, grid_dim):
             shape.append(getattr(dimensions, grid_dim))
         else:
-            raise ValueError("unrecognized dimension %s" % grid_dim)
+            raise ValueError(f"unrecognized dimension {grid_dim}")
 
     return tuple(shape)
 
@@ -159,14 +159,27 @@ def remove_ghosts(array, dims):
 
 VARIABLES = {
     # scalars
-    "tau": Variable("Index of current time step", None, "", "Index of current time step", dtype="int", initial=1),
-    "taup1": Variable("Index of next time step", None, "", "Index of next time step", dtype="int", initial=2),
-    "taum1": Variable("Index of last time step", None, "", "Index of last time step", dtype="int", initial=0),
+    "tau": Variable(
+        "Index of current time step",
+        None,
+        "",
+        "Index of current time step",
+        dtype="int",
+        initial=1,
+        write_to_restart=True,
+    ),
+    "taup1": Variable(
+        "Index of next time step", None, "", "Index of next time step", dtype="int", initial=2, write_to_restart=True
+    ),
+    "taum1": Variable(
+        "Index of last time step", None, "", "Index of last time step", dtype="int", initial=0, write_to_restart=True
+    ),
     "time": Variable(
         "Current time",
         None,
         "",
         "Current time",
+        write_to_restart=True,
     ),
     "itt": Variable("Current iteration", None, "", "Current iteration", dtype="int", initial=0),
     # base variables
