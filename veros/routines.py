@@ -357,12 +357,12 @@ class VerosKernel:
                         token = CURRENT_CONTEXT.mpi4jax_token
                         return out, token
 
+                    if CURRENT_CONTEXT.mpi4jax_token is None:
+                        CURRENT_CONTEXT.mpi4jax_token = jax.lax.create_token()
+
                     self.function = token_wrapper
 
                 self.function = jax.jit(self.function, static_argnums=self.static_argnums)
-
-            if CURRENT_CONTEXT.mpi4jax_token is None:
-                CURRENT_CONTEXT.mpi4jax_token = jax.lax.create_token()
 
         # JAX only accepts positional args when using static_argnums
         # so convert everything to positional for consistency

@@ -3,14 +3,8 @@ import pytest
 
 
 def pytest_addoption(parser):
-    parser.addoption(
-        "--pyom2-lib", default=None,
-        help="Path to PyOM2 library (must be given for consistency tests)"
-    )
-    parser.addoption(
-        "--backend", choices=["numpy", "jax"], default="numpy",
-        help="Numerical backend to test"
-    )
+    parser.addoption("--pyom2-lib", default=None, help="Path to PyOM2 library (must be given for consistency tests)")
+    parser.addoption("--backend", choices=["numpy", "jax"], default="numpy", help="Numerical backend to test")
 
 
 def pytest_configure(config):
@@ -37,4 +31,5 @@ def pytest_generate_tests(metafunc):
 @pytest.fixture(autouse=True)
 def set_random_seed():
     import numpy as np
+
     np.random.seed(17)

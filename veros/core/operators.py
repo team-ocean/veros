@@ -144,20 +144,6 @@ def update_multiply_jax(arr, at, to):
     return jax.ops.index_update(arr, at, arr[at] * to)
 
 
-def tanh_jax(arr):
-    import jax.numpy as jnp
-
-    if runtime_settings.device != "cpu":
-        return jnp.tanh(arr)
-
-    # https://math.stackexchange.com/questions/107292/rapid-approximation-of-tanhx
-    # TODO: test this
-    arr2 = arr * arr
-    nom = arr * (135135.0 + arr2 * (17325.0 + arr2 * (378.0 + arr2)))
-    denom = 135135.0 + arr2 * (62370.0 + arr2 * (3150.0 + arr2 * 28.0))
-    return jnp.clip(nom / denom, -1, 1)
-
-
 def flush_jax():
     import jax
 
@@ -179,7 +165,6 @@ if runtime_settings.backend == "numpy":
     solve_tridiagonal = solve_tridiagonal_numpy
     for_loop = fori_numpy
     scan = scan_numpy
-    tanh = numpy.tanh
     flush = noop
 
 elif runtime_settings.backend == "jax":
@@ -193,7 +178,6 @@ elif runtime_settings.backend == "jax":
     solve_tridiagonal = solve_tridiagonal_jax
     for_loop = jax.lax.fori_loop
     scan = jax.lax.scan
-    tanh = tanh_jax
     flush = flush_jax
 
 else:

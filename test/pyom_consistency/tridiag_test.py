@@ -5,8 +5,8 @@ from veros import runtime_settings
 from veros.pyom_compat import load_pyom
 
 
-@pytest.mark.skipif(runtime_settings.backend != 'jax', reason='Must use JAX backend')
-@pytest.mark.parametrize('use_ext', [True, False])
+@pytest.mark.skipif(runtime_settings.backend != "jax", reason="Must use JAX backend")
+@pytest.mark.parametrize("use_ext", [True, False])
 def test_solve_tridiag_jax(pyom2_lib, use_ext):
     from veros.core.operators import solve_tridiagonal_jax
     from veros.core.utilities import create_water_masks
@@ -36,7 +36,7 @@ def test_solve_tridiag_jax(pyom2_lib, use_ext):
     np.testing.assert_allclose(out_pyom, out_vs)
 
 
-@pytest.mark.skipif(runtime_settings.backend != 'numpy', reason='Must use NumPy backend')
+@pytest.mark.skipif(runtime_settings.backend != "numpy", reason="Must use NumPy backend")
 def test_solve_tridiag_numpy(pyom2_lib):
     from veros.core.operators import solve_tridiagonal_numpy
     from veros.core.utilities import create_water_masks

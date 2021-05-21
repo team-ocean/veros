@@ -4,7 +4,7 @@ from veros import logger
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core import density, utilities
-from veros.core.operators import update, update_add, at, tanh
+from veros.core.operators import update, update_add, at
 
 
 @veros_kernel
@@ -12,7 +12,7 @@ def dm_taper(sx, iso_slopec, iso_dslope):
     """
     tapering function for isopycnal slopes
     """
-    return 0.5 * (1.0 + tanh((-npx.abs(sx) + iso_slopec) / iso_dslope))
+    return 0.5 * (1.0 + npx.tanh((-npx.abs(sx) + iso_slopec) / iso_dslope))
 
 
 @veros_kernel

@@ -85,4 +85,4 @@ jobs:
           conda list
 
       - name: Run tests
-        run: pytest
+        run: pytest .

@@ -104,4 +104,5 @@ def test_4deg(pyom2_lib):
         normalize=True,
         rtol=0,
         atol=1e-4,
+        allowed_failures=("Ai_ez", "Ai_nz", "Ai_bx", "Ai_by"),
     )

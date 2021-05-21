@@ -11,4 +11,9 @@ repos:
     - id: flake8
       args: ['--config=setup.cfg']
 
-exclude: veros/_version.py
+exclude: "
+  ^$\
+  |versioneer\\.py\
+  |veros/_version.py\
+  |doc\
+  "

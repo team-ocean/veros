@@ -22,7 +22,7 @@ def read_from_h5(dimensions, var_meta, infile, groupname):
 
         variables[key] = npx.empty(local_shape, dtype=var.dtype)
         variables[key] = update(variables[key], at[lidx], var[gidx])
-        variables[key] = exchange_overlap(variables[key], var_meta[key].dims)[0]
+        variables[key] = exchange_overlap(variables[key], var_meta[key].dims)
 
     attributes = {key: var.item() for key, var in infile[groupname].attrs.items()}
 
