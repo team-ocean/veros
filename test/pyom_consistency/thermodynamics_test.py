@@ -1,8 +1,9 @@
 import pytest
 
 from veros.core import thermodynamics
+from veros.pyom_compat import get_random_state
 
-from test_base import get_random_state, compare_state
+from test_base import compare_state
 
 
 @pytest.fixture

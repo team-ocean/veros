@@ -2,8 +2,9 @@ import pytest
 import numpy as np
 
 from veros.core import advection
+from veros.pyom_compat import get_random_state
 
-from test_base import get_random_state, compare_state
+from test_base import compare_state
 
 
 @pytest.fixture

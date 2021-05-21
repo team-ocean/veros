@@ -65,6 +65,11 @@ def record_routine_stack():
 
 
 @contextmanager
+def nullcontext():
+    yield
+
+
+@contextmanager
 def enter_routine(name, routine_obj, timer=None, dist_safe=True):
     from veros import runtime_state as rst
     from veros.distributed import abort
@@ -80,8 +85,7 @@ def enter_routine(name, routine_obj, timer=None, dist_safe=True):
             CURRENT_CONTEXT.is_dist_safe = False
             reset_dist_safe = True
 
-    nullcontext = contextmanager(lambda: None)
-    timer_ctx = nullcontext if timer is None else timer
+    timer_ctx = nullcontext() if timer is None else timer
 
     try:
         with timer_ctx:

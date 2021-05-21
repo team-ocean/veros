@@ -3,6 +3,7 @@ import importlib.util
 
 from veros import logger, runtime_settings, runtime_state, timer
 from veros.state import get_default_state, resize_dimension
+from veros.variables import get_shape
 
 
 # all variables that are re-named or unique to Veros
@@ -66,7 +67,7 @@ def load_pyom(pyom_lib):
     return pyom_obj
 
 
-def pyom_from_state(state, pyom_obj, ignore_attrs=None):
+def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=True):
     """Force-updates internal PyOM library state to match given Veros state."""
     if ignore_attrs is None:
         ignore_attrs = []
@@ -124,10 +125,11 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None):
 
         set_fortran_attr(var, val)
 
-    pyom_obj.streamfunction_init()
+    if init_streamfunction:
+        pyom_obj.streamfunction_init()
 
-    for var in STREAMFUNCTION_VARS:
-        set_fortran_attr(var, state.variables.get(var))
+        for var in STREAMFUNCTION_VARS:
+            set_fortran_attr(var, state.variables.get(var))
 
     # correct for 1-based indexing
     pyom_obj.main_module.tau += 1
@@ -420,3 +422,84 @@ def run_pyom(pyom_obj, set_forcing, after_timestep=None):
     logger.debug("     EKE                  = {}s", timers["eke"].get_time())
     logger.debug("     IDEMIX               = {}s", timers["idemix"].get_time())
     logger.debug("     TKE                  = {}s", timers["tke"].get_time())
+
+
+def _generate_random_var(state, var):
+    import numpy as onp
+
+    meta = state.var_meta[var]
+    shape = get_shape(state.dimensions, meta.dims)
+
+    if var == "kbot":
+        val = onp.zeros(shape)
+        val[2:-2, 2:-2] = onp.random.randint(1, state.dimensions["zt"], size=(shape[0] - 4, shape[1] - 4))
+        island_mask = onp.random.choice(val[3:-3, 3:-3].size, size=10)
+        val[3:-3, 3:-3].flat[island_mask] = 0
+        return val
+
+    if var in ("dxt", "dxu", "dyt", "dyu"):
+        if state.settings.coord_degree:
+            val = 1 + 1e-2 * onp.random.randn(*shape)
+        else:
+            val = 10e3 + 100 * onp.random.randn(*shape)
+        return val
+
+    if var in ("dzt", "dzw"):
+        val = 100 + onp.random.randn(*shape)
+        return val
+
+    if onp.issubdtype(onp.dtype(meta.dtype), onp.floating):
+        val = onp.random.randn(*shape)
+        if var in ("salt",):
+            val = onp.abs(val)
+
+        return val
+
+    if onp.issubdtype(onp.dtype(meta.dtype), onp.integer):
+        val = onp.random.randint(0, 100, size=shape)
+        return val
+
+    if onp.issubdtype(onp.dtype(meta.dtype), onp.bool_):
+        return onp.random.randint(0, 1, size=shape, dtype="bool")
+
+    raise TypeError(f"got unrecognized dtype: {meta.dtype}")
+
+
+def get_random_state(pyom2_lib=None, extra_settings=None):
+    """Generates random Veros and PyOM states (for testing)"""
+    from veros.core import numerics, streamfunction
+
+    if extra_settings is None:
+        extra_settings = {}
+
+    state = get_default_state()
+    settings = state.settings
+
+    with settings.unlock():
+        settings.update(extra_settings)
+
+    state.initialize_variables()
+    state.variables.__locked__ = False  # leave variables unlocked
+
+    for var, meta in state.var_meta.items():
+        if not meta.active:
+            continue
+
+        if var in ("tau", "taup1", "taum1"):
+            continue
+
+        val = _generate_random_var(state, var)
+        setattr(state.variables, var, val)
+
+    # ensure that masks and geometries are consistent with grid spacings
+    numerics.calc_grid(state)
+    numerics.calc_topo(state)
+    streamfunction.streamfunction_init(state)
+
+    if pyom2_lib is None:
+        return state
+
+    pyom_obj = load_pyom(pyom2_lib)
+    pyom_obj = pyom_from_state(state, pyom_obj)
+
+    return state, pyom_obj

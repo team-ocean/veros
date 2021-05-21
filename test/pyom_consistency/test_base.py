@@ -1,9 +1,8 @@
 import numpy as np
 from textwrap import indent
 
-from veros.state import get_default_state
-from veros.variables import remove_ghosts, get_shape
-from veros.pyom_compat import load_pyom, state_from_pyom, pyom_from_state, VEROS_TO_PYOM_SETTING, VEROS_TO_PYOM_VAR
+from veros.variables import remove_ghosts
+from veros.pyom_compat import state_from_pyom, VEROS_TO_PYOM_SETTING, VEROS_TO_PYOM_VAR
 
 
 def _normalize(*arrays):
@@ -81,78 +80,3 @@ def compare_state(
                 passed = False
 
     assert passed
-
-
-def _generate_random_var(state, var):
-    meta = state.var_meta[var]
-    shape = get_shape(state.dimensions, meta.dims)
-
-    if var == "kbot":
-        val = np.zeros(shape)
-        val[2:-2, 2:-2] = np.random.randint(1, state.dimensions["zt"], size=(shape[0] - 4, shape[1] - 4))
-        island_mask = np.random.choice(val[2:-2, 2:-2].size, size=10)
-        val[2:-2, 2:-2].flat[island_mask] = 0
-        return val
-
-    if var in ("dxt", "dxu", "dyt", "dyu"):
-        if state.settings.coord_degree:
-            val = 1 + 1e-2 * np.random.randn(*shape)
-        else:
-            val = 10e3 + 100 * np.random.randn(*shape)
-        return val
-
-    if var in ("dzt", "dzw"):
-        val = 100 + np.random.randn(*shape)
-        return val
-
-    if np.issubdtype(np.dtype(meta.dtype), np.floating):
-        val = np.random.randn(*shape)
-        if var in ("salt",):
-            val = np.abs(val)
-
-        return val
-
-    if np.issubdtype(np.dtype(meta.dtype), np.integer):
-        val = np.random.randint(0, 100, size=shape)
-        return val
-
-    if np.issubdtype(np.dtype(meta.dtype), np.bool_):
-        return np.random.randint(0, 1, size=shape, dtype="bool")
-
-    raise TypeError(f"got unrecognized dtype: {meta.dtype}")
-
-
-def get_random_state(pyom2_lib, extra_settings=None):
-    from veros.core import numerics, streamfunction
-
-    if extra_settings is None:
-        extra_settings = {}
-
-    state = get_default_state()
-    settings = state.settings
-
-    with settings.unlock():
-        settings.update(extra_settings)
-
-    state.initialize_variables()
-    state.variables.__locked__ = False  # leave variables unlocked
-
-    for var, meta in state.var_meta.items():
-        if not meta.active:
-            continue
-
-        if var in ("tau", "taup1", "taum1"):
-            continue
-
-        val = _generate_random_var(state, var)
-        setattr(state.variables, var, val)
-
-    # ensure that masks and geometries are consistent with grid spacings
-    numerics.calc_grid(state)
-    numerics.calc_topo(state)
-    streamfunction.streamfunction_init(state)
-
-    pyom_obj = load_pyom(pyom2_lib)
-    pyom_obj = pyom_from_state(state, pyom_obj)
-
-    return state, pyom_obj
