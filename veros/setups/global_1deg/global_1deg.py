@@ -15,10 +15,13 @@ class GlobalOneDegreeSetup(VerosSetup):
     `Adapted from pyOM2 <https://wiki.zmaw.de/ifm/TO/pyOM2/1x1%20global%20model>`_.
     """
 
-    def set_parameter(self, settings, var_meta, objects):
+    @veros_routine
+    def set_parameter(self, state):
         """
         set main parameters
         """
+        settings = state.settings
+
         settings.nx = 360
         settings.ny = 160
         settings.nz = 115
@@ -84,7 +87,7 @@ class GlobalOneDegreeSetup(VerosSetup):
 
         # custom variables
         nmonths = 12
-        var_meta.update(
+        state.var_meta.update(
             t_star=Variable("t_star", ("xt", "yt", nmonths), "", "", time_dependent=False),
             s_star=Variable("s_star", ("xt", "yt", nmonths), "", "", time_dependent=False),
             qnec=Variable("qnec", ("xt", "yt", nmonths), "", "", time_dependent=False),
@@ -114,13 +117,17 @@ class GlobalOneDegreeSetup(VerosSetup):
     @veros_routine
     def set_coriolis(self, state):
         vs = state.variables
-        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * vs.omega * npx.sin(vs.yt[npx.newaxis, :] / 180.0 * vs.pi))
+        settings = state.settings
+        vs.coriolis_t = update(
+            vs.coriolis_t, at[...], 2 * settings.omega * npx.sin(vs.yt[npx.newaxis, :] / 180.0 * settings.pi)
+        )
 
-    @veros_routine
+    @veros_routine(dist_safe=False, local_variables=["kbot"])
     def set_topography(self, state):
         import numpy as onp
 
         vs = state.variables
+        settings = state.settings
 
         bathymetry_data = self._read_forcing("bathymetry")
         salt_data = self._read_forcing("salinity")[:, :, ::-1]
@@ -130,10 +137,10 @@ class GlobalOneDegreeSetup(VerosSetup):
 
         mask_bathy = bathymetry_data == 0
         vs.kbot = update_multiply(vs.kbot, at[2:-2, 2:-2], ~mask_bathy)
-        vs.kbot = vs.kbot * (vs.kbot < vs.nz)
+        vs.kbot = vs.kbot * (vs.kbot < settings.nz)
 
         # close some channels
-        i, j = onp.indices((vs.nx, vs.ny))
+        i, j = onp.indices((settings.nx, settings.ny))
 
         mask_channel = (i >= 207) & (i < 214) & (j < 5)  # i = 208,214; j = 1,5
         vs.kbot = update_multiply(vs.kbot, at[2:-2, 2:-2], ~mask_channel)
@@ -146,7 +153,33 @@ class GlobalOneDegreeSetup(VerosSetup):
         mask_channel = (i >= 269) & (i < 271) & (j == 130)  # i = 270,271; j = 131
         vs.kbot = update_multiply(vs.kbot, at[2:-2, 2:-2], ~mask_channel)
 
-    @veros_routine
+        import matplotlib.pyplot as plt
+
+        plt.imshow(vs.kbot)
+        plt.show()
+
+    @veros_routine(
+        dist_safe=False,
+        local_variables=[
+            "t_star",
+            "s_star",
+            "qnec",
+            "qnet",
+            "qsol",
+            "divpen_shortwave",
+            "taux",
+            "tauy",
+            "temp",
+            "salt",
+            "forc_iw_bottom",
+            "forc_iw_surface",
+            "kbot",
+            "maskT",
+            "maskW",
+            "zw",
+            "dzt",
+        ],
+    )
     def set_initial_conditions(self, state):
         vs = state.variables
         settings = state.settings
@@ -185,13 +218,13 @@ class GlobalOneDegreeSetup(VerosSetup):
             tidal_energy_data = self._read_forcing("tidal_energy")
             mask = (
                 npx.maximum(0, vs.kbot[2:-2, 2:-2] - 1)[:, :, npx.newaxis]
-                == npx.arange(vs.nz)[npx.newaxis, npx.newaxis, :]
+                == npx.arange(settings.nz)[npx.newaxis, npx.newaxis, :]
             )
-            tidal_energy_data *= vs.maskW[2:-2, 2:-2, :][mask].reshape(vs.nx, vs.ny) / vs.rho_0
+            tidal_energy_data *= vs.maskW[2:-2, 2:-2, :][mask].reshape(settings.nx, settings.ny) / settings.rho_0
             vs.forc_iw_bottom = update(vs.forc_iw_bottom, at[2:-2, 2:-2], tidal_energy_data)
 
             wind_energy_data = self._read_forcing("wind_energy")
-            wind_energy_data *= vs.maskW[2:-2, 2:-2, -1] / vs.rho_0 * 0.2
+            wind_energy_data *= vs.maskW[2:-2, 2:-2, -1] / settings.rho_0 * 0.2
             vs.forc_iw_surface = update(vs.forc_iw_surface, at[2:-2, 2:-2], wind_energy_data)
 
         """
@@ -203,7 +236,8 @@ class GlobalOneDegreeSetup(VerosSetup):
         swarg2 = vs.zw / efold2_shortwave
         pen = rpart_shortwave * npx.exp(swarg1) + (1.0 - rpart_shortwave) * npx.exp(swarg2)
         pen = update(pen, at[-1], 0.0)
-        vs.divpen_shortwave = allocate(vs, ("zt",))
+
+        vs.divpen_shortwave = allocate(state.dimensions, ("zt",))
         vs.divpen_shortwave = update(vs.divpen_shortwave, at[1:], (pen[1:] - pen[:-1]) / vs.dzt[1:])
         vs.divpen_shortwave = update(vs.divpen_shortwave, at[0], pen[0] / vs.dzt[0])
 
