@@ -4,6 +4,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def ensure_diskless():
     from veros import runtime_settings
+
     object.__setattr__(runtime_settings, "diskless_mode", True)
 
 
@@ -58,9 +59,14 @@ def test_setup_4deg():
 def test_setup_flexible():
     from veros.setups.global_flexible import GlobalFlexibleResolutionSetup
 
-    sim = GlobalFlexibleResolutionSetup(override=dict(
-        nx=100, ny=50, dt_tracer=3600, dt_mom=3600,
-    ))
+    sim = GlobalFlexibleResolutionSetup(
+        override=dict(
+            nx=100,
+            ny=50,
+            dt_tracer=3600,
+            dt_mom=3600,
+        )
+    )
     sim.setup()
 
     with sim.state.settings.unlock():
@@ -72,8 +78,13 @@ def test_setup_flexible():
 def test_setup_1deg():
     from veros.setups.global_1deg import GlobalOneDegreeSetup
 
-    # too big to test
-    GlobalOneDegreeSetup()
+    sim = GlobalOneDegreeSetup()
+    sim.setup()
+
+    with sim.state.settings.unlock():
+        sim.state.settings.runlen = sim.state.settings.dt_tracer
+
+    sim.run()
 
 
 def test_setup_north_atlantic():
