@@ -26,6 +26,7 @@ jobs:
         with:
           miniconda-version: "latest"
           activate-environment: veros
+          environment-file: conda-environment.yml
 
       - name: Install test dependencies
         run: |
@@ -53,6 +54,7 @@ jobs:
         with:
           miniconda-version: "latest"
           activate-environment: veros
+          environment-file: conda-environment.yml
 
       - name: Install test dependencies
         run: |
@@ -80,6 +82,7 @@ jobs:
         with:
           miniconda-version: "latest"
           activate-environment: veros
+          environment-file: conda-environment.yml
 
       - name: Install test dependencies
         run: |

@@ -23,6 +23,8 @@ jobs:
 
     env:
       PYOM2_DIR: /home/runner/pyom2
+      OMPI_MCA_rmaps_base_oversubscribe: "1"
+      OMPI_MCA_mpi_yield_when_idle: "1"
 
     steps:
       - uses: actions/checkout@v2

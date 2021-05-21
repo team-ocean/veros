@@ -75,9 +75,7 @@ class PETScSolver(LinearSolver):
         iterations = self._ksp.getIterationNumber()
 
         if info < 0:
-            logger.warning(
-                "Streamfunction solver did not converge after {} iterations (error code: {})", iterations, info
-            )
+            logger.warning(f"Streamfunction solver did not converge after {iterations} iterations (error code: {info})")
 
         return npx.array(self._da.getVecArray(self._sol_petsc)[...])
 
@@ -108,6 +106,7 @@ class PETScSolver(LinearSolver):
         Construct a sparse matrix based on the stencil for the 2D Poisson equation.
         """
         vs = state.variables
+        settings = state.settings
 
         matrix = self._da.getMatrix()
 
@@ -179,7 +178,7 @@ class PETScSolver(LinearSolver):
         (i0, i1), (j0, j1) = self._da.getRanges()
         for j in range(j0, j1):
             for i in range(i0, i1):
-                iloc, jloc = i % (vs.nx // rs.num_proc[0]), j % (vs.ny // rs.num_proc[1])
+                iloc, jloc = i % (settings.nx // rs.num_proc[0]), j % (settings.ny // rs.num_proc[1])
                 row.index = (i, j)
 
                 for diag, offset in zip(cf, ij_offsets):

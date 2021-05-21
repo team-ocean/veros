@@ -347,7 +347,8 @@ class VerosKernel:
         # apply JIT
         if runtime_settings.backend == "jax":
             import jax
-            from jaxlib.xla_extension.jax_jit import CompiledFunction
+
+            CompiledFunction = type(jax.jit(lambda: None))
 
             if not isinstance(self.function, CompiledFunction):
                 if inject_tokens:
