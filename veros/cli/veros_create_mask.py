@@ -52,7 +52,3 @@ def create_mask(infile, outfile, variable="z", scale=None):
 @functools.wraps(create_mask)
 def cli(*args, **kwargs):
     create_mask(**kwargs)
-
-
-if __name__ == "__main__":
-    cli()

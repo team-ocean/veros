@@ -131,7 +131,3 @@ copy_setup.__doc__ = copy_setup.__doc__.format(setups=", ".join(SETUP_NAMES), se
 @functools.wraps(copy_setup)
 def cli(*args, **kwargs):
     copy_setup(*args, **kwargs)
-
-
-if __name__ == "__main__":
-    cli()

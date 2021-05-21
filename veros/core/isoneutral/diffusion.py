@@ -1,6 +1,6 @@
 from veros.core.operators import numpy as npx
 
-from veros import veros_kernel, veros_routine
+from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core import utilities, diffusion
 from veros.core.operators import update, update_add, at
@@ -22,14 +22,15 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
     """
     construct total isoneutral tracer flux at east face of 'T' cells
     """
-    diffloc = npx.zeros_like(K1)[1:-2, 2:-2]
+    diffloc = allocate(state.dimensions, ("xt", "yt", "zt"))[1:-2, 2:-2]
     diffloc = update(
         diffloc,
         at[:, :, 1:],
         0.25 * (K1[1:-2, 2:-2, 1:] + K1[1:-2, 2:-2, :-1] + K1[2:-1, 2:-2, 1:] + K1[2:-1, 2:-2, :-1]),
     )
     diffloc = update(diffloc, at[:, :, 0], 0.5 * (K1[1:-2, 2:-2, 0] + K1[2:-1, 2:-2, 0]))
-    sumz = npx.zeros_like(K1)[1:-2, 2:-2]
+
+    sumz = allocate(state.dimensions, ("xt", "yt", "zt"))[1:-2, 2:-2]
     for kr in range(2):
         for ip in range(2):
             sumz = sumz + diffloc * vs.Ai_ez[1:-2, 2:-2, :, ip, kr] * (
@@ -48,14 +49,15 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
     """
     construct total isoneutral tracer flux at north face of 'T' cells
     """
-    diffloc = npx.zeros_like(K1)[2:-2, 1:-2]
+    diffloc = allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 1:-2]
     diffloc = update(
         diffloc,
         at[:, :, 1:],
         0.25 * (K1[2:-2, 1:-2, 1:] + K1[2:-2, 1:-2, :-1] + K1[2:-2, 2:-1, 1:] + K1[2:-2, 2:-1, :-1]),
     )
     diffloc = update(diffloc, at[:, :, 0], 0.5 * (K1[2:-2, 1:-2, 0] + K1[2:-2, 2:-1, 0]))
-    sumz = npx.zeros_like(K1)[2:-2, 1:-2]
+
+    sumz = allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 1:-2]
     for kr in range(2):
         for jp in range(2):
             sumz = sumz + diffloc * vs.Ai_nz[2:-2, 1:-2, :, jp, kr] * (
@@ -82,12 +84,14 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
     """
     diffloc = K2[2:-2, 2:-2, :-1]
     sumx = 0.0
+
     for ip in range(2):
         for kr in range(2):
             sumx = sumx + diffloc * vs.Ai_bx[2:-2, 2:-2, :-1, ip, kr] / vs.cost[npx.newaxis, 2:-2, npx.newaxis] * (
                 tr[2 + ip : -2 + ip, 2:-2, kr : -1 + kr or None, vs.tau]
                 - tr[1 + ip : -3 + ip, 2:-2, kr : -1 + kr or None, vs.tau]
             )
+
     sumy = 0.0
     for jp in range(2):
         for kr in range(2):
@@ -97,6 +101,7 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
                 tr[2:-2, 2 + jp : -2 + jp, kr : -1 + kr or None, vs.tau]
                 - tr[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None, vs.tau]
             )
+
     flux_top = update(
         flux_top,
         at[2:-2, 2:-2, :-1],
@@ -175,34 +180,35 @@ def isoneutral_diffusion_tracer(state, tr, dtracer_iso, iso=True, skew=False):
     if iso:
         K_iso = vs.K_iso
     else:
-        K_iso = npx.zeros_like(vs.K_iso)
+        K_iso = 0.0
+
     if skew:
         K_skew = vs.K_gm
     else:
-        K_skew = npx.zeros_like(vs.K_gm)
+        K_skew = 0.0
 
     flux_east, flux_north, flux_top = _calc_tracer_fluxes(state, tr, K_iso, K_skew)
 
     """
     add explicit part
     """
-    aloc = _calc_explicit_part(state, flux_east, flux_north, flux_top)
-    dtracer_iso = dtracer_iso + aloc
-    tr = update_add(tr, at[2:-2, 2:-2, :, vs.taup1], settings.dt_tracer * aloc[2:-2, 2:-2, :])
+    dtr = _calc_explicit_part(state, flux_east, flux_north, flux_top)
+    dtracer_iso = dtracer_iso + dtr
+    tr = update_add(tr, at[2:-2, 2:-2, :, vs.taup1], settings.dt_tracer * dtr[2:-2, 2:-2, :])
 
     """
     add implicit part
     """
     if iso:
-        aloc = update(aloc, at[...], tr[:, :, :, vs.taup1])
-        tr = update(tr, at[2:-2, 2:-2, :, vs.taup1], _calc_implicit_part(state, tr))
-        dtracer_iso = dtracer_iso + (tr[:, :, :, vs.taup1] - aloc) / settings.dt_tracer
+        new_tr = update(tr, at[2:-2, 2:-2, :, vs.taup1], _calc_implicit_part(state, tr))
+        dtracer_iso = dtracer_iso + (new_tr[:, :, :, vs.taup1] - tr[:, :, :, vs.taup1]) / settings.dt_tracer
+        tr = new_tr
 
     return tr, dtracer_iso, flux_east, flux_north, flux_top
 
 
-@veros_kernel(static_args=("istemp", "iso", "skew"))
-def isoneutral_diffusion_kernel(state, tr, istemp, iso=True, skew=False):
+@veros_kernel(static_args=("istemp", "iso"))
+def isoneutral_diffusion_kernel(state, tr, istemp, iso=True):
     vs = state.variables
     settings = state.settings
 
@@ -212,8 +218,15 @@ def isoneutral_diffusion_kernel(state, tr, istemp, iso=True, skew=False):
         dtracer_iso = vs.dsalt_iso
 
     tr, dtracer_iso, flux_east, flux_north, flux_top = isoneutral_diffusion_tracer(
-        state, tr, dtracer_iso, iso=iso, skew=skew
+        state, tr, dtracer_iso, iso=iso, skew=not iso
     )
+
+    out = {}
+
+    if istemp:
+        out.update(temp=tr, dtemp_iso=dtracer_iso)
+    else:
+        out.update(salt=tr, dsalt_iso=dtracer_iso)
 
     """
     dissipation by isopycnal mixing
@@ -231,44 +244,43 @@ def isoneutral_diffusion_kernel(state, tr, istemp, iso=True, skew=False):
         diss_wgrid = diffusion.dissipation_on_wgrid(state, diss, vs.kbot)
 
         if not iso:
-            P_diss_skew = vs.P_diss_skew + diss_wgrid
+            vs.P_diss_skew = vs.P_diss_skew + diss_wgrid
         else:
-            P_diss_iso = vs.P_diss_iso + diss_wgrid
+            vs.P_diss_iso = vs.P_diss_iso + diss_wgrid
 
         """
         diagnose dissipation of dynamic enthalpy by explicit and implicit vertical mixing
         """
         fxa = (-int_drhodX[2:-2, 2:-2, 1:] + int_drhodX[2:-2, 2:-2, :-1]) / vs.dzw[npx.newaxis, npx.newaxis, :-1]
 
-        if istemp:
-            tracer = vs.temp
-        else:
-            tracer = vs.salt
-
         if not iso:
-            P_diss_skew = update_add(
-                P_diss_skew,
+            vs.P_diss_skew = update_add(
+                vs.P_diss_skew,
                 at[2:-2, 2:-2, :-1],
                 -settings.grav / settings.rho_0 * fxa * flux_top[2:-2, 2:-2, :-1] * vs.maskW[2:-2, 2:-2, :-1],
             )
 
-            return (tracer, dtracer_iso, P_diss_skew)
+            out["P_diss_skew"] = vs.P_diss_skew
 
         else:
-            P_diss_iso = update_add(
-                P_diss_iso,
+            vs.P_diss_iso = update_add(
+                vs.P_diss_iso,
                 at[2:-2, 2:-2, :-1],
-                -settings.grav / settings.rho_0 * fxa * flux_top[2:-2, 2:-2, :-1] * vs.maskW[2:-2, 2:-2, :-1]
-                - settings.grav
+                -settings.grav
                 / settings.rho_0
                 * fxa
-                * vs.K_33[2:-2, 2:-2, :-1]
-                * (tracer[2:-2, 2:-2, 1:, vs.taup1] - tracer[2:-2, 2:-2, :-1, vs.taup1])
-                / vs.dzw[npx.newaxis, npx.newaxis, :-1]
-                * vs.maskW[2:-2, 2:-2, :-1],
+                * (
+                    flux_top[2:-2, 2:-2, :-1] * vs.maskW[2:-2, 2:-2, :-1]
+                    + vs.K_33[2:-2, 2:-2, :-1]
+                    * (tr[2:-2, 2:-2, 1:, vs.taup1] - tr[2:-2, 2:-2, :-1, vs.taup1])
+                    / vs.dzw[npx.newaxis, npx.newaxis, :-1]
+                    * vs.maskW[2:-2, 2:-2, :-1]
+                ),
             )
 
-            return (tracer, dtracer_iso, P_diss_iso)
+            out["P_diss_iso"] = vs.P_diss_iso
+
+    return KernelOutput(**out)
 
 
 @veros_routine
@@ -280,14 +292,7 @@ def isoneutral_diffusion(state, tr, istemp):
     T/S changes are added to dtemp_iso/dsalt_iso
     """
     vs = state.variables
-    tracer, dtracer_iso, P_diss_iso = isoneutral_diffusion_kernel(state, tr, istemp, iso=True, skew=False)
-
-    if istemp:
-        vs.update(temp=tracer, dtemp_iso=dtracer_iso)
-    else:
-        vs.update(salt=tracer, dsalt_iso=dtracer_iso)
-
-    vs.update(P_diss_iso=P_diss_iso)
+    vs.update(isoneutral_diffusion_kernel(state, tr, istemp, iso=True))
 
 
 @veros_routine
@@ -299,11 +304,4 @@ def isoneutral_skew_diffusion(state, tr, istemp):
     T/S changes are added to dtemp_iso/dsalt_iso
     """
     vs = state.variables
-    tracer, dtracer_iso, P_diss_skew = isoneutral_diffusion_kernel(state, tr, istemp, iso=False, skew=True)
-
-    if istemp:
-        vs.update(temp=tracer, dtemp_iso=dtracer_iso)
-    else:
-        vs.update(salt=tracer, dsalt_iso=dtracer_iso)
-
-    vs.update(P_diss_skew=P_diss_skew)
+    vs.update(isoneutral_diffusion_kernel(state, tr, istemp, iso=False))

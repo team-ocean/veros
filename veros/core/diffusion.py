@@ -116,7 +116,7 @@ def tempsalt_diffusion(state):
 
     if settings.enable_conserve_energy:
         diss = compute_dissipation(state, vs.int_drhodT[..., vs.tau], flux_east, flux_north)
-        vs.P_diss_hmix = vs.P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
+        vs.P_diss_hmix = dissipation_on_wgrid(state, diss, vs.kbot)
 
     # horizontal diffusion of salinity
     dsalt, flux_east, flux_north = horizontal_diffusion(state, vs.salt[:, :, :, vs.tau], settings.K_h)
@@ -152,7 +152,7 @@ def tempsalt_sources(state):
             * (vs.int_drhodT[..., vs.tau] * vs.temp_source + vs.int_drhodS[..., vs.tau] * vs.salt_source)
         )
 
-        vs.P_diss_sources = vs.P_diss_sources + dissipation_on_wgrid(state, diss, vs.kbot)
+        vs.P_diss_sources = dissipation_on_wgrid(state, diss, vs.kbot)
 
     return KernelOutput(temp=vs.temp, salt=vs.salt, P_diss_sources=vs.P_diss_sources)
 

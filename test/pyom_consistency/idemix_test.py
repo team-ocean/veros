@@ -7,21 +7,26 @@ from test_base import get_random_state, compare_state
 
 @pytest.fixture
 def random_state(pyom2_lib):
-    return get_random_state(pyom2_lib, extra_settings=dict(
-        nx=70,
-        ny=60,
-        nz=50,
-        enable_idemix=True,
-        enable_idemix_hor_diffusion=True,
-        enable_idemix_superbee_advection=True,
-        enable_idemix_upwind_advection=True,
-        enable_eke=True,
-        enable_store_cabbeling_heat=True,
-        enable_eke_diss_bottom=True,
-        enable_eke_diss_surfbot=True,
-        enable_store_bottom_friction_tke=True,
-        enable_TEM_friction=True,
-    ))
+    return get_random_state(
+        pyom2_lib,
+        extra_settings=dict(
+            nx=70,
+            ny=60,
+            nz=50,
+            dt_tracer=3600,
+            dt_mom=3600,
+            enable_idemix=True,
+            enable_idemix_hor_diffusion=True,
+            enable_idemix_superbee_advection=True,
+            enable_idemix_upwind_advection=True,
+            enable_eke=True,
+            enable_store_cabbeling_heat=True,
+            enable_eke_diss_bottom=True,
+            enable_eke_diss_surfbot=True,
+            enable_store_bottom_friction_tke=True,
+            enable_TEM_friction=True,
+        ),
+    )
 
 
 def test_set_idemix_parameter(random_state):

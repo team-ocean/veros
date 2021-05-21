@@ -13,8 +13,8 @@ def set_tke_diffusivities(state):
         tke_diff_out = set_tke_diffusivities_kernel(state)
         vs.update(tke_diff_out)
     else:
-        vs.kappaM = vs.kappaM_0 * npx.ones_like(vs.kappaM)
-        vs.kappaH = vs.kappaH_0 * npx.ones_like(vs.kappaH)
+        vs.kappaM = update(vs.kappaM, at[...], vs.kappaM_0)
+        vs.kappaH = update(vs.kappaH, at[...], vs.kappaH_0)
 
 
 @veros_kernel
@@ -51,10 +51,11 @@ def set_tke_diffusivities_kernel(state):
         """
         nz = state.dimensions["zt"]
 
-        def backwards_pass(k, mxl):
+        def backwards_pass(kinv, mxl):
+            k = nz - kinv - 1
             return update(mxl, at[:, :, k], npx.minimum(mxl[:, :, k], mxl[:, :, k + 1] + vs.dzt[k + 1]))
 
-        vs.mxl = for_loop(nz - 2, -1, backwards_pass, vs.mxl)
+        vs.mxl = for_loop(1, nz, backwards_pass, vs.mxl)
         vs.mxl = update(vs.mxl, at[:, :, -1], npx.minimum(vs.mxl[:, :, -1], settings.mxl_min + vs.dzt[-1]))
 
         def forwards_pass(k, mxl):
@@ -82,10 +83,12 @@ def set_tke_diffusivities_kernel(state):
                 vs.kappaM * vs.Nsqr[:, :, :, vs.tau] / npx.maximum(1e-12, vs.alpha_c * vs.E_iw[:, :, :, vs.tau] ** 2),
             ),
         )
+
     if settings.enable_Prandtl_tke:
         vs.Prandtlnumber = npx.maximum(1.0, npx.minimum(10, 6.6 * Rinumber))
     else:
         vs.Prandtlnumber = update(vs.Prandtlnumber, at[...], settings.Prandtl_tke0)
+
     vs.kappaH = npx.maximum(settings.kappaH_min, vs.kappaM / vs.Prandtlnumber)
 
     if settings.enable_kappaH_profile:
@@ -97,6 +100,7 @@ def set_tke_diffusivities_kernel(state):
             vs.kappaH,
             (0.8 + 1.05 / settings.pi * npx.arctan((-vs.zw[npx.newaxis, npx.newaxis, :] - 2500.0) / 222.2)) * 1e-4,
         )
+
     vs.kappaM = npx.maximum(settings.kappaM_min, vs.kappaM)
 
     return KernelOutput(
@@ -181,7 +185,9 @@ def integrate_tke_kernel(state):
     """
     _, water_mask, edge_mask = utilities.create_water_masks(vs.kbot[2:-2, 2:-2], settings.nz)
 
-    a_tri, b_tri, c_tri, d_tri, delta = (npx.zeros_like(vs.kappaM[2:-2, 2:-2, :]) for _ in range(5))
+    a_tri, b_tri, c_tri, d_tri, delta = (
+        allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 2:-2, :] for _ in range(5)
+    )
 
     delta = update(
         delta,

@@ -152,7 +152,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         Example:
           >>> @veros_method
           >>> def set_diagnostics(self, state):
-          >>>     state.diagnostics['snapshot'].output_vars += ['drho', 'dsalt', 'dtemp']
+          >>>     state.diagnostics['snapshot'].output_variables += ['drho', 'dsalt', 'dtemp']
         """
         pass
 

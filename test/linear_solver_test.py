@@ -38,15 +38,17 @@ def solver_state(cyclic):
         vs.cosu = np.ones(settings.ny + 4)
         vs.cost = np.ones(settings.ny + 4)
 
-        vs.boundary_mask = np.zeros((settings.nx + 4, settings.ny + 4, settings.nz), dtype='bool')
-        vs.boundary_mask[:, :2] = 1
-        vs.boundary_mask[50:100, 50:100] = 1
+        boundary_mask = np.zeros((settings.nx + 4, settings.ny + 4, settings.nz), dtype="bool")
+        boundary_mask[:, :2] = 1
+        boundary_mask[50:100, 50:100] = 1
+        vs.boundary_mask = boundary_mask
 
     return state
 
 
 def get_residual(state, rhs, sol, boundary_val=None):
     from veros.core.streamfunction.solvers.scipy import SciPySolver
+
     scipy_solver = SciPySolver(state)
 
     if boundary_val is None:
@@ -59,13 +61,14 @@ def get_residual(state, rhs, sol, boundary_val=None):
     return residual
 
 
-@pytest.mark.parametrize('cyclic', [True, False])
-@pytest.mark.parametrize('solver', ['scipy', 'petsc'])
+@pytest.mark.parametrize("cyclic", [True, False])
+@pytest.mark.parametrize("solver", ["scipy", "petsc"])
 def test_solver(solver, solver_state, cyclic):
-    if solver == 'scipy':
+    if solver == "scipy":
         from veros.core.streamfunction.solvers.scipy import SciPySolver
+
         solver_class = SciPySolver
-    elif solver == 'petsc':
+    elif solver == "petsc":
         petsc_mod = pytest.importorskip("veros.core.streamfunction.solvers.petsc_")
         solver_class = petsc_mod.PETScSolver
     else:

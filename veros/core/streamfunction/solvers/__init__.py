@@ -4,14 +4,14 @@ from veros import runtime_settings as rs, runtime_state as rst, logger
 
 
 def memoize(func):
-    cache = {}
+    func.cache = {}
 
     @functools.wraps(func)
     def inner(*args):
-        if args not in cache:
-            cache[args] = func(*args)
+        if args not in func.cache:
+            func.cache[args] = func(*args)
 
-        return cache[args]
+        return func.cache[args]
 
     return inner
 

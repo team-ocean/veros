@@ -17,7 +17,8 @@ def tend_coriolisf(state):
     vs.du_cor = update(
         vs.du_cor,
         at[2:-2, 2:-2],
-        vs.maskU[2:-2, 2:-2]
+        0.25
+        * vs.maskU[2:-2, 2:-2]
         * (
             vs.coriolis_t[2:-2, 2:-2, npx.newaxis]
             * (vs.v[2:-2, 2:-2, :, vs.tau] + vs.v[2:-2, 1:-3, :, vs.tau])
@@ -27,13 +28,12 @@ def tend_coriolisf(state):
             * (vs.v[3:-1, 2:-2, :, vs.tau] + vs.v[3:-1, 1:-3, :, vs.tau])
             * vs.dxt[3:-1, npx.newaxis, npx.newaxis]
             / vs.dxu[2:-2, npx.newaxis, npx.newaxis]
-        )
-        * 0.25,
+        ),
     )
     vs.dv_cor = update(
         vs.dv_cor,
         at[2:-2, 2:-2],
-        -1
+        -0.25
         * vs.maskV[2:-2, 2:-2]
         * (
             vs.coriolis_t[2:-2, 2:-2, npx.newaxis]
@@ -46,8 +46,7 @@ def tend_coriolisf(state):
             * vs.dyt[npx.newaxis, 3:-1, npx.newaxis]
             * vs.cost[npx.newaxis, 3:-1, npx.newaxis]
             / (vs.dyu[npx.newaxis, 2:-2, npx.newaxis] * vs.cosu[npx.newaxis, 2:-2, npx.newaxis])
-        )
-        * 0.25,
+        ),
     )
 
     """
@@ -184,9 +183,9 @@ def momentum_advection(state):
         / (vs.dzt[npx.newaxis, npx.newaxis, :] * vs.area_u[2:-2, 2:-2, npx.newaxis]),
     )
 
-    tmp = -1 * vs.maskU / (vs.dzt * vs.area_u[:, :, npx.newaxis])
-    vs.du_adv = vs.du_adv + tmp * flux_top
-    vs.du_adv = update_add(vs.du_adv, at[:, :, 1:], tmp[:, :, 1:] * -flux_top[:, :, :-1])
+    tmp = vs.maskU / (vs.dzt * vs.area_u[:, :, npx.newaxis])
+    vs.du_adv = vs.du_adv - tmp * flux_top
+    vs.du_adv = update_add(vs.du_adv, at[:, :, 1:], tmp[:, :, 1:] * flux_top[:, :, :-1])
 
     """
     for meridional momentum
@@ -209,20 +208,19 @@ def momentum_advection(state):
         * (vs.v[2:-2, 2:-2, 1:, vs.tau] + vs.v[2:-2, 2:-2, :-1, vs.tau])
         * (wtr[2:-2, 2:-2, :-1] + wtr[2:-2, 3:-1, :-1]),
     )
+
     vs.dv_adv = update(
         vs.dv_adv,
         at[2:-2, 2:-2],
         -1
         * vs.maskV[2:-2, 2:-2]
         * (flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2] + flux_north[2:-2, 2:-2] - flux_north[2:-2, 1:-3])
-        / (vs.dzt * vs.area_u[2:-2, 2:-2, npx.newaxis]),
+        / (vs.dzt * vs.area_v[2:-2, 2:-2, npx.newaxis]),
     )
 
-    tmp = vs.dzt * vs.area_u[:, :, npx.newaxis]
-    vs.dv_adv = update_add(vs.dv_adv, at[:, :, 0], -1 * vs.maskV[:, :, 0] * flux_top[:, :, 0] / tmp[:, :, 0])
-    vs.dv_adv = update_add(
-        vs.dv_adv, at[:, :, 1:], -1 * vs.maskV[:, :, 1:] * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / tmp[:, :, 1:]
-    )
+    tmp = vs.maskV / (vs.dzt * vs.area_v[:, :, npx.newaxis])
+    vs.dv_adv = vs.dv_adv - tmp * flux_top
+    vs.dv_adv = update_add(vs.dv_adv, at[:, :, 1:], tmp[:, :, 1:] * flux_top[:, :, :-1])
 
     vs.du = update_add(vs.du, at[:, :, :, vs.tau], vs.du_adv)
     vs.dv = update_add(vs.dv, at[:, :, :, vs.tau], vs.dv_adv)

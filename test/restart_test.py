@@ -9,7 +9,7 @@ def _normalize(*arrays):
         return arrays
 
     norm = np.abs(arrays[0]).max()
-    if norm == 0.:
+    if norm == 0.0:
         return arrays
 
     return (a / norm for a in arrays)
@@ -19,28 +19,32 @@ def test_restart(tmpdir):
     os.chdir(tmpdir)
 
     timesteps_1 = 5
-    timesteps_2 = 1
+    timesteps_2 = 5
 
     dt_tracer = 86_400 / 2
     restart_file = "restart.h5"
 
-    acc_no_restart = ACCSetup(override=dict(
-        identifier="ACC_no_restart",
-        restart_input_filename=None,
-        restart_output_filename=restart_file,
-        dt_tracer=dt_tracer,
-        runlen=timesteps_1 * dt_tracer
-    ))
+    acc_no_restart = ACCSetup(
+        override=dict(
+            identifier="ACC_no_restart",
+            restart_input_filename=None,
+            restart_output_filename=restart_file,
+            dt_tracer=dt_tracer,
+            runlen=timesteps_1 * dt_tracer,
+        )
+    )
     acc_no_restart.setup()
     acc_no_restart.run()
 
-    acc_restart = ACCSetup(override=dict(
-        identifier="ACC_restart",
-        restart_input_filename=restart_file,
-        restart_output_filename=None,
-        dt_tracer=dt_tracer,
-        runlen=timesteps_2 * dt_tracer
-    ))
+    acc_restart = ACCSetup(
+        override=dict(
+            identifier="ACC_restart",
+            restart_input_filename=restart_file,
+            restart_output_filename=None,
+            dt_tracer=dt_tracer,
+            runlen=timesteps_2 * dt_tracer,
+        )
+    )
     acc_restart.setup()
     acc_restart.run()
 
@@ -62,7 +66,7 @@ def test_restart(tmpdir):
     def check_var(var):
         v1 = state_1.variables.get(var)
         v2 = state_2.variables.get(var)
-        np.testing.assert_allclose(*_normalize(v1, v2), atol=1e-6, rtol=0)
+        np.testing.assert_allclose(*_normalize(v1, v2), atol=1e-10, rtol=0)
 
     for var in state_1.variables.fields():
         if var in ("itt",):
@@ -73,3 +77,18 @@ def test_restart(tmpdir):
             continue
 
         check_var(var)
+
+    def check_diag_var(diag, var):
+        v1 = state_1.diagnostics[diag].variables.get(var)
+        v2 = state_2.diagnostics[diag].variables.get(var)
+        np.testing.assert_allclose(*_normalize(v1, v2), atol=1e-10, rtol=0)
+
+    for diag in state_1.diagnostics:
+        if getattr(state_1.diagnostics[diag], "variables", None) is None:
+            continue
+
+        for var in state_1.diagnostics[diag].variables.fields():
+            if var in ("itt",):
+                continue
+
+            check_diag_var(diag, var)

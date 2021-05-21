@@ -29,7 +29,6 @@ def _adv_superbee(state, vel, var, mask, dx, axis):
     elif axis == 1:
         sm1, s, sp1, sp2 = ((slice(2, -2), slice(1 + n, -2 + n or None), slice(None)) for n in range(-1, 3))
         dx = (vs.cost * dx)[npx.newaxis, 1:-2, npx.newaxis]
-        vel = vel * vs.cosu[npx.newaxis, :, npx.newaxis]
     elif axis == 2:
         sm1, s, sp1, sp2 = ((slice(2, -2), slice(2, -2), slice(1 + n, -2 + n or None)) for n in range(-1, 3))
         dx = dx[npx.newaxis, npx.newaxis, :-1]
@@ -37,12 +36,15 @@ def _adv_superbee(state, vel, var, mask, dx, axis):
     else:
         raise ValueError("axis must be 0, 1, or 2")
 
-    uCFL = npx.abs(vel[s] * settings.dt_tracer / dx)
     rjp = (var[sp2] - var[sp1]) * mask[sp1]
     rj = (var[sp1] - var[s]) * mask[s]
     rjm = (var[s] - var[sm1]) * mask[sm1]
     cr = limiter(_calc_cr(rjp, rj, rjm, vel[s]))
 
+    if axis == 1:
+        vel = vel * vs.cosu[npx.newaxis, :, npx.newaxis]
+
+    uCFL = npx.abs(vel[s] * settings.dt_tracer / dx)
     return vel[s] * (var[sp1] + var[s]) * 0.5 - npx.abs(vel[s]) * ((1.0 - cr) + uCFL * cr) * rj * 0.5
 
 

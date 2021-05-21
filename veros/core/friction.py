@@ -337,7 +337,7 @@ def quadratic_bottom_friction(state):
         / vs.dzt[npx.newaxis, npx.newaxis, :]
         * mask
     )
-    vs, du_mix = update_add(vs.du_mix, at[1:-2, 2:-2, :], -aloc)
+    vs.du_mix = update_add(vs.du_mix, at[1:-2, 2:-2, :], -aloc)
 
     if settings.enable_conserve_energy:
         diss = allocate(state.dimensions, ("xt", "yu", "zt"))
@@ -946,11 +946,13 @@ def momentum_sources(state):
 
 @veros_routine
 def friction(state):
+    vs = state.variables
+    settings = state.settings
+
     """
     vertical friction
     """
-    vs = state.variables
-    settings = state.settings
+    vs.K_diss_v = update(vs.K_diss_v, at[...], 0.0)
 
     if settings.enable_implicit_vert_friction:
         vs.update(implicit_vert_friction(state))
@@ -976,6 +978,8 @@ def friction(state):
     """
     Rayleigh and bottom friction
     """
+    vs.K_diss_bot = update(vs.K_diss_bot, at[...], 0.0)
+
     if settings.enable_ray_friction:
         vs.update(rayleigh_friction(state))
 

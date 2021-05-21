@@ -10,7 +10,7 @@ from veros.core.operators import numpy as npx
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core import utilities as mainutils
-from veros.core.operators import update, update_add, at
+from veros.core.operators import update, update_add, at, for_loop
 from veros.core.streamfunction import line_integrals
 from veros.core.streamfunction.solvers import get_linear_solver
 
@@ -36,16 +36,21 @@ def prepare_forcing(state):
 
     # hydrostatic pressure
     fac = settings.grav / settings.rho_0
-    ploc = 0.5 * (vs.rho[:, :, :, vs.tau]) * fac * vs.dzw * vs.maskT
-    vs.p_hydro = update(vs.p_hydro, at[:, :, -1], ploc[:, :, -1])
-    ploc = update_add(ploc, at[:, :, :-1], 0.5 * vs.rho[:, :, 1:, vs.tau] * fac * vs.dzw[:-1] * vs.maskT[:, :, :-1])
-
-    # TODO: replace cumsum
     vs.p_hydro = update(
-        vs.p_hydro,
-        at[:, :, -2::-1],
-        vs.maskT[:, :, -2::-1] * (vs.p_hydro[:, :, -1, npx.newaxis] + npx.cumsum(ploc[:, :, -2::-1], axis=2)),
+        vs.p_hydro, at[:, :, -1], 0.5 * vs.rho[:, :, -1, vs.tau] * fac * vs.dzw[-1] * vs.maskT[:, :, -1]
     )
+
+    def compute_p_hydro(k_inv, p_hydro):
+        k = settings.nz - k_inv - 1
+        p_hydro = update(
+            p_hydro,
+            at[..., k],
+            vs.maskT[:, :, k]
+            * (p_hydro[:, :, k + 1] + 0.5 * vs.dzw[k] * fac * (vs.rho[:, :, k + 1, vs.tau] + vs.rho[:, :, k, vs.tau])),
+        )
+        return p_hydro
+
+    vs.p_hydro = for_loop(1, settings.nz, compute_p_hydro, vs.p_hydro)
 
     # add hydrostatic pressure gradient
     vs.du = update_add(
@@ -70,7 +75,7 @@ def prepare_forcing(state):
     uloc = mainutils.enforce_boundaries(uloc, settings.enable_cyclic_x)
     vloc = mainutils.enforce_boundaries(vloc, settings.enable_cyclic_x)
 
-    forc = npx.zeros_like(vloc)
+    forc = allocate(state.dimensions, ("xt", "yt"))
     forc = update(
         forc,
         at[2:-2, 2:-2],

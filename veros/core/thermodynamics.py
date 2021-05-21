@@ -193,18 +193,20 @@ def advect_temp_salt_enthalpy(state):
         """
         dissipation by advection interpolated on W-grid
         """
-        P_diss_adv_w = diffusion.dissipation_on_wgrid(state, diss, vs.kbot)
+        vs.P_diss_adv = diffusion.dissipation_on_wgrid(state, diss, vs.kbot)
 
         """
-        distribute P_diss_adv_w over domain, prevent draining of TKE
+        distribute P_diss_adv over domain, prevent draining of TKE
         """
         fxa = npx.sum(
             vs.area_t[2:-2, 2:-2, npx.newaxis]
-            * P_diss_adv_w[2:-2, 2:-2, :-1]
+            * vs.P_diss_adv[2:-2, 2:-2, :-1]
             * vs.dzw[npx.newaxis, npx.newaxis, :-1]
             * vs.maskW[2:-2, 2:-2, :-1]
         ) + npx.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.P_diss_adv[2:-2, 2:-2, -1] * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
+
         tke_mask = vs.tke[2:-2, 2:-2, :-1, vs.tau] > 0.0
+
         fxb = npx.sum(
             vs.area_t[2:-2, 2:-2, npx.newaxis]
             * vs.dzw[npx.newaxis, npx.newaxis, :-1]

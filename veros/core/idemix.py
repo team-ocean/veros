@@ -32,6 +32,11 @@ def set_idemix_parameter(state):
     cstar = npx.maximum(1e-2, bN0[:, :, npx.newaxis] / (settings.pi * settings.jstar))
 
     vs.c0 = npx.maximum(0.0, settings.gamma * cstar * gofx2(fxa, settings.pi) * vs.maskW)
+
+    if runtime_settings.pyom_compatibility_mode:
+        # bug in PyOM2
+        fxa = npx.maximum(3.0, fxa)
+
     vs.v0 = npx.maximum(0.0, settings.gamma * cstar * hofx1(fxa, settings.pi) * vs.maskW)
     vs.alpha_c = (
         npx.maximum(
@@ -79,7 +84,7 @@ def integrate_idemix_kernel(state):
         a_loc = npx.sum(vs.dzw[npx.newaxis, npx.newaxis, :-1] * forc[:, :, :-1] * vs.maskW[:, :, :-1], axis=2)
         a_loc += 0.5 * forc[:, :, -1] * vs.maskW[:, :, -1] * vs.dzw[-1]
 
-        forc = npx.zeros_like(forc)
+        forc = update(forc, at[...], 0.0)
 
         ks = npx.maximum(0, vs.kbot[2:-2, 2:-2] - 1)
         mask = ks[:, :, npx.newaxis] == npx.arange(settings.nz)[npx.newaxis, npx.newaxis, :]
@@ -169,7 +174,7 @@ def integrate_idemix_kernel(state):
     d_tri = update_add(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_iw_surface[2:-2, 2:-2] / (0.5 * vs.dzw[-1:]))
 
     sol = utilities.solve_implicit(
-        ks, a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, d_edge=d_tri_edge, edge_mask=edge_mask
+        a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, d_edge=d_tri_edge, edge_mask=edge_mask
     )
     vs.E_iw = update(vs.E_iw, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.E_iw[2:-2, 2:-2, :, vs.taup1]))
 

@@ -217,6 +217,8 @@ def state_from_pyom(pyom_obj):
     resize_dimension(state, "isle", int(pyom_obj.main_module.nisle))
 
     with state.variables.unlock():
+        state.variables.isle = npx.arange(state.dimensions["isle"])
+
         for var, val in state.variables.items():
             var = VEROS_TO_PYOM_VAR.get(var, var)
             if var is None:
@@ -238,6 +240,41 @@ def state_from_pyom(pyom_obj):
             state.variables.update({var: new_val})
 
     return state
+
+
+def setup_pyom(pyom_obj, set_parameter, set_grid, set_coriolis, set_topography, set_initial_conditions, set_forcing):
+    if runtime_state.proc_num > 1:
+        pyom_obj.my_mpi_init(runtime_settings.mpi_comm.py2f())
+    else:
+        pyom_obj.my_mpi_init(0)
+
+    set_parameter(pyom_obj)
+
+    pyom_obj.pe_decomposition()
+    pyom_obj.allocate_main_module()
+    pyom_obj.allocate_isoneutral_module()
+    pyom_obj.allocate_tke_module()
+    pyom_obj.allocate_eke_module()
+    pyom_obj.allocate_idemix_module()
+
+    set_grid(pyom_obj)
+    pyom_obj.calc_grid()
+
+    set_coriolis(pyom_obj)
+    pyom_obj.calc_beta()
+
+    set_topography(pyom_obj)
+    pyom_obj.calc_topo()
+    pyom_obj.calc_spectral_topo()
+
+    set_initial_conditions(pyom_obj)
+    pyom_obj.calc_initial_conditions()
+
+    pyom_obj.streamfunction_init()
+
+    set_forcing(pyom_obj)
+
+    pyom_obj.check_isoneutral_slope_crit()
 
 
 def run_pyom(pyom_obj, set_forcing, after_timestep=None):
@@ -367,10 +404,10 @@ def run_pyom(pyom_obj, set_forcing, after_timestep=None):
         if callable(after_timestep):
             after_timestep(pyom_obj)
 
-        otaum1 = int(m.taum1)
+        orig_taum1 = int(m.taum1)
         m.taum1 = m.tau
         m.tau = m.taup1
-        m.taup1 = otaum1
+        m.taup1 = orig_taum1
 
         # NOTE: benchmarks parse this, do not change / remove
         logger.debug("Time step took {}s", timers["main"].get_last_time())

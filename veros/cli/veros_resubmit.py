@@ -123,7 +123,3 @@ def cli(*args, **kwargs):
         kwargs["callback"] = sys.argv
 
     resubmit(*args, **kwargs)
-
-
-if __name__ == "__main__":
-    cli()

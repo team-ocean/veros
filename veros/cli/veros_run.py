@@ -2,12 +2,11 @@ import functools
 import inspect
 import os
 import sys
-import time
 import importlib
 
 import click
 
-from veros import runtime_settings, runtime_state, VerosSetup, __version__ as veros_version
+from veros import runtime_settings, VerosSetup, __version__ as veros_version
 from veros.settings import SETTINGS
 from veros.backend import BACKENDS
 from veros.runtime import LOGLEVELS, DEVICES, FLOAT_TYPES
@@ -45,31 +44,8 @@ def _import_from_file(path):
     return mod
 
 
-def run(setup_file, *args, slave, **kwargs):
+def run(setup_file, *args, **kwargs):
     """Runs a Veros setup from given file"""
-    total_proc = kwargs["num_proc"][0] * kwargs["num_proc"][1]
-
-    if total_proc > 1 and runtime_state.proc_num == 1 and not slave:
-        from mpi4py import MPI
-
-        comm = MPI.COMM_SELF.Spawn(
-            sys.executable, args=["-m", "mpi4py"] + list(sys.argv) + ["--slave"], maxprocs=total_proc
-        )
-
-        futures = [comm.irecv(source=p) for p in range(total_proc)]
-        while True:
-            done, success = zip(*(f.test() for f in futures))
-
-            if not all(success):
-                raise RuntimeError("An MPI worker encountered an error")
-
-            if all(done):
-                break
-
-            time.sleep(0.1)
-
-        return
-
     kwargs["override"] = dict(kwargs["override"])
 
     runtime_setting_kwargs = (
@@ -105,18 +81,9 @@ def run(setup_file, *args, slave, **kwargs):
             "Consider switching to this version of Veros or updating your setup file.\n"
         )
 
-    try:
-        sim = SetupClass(*args, **kwargs)
-        sim.setup()
-        sim.run()
-    except:  # noqa: E722
-        status = False
-        raise
-    else:
-        status = True
-    finally:
-        if slave:
-            runtime_settings.mpi_comm.Get_parent().send(status, dest=0)
+    sim = SetupClass(*args, **kwargs)
+    sim.setup()
+    sim.run()
 
 
 @click.command("veros-run")
@@ -176,20 +143,9 @@ def run(setup_file, *args, slave, **kwargs):
 @click.option(
     "-n", "--num-proc", nargs=2, default=[1, 1], type=click.INT, help="Number of processes in x and y dimension"
 )
-@click.option(
-    "--slave",
-    default=False,
-    is_flag=True,
-    hidden=True,
-    help="Indicates that this process is an MPI worker (for internal use)",
-)
 @functools.wraps(run)
 def cli(setup_file, *args, **kwargs):
     if not setup_file.endswith(".py"):
         raise click.Abort(f"The given setup file {setup_file} does not appear to be a Python file.")
 
     return run(setup_file, *args, **kwargs)
-
-
-if __name__ == "__main__":
-    cli()

@@ -17,7 +17,7 @@ def enforce_boundaries(arr, enable_cyclic_x, local=False):
 
     from veros.distributed import exchange_overlap
 
-    exchange_overlap(arr, ["xt", "yt"], cyclic=enable_cyclic_x)
+    arr = exchange_overlap(arr, ["xt", "yt"], cyclic=enable_cyclic_x)
     return arr
 
 

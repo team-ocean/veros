@@ -97,7 +97,7 @@ def isoneutral_diffusion_pre(state):
     """
     Compute Ai_ez and K11 on center of east face of T cell.
     """
-    diffloc = npx.zeros_like(vs.maskT)
+    diffloc = allocate(state.dimensions, ("xt", "yt", "zt"))
     diffloc = update(
         diffloc,
         at[1:-2, 2:-2, 1:],
@@ -128,6 +128,7 @@ def isoneutral_diffusion_pre(state):
                 * npx.maximum(settings.K_iso_steep, diffloc[1:-2, 2:-2, ki:] * taper),
             )
             vs.Ai_ez = update(vs.Ai_ez, at[1:-2, 2:-2, ki:, ip, kr], taper * sxe * vs.maskU[1:-2, 2:-2, ki:])
+
     vs.K_11 = update(vs.K_11, at[1:-2, 2:-2, :], sumz / (4.0 * vs.dzt[npx.newaxis, npx.newaxis, :]))
 
     """

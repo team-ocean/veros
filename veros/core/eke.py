@@ -15,7 +15,7 @@ def set_eke_diffusivities(state):
     vs.update(eke_diff_out)
 
     if settings.enable_TEM_friction:
-        kappa_gm_out = update_kappa_gm(vs)
+        kappa_gm_out = update_kappa_gm(state)
         vs.update(kappa_gm_out)
 
 
@@ -60,11 +60,11 @@ def set_eke_diffusivities_kernel(state):
         """
         vs.sqrteke = npx.sqrt(npx.maximum(0.0, vs.eke[:, :, :, vs.tau]))
         vs.L_rhines = npx.sqrt(vs.sqrteke / npx.maximum(vs.beta[..., npx.newaxis], 1e-16))
-        eke_len = npx.maximum(
+        vs.eke_len = npx.maximum(
             settings.eke_lmin,
             npx.minimum(settings.eke_cross * vs.L_rossby[..., npx.newaxis], settings.eke_crhin * vs.L_rhines),
         )
-        vs.K_gm = npx.minimum(settings.eke_k_max, settings.eke_c_k * eke_len * vs.sqrteke)
+        vs.K_gm = npx.minimum(settings.eke_k_max, settings.eke_c_k * vs.eke_len * vs.sqrteke)
     else:
         """
         use fixed GM diffusivity
@@ -80,7 +80,7 @@ def set_eke_diffusivities_kernel(state):
         return KernelOutput(K_gm=vs.K_gm, K_iso=vs.K_iso)
 
     return KernelOutput(
-        L_rossby=vs.L_rossby, L_rhines=vs.L_rhines, eke_len=eke_len, sqrteke=vs.sqrteke, K_gm=vs.K_gm, K_iso=vs.K_iso
+        L_rossby=vs.L_rossby, L_rhines=vs.L_rhines, eke_len=vs.eke_len, sqrteke=vs.sqrteke, K_gm=vs.K_gm, K_iso=vs.K_iso
     )
 
 
@@ -131,7 +131,9 @@ def integrate_eke_kernel(state):
     """
     _, water_mask, edge_mask = utilities.create_water_masks(vs.kbot[2:-2, 2:-2], settings.nz)
 
-    delta, a_tri, b_tri, c_tri, d_tri = (npx.zeros_like(vs.kappaM[2:-2, 2:-2, :]) for _ in range(5))
+    delta, a_tri, b_tri, c_tri, d_tri = (
+        allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 2:-2, :] for _ in range(5)
+    )
     delta = update(
         delta,
         at[:, :, :-1],
@@ -162,7 +164,7 @@ def integrate_eke_kernel(state):
     store eke dissipation
     """
     vs.eke_diss_iw = c_int * vs.eke[:, :, :, vs.taup1]
-    vs.eke_diss_tke = npx.zeros_like(vs.eke_diss_tke)
+    vs.eke_diss_tke = update(vs.eke_diss_tke, at[...], 0.0)
 
     """
     add tendency due to lateral diffusion

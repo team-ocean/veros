@@ -15,6 +15,7 @@ def isoneutral_friction(state):
     settings = state.settings
 
     flux_top = allocate(state.dimensions, ("xt", "yt", "zt"))
+    delta, a_tri, b_tri, c_tri = (allocate(state.dimensions, ("xt", "yt", "zt"))[1:-2, 1:-2, :] for _ in range(4))
 
     if settings.enable_implicit_vert_friction:
         aloc = vs.u[:, :, :, vs.taup1]
@@ -26,9 +27,6 @@ def isoneutral_friction(state):
     _, water_mask, edge_mask = utilities.create_water_masks(ks, settings.nz)
 
     fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :] + vs.kappa_gm[2:-1, 1:-2, :])
-
-    delta, a_tri, b_tri, c_tri = (allocate(state.dimensions, ("xt", "yt", "zt"))[1:-2, 1:-2, :] for _ in range(4))
-
     delta = update(
         delta,
         at[:, :, :-1],
@@ -38,7 +36,7 @@ def isoneutral_friction(state):
         * vs.maskU[1:-2, 1:-2, 1:]
         * vs.maskU[1:-2, 1:-2, :-1],
     )
-    delta = update(delta, at[-1], 0.0)
+    delta = update(delta, at[..., -1], 0.0)
     a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
     b_tri_edge = 1 + delta / vs.dzt[npx.newaxis, npx.newaxis, :]
     b_tri = update(
@@ -63,7 +61,7 @@ def isoneutral_friction(state):
 
     if settings.enable_conserve_energy:
         # diagnose dissipation
-        diss = npx.zeros_like(vs.maskU)
+        diss = allocate(state.dimensions, ("xt", "yt", "zt"))
         fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :-1] + vs.kappa_gm[2:-1, 1:-2, :-1])
         flux_top = update(
             flux_top,
@@ -95,7 +93,6 @@ def isoneutral_friction(state):
     _, water_mask, edge_mask = utilities.create_water_masks(ks, settings.nz)
 
     fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :] + vs.kappa_gm[1:-2, 2:-1, :])
-    delta, a_tri, b_tri, c_tri = (npx.zeros_like(vs.maskV[1:-2, 1:-2, :]) for _ in range(4))
     delta = update(
         delta,
         at[:, :, :-1],
@@ -105,7 +102,7 @@ def isoneutral_friction(state):
         * vs.maskV[1:-2, 1:-2, 1:]
         * vs.maskV[1:-2, 1:-2, :-1],
     )
-    delta = update(delta, at[-1], 0.0)
+    delta = update(delta, at[..., -1], 0.0)
     a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
     b_tri_edge = 1 + delta / vs.dzt[npx.newaxis, npx.newaxis, :]
     b_tri = update(
@@ -130,7 +127,7 @@ def isoneutral_friction(state):
 
     if settings.enable_conserve_energy:
         # diagnose dissipation
-        diss = npx.zeros_like(vs.maskV)
+        diss = allocate(state.dimensions, ("xt", "yt", "zt"))
         fxa = 0.5 * (vs.kappa_gm[1:-2, 1:-2, :-1] + vs.kappa_gm[1:-2, 2:-1, :-1])
         flux_top = update(
             flux_top,

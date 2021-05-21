@@ -7,16 +7,21 @@ from test_base import get_random_state, compare_state
 
 @pytest.fixture
 def random_state(pyom2_lib):
-    return get_random_state(pyom2_lib, extra_settings=dict(
-        nx=70,
-        ny=60,
-        nz=50,
-        enable_cyclic_x=True,
-        enable_conserve_energy=True,
-        enable_bottom_friction_var=True,
-        enable_hor_friction_cos_scaling=True,
-        enable_momentum_sources=True,
-    ))
+    return get_random_state(
+        pyom2_lib,
+        extra_settings=dict(
+            nx=70,
+            ny=60,
+            nz=50,
+            dt_tracer=3600,
+            dt_mom=3600,
+            enable_cyclic_x=True,
+            enable_conserve_energy=True,
+            enable_bottom_friction_var=True,
+            enable_hor_friction_cos_scaling=True,
+            enable_momentum_sources=True,
+        ),
+    )
 
 
 def test_explicit_vert_friction(random_state):

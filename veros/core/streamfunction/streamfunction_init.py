@@ -22,6 +22,7 @@ def get_isleperim(state):
     # all arrays depending on that
     nisle = int(global_max(npx.max(vs.land_map)))
     resize_dimension(state, "isle", nisle)
+    vs.isle = npx.arange(nisle)
 
 
 @veros_routine
@@ -78,6 +79,7 @@ def island_integrals(state):
         / vs.dyt[npx.newaxis, 1:, npx.newaxis]
         * vs.hur[1:, 1:, npx.newaxis],
     )
+
     vloc = update(
         vloc,
         at[1:, 1:, ...],
@@ -86,8 +88,8 @@ def island_integrals(state):
         / (vs.cosu[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis])
         * vs.hvr[1:, 1:, npx.newaxis],
     )
-    vs.line_psin = line_integrals.line_integrals(state, uloc=uloc, vloc=vloc, kind="full")
 
+    vs.line_psin = line_integrals.line_integrals(state, uloc=uloc, vloc=vloc, kind="full")
     return KernelOutput(line_psin=vs.line_psin)
 
 

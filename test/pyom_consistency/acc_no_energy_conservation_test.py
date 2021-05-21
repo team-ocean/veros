@@ -10,9 +10,15 @@ class ACCTestNoEnergyConservation(ACCSetup):
     def set_parameter(self, state):
         settings = state.settings
         super().set_parameter(state)
-        settings.enable_conserve_energy = False
-        settings.runlen = settings.dt_tracer * 5
+
+        settings.runlen = settings.dt_tracer * 100
         settings.restart_output_filename = None
+        settings.enable_conserve_energy = False
+
+        # do not exist in pyOM
+        settings.kappaH_min = 0.0
+        settings.enable_kappaH_profile = False
+        settings.enable_Prandtl_tke = True
 
     @veros_routine
     def set_initial_conditions(self, state):
@@ -21,7 +27,6 @@ class ACCTestNoEnergyConservation(ACCSetup):
         super().set_initial_conditions(state)
 
         vs.surface_taux = vs.surface_taux / settings.rho_0
-        vs.forc_tke_surface = vs.forc_tke_surface * settings.rho_0 ** 1.5
 
     @veros_routine
     def set_diagnostics(self, state):
@@ -46,4 +51,11 @@ def test_acc(pyom2_lib):
 
     run_pyom(pyom_obj, set_forcing_pyom)
 
-    compare_state(sim.state, pyom_obj)
+    compare_state(
+        sim.state,
+        pyom_obj,
+        normalize=True,
+        rtol=0,
+        atol=1e-4,
+        allowed_failures=("salt", "dsalt", "dsalt_vmix", "dsalt_iso"),
+    )

@@ -102,7 +102,7 @@ class ACCBasicSetup(VerosSetup):
     def set_topography(self, state):
         vs = state.variables
         x, y = npx.meshgrid(vs.xt, vs.yt, indexing="ij")
-        vs.kbot = npx.logical_or(x > 1.0, y < -20).astype(npx.int)
+        vs.kbot = npx.logical_or(x > 1.0, y < -20).astype("int")
 
     @veros_routine
     def set_initial_conditions(self, state):
