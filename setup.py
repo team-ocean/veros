@@ -48,7 +48,7 @@ CONSOLE_SCRIPTS = [
     "veros-create-mask = veros.cli.veros_create_mask:cli",
 ]
 
-PACKAGE_DATA = ["setup/*/assets.yml", "setup/*/*.npy", "setup/*/*.png"]
+PACKAGE_DATA = ["setups/*/assets.json", "setups/*/*.npy", "setups/*/*.png"]
 
 with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()

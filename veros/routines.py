@@ -1,7 +1,7 @@
 import functools
 import inspect
 import threading
-from contextlib import ExitStack, contextmanager, nullcontext
+from contextlib import ExitStack, contextmanager
 
 from veros import logger
 
@@ -80,7 +80,8 @@ def enter_routine(name, routine_obj, timer=None, dist_safe=True):
             CURRENT_CONTEXT.is_dist_safe = False
             reset_dist_safe = True
 
-    timer_ctx = nullcontext() if timer is None else timer
+    nullcontext = contextmanager(lambda: None)
+    timer_ctx = nullcontext if timer is None else timer
 
     try:
         with timer_ctx:

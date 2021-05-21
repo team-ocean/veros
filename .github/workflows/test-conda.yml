@@ -20,6 +20,8 @@ jobs:
         shell: bash -l {0}
 
     steps:
+      - uses: actions/checkout@v2
+
       - uses: conda-incubator/setup-miniconda@v2
         with:
           miniconda-version: "latest"
@@ -35,7 +37,7 @@ jobs:
           conda list
 
       - name: Run tests
-        run: pytest
+        run: pytest .
 
   osx:
     name: Test conda env (OSX)
@@ -45,6 +47,8 @@ jobs:
         shell: bash -l {0}
 
     steps:
+      - uses: actions/checkout@v2
+
       - uses: conda-incubator/setup-miniconda@v2
         with:
           miniconda-version: "latest"
@@ -60,7 +64,7 @@ jobs:
           conda list
 
       - name: Run tests
-        run: pytest
+        run: pytest .
 
   windows:
     name: Test conda env (Windows)
@@ -70,6 +74,8 @@ jobs:
         shell: bash -l {0}
 
     steps:
+      - uses: actions/checkout@v2
+
       - uses: conda-incubator/setup-miniconda@v2
         with:
           miniconda-version: "latest"
