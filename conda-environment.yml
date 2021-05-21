@@ -16,5 +16,6 @@ dependencies:
     - pillow
     - loguru
     - tqdm
+    - cython
     - pip:
-        - -e . --no-deps
+        - -e .

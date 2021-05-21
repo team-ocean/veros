@@ -97,7 +97,7 @@ class PETScSolver(LinearSolver):
         boundary_mask = npx.all(~vs.boundary_mask, axis=2)
         rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
-        linear_solution = self._petsc_solver(vs, rhs, x0)
+        linear_solution = self._petsc_solver(state, rhs, x0)
 
         return update(rhs, at[2:-2, 2:-2], linear_solution)
 
