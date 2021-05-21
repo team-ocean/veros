@@ -28,7 +28,7 @@ def dist_context_only(function=None, *, noop_return_arg=None):
     return decorator
 
 
-def send(buf, dest, comm, tag=None, token=None):
+def send(buf, dest, comm, tag=None):
     kwargs = {}
     if tag is not None:
         kwargs.update(tag=tag)
@@ -36,13 +36,14 @@ def send(buf, dest, comm, tag=None, token=None):
     if rs.backend == "jax":
         from mpi4jax import send
 
-        return send(buf, dest=dest, comm=comm, token=token, **kwargs)
+        token = CURRENT_CONTEXT.mpi4jax_token
+        new_token = send(buf, dest=dest, comm=comm, token=token, **kwargs)
+        CURRENT_CONTEXT.mpi4jax_token = new_token
+    else:
+        comm.Send(ascontiguousarray(buf), dest=dest, **kwargs)
 
-    comm.Send(ascontiguousarray(buf), dest=dest, **kwargs)
-    return None
 
-
-def recv(buf, source, comm, tag=None, token=None):
+def recv(buf, source, comm, tag=None):
     kwargs = {}
     if tag is not None:
         kwargs.update(tag=tag)
@@ -50,14 +51,17 @@ def recv(buf, source, comm, tag=None, token=None):
     if rs.backend == "jax":
         from mpi4jax import recv
 
-        return recv(buf, source=source, comm=comm, token=token, **kwargs)
+        token = CURRENT_CONTEXT.mpi4jax_token
+        buf, new_token = recv(buf, source=source, comm=comm, token=token, **kwargs)
+        CURRENT_CONTEXT.mpi4jax_token = new_token
+        return buf
 
     buf = buf.copy()
     comm.Recv(buf, source=source, **kwargs)
-    return buf, None
+    return buf
 
 
-def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None, token=None):
+def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None):
     kwargs = {}
 
     if sendtag is not None:
@@ -69,33 +73,42 @@ def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None, t
     if rs.backend == "jax":
         from mpi4jax import sendrecv
 
-        return sendrecv(sendbuf, recvbuf, source=source, dest=dest, comm=comm, token=token, **kwargs)
+        token = CURRENT_CONTEXT.mpi4jax_token
+        recvbuf, new_token = sendrecv(sendbuf, recvbuf, source=source, dest=dest, comm=comm, token=token, **kwargs)
+        CURRENT_CONTEXT.mpi4jax_token = new_token
+        return recvbuf
 
     recvbuf = recvbuf.copy()
     comm.Sendrecv(sendbuf=ascontiguousarray(sendbuf), recvbuf=recvbuf, source=source, dest=dest, **kwargs)
-    return recvbuf, None
+    return recvbuf
 
 
-def bcast(buf, comm, root=0, token=None):
+def bcast(buf, comm, root=0):
     if rs.backend == "jax":
         from mpi4jax import bcast
 
-        return bcast(buf, root=root, comm=comm, token=token)
+        token = CURRENT_CONTEXT.mpi4jax_token
+        buf, new_token = bcast(buf, root=root, comm=comm, token=token)
+        CURRENT_CONTEXT.mpi4jax_token = new_token
+        return buf
 
-    return comm.bcast(buf, root=root), None
+    return comm.bcast(buf, root=root)
 
 
-def allreduce(buf, op, comm, token=None):
+def allreduce(buf, op, comm):
     if rs.backend == "jax":
         from mpi4jax import allreduce
 
-        return allreduce(buf, op=op, comm=comm, token=token)
+        token = CURRENT_CONTEXT.mpi4jax_token
+        buf, new_token = allreduce(buf, op=op, comm=comm, token=token)
+        CURRENT_CONTEXT.mpi4jax_token = new_token
+        return buf
 
     from veros.core.operators import numpy as npx
 
     recvbuf = npx.empty_like(buf)
     comm.Allreduce(ascontiguousarray(buf), recvbuf, op=op)
-    return recvbuf, None
+    return recvbuf
 
 
 def ascontiguousarray(arr):
@@ -298,8 +311,6 @@ def exchange_overlap(arr, var_grid, cyclic):
             north=(slice(-2, None), Ellipsis),
         )
 
-    token = None
-
     for send_dir, recv_dir in zip(send_order, recv_order):
         send_proc = proc_neighbors[send_dir]
         recv_proc = proc_neighbors[recv_dir]
@@ -314,14 +325,12 @@ def exchange_overlap(arr, var_grid, cyclic):
         send_arr = arr[send_idx]
 
         if send_proc is None:
-            recv_arr, token = recv(recv_arr, recv_proc, rs.mpi_comm, token=token)
+            recv_arr = recv(recv_arr, recv_proc, rs.mpi_comm)
             arr = update(arr, at[recv_idx], recv_arr)
         elif recv_proc is None:
-            token = send(send_arr, send_proc, rs.mpi_comm, token=token)
+            send(send_arr, send_proc, rs.mpi_comm)
         else:
-            recv_arr, token = sendrecv(
-                send_arr, recv_arr, source=recv_proc, dest=send_proc, comm=rs.mpi_comm, token=token
-            )
+            recv_arr = sendrecv(send_arr, recv_arr, source=recv_proc, dest=send_proc, comm=rs.mpi_comm)
             arr = update(arr, at[recv_idx], recv_arr)
 
     return arr
@@ -368,7 +377,7 @@ def _reduce(arr, op, axis=None):
     else:
         squeeze = False
 
-    res, _ = allreduce(arr, op=op, comm=comm)
+    res = allreduce(arr, op=op, comm=comm)
 
     if squeeze:
         res = res[0]
@@ -426,8 +435,6 @@ def _gather_1d(nx, ny, arr, dim):
     gidx, idx = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
     sendbuf = arr[idx]
 
-    token = None
-
     if rst.proc_rank == 0:
         buffer_list = []
         for proc in range(1, rst.proc_num):
@@ -436,7 +443,7 @@ def _gather_1d(nx, ny, arr, dim):
                 continue
             idx_g, idx_l = get_chunk_slices(nx, ny, dim_grid, include_overlap=True, proc_idx=pi)
             recvbuf = npx.empty_like(arr[idx_l])
-            recvbuf, token = recv(recvbuf, source=proc, tag=20, comm=rs.mpi_comm, token=token)
+            recvbuf = recv(recvbuf, source=proc, tag=20, comm=rs.mpi_comm)
             buffer_list.append((idx_g, recvbuf))
 
         out_shape = ((nx + 4, ny + 4)[dim],) + arr.shape[1:]
@@ -464,14 +471,12 @@ def _gather_xy(nx, ny, arr):
     gidx, idx = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
     sendbuf = arr[idx]
 
-    token = None
-
     if rst.proc_rank == 0:
         buffer_list = []
         for proc in range(1, rst.proc_num):
             idx_g, idx_l = get_chunk_slices(nx, ny, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc))
             recvbuf = npx.empty_like(arr[idx_l])
-            recvbuf, token = recv(recvbuf, source=proc, tag=30, comm=rs.mpi_comm, token=token)
+            recvbuf = recv(recvbuf, source=proc, tag=30, comm=rs.mpi_comm)
             buffer_list.append((idx_g, recvbuf))
 
         out_shape = (nx + 4, ny + 4) + arr.shape[2:]
@@ -490,6 +495,9 @@ def _gather_xy(nx, ny, arr):
 @dist_context_only(noop_return_arg=0)
 def gather(arr, dimensions, var_grid):
     nx, ny = dimensions["xt"], dimensions["yt"]
+
+    if var_grid is None:
+        return arr
 
     if len(var_grid) < 2:
         d1, d2 = var_grid[0], None
@@ -518,7 +526,7 @@ def gather(arr, dimensions, var_grid):
 
 @dist_context_only(noop_return_arg=0)
 def _scatter_constant(arr):
-    return bcast(arr, rs.mpi_comm, root=0)[0]
+    return bcast(arr, rs.mpi_comm, root=0)
 
 
 @dist_context_only(noop_return_arg=2)
@@ -531,8 +539,6 @@ def _scatter_1d(nx, ny, arr, dim):
     dim_grid = ["xt" if dim == 0 else "yt"] + [None] * (arr.ndim - 1)
     _, local_slice = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
 
-    token = None
-
     if rst.proc_rank == 0:
         recvbuf = arr[local_slice]
 
@@ -541,12 +547,12 @@ def _scatter_1d(nx, ny, arr, dim):
                 nx, ny, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc)
             )
             sendbuf = arr[global_slice]
-            token = send(sendbuf, dest=proc, tag=40, comm=rs.mpi_comm, token=token)
+            send(sendbuf, dest=proc, tag=40, comm=rs.mpi_comm)
 
         # arr changes shape in main process
         arr = npx.zeros((out_nx + 4,) + arr.shape[1:], dtype=arr.dtype)
     else:
-        recvbuf, _ = recv(arr[local_slice], source=0, tag=40, comm=rs.mpi_comm)
+        recvbuf = recv(arr[local_slice], source=0, tag=40, comm=rs.mpi_comm)
 
     arr = update(arr, at[local_slice], recvbuf)
     arr = exchange_overlap(arr, ["xt" if dim == 0 else "yt"], cyclic=False)
@@ -563,8 +569,6 @@ def _scatter_xy(nx, ny, arr):
     dim_grid = ["xt", "yt"] + [None] * (arr.ndim - 2)
     _, local_slice = get_chunk_slices(nx, ny, dim_grid, include_overlap=True)
 
-    token = None
-
     if rst.proc_rank == 0:
         recvbuf = arr[local_slice]
 
@@ -573,13 +577,13 @@ def _scatter_xy(nx, ny, arr):
                 nx, ny, dim_grid, include_overlap=True, proc_idx=proc_rank_to_index(proc)
             )
             sendbuf = arr[global_slice]
-            token = send(sendbuf, dest=proc, tag=50, comm=rs.mpi_comm, token=token)
+            send(sendbuf, dest=proc, tag=50, comm=rs.mpi_comm)
 
         # arr changes shape in main process
         arr = npx.empty((nxi + 4, nyi + 4) + arr.shape[2:], dtype=arr.dtype)
     else:
         recvbuf = npx.empty_like(arr[local_slice])
-        recvbuf, _ = recv(recvbuf, source=0, tag=50, comm=rs.mpi_comm)
+        recvbuf = recv(recvbuf, source=0, tag=50, comm=rs.mpi_comm)
 
     arr = update(arr, at[local_slice], recvbuf)
     arr = exchange_overlap(arr, ["xt", "yt"], cyclic=False)
@@ -590,6 +594,9 @@ def _scatter_xy(nx, ny, arr):
 @dist_context_only(noop_return_arg=0)
 def scatter(arr, dimensions, var_grid):
     from veros.core.operators import numpy as npx
+
+    if var_grid is None:
+        return _scatter_constant(arr)
 
     nx, ny = dimensions["xt"], dimensions["yt"]
 

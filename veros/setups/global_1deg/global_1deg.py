@@ -153,11 +153,6 @@ class GlobalOneDegreeSetup(VerosSetup):
         mask_channel = (i >= 269) & (i < 271) & (j == 130)  # i = 270,271; j = 131
         vs.kbot = update_multiply(vs.kbot, at[2:-2, 2:-2], ~mask_channel)
 
-        import matplotlib.pyplot as plt
-
-        plt.imshow(vs.kbot)
-        plt.show()
-
     @veros_routine(
         dist_safe=False,
         local_variables=[

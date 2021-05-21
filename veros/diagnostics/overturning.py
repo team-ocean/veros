@@ -96,9 +96,12 @@ class Overturning(VerosDiagnostic):
             at[2:-2, :],
             npx.cumsum(
                 zonal_sum(
-                    vs.dxt[2:-2, npx.newaxis, npx.newaxis]
-                    * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
-                    * vs.maskV[2:-2, 2:-2, :]
+                    npx.sum(
+                        vs.dxt[2:-2, npx.newaxis, npx.newaxis]
+                        * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
+                        * vs.maskV[2:-2, 2:-2, :],
+                        axis=0,
+                    )
                 )
                 * vs.dzt[npx.newaxis, :],
                 axis=1,
@@ -181,11 +184,14 @@ def diagnose_kernel(state, ovt_vs, p_ref):
     def loop_body(m, values):
         trans, z_sig = values
         mask = sig_loc_face > ovt_vs.sigma[m]
-        trans = update(trans, at[2:-2, m], zonal_sum(npx.sum(vs.v[2:-2, 2:-2, :, vs.tau] * fac * mask, axis=2)))
-        z_sig = update(z_sig, at[2:-2, m], zonal_sum(npx.sum(fac * mask, axis=2)))
+        trans = update(trans, at[2:-2, m], npx.sum(vs.v[2:-2, 2:-2, :, vs.tau] * fac * mask, axis=(0, 2)))
+        z_sig = update(z_sig, at[2:-2, m], npx.sum(fac * mask, axis=(0, 2)))
         return (trans, z_sig)
 
     trans, z_sig = for_loop(0, nlevel, loop_body, init_val=(trans, z_sig))
+    trans = zonal_sum(trans)
+    z_sig = zonal_sum(z_sig)
+
     ovt_vs.trans = ovt_vs.trans + trans
 
     if settings.enable_neutral_diffusion and settings.enable_skew_diffusion:
@@ -197,7 +203,7 @@ def diagnose_kernel(state, ovt_vs, p_ref):
             bolus_trans = update(
                 bolus_trans,
                 at[2:-2, m],
-                zonal_sum(
+                npx.sum(
                     npx.sum(
                         (vs.B1_gm[2:-2, 2:-2, 1:] - vs.B1_gm[2:-2, 2:-2, :-1])
                         * vs.dxt[2:-2, npx.newaxis, npx.newaxis]
@@ -210,12 +216,14 @@ def diagnose_kernel(state, ovt_vs, p_ref):
                     * vs.dxt[2:-2, npx.newaxis]
                     * vs.cosu[npx.newaxis, 2:-2]
                     * vs.maskV[2:-2, 2:-2, 0]
-                    * mask[:, :, 0]
+                    * mask[:, :, 0],
+                    axis=0,
                 ),
             )
             return bolus_trans
 
         bolus_trans = for_loop(0, nlevel, loop_body, init_val=bolus_trans)
+        bolus_trans = zonal_sum(bolus_trans)
 
     # streamfunction on geopotentials
     ovt_vs.vsf_depth = update_add(
@@ -223,10 +231,13 @@ def diagnose_kernel(state, ovt_vs, p_ref):
         at[2:-2, :],
         npx.cumsum(
             zonal_sum(
-                vs.dxt[2:-2, npx.newaxis, npx.newaxis]
-                * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
-                * vs.v[2:-2, 2:-2, :, vs.tau]
-                * vs.maskV[2:-2, 2:-2, :]
+                npx.sum(
+                    vs.dxt[2:-2, npx.newaxis, npx.newaxis]
+                    * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
+                    * vs.v[2:-2, 2:-2, :, vs.tau]
+                    * vs.maskV[2:-2, 2:-2, :],
+                    axis=0,
+                )
             )
             * vs.dzt[npx.newaxis, :],
             axis=1,
@@ -239,9 +250,12 @@ def diagnose_kernel(state, ovt_vs, p_ref):
             ovt_vs.bolus_depth,
             at[2:-2, :],
             zonal_sum(
-                vs.dxt[2:-2, npx.newaxis, npx.newaxis]
-                * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
-                * vs.B1_gm[2:-2, 2:-2, :]
+                npx.sum(
+                    vs.dxt[2:-2, npx.newaxis, npx.newaxis]
+                    * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
+                    * vs.B1_gm[2:-2, 2:-2, :],
+                    axis=0,
+                )
             ),
         )
 
@@ -266,6 +280,5 @@ def diagnose_kernel(state, ovt_vs, p_ref):
     )
 
 
-@veros_kernel
 def zonal_sum(arr):
-    return global_sum(npx.sum(arr, axis=0), axis=0)
+    return global_sum(arr, axis=0)

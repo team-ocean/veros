@@ -47,6 +47,7 @@ class RoutineStack:
 CURRENT_CONTEXT = threading.local()
 CURRENT_CONTEXT.is_dist_safe = True
 CURRENT_CONTEXT.routine_stack = RoutineStack()
+CURRENT_CONTEXT.mpi4jax_token = None
 
 
 @contextmanager
@@ -297,6 +298,7 @@ class VerosKernel:
 
     def __init__(self, function, static_args=()):
         """Do some parameter introspection."""
+
         # make sure function signature is in the form we need
         self.name = _get_func_name(function)
         self.func_sig = inspect.signature(function)
@@ -313,6 +315,7 @@ class VerosKernel:
             static_args = (static_args,)
 
         func_argnames = list(func_params.keys())
+
         self.static_argnums = []
         for static_arg in static_args:
             try:
@@ -331,8 +334,10 @@ class VerosKernel:
         self.outputs = None
 
     def __call__(self, *args, **kwargs):
-        from veros import runtime_settings
+        from veros import runtime_settings, runtime_state
         from veros.core.operators import flush
+
+        inject_tokens = runtime_settings.backend == "jax" and runtime_state.proc_num > 1
 
         # apply JIT
         if runtime_settings.backend == "jax":
@@ -340,7 +345,24 @@ class VerosKernel:
             from jaxlib.xla_extension.jax_jit import CompiledFunction
 
             if not isinstance(self.function, CompiledFunction):
+                if inject_tokens:
+                    function = self.function
+
+                    @functools.wraps(function)
+                    def token_wrapper(*args):
+                        inputs = args[:-1]
+                        token = args[-1]
+                        CURRENT_CONTEXT.mpi4jax_token = token
+                        out = function(*inputs)
+                        token = CURRENT_CONTEXT.mpi4jax_token
+                        return out, token
+
+                    self.function = token_wrapper
+
                 self.function = jax.jit(self.function, static_argnums=self.static_argnums)
+
+            if CURRENT_CONTEXT.mpi4jax_token is None:
+                CURRENT_CONTEXT.mpi4jax_token = jax.lax.create_token()
 
         # JAX only accepts positional args when using static_argnums
         # so convert everything to positional for consistency
@@ -385,11 +407,20 @@ class VerosKernel:
                 # no state object -> no traceable inputs
                 inputs = dict(var=set(), settings=set())
 
+            args = list(bound_args.arguments.values())
+
+            if inject_tokens:
+                args.append(CURRENT_CONTEXT.mpi4jax_token)
+
             with enter_routine(self.name, self, timer):
-                out = self.function(*bound_args.arguments.values())
+                out = self.function(*args)
 
                 if runtime_settings.profile_mode:
                     flush()
+
+            if inject_tokens:
+                out, token = out
+                CURRENT_CONTEXT.mpi4jax_token = token
 
         if not self._traced:
             self.inputs = inputs

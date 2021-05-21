@@ -32,7 +32,6 @@ class SciPySolver(LinearSolver):
         orig_shape = x0.shape
         x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x, local=True)
 
-        boundary_mask = ~npx.any(boundary_mask, axis=2)
         rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
         rhs = onp.asarray(rhs.reshape(-1), dtype="float64") * self._rhs_scale
@@ -68,7 +67,9 @@ class SciPySolver(LinearSolver):
 
         rhs_global = distributed.gather(rhs, state.dimensions, ("xt", "yt"))
         x0_global = distributed.gather(x0, state.dimensions, ("xt", "yt"))
-        boundary_mask_global = distributed.gather(vs.boundary_mask, state.dimensions, ("xt", "yt"))
+
+        boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
+        boundary_mask_global = distributed.gather(boundary_mask, state.dimensions, ("xt", "yt"))
 
         if boundary_val is None:
             boundary_val = x0_global
