@@ -2,8 +2,8 @@
 concurrency = multiprocessing
 parallel = true
 branch = True
-source =
-    veros/
+source_pkgs =
+    veros
 
 [report]
 exclude_lines =
