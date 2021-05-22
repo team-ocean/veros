@@ -1,4 +1,4 @@
 ACC basic model
 =================
 
-.. autoclass:: veros.setup.acc_basic.ACCBasicSetup
+.. autoclass:: veros.setups.acc_basic.ACCBasicSetup

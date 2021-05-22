@@ -2,11 +2,11 @@ Available model settings
 ------------------------
 
 The following list of available settings is automatically created from the file :file:`settings.py` in the Veros main folder.
-They are available as attributes of all instances of the :class:`Veros state class <veros.VerosState>`, e.g.: ::
+They are available as attributes of the :class:`Veros settings object <veros.state.VerosSettings>`, e.g.: ::
 
    >>> simulation = MyVerosSetup()
-   >>> vs = simulation.state
-   >>> print(vs.eq_of_state_type)
+   >>> settings = simulation.state.settings
+   >>> print(settings.eq_of_state_type)
    1
 
 .. exec::
@@ -14,7 +14,7 @@ They are available as attributes of all instances of the :class:`Veros state cla
   for key, sett in SETTINGS.items():
       print(".. _setting-{}:".format(key))
       print("")
-      print(".. py:attribute:: VerosState.{} = {}".format(key, sett.default))
+      print(".. py:attribute:: VerosSettings.{} = {}".format(key, sett.default))
       print("")
       print("   {}".format(sett.description))
       print("")

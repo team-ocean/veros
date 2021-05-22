@@ -1,4 +1,4 @@
 North Atlantic regional model
 =============================
 
-.. autoclass:: veros.setup.north_atlantic.NorthAtlanticSetup
+.. autoclass:: veros.setups.north_atlantic.NorthAtlanticSetup

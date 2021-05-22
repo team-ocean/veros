@@ -1,6 +1,6 @@
 Numerical operators
 ===================
 
-.. automodule:: veros.core.utilities
+.. automodule:: veros.core.operators
    :members:
    :undoc-members:

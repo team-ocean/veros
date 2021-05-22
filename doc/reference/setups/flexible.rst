@@ -1,4 +1,4 @@
 Global flexible resolution setup
 ================================
 
-.. autoclass:: veros.setup.global_flexible.GlobalFlexibleResolutionSetup
+.. autoclass:: veros.setups.global_flexible.GlobalFlexibleResolutionSetup
