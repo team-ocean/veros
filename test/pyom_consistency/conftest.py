@@ -1,6 +1,11 @@
 import pytest
 
 
+def pytest_collection_modifyitems(items):
+    for item in items:
+        item.add_marker("forked")
+
+
 @pytest.fixture(autouse=True)
 def ensure_pyom_compatibility():
     import veros

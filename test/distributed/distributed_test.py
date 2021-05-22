@@ -6,7 +6,7 @@ import pytest
 
 
 def run_dist_kernel(kernel):
-    pytest.mark.importorskip("mpi4py")
+    pytest.importorskip("mpi4py")
 
     here = os.path.dirname(__file__)
     return subprocess.check_call(

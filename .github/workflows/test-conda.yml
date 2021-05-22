@@ -30,7 +30,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest pytest-xdist
+          pip install pytest pytest-forked
 
       - name: List
         run: |
@@ -58,7 +58,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest pytest-xdist
+          pip install pytest pytest-forked
 
       - name: List
         run: |
@@ -86,7 +86,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest pytest-xdist
+          pip install pytest
 
       - name: List
         run: |

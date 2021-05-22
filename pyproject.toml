@@ -7,7 +7,6 @@ target-version = ['py36', 'py37', 'py38', 'py39']
 testpaths = [
     "test",
 ]
-addopts = "--forked"
 
 
 [build-system]

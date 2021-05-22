@@ -38,7 +38,7 @@ MINIMUM_VERSIONS = {
     "requests": "2.18",
 }
 
-EXTRAS_REQUIRE = {"test": ["pytest", "pytest-cov", "pytest-xdist", "codecov", "petsc4py", "mpi4py"]}
+EXTRAS_REQUIRE = {"test": ["pytest", "pytest-cov", "pytest-forked", "codecov", "petsc4py", "mpi4py"]}
 
 CONSOLE_SCRIPTS = [
     "veros = veros.cli.veros:cli",
