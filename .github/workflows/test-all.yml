@@ -50,7 +50,7 @@ jobs:
         uses: actions/cache@v2
         id: pyom2-cache
         with:
-          path: $PYOM2_DIR/**/*.so
+          path: ~/pyom2/py_src/*.so
           key: ${{ matrix.os }}-${{ matrix.python-version }}
 
       - name: Setup Python environment

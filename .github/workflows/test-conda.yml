@@ -30,7 +30,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest pytest-forked
+          pip install pytest
 
       - name: List
         run: |
@@ -47,6 +47,10 @@ jobs:
       run:
         shell: bash -l {0}
 
+    env:
+      # requests crashes without this
+      no_proxy: "*"
+
     steps:
       - uses: actions/checkout@v2
 
@@ -58,7 +62,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest pytest-forked
+          pip install pytest
 
       - name: List
         run: |
