@@ -5,12 +5,12 @@ with Dirichlet boundary conditions
 used for streamfunction
 """
 
-from veros.core.operators import numpy as npx
 
-from veros import veros_kernel, veros_routine, KernelOutput
+from veros import veros_kernel, veros_routine, KernelOutput, runtime_settings
 from veros.variables import allocate
 from veros.core import utilities as mainutils
 from veros.core.operators import update, update_add, at, for_loop
+from veros.core.operators import numpy as npx
 from veros.core.streamfunction import line_integrals
 from veros.core.streamfunction.solvers import get_linear_solver
 
@@ -35,7 +35,12 @@ def prepare_forcing(state):
     settings = state.settings
 
     # hydrostatic pressure
-    fac = settings.grav / settings.rho_0
+
+    if runtime_settings.pyom_compatibility_mode:
+        fac = npx.float32(settings.grav) / npx.float32(settings.rho_0)
+    else:
+        fac = settings.grav / settings.rho_0
+
     vs.p_hydro = update(
         vs.p_hydro, at[:, :, -1], 0.5 * vs.rho[:, :, -1, vs.tau] * fac * vs.dzw[-1] * vs.maskT[:, :, -1]
     )

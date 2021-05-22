@@ -1,4 +1,5 @@
 import os
+import platform
 
 from Cython.Distutils import build_ext
 
@@ -15,6 +16,7 @@ def find_in_path(name, path):
         binpath = os.path.join(dir, name)
         if os.path.exists(binpath):
             return os.path.abspath(binpath)
+
     return None
 
 
@@ -104,6 +106,9 @@ def customize_compiler_for_nvcc(self):
 # Run the customize_compiler
 class custom_build_ext(build_ext):
     def build_extensions(self):
+        if platform.system().lower() == "windows":
+            return super().build_extensions()
+
         customize_compiler_for_nvcc(self.compiler)
         build_ext.build_extensions(self)
 
