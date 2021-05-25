@@ -4,7 +4,7 @@ import sys
 import os
 import subprocess
 import multiprocessing
-import importlib
+import importlib.util
 import re
 import time
 import math
@@ -26,10 +26,10 @@ STATIC_SETTINGS = " --size {nx} {ny} {nz} --timesteps {timesteps} --float-type {
 
 BENCHMARK_COMMANDS = {
     "numpy": "{python} {filename}" + STATIC_SETTINGS,
-    "numpy-mpi": "{mpiexec} -n {nproc} {python} {filename} --nproc {decomp}" + STATIC_SETTINGS,
+    "numpy-mpi": "OMP_NUM_THREADS=1 {mpiexec} -n {nproc} {python} {filename} --nproc {decomp}" + STATIC_SETTINGS,
     "jax": "{python} {filename} -b jax" + STATIC_SETTINGS,
     "jax-gpu": "{python} {filename} -b jax --device gpu" + STATIC_SETTINGS,
-    "jax-mpi": "{mpiexec} -n {nproc} {python} {filename} -b jax --nproc {decomp}" + STATIC_SETTINGS,
+    "jax-mpi": "OMP_NUM_THREADS=1 {mpiexec} -n {nproc} {python} {filename} -b jax --nproc {decomp}" + STATIC_SETTINGS,
     "fortran": "{python} {filename} --pyom2-lib {pyom2_lib}" + STATIC_SETTINGS,
     "fortran-mpi": "{mpiexec} -n {nproc} {python} {filename} --pyom2-lib {pyom2_lib} --nproc {decomp}"
     + STATIC_SETTINGS,
@@ -181,9 +181,9 @@ def run(**kwargs):
 
             for size in kwargs["sizes"]:
                 n = math.ceil(size ** (1 / 3))
-                nz = max(n // 4, 2)
-                nx = _round_to_multiple(2 * n, proc_decom[0])
-                ny = _round_to_multiple(2 * n, proc_decom[1])
+                nz = max(n // 2, 2)
+                nx = _round_to_multiple(math.sqrt(2) * n, proc_decom[0])
+                ny = _round_to_multiple(math.sqrt(2) * n, proc_decom[1])
                 real_size = nx * ny * nz
 
                 click.echo(f" current size: {real_size}")
@@ -239,7 +239,7 @@ def run(**kwargs):
                     )
     finally:
         with open(kwargs["outfile"], "w") as f:
-            json.dump({"benchmarks": out_data, "settings": settings}, f)
+            json.dump({"benchmarks": out_data, "settings": settings}, f, indent=4, sort_keys=True)
 
     raise SystemExit(int(not all_passed))
 

@@ -1,3 +1,5 @@
+import warnings
+
 BACKENDS = ("numpy", "jax")
 
 BACKEND_MESSAGES = {"jax": "Kernels are compiled during first iteration, be patient"}
@@ -23,7 +25,12 @@ def init_jax_config():
         dist_safe_wrapper_pytree_unflatten,
     )
 
-    jax.config.update("jax_enable_x64", runtime_settings.float_type == "float64")
+    if runtime_settings.float_type == "float64":
+        jax.config.update("jax_enable_x64", True)
+    else:
+        # ignore warnings about unavailable x64 types
+        warnings.filterwarnings("ignore", message="Explicitly requested dtype.*", module="jax")
+
     jax.config.update("jax_platform_name", runtime_settings.device)
 
     jax.tree_util.register_pytree_node(VerosState, veros_state_pytree_flatten, veros_state_pytree_unflatten)

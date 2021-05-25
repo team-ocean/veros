@@ -72,7 +72,7 @@ def set_log_all_processes(log_all_processes):
 
 DEVICES = ("cpu", "gpu", "tpu")
 FLOAT_TYPES = ("float64", "float32")
-LINEAR_SOLVERS = ("scipy", "petsc", "best")
+LINEAR_SOLVERS = ("scipy", "scipy_jax", "petsc", "best")
 
 
 # settings

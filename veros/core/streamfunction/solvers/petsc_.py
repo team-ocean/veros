@@ -1,3 +1,5 @@
+import os
+
 from petsc4py import PETSc
 import numpy as onp
 
@@ -9,6 +11,12 @@ from veros.core.operators import numpy as npx, update, update_add, at
 
 class PETScSolver(LinearSolver):
     def __init__(self, state):
+        if rst.proc_num > 1 and "OMP_NUM_THREADS" not in os.environ:
+            logger.warning(
+                "Environment variable OMP_NUM_THREADS is not set, which can lead to severely "
+                "degraded performance when MPI is used."
+            )
+
         settings = state.settings
 
         if settings.enable_cyclic_x:
@@ -16,11 +24,16 @@ class PETScSolver(LinearSolver):
         else:
             boundary_type = ("ghosted", "ghosted")
 
+        if rs.mpi_comm is not None:
+            solver_comm = rs.mpi_comm.Clone()
+        else:
+            solver_comm = None
+
         self._da = PETSc.DMDA().create(
             [settings.nx, settings.ny],
             stencil_width=1,
             stencil_type="star",
-            comm=rs.mpi_comm,
+            comm=solver_comm,
             proc_sizes=rs.num_proc,
             boundary_type=boundary_type,
             ownership_ranges=[
@@ -35,10 +48,11 @@ class PETScSolver(LinearSolver):
 
         # setup krylov method
         self._ksp = PETSc.KSP()
-        self._ksp.create(rs.mpi_comm)
+        self._ksp.create(self._da.comm)
         self._ksp.setOperators(self._matrix)
         self._ksp.setType("gmres")
         self._ksp.setTolerances(atol=0, rtol=settings.congr_epsilon, max_it=settings.congr_max_iterations)
+        self._ksp.setNormType(PETSc.KSP.NormType.UNPRECONDITIONED)
 
         # preconditioner
         self._ksp.getPC().setType("hypre")
@@ -94,7 +108,7 @@ class PETScSolver(LinearSolver):
 
         x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x)
 
-        boundary_mask = npx.all(~vs.boundary_mask, axis=2)
+        boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
         rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
         linear_solution = self._petsc_solver(state, rhs, x0)
@@ -110,7 +124,7 @@ class PETScSolver(LinearSolver):
 
         matrix = self._da.getMatrix()
 
-        boundary_mask = npx.all(~vs.boundary_mask[2:-2, 2:-2], axis=2)
+        boundary_mask = ~npx.any(vs.boundary_mask[2:-2, 2:-2], axis=2)
 
         # assemble diagonals
         main_diag = (
@@ -154,7 +168,7 @@ class PETScSolver(LinearSolver):
             / vs.cosu[npx.newaxis, 2:-2]
         )
 
-        main_diag *= boundary_mask
+        main_diag = npx.where(boundary_mask, main_diag, 0.0)
         main_diag = npx.where(main_diag == 0.0, 1.0, main_diag)
 
         # construct sparse matrix

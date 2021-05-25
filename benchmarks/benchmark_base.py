@@ -9,16 +9,19 @@ def benchmark_cli(func):
     @click.option("-d", "--device", type=click.Choice(["cpu", "gpu"]), default="cpu")
     @click.option("-n", "--nproc", type=int, nargs=2, default=(1, 1))
     @click.option("--float-type", type=click.Choice(["float64", "float32"]), default="float64")
+    @click.option("-v", "--loglevel", type=click.Choice(["debug", "trace"]), default="debug")
+    @click.option("--profile-mode", is_flag=True)
     @click.command()
-    def inner(backend, device, nproc, float_type, **kwargs):
+    def inner(backend, device, nproc, float_type, loglevel, profile_mode, **kwargs):
         from veros import runtime_settings
 
         runtime_settings.update(
-            loglevel="debug",
             backend=backend,
             device=device,
             float_type=float_type,
             num_proc=nproc,
+            loglevel=loglevel,
+            profile_mode=profile_mode,
         )
         return func(**kwargs)
 

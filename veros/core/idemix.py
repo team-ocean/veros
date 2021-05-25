@@ -201,10 +201,12 @@ def integrate_idemix_kernel(state):
             / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
             * vs.maskU[:-1, :, :],
         )
+
         if runtime_settings.pyom_compatibility_mode:
             flux_east = update(flux_east, at[-5, :, :], 0.0)
         else:
             flux_east = update(flux_east, at[-1, :, :], 0.0)
+
         flux_north = update(
             flux_north,
             at[:, :-1, :],

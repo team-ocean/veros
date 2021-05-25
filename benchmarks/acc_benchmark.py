@@ -19,8 +19,8 @@ def main(pyom2_lib, timesteps, size):
             settings.restart_output_filename = None
 
             settings.nx, settings.ny, settings.nz = size
-            settings.dt_mom = 4800
-            settings.dt_tracer = 86400 / 2.0
+            settings.dt_mom = 600
+            settings.dt_tracer = 600
             settings.runlen = settings.dt_tracer * timesteps
 
             settings.x_origin = 0.0

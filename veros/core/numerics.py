@@ -5,7 +5,6 @@ from veros.core import density, diffusion, utilities
 from veros.core.operators import update, at, numpy as npx
 
 
-# TODO: replace cumsums
 @veros_kernel
 def u_centered_grid(dyt, dyu, yt, yu):
     yu = update(yu, at[0], 0)

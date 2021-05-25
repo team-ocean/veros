@@ -28,6 +28,11 @@ def _get_solver_class():
             else:
                 return PETScSolver
 
+        if rs.backend == "jax" and rs.device == "gpu":
+            from veros.core.streamfunction.solvers.scipy_jax import JAXSciPySolver
+
+            return JAXSciPySolver
+
         from veros.core.streamfunction.solvers.scipy import SciPySolver
 
         return SciPySolver
@@ -42,11 +47,16 @@ def _get_solver_class():
         from veros.core.streamfunction.solvers.scipy import SciPySolver
 
         return SciPySolver
+    elif ls == "scipy_jax":
+        from veros.core.streamfunction.solvers.scipy_jax import JAXSciPySolver
+
+        return JAXSciPySolver
 
     raise ValueError(f"unrecognized linear solver {ls}")
 
 
 @memoize
 def get_linear_solver(state):
+    logger.debug("Initializing linear solver")
     SolverClass = _get_solver_class()
     return SolverClass(state)

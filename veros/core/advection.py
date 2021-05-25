@@ -196,7 +196,6 @@ def calculate_velocity_on_wgrid_kernel(state):
 
     # vertical advection velocity on W grid from continuity
     vs.w_wgrid = update(vs.w_wgrid, at[:, :, 0], 0.0)
-    # TODO: replace cumsum
     vs.w_wgrid = update(
         vs.w_wgrid,
         at[1:, 1:, :],

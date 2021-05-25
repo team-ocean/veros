@@ -30,7 +30,7 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
     )
     diffloc = update(diffloc, at[:, :, 0], 0.5 * (K1[1:-2, 2:-2, 0] + K1[2:-1, 2:-2, 0]))
 
-    sumz = allocate(state.dimensions, ("xt", "yt", "zt"))[1:-2, 2:-2]
+    sumz = 0.0
     for kr in range(2):
         for ip in range(2):
             sumz = sumz + diffloc * vs.Ai_ez[1:-2, 2:-2, :, ip, kr] * (
@@ -57,7 +57,7 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
     )
     diffloc = update(diffloc, at[:, :, 0], 0.5 * (K1[2:-2, 1:-2, 0] + K1[2:-2, 2:-1, 0]))
 
-    sumz = allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 1:-2]
+    sumz = 0.0
     for kr in range(2):
         for jp in range(2):
             sumz = sumz + diffloc * vs.Ai_nz[2:-2, 1:-2, :, jp, kr] * (

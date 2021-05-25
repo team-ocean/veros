@@ -54,7 +54,7 @@ def locate_cuda():
             "cflags": [],
         }
 
-    cflags = ["--ptxas-options=-v", "-c", "--compiler-options", "'-fPIC'"]
+    cflags = ["-c", "--compiler-options", "'-fPIC'", "-std=c++11"]
 
     cm = os.environ.get("CUDA_COMPUTE_CAPABILITY")
     if cm is not None:

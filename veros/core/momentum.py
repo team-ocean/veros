@@ -280,7 +280,6 @@ def vertical_velocity_kernel(state):
         ),
     )
 
-    # TODO: replace cumsum
     vs.w = update(vs.w, at[1:, 1:, :, vs.taup1], npx.cumsum(fxa[1:, 1:, :], axis=2))
 
     return KernelOutput(w=vs.w)

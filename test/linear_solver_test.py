@@ -15,7 +15,7 @@ def solver_state(cyclic):
         settings.ny = 200
         settings.nz = 1
 
-        settings.congr_epsilon = 1e-12
+        settings.congr_epsilon = 1e-10
         settings.congr_max_iterations = 10000
 
         settings.enable_cyclic_x = cyclic
@@ -26,14 +26,14 @@ def solver_state(cyclic):
     vs = state.variables
 
     with vs.unlock():
-        vs.dxt = 1e-12 * np.ones(settings.nx + 4)
-        vs.dxu = 1e-12 * np.ones(settings.nx + 4)
+        vs.dxt = 10e3 * np.ones(settings.nx + 4)
+        vs.dxu = 10e3 * np.ones(settings.nx + 4)
 
-        vs.dyt = 1e-12 * np.ones(settings.ny + 4)
-        vs.dyu = 1e-12 * np.ones(settings.ny + 4)
+        vs.dyt = 10e3 * np.ones(settings.ny + 4)
+        vs.dyu = 10e3 * np.ones(settings.ny + 4)
 
-        vs.hur = np.linspace(500, 2000, settings.nx + 4)[:, None] * np.ones((settings.nx + 4, settings.ny + 4))
-        vs.hvr = np.linspace(500, 2000, settings.ny + 4)[None, :] * np.ones((settings.nx + 4, settings.ny + 4))
+        vs.hur = 1.0 / np.linspace(500, 2000, settings.nx + 4)[:, None] * np.ones((settings.nx + 4, settings.ny + 4))
+        vs.hvr = 1.0 / np.linspace(500, 2000, settings.ny + 4)[None, :] * np.ones((settings.nx + 4, settings.ny + 4))
 
         vs.cosu = np.ones(settings.ny + 4)
         vs.cost = np.ones(settings.ny + 4)
@@ -46,28 +46,38 @@ def solver_state(cyclic):
     return state
 
 
-def get_residual(state, rhs, sol, boundary_val=None):
+def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
     from veros.core.streamfunction.solvers.scipy import SciPySolver
 
-    scipy_solver = SciPySolver(state)
+    matrix = SciPySolver._assemble_poisson_matrix(state)
 
     if boundary_val is None:
         boundary_val = sol
 
     boundary_mask = ~np.any(state.variables.boundary_mask, axis=2)
     rhs = np.where(boundary_mask, rhs, boundary_val)
-    print(scipy_solver._rhs_scale.max(), scipy_solver._rhs_scale.min())
-    residual = scipy_solver._matrix @ sol.reshape(-1) - rhs.reshape(-1) * scipy_solver._rhs_scale
-    return residual
+
+    rhs_sol = matrix @ sol.reshape(-1)
+    np.testing.assert_allclose(rhs_sol, rhs.flatten(), atol=0, rtol=tol)
 
 
 @pytest.mark.parametrize("cyclic", [True, False])
-@pytest.mark.parametrize("solver", ["scipy", "petsc"])
+@pytest.mark.parametrize("solver", ["scipy", "scipy_jax", "petsc"])
 def test_solver(solver, solver_state, cyclic):
+    from veros import runtime_settings
+    from veros.core.operators import numpy as npx
+
     if solver == "scipy":
         from veros.core.streamfunction.solvers.scipy import SciPySolver
 
         solver_class = SciPySolver
+    elif solver == "scipy_jax":
+        if runtime_settings.backend != "jax":
+            pytest.skip("scipy_jax solver requires JAX")
+
+        from veros.core.streamfunction.solvers.scipy_jax import JAXSciPySolver
+
+        solver_class = JAXSciPySolver
     elif solver == "petsc":
         petsc_mod = pytest.importorskip("veros.core.streamfunction.solvers.petsc_")
         solver_class = petsc_mod.PETScSolver
@@ -76,13 +86,11 @@ def test_solver(solver, solver_state, cyclic):
 
     settings = solver_state.settings
 
-    rhs = np.ones((settings.nx + 4, settings.ny + 4))
-    x0 = np.random.rand(settings.nx + 4, settings.ny + 4)
+    rhs = npx.ones((settings.nx + 4, settings.ny + 4))
+    x0 = npx.asarray(np.random.rand(settings.nx + 4, settings.ny + 4))
 
     sol = solver_class(solver_state).solve(solver_state, rhs, x0, boundary_val=10)
 
-    residual = get_residual(solver_state, rhs, sol, boundary_val=10)
-
-    # set tolerance may apply in preconditioned space,
-    # so let's allow for some wiggle room
-    assert np.max(np.abs(residual)) < settings.congr_epsilon * 1e2
+    # set tolerance applies to the *norm* of the residual, so we allow for some wiggle room
+    tol = settings.congr_epsilon * 100
+    assert_solution(solver_state, rhs, sol, boundary_val=10, tol=tol)

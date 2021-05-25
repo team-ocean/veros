@@ -34,8 +34,8 @@ class SciPySolver(LinearSolver):
 
         rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
-        rhs = onp.asarray(rhs.reshape(-1), dtype="float64") * self._rhs_scale
-        x0 = onp.asarray(x0.reshape(-1), dtype="float64")
+        rhs = onp.asarray(rhs.reshape(-1) * self._rhs_scale)
+        x0 = onp.asarray(x0.reshape(-1))
 
         linear_solution, info = spalg.bicgstab(
             self._matrix,
@@ -50,7 +50,7 @@ class SciPySolver(LinearSolver):
         if info > 0:
             logger.warning("Streamfunction solver did not converge after {} iterations", info)
 
-        return npx.asarray(linear_solution.reshape(orig_shape))
+        return npx.asarray(linear_solution).reshape(orig_shape)
 
     def solve(self, state, rhs, x0, boundary_val=None):
         """
@@ -93,10 +93,11 @@ class SciPySolver(LinearSolver):
         settings = state.settings
 
         eps = 1e-20
-        Z = allocate(state.dimensions, ("xu", "yu"), fill=1, local=False)
-        Y = npx.reshape(matrix.diagonal().copy(), (settings.nx + 4, settings.ny + 4))[2:-2, 2:-2]
-        Z = update(Z, at[2:-2, 2:-2], npx.where(npx.abs(Y) > eps, 1.0 / (Y + eps), 1.0))
-        return scipy.sparse.dia_matrix((Z.reshape(-1), 0), shape=(Z.size, Z.size)).tocsr()
+        precon = allocate(state.dimensions, ("xu", "yu"), fill=1, local=False)
+        diag = npx.reshape(matrix.diagonal().copy(), (settings.nx + 4, settings.ny + 4))[2:-2, 2:-2]
+        precon = update(precon, at[2:-2, 2:-2], npx.where(npx.abs(diag) > eps, 1.0 / (diag + eps), 1.0))
+        precon = onp.array(precon)
+        return scipy.sparse.dia_matrix((precon.reshape(-1), 0), shape=(precon.size, precon.size)).tocsr()
 
     @staticmethod
     def _assemble_poisson_matrix(state):
@@ -198,5 +199,5 @@ class SciPySolver(LinearSolver):
             offsets += (-main_diag.shape[1] * (settings.nx - 1), main_diag.shape[1] * (settings.nx - 1))
             cf += (wrap_diag_east.reshape(-1), wrap_diag_west.reshape(-1))
 
-        cf = onp.asarray(cf, dtype="float64")
+        cf = onp.asarray(cf)
         return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()
