@@ -1,0 +1,3 @@
+coverage:
+  ignore:
+    - "veros/_version.py"

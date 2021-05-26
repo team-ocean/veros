@@ -1,0 +1,19 @@
+repos:
+-   repo: https://github.com/ambv/black
+    rev: 21.5b1
+    hooks:
+    - id: black
+      language_version: python3
+
+-   repo: https://gitlab.com/pycqa/flake8
+    rev: 3.8.3
+    hooks:
+    - id: flake8
+      args: ['--config=setup.cfg']
+
+exclude: "
+  ^$\
+  |versioneer\\.py\
+  |veros/_version.py\
+  |doc\
+  "

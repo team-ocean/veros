@@ -2,8 +2,6 @@ import sys
 import functools
 from time import perf_counter
 
-from loguru import logger
-
 try:
     import tqdm
 except ImportError:
@@ -11,11 +9,11 @@ except ImportError:
 else:
     has_tqdm = True
 
-from . import time, logs, runtime_settings as rs, runtime_state as rst
+from veros import logger, time, logs, runtime_settings as rs, runtime_state as rst
 
 BAR_FORMAT = (
-    ' Current iteration: {iteration:<5} ({time:.2f}/{total:.2f}{unit} | {percentage:>4.1f}% | '
-    '{rate:.2f}{rate_unit} | {eta:.1f}{eta_unit} left)'
+    " Current iteration: {iteration:<5} ({time:.2f}/{total:.2f}{unit} | {percentage:>4.1f}% | "
+    "{rate:.2f}{rate_unit} | {eta:.1f}{eta_unit} left)"
 )
 
 
@@ -26,7 +24,7 @@ class LoggingProgressBar:
     in multiprocessing contexts).
     """
 
-    def __init__(self, total, start_time=0, start_iteration=0, time_unit='seconds'):
+    def __init__(self, total, start_time=0, start_iteration=0, time_unit="seconds"):
         self._start_time = start_time
         self._start_iteration = start_iteration
         self._total = total
@@ -49,14 +47,14 @@ class LoggingProgressBar:
         self.flush()
 
     def flush(self):
-        report_time = time.convert_time(self._time, 'seconds', self._time_unit)
-        total_time = time.convert_time(self._total, 'seconds', self._time_unit)
+        report_time = time.convert_time(self._time, "seconds", self._time_unit)
+        total_time = time.convert_time(self._total, "seconds", self._time_unit)
 
         if self._time > self._start_time:
             rate_in_seconds = (perf_counter() - self._start) / (self._time - self._start_time)
         else:
             rate_in_seconds = 0
-        rate_in_seconds_per_year = rate_in_seconds / time.convert_time(1, 'seconds', 'years')
+        rate_in_seconds_per_year = rate_in_seconds / time.convert_time(1, "seconds", "years")
 
         rate, rate_unit = time.format_time(rate_in_seconds_per_year)
         eta, eta_unit = time.format_time((self._total - self._time) * rate_in_seconds)
@@ -74,7 +72,7 @@ class LoggingProgressBar:
             percentage=percentage,
             iteration=self._iteration,
             rate=rate,
-            rate_unit='{}/(model year)'.format(rate_unit[0]),
+            rate_unit=f"{rate_unit[0]}/(model year)",
             eta=eta,
             eta_unit=eta_unit[0],
         )
@@ -83,7 +81,7 @@ class LoggingProgressBar:
 class FancyProgressBar:
     """A fancy progress bar based on TQDM that stays at the bottom of the terminal."""
 
-    def __init__(self, total, start_time=0, start_iteration=0, time_unit='seconds'):
+    def __init__(self, total, start_time=0, start_iteration=0, time_unit="seconds"):
         self._time = self._start_time = start_time
         self._iteration = self._start_iteration = start_iteration
         self._total = total
@@ -96,14 +94,15 @@ class FancyProgressBar:
 
             We only need TQDM to handle dynamic updates to the progress indicator.
             """
+
             def __init__(self, *args, **kwargs):
                 kwargs.update(leave=True)
                 super().__init__(*args, **kwargs)
 
             @property
             def format_dict(other):
-                report_time = time.convert_time(self._time, 'seconds', self._time_unit)
-                total_time = time.convert_time(self._total, 'seconds', self._time_unit)
+                report_time = time.convert_time(self._time, "seconds", self._time_unit)
+                total_time = time.convert_time(self._total, "seconds", self._time_unit)
                 if self._start_time < self._total:
                     percentage = 100 * (self._time - self._start_time) / (self._total - self._start_time)
                 else:
@@ -111,17 +110,17 @@ class FancyProgressBar:
 
                 d = super().format_dict
 
-                if d['elapsed'] > 0:
+                if d["elapsed"] > 0:
                     if self._time > self._start_time:
-                        rate_in_seconds = d['elapsed'] / (self._time - self._start_time)
+                        rate_in_seconds = d["elapsed"] / (self._time - self._start_time)
                     else:
                         rate_in_seconds = 0
-                    rate_in_seconds_per_year = rate_in_seconds / time.convert_time(1, 'seconds', 'years')
+                    rate_in_seconds_per_year = rate_in_seconds / time.convert_time(1, "seconds", "years")
                     rate, rate_unit = time.format_time(rate_in_seconds_per_year)
                     eta, eta_unit = time.format_time((self._total - self._time) * rate_in_seconds)
                 else:
-                    rate, rate_unit = 0, 's'
-                    eta, eta_unit = 0, 's'
+                    rate, rate_unit = 0, "s"
+                    eta, eta_unit = 0, "s"
 
                 d.update(
                     iteration=self._iteration,
@@ -130,7 +129,7 @@ class FancyProgressBar:
                     unit=self._time_unit[0],
                     percentage=percentage,
                     rate=rate,
-                    rate_unit='{}/(model year)'.format(rate_unit[0]),
+                    rate_unit=f"{rate_unit[0]}/(model year)",
                     eta=eta,
                     eta_unit=eta_unit[0],
                 )
@@ -139,17 +138,13 @@ class FancyProgressBar:
             def format_meter(other, *args, bar_format, **kwargs):
                 return bar_format.format(**kwargs)
 
-        self._pbar = _VerosTQDM(
-            file=sys.stdout,
-            bar_format=BAR_FORMAT
-        )
+        self._pbar = _VerosTQDM(file=sys.stdout, bar_format=BAR_FORMAT)
 
     def __enter__(self, *args, **kwargs):
         self._iteration = self._start_iteration
         self._time = self._start_time
         logs.setup_logging(
-            loglevel=rs.loglevel,
-            stream_sink=functools.partial(self._pbar.write, file=sys.stdout, end='')
+            loglevel=rs.loglevel, stream_sink=functools.partial(self._pbar.write, file=sys.stdout, end="")
         )
         self._pbar.__enter__(*args, **kwargs)
         return self
@@ -167,17 +162,17 @@ class FancyProgressBar:
         self._pbar.refresh()
 
 
-def get_progress_bar(vs, use_tqdm=None):
+def get_progress_bar(state, use_tqdm=None):
     if use_tqdm is None:
         use_tqdm = sys.stdout.isatty() and rst.proc_num == 1 and has_tqdm
 
     if use_tqdm and not has_tqdm:
-        raise RuntimeError('tqdm failed to import. Try `pip install tqdm` or set use_tqdm=False.')
+        raise RuntimeError("tqdm failed to import. Try `pip install tqdm` or set use_tqdm=False.")
 
     kwargs = dict(
-        total=vs.runlen + vs.time,
-        start_time=vs.time,
-        start_iteration=vs.itt
+        total=state.settings.runlen + float(state.variables.time),
+        start_time=float(state.variables.time),
+        start_iteration=int(state.variables.itt),
     )
 
     if use_tqdm:

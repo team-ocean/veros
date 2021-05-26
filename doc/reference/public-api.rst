@@ -6,8 +6,8 @@ Python API
 
    api/veros-setup
    api/veros-state
-   api/veros-method
+   api/routines
    api/runtime
    api/tools
-   api/numerics
+   api/operators
    api/distributed

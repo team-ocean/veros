@@ -1,3 +1,0 @@
-coverage:
-  ignore:
-    - "_version.py"

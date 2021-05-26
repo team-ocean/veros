@@ -1,65 +1,60 @@
-from collections import OrderedDict
+import pytest
 
-import numpy as np
+from veros.core import diffusion
+from veros.pyom_compat import get_random_state
 
-from test_base import VerosPyOMUnitTest
-from veros.core import diffusion, numerics
-
-
-class DiffusionTest(VerosPyOMUnitTest):
-    nx, ny, nz = 70, 60, 50
-    extra_settings = {
-        'enable_cyclic_x': True,
-        'enable_conserve_energy': True,
-        'enable_hor_friction_cos_scaling': True,
-        'enable_tempsalt_sources': True,
-    }
-
-    def initialize(self):
-        self.set_attribute('hor_friction_cosPower', np.random.randint(1, 5))
-
-        for a in ('dt_tracer', 'K_hbi', 'K_h'):
-            self.set_attribute(a, np.random.rand())
-
-        for a in ('dxt', 'dxu'):
-            self.set_attribute(a, np.random.randint(1, 100, size=self.nx + 4).astype(np.float))
-
-        for a in ('dyt', 'dyu'):
-            self.set_attribute(a, np.random.randint(1, 100, size=self.ny + 4).astype(np.float))
-
-        for a in ('cosu', 'cost'):
-            self.set_attribute(a, 2 * np.random.rand(self.ny + 4) - 1.)
-
-        for a in ('dzt', 'dzw'):
-            self.set_attribute(a, 100 * np.random.rand(self.nz))
-
-        for a in ('flux_east', 'flux_north', 'flux_top', 'dtemp_hmix', 'dsalt_hmix',
-                  'temp_source', 'salt_source'):
-            self.set_attribute(a, np.random.randn(self.nx + 4, self.ny + 4, self.nz))
-
-        for a in ('temp', 'salt', 'int_drhodS', 'int_drhodT'):
-            self.set_attribute(a, np.random.randn(self.nx + 4, self.ny + 4, self.nz, 3))
-
-        self.set_attribute('kbot', np.random.randint(0, self.nz, size=(self.nx + 4, self.ny + 4)))
-        numerics.calc_topo(self.veros_new.state)
-        self.veros_legacy.call_fortran_routine('calc_topo')
-
-        self.set_attribute('P_diss_hmix', np.random.randn(self.nx + 4, self.ny + 4, self.nz) * self.veros_new.state.maskT)
-        self.test_module = diffusion
-        veros_args = (self.veros_new.state, )
-        veros_legacy_args = dict()
-        self.test_routines = OrderedDict()
-        self.test_routines.update(
-            tempsalt_biharmonic=(veros_args, veros_legacy_args),
-            tempsalt_diffusion=(veros_args, veros_legacy_args),
-            tempsalt_sources=(veros_args, veros_legacy_args),
-        )
-
-    def test_passed(self, routine):
-        for f in ('flux_east', 'flux_north', 'flux_top', 'temp', 'salt', 'P_diss_hmix',
-                  'dtemp_hmix', 'dsalt_hmix', 'P_diss_sources'):
-            self.check_variable(f)
+from test_base import compare_state
 
 
-def test_diffusion(pyom2_lib, backend):
-    DiffusionTest(fortran=pyom2_lib, backend=backend).run()
+@pytest.fixture
+def random_state(pyom2_lib):
+    vs_state, pyom_obj = get_random_state(
+        pyom2_lib,
+        extra_settings=dict(
+            nx=70,
+            ny=60,
+            nz=50,
+            dt_tracer=3600,
+            dt_mom=3600,
+            enable_cyclic_x=True,
+            enable_conserve_energy=True,
+            enable_hor_friction_cos_scaling=True,
+            enable_tempsalt_sources=True,
+            K_hbi=1,
+            K_h=1,
+            hor_friction_cosPower=2,
+        ),
+    )
+
+    # implementations are only identical if non-water values are 0
+    vs = vs_state.variables
+    for var in (
+        "P_diss_sources",
+        "P_diss_hmix",
+    ):
+        getattr(pyom_obj.main_module, var.lower())[...] = 0.0
+        with vs.unlock():
+            setattr(vs, var, vs.get(var) * 0.0)
+
+    return vs_state, pyom_obj
+
+
+def test_tempsalt_biharmonic(random_state):
+    vs_state, pyom_obj = random_state
+    vs_state.variables.update(diffusion.tempsalt_biharmonic(vs_state))
+    pyom_obj.tempsalt_biharmonic()
+    compare_state(vs_state, pyom_obj)
+
+
+def test_tempsalt_diffusion(random_state):
+    vs_state, pyom_obj = random_state
+    vs_state.variables.update(diffusion.tempsalt_diffusion(vs_state))
+    pyom_obj.tempsalt_diffusion()
+    compare_state(vs_state, pyom_obj)
+
+
+def test_tempsalt_sources(random_state):
+    vs_state, pyom_obj = random_state
+    vs_state.variables.update(diffusion.tempsalt_sources(vs_state))
+    pyom_obj.tempsalt_sources()
+    compare_state(vs_state, pyom_obj)

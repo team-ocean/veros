@@ -1,9 +1,11 @@
-import numpy as np
+from veros.core.operators import numpy as npx
+import numpy as onp
+
 import scipy.interpolate
 import scipy.spatial
 
 
-def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind='linear'):
+def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind="linear"):
     """Interpolate globally defined data to a different (regular) grid.
 
     Arguments:
@@ -24,21 +26,26 @@ def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind=
 
     """
     if len(coords) != len(interp_coords) or len(coords) != var.ndim:
-        raise ValueError('Dimensions of coordinates and values do not match')
-    var = np.array(var)
+        raise ValueError("Dimensions of coordinates and values do not match")
+
     if missing_value is not None:
-        invalid_mask = np.isclose(var, missing_value)
-        var[invalid_mask] = np.nan
+        invalid_mask = npx.isclose(var, missing_value)
+        var = npx.where(invalid_mask, npx.nan, var)
+
     if var.ndim > 1 and coords[0].ndim == 1:
-        interp_grid = np.rollaxis(np.array(np.meshgrid(
-            *interp_coords, indexing='ij', copy=False)), 0, len(interp_coords) + 1)
+        interp_grid = npx.rollaxis(npx.array(npx.meshgrid(*interp_coords, indexing="ij")), 0, len(interp_coords) + 1)
     else:
-        interp_grid = coords
-    var = scipy.interpolate.interpn(coords, var, interp_grid,
-                                    bounds_error=False, fill_value=np.nan, method=kind)
+        interp_grid = interp_coords
+
+    coords = [onp.array(c) for c in coords]
+    var = scipy.interpolate.interpn(
+        coords, onp.array(var), interp_grid, bounds_error=False, fill_value=npx.nan, method=kind
+    )
+    var = npx.asarray(var)
 
     if fill:
         var = fill_holes(var)
+
     return var
 
 
@@ -46,15 +53,13 @@ def fill_holes(data):
     """A simple inpainting function that replaces NaN values in `data` with the
     nearest finite value.
     """
-    data = data.copy()
-    shape = data.shape
+    data = onp.array(data)
     dim = data.ndim
-    flag = np.zeros(shape, dtype=bool)
-    flag[~np.isnan(data)] = True
+    flag = ~onp.isnan(data)
 
     slcs = [slice(None)] * dim
 
-    while np.any(~flag):
+    while npx.any(~flag):
         for i in range(dim):
             slcs1 = slcs[:]
             slcs2 = slcs[:]
@@ -65,16 +70,16 @@ def fill_holes(data):
             slcs2 = tuple(slcs2)
 
             # replace from the right
-            repmask = np.logical_and(~flag[slcs1], flag[slcs2])
+            repmask = npx.logical_and(~flag[slcs1], flag[slcs2])
             data[slcs1][repmask] = data[slcs2][repmask]
             flag[slcs1][repmask] = True
 
             # replace from the left
-            repmask = np.logical_and(~flag[slcs2], flag[slcs1])
+            repmask = npx.logical_and(~flag[slcs2], flag[slcs1])
             data[slcs2][repmask] = data[slcs1][repmask]
             flag[slcs2][repmask] = True
 
-    return data
+    return npx.asarray(data)
 
 
 def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
@@ -106,17 +111,16 @@ def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
        >>> data_at_current_time = f1 * data[..., n1] + f2 * data[..., n2]
 
     """
-    locTime = current_time - rec_spacing * 0.5 + \
-        cycle_length * (2 - round(current_time / cycle_length))
-    tmpTime = locTime % cycle_length
-    tRec1 = 1 + int(tmpTime / rec_spacing)
-    tRec2 = 1 + tRec1 % int(n_rec)
-    wght2 = (tmpTime - rec_spacing * (tRec1 - 1)) / rec_spacing
-    wght1 = 1.0 - wght2
-    return (tRec1 - 1, wght1), (tRec2 - 1, wght2)
+    current_time = current_time % cycle_length
+    # using npx.array works with both NumPy and JAX
+    t_idx_1 = npx.array(current_time // rec_spacing, dtype="int")
+    t_idx_2 = npx.array((1 + t_idx_1) % n_rec, dtype="int")
+    weight_2 = (current_time - rec_spacing * t_idx_1) / rec_spacing
+    weight_1 = 1.0 - weight_2
+    return (t_idx_1, weight_1), (t_idx_2, weight_2)
 
 
-def make_cyclic(longitude, array=None, wrap=360.):
+def make_cyclic(longitude, array=None, wrap=360.0):
     """Create a cyclic version of a longitude array and (optionally) another array.
 
     Arguments:
@@ -130,10 +134,12 @@ def make_cyclic(longitude, array=None, wrap=360.):
 
     """
     lonsize = longitude.shape[0]
-    cyclic_longitudes = np.hstack((longitude[lonsize//2:, ...] - wrap, longitude, longitude[:lonsize//2, ...] + wrap))
+    cyclic_longitudes = npx.hstack(
+        (longitude[lonsize // 2 :, ...] - wrap, longitude, longitude[: lonsize // 2, ...] + wrap)
+    )
     if array is None:
         return cyclic_longitudes
-    cyclic_array = np.hstack((array[lonsize//2:, ...], array, array[:lonsize//2, ...]))
+    cyclic_array = npx.hstack((array[lonsize // 2 :, ...], array, array[: lonsize // 2, ...]))
     return cyclic_longitudes, cyclic_array
 
 
@@ -157,7 +163,7 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
             distances become when `spherical` is `True`. Defaults to the square root
             of the number of coastal cells.
         n_jobs (int): Number of parallel jobs to determine nearest neighbors
-            (defaults to -1, which uses all available threads).
+            (defaults to -1, which uses all available cores).
 
     Returns:
         :obj:`ndarray` of shape (nx, ny) indicating the distance to the nearest land
@@ -166,42 +172,48 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
     Example:
         The following returns coastal distances of all T cells for a spherical Veros setup.
 
-        >>> coords = np.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing='ij')
-        >>> dist = tools.get_coastline_distance(coords, self.kbot > 0, spherical=True, radius=self.radius)
+        >>> coords = npx.meshgrid(vs.xt[2:-2], vs.yt[2:-2], indexing='ij')
+        >>> dist = tools.get_coastline_distance(coords, vs.kbot > 0, spherical=True, radius=settings.radius)
 
     """
     if not len(coords) == 2:
-        raise ValueError('coords must be lon-lat tuple')
+        raise ValueError("coords must be lon-lat tuple")
     if not all(c.shape == coast_mask.shape for c in coords):
-        raise ValueError('coordinates must have same shape as coastal mask')
+        raise ValueError("coordinates must have same shape as coastal mask")
     if spherical and not radius:
-        raise ValueError('radius must be given for spherical coordinates')
+        raise ValueError("radius must be given for spherical coordinates")
 
-    watercoords = np.array([c[~coast_mask] for c in coords]).T
+    watercoords = onp.array([c[~coast_mask] for c in coords]).T
     if spherical:
-        coastcoords = np.array(make_cyclic(coords[0][coast_mask], coords[1][coast_mask])).T
+        coastcoords = onp.array(make_cyclic(coords[0][coast_mask], coords[1][coast_mask])).T
     else:
-        coastcoords = np.array((coords[0][coast_mask], coords[1][coast_mask])).T
+        coastcoords = onp.array((coords[0][coast_mask], coords[1][coast_mask])).T
     coast_kdtree = scipy.spatial.cKDTree(coastcoords)
 
-    distance = np.zeros(coords[0].shape)
+    distance = onp.zeros(coords[0].shape)
+
     if spherical:
 
         def spherical_distance(coords1, coords2):
             """Calculate great circle distance from latitude and longitude"""
-            coords1 *= np.pi / 180.
-            coords2 *= np.pi / 180.
+            coords1 *= onp.pi / 180.0
+            coords2 *= onp.pi / 180.0
             lon1, lon2, lat1, lat2 = coords1[..., 0], coords2[..., 0], coords1[..., 1], coords2[..., 1]
-            return radius * np.arccos(np.sin(lat1) * np.sin(lat2) + np.cos(lat1) * np.cos(lat2) * np.cos(lon1 - lon2))
+            return radius * onp.arccos(
+                onp.sin(lat1) * onp.sin(lat2) + onp.cos(lat1) * onp.cos(lat2) * onp.cos(lon1 - lon2)
+            )
 
         if not num_candidates:
-            num_candidates = int(np.sqrt(np.count_nonzero(~coast_mask)))
+            num_candidates = int(onp.sqrt(onp.count_nonzero(~coast_mask)))
+
         i_nearest = coast_kdtree.query(watercoords, k=num_candidates, n_jobs=n_jobs)[1]
         approx_nearest = coastcoords[i_nearest]
-        distance[~coast_mask] = np.min(spherical_distance(approx_nearest, watercoords[..., np.newaxis, :]), axis=-1)
+        distance[~coast_mask] = onp.min(spherical_distance(approx_nearest, watercoords[..., onp.newaxis, :]), axis=-1)
+
     else:
         distance[~coast_mask] = coast_kdtree.query(watercoords, n_jobs=n_jobs)[0]
-    return distance
+
+    return npx.asarray(distance)
 
 
 def get_uniform_grid_steps(total_length, stepsize):
@@ -223,12 +235,13 @@ def get_uniform_grid_steps(total_length, stepsize):
 
     """
     if total_length % stepsize:
-        raise ValueError('total length must be an integer multiple of stepsize')
-    return stepsize * np.ones(int(total_length / stepsize))
+        raise ValueError("total length must be an integer multiple of stepsize")
+    return stepsize * npx.ones(int(total_length / stepsize))
 
 
-def get_stretched_grid_steps(n_cells, total_length, minimum_stepsize, stretching_factor=2.5,
-                             two_sided_grid=False, refine_towards='upper'):
+def get_stretched_grid_steps(
+    n_cells, total_length, minimum_stepsize, stretching_factor=2.5, two_sided_grid=False, refine_towards="upper"
+):
     """Computes stretched grid steps for regional and global domains with either
     one or two-sided stretching using a hyperbolic tangent stretching function.
 
@@ -266,33 +279,34 @@ def get_stretched_grid_steps(n_cells, total_length, minimum_stepsize, stretching
 
     """
 
-    if refine_towards not in ('upper', 'lower'):
+    if refine_towards not in ("upper", "lower"):
         raise ValueError('refine_towards must be "upper" or "lower"')
     if two_sided_grid:
         if n_cells % 2:
-            raise ValueError('number of grid points must be even integer number (given: {})'.format(n_cells))
+            raise ValueError(f"number of grid points must be even integer number (given: {n_cells})")
         n_cells = n_cells / 2
 
-    stretching_function = np.tanh(stretching_factor * np.linspace(-1, 1, n_cells))
+    stretching_function = npx.tanh(stretching_factor * npx.linspace(-1, 1, n_cells))
 
-    if refine_towards == 'lower':
+    if refine_towards == "lower":
         stretching_function = stretching_function[::-1]
     if two_sided_grid:
-        stretching_function = np.concatenate((stretching_function[::-1], stretching_function))
+        stretching_function = npx.concatenate((stretching_function[::-1], stretching_function))
 
-    def normalize_sum(var, sum_value, minimum_value=0.):
+    def normalize_sum(var, sum_value, minimum_value=0.0):
         if abs(var.sum()) < 1e-5:
             var += 1
         var *= (sum_value - len(var) * minimum_value) / var.sum()
         return var + minimum_value
 
     stretching_function = normalize_sum(stretching_function, total_length, minimum_stepsize)
-    assert abs(1 - np.sum(stretching_function) / total_length) < 1e-5, 'precision error'
+    assert abs(1 - npx.sum(stretching_function) / total_length) < 1e-5, "precision error"
     return stretching_function
 
 
-def get_vinokur_grid_steps(n_cells, total_length, lower_stepsize, upper_stepsize=None,
-                           two_sided_grid=False, refine_towards='upper'):
+def get_vinokur_grid_steps(
+    n_cells, total_length, lower_stepsize, upper_stepsize=None, two_sided_grid=False, refine_towards="upper"
+):
     """Computes stretched grid steps for regional and global domains with either
     one or two-sided stretching using Vinokur stretching.
 
@@ -337,11 +351,11 @@ def get_vinokur_grid_steps(n_cells, total_length, lower_stepsize, upper_stepsize
         180.
 
     """
-    if refine_towards not in ('upper', 'lower'):
+    if refine_towards not in ("upper", "lower"):
         raise ValueError('refine_towards must be "upper" or "lower"')
     if two_sided_grid:
         if n_cells % 2:
-            raise ValueError('number of grid points must be an even integer (given: {})'.format(n_cells))
+            raise ValueError(f"number of grid points must be an even integer (given: {n_cells})")
         n_cells = n_cells // 2
 
     n_cells += 1
@@ -349,53 +363,91 @@ def get_vinokur_grid_steps(n_cells, total_length, lower_stepsize, upper_stepsize
     def approximate_sinc_inverse(y):
         """Approximate inverse of sin(y) / y"""
         if y < 0.26938972:
-            inv = np.pi * (1 - y + y**2 - (1 + np.pi**2 / 6) * y**3 + 6.794732 * y**4 - 13.205501 * y**5 + 11.726095 * y**6)
+            inv = npx.pi * (
+                1
+                - y
+                + y ** 2
+                - (1 + npx.pi ** 2 / 6) * y ** 3
+                + 6.794732 * y ** 4
+                - 13.205501 * y ** 5
+                + 11.726095 * y ** 6
+            )
         else:
-            ybar = 1. - y
-            inv = np.sqrt(6 * ybar) * (1 + .15 * ybar + 0.057321429 * ybar**2 + 0.048774238 * ybar**3 - 0.053337753 * ybar**4 + 0.075845134 * ybar**5)
-        assert abs(1 - np.sin(inv) / inv / y) < 1e-2, 'precision error'
+            ybar = 1.0 - y
+            inv = npx.sqrt(6 * ybar) * (
+                1
+                + 0.15 * ybar
+                + 0.057321429 * ybar ** 2
+                + 0.048774238 * ybar ** 3
+                - 0.053337753 * ybar ** 4
+                + 0.075845134 * ybar ** 5
+            )
+        assert abs(1 - npx.sin(inv) / inv / y) < 1e-2, "precision error"
         return inv
 
     def approximate_sinhc_inverse(y):
         """Approximate inverse of sinh(y) / y"""
         if y < 2.7829681:
-            ybar = y - 1.
-            inv = np.sqrt(6 * ybar) * (1 - 0.15 * ybar + 0.057321429 * ybar**2 - 0.024907295 * ybar**3 + 0.0077424461 * ybar**4 - 0.0010794123 * ybar**5)
+            ybar = y - 1.0
+            inv = npx.sqrt(6 * ybar) * (
+                1
+                - 0.15 * ybar
+                + 0.057321429 * ybar ** 2
+                - 0.024907295 * ybar ** 3
+                + 0.0077424461 * ybar ** 4
+                - 0.0010794123 * ybar ** 5
+            )
         else:
-            v = np.log(y)
-            w = 1. / y - 0.028527431
-            inv = v + (1 + 1. / v) * np.log(2 * v) - 0.02041793 + 0.24902722 * w + 1.9496443 * w**2 - 2.6294547 * w**3 + 8.56795911 * w**4
-        assert abs(1 - np.sinh(inv) / inv / y) < 1e-2, 'precision error'
+            v = npx.log(y)
+            w = 1.0 / y - 0.028527431
+            inv = (
+                v
+                + (1 + 1.0 / v) * npx.log(2 * v)
+                - 0.02041793
+                + 0.24902722 * w
+                + 1.9496443 * w ** 2
+                - 2.6294547 * w ** 3
+                + 8.56795911 * w ** 4
+            )
+        assert abs(1 - npx.sinh(inv) / inv / y) < 1e-2, "precision error"
         return inv
 
     target_sum = total_length
     if two_sided_grid:
-        target_sum *= .5
+        target_sum *= 0.5
 
     s0 = float(target_sum) / float(lower_stepsize * n_cells)
     if upper_stepsize:
         s1 = float(target_sum) / float(upper_stepsize * n_cells)
-        a, b = np.sqrt(s1 / s0), np.sqrt(s1 * s0)
+        a, b = npx.sqrt(s1 / s0), npx.sqrt(s1 * s0)
         if b > 1:
             stretching_factor = approximate_sinhc_inverse(b)
-            stretched_grid = .5 + .5 * np.tanh(stretching_factor * np.linspace(-.5, .5, n_cells)) / np.tanh(.5 * stretching_factor)
+            stretched_grid = 0.5 + 0.5 * npx.tanh(stretching_factor * npx.linspace(-0.5, 0.5, n_cells)) / npx.tanh(
+                0.5 * stretching_factor
+            )
         else:
             stretching_factor = approximate_sinc_inverse(b)
-            stretched_grid = .5 + .5 * np.tan(stretching_factor * np.linspace(-.5, .5, n_cells)) / np.tan(.5 * stretching_factor)
-        stretched_grid = stretched_grid / (a + (1. - a) * stretched_grid)
+            stretched_grid = 0.5 + 0.5 * npx.tan(stretching_factor * npx.linspace(-0.5, 0.5, n_cells)) / npx.tan(
+                0.5 * stretching_factor
+            )
+        stretched_grid = stretched_grid / (a + (1.0 - a) * stretched_grid)
     else:
         if s0 > 1:
-            stretching_factor = approximate_sinhc_inverse(s0) * .5
-            stretched_grid = 1 + np.tanh(stretching_factor * np.linspace(0., 1., n_cells)) / np.tanh(stretching_factor)
+            stretching_factor = approximate_sinhc_inverse(s0) * 0.5
+            stretched_grid = 1 + npx.tanh(stretching_factor * npx.linspace(0.0, 1.0, n_cells)) / npx.tanh(
+                stretching_factor
+            )
         else:
-            stretching_factor = approximate_sinc_inverse(s0) * .5
-            stretched_grid = 1 + np.tan(stretching_factor * np.linspace(0., 1., n_cells)) / np.tan(stretching_factor)
+            stretching_factor = approximate_sinc_inverse(s0) * 0.5
+            stretched_grid = 1 + npx.tan(stretching_factor * npx.linspace(0.0, 1.0, n_cells)) / npx.tan(
+                stretching_factor
+            )
 
-    stretched_grid_steps = np.diff(stretched_grid * target_sum)
-    if refine_towards == 'upper':
+    stretched_grid_steps = npx.diff(stretched_grid * target_sum)
+    if refine_towards == "upper":
         stretched_grid_steps = stretched_grid_steps[::-1]
     if two_sided_grid:
-        stretched_grid_steps = np.concatenate((stretched_grid_steps[::-1], stretched_grid_steps))
+        stretched_grid_steps = npx.concatenate((stretched_grid_steps[::-1], stretched_grid_steps))
 
-    assert abs(1 - np.sum(stretched_grid_steps) / total_length) < 1e-5, 'precision error'
+    assert abs(1 - npx.sum(stretched_grid_steps) / total_length) < 1e-5, "precision error"
     return stretched_grid_steps

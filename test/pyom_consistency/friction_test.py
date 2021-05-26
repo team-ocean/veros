@@ -1,84 +1,81 @@
-import os
-
-import numpy as np
-
 import pytest
 
-from test_base import VerosPyOMUnitTest
-from veros.core import friction, numerics
+from veros.core import friction
+from veros.pyom_compat import get_random_state
+
+from test_base import compare_state
 
 
-class FrictionTest(VerosPyOMUnitTest):
-    nx, ny, nz = 70, 60, 50
-    extra_settings = {
-        'enable_cyclic_x': True,
-        'enable_conserve_energy': True,
-        'enable_bottom_friction_var': True,
-        'enable_hor_friction_cos_scaling': True,
-        'enable_momentum_sources': True,
-    }
-
-    def initialize(self):
-        self.set_attribute('hor_friction_cosPower', np.random.randint(1, 5))
-
-        for a in ('dt_mom', 'r_bot', 'r_quad_bot', 'A_h', 'A_hbi', 'x_origin', 'y_origin'):
-            self.set_attribute(a, np.random.rand())
-
-        for a in ('dxt', 'dxu'):
-            self.set_attribute(a, np.ones(self.nx + 4) * np.random.rand())
-
-        for a in ('dyt', 'dyu'):
-            self.set_attribute(a, np.ones(self.ny + 4) * np.random.rand())
-
-        for a in ('cosu', 'cost'):
-            self.set_attribute(a, np.random.rand(self.ny + 4) + 1)
-
-        for a in ('dzt', 'dzw', 'zw'):
-            self.set_attribute(a, 1 + np.random.rand(self.nz))
-
-        for a in ('r_bot_var_u', 'r_bot_var_v'):
-            self.set_attribute(a, np.random.randn(self.nx + 4, self.ny + 4))
-
-        for a in ('area_u', 'area_v', 'area_t'):
-            self.set_attribute(a, np.random.rand(self.nx + 4, self.ny + 4))
-
-        for a in ('K_diss_v', 'kappaM', 'flux_north', 'flux_east', 'flux_top', 'K_diss_bot', 'K_diss_h',
-                  'du_mix', 'dv_mix', 'u_source', 'v_source'):
-            self.set_attribute(a, np.random.randn(self.nx + 4, self.ny + 4, self.nz))
-
-        for a in ('u', 'v', 'w'):
-            self.set_attribute(a, np.random.randn(self.nx + 4, self.ny + 4, self.nz, 3))
-
-        for a in ('maskU', 'maskV', 'maskW', 'maskT'):
-            self.set_attribute(a, np.random.randint(0, 2, size=(self.nx + 4, self.ny + 4, self.nz)).astype(np.float))
-
-        kbot = np.random.randint(1, self.nz, size=(self.nx + 4, self.ny + 4))
-        # add some islands, but avoid boundaries
-        kbot[3:-3, 3:-3].flat[np.random.randint(0, (self.nx - 2) * (self.ny - 2), size=10)] = 0
-        self.set_attribute('kbot', kbot)
-
-        numerics.calc_grid(self.veros_new.state)
-        numerics.calc_topo(self.veros_new.state)
-        self.veros_legacy.call_fortran_routine('calc_grid')
-        self.veros_legacy.call_fortran_routine('calc_topo')
-
-        self.test_module = friction
-        veros_args = (self.veros_new.state, )
-        veros_legacy_args = dict()
-        self.test_routines = {k: (veros_args, veros_legacy_args) for k in (
-            'explicit_vert_friction', 'implicit_vert_friction', 'rayleigh_friction',
-            'linear_bottom_friction', 'quadratic_bottom_friction', 'harmonic_friction',
-            'biharmonic_friction', 'momentum_sources'
-        )}
-
-    def test_passed(self, routine):
-        for f in ('flux_east', 'flux_north', 'flux_top', 'u', 'v', 'w', 'K_diss_v',
-                  'K_diss_bot', 'K_diss_h', 'du_mix', 'dv_mix'):
-            self.check_variable(f)
+@pytest.fixture
+def random_state(pyom2_lib):
+    return get_random_state(
+        pyom2_lib,
+        extra_settings=dict(
+            nx=70,
+            ny=60,
+            nz=50,
+            dt_tracer=3600,
+            dt_mom=3600,
+            enable_cyclic_x=True,
+            enable_conserve_energy=True,
+            enable_bottom_friction_var=True,
+            enable_hor_friction_cos_scaling=True,
+            enable_momentum_sources=True,
+        ),
+    )
 
 
-def test_friction(pyom2_lib, backend):
-    # TODO: debug this
-    if backend == 'bohrium' and os.environ.get('BH_STACK', '').lower() in ('opencl',):
-        pytest.xfail(reason='OpenCL memory corruption')
-    FrictionTest(fortran=pyom2_lib, backend=backend).run()
+def test_explicit_vert_friction(random_state):
+    vs_state, pyom_obj = random_state
+    vs_state.variables.update(friction.explicit_vert_friction(vs_state))
+    pyom_obj.explicit_vert_friction()
+    compare_state(vs_state, pyom_obj)
+
+
+def test_implicit_vert_friction(random_state):
+    vs_state, pyom_obj = random_state
+    vs_state.variables.update(friction.implicit_vert_friction(vs_state))
+    pyom_obj.implicit_vert_friction()
+    compare_state(vs_state, pyom_obj)
+
+
+def test_rayleigh_friction(random_state):
+    vs_state, pyom_obj = random_state
+    vs_state.variables.update(friction.rayleigh_friction(vs_state))
+    pyom_obj.rayleigh_friction()
+    compare_state(vs_state, pyom_obj)
+
+
+def test_linear_bottom_friction(random_state):
+    vs_state, pyom_obj = random_state
+    vs_state.variables.update(friction.linear_bottom_friction(vs_state))
+    pyom_obj.linear_bottom_friction()
+    compare_state(vs_state, pyom_obj)
+
+
+def test_quadratic_bottom_friction(random_state):
+    vs_state, pyom_obj = random_state
+    vs_state.variables.update(friction.quadratic_bottom_friction(vs_state))
+    pyom_obj.quadratic_bottom_friction()
+    compare_state(vs_state, pyom_obj)
+
+
+def test_harmonic_friction(random_state):
+    vs_state, pyom_obj = random_state
+    vs_state.variables.update(friction.harmonic_friction(vs_state))
+    pyom_obj.harmonic_friction()
+    compare_state(vs_state, pyom_obj)
+
+
+def test_biharmonic_friction(random_state):
+    vs_state, pyom_obj = random_state
+    vs_state.variables.update(friction.biharmonic_friction(vs_state))
+    pyom_obj.biharmonic_friction()
+    compare_state(vs_state, pyom_obj)
+
+
+def test_momentum_sources(random_state):
+    vs_state, pyom_obj = random_state
+    vs_state.variables.update(friction.momentum_sources(vs_state))
+    pyom_obj.momentum_sources()
+    compare_state(vs_state, pyom_obj)

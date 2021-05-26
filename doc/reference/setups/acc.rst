@@ -1,4 +1,4 @@
 ACC channel model
 =================
 
-.. autoclass:: veros.setup.acc.ACCSetup
+.. autoclass:: veros.setups.acc.ACCSetup

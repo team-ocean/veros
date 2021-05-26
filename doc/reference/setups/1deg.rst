@@ -1,4 +1,4 @@
 Global one-degree model
 =======================
 
-.. autoclass:: veros.setup.global_1deg.GlobalOneDegreeSetup
+.. autoclass:: veros.setups.global_1deg.GlobalOneDegreeSetup

@@ -27,3 +27,9 @@ veros-resubmit
 
 .. run-click:: veros.cli.veros:cli
    :args: resubmit --help
+
+veros-run
+---------
+
+.. run-click:: veros.cli.veros:cli
+   :args: run --help

@@ -1,8 +1,9 @@
-from loguru import logger
+from veros import logger
 
-from .diagnostic import VerosDiagnostic
-from .. import veros_method
-from ..distributed import global_sum
+from veros.variables import Variable
+from veros.core.operators import numpy as npx
+from veros.diagnostics.base import VerosDiagnostic
+from veros.distributed import global_sum
 
 
 class TracerMonitor(VerosDiagnostic):
@@ -10,52 +11,52 @@ class TracerMonitor(VerosDiagnostic):
 
     Writes output to stdout (no binary output).
     """
-    name = 'tracer_monitor' #:
-    output_frequency = None  #: Frequency (in seconds) in which output is written.
-    #: internal attributes to write to restart file
-    restart_attributes = ('tempm1', 'vtemp1', 'saltm1', 'vsalt1')
 
-    def initialize(self, vs):
-        self.tempm1 = 0.
-        self.vtemp1 = 0.
-        self.saltm1 = 0.
-        self.vsalt1 = 0.
+    name = "tracer_monitor"
+    output_frequency = None
 
-    def diagnose(self, vs):
+    def __init__(self, state):
+        self.var_meta = {
+            "tempm1": Variable("tempm1", None, write_to_restart=True),
+            "vtemp1": Variable("vtemp1", None, write_to_restart=True),
+            "saltm1": Variable("saltm1", None, write_to_restart=True),
+            "vsalt1": Variable("vsalt1", None, write_to_restart=True),
+        }
+
+    def initialize(self, state):
+        self.initialize_variables(state)
+
+    def diagnose(self, state):
         pass
 
-    @veros_method
-    def output(self, vs):
+    def output(self, state):
         """
         Diagnose tracer content
         """
-        cell_volume = vs.area_t[2:-2, 2:-2, np.newaxis] * vs.dzt[np.newaxis, np.newaxis, :] \
-            * vs.maskT[2:-2, 2:-2, :]
-        volm = global_sum(vs, np.sum(cell_volume))
-        tempm = global_sum(vs, np.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau]))
-        saltm = global_sum(vs, np.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau]))
-        vtemp = global_sum(vs, np.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau]**2))
-        vsalt = global_sum(vs, np.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau]**2))
+        vs = state.variables
+        tracer_vs = self.variables
 
-        logger.diagnostic(' Mean temperature {} change to last {}'
-                          .format(float(tempm / volm), float((tempm - self.tempm1) / volm)))
-        logger.diagnostic(' Mean salinity    {} change to last {}'
-                          .format(float(saltm / volm), float((saltm - self.saltm1) / volm)))
-        logger.diagnostic(' Temperature var. {} change to last {}'
-                          .format(float(vtemp / volm), float((vtemp - self.vtemp1) / volm)))
-        logger.diagnostic(' Salinity var.    {} change to last {}'
-                          .format(float(vsalt / volm), float((vsalt - self.vsalt1) / volm)))
+        cell_volume = vs.area_t[2:-2, 2:-2, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :] * vs.maskT[2:-2, 2:-2, :]
+        volm = global_sum(npx.sum(cell_volume))
+        tempm = global_sum(npx.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau]))
+        saltm = global_sum(npx.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau]))
+        vtemp = global_sum(npx.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau] ** 2))
+        vsalt = global_sum(npx.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau] ** 2))
 
-        self.tempm1 = tempm
-        self.vtemp1 = vtemp
-        self.saltm1 = saltm
-        self.vsalt1 = vsalt
+        logger.diagnostic(
+            f" Mean temperature {tempm / volm:.2e} change to last {(tempm - tracer_vs.tempm1) / volm:.2e}"
+        )
+        logger.diagnostic(
+            f" Mean salinity    {saltm / volm:.2e} change to last {(saltm - tracer_vs.saltm1) / volm:.2e}"
+        )
+        logger.diagnostic(
+            f" Temperature var. {vtemp / volm:.2e} change to last {(vtemp - tracer_vs.vtemp1) / volm:.2e}"
+        )
+        logger.diagnostic(
+            f" Salinity var.    {vsalt / volm:.2e} change to last {(vsalt - tracer_vs.vsalt1) / volm:.2e}"
+        )
 
-    def read_restart(self, vs, infile):
-        attributes, variables = self.read_h5_restart(vs, {}, infile)
-        for attr in self.restart_attributes:
-            setattr(self, attr, attributes[attr])
-
-    def write_restart(self, vs, outfile):
-        attributes = {key: getattr(self, key) for key in self.restart_attributes}
-        self.write_h5_restart(vs, attributes, {}, {}, outfile)
+        tracer_vs.tempm1 = tempm
+        tracer_vs.vtemp1 = vtemp
+        tracer_vs.saltm1 = saltm
+        tracer_vs.vsalt1 = vsalt

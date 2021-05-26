@@ -2,5 +2,4 @@ Distributed communication primitives
 ====================================
 
 .. automodule:: veros.distributed
-   :members:
-   :undoc-members:
+   :members: gather, scatter, global_sum, global_max, barrier, abort

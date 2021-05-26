@@ -13,10 +13,11 @@ Options for diagnostics may be set during the :meth:`VerosSetup.set_diagnostics`
 
    class MyModelSetup(VerosSetup):
        ...
-       def set_diagnostics(self, vs):
-           vs.diagnostics['averages'].output_variables = ['psi','u','v']
-           vs.diagnostics['averages'].sampling_frequency = 3600.
-           vs.diagnostics['snapshot'].output_variables += ['du']
+       def set_diagnostics(self, state):
+           diagnostics = state.diagnostics
+           diagnostics['averages'].output_variables = ['psi','u','v']
+           diagnostics['averages'].sampling_frequency = 3600.
+           diagnostics['snapshot'].output_variables += ['du']
 
 Base class
 ----------
@@ -25,8 +26,8 @@ This class implements some common logic for all diagnostics. This makes it easy
 to write your own diagnostics: Just derive from this class, and implement the
 virtual functions.
 
-.. autoclass:: veros.diagnostics.diagnostic.VerosDiagnostic
-   :members: name, initialize, diagnose, output, read_restart, write_restart
+.. autoclass:: veros.diagnostics.base.VerosDiagnostic
+   :members: name, initialize, diagnose, output
 
 Available diagnostics
 ---------------------
@@ -38,7 +39,7 @@ Snapshot
 ++++++++
 
 .. autoclass:: veros.diagnostics.snapshot.Snapshot
-   :members: name, output_variables, restart_variables, sampling_frequency, output_frequency, output_path
+   :members: name, output_variables, sampling_frequency, output_frequency, output_path
 
 Averages
 ++++++++

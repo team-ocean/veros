@@ -6,10 +6,6 @@ Assets
 
 .. autofunction:: veros.tools.assets.get_assets
 
-CLI
-+++
-
-.. autofunction:: veros.tools.cli.cli
 
 Setup tools
 +++++++++++

@@ -6,8 +6,8 @@
   <a href="http://veros.readthedocs.io/?badge=latest">
     <img src="https://readthedocs.org/projects/veros/badge/?version=latest" alt="Documentation status">
   </a>
-  <a href="https://travis-ci.org/team-ocean/veros">
-    <img src="https://travis-ci.com/team-ocean/veros.svg?branch=master" alt="Build status">
+  <a href="https://github.com/team-ocean/veros/actions/workflows/test-all.yml">
+    <img src="https://github.com/team-ocean/veros/actions/workflows/test-all.yml/badge.svg" alt="Test status">
   </a>
   <a href="https://codecov.io/gh/team-ocean/veros">
     <img src="https://codecov.io/gh/team-ocean/veros/branch/master/graph/badge.svg" alt="Code Coverage">
@@ -17,26 +17,22 @@
   </a>
 </p>
 
-Veros, the *versatile ocean simulator*, is just that: A powerful tool
-that makes high-performance ocean modeling approachable and fun. Since
-it is a pure Python module, the days of struggling with complicated
+Veros is the *versatile ocean simulator* -- it aims to be a powerful tool
+that makes high-performance ocean modeling approachable and fun. Because
+Veros is a pure Python module, the days of struggling with complicated
 model setup workflows, ancient programming environments, and obscure
 legacy code are finally over.
 
-Veros supports both a NumPy backend for small-scale problems and a fully
-parallelized high-performance backend [powered by
-Bohrium](https://github.com/bh107/bohrium) using either OpenMP (CPU) or
-OpenCL (GPU), and runs on distributed architectures via MPI.
-
-A good starting point to gain an overview of Veros\' design,
-performance, and capabilities are [these slides of a talk on
-Veros](http://slides.com/dionhaefner/veros-ams) held during the 98th
-Annual Meeting of the American Meteorological Society.
+Veros supports a NumPy backend for small-scale problems and a
+high-performance [JAX](https://github.com/google/jax) backend
+with CPU and GPU support. It is fully parallelized via MPI and supports distributed execution.
 
 The underlying numerics are based on
-[pyOM2](https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2), an ocean model
-developed by Carsten Eden (Institut für Meereskunde, Hamburg
-University). Veros is currently being developed at Niels Bohr Institute,
+[pyOM2](https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2), a Fortran ocean model
+developed at Institut für Meereskunde, Hamburg
+University.
+
+Veros is currently being developed at Niels Bohr Institute,
 Copenhagen University.
 
 #### How about a demonstration?
@@ -67,7 +63,7 @@ Veros provides
     (written to netCDF output)
 -   **pre-configured idealized and realistic set-ups** that are ready to
     run and easy to adapt
--   **accessibility, readability, and extensibility** - thanks to the
+-   **accessibility and extensibility** - thanks to the
     power of Python!
 
 ## Veros for the impatient
@@ -76,22 +72,21 @@ A minimal example to install and run Veros:
 
 ```bash
 $ pip install veros
-$ veros copy-setup acc --to /tmp
-$ cd /tmp/acc
-$ python acc.py
+$ veros copy-setup acc --to /tmp/acc
+$ veros run /tmp/acc/acc.py
 ```
 
 For more detailed installation instructions, have a look at [our
-documentation](http://veros.readthedocs.io).
+documentation](https://veros.readthedocs.io).
 
 ## Basic usage
 
 To run Veros, you need to set up a model - i.e., specify which settings
 and model domain you want to use. This is done by subclassing the
-`Veros` base class in a *setup script* that is written in Python. You
-should  use the `veros copy-setup` command to copy one into your current
+`VerosSetup` base class in a *setup script* that is written in Python. You
+should use the `veros copy-setup` command to copy one into your current
 folder. A good place to start is the
-[ACC model](https://github.com/team-ocean/veros/blob/master/setup/acc/acc.py):
+[ACC model](https://github.com/team-ocean/veros/blob/master/veros/setups/acc/acc.py):
 
 ```bash
 $ veros copy-setup acc
@@ -99,10 +94,10 @@ $ veros copy-setup acc
 
 After setting up your model, all you need to do is call the `setup` and
 `run` methods on your setup class. The pre-implemented setups can all be
-executed as scripts, e.g. through
+executed via `veros run`:
 
 ```bash
-$ python acc.py
+$ veros run acc.py
 ```
 
 For more information on using Veros, have a look at [our
@@ -111,15 +106,15 @@ documentation](http://veros.readthedocs.io).
 ## Contributing
 
 Contributions to Veros are always welcome, no matter if you spotted an
-inaccuracy in [the documentation](http://veros.readthedocs.io), wrote a
-nice setup, fixed a bug, or even extended Veros\' core mechanics. There
-are two ways to contribute:
+inaccuracy in [the documentation](https://veros.readthedocs.io), wrote a
+new setup, fixed a bug, or even extended Veros\' core mechanics. There
+are 2 ways to contribute:
 
--   If you want to report a bug or request a missing feature, please
+1.  If you want to report a bug or request a missing feature, please
     [open an issue](https://github.com/team-ocean/veros/issues). If you
     are reporting a bug, make sure to include all relevant information
     for reproducing it (ideally through a *minimal* code sample).
--   If you want to fix the issue yourself, or wrote an extension for
+2.  If you want to fix the issue yourself, or wrote an extension for
     Veros - great! You are welcome to submit your code for review by
     committing it to a repository and opening a [pull
     request](https://github.com/team-ocean/veros/pulls). However,

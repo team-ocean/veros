@@ -1,8 +1,8 @@
 Publications
 ============
 
-Papers
-------
+Peer-reviewed articles
+----------------------
 
 - Lohmann, J., and Ditlevsen, P. D.: Risk of tipping the overturning circulation due to
   increasing rates of ice melt, PNAS, 118 (9), e2017989118,
@@ -15,6 +15,9 @@ Papers
 Talks
 -----
 
+- Higher-level geophysical modelling.
+  A talk held at the European Geosciences Union General Assembly 2021.
+  `Abstract <https://meetingorganizer.copernicus.org/EGU21/EGU21-2127.html>`__
 - Veros — A High-Performance Ocean Simulator Written in Pure Python.
   A talk held at the 98th Annual Meeting of the American Meteorological Society (AMS).
   `Abstract <https://ams.confex.com/ams/98Annual/webprogram/Paper324397.html>`__ and
@@ -26,13 +29,13 @@ Talks
 Theses
 ------
 
-- Till Grenzdörffer. (2020). Accelerating Ocean Modelling: Adressing performance bottlenecks of 
+- Till Grenzdörffer. (2020). Accelerating Ocean Modelling: Adressing performance bottlenecks of
   the ocean modelling framework Veros, MSc project, 16p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Till_Grenzdorffer_MSc_thesis.pdf>`__.
-- Franka Jesse. (2020). Verification of various Island Rules using simulations in application 
+- Franka Jesse. (2020). Verification of various Island Rules using simulations in application
   to the Indonesian Throughflow, BSc Thesis, 30p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Franka_Jesse_BSc_thesis.pdf>`__.
-- Denise Ruijsch. (2020). Multiple equilibria in the Eocene ocean circulation leading to the 
+- Denise Ruijsch. (2020). Multiple equilibria in the Eocene ocean circulation leading to the
   Eocene-Oligocene transition, BSc Thesis, 48p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Denise_Ruijsch_BSc_thesis.pdf>`__.
 - Marie Cecilie Boysen. (2020). Godfrey's Island Rule and the Indonesian Through Flow,

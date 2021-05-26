@@ -1,14 +1,12 @@
 # binary files
-*.cdf
 *.nc
 *.h5
-*.hdf5
 
 # documentation and profiler output
 *.html
 
 # benchmark output
-benchmark_*.yaml
+benchmark_*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -16,7 +14,10 @@ __pycache__/
 *$py.class
 
 # C extensions
+*.c
+*.cpp
 *.so
+*.dll
 
 # Distribution / packaging
 .Python

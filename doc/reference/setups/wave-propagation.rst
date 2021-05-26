@@ -1,4 +1,4 @@
 Wave propagation study
 ======================
 
-.. autoclass:: veros.setup.wave_propagation.WavePropagationSetup
+.. autoclass:: veros.setups.wave_propagation.WavePropagationSetup
