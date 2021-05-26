@@ -1,12 +1,16 @@
 import sys
 import re
 import time
+import platform
+
+import pytest
 
 
 class Dummy:
     pass
 
 
+@pytest.mark.xfail(platform.system() == "Darwin", reason="Flaky on OSX")
 def test_progress_format(capsys):
     from veros.logs import setup_logging
 

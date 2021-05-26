@@ -48,16 +48,10 @@ def test_settings_repr(dummy_settings):
 
 
 def test_variables_repr(dummy_variables):
-    from veros import runtime_settings
+    from veros.core.operators import numpy as npx
 
-    if runtime_settings.backend == "numpy":
-        array_type = "numpy.ndarray"
-    elif runtime_settings.backend == "jax":
-        array_type = "DeviceArray"
-    else:
-        assert False
-
-    assert f"tau = <class '{array_type}'> with shape (), dtype int64," in repr(dummy_variables)
+    array_type = type(npx.array([]))
+    assert f"tau = {array_type} with shape (), dtype int32," in repr(dummy_variables)
 
 
 def test_to_xarray(dummy_state):

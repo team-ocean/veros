@@ -53,8 +53,8 @@ class JAXSciPySolver(LinearSolver):
                 matmul,
                 rhs[2:-2, 2:-2] * self._rhs_scale,
                 x0=x0[2:-2, 2:-2],
-                tol=settings.congr_epsilon,
-                atol=0,
+                tol=0,
+                atol=settings.congr_epsilon,
                 maxiter=settings.congr_max_iterations,
             )
 

@@ -164,15 +164,15 @@ VARIABLES = {
         None,
         "",
         "Index of current time step",
-        dtype="int",
+        dtype="int32",
         initial=1,
         write_to_restart=True,
     ),
     "taup1": Variable(
-        "Index of next time step", None, "", "Index of next time step", dtype="int", initial=2, write_to_restart=True
+        "Index of next time step", None, "", "Index of next time step", dtype="int32", initial=2, write_to_restart=True
     ),
     "taum1": Variable(
-        "Index of last time step", None, "", "Index of last time step", dtype="int", initial=0, write_to_restart=True
+        "Index of last time step", None, "", "Index of last time step", dtype="int32", initial=0, write_to_restart=True
     ),
     "time": Variable(
         "Current time",
@@ -181,7 +181,7 @@ VARIABLES = {
         "Current time",
         write_to_restart=True,
     ),
-    "itt": Variable("Current iteration", None, "", "Current iteration", dtype="int", initial=0),
+    "itt": Variable("Current iteration", None, "", "Current iteration", dtype="int32", initial=0),
     # base variables
     "dxt": Variable("Zonal T-grid spacing", XT, "m", "Zonal (x) spacing of T-grid point", time_dependent=False),
     "dxu": Variable("Zonal U-grid spacing", XU, "m", "Zonal (x) spacing of U-grid point", time_dependent=False),
@@ -220,7 +220,7 @@ VARIABLES = {
         T_HOR,
         "",
         "Index of the deepest grid cell (counting from 1, 0 means all land)",
-        dtype="int",
+        dtype="int32",
         time_dependent=False,
     ),
     "ht": Variable("Total depth (T)", T_HOR, "m", "Total depth of the water column", time_dependent=False),

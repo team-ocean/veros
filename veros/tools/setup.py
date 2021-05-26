@@ -163,7 +163,7 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
             distances become when `spherical` is `True`. Defaults to the square root
             of the number of coastal cells.
         n_jobs (int): Number of parallel jobs to determine nearest neighbors
-            (defaults to -1, which uses all available threads).
+            (defaults to -1, which uses all available cores).
 
     Returns:
         :obj:`ndarray` of shape (nx, ny) indicating the distance to the nearest land
@@ -172,8 +172,8 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
     Example:
         The following returns coastal distances of all T cells for a spherical Veros setup.
 
-        >>> coords = npx.meshgrid(self.xt[2:-2], self.yt[2:-2], indexing='ij')
-        >>> dist = tools.get_coastline_distance(coords, self.kbot > 0, spherical=True, radius=self.radius)
+        >>> coords = npx.meshgrid(vs.xt[2:-2], vs.yt[2:-2], indexing='ij')
+        >>> dist = tools.get_coastline_distance(coords, vs.kbot > 0, spherical=True, radius=settings.radius)
 
     """
     if not len(coords) == 2:
@@ -205,12 +205,13 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
 
         if not num_candidates:
             num_candidates = int(onp.sqrt(onp.count_nonzero(~coast_mask)))
-        i_nearest = coast_kdtree.query(watercoords, k=num_candidates, workers=n_jobs)[1]
+
+        i_nearest = coast_kdtree.query(watercoords, k=num_candidates, n_jobs=n_jobs)[1]
         approx_nearest = coastcoords[i_nearest]
         distance[~coast_mask] = onp.min(spherical_distance(approx_nearest, watercoords[..., onp.newaxis, :]), axis=-1)
 
     else:
-        distance[~coast_mask] = coast_kdtree.query(watercoords, workers=n_jobs)[0]
+        distance[~coast_mask] = coast_kdtree.query(watercoords, n_jobs=n_jobs)[0]
 
     return npx.asarray(distance)
 
