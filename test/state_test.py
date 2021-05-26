@@ -123,13 +123,3 @@ def test_timers(dummy_state):
 
     timer = dummy_state.timers["foobar"]
     assert isinstance(timer, Timer)
-
-
-def test_tracing(dummy_settings):
-    with dummy_settings.trace() as recorded_trace:
-        dummy_settings.dt_tracer
-
-        # accesses everything, but it's not added to trace
-        repr(dummy_settings)
-
-    assert recorded_trace == ["dt_tracer"]

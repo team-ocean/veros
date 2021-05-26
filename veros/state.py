@@ -130,66 +130,7 @@ class Lockable:
         return super().__setattr__(key, val)
 
 
-class Traceable:
-    __fields__ = ()
-    __tracing_stack__ = ()
-
-    def __init__(self, fields, *args, **kwargs):
-        self.__tracing_stack__ = []
-        self.__fields__ = fields
-        super().__init__(*args, fields=fields, **kwargs)
-
-    @contextlib.contextmanager
-    def trace(self):
-        new_stacks = (set(), set())
-        self.__tracing_stack__.append(new_stacks)
-        self.__getattribute__ = self.__getattribute_trace__
-
-        try:
-            yield new_stacks
-        finally:
-            for i, s in enumerate(self.__tracing_stack__):
-                if s is new_stacks:
-                    break
-
-            del self.__tracing_stack__[i]
-
-            if not self.__tracing_stack__:
-                self.__getattribute__ = super().__getattribute__
-
-    @contextlib.contextmanager
-    def disable_trace(self):
-        orig_stack = self.__tracing_stack__
-        try:
-            self.__tracing_stack__ = []
-            yield
-        finally:
-            self.__tracing_stack__ = orig_stack
-
-    def __getattribute_trace__(self, attr):
-        orig_getattr = super().__getattribute__
-        if attr in orig_getattr("__fields__"):
-            for input_stack, _ in orig_getattr("__tracing_stack__"):
-                input_stack.add(attr)
-
-        return orig_getattr(attr)
-
-    def __setattr__(self, attr, val):
-        try:
-            super().__setattr__(attr, val)
-        except:  # noqa: E722
-            raise
-        else:
-            if attr in self.__fields__:
-                for _, output_stack in self.__tracing_stack__:
-                    output_stack.add(attr)
-
-    def __repr__(self):
-        with self.disable_trace():
-            return super().__repr__()
-
-
-class VerosSettings(Lockable, Traceable, StrictContainer):
+class VerosSettings(Lockable, StrictContainer):
     def __init__(self, settings_meta):
         self.__metadata__ = settings_meta
         super().__init__(fields=settings_meta.keys())
@@ -208,7 +149,7 @@ class VerosSettings(Lockable, Traceable, StrictContainer):
         return super().__setattr__(key, val)
 
 
-class VerosVariables(Lockable, Traceable, StrictContainer):
+class VerosVariables(Lockable, StrictContainer):
     """ """
 
     def __init__(self, var_meta, dimensions):
@@ -410,8 +351,7 @@ class VerosState:
         concrete_dimensions = {}
         for dim_name, dim_target in self._dimensions.items():
             if isinstance(dim_target, str):
-                with self._settings.disable_trace():
-                    dim_size = getattr(self._settings, dim_target)
+                dim_size = getattr(self._settings, dim_target)
             else:
                 dim_size = dim_target
 
@@ -490,7 +430,7 @@ def veros_state_pytree_flatten(state):
     aux_data = tuple((k, v) for k, v in vars(state).items() if k != "_variables")
 
     # ensure that functions are re-traced when settings change
-    with state.settings.unlock(), state.settings.disable_trace():
+    with state.settings.unlock():
         pseudo_hash = hash(tuple(state.settings.items()))
 
     return ([state.variables], (aux_data, pseudo_hash))
@@ -516,12 +456,9 @@ def veros_variables_pytree_flatten(variables):
         "__dimensions__",
         "__metadata__",
         "__fields__",
-        "__tracing_stack__",
         "__locked__",
     )
-    with variables.unlock(), variables.disable_trace():
-        leaves = list(variables.values())
-
+    leaves = list(variables.values())
     aux_data = (tuple(variables.fields()), tuple((attr, getattr(variables, attr)) for attr in aux_attrs))
     return (leaves, aux_data)
 
@@ -535,7 +472,7 @@ def veros_variables_pytree_unflatten(aux_data, leaves):
     for key, val in aux_attrs:
         setattr(variables, key, val)
 
-    with variables.unlock(), variables.disable_trace():
+    with variables.unlock():
         for key, val in zip(keys, leaves):
             setattr(variables, key, val)
 
@@ -547,12 +484,11 @@ def dist_safe_wrapper_pytree_flatten(variables):
         "__dimensions__",
         "__metadata__",
         "__fields__",
-        "__tracing_stack__",
         "__locked__",
         "__local_variables__",
         "__parent_state__",
     )
-    with variables.unlock(), variables.disable_trace():
+    with variables.unlock():
         leaves = [getattr(variables, attr) for attr in variables.__local_variables__]
 
     aux_data = (tuple(variables.__local_variables__), tuple((attr, getattr(variables, attr)) for attr in aux_attrs))
@@ -568,7 +504,7 @@ def dist_safe_wrapper_pytree_unflatten(aux_data, leaves):
     for key, val in aux_attrs:
         setattr(variables, key, val)
 
-    with variables.unlock(), variables.disable_trace():
+    with variables.unlock():
         for key, val in zip(keys, leaves):
             setattr(variables, key, val)
 

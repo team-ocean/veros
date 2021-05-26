@@ -51,20 +51,6 @@ CURRENT_CONTEXT.mpi4jax_token = None
 
 
 @contextmanager
-def record_routine_stack():
-    stack = CURRENT_CONTEXT.routine_stack
-    if not stack.keep_full_stack:
-        stack.keep_full_stack = True
-        reset = True
-
-    try:
-        yield stack._stack
-    finally:
-        if reset:
-            stack.keep_full_stack = False
-
-
-@contextmanager
 def nullcontext():
     yield
 
@@ -190,10 +176,6 @@ class VerosRoutine:
         self.state_argnum = state_argnum
         self.name = _get_func_name(self.function)
 
-        self._traced = False
-        self.inputs = None
-        self.outputs = None
-
     def __call__(self, *args, **kwargs):
         from veros import runtime_state as rst
         from veros.state import VerosState, DistSafeVariableWrapper
@@ -211,13 +193,6 @@ class VerosRoutine:
 
             if vars_initialized:
                 es.enter_context(veros_state.variables.unlock())
-
-            if vars_initialized and not self._traced:
-                inputs = {}
-                outputs = {}
-
-                inputs["var"], outputs["var"] = es.enter_context(veros_state.variables.trace())
-                inputs["settings"], outputs["settings"] = es.enter_context(veros_state.settings.trace())
 
             execute = True
             restore_vars = False
@@ -250,11 +225,6 @@ class VerosRoutine:
             logger.warning(
                 f"Routine {self.name} returned object of type {type(out)}. Return objects are silently dropped."
             )
-
-        if vars_initialized and not self._traced:
-            self.inputs = inputs
-            self.outputs = outputs
-            self._traced = True
 
     def __get__(self, instance, _):
         return functools.partial(self.__call__, instance)
@@ -334,10 +304,6 @@ class VerosKernel:
 
         self.function = function
 
-        self._traced = False
-        self.inputs = None
-        self.outputs = None
-
     def __call__(self, *args, **kwargs):
         from veros import runtime_settings, runtime_state
         from veros.core.operators import flush
@@ -394,24 +360,7 @@ class VerosKernel:
 
         with ExitStack() as es:
             if called_with_state:
-                var, settings = veros_state.variables, veros_state.settings
-                es.enter_context(var.unlock())
-
-                if self._traced:
-                    # hack to ensure that tracing callbacks are executed
-                    # for already traced functions
-                    for v in self.inputs["var"]:
-                        getattr(var, v)
-
-                    for s in self.inputs["settings"]:
-                        getattr(settings, s)
-                else:
-                    inputs = {}
-                    inputs["var"], _ = es.enter_context(var.trace())
-                    inputs["settings"], _ = es.enter_context(settings.trace())
-            else:
-                # no state object -> no traceable inputs
-                inputs = dict(var=set(), settings=set())
+                es.enter_context(veros_state.variables.unlock())
 
             args = list(bound_args.arguments.values())
 
@@ -427,11 +376,6 @@ class VerosKernel:
             if inject_tokens:
                 out, token = out
                 CURRENT_CONTEXT.mpi4jax_token = token
-
-        if not self._traced:
-            self.inputs = inputs
-            self.outputs = dict(var=set(), settings=set())
-            self._traced = True
 
         return out
 

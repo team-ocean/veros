@@ -4,7 +4,7 @@ import abc
 from veros import settings, time, signals, distributed, progress, runtime_settings as rs, logger
 from veros.state import get_default_state
 from veros.plugins import load_plugin
-from veros.routines import veros_routine, record_routine_stack, is_veros_routine
+from veros.routines import veros_routine, is_veros_routine
 
 
 class VerosSetup(metaclass=abc.ABCMeta):
@@ -40,8 +40,6 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         self._plugin_interfaces = tuple(load_plugin(p) for p in self.__veros_plugins__)
         self._setup_done = False
-        self._routine_stack = None
-        self._setup_routine_stack = None
 
         self.state = get_default_state(use_plugins=self.__veros_plugins__)
 
@@ -207,7 +205,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
             for diagnostic in plugin.diagnostics:
                 self.state.diagnostics[diagnostic.name] = diagnostic()
 
-        with self.state.timers["setup"], record_routine_stack() as recorded_stack:
+        with self.state.timers["setup"]:
             self.set_grid(self.state)
             numerics.calc_grid(self.state)
 
@@ -232,7 +230,6 @@ class VerosSetup(metaclass=abc.ABCMeta):
             isoneutral.check_isoneutral_slope_crit(self.state)
 
         self._setup_done = True
-        self._setup_routine_stack = recorded_stack
 
     @veros_routine
     def step(self, state):
@@ -345,20 +342,11 @@ class VerosSetup(metaclass=abc.ABCMeta):
         start_time = vs.time
 
         pbar = progress.get_progress_bar(self.state, use_tqdm=show_progress_bar)
-        first_iteration = True
 
         try:
             with signals.signals_to_exception(), pbar:
                 while vs.time - start_time < settings.runlen:
-                    if first_iteration:
-                        with record_routine_stack() as recorded_stack:
-                            self.step(self.state)
-                            self._routine_stack = recorded_stack
-
-                        first_iteration = False
-                    else:
-                        self.step(self.state)
-
+                    self.step(self.state)
                     pbar.advance_time(settings.dt_tracer)
 
         except:  # noqa: E722
