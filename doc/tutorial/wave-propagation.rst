@@ -59,9 +59,7 @@ first.
 Step 1: Setup grid
 ------------------
 
-.. warning::
 
-    When using a non-uniform grid,
 
 Step 2: Create idealized topography
 -----------------------------------

@@ -4,16 +4,13 @@ A short introduction to Veros
 The vision
 ----------
 
-Veros is an adaptation of `pyOM2 <https://wiki.zmaw.de/ifm/TO/pyOM2>`_ (v2.1.0), developed by Carsten Eden (Institut für Meereskunde, Hamburg University). In contrast to pyOM2, however, this implementation does not rely on a Fortran backend for computations - everything runs in pure Python, down to the last parameterization. We believe that using this approach it is possible to create an open source ocean model that is:
+Veros is an adaptation of `pyOM2 <https://wiki.zmaw.de/ifm/TO/pyOM2>`_ (v2.1.0), developed at Institut für Meereskunde, Hamburg University. In contrast to pyOM2, however, this implementation does not rely on a Fortran backend for computations - everything runs in pure Python, down to the last parameterization. We believe that using this approach it is possible to create an open source ocean model that is:
 
 1. **Easy to access**: Python modules are simple to install, and projects like `Anaconda <https://www.continuum.io/anaconda-overview>`_ are doing a great job in creating platform-independent environments.
 2. **Easy to use**: Anyone with some experience can use their favorite Python tools to set up, control, and post-process Veros.
-3. **Easy to verify**: Python code tends to be concise and easy to read, even for people with little practical programming experience. This enables a wide range of people to spot errors in our code, solidifying it in the process.
-4. **Easy to modify**: Due to the popularity of Python, its dynamic code structure, and :abbr:`OOP (object-oriented programming)`-capabilities, Veros can be extended and modified with minimal effort.
+3. **Easy to modify**: Due to Python's popularity, available abstractions, and dynamic nature, Veros can be extended and modified with relatively little effort.
 
-However, using Python over a compiled language like Fortran usually comes at a high computational cost. We try to overcome this gap for large models by providing an interface to `Bohrium <https://github.com/bh107/bohrium>`_, a framework that acts as a high-performance replacement for NumPy. Bohrium takes care of all parallelism in the background for us, so we can concentrate on writing a nice, readable ocean model.
-
-In case you are curious about how Veros is currently stacking up against pyOM2 in terms of performance, you should check out :doc:`our benchmarks </more/benchmarks>`.
+However, choosing Python over a compiled language like Fortran usually comes at a high computational cost. We overcome this gap by using `JAX <https://github.com/google/jax>`_, a framework that can act as a high-performance replacement for NumPy. JAX takes care of all performance optimizations in the background, and runs on both CPUs and GPUs.
 
 Features
 --------
@@ -88,15 +85,15 @@ Veros supports a wide range of model configurations. Several setups are already 
 Current limitations
 +++++++++++++++++++
 
-Veros is still in early development. There are several open issues that we would like to fix later on:
+Veros is still in development. There are many open issues that we would like to fix later on:
 
 **Physics**:
  - Veros does not yet implement any of the more recent pyOM2.2 features such as the ROSSMIX parameterization, IDEMIX v3.0, open boundary conditions, or cyclic meridional boundaries. It neither implements all of pyOM2.1's features - missing are e.g. the non-hydrostatic solver, IDEMIX v2.0, and the surface pressure solver.
- - Since the grid is required to be rectilinear, there is currently no natural way to handle the singularity at the North Pole. The northern and southern boundaries of the domain are thus always "walls".
+ - Since the grid is required to be rectilinear, there is currently no natural way to handle the singularity at the North Pole. The northern and southern boundaries of the domain are always "walls".
  - There is currently no ice sheet model in Veros. Some realistic setups employ a simple ice mask that cut off atmospheric forcing for water that gets too cold instead.
 
 **Technical issues**:
- - For the time being, Veros' dynamical core is still more or less a direct port of PyOM2. This means that numerics and physics are still tightly coupled, which makes for a far from optimal user experience. In a future version of Veros, we would like to introduce additional abstraction to make the core routines a lot more readable than they are now.
+ - For the time being, Veros' dynamical core is still more or less a direct port of pyOM2. This means that numerics and physics are still tightly coupled, which makes for a far from optimal user experience. In a future version of Veros, we would like to introduce additional abstraction to make the core routines a lot more readable than they are now.
 
 References
 ++++++++++

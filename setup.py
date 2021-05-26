@@ -18,13 +18,14 @@ import cuda_ext  # noqa: E402
 
 
 CLASSIFIERS = """
-Development Status :: 3 - Alpha
+Development Status :: 4 - Beta
 Intended Audience :: Science/Research
 License :: OSI Approved :: MIT License
 Programming Language :: Python :: 3
 Programming Language :: Python :: 3.6
 Programming Language :: Python :: 3.7
 Programming Language :: Python :: 3.8
+Programming Language :: Python :: 3.9
 Programming Language :: Python :: Implementation :: CPython
 Topic :: Scientific/Engineering
 Operating System :: Microsoft :: Windows
@@ -38,7 +39,7 @@ MINIMUM_VERSIONS = {
     "requests": "2.18",
 }
 
-EXTRAS_REQUIRE = {"test": ["pytest", "pytest-cov", "pytest-forked", "codecov", "petsc4py", "mpi4py"]}
+EXTRAS_REQUIRE = {"test": ["pytest", "pytest-cov", "pytest-forked", "codecov", "petsc4py", "mpi4py", "xarray"]}
 
 CONSOLE_SCRIPTS = [
     "veros = veros.cli.veros:cli",
@@ -113,7 +114,7 @@ setup(
     license="MIT",
     author="Dion Häfner (NBI Copenhagen)",
     author_email="dion.haefner@nbi.ku.dk",
-    keywords="oceanography python parallel numpy multi-core " "geophysics ocean-model mpi4py jax",
+    keywords="oceanography python parallel numpy multi-core geophysics ocean-model mpi4py jax",
     description="The versatile ocean simulator, in pure Python, powered by JAX.",
     long_description=long_description,
     long_description_content_type="text/markdown",

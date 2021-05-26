@@ -1,6 +1,4 @@
 [run]
-concurrency = multiprocessing
-parallel = true
 branch = True
 source_pkgs =
     veros
