@@ -1,4 +1,4 @@
-from veros import distributed, veros_routine, runtime_state as rst
+from veros import distributed, veros_routine, veros_kernel, runtime_state as rst
 from veros.variables import allocate
 
 from veros.core import utilities
@@ -12,7 +12,6 @@ class JAXSciPySolver(LinearSolver):
         dist_safe=False,
     )
     def __init__(self, state):
-        import jax
         from jax.scipy.sparse.linalg import bicgstab
 
         settings = state.settings
@@ -21,7 +20,7 @@ class JAXSciPySolver(LinearSolver):
         jacobi_precon = self._jacobi_preconditioner(state, matrix_diags)
         matrix_diags = tuple(jacobi_precon * diag for diag in matrix_diags)
 
-        @jax.jit
+        @veros_kernel
         def solve(rhs, x0, boundary_mask, boundary_val):
             x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x, local=True)
             rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
