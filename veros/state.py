@@ -93,14 +93,18 @@ class StrictContainer:
 
     def __repr__(self):
         attr_str = []
+
         for key, val in self.items():
             # poor-man's check for array-compatible types
             if hasattr(val, "shape") and hasattr(val, "dtype"):
                 val_repr = f"{type(val)} with shape {val.shape}, dtype {val.dtype}"
             else:
                 val_repr = repr(val)
+
             attr_str.append(f"    {key} = {val_repr}")
+
         attr_str = ",\n".join(attr_str)
+
         return f"{self.__class__.__qualname__}(\n{attr_str}\n)"
 
 
@@ -112,15 +116,6 @@ class Lockable:
         lock_state = self.__locked__
         try:
             self.__locked__ = False
-            yield
-        finally:
-            self.__locked__ = lock_state
-
-    @contextlib.contextmanager
-    def lock(self):
-        lock_state = self.__locked__
-        try:
-            self.__locked__ = True
             yield
         finally:
             self.__locked__ = lock_state
@@ -244,7 +239,7 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
 
         if not var.active:
             raise RuntimeError(
-                f"Variable {attr} is not active in this configuration. " "Check your settings and try again."
+                f"Variable {attr} is not active in this configuration. Check your settings and try again."
             )
 
         return orig_getattr(attr)
@@ -258,7 +253,7 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
         # check whether variable is active
         if not var.active:
             raise RuntimeError(
-                f"Variable {key} is not active in this configuration. " "Check your settings and try again."
+                f"Variable {key} is not active in this configuration. Check your settings and try again."
             )
 
         # validate array type, shape and dtype
@@ -271,9 +266,7 @@ class VerosVariables(Lockable, Traceable, StrictContainer):
 
         expected_shape = self._get_expected_shape(var.dims)
         if val.shape != expected_shape:
-            raise ValueError(
-                f"Got unexpected shape for variable {key} " f"(expected: {expected_shape}, got: {val.shape})"
-            )
+            raise ValueError(f"Got unexpected shape for variable {key} (expected: {expected_shape}, got: {val.shape})")
 
         return super().__setattr__(key, val)
 
@@ -296,7 +289,8 @@ class DistSafeVariableWrapper(VerosVariables):
         orig_getattr = super().__getattribute__
         if attr in orig_getattr("__metadata__") and attr not in orig_getattr("__local_variables__"):
             raise RuntimeError(
-                f"Cannot access variable {attr} because it was not collected. Consider adding it to the local_variables argument of @veros_routine."
+                f"Cannot access variable {attr} because it was not collected. "
+                "Consider adding it to the local_variables argument of @veros_routine."
             )
 
         return orig_getattr(attr)
@@ -307,7 +301,8 @@ class DistSafeVariableWrapper(VerosVariables):
 
         if attr in self.__metadata__ and attr not in self.__local_variables__:
             raise RuntimeError(
-                f"Cannot access variable {attr} because it was not collected. Consider adding it to the local_variables argument of @veros_routine."
+                f"Cannot access variable {attr} because it was not collected. "
+                "Consider adding it to the local_variables argument of @veros_routine."
             )
 
         return super().__setattr__(attr, val)
@@ -378,16 +373,19 @@ class VerosState:
         from textwrap import indent
 
         attr_str = []
+
         for attr in ("settings", "dimensions", "variables", "diagnostics", "plugin_interfaces"):
             # indent all lines of attr repr except the first
             attr_val = indent(repr(getattr(self, f"_{attr}")), " " * 4)[4:]
             attr_str.append(f"    {attr} = {attr_val}")
+
         attr_str = ",\n".join(attr_str)
+
         return f"{self.__class__.__qualname__}(\n{attr_str}\n)"
 
     def initialize_variables(self):
         if self._variables is not None:
-            raise RuntimeError("Variables already initialized")
+            raise RuntimeError("Variables are already initialized.")
 
         self._var_meta = var_mod.manifest_metadata(self._var_meta, self._settings)
         self._variables = VerosVariables(self._var_meta, self.dimensions)
@@ -400,6 +398,7 @@ class VerosState:
     def variables(self):
         if self._variables is None:
             raise RuntimeError("Variables have not been initialized yet.")
+
         return self._variables
 
     @property
@@ -416,14 +415,7 @@ class VerosState:
             else:
                 dim_size = dim_target
 
-            try:
-                dim_size = int(dim_size)
-            except TypeError:
-                raise RuntimeError(
-                    f"Dimension {dim_name} is not known yet. Please set the {dim_target} setting and try again."
-                )
-
-            concrete_dimensions[dim_name] = dim_size
+            concrete_dimensions[dim_name] = int(dim_size)
 
         return concrete_dimensions
 

@@ -1,6 +1,7 @@
 import os
 import numpy as np
 
+from veros import veros_routine
 from veros.setups.acc import ACCSetup
 
 
@@ -15,6 +16,14 @@ def _normalize(*arrays):
     return (a / norm for a in arrays)
 
 
+class RestartSetup(ACCSetup):
+    @veros_routine
+    def set_diagnostics(self, state):
+        for diag in state.diagnostics.values():
+            diag.sampling_frequency = state.settings.dt_tracer
+            diag.output_frequency = float("inf")
+
+
 def test_restart(tmpdir):
     os.chdir(tmpdir)
 
@@ -24,7 +33,7 @@ def test_restart(tmpdir):
     dt_tracer = 86_400 / 2
     restart_file = "restart.h5"
 
-    acc_no_restart = ACCSetup(
+    acc_no_restart = RestartSetup(
         override=dict(
             identifier="ACC_no_restart",
             restart_input_filename=None,
@@ -36,7 +45,7 @@ def test_restart(tmpdir):
     acc_no_restart.setup()
     acc_no_restart.run()
 
-    acc_restart = ACCSetup(
+    acc_restart = RestartSetup(
         override=dict(
             identifier="ACC_restart",
             restart_input_filename=restart_file,

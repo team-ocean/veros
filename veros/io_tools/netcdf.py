@@ -101,7 +101,7 @@ def write_variable(state, key, var, var_data, ncfile, time_step=-1):
     gridmask = var.get_mask(state.variables)
     if gridmask is not None:
         newaxes = (slice(None),) * gridmask.ndim + (np.newaxis,) * (var_data.ndim - gridmask.ndim)
-        var_data = np.where(gridmask.astype(np.bool)[newaxes], var_data, variables.FILL_VALUE)
+        var_data = np.where(gridmask.astype("bool")[newaxes], var_data, variables.FILL_VALUE)
 
     if var.dims:
         tmask = tuple(state.variables.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)

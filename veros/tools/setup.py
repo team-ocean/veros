@@ -205,12 +205,12 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
 
         if not num_candidates:
             num_candidates = int(onp.sqrt(onp.count_nonzero(~coast_mask)))
-        i_nearest = coast_kdtree.query(watercoords, k=num_candidates, n_jobs=n_jobs)[1]
+        i_nearest = coast_kdtree.query(watercoords, k=num_candidates, workers=n_jobs)[1]
         approx_nearest = coastcoords[i_nearest]
         distance[~coast_mask] = onp.min(spherical_distance(approx_nearest, watercoords[..., onp.newaxis, :]), axis=-1)
 
     else:
-        distance[~coast_mask] = coast_kdtree.query(watercoords, n_jobs=n_jobs)[0]
+        distance[~coast_mask] = coast_kdtree.query(watercoords, workers=n_jobs)[0]
 
     return npx.asarray(distance)
 

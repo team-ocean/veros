@@ -22,11 +22,10 @@ class Averages(VerosDiagnostic):
         self.var_meta = {
             "average_nitts": Variable("average_nitts", None, write_to_restart=True),
         }
+        self.output_variables = []
 
     def initialize(self, state):
         """Register all variables to be averaged"""
-        if not self.output_variables:
-            return
 
         for var in self.output_variables:
             var_meta = copy.copy(state.var_meta[var])
