@@ -35,15 +35,16 @@ BENCHMARK_COMMANDS = {
     + STATIC_SETTINGS,
 }
 SLURM_COMMANDS = {
-    "numpy": "srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b numpy" + STATIC_SETTINGS,
-    "numpy-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} -b numpy --nproc {decomp}"
+    "numpy": "{mpiexec} --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b numpy" + STATIC_SETTINGS,
+    "numpy-mpi": "{mpiexec} --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} -b numpy --nproc {decomp}"
     + STATIC_SETTINGS,
-    "jax": "srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b jax" + STATIC_SETTINGS,
-    "jax-gpu": "srun --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b jax --device gpu" + STATIC_SETTINGS,
-    "jax-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} -b jax --nproc {decomp}"
+    "jax": "{mpiexec} --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b jax" + STATIC_SETTINGS,
+    "jax-gpu": "{mpiexec} --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b jax --device gpu"
     + STATIC_SETTINGS,
-    "fortran": "srun --ntasks 1 -- {python} {filename} --pyom2-lib {pyom2_lib}" + STATIC_SETTINGS,
-    "fortran-mpi": "srun --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} --pyom2-lib {pyom2_lib} --nproc {decomp}"
+    "jax-mpi": "{mpiexec} --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} -b jax --nproc {decomp}"
+    + STATIC_SETTINGS,
+    "fortran": "{mpiexec} --ntasks 1 -- {python} {filename} --pyom2-lib {pyom2_lib}" + STATIC_SETTINGS,
+    "fortran-mpi": "{mpiexec} --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} --pyom2-lib {pyom2_lib} --nproc {decomp}"
     + STATIC_SETTINGS,
 }
 
@@ -159,7 +160,7 @@ def _round_to_multiple(num, divisor):
     required=False,
     metavar="BENCHMARK",
 )
-@click.option("--mpiexec", default="mpiexec", help="Executable used for calling MPI (e.g. mpirun, mpiexec)")
+@click.option("--mpiexec", default=None, help="Executable used for calling MPI (e.g. mpirun, mpiexec)")
 @click.option("--slurm", is_flag=True, help="Run benchmarks using SLURM scheduling command (srun)")
 @click.option("--debug", is_flag=True, help="Additionally print each command that is executed")
 @click.option("--float-type", default="float64", help="Data type for floating point arrays in Veros components")
@@ -198,6 +199,12 @@ def run(**kwargs):
                         "nz": nz,
                     }
                 )
+
+                if cmd_args["mpiexec"] is None:
+                    if kwargs["slurm"]:
+                        cmd_args["mpiexec"] = "srun"
+                    else:
+                        cmd_args["mpiexec"] = "mpirun"
 
                 for comp in kwargs["components"]:
                     cmd = (SLURM_COMMANDS[comp] if kwargs["slurm"] else BENCHMARK_COMMANDS[comp]).format(**cmd_args)
