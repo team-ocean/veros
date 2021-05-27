@@ -6,6 +6,29 @@ from veros.core.operators import update, update_add, at, numpy as npx
 from veros.core.streamfunction.solvers.base import LinearSolver
 
 
+@veros_kernel(static_args=("solve_fun",))
+def solve_kernel(state, rhs, x0, boundary_val, solve_fun):
+    vs = state.variables
+
+    rhs_global = distributed.gather(rhs, state.dimensions, ("xt", "yt"))
+    x0_global = distributed.gather(x0, state.dimensions, ("xt", "yt"))
+
+    boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
+    boundary_mask_global = distributed.gather(boundary_mask, state.dimensions, ("xt", "yt"))
+
+    if boundary_val is None:
+        boundary_val = x0_global
+    else:
+        boundary_val = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
+
+    if rst.proc_rank == 0:
+        linear_solution = solve_fun(rhs_global, x0_global, boundary_mask_global, boundary_val)
+    else:
+        linear_solution = npx.empty_like(rhs)
+
+    return distributed.scatter(linear_solution, state.dimensions, ("xt", "yt"))
+
+
 class JAXSciPySolver(LinearSolver):
     @veros_routine(
         local_variables=("hvr", "hur", "dxu", "dxt", "dyu", "dyt", "cosu", "cost", "boundary_mask"),
@@ -21,7 +44,7 @@ class JAXSciPySolver(LinearSolver):
         matrix_diags = tuple(jacobi_precon * diag for diag in matrix_diags)
 
         @veros_kernel
-        def solve(rhs, x0, boundary_mask, boundary_val):
+        def linear_solve(rhs, x0, boundary_mask, boundary_val):
             x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x, local=True)
             rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
@@ -60,7 +83,7 @@ class JAXSciPySolver(LinearSolver):
 
             return update(rhs, at[2:-2, 2:-2], linear_solution)
 
-        self._solve = solve
+        self._linear_solve = linear_solve
         self._rhs_scale = jacobi_precon
 
     def solve(self, state, rhs, x0, boundary_val=None):
@@ -74,25 +97,12 @@ class JAXSciPySolver(LinearSolver):
             boundary_val: Array containing values to set on boundary elements. Defaults to `x0`.
 
         """
-        vs = state.variables
-
-        rhs_global = distributed.gather(rhs, state.dimensions, ("xt", "yt"))
-        x0_global = distributed.gather(x0, state.dimensions, ("xt", "yt"))
-
-        boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
-        boundary_mask_global = distributed.gather(boundary_mask, state.dimensions, ("xt", "yt"))
-
-        if boundary_val is None:
-            boundary_val = x0_global
-        else:
-            boundary_val = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
-
         if rst.proc_rank == 0:
-            linear_solution = self._solve(rhs_global, x0_global, boundary_mask_global, boundary_val)
+            linear_solve = self._linear_solve
         else:
-            linear_solution = npx.empty_like(rhs)
+            linear_solve = None
 
-        return distributed.scatter(linear_solution, state.dimensions, ("xt", "yt"))
+        return solve_kernel(state, rhs, x0, boundary_val, linear_solve)
 
     @staticmethod
     def _jacobi_preconditioner(state, matrix_diags):

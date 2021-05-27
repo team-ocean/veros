@@ -2,8 +2,7 @@ import numpy as onp
 import scipy.sparse
 import scipy.sparse.linalg as spalg
 
-from veros import logger
-from veros import distributed, veros_routine, runtime_state as rst
+from veros import logger, veros_kernel, veros_routine, distributed, runtime_state as rst
 from veros.variables import allocate
 from veros.core import utilities
 from veros.core.operators import update, at, numpy as npx
@@ -63,18 +62,7 @@ class SciPySolver(LinearSolver):
             boundary_val: Array containing values to set on boundary elements. Defaults to `x0`.
 
         """
-        vs = state.variables
-
-        rhs_global = distributed.gather(rhs, state.dimensions, ("xt", "yt"))
-        x0_global = distributed.gather(x0, state.dimensions, ("xt", "yt"))
-
-        boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
-        boundary_mask_global = distributed.gather(boundary_mask, state.dimensions, ("xt", "yt"))
-
-        if boundary_val is None:
-            boundary_val = x0_global
-        else:
-            boundary_val = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
+        rhs_global, x0_global, boundary_mask_global, boundary_val = gather_variables(state, rhs, x0, boundary_val)
 
         if rst.proc_rank == 0:
             linear_solution = self._scipy_solver(
@@ -83,7 +71,7 @@ class SciPySolver(LinearSolver):
         else:
             linear_solution = npx.empty_like(rhs)
 
-        return distributed.scatter(linear_solution, state.dimensions, ("xt", "yt"))
+        return scatter_variables(state, linear_solution)
 
     @staticmethod
     def _jacobi_preconditioner(state, matrix):
@@ -201,3 +189,25 @@ class SciPySolver(LinearSolver):
 
         cf = onp.asarray(cf)
         return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()
+
+
+@veros_kernel
+def gather_variables(state, rhs, x0, boundary_val):
+    vs = state.variables
+    rhs_global = distributed.gather(rhs, state.dimensions, ("xt", "yt"))
+    x0_global = distributed.gather(x0, state.dimensions, ("xt", "yt"))
+
+    boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
+    boundary_mask_global = distributed.gather(boundary_mask, state.dimensions, ("xt", "yt"))
+
+    if boundary_val is None:
+        boundary_val = x0_global
+    else:
+        boundary_val = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
+
+    return rhs_global, x0_global, boundary_mask_global, boundary_val
+
+
+@veros_kernel
+def scatter_variables(state, linear_solution):
+    return distributed.scatter(linear_solution, state.dimensions, ("xt", "yt"))
