@@ -7,22 +7,23 @@ from veros.distributed import get_chunk_slices, exchange_overlap
 from veros.variables import get_shape
 
 
-def read_from_h5(dimensions, var_meta, infile, groupname):
+def read_from_h5(dimensions, var_meta, infile, groupname, enable_cyclic_x):
     from veros.core.operators import numpy as npx, update, at
 
     variables = {}
 
     for key, var in infile[groupname].items():
-        if npx.isscalar(var):
-            variables[key] = var
+        if not var_meta[key].dims:
+            variables[key] = npx.array(var)
             continue
 
         local_shape = get_shape(dimensions, var_meta[key].dims, local=True, include_ghosts=True)
         gidx, lidx = get_chunk_slices(dimensions["xt"], dimensions["yt"], var_meta[key].dims, include_overlap=True)
 
-        variables[key] = npx.empty(local_shape, dtype=var.dtype)
+        # pass dtype as str to prevent endianness from leaking into array
+        variables[key] = npx.empty(local_shape, dtype=str(var.dtype))
         variables[key] = update(variables[key], at[lidx], var[gidx])
-        variables[key] = exchange_overlap(variables[key], var_meta[key].dims)
+        variables[key] = exchange_overlap(variables[key], var_meta[key].dims, enable_cyclic_x)
 
     attributes = {key: var.item() for key, var in infile[groupname].attrs.items()}
 
@@ -88,7 +89,7 @@ def read_restart(state):
     with h5tools.threaded_io(restart_filename, "r") as infile, state.variables.unlock():
         # core restart
         restart_vars = {var: meta for var, meta in state.var_meta.items() if meta.write_to_restart and meta.active}
-        _, restart_data = read_from_h5(state.dimensions, restart_vars, infile, "core")
+        _, restart_data = read_from_h5(state.dimensions, restart_vars, infile, "core", settings.enable_cyclic_x)
 
         for key in restart_vars.keys():
             try:
@@ -111,7 +112,7 @@ def read_restart(state):
             restart_vars = {
                 var: meta for var, meta in diagnostic.var_meta.items() if meta.write_to_restart and meta.active
             }
-            _, restart_data = read_from_h5(dimensions, restart_vars, infile, diag_name)
+            _, restart_data = read_from_h5(dimensions, restart_vars, infile, diag_name, settings.enable_cyclic_x)
 
             for key in restart_vars.keys():
                 try:
