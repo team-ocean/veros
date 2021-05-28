@@ -24,15 +24,15 @@ We run the same model code with all Veros backends (``numpy``, ``numpy-mpi``, ``
    :align: center
 
 
-As a rule of thumb, we find that JAX is about as fast as Fortran on CPU, with NumPy being about 4x slower. GPUs are a competitive alternative to CPUs, as long as the problems fit into GPU memory.
+As a rule of thumb, we find that JAX is about as fast as Fortran on CPU, with NumPy being about 4x slower. GPUs are a competitive alternative to CPUs, as long as the problem fits into GPU memory.
 
 
 Varying number of MPI processes
 -------------------------------
 
-In this benchmark, Veros and PyOM2 run for a fixed problem size, but varying number of processes. This allows us to check how both libraries scale with increased CPU count. The problem size corresponds to :doc:`1 degree global resolution </reference/setups/1deg>`.
+In this benchmark, Veros and PyOM2 run for a fixed problem size, but varying number of processes. This allows us to check how both models scale with increased CPU count. The problem size corresponds to :doc:`1 degree global resolution </reference/setups/1deg>`.
 
-It is executed on the `DC³ <https://www.nbi.ku.dk/english/research/pice/dc3/>`__ cluster (Danish Center for Climate Computing). Each cluster nodes contains 16 CPUs.
+It is executed on the `DC³ <https://www.nbi.ku.dk/english/research/pice/dc3/>`__ cluster. Each cluster node contains 16 CPUs.
 
 .. figure:: /_images/benchmarks/acc_scaling_nproc.png
    :width: 500px
