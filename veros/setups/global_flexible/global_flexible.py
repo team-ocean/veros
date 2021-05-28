@@ -109,7 +109,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
             tauy=Variable("tauy", ("xt", "yt", nmonths), "", "", time_dependent=False),
         )
 
-    def _get_data(self, vs, var, idx=None):
+    def _get_data(self, var, idx=None):
         if idx is None:
             idx = Ellipsis
         else:
@@ -216,7 +216,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         efold2_shortwave = 23.0
 
         t_grid = (vs.xt[2:-2], vs.yt[2:-2], vs.zt)
-        xt_forc, yt_forc, zt_forc = (self._get_data(vs, k) for k in ("xt", "yt", "zt"))
+        xt_forc, yt_forc, zt_forc = (self._get_data(k) for k in ("xt", "yt", "zt"))
         zt_forc = zt_forc[::-1]
 
         # coordinates must be monotonous for this to work
@@ -240,21 +240,21 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         yt_forc = yt_forc[data_subset[1]]
 
         # initial conditions
-        temp_raw = self._get_data(vs, "temperature", idx=data_subset)[..., ::-1]
+        temp_raw = self._get_data("temperature", idx=data_subset)[..., ::-1]
         temp_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), temp_raw, t_grid)
         vs.temp = update(vs.temp, at[2:-2, 2:-2, :, :], (temp_data * vs.maskT[2:-2, 2:-2, :])[..., npx.newaxis])
 
-        salt_raw = self._get_data(vs, "salinity", idx=data_subset)[..., ::-1]
+        salt_raw = self._get_data("salinity", idx=data_subset)[..., ::-1]
         salt_data = veros.tools.interpolate((xt_forc, yt_forc, zt_forc), salt_raw, t_grid)
         vs.salt = update(vs.salt, at[2:-2, 2:-2, :, :], (salt_data * vs.maskT[2:-2, 2:-2, :])[..., npx.newaxis])
 
         # wind stress on MIT grid
         time_grid = (vs.xt[2:-2], vs.yt[2:-2], npx.arange(12))
-        taux_raw = self._get_data(vs, "tau_x", idx=data_subset)
+        taux_raw = self._get_data("tau_x", idx=data_subset)
         taux_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)), taux_raw, time_grid)
         vs.taux = update(vs.taux, at[2:-2, 2:-2, :], taux_data)
 
-        tauy_raw = self._get_data(vs, "tau_y", idx=data_subset)
+        tauy_raw = self._get_data("tau_y", idx=data_subset)
         tauy_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)), tauy_raw, time_grid)
         vs.tauy = update(vs.tauy, at[2:-2, 2:-2, :], tauy_data)
 
@@ -262,29 +262,29 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.tauy = enforce_boundaries(vs.tauy, settings.enable_cyclic_x)
 
         # Qnet and dQ/dT and Qsol
-        qnet_raw = self._get_data(vs, "q_net", idx=data_subset)
+        qnet_raw = self._get_data("q_net", idx=data_subset)
         qnet_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)), qnet_raw, time_grid)
         vs.qnet = update(vs.qnet, at[2:-2, 2:-2, :], -qnet_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
-        qnec_raw = self._get_data(vs, "dqdt", idx=data_subset)
+        qnec_raw = self._get_data("dqdt", idx=data_subset)
         qnec_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)), qnec_raw, time_grid)
         vs.qnec = update(vs.qnec, at[2:-2, 2:-2, :], qnec_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
-        qsol_raw = self._get_data(vs, "swf", idx=data_subset)
+        qsol_raw = self._get_data("swf", idx=data_subset)
         qsol_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)), qsol_raw, time_grid)
         vs.qsol = update(vs.qsol, at[2:-2, 2:-2, :], -qsol_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
         # SST and SSS
-        sst_raw = self._get_data(vs, "sst", idx=data_subset)
+        sst_raw = self._get_data("sst", idx=data_subset)
         sst_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)), sst_raw, time_grid)
         vs.t_star = update(vs.t_star, at[2:-2, 2:-2, :], sst_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
-        sss_raw = self._get_data(vs, "sss", idx=data_subset)
+        sss_raw = self._get_data("sss", idx=data_subset)
         sss_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)), sss_raw, time_grid)
         vs.s_star = update(vs.s_star, at[2:-2, 2:-2, :], sss_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
         if settings.enable_idemix:
-            tidal_energy_raw = self._get_data(vs, "tidal_energy", idx=data_subset)
+            tidal_energy_raw = self._get_data("tidal_energy", idx=data_subset)
             tidal_energy_data = veros.tools.interpolate((xt_forc, yt_forc), tidal_energy_raw, t_grid[:-1])
             mask_x, mask_y = (i + 2 for i in npx.indices((vs.nx, vs.ny)))
             mask_z = npx.maximum(0, vs.kbot[2:-2, 2:-2] - 1)
