@@ -29,12 +29,13 @@ class SciPySolver(LinearSolver):
         settings = state.settings
 
         orig_shape = x0.shape
+        orig_dtype = x0.dtype
         x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x, local=True)
 
         rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
-        rhs = onp.asarray(rhs.reshape(-1) * self._rhs_scale)
-        x0 = onp.asarray(x0.reshape(-1))
+        rhs = onp.asarray(rhs.reshape(-1) * self._rhs_scale, dtype="float64")
+        x0 = onp.asarray(x0.reshape(-1), dtype="float64")
 
         linear_solution, info = spalg.bicgstab(
             self._matrix,
@@ -49,7 +50,7 @@ class SciPySolver(LinearSolver):
         if info > 0:
             logger.warning("Streamfunction solver did not converge after {} iterations", info)
 
-        return npx.asarray(linear_solution).reshape(orig_shape)
+        return npx.asarray(linear_solution, dtype=orig_dtype).reshape(orig_shape)
 
     def solve(self, state, rhs, x0, boundary_val=None):
         """
@@ -187,7 +188,7 @@ class SciPySolver(LinearSolver):
             offsets += (-main_diag.shape[1] * (settings.nx - 1), main_diag.shape[1] * (settings.nx - 1))
             cf += (wrap_diag_east.reshape(-1), wrap_diag_west.reshape(-1))
 
-        cf = onp.asarray(cf)
+        cf = onp.asarray(cf, dtype="float64")
         return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()
 
 
