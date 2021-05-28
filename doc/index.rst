@@ -9,7 +9,11 @@
 Versatile Ocean Simulation in Pure Python
 =========================================
 
-Veros, *the versatile ocean simulator*, aims to be the swiss army knife of ocean modeling. It is a full-fledged :abbr:`GCM (general circulation model)` that supports both idealized toy models and realistic set-ups. Thanks to its interplay with `JAX <https://github.com/google/jax>`_, Veros runs efficiently on your laptop, gaming PC (including GPU support), or full-scale cluster. In short, we want to enable ocean modelling with a clear focus on flexibility and usability.
+Veros, *the versatile ocean simulator*, aims to be the swiss army knife of ocean modeling. It is a full-fledged :abbr:`GCM (general circulation model)` that supports both idealized toy models and realistic set-ups.
+
+Thanks to its interplay with `JAX <https://github.com/google/jax>`_, Veros runs efficiently on your laptop, gaming PC (including GPU support), or full-scale cluster (see also :doc:`our benchmarks </more/benchmarks>`).
+
+In a nutshell, we want to enable ocean modelling with a clear focus on flexibility and usability.
 
 If you want to learn more about the background and capabilities of Veros, you should check out :doc:`introduction/introduction`. If you are already convinced, you can jump right into action, and :doc:`learn how to get started <introduction/get-started>` instead!
 
@@ -61,6 +65,7 @@ If you want to learn more about the background and capabilities of Veros, you sh
    :maxdepth: 2
    :caption: More Information
 
+   more/benchmarks
    more/publications
    more/contact
    Visit us on GitHub <https://github.com/team-ocean/veros>
