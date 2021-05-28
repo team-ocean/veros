@@ -88,7 +88,7 @@ class JAXSciPySolver(LinearSolver):
 
     def solve(self, state, rhs, x0, boundary_val=None):
         """
-        Main solver for streamfunction. Solves a 2D Poisson equation. Uses scipy.sparse.linalg
+        Main solver for streamfunction. Solves a 2D Poisson equation. Uses jax.scipy.sparse.linalg
         linear solvers.
 
         Arguments:
@@ -111,7 +111,7 @@ class JAXSciPySolver(LinearSolver):
         """
         eps = 1e-20
         main_diag = matrix_diags[0]
-        precon = npx.where(npx.abs(main_diag) > eps, 1.0 / (main_diag + eps), 1.0)
+        precon = npx.where(npx.abs(main_diag) > eps, 1.0 / main_diag, 1.0)
         return precon
 
     @staticmethod

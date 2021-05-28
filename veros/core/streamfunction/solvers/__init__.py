@@ -28,7 +28,7 @@ def _get_solver_class():
             else:
                 return PETScSolver
 
-        if rs.backend == "jax" and rs.device == "gpu":
+        if rs.backend == "jax" and rs.device == "gpu" and rs.float_type == "float64":
             from veros.core.streamfunction.solvers.scipy_jax import JAXSciPySolver
 
             return JAXSciPySolver
