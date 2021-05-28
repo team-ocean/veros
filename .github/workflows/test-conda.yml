@@ -1,15 +1,11 @@
-name: Build Conda environment
+name: Test with Conda
 
 on:
   pull_request:
-    paths:
-      - conda-environment.yml
 
   push:
     branches:
       - master
-    paths:
-      - conda-environment.yml
 
 jobs:
   linux:
