@@ -11,6 +11,9 @@ Varying problem size
 
 This benchmark varies the size of the computational domain and records the runtime per iteration. It is executed on a single machine with 24 CPU cores and an NVidia Tesla P100 GPU.
 
+We run the same model code with all Veros backends (``numpy``, ``numpy-mpi``, ``jax``, ``jax-mpi``, ``jax-gpu``) and PyOM2 (``fortran``, ``fortran-mpi``).
+
+
 .. figure:: /_images/benchmarks/acc_scaling_size.png
    :width: 500px
    :align: center

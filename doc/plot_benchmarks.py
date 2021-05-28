@@ -82,7 +82,7 @@ def plot_benchmarks(infiles, xaxis, norm_component):
             else:
                 yvals = component_data[benchmark][component]
 
-            plt.plot(xvals, yvals, ".--", color=COMPONENT_COLORS[component])
+            plt.plot(xvals, yvals, ".--", color=COMPONENT_COLORS[component], lw=1)
 
             finite_mask = np.isfinite(yvals)
             if finite_mask.any():
@@ -93,7 +93,7 @@ def plot_benchmarks(infiles, xaxis, norm_component):
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
 
-        title_kwargs = dict(fontdict=dict(weight="bold", size=11), ha="left", x=0, y=1.05)
+        title_kwargs = dict(fontdict=dict(weight="bold", size=11), ha="left", x=0.05, y=1.05)
         if xaxis == "nproc":
             plt.xlabel("Number of MPI processes")
             mantissa, exponent = f"{list(sizes)[0]:.1e}".split("e")
@@ -106,20 +106,24 @@ def plot_benchmarks(infiles, xaxis, norm_component):
             plt.title(f"Benchmark '{benchmark}' on {nproc} processes", **title_kwargs)
 
             if norm_component:
-                plt.axhline(nproc, linestyle="dashed", alpha=0.4, lw=1, color="C0")
+                plt.axhline(nproc, linestyle="dashed", alpha=0.5, lw=1, color="C0")
                 plt.annotate(
                     "Perfect CPU scaling",
                     (min(xvals), nproc),
-                    xytext=(0, 2),
+                    xytext=(0, -2),
                     textcoords="offset points",
-                    alpha=0.4,
+                    alpha=0.5,
                     color="C0",
+                    va="top",
+                    fontsize=8,
                 )
 
         if norm_component:
             plt.ylabel("Relative speedup")
+            plt.text(0.05, 1.05, "Speedup (higher is better)", transform=ax.transAxes, va="top", color="0.4")
         else:
             plt.ylabel("Time per iteration (s)")
+            plt.text(0.05, 1.05, "Wall time (lower is better)", transform=ax.transAxes, va="top", color="0.4")
 
         plt.xscale("log")
         plt.yscale("log")
@@ -131,7 +135,7 @@ def plot_benchmarks(infiles, xaxis, norm_component):
         for component, (x, y) in sorted(last_coords.items(), key=lambda k: k[1][1]):
             trans = ax.transData
             _, tp = trans.transform((0, y))
-            tp = max(tp, last_text_pos + 15)
+            tp = max(tp, last_text_pos + 20)
             _, y = trans.inverted().transform((0, tp))
 
             plt.annotate(
@@ -148,7 +152,12 @@ def plot_benchmarks(infiles, xaxis, norm_component):
             last_text_pos = tp
 
         fig.tight_layout()
-        fig.savefig(f"{benchmark}.png")
+
+        suffix = ""
+        if norm_component:
+            suffix = f"-norm_{norm_component}"
+
+        fig.savefig(f"{benchmark}-{xaxis}{suffix}.png")
         plt.close(fig)
 
 
