@@ -4,6 +4,7 @@ import numpy as np
 
 import matplotlib as mpl
 import seaborn as sns
+
 mpl.use("agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
@@ -53,13 +54,7 @@ def plot_benchmarks(infiles, xaxis, norm_component):
     if norm_component is not None and norm_component not in components:
         raise ValueError(f"Did not find norm component {norm_component} in data")
 
-    component_data = {
-        benchmark: {
-            comp: np.full(len(xvals), np.nan)
-            for comp in components
-        }
-        for benchmark in benchmarks
-    }
+    component_data = {benchmark: {comp: np.full(len(xvals), np.nan) for comp in components} for benchmark in benchmarks}
 
     for infile in infiles:
         with open(infile) as f:
@@ -98,10 +93,7 @@ def plot_benchmarks(infiles, xaxis, norm_component):
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
 
-        title_kwargs = dict(
-            fontdict=dict(weight="bold", size=11),
-            ha="left", x=0, y=1.05
-        )
+        title_kwargs = dict(fontdict=dict(weight="bold", size=11), ha="left", x=0, y=1.05)
         if xaxis == "nproc":
             plt.xlabel("Number of MPI processes")
             mantissa, exponent = f"{list(sizes)[0]:.1e}".split("e")
@@ -115,7 +107,14 @@ def plot_benchmarks(infiles, xaxis, norm_component):
 
             if norm_component:
                 plt.axhline(nproc, linestyle="dashed", alpha=0.4, lw=1, color="C0")
-                plt.annotate("Perfect CPU scaling", (min(xvals), nproc), xytext=(0, 2), textcoords="offset points", alpha=0.4, color="C0")
+                plt.annotate(
+                    "Perfect CPU scaling",
+                    (min(xvals), nproc),
+                    xytext=(0, 2),
+                    textcoords="offset points",
+                    alpha=0.4,
+                    color="C0",
+                )
 
         if norm_component:
             plt.ylabel("Relative speedup")
@@ -136,8 +135,13 @@ def plot_benchmarks(infiles, xaxis, norm_component):
             _, y = trans.inverted().transform((0, tp))
 
             plt.annotate(
-                component, (x, y), xytext=(10, 0), textcoords="offset points",
-                annotation_clip=False, color=COMPONENT_COLORS[component], va="center",
+                component,
+                (x, y),
+                xytext=(10, 0),
+                textcoords="offset points",
+                annotation_clip=False,
+                color=COMPONENT_COLORS[component],
+                va="center",
                 weight="bold",
             )
 
