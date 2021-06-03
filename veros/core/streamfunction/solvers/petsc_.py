@@ -3,7 +3,7 @@ import os
 from petsc4py import PETSc
 import numpy as onp
 
-from veros import logger, runtime_settings as rs, runtime_state as rst
+from veros import logger, veros_kernel, runtime_settings as rs, runtime_state as rst
 from veros.core import utilities
 from veros.core.streamfunction.solvers.base import LinearSolver
 from veros.core.operators import numpy as npx, update, update_add, at
@@ -42,6 +42,10 @@ class PETScSolver(LinearSolver):
             ],
         )
 
+        if rs.device == "gpu":
+            self._da.setVecType("cuda")
+            self._da.setMatType("aijcusparse")
+
         self._matrix, self._boundary_fac = self._assemble_poisson_matrix(state)
 
         petsc_options = PETSc.Options()
@@ -50,36 +54,34 @@ class PETScSolver(LinearSolver):
         self._ksp = PETSc.KSP()
         self._ksp.create(self._da.comm)
         self._ksp.setOperators(self._matrix)
-        self._ksp.setType("gmres")
-        self._ksp.setTolerances(atol=0, rtol=settings.congr_epsilon, max_it=settings.congr_max_iterations)
+
+        if rs.device == "gpu":
+            self._ksp.setType("bcgs")
+        else:
+            self._ksp.setType("gmres")
+
+        self._ksp.setTolerances(atol=settings.congr_epsilon, rtol=0, max_it=settings.congr_max_iterations)
         self._ksp.setNormType(PETSc.KSP.NormType.UNPRECONDITIONED)
 
         # preconditioner
-        self._ksp.getPC().setType("hypre")
-        petsc_options["pc_hypre_type"] = "boomeramg"
-        petsc_options["pc_hypre_boomeramg_relax_type_all"] = "SOR/Jacobi"
+        if rs.device == "gpu":
+            self._ksp.getPC().setType("gamg")
+            petsc_options["pc_gamg_type"] = "agg"
+            petsc_options["pc_gamg_reuse_interpolation"] = True
+            petsc_options["pc_gamg_threshold"] = 1e-4
+            petsc_options["pc_gamg_sym_graph"] = True
+            petsc_options["pc_gamg_agg_nsmooths"] = 2
+        else:
+            self._ksp.getPC().setType("hypre")
+            petsc_options["pc_hypre_type"] = "boomeramg"
+            petsc_options["pc_hypre_boomeramg_relax_type_all"] = "SOR/Jacobi"
+
         self._ksp.getPC().setFromOptions()
 
         self._rhs_petsc = self._da.createGlobalVec()
         self._sol_petsc = self._da.createGlobalVec()
 
-    def _petsc_solver(self, state, rhs, x0):
-        settings = state.settings
-
-        # add dirichlet BC to rhs
-        if not settings.enable_cyclic_x:
-            if rst.proc_idx[0] == rs.num_proc[0] - 1:
-                rhs = update_add(rhs, at[-3, 2:-2], -rhs[-2, 2:-2] * self._boundary_fac["east"])
-
-            if rst.proc_idx[0] == 0:
-                rhs = update_add(rhs, at[2, 2:-2], -rhs[1, 2:-2] * self._boundary_fac["west"])
-
-        if rst.proc_idx[1] == rs.num_proc[1] - 1:
-            rhs = update_add(rhs, at[2:-2, -3], -rhs[2:-2, -2] * self._boundary_fac["north"])
-
-        if rst.proc_idx[1] == 0:
-            rhs = update_add(rhs, at[2:-2, 2], -rhs[2:-2, 1] * self._boundary_fac["south"])
-
+    def _petsc_solver(self, rhs, x0):
         self._da.getVecArray(self._rhs_petsc)[...] = rhs[2:-2, 2:-2]
         self._da.getVecArray(self._sol_petsc)[...] = x0[2:-2, 2:-2]
 
@@ -91,7 +93,7 @@ class PETScSolver(LinearSolver):
         if info < 0:
             logger.warning(f"Streamfunction solver did not converge after {iterations} iterations (error code: {info})")
 
-        return npx.array(self._da.getVecArray(self._sol_petsc)[...])
+        return npx.asarray(self._da.getVecArray(self._sol_petsc)[...])
 
     def solve(self, state, rhs, x0, boundary_val=None):
         """
@@ -100,19 +102,8 @@ class PETScSolver(LinearSolver):
             x0: Initial guess
             boundary_val: Array containing values to set on boundary elements. Defaults to `x0`.
         """
-        vs = state.variables
-        settings = state.settings
-
-        if boundary_val is None:
-            boundary_val = x0
-
-        x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x)
-
-        boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
-        rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
-
-        linear_solution = self._petsc_solver(state, rhs, x0)
-
+        rhs, x0 = prepare_solver_inputs(state, rhs, x0, boundary_val, self._boundary_fac)
+        linear_solution = self._petsc_solver(rhs, x0)
         return update(rhs, at[2:-2, 2:-2], linear_solution)
 
     def _assemble_poisson_matrix(self, state):
@@ -210,3 +201,33 @@ class PETScSolver(LinearSolver):
         }
 
         return matrix, boundary_scale
+
+
+@veros_kernel
+def prepare_solver_inputs(state, rhs, x0, boundary_val, boundary_fac):
+    vs = state.variables
+    settings = state.settings
+
+    if boundary_val is None:
+        boundary_val = x0
+
+    x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x)
+
+    boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
+    rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
+
+    # add dirichlet BC to rhs
+    if not settings.enable_cyclic_x:
+        if rst.proc_idx[0] == rs.num_proc[0] - 1:
+            rhs = update_add(rhs, at[-3, 2:-2], -rhs[-2, 2:-2] * boundary_fac["east"])
+
+        if rst.proc_idx[0] == 0:
+            rhs = update_add(rhs, at[2, 2:-2], -rhs[1, 2:-2] * boundary_fac["west"])
+
+    if rst.proc_idx[1] == rs.num_proc[1] - 1:
+        rhs = update_add(rhs, at[2:-2, -3], -rhs[2:-2, -2] * boundary_fac["north"])
+
+    if rst.proc_idx[1] == 0:
+        rhs = update_add(rhs, at[2:-2, 2], -rhs[2:-2, 1] * boundary_fac["south"])
+
+    return rhs, x0
