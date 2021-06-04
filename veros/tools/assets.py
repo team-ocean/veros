@@ -7,7 +7,7 @@ import urllib.parse as urlparse
 import requests
 
 from veros.tools.filelock import FileLock
-from veros import logger
+from veros import logger, runtime_state
 
 
 ASSET_DIRECTORY = os.environ.get("VEROS_ASSET_DIR") or os.path.join(os.path.expanduser("~"), ".veros", "assets")
@@ -18,10 +18,11 @@ class AssetError(Exception):
 
 
 class AssetStore:
-    def __init__(self, asset_dir, asset_config):
+    def __init__(self, asset_dir, asset_config, skip_md5=False):
         self._asset_dir = asset_dir
         self._asset_config = asset_config
         self._stored_assets = {}
+        self._skip_md5 = skip_md5
 
     def _get_asset(self, key):
         url = self._asset_config[key]["url"]
@@ -36,8 +37,10 @@ class AssetStore:
                 logger.info("Downloading asset {} ...", target_filename)
                 _download_file(url, target_path)
 
-            if md5 is not None and _filehash(target_path) != md5:
-                raise AssetError(f"Mismatching MD5 checksum on asset {target_filename}")
+            check_md5 = not self._skip_md5 and md5 is not None and runtime_state.proc_rank == 0
+            if check_md5:
+                if _filehash(target_path) != md5:
+                    raise AssetError(f"Mismatching MD5 checksum on asset {target_filename}")
 
         return target_path
 
@@ -61,7 +64,7 @@ class AssetStore:
         return out
 
 
-def get_assets(asset_id, asset_file):
+def get_assets(asset_id, asset_file, skip_md5=False):
     """Handles automatic download and verification of external assets (such as forcing files).
 
     By default, assets are stored in ``$HOME/.veros/assets`` (can be overwritten by setting
@@ -71,6 +74,7 @@ def get_assets(asset_id, asset_file):
 
        asset_id (str): Identifier of the collection of assets. Should be unique for each setup.
        asset_file (str): JSON file containing URLs and (optionally) MD5 hashsums of each asset.
+       skip_md5 (bool): Whether to skip MD5 checksum validation (useful for huge asset files)
 
     Returns:
 
@@ -111,7 +115,7 @@ def get_assets(asset_id, asset_file):
             if os.path.isdir(asset_dir):
                 pass
 
-    return AssetStore(asset_dir, assets)
+    return AssetStore(asset_dir, assets, skip_md5)
 
 
 def _download_file(url, target_path, timeout=10):
