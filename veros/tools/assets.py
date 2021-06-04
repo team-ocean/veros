@@ -27,6 +27,7 @@ class AssetStore:
     def _get_asset(self, key):
         url = self._asset_config[key]["url"]
         md5 = self._asset_config[key].get("md5")
+        skip_md5 = self._skip_md5
 
         target_filename = os.path.basename(urlparse.urlparse(url).path)
         target_path = os.path.join(self._asset_dir, target_filename)
@@ -36,8 +37,10 @@ class AssetStore:
             if not os.path.isfile(target_path) or (md5 is not None and _filehash(target_path) != md5):
                 logger.info("Downloading asset {} ...", target_filename)
                 _download_file(url, target_path)
+                # always validate freshly downloaded files
+                skip_md5 = False
 
-            check_md5 = not self._skip_md5 and md5 is not None and runtime_state.proc_rank == 0
+            check_md5 = not skip_md5 and md5 is not None and runtime_state.proc_rank == 0
             if check_md5:
                 if _filehash(target_path) != md5:
                     raise AssetError(f"Mismatching MD5 checksum on asset {target_filename}")
@@ -134,4 +137,5 @@ def _filehash(path):
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
+
     return hash_md5.hexdigest()
