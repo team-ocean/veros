@@ -23,7 +23,7 @@ def u_centered_grid(dyt, dyu, yt, yu):
 
 
 @veros_kernel
-def calc_grid_kernel(state):
+def calc_grid_spacings_kernel(state):
     vs = state.variables
     settings = state.settings
 
@@ -75,6 +75,49 @@ def calc_grid_kernel(state):
     vs.zt = vs.zt - vs.zw[-1]
     vs.zw = vs.zw - vs.zw[-1]  # enforce 0 boundary height
 
+    return KernelOutput(
+        dxt=vs.dxt,
+        dyt=vs.dyt,
+        dxu=vs.dxu,
+        dyu=vs.dyu,
+        xt=vs.xt,
+        yt=vs.yt,
+        xu=vs.xu,
+        yu=vs.yu,
+        dzw=vs.dzw,
+        zt=vs.zt,
+        zw=vs.zw,
+    )
+
+
+@veros_routine(
+    # all inputs are 1D, so doing this on the main process should be fine
+    dist_safe=False,
+    local_variables=(
+        "dxt",
+        "dxu",
+        "xt",
+        "xu",
+        "dyt",
+        "dyu",
+        "yt",
+        "yu",
+        "dzt",
+        "dzw",
+        "zt",
+        "zw",
+    ),
+)
+def calc_grid_spacings(state):
+    vs = state.variables
+    vs.update(calc_grid_spacings_kernel(state))
+
+
+@veros_kernel
+def calc_grid_metrics_kernel(state):
+    vs = state.variables
+    settings = state.settings
+
     """
     metric factors
     """
@@ -95,17 +138,6 @@ def calc_grid_kernel(state):
     vs.area_v = update(vs.area_v, at[...], vs.cosu * vs.dyu * vs.dxt[:, npx.newaxis])
 
     return KernelOutput(
-        dxt=vs.dxt,
-        dyt=vs.dyt,
-        dxu=vs.dxu,
-        dyu=vs.dyu,
-        xt=vs.xt,
-        yt=vs.yt,
-        xu=vs.xu,
-        yu=vs.yu,
-        dzw=vs.dzw,
-        zt=vs.zt,
-        zw=vs.zw,
         cost=vs.cost,
         cosu=vs.cosu,
         tantr=vs.tantr,
@@ -115,35 +147,15 @@ def calc_grid_kernel(state):
     )
 
 
-@veros_routine(
-    dist_safe=False,
-    local_variables=(
-        "dxt",
-        "dxu",
-        "xt",
-        "xu",
-        "dyt",
-        "dyu",
-        "yt",
-        "yu",
-        "dzt",
-        "dzw",
-        "zt",
-        "zw",
-        "cost",
-        "cosu",
-        "tantr",
-        "area_t",
-        "area_u",
-        "area_v",
-    ),
-)
+@veros_routine
 def calc_grid(state):
     """
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
     """
+    calc_grid_spacings(state)
+
     vs = state.variables
-    vs.update(calc_grid_kernel(state))
+    vs.update(calc_grid_metrics_kernel(state))
 
 
 @veros_routine
