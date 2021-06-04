@@ -147,6 +147,7 @@ def calc_grid_metrics_kernel(state):
     )
 
 
+@veros_routine
 def calc_grid(state):
     """
     setup grid based on dxt,dyt,dzt and x_origin, y_origin
