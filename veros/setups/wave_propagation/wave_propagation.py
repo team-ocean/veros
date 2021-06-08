@@ -298,6 +298,7 @@ class WavePropagationSetup(VerosSetup):
         vs.taux = npx.where(
             mask,
             vs.taux
+            + vs.taux
             * (self.so_wind_factor - 1.0)
             * npx.sin(
                 npx.pi
