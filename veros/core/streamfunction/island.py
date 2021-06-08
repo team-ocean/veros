@@ -9,7 +9,10 @@ import numpy as onp
 
 
 def _compute_isleperim(kmt, enable_cyclic_x):
-    kmt = utilities.enforce_boundaries(kmt, enable_cyclic_x)
+    # TODO: remove this check after jax#6907 has landed
+    if enable_cyclic_x:
+        kmt = utilities.enforce_boundaries(kmt, enable_cyclic_x)
+
     kmt = onp.asarray(kmt)
 
     structure = onp.ones((3, 3))  # merge diagonally connected land masses
@@ -38,7 +41,10 @@ def _compute_isleperim(kmt, enable_cyclic_x):
             assert len(onp.unique(east_labels)) == 1, (west_label, east_labels)
             labelled[labelled == east_labels[0]] = west_label
 
-    labelled = utilities.enforce_boundaries(labelled, enable_cyclic_x)
+    # TODO: remove this check after jax#6907 has landed
+    if enable_cyclic_x:
+        labelled = utilities.enforce_boundaries(labelled, enable_cyclic_x)
+
     labelled = onp.asarray(labelled)
 
     # label landmasses in a way that is consistent with pyom

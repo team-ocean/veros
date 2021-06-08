@@ -59,7 +59,7 @@ def fill_holes(data):
 
     slcs = [slice(None)] * dim
 
-    while npx.any(~flag):
+    while onp.any(~flag):
         for i in range(dim):
             slcs1 = slcs[:]
             slcs2 = slcs[:]
@@ -70,12 +70,12 @@ def fill_holes(data):
             slcs2 = tuple(slcs2)
 
             # replace from the right
-            repmask = npx.logical_and(~flag[slcs1], flag[slcs2])
+            repmask = onp.logical_and(~flag[slcs1], flag[slcs2])
             data[slcs1][repmask] = data[slcs2][repmask]
             flag[slcs1][repmask] = True
 
             # replace from the left
-            repmask = npx.logical_and(~flag[slcs2], flag[slcs1])
+            repmask = onp.logical_and(~flag[slcs2], flag[slcs1])
             data[slcs2][repmask] = data[slcs1][repmask]
             flag[slcs2][repmask] = True
 

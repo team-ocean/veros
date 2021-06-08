@@ -61,13 +61,17 @@ def solve_tridiagonal_numpy(a, b, c, d, water_mask, edge_mask):
     import numpy as np
     from scipy.linalg import lapack
 
+    out = np.zeros(a.shape, dtype=a.dtype)
+
+    if not np.any(water_mask):
+        return out
+
     # remove couplings between slices
     with make_writeable(a, c) as warr:
         a, c = warr
         a[edge_mask] = 0
         c[..., -1] = 0
 
-    out = np.zeros(a.shape, dtype=a.dtype)
     sol = lapack.dgtsv(a[water_mask][1:], b[water_mask], c[water_mask][:-1], d[water_mask])[3]
     out[water_mask] = sol
     return out
