@@ -314,14 +314,14 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         diagnostics = state.diagnostics
 
         diagnostics["cfl_monitor"].output_frequency = settings.dt_tracer * 100
-        diagnostics["tracer_monitor"].output_frequency = 86400.0
-        diagnostics["snapshot"].output_frequency = 86400.0
+        diagnostics["tracer_monitor"].output_frequency = settings.dt_tracer * 100
+        diagnostics["snapshot"].output_frequency = 30 * 86400.0
         diagnostics["overturning"].output_frequency = 360 * 86400
         diagnostics["overturning"].sampling_frequency = 86400.0
         diagnostics["energy"].output_frequency = 360 * 86400
-        diagnostics["energy"].sampling_frequency = 86400.0
-        diagnostics["averages"].output_frequency = 10 * 86400
-        diagnostics["averages"].sampling_frequency = 3600.0
+        diagnostics["energy"].sampling_frequency = 10 * settings.dt_tracer
+        diagnostics["averages"].output_frequency = 30 * 86400
+        diagnostics["averages"].sampling_frequency = settings.dt_tracer
 
         average_vars = [
             "surface_taux",
