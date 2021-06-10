@@ -77,8 +77,8 @@ class JAXSciPySolver(LinearSolver):
                 rhs[2:-2, 2:-2] * self._rhs_scale,
                 x0=x0[2:-2, 2:-2],
                 tol=0,
-                atol=settings.congr_epsilon,
-                maxiter=settings.congr_max_iterations,
+                atol=1e-8,
+                maxiter=10_000,
             )
 
             return update(rhs, at[2:-2, 2:-2], linear_solution)

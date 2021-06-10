@@ -44,10 +44,6 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         settings.coord_degree = True
         settings.enable_cyclic_x = True
 
-        # streamfunction
-        settings.congr_epsilon = 1e-10
-        settings.congr_max_iterations = 1000
-
         # friction
         settings.enable_hor_friction = True
         settings.A_h = 5e4

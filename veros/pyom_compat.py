@@ -174,6 +174,7 @@ def _override_settings(pyom_obj):
 
     m.enable_streamfunction = True
     m.enable_hydrostatic = True
+    m.congr_epsilon = 1e-8
     m.congr_max_iterations = 10_000
     m.enable_congrad_verbose = False
     m.enable_free_surface = False

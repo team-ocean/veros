@@ -35,9 +35,6 @@ class GlobalOneDegreeSetup(VerosSetup):
         settings.coord_degree = True
         settings.enable_cyclic_x = True
 
-        settings.congr_epsilon = 1e-10
-        settings.congr_max_iterations = 10000
-
         settings.enable_hor_friction = True
         settings.A_h = 5e4
         settings.enable_hor_friction_cos_scaling = True

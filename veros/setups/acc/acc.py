@@ -35,9 +35,6 @@ class ACCSetup(VerosSetup):
         settings.coord_degree = True
         settings.enable_cyclic_x = True
 
-        settings.congr_epsilon = 1e-12
-        settings.congr_max_iterations = 5000
-
         settings.enable_neutral_diffusion = True
         settings.K_iso_0 = 1000.0
         settings.K_iso_steep = 500.0

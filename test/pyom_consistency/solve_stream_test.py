@@ -17,8 +17,6 @@ def random_state(pyom2_lib):
             dt_tracer=3600,
             dt_mom=3600,
             enable_cyclic_x=True,
-            congr_epsilon=1e-12,
-            congr_max_iterations=10_000,
         ),
     )
 

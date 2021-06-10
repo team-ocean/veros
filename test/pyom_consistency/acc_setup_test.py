@@ -26,8 +26,8 @@ def set_parameter_pyom(pyom_obj):
     m.coord_degree = 1
     m.enable_cyclic_x = 1
 
-    m.congr_epsilon = 1e-12
-    m.congr_max_iterations = 5000
+    m.congr_epsilon = 1e-8
+    m.congr_max_iterations = 10_000
 
     i = pyom_obj.isoneutral_module
     i.enable_neutral_diffusion = 1
@@ -156,9 +156,6 @@ class ACCSetup(VerosSetup):
 
         settings.coord_degree = True
         settings.enable_cyclic_x = True
-
-        settings.congr_epsilon = 1e-12
-        settings.congr_max_iterations = 5000
 
         settings.enable_neutral_diffusion = True
         settings.K_iso_0 = 1000.0

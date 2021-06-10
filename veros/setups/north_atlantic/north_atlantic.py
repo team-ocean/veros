@@ -52,9 +52,6 @@ class NorthAtlanticSetup(VerosSetup):
 
         settings.coord_degree = True
 
-        settings.congr_epsilon = 1e-10
-        settings.congr_max_iterations = 20000
-
         settings.enable_neutral_diffusion = True
         settings.enable_skew_diffusion = True
         settings.K_iso_0 = 1000.0

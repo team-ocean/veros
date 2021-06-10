@@ -30,8 +30,6 @@ def random_state(pyom2_lib):
             enable_bottom_friction=True,
             enable_quadratic_bottom_friction=True,
             enable_momentum_sources=True,
-            congr_epsilon=1e-12,
-            congr_max_iterations=10000,
         ),
     )
 

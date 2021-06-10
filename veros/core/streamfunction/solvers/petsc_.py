@@ -55,27 +55,17 @@ class PETScSolver(LinearSolver):
         self._ksp.create(self._da.comm)
         self._ksp.setOperators(self._matrix)
 
-        if rs.device == "gpu":
-            self._ksp.setType("bcgs")
-        else:
-            self._ksp.setType("gmres")
-
-        self._ksp.setTolerances(atol=settings.congr_epsilon, rtol=0, max_it=settings.congr_max_iterations)
-        self._ksp.setNormType(PETSc.KSP.NormType.UNPRECONDITIONED)
+        self._ksp.setType("bcgs")
+        self._ksp.setTolerances(atol=1e-24, rtol=1e-12, max_it=100)
 
         # preconditioner
-        if rs.device == "gpu":
-            self._ksp.getPC().setType("gamg")
-            petsc_options["pc_gamg_type"] = "agg"
-            petsc_options["pc_gamg_reuse_interpolation"] = True
-            petsc_options["pc_gamg_threshold"] = 1e-4
-            petsc_options["pc_gamg_sym_graph"] = True
-            petsc_options["pc_gamg_agg_nsmooths"] = 2
-        else:
-            self._ksp.getPC().setType("hypre")
-            petsc_options["pc_hypre_type"] = "boomeramg"
-            petsc_options["pc_hypre_boomeramg_relax_type_all"] = "SOR/Jacobi"
-
+        self._ksp.getPC().setType("gamg")
+        petsc_options["pc_gamg_type"] = "agg"
+        petsc_options["pc_gamg_reuse_interpolation"] = True
+        petsc_options["pc_gamg_threshold"] = 1e-4
+        petsc_options["pc_gamg_sym_graph"] = True
+        petsc_options["pc_gamg_agg_nsmooths"] = 3
+        petsc_options["mg_levels_pc_type"] = "jacobi"
         self._ksp.getPC().setFromOptions()
 
         self._rhs_petsc = self._da.createGlobalVec()
@@ -92,6 +82,17 @@ class PETScSolver(LinearSolver):
 
         if info < 0:
             logger.warning(f"Streamfunction solver did not converge after {iterations} iterations (error code: {info})")
+
+        # re-use rhs vector to store residual
+        rhs_norm = self._rhs_petsc.norm(PETSc.NormType.NORM_2)
+        self._matrix.multAdd(self._sol_petsc, -self._rhs_petsc, self._rhs_petsc)
+        residual_norm = self._rhs_petsc.norm(PETSc.NormType.NORM_2)
+        rel_residual = residual_norm / rhs_norm
+
+        if rel_residual > 1e-8:
+            logger.warning(
+                f"Streamfunction solver did not achieve required precision (rel. residual: {rel_residual:.2e})"
+            )
 
         return npx.asarray(self._da.getVecArray(self._sol_petsc)[...])
 

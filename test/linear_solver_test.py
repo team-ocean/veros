@@ -15,9 +15,6 @@ def solver_state(cyclic):
         settings.ny = 200
         settings.nz = 1
 
-        settings.congr_epsilon = 1e-10
-        settings.congr_max_iterations = 10000
-
         settings.enable_cyclic_x = cyclic
 
     state.initialize_variables()
@@ -91,6 +88,4 @@ def test_solver(solver, solver_state, cyclic):
 
     sol = solver_class(solver_state).solve(solver_state, rhs, x0, boundary_val=10)
 
-    # set tolerance applies to the *norm* of the residual, so we allow for some wiggle room
-    tol = settings.congr_epsilon * 100
-    assert_solution(solver_state, rhs, sol, boundary_val=10, tol=tol)
+    assert_solution(solver_state, rhs, sol, boundary_val=10, tol=1e-8)

@@ -61,9 +61,6 @@ SETTINGS = {
     "enable_noslip_lateral": Setting(
         False, bool, "enable lateral no-slip boundary conditions in harmonic- and biharmonic friction."
     ),
-    # External mode
-    "congr_epsilon": Setting(1e-12, float, "convergence criteria for Poisson solver"),
-    "congr_max_iterations": Setting(1000, int, "maximum number of Poisson solver iterations"),
     # Mixing parameters
     "A_h": Setting(0.0, float, "lateral viscosity in m^2/s"),
     "K_h": Setting(0.0, float, "lateral diffusivity in m^2/s"),

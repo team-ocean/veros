@@ -41,9 +41,9 @@ class SciPySolver(LinearSolver):
             self._matrix,
             rhs,
             x0=x0,
-            atol=settings.congr_epsilon,
+            atol=1e-8,
             tol=0,
-            maxiter=settings.congr_max_iterations,
+            maxiter=1000,
             **self._extra_args,
         )
 
