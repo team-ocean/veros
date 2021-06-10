@@ -1,6 +1,6 @@
 from veros.core.operators import numpy as npx
 
-from veros import veros_kernel
+from veros import veros_kernel, runtime_settings
 
 """
 ==========================================================================
@@ -348,7 +348,7 @@ def gsw_drhodP(sa, ct, p):
 
 
 @veros_kernel
-def gsw_dyn_enthalpy(sa, ct, p):
+def gsw_dyn_enthalpy(sa_in, ct_in, p):
     """
      Calculates dynamic enthalpy of seawater using the computationally
      efficient 48-term expression for density in terms of SA, CT and p
@@ -363,6 +363,14 @@ def gsw_dyn_enthalpy(sa, ct, p):
     ==========================================================================
     """
     p = npx.asarray(p)  # convert scalar value if necessary
+
+    if runtime_settings.pyom_compatibility_mode:
+        sa = sa_in
+        ct = ct_in
+    else:
+        sa = npx.maximum(1e-1, sa_in)  # prevent division by zero
+        ct = npx.maximum(-12, ct_in)  # prevent blowing up for values smaller than -15 degC
+
     db2pa = 1e4  # factor to convert from dbar to Pa
     sqrtsa = npx.sqrt(sa)
     a0 = (
