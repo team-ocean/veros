@@ -15,9 +15,9 @@ If you already have Python installed, the quickest way to get a working Veros in
 
   $ pip install veros
 
-and, optionally::
+or, optionally::
 
-  $ pip install jax jaxlib
+  $ pip install veros[jax]
 
 to use Veros with JAX.
 
@@ -77,7 +77,7 @@ Using pip (Linux / OSX)
 
 4. Optionally, install JAX via ::
 
-      $ pip install jax jaxlib
+      $ pip install -e ./veros[jax]
 
 
 Setting up a model
