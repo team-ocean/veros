@@ -42,7 +42,7 @@ jobs:
         id: pip-cache
         with:
           path: ~/.cache/pip
-          key: ${{ matrix.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ matrix.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements*.txt') }}
           restore-keys: |
             ${{ matrix.os }}-pip-
 
