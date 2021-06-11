@@ -73,7 +73,7 @@ def parse_requirements(reqfile):
 INSTALL_REQUIRES = parse_requirements("requirements.txt")
 
 EXTRAS_REQUIRE = {
-    "test": ["pytest", "pytest-cov", "pytest-forked", "codecov", "petsc4py", "mpi4py", "xarray"],
+    "test": ["pytest", "pytest-cov", "pytest-forked", "codecov", "xarray"],
 }
 EXTRAS_REQUIRE["jax"] = parse_requirements("requirements_jax.txt")
 
