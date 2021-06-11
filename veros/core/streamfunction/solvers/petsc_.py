@@ -56,7 +56,7 @@ class PETScSolver(LinearSolver):
         self._ksp.setOperators(self._matrix)
 
         self._ksp.setType("bcgs")
-        self._ksp.setTolerances(atol=1e-24, rtol=1e-12, max_it=100)
+        self._ksp.setTolerances(atol=1e-24, rtol=1e-14, max_it=1000)
 
         # preconditioner
         self._ksp.getPC().setType("gamg")
@@ -64,7 +64,7 @@ class PETScSolver(LinearSolver):
         petsc_options["pc_gamg_reuse_interpolation"] = True
         petsc_options["pc_gamg_threshold"] = 1e-4
         petsc_options["pc_gamg_sym_graph"] = True
-        petsc_options["pc_gamg_agg_nsmooths"] = 3
+        petsc_options["pc_gamg_agg_nsmooths"] = 2
         petsc_options["mg_levels_pc_type"] = "jacobi"
         self._ksp.getPC().setFromOptions()
 
