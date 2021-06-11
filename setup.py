@@ -37,9 +37,9 @@ Operating System :: MacOS
 MINIMUM_VERSIONS = {
     "numpy": "1.13",
     "requests": "2.18",
+    "jax": "0.2.10",
 }
 
-EXTRAS_REQUIRE = {"test": ["pytest", "pytest-cov", "pytest-forked", "codecov", "petsc4py", "mpi4py", "xarray"]}
 
 CONSOLE_SCRIPTS = [
     "veros = veros.cli.veros:cli",
@@ -54,15 +54,28 @@ PACKAGE_DATA = ["setups/*/assets.json", "setups/*/*.npy", "setups/*/*.png"]
 with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
-INSTALL_REQUIRES = []
-with open(os.path.join(here, "requirements.txt"), encoding="utf-8") as f:
-    for line in f:
-        line = line.strip()
-        pkg = re.match(r"(\w+)\b.*", line).group(1)
-        if pkg in MINIMUM_VERSIONS:
-            line = "".join([line, ",>=", MINIMUM_VERSIONS[pkg]])
-        line = line.replace("==", "<=")
-        INSTALL_REQUIRES.append(line)
+
+def parse_requirements(reqfile):
+    requirements = []
+
+    with open(os.path.join(here, reqfile), encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            pkg = re.match(r"(\w+)\b.*", line).group(1)
+            if pkg in MINIMUM_VERSIONS:
+                line = "".join([line, ",>=", MINIMUM_VERSIONS[pkg]])
+            line = line.replace("==", "<=")
+            requirements.append(line)
+
+    return requirements
+
+
+INSTALL_REQUIRES = parse_requirements("requirements.txt")
+
+EXTRAS_REQUIRE = {
+    "test": ["pytest", "pytest-cov", "pytest-forked", "codecov", "xarray"],
+}
+EXTRAS_REQUIRE["jax"] = parse_requirements("requirements_jax.txt")
 
 
 def get_extensions():
