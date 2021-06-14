@@ -130,6 +130,19 @@ class Lockable:
         return super().__setattr__(key, val)
 
 
+class StaticDictProxy(dict):
+    def __init__(self, initial, wrapped):
+        self._wrapped = wrapped
+        super().__init__(initial)
+
+    def __setitem__(self, key, val):
+        if key in self:
+            raise RuntimeError("Cannot overwrite existing values")
+
+        super().__setitem__(key, val)
+        self._wrapped.__setitem__(key, val)
+
+
 class VerosSettings(Lockable, StrictContainer):
     def __init__(self, settings_meta):
         self.__metadata__ = settings_meta
@@ -329,7 +342,7 @@ class VerosState:
             raise RuntimeError("Variables are already initialized.")
 
         self._var_meta = var_mod.manifest_metadata(self._var_meta, self._settings)
-        self._variables = VerosVariables(self._var_meta, self.dimensions)
+        self._variables = VerosVariables(self._var_meta, self._manifest_dimensions())
 
     @property
     def var_meta(self):
@@ -346,8 +359,7 @@ class VerosState:
     def settings(self):
         return self._settings
 
-    @property
-    def dimensions(self):
+    def _manifest_dimensions(self):
         concrete_dimensions = {}
         for dim_name, dim_target in self._dimensions.items():
             if isinstance(dim_target, str):
@@ -358,6 +370,11 @@ class VerosState:
             concrete_dimensions[dim_name] = int(dim_size)
 
         return concrete_dimensions
+
+    @property
+    def dimensions(self):
+        concrete_dimensions = self._manifest_dimensions()
+        return StaticDictProxy(concrete_dimensions, self._dimensions)
 
     @property
     def diagnostics(self):

@@ -136,14 +136,14 @@ def get_shape(dimensions, grid, include_ghosts=True, local=True):
 
     shape = []
     for grid_dim in grid:
-        if grid_dim in grid_shapes:
-            shape.append(grid_shapes[grid_dim])
-        elif isinstance(grid_dim, int):
+        if isinstance(grid_dim, int):
             shape.append(grid_dim)
-        elif hasattr(dimensions, grid_dim):
-            shape.append(getattr(dimensions, grid_dim))
-        else:
+            continue
+
+        if grid_dim not in grid_shapes:
             raise ValueError(f"unrecognized dimension {grid_dim}")
+
+        shape.append(grid_shapes[grid_dim])
 
     return tuple(shape)
 

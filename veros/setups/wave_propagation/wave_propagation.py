@@ -112,16 +112,16 @@ class WavePropagationSetup(VerosSetup):
         settings.enable_idemix_hor_diffusion = True
 
         # custom variables
-        nmonths = 12
+        state.dimensions["nmonths"] = 12
         state.var_meta.update(
-            t_star=Variable("t_star", ("xt", "yt", nmonths), "", "", time_dependent=False),
-            s_star=Variable("s_star", ("xt", "yt", nmonths), "", "", time_dependent=False),
-            qnec=Variable("qnec", ("xt", "yt", nmonths), "", "", time_dependent=False),
-            qnet=Variable("qnet", ("xt", "yt", nmonths), "", "", time_dependent=False),
-            qsol=Variable("qsol", ("xt", "yt", nmonths), "", "", time_dependent=False),
+            t_star=Variable("t_star", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            s_star=Variable("s_star", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            qnec=Variable("qnec", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            qnet=Variable("qnet", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            qsol=Variable("qsol", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
             divpen_shortwave=Variable("divpen_shortwave", ("zt",), "", "", time_dependent=False),
-            taux=Variable("taux", ("xt", "yt", nmonths), "", "", time_dependent=False),
-            tauy=Variable("tauy", ("xt", "yt", nmonths), "", "", time_dependent=False),
+            taux=Variable("taux", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            tauy=Variable("tauy", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
             na_mask=Variable(
                 "Mask for North Atlantic",
                 ("xt", "yt"),

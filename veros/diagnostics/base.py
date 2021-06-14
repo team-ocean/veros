@@ -82,6 +82,7 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
 
         with nctools.threaded_io(output_path, "w") as outfile:
             nctools.initialize_file(state, outfile)
+
             if self.extra_dimensions:
                 for dim_id, size in self.extra_dimensions.items():
                     nctools.add_dimension(dim_id, size, outfile)
