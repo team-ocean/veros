@@ -105,7 +105,7 @@ def read_restart(state):
                 # nothing to do
                 continue
 
-            dimensions = state.dimensions.copy()
+            dimensions = dict(state.dimensions)
             if diagnostic.extra_dimensions:
                 dimensions.update(diagnostic.extra_dimensions)
 
@@ -162,7 +162,7 @@ def write_restart(state, force=False):
                 # nothing to do
                 continue
 
-            dimensions = state.dimensions.copy()
+            dimensions = dict(state.dimensions)
             if diagnostic.extra_dimensions:
                 dimensions.update(diagnostic.extra_dimensions)
 

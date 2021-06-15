@@ -87,14 +87,14 @@ class GlobalFourDegreeSetup(VerosSetup):
         settings.eq_of_state_type = 5
 
         # custom variables
-        nmonths = 12
+        state.dimensions["nmonths"] = 12
         state.var_meta.update(
-            sss_clim=Variable("sss_clim", ("xt", "yt", nmonths), "", "", time_dependent=False),
-            sst_clim=Variable("sst_clim", ("xt", "yt", nmonths), "", "", time_dependent=False),
-            qnec=Variable("qnec", ("xt", "yt", nmonths), "", "", time_dependent=False),
-            qnet=Variable("qnet", ("xt", "yt", nmonths), "", "", time_dependent=False),
-            taux=Variable("taux", ("xt", "yt", nmonths), "", "", time_dependent=False),
-            tauy=Variable("tauy", ("xt", "yt", nmonths), "", "", time_dependent=False),
+            sss_clim=Variable("sss_clim", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            sst_clim=Variable("sst_clim", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            qnec=Variable("qnec", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            qnet=Variable("qnet", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            taux=Variable("taux", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
+            tauy=Variable("tauy", ("xt", "yt", "nmonths"), "", "", time_dependent=False),
         )
 
     def _read_forcing(self, var):

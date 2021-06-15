@@ -19,7 +19,7 @@ http://ferret.pmel.noaa.gov/Ferret/documentation/coards-netcdf-conventions
 """
 
 
-def initialize_file(state, ncfile, create_time_dimension=True):
+def initialize_file(state, ncfile, extra_dimensions=None, create_time_dimension=True):
     """
     Define standard grid in netcdf file
     """
@@ -34,12 +34,27 @@ def initialize_file(state, ncfile, create_time_dimension=True):
         setup_identifier=state.settings.identifier,
     )
 
-    for dim in variables.BASE_DIMENSIONS:
-        var = state.var_meta[dim]
-        dimsize = variables.get_shape(state.dimensions, var.dims[::-1], include_ghosts=False, local=False)[0]
+    dimensions = dict(state.dimensions)
+    if extra_dimensions is not None:
+        dimensions.update(extra_dimensions)
+
+    for dim in dimensions:
+        # time steps are peeled off explicitly
+        if dim in variables.TIMESTEPS:
+            continue
+
+        if dim in state.var_meta:
+            var = state.var_meta[dim]
+            var_data = getattr(state.variables, dim)
+        else:
+            # create dummy variable for dimensions without data
+            var = variables.Variable(dim, (dim,), time_dependent=False)
+            var_data = np.arange(dimensions[dim])
+
+        dimsize = variables.get_shape(dimensions, var.dims[::-1], include_ghosts=False, local=False)[0]
         ncfile.dimensions[dim] = dimsize
         initialize_variable(state, dim, var, ncfile)
-        write_variable(state, dim, var, getattr(state.variables, dim), ncfile)
+        write_variable(state, dim, var, var_data, ncfile)
 
     if create_time_dimension:
         ncfile.dimensions["Time"] = None

@@ -1,6 +1,7 @@
-from copy import deepcopy
 import contextlib
 from collections import defaultdict, namedtuple
+from collections.abc import Mapping
+from copy import deepcopy
 
 from veros import (
     timer,
@@ -128,6 +129,33 @@ class Lockable:
                 f'you can unlock it via the "{clsname}.unlock()" context manager.'
             )
         return super().__setattr__(key, val)
+
+
+class StaticDictProxy(Mapping):
+    def __init__(self, content, writeback=None):
+        self._wrapped = content
+        self._writeback = writeback
+
+    def __len__(self):
+        return self._wrapped.__len__()
+
+    def __iter__(self):
+        return self._wrapped.__iter__()
+
+    def __getitem__(self, key):
+        return self._wrapped.__getitem__(key)
+
+    def __setitem__(self, key, val):
+        if key in self:
+            raise RuntimeError("Cannot overwrite existing values")
+
+        if self._writeback is not None:
+            self._writeback.__setitem__(key, val)
+
+        self._wrapped.__setitem__(key, val)
+
+    def __repr__(self):
+        return f"{self.__class__.__qualname__}({self._wrapped!r})"
 
 
 class VerosSettings(Lockable, StrictContainer):
@@ -329,7 +357,7 @@ class VerosState:
             raise RuntimeError("Variables are already initialized.")
 
         self._var_meta = var_mod.manifest_metadata(self._var_meta, self._settings)
-        self._variables = VerosVariables(self._var_meta, self.dimensions)
+        self._variables = VerosVariables(self._var_meta, self._manifest_dimensions())
 
     @property
     def var_meta(self):
@@ -346,8 +374,7 @@ class VerosState:
     def settings(self):
         return self._settings
 
-    @property
-    def dimensions(self):
+    def _manifest_dimensions(self):
         concrete_dimensions = {}
         for dim_name, dim_target in self._dimensions.items():
             if isinstance(dim_target, str):
@@ -358,6 +385,11 @@ class VerosState:
             concrete_dimensions[dim_name] = int(dim_size)
 
         return concrete_dimensions
+
+    @property
+    def dimensions(self):
+        concrete_dimensions = self._manifest_dimensions()
+        return StaticDictProxy(concrete_dimensions, self._dimensions)
 
     @property
     def diagnostics(self):

@@ -83,22 +83,24 @@ class NorthAtlanticSetup(VerosSetup):
 
         settings.eq_of_state_type = 5
 
-        nmonths = 12
+        state.dimensions["nmonths"] = 12
         state.var_meta.update(
             {
-                "sss_clim": Variable("sss_clim", ("xt", "yt", nmonths), "g/kg", "Monthly sea surface salinity"),
-                "sst_clim": Variable("sst_clim", ("xt", "yt", nmonths), "deg C", "Monthly sea surface temperature"),
+                "sss_clim": Variable("sss_clim", ("xt", "yt", "nmonths"), "g/kg", "Monthly sea surface salinity"),
+                "sst_clim": Variable("sst_clim", ("xt", "yt", "nmonths"), "deg C", "Monthly sea surface temperature"),
                 "sss_rest": Variable(
-                    "sss_rest", ("xt", "yt", nmonths), "g/kg", "Monthly sea surface salinity restoring"
+                    "sss_rest", ("xt", "yt", "nmonths"), "g/kg", "Monthly sea surface salinity restoring"
                 ),
                 "sst_rest": Variable(
-                    "sst_rest", ("xt", "yt", nmonths), "deg C", "Monthly sea surface temperature restoring"
+                    "sst_rest", ("xt", "yt", "nmonths"), "deg C", "Monthly sea surface temperature restoring"
                 ),
-                "t_star": Variable("t_star", ("xt", "yt", "zt", nmonths), "deg C", "Temperature sponge layer forcing"),
-                "s_star": Variable("s_star", ("xt", "yt", "zt", nmonths), "g/kg", "Salinity sponge layer forcing"),
+                "t_star": Variable(
+                    "t_star", ("xt", "yt", "zt", "nmonths"), "deg C", "Temperature sponge layer forcing"
+                ),
+                "s_star": Variable("s_star", ("xt", "yt", "zt", "nmonths"), "g/kg", "Salinity sponge layer forcing"),
                 "rest_tscl": Variable("rest_tscl", ("xt", "yt", "zt"), "1/s", "Forcing restoration time scale"),
-                "taux": Variable("taux", ("xt", "yt", nmonths), "N/s^2", "Monthly zonal wind stress"),
-                "tauy": Variable("tauy", ("xt", "yt", nmonths), "N/s^2", "Monthly meridional wind stress"),
+                "taux": Variable("taux", ("xt", "yt", "nmonths"), "N/s^2", "Monthly zonal wind stress"),
+                "tauy": Variable("tauy", ("xt", "yt", "nmonths"), "N/s^2", "Monthly meridional wind stress"),
             }
         )
 
