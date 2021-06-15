@@ -81,11 +81,7 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
         distributed.barrier()
 
         with nctools.threaded_io(output_path, "w") as outfile:
-            nctools.initialize_file(state, outfile)
-
-            if self.extra_dimensions:
-                for dim_id, size in self.extra_dimensions.items():
-                    nctools.add_dimension(dim_id, size, outfile)
+            nctools.initialize_file(state, outfile, extra_dimensions=self.extra_dimensions)
 
             for key in self.output_variables:
                 var = self.var_meta[key]
