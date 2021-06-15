@@ -119,7 +119,7 @@ def get_shape(dimensions, grid, include_ghosts=True, local=True):
         return ()
 
     px, py = runtime_settings.num_proc
-    grid_shapes = dimensions.copy()
+    grid_shapes = dict(dimensions)
 
     if local and CURRENT_CONTEXT.is_dist_safe:
         for pxi, dims in zip((px, py), SCATTERED_DIMENSIONS):

@@ -1,6 +1,7 @@
-from copy import deepcopy
 import contextlib
 from collections import defaultdict, namedtuple
+from collections.abc import Mapping
+from copy import deepcopy
 
 from veros import (
     timer,
@@ -130,17 +131,31 @@ class Lockable:
         return super().__setattr__(key, val)
 
 
-class StaticDictProxy(dict):
-    def __init__(self, initial, wrapped):
-        self._wrapped = wrapped
-        super().__init__(initial)
+class StaticDictProxy(Mapping):
+    def __init__(self, content, writeback=None):
+        self._wrapped = content
+        self._writeback = writeback
+
+    def __len__(self):
+        return self._wrapped.__len__()
+
+    def __iter__(self):
+        return self._wrapped.__iter__()
+
+    def __getitem__(self, key):
+        return self._wrapped.__getitem__(key)
 
     def __setitem__(self, key, val):
         if key in self:
             raise RuntimeError("Cannot overwrite existing values")
 
-        super().__setitem__(key, val)
+        if self._writeback is not None:
+            self._writeback.__setitem__(key, val)
+
         self._wrapped.__setitem__(key, val)
+
+    def __repr__(self):
+        return f"{self.__class__.__qualname__}({self._wrapped!r})"
 
 
 class VerosSettings(Lockable, StrictContainer):

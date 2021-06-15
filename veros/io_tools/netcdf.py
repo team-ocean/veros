@@ -34,7 +34,7 @@ def initialize_file(state, ncfile, extra_dimensions=None, create_time_dimension=
         setup_identifier=state.settings.identifier,
     )
 
-    dimensions = state.dimensions.copy()
+    dimensions = dict(state.dimensions)
     if extra_dimensions is not None:
         dimensions.update(extra_dimensions)
 

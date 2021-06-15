@@ -47,7 +47,7 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
             self.variables = None
             return
 
-        dimensions = state.dimensions.copy()
+        dimensions = dict(state.dimensions)
 
         if self.extra_dimensions is not None:
             dimensions.update(self.extra_dimensions)

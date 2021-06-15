@@ -95,6 +95,21 @@ def test_variable_init(dummy_state):
         dummy_state.initialize_variables()
 
 
+def test_set_dimension(dummy_state):
+    with dummy_state.settings.unlock():
+        dummy_state.settings.nx = 10
+
+    assert dummy_state.dimensions["xt"] == 10
+
+    dummy_state.dimensions["foobar"] = 42
+    assert dummy_state.dimensions["foobar"] == 42
+
+    with pytest.raises(RuntimeError):
+        dummy_state.dimensions["xt"] = 11
+
+    assert dummy_state._dimensions["xt"] == "nx"
+
+
 def test_resize_dimension(dummy_state):
     from veros.state import resize_dimension
 
