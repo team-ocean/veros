@@ -34,7 +34,7 @@ class AssetStore:
         target_lock = target_path + ".lock"
 
         with FileLock(target_lock):
-            if not os.path.isfile(target_path) or (md5 is not None and _filehash(target_path) != md5):
+            if not os.path.isfile(target_path):
                 logger.info("Downloading asset {} ...", target_filename)
                 _download_file(url, target_path)
                 # always validate freshly downloaded files
@@ -123,12 +123,18 @@ def get_assets(asset_id, asset_file, skip_md5=False):
 
 def _download_file(url, target_path, timeout=10):
     """Download a file and save it to a folder"""
+    tmpfile = f"{target_path}.incomplete"
+
     with requests.get(url, stream=True, timeout=timeout) as response:
         response.raise_for_status()
         response.raw.decode_content = True
-        with open(target_path, "wb") as dst:
-            shutil.copyfileobj(response.raw, dst)
+        try:
+            with open(tmpfile, "wb") as dst:
+                shutil.copyfileobj(response.raw, dst)
+        except:  # noqa: E722
+            os.remove(tmpfile)
 
+    shutil.move(tmpfile, target_path)
     return target_path
 
 
