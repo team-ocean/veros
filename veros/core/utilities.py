@@ -6,10 +6,10 @@ from veros.core.operators import update, at, solve_tridiagonal
 
 @veros_kernel(static_args=("enable_cyclic_x", "local"))
 def enforce_boundaries(arr, enable_cyclic_x, local=False):
-    from veros import runtime_settings as rs
+    from veros import runtime_state as rst
     from veros.routines import CURRENT_CONTEXT
 
-    if rs.num_proc[0] == 1 or not CURRENT_CONTEXT.is_dist_safe or local:
+    if rst.proc_num == 1 or not CURRENT_CONTEXT.is_dist_safe or local:
         if enable_cyclic_x:
             arr = update(arr, at[-2:, ...], arr[2:4, ...])
             arr = update(arr, at[:2, ...], arr[-4:-2, ...])
