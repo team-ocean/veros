@@ -11,7 +11,7 @@ from veros.core.operators import numpy as npx, update, update_add, at
 
 class PETScSolver(LinearSolver):
     def __init__(self, state):
-        if rst.proc_num > 1 and "OMP_NUM_THREADS" not in os.environ:
+        if rst.proc_num > 1 and rs.device == "cpu" and "OMP_NUM_THREADS" not in os.environ:
             logger.warning(
                 "Environment variable OMP_NUM_THREADS is not set, which can lead to severely "
                 "degraded performance when MPI is used."

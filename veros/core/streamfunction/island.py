@@ -74,7 +74,9 @@ def isleperim(state):
 
     logger.debug(" Determining number of land masses")
     vs.land_map = _compute_isleperim(vs.kbot, settings.enable_cyclic_x)
-    logger.debug(_ascii_map(vs.land_map))
+
+    if vs.land_map.size < 10_000:
+        logger.debug(_ascii_map(vs.land_map))
 
 
 def _ascii_map(boundary_map):
