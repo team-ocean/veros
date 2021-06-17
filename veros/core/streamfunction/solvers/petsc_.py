@@ -66,6 +66,11 @@ class PETScSolver(LinearSolver):
         petsc_options["pc_gamg_sym_graph"] = True
         petsc_options["pc_gamg_agg_nsmooths"] = 2
         petsc_options["mg_levels_pc_type"] = "jacobi"
+
+        if rs.petsc_options:
+            petsc_options.insertString(rs.petsc_options)
+
+        self._ksp.setFromOptions()
         self._ksp.getPC().setFromOptions()
 
         self._rhs_petsc = self._da.createGlobalVec()

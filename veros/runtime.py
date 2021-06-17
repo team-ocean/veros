@@ -85,6 +85,7 @@ AVAILABLE_SETTINGS = {
     "device": RuntimeSetting(parse_choice(DEVICES), "cpu"),
     "float_type": RuntimeSetting(parse_choice(FLOAT_TYPES), "float64"),
     "linear_solver": RuntimeSetting(parse_choice(LINEAR_SOLVERS), "best"),
+    "petsc_options": RuntimeSetting(str, ""),
     "num_proc": RuntimeSetting(parse_two_ints, (1, 1), read_from_env=False),
     "profile_mode": RuntimeSetting(parse_bool, False),
     "loglevel": RuntimeSetting(set_loglevel, "info"),
