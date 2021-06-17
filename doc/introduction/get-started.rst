@@ -32,6 +32,8 @@ Using Conda (multi-platform)
    .. exec::
 
       from veros import __version__ as veros_version
+      if "+" in veros_version:
+          veros_version, _ = veros_version.split("+")
       print(".. code-block::\n")
       print(f"   $ git clone https://github.com/team-ocean/veros.git -b v{veros_version}")
 
@@ -55,11 +57,13 @@ Using pip (Linux / OSX)
 
 1. Ensure you have a working Python 3.x installation.
 
-2. Clone our repository::
+2. Clone our repository:
 
    .. exec::
 
       from veros import __version__ as veros_version
+      if "+" in veros_version:
+          veros_version, _ = veros_version.split("+")
       print(".. code-block::\n")
       print(f"   $ git clone https://github.com/team-ocean/veros.git -b v{veros_version}")
 
