@@ -9,5 +9,7 @@ include veros/_version.py
 
 global-include *.pyx
 global-include *.pxd
+global-include *.h
 global-include *.cu
+
 global-exclude *.c
