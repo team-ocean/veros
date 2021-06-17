@@ -18,7 +18,7 @@ Because Veros should be usable by both beginners and experts, it has a number of
       - When to use
     * - JAX
       - Linux, OSX, Windows
-      - To run 4x faster on CPU and for GPU support
+      - To run 4x faster on CPU, and for GPU support
     * - Veros Cython extensions
       - Linux, OSX
       - 20% speedup when using JAX
@@ -31,7 +31,7 @@ Because Veros should be usable by both beginners and experts, it has a number of
     * - PETSc + petsc4py
       - Linux, OSX
       - | Faster linear solver when using
-        | more than 10 processes
+        | more than 10 processes (or GPUs)
 
 .. note::
 

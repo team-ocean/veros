@@ -133,6 +133,7 @@ def _download_file(url, target_path, timeout=10):
                 shutil.copyfileobj(response.raw, dst)
         except:  # noqa: E722
             os.remove(tmpfile)
+            raise
 
     shutil.move(tmpfile, target_path)
     return target_path
