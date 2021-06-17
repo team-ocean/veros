@@ -1,6 +1,11 @@
 include README.md
 include requirements.txt
 include requirements_jax.txt
+
 include cuda_ext.py
+
 include versioneer.py
 include veros/_version.py
+
+global-include *.pyx
+global-include *.pxd
