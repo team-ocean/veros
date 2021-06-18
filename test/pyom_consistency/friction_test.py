@@ -21,6 +21,11 @@ def random_state(pyom2_lib):
             enable_bottom_friction_var=True,
             enable_hor_friction_cos_scaling=True,
             enable_momentum_sources=True,
+            r_ray=1,
+            r_bot=1,
+            r_quad_bot=1,
+            A_h=1,
+            A_hbi=1,
         ),
     )
 
