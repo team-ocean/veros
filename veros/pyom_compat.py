@@ -32,6 +32,7 @@ VEROS_TO_PYOM_SETTING = dict(
     enable_kappaH_profile=None,
     enable_Prandtl_tke=None,
     Prandtl_tke0=None,
+    biharmonic_friction_cosPower=None,
     # constants
     pi=None,
     radius=None,
