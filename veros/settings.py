@@ -70,6 +70,7 @@ SETTINGS = {
     "hor_friction_cosPower": Setting(3, float, "power to scale cos term by in horizontal friction"),
     "A_hbi": Setting(0.0, float, "lateral biharmonic viscosity in m^4/s"),
     "K_hbi": Setting(0.0, float, "lateral biharmonic diffusivity in m^4/s"),
+    "biharmonic_friction_cosPower": Setting(0, float, "power to scale cos term by in biharmonic friction"),
     "kappaH_0": Setting(0.0, float, "fixed values for vertical viscosity/diffusivity which are set for no TKE model"),
     "kappaM_0": Setting(0.0, float, "fixed values for vertical viscosity/diffusivity which are set for no TKE model"),
     # Options for isopycnal mixing

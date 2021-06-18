@@ -6,7 +6,7 @@ import numpy as onp
 from veros import logger, veros_kernel, runtime_settings as rs, runtime_state as rst
 from veros.core import utilities
 from veros.core.streamfunction.solvers.base import LinearSolver
-from veros.core.operators import numpy as npx, update, update_add, at
+from veros.core.operators import numpy as npx, update, update_add, at, flush
 
 
 class PETScSolver(LinearSolver):
@@ -24,16 +24,11 @@ class PETScSolver(LinearSolver):
         else:
             boundary_type = ("ghosted", "ghosted")
 
-        if rs.mpi_comm is not None:
-            solver_comm = rs.mpi_comm.Clone()
-        else:
-            solver_comm = None
-
         self._da = PETSc.DMDA().create(
             [settings.nx, settings.ny],
             stencil_width=1,
             stencil_type="star",
-            comm=solver_comm,
+            comm=rs.mpi_comm,
             proc_sizes=rs.num_proc,
             boundary_type=boundary_type,
             ownership_ranges=[
@@ -77,6 +72,9 @@ class PETScSolver(LinearSolver):
         self._sol_petsc = self._da.createGlobalVec()
 
     def _petsc_solver(self, rhs, x0):
+        # hangs on multi-GPU without this
+        flush()
+
         self._da.getVecArray(self._rhs_petsc)[...] = rhs[2:-2, 2:-2]
         self._da.getVecArray(self._sol_petsc)[...] = x0[2:-2, 2:-2]
 

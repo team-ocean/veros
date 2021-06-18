@@ -652,7 +652,10 @@ def biharmonic_friction(state):
 
     flux_east = allocate(state.dimensions, ("xu", "yt", "zt"))
     flux_north = allocate(state.dimensions, ("xt", "yu", "zt"))
-    fxa = npx.sqrt(abs(settings.A_hbi))
+    visc = npx.sqrt(abs(settings.A_hbi))
+
+    cost_scaled = vs.cost ** settings.biharmonic_friction_cosPower
+    cosu_scaled = vs.cosu ** settings.biharmonic_friction_cosPower
 
     """
     Zonal velocity
@@ -660,7 +663,8 @@ def biharmonic_friction(state):
     flux_east = update(
         flux_east,
         at[:-1, :, :],
-        fxa
+        visc
+        * cost_scaled
         * (vs.u[1:, :, :, vs.tau] - vs.u[:-1, :, :, vs.tau])
         / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis])
         * vs.maskU[1:, :, :]
@@ -669,7 +673,8 @@ def biharmonic_friction(state):
     flux_north = update(
         flux_north,
         at[:, :-1, :],
-        fxa
+        visc
+        * cosu_scaled
         * (vs.u[:, 1:, :, vs.tau] - vs.u[:, :-1, :, vs.tau])
         / vs.dyu[npx.newaxis, :-1, npx.newaxis]
         * vs.maskU[:, 1:, :]
@@ -681,14 +686,16 @@ def biharmonic_friction(state):
             flux_north,
             at[:, :-1],
             2
-            * fxa
+            * visc
+            * cosu_scaled
             * vs.u[:, 1:, :, vs.tau]
             / vs.dyu[npx.newaxis, :-1, npx.newaxis]
             * vs.maskU[:, 1:]
             * (1 - vs.maskU[:, :-1])
             * vs.cosu[npx.newaxis, :-1, npx.newaxis]
             - 2
-            * fxa
+            * visc
+            * cosu_scaled
             * vs.u[:, :-1, :, vs.tau]
             / vs.dyu[npx.newaxis, :-1, npx.newaxis]
             * (1 - vs.maskU[:, 1:])
@@ -711,7 +718,8 @@ def biharmonic_friction(state):
     flux_east = update(
         flux_east,
         at[:-1, :, :],
-        fxa
+        visc
+        * cost_scaled
         * (del2[1:, :, :] - del2[:-1, :, :])
         / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis])
         * vs.maskU[1:, :, :]
@@ -720,7 +728,8 @@ def biharmonic_friction(state):
     flux_north = update(
         flux_north,
         at[:, :-1, :],
-        fxa
+        visc
+        * cosu_scaled
         * (del2[:, 1:, :] - del2[:, :-1, :])
         / vs.dyu[npx.newaxis, :-1, npx.newaxis]
         * vs.maskU[:, 1:, :]
@@ -732,14 +741,16 @@ def biharmonic_friction(state):
             flux_north,
             at[:, :-1, :],
             2
-            * fxa
+            * visc
+            * cosu_scaled
             * del2[:, 1:, :]
             / vs.dyu[npx.newaxis, :-1, npx.newaxis]
             * vs.maskU[:, 1:, :]
             * (1 - vs.maskU[:, :-1, :])
             * vs.cosu[npx.newaxis, :-1, npx.newaxis]
             - 2
-            * fxa
+            * visc
+            * cosu_scaled
             * del2[:, :-1, :]
             / vs.dyu[npx.newaxis, :-1, npx.newaxis]
             * (1 - vs.maskU[:, 1:, :])
@@ -795,7 +806,8 @@ def biharmonic_friction(state):
     flux_east = update(
         flux_east,
         at[:-1, :, :],
-        fxa
+        visc
+        * cosu_scaled
         * (vs.v[1:, :, :, vs.tau] - vs.v[:-1, :, :, vs.tau])
         / (vs.cosu[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
         * vs.maskV[1:, :, :]
@@ -806,13 +818,15 @@ def biharmonic_friction(state):
             flux_east,
             at[:-1, :, :],
             2
-            * fxa
+            * visc
+            * cosu_scaled
             * vs.v[1:, :, :, vs.tau]
             / (vs.cosu[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
             * vs.maskV[1:, :, :]
             * (1 - vs.maskV[:-1, :, :])
             - 2
-            * fxa
+            * visc
+            * cosu_scaled
             * vs.v[:-1, :, :, vs.tau]
             / (vs.cosu[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
             * (1 - vs.maskV[1:, :, :])
@@ -821,7 +835,8 @@ def biharmonic_friction(state):
     flux_north = update(
         flux_north,
         at[:, :-1, :],
-        fxa
+        visc
+        * cost_scaled
         * (vs.v[:, 1:, :, vs.tau] - vs.v[:, :-1, :, vs.tau])
         / vs.dyt[npx.newaxis, 1:, npx.newaxis]
         * vs.cost[npx.newaxis, 1:, npx.newaxis]
@@ -843,7 +858,8 @@ def biharmonic_friction(state):
     flux_east = update(
         flux_east,
         at[:-1, :, :],
-        fxa
+        visc
+        * cosu_scaled
         * (del2[1:, :, :] - del2[:-1, :, :])
         / (vs.cosu[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
         * vs.maskV[1:, :, :]
@@ -854,13 +870,15 @@ def biharmonic_friction(state):
             flux_east,
             at[:-1, :, :],
             2
-            * fxa
+            * visc
+            * cosu_scaled
             * del2[1:, :, :]
             / (vs.cosu[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
             * vs.maskV[1:, :, :]
             * (1 - vs.maskV[:-1, :, :])
             - 2
-            * fxa
+            * visc
+            * cosu_scaled
             * del2[:-1, :, :]
             / (vs.cosu[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
             * (1 - vs.maskV[1:, :, :])
@@ -869,7 +887,8 @@ def biharmonic_friction(state):
     flux_north = update(
         flux_north,
         at[:, :-1, :],
-        fxa
+        visc
+        * cost_scaled
         * (del2[:, 1:, :] - del2[:, :-1, :])
         / vs.dyt[npx.newaxis, 1:, npx.newaxis]
         * vs.cost[npx.newaxis, 1:, npx.newaxis]
