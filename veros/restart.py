@@ -138,7 +138,9 @@ def write_restart(state, force=False):
     if not settings.restart_output_filename:
         return
 
-    write_now = force or (settings.restart_frequency and vs.time % settings.restart_frequency < settings.dt_tracer)
+    write_now = force or (
+        settings.restart_frequency and vs.itt > 0 and vs.time % settings.restart_frequency < settings.dt_tracer
+    )
 
     if not write_now:
         return
@@ -147,7 +149,7 @@ def write_restart(state, force=False):
     statedict.update(state.settings.items())
     restart_filename = settings.restart_output_filename.format(**statedict)
 
-    logger.info(f"Writing restart file {restart_filename} ...")
+    logger.info(f"Writing restart file {restart_filename}")
 
     with h5tools.threaded_io(restart_filename, "w") as outfile:
         # core restart
@@ -171,5 +173,3 @@ def write_restart(state, force=False):
             }
             restart_data = {var: getattr(diagnostic.variables, var) for var in restart_vars}
             write_to_h5(dimensions, restart_vars, restart_data, outfile, diag_name)
-
-    logger.success("Done")

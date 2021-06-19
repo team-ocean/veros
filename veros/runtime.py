@@ -86,6 +86,7 @@ AVAILABLE_SETTINGS = {
     "float_type": RuntimeSetting(parse_choice(FLOAT_TYPES), "float64"),
     "linear_solver": RuntimeSetting(parse_choice(LINEAR_SOLVERS), "best"),
     "petsc_options": RuntimeSetting(str, ""),
+    "monitor_streamfunction_residual": RuntimeSetting(parse_bool, True),
     "num_proc": RuntimeSetting(parse_two_ints, (1, 1), read_from_env=False),
     "profile_mode": RuntimeSetting(parse_bool, False),
     "loglevel": RuntimeSetting(set_loglevel, "info"),

@@ -86,16 +86,17 @@ class PETScSolver(LinearSolver):
         if info < 0:
             logger.warning(f"Streamfunction solver did not converge after {iterations} iterations (error code: {info})")
 
-        # re-use rhs vector to store residual
-        rhs_norm = self._rhs_petsc.norm(PETSc.NormType.NORM_2)
-        self._matrix.multAdd(self._sol_petsc, -self._rhs_petsc, self._rhs_petsc)
-        residual_norm = self._rhs_petsc.norm(PETSc.NormType.NORM_2)
-        rel_residual = residual_norm / rhs_norm
+        if rs.monitor_streamfunction_residual:
+            # re-use rhs vector to store residual
+            rhs_norm = self._rhs_petsc.norm(PETSc.NormType.NORM_2)
+            self._matrix.multAdd(self._sol_petsc, -self._rhs_petsc, self._rhs_petsc)
+            residual_norm = self._rhs_petsc.norm(PETSc.NormType.NORM_2)
+            rel_residual = residual_norm / rhs_norm
 
-        if rel_residual > 1e-8:
-            logger.warning(
-                f"Streamfunction solver did not achieve required precision (rel. residual: {rel_residual:.2e})"
-            )
+            if rel_residual > 1e-8:
+                logger.warning(
+                    f"Streamfunction solver did not achieve required precision (rel. residual: {rel_residual:.2e})"
+                )
 
         return npx.asarray(self._da.getVecArray(self._sol_petsc)[...])
 
