@@ -654,8 +654,9 @@ def biharmonic_friction(state):
     flux_north = allocate(state.dimensions, ("xt", "yu", "zt"))
     visc = npx.sqrt(abs(settings.A_hbi))
 
-    cost_scaled = vs.cost ** settings.biharmonic_friction_cosPower
-    cosu_scaled = vs.cosu ** settings.biharmonic_friction_cosPower
+    # each of these enters twice, so we halve the power
+    cost_scaled = vs.cost ** (0.5 * settings.biharmonic_friction_cosPower)
+    cosu_scaled = vs.cosu ** (0.5 * settings.biharmonic_friction_cosPower)
 
     """
     Zonal velocity
