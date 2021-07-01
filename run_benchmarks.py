@@ -20,7 +20,7 @@ Runs selected Veros benchmarks back to back and writes timing results to a JSON 
 
 TESTDIR = os.path.join(os.path.dirname(__file__), os.path.relpath("benchmarks"))
 
-COMPONENTS = ["numpy", "numpy-mpi", "jax", "jax-gpu", "jax-mpi", "fortran", "fortran-mpi"]
+COMPONENTS = ["numpy", "numpy-mpi", "jax", "jax-gpu", "jax-mpi", "jax-gpu-mpi", "fortran", "fortran-mpi"]
 
 STATIC_SETTINGS = " --size {nx} {ny} {nz} --timesteps {timesteps} --float-type {float_type}"
 
@@ -30,6 +30,8 @@ BENCHMARK_COMMANDS = {
     "jax": "{python} {filename} -b jax" + STATIC_SETTINGS,
     "jax-gpu": "{python} {filename} -b jax --device gpu" + STATIC_SETTINGS,
     "jax-mpi": "OMP_NUM_THREADS=1 {mpiexec} -n {nproc} {python} {filename} -b jax --nproc {decomp}" + STATIC_SETTINGS,
+    "jax-gpu-mpi": "OMP_NUM_THREADS=1 {mpiexec} -n {nproc} {python} {filename} -b jax --device gpu --nproc {decomp}"
+    + STATIC_SETTINGS,
     "fortran": "{python} {filename} --pyom2-lib {pyom2_lib}" + STATIC_SETTINGS,
     "fortran-mpi": "{mpiexec} -n {nproc} {python} {filename} --pyom2-lib {pyom2_lib} --nproc {decomp}"
     + STATIC_SETTINGS,
@@ -42,6 +44,8 @@ SLURM_COMMANDS = {
     "jax-gpu": "{mpiexec} --ntasks 1 --cpus-per-task {nproc} -- {python} {filename} -b jax --device gpu"
     + STATIC_SETTINGS,
     "jax-mpi": "{mpiexec} --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} -b jax --nproc {decomp}"
+    + STATIC_SETTINGS,
+    "jax-gpu-mpi": "{mpiexec} --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} -b jax --device gpu --nproc {decomp}"
     + STATIC_SETTINGS,
     "fortran": "{mpiexec} --ntasks 1 -- {python} {filename} --pyom2-lib {pyom2_lib}" + STATIC_SETTINGS,
     "fortran-mpi": "{mpiexec} --ntasks {nproc} --cpus-per-task 1 -- {python} {filename} --pyom2-lib {pyom2_lib} --nproc {decomp}"

@@ -1,3 +1,4 @@
+import os
 import click
 
 
@@ -13,7 +14,7 @@ def benchmark_cli(func):
     @click.option("--profile-mode", is_flag=True)
     @click.command()
     def inner(backend, device, nproc, float_type, loglevel, profile_mode, **kwargs):
-        from veros import runtime_settings
+        from veros import runtime_settings, runtime_state
 
         runtime_settings.update(
             backend=backend,
@@ -23,6 +24,10 @@ def benchmark_cli(func):
             loglevel=loglevel,
             profile_mode=profile_mode,
         )
+
+        if device == "gpu" and runtime_state.proc_num > 1:
+            os.environ["CUDA_VISIBLE_DEVICES"] = str(runtime_state.proc_rank)
+
         return func(**kwargs)
 
     return inner
