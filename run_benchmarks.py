@@ -185,10 +185,10 @@ def run(**kwargs):
             click.echo(f"running benchmark {f}")
 
             for size in kwargs["sizes"]:
-                n = math.ceil(size ** (1 / 3))
-                nz = max(n // 2, 2)
-                nx = _round_to_multiple(math.sqrt(2) * n, proc_decom[0])
-                ny = _round_to_multiple(math.sqrt(2) * n, proc_decom[1])
+                nz = min(max(math.ceil(0.5 * size ** (1 / 3)), 2), 120)
+                n = math.ceil((size / nz) ** (1 / 2))
+                nx = _round_to_multiple(n, proc_decom[0])
+                ny = _round_to_multiple(n, proc_decom[1])
                 real_size = nx * ny * nz
 
                 click.echo(f" current size: {real_size}")
