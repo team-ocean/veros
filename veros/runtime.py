@@ -1,8 +1,15 @@
 import os
+from threading import local
 from collections import namedtuple
 
 from veros.backend import BACKENDS
 from veros.logs import LOGLEVELS
+
+
+# globals
+log_args = local()
+log_args.log_all_processes = False
+log_args.loglevel = "info"
 
 
 # MPI helpers
@@ -54,20 +61,20 @@ def check_mpi_comm(comm):
     return comm
 
 
-def set_loglevel(loglevel):
-    from veros import logs, runtime_settings as rs
+def set_loglevel(val):
+    from veros import logs
 
-    loglevel = parse_choice(LOGLEVELS)(loglevel)
-    logs.setup_logging(loglevel=loglevel, log_all_processes=rs.log_all_processes)
-    return loglevel
+    log_args.loglevel = parse_choice(LOGLEVELS)(val)
+    logs.setup_logging(loglevel=log_args.loglevel, log_all_processes=log_args.log_all_processes)
+    return log_args.loglevel
 
 
-def set_log_all_processes(log_all_processes):
-    from veros import logs, runtime_settings as rs
+def set_log_all_processes(val):
+    from veros import logs
 
-    log_all_processes = parse_bool(log_all_processes)
-    logs.setup_logging(loglevel=rs.loglevel, log_all_processes=log_all_processes)
-    return log_all_processes
+    log_args.log_all_processes = parse_bool(val)
+    logs.setup_logging(loglevel=log_args.loglevel, log_all_processes=log_args.log_all_processes)
+    return log_args.log_all_processes
 
 
 DEVICES = ("cpu", "gpu", "tpu")
@@ -119,7 +126,7 @@ class RuntimeSettings:
                 val = setting.default
 
             self.__setting_types__[name] = setting.type
-            super().__setattr__(name, val)
+            self.__setattr__(name, val)
 
         self.__settings__ = set(self.__setting_types__.keys())
 
@@ -134,7 +141,7 @@ class RuntimeSettings:
             raise RuntimeError("Runtime settings cannot be modified after import of core modules")
 
         if attr.startswith("_"):
-            return super(RuntimeSettings, self).__setattr__(attr, val)
+            return super().__setattr__(attr, val)
 
         # coerce type
         stype = self.__setting_types__.get(attr)
@@ -144,7 +151,7 @@ class RuntimeSettings:
             except (TypeError, ValueError) as e:
                 raise ValueError(f'Got invalid value for runtime setting "{attr}": {e!s}') from None
 
-        return super(RuntimeSettings, self).__setattr__(attr, val)
+        return super().__setattr__(attr, val)
 
     def __repr__(self):
         setval = ", ".join(f"{key}={repr(getattr(self, key))}" for key in self.__settings__)
