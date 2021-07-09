@@ -431,6 +431,7 @@ def _generate_random_var(state, var):
 
     meta = state.var_meta[var]
     shape = get_shape(state.dimensions, meta.dims)
+    global_shape = get_shape(state.dimensions, meta.dims, local=False)
 
     if var == "kbot":
         val = onp.zeros(shape)
@@ -441,13 +442,13 @@ def _generate_random_var(state, var):
 
     if var in ("dxt", "dxu", "dyt", "dyu"):
         if state.settings.coord_degree:
-            val = 1 + 1e-2 * onp.random.randn(*shape)
+            val = 160 / global_shape[0] * (1 + 1e-2 * onp.random.randn(*shape))
         else:
-            val = 10e3 + 100 * onp.random.randn(*shape)
+            val = 10_000e3 / global_shape[0] * (1 + 1e-2 * onp.random.randn(*shape))
         return val
 
     if var in ("dzt", "dzw"):
-        val = 100 + onp.random.randn(*shape)
+        val = 6000 / global_shape[0] * (1 + 1e-2 * onp.random.randn(*shape))
         return val
 
     if onp.issubdtype(onp.dtype(meta.dtype), onp.floating):
@@ -496,6 +497,7 @@ def get_random_state(pyom2_lib=None, extra_settings=None):
     # ensure that masks and geometries are consistent with grid spacings
     numerics.calc_grid(state)
     numerics.calc_topo(state)
+
     streamfunction.streamfunction_init(state)
 
     if pyom2_lib is None:
