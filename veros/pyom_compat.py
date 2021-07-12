@@ -471,7 +471,7 @@ def _generate_random_var(state, var):
     if onp.issubdtype(onp.dtype(meta.dtype), onp.floating):
         val = onp.random.randn(*shape)
         if var in ("salt",):
-            val = 35 + onp.abs(val)
+            val = 35 + val
 
         return val
 
