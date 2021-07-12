@@ -1,3 +1,5 @@
+import os
+from contextlib import contextmanager
 from collections import defaultdict
 import importlib.util
 
@@ -68,6 +70,20 @@ def load_pyom(pyom_lib):
     return pyom_obj
 
 
+@contextmanager
+def suppress_stdout(stdout_fd=1):
+    old_stdout = os.dup(stdout_fd)
+
+    with open(os.devnull, "wb") as void:
+        os.dup2(void.fileno(), stdout_fd)
+
+    try:
+        yield
+    finally:
+        with os.fdopen(old_stdout, "wb") as std:
+            os.dup2(std.fileno(), stdout_fd)
+
+
 def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=True):
     """Force-updates internal PyOM library state to match given Veros state."""
     if ignore_attrs is None:
@@ -127,7 +143,8 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=True
         set_fortran_attr(var, val)
 
     if init_streamfunction:
-        pyom_obj.streamfunction_init()
+        with suppress_stdout():
+            pyom_obj.streamfunction_init()
 
         for var in STREAMFUNCTION_VARS:
             set_fortran_attr(var, state.variables.get(var))
@@ -442,7 +459,7 @@ def _generate_random_var(state, var):
 
     if var in ("dxt", "dxu", "dyt", "dyu"):
         if state.settings.coord_degree:
-            val = 160 / global_shape[0] * (1 + 1e-2 * onp.random.randn(*shape))
+            val = 80 / global_shape[0] * (1 + 1e-2 * onp.random.randn(*shape))
         else:
             val = 10_000e3 / global_shape[0] * (1 + 1e-2 * onp.random.randn(*shape))
         return val
@@ -454,7 +471,7 @@ def _generate_random_var(state, var):
     if onp.issubdtype(onp.dtype(meta.dtype), onp.floating):
         val = onp.random.randn(*shape)
         if var in ("salt",):
-            val = onp.abs(val)
+            val = 35 + onp.abs(val)
 
         return val
 

@@ -7,6 +7,13 @@ def pytest_collection_modifyitems(items):
 
 
 @pytest.fixture(autouse=True)
+def setup_logging():
+    from veros.logs import setup_logging
+
+    setup_logging(loglevel="warning")
+
+
+@pytest.fixture(autouse=True)
 def ensure_pyom_compatibility():
     import veros
 
