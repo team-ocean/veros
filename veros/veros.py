@@ -429,6 +429,9 @@ def print_profile_summary(profile_timers, main_loop_time):
 
     for name, timer in profile_timers.items():
         this_time = timer.total_time
+        if this_time == 0:
+            continue
+
         profile_timings.append(profile_format_string.format(name, this_time, 100 * this_time / main_loop_time))
 
     logger.diagnostic("\n".join(profile_timings))
