@@ -431,16 +431,16 @@ def run_pyom(pyom_obj, set_forcing, after_timestep=None):
         m.taup1 = orig_taum1
 
         # NOTE: benchmarks parse this, do not change / remove
-        logger.debug("Time step took {}s", timers["main"].get_last_time())
+        logger.debug("Time step took {}s", timers["main"].last_time)
 
     logger.debug("Timing summary:")
-    logger.debug(" setup time summary       = {}s", timers["setup"].get_time())
-    logger.debug(" main loop time summary   = {}s", timers["main"].get_time())
-    logger.debug("     momentum             = {}s", timers["momentum"].get_time())
-    logger.debug("     thermodynamics       = {}s", timers["temperature"].get_time())
-    logger.debug("     EKE                  = {}s", timers["eke"].get_time())
-    logger.debug("     IDEMIX               = {}s", timers["idemix"].get_time())
-    logger.debug("     TKE                  = {}s", timers["tke"].get_time())
+    logger.debug(" setup time summary       = {}s", timers["setup"].total_time)
+    logger.debug(" main loop time summary   = {}s", timers["main"].total_time)
+    logger.debug("     momentum             = {}s", timers["momentum"].total_time)
+    logger.debug("     thermodynamics       = {}s", timers["temperature"].total_time)
+    logger.debug("     EKE                  = {}s", timers["eke"].total_time)
+    logger.debug("     IDEMIX               = {}s", timers["idemix"].total_time)
+    logger.debug("     TKE                  = {}s", timers["tke"].total_time)
 
 
 def _generate_random_var(state, var):

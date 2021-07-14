@@ -12,7 +12,7 @@ def init_jax_config():
         return
 
     import jax
-    from veros import runtime_settings
+    from veros import runtime_settings, runtime_state
     from veros.state import (
         VerosState,
         VerosVariables,
@@ -24,6 +24,12 @@ def init_jax_config():
         dist_safe_wrapper_pytree_flatten,
         dist_safe_wrapper_pytree_unflatten,
     )
+
+    if runtime_state.proc_num > 1:
+        try:
+            import mpi4jax  # noqa: F401
+        except ImportError as exc:
+            raise RuntimeError("Running JAX with MPI requires mpi4jax to be installed") from exc
 
     if runtime_settings.float_type == "float64":
         jax.config.update("jax_enable_x64", True)
