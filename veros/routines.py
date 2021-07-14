@@ -91,7 +91,7 @@ def enter_routine(name, routine_obj, timer=None, dist_safe=True):
 
         exec_time = ""
         if timer is not None:
-            exec_time = f"({timer.get_last_time():.3f}s)"
+            exec_time = f"({timer.last_time:.3f}s)"
 
         logger.trace("<{} {} {}", "-" * stack.stack_level, name, exec_time)
 
