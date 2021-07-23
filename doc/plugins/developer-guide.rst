@@ -131,7 +131,7 @@ Then, `veros copy-setup` will automatically find your custom setups if the plug-
 
    Available setups:
 
-      acc, acc_basic, acc_sector, eady, global_1deg, global_4deg,
+      acc, acc_basic, acc_sector, eady, fjord, global_1deg, global_4deg,
       global_flexible, my_setup, north_atlantic, wave_propagation
 
    Example:
