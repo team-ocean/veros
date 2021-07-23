@@ -16,9 +16,9 @@ Idealized configurations
 |                                           |                                           |
 | |acc|                                     | |acc_basic|                               |
 +-------------------------------------------+-------------------------------------------+
-| :doc:`/reference/setups/acc_sector`       |                                           |
+| :doc:`/reference/setups/acc_sector`       | :doc:`/reference/setups/fjord`            |
 |                                           |                                           |
-| |acc_sector|                              |                                           |
+| |acc_sector|                              | |fjord|                                   |
 +-------------------------------------------+-------------------------------------------+
 
 .. |acc| image:: /_images/gallery/acc.png
@@ -40,12 +40,19 @@ Idealized configurations
   :target: setups/acc_sector.html
   :alt: Steady-state stream function
 
+.. |fjord| image:: /_images/gallery/fjord.png
+  :width: 70%
+  :align: middle
+  :target: setups/fjord.html
+  :alt: Steady-state stream function
+
 .. toctree::
    :hidden:
 
    setups/acc
    setups/acc_basic
    setups/acc_sector
+   setups/fjord
 
 Realistic configurations
 ------------------------

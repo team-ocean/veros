@@ -44,6 +44,18 @@ def test_setup_acc_sector():
     sim.run()
 
 
+def test_setup_fjord():
+    from veros.setups.fjord import FjordSetup
+
+    sim = FjordSetup()
+    sim.setup()
+
+    with sim.state.settings.unlock():
+        sim.state.settings.runlen = sim.state.settings.dt_tracer * 20
+
+    sim.run()
+
+
 def test_setup_4deg():
     from veros.setups.global_4deg import GlobalFourDegreeSetup
 
