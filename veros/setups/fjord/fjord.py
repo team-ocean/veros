@@ -1,8 +1,6 @@
 from veros import VerosSetup, veros_routine
 from veros.variables import allocate, Variable
-from veros.distributed import global_min, global_max
 from veros.core.operators import numpy as npx, update, at
-import veros.tools
 
 
 class FjordSetup(VerosSetup):
@@ -33,9 +31,9 @@ class FjordSetup(VerosSetup):
         settings.identifier = "fjord"
 
         settings.nx, settings.ny, settings.nz = 32, 96, 10
-        settings.dt_mom = 4.
-        settings.dt_tracer = 4.
-        settings.runlen = 86400. * 30
+        settings.dt_mom = 4.0
+        settings.dt_tracer = 4.0
+        settings.runlen = 86400.0 * 30
 
         settings.x_origin = 11.0
         settings.y_origin = 58.0
@@ -51,7 +49,7 @@ class FjordSetup(VerosSetup):
         settings.enable_skew_diffusion = True
 
         settings.enable_hor_friction = True
-        settings.A_h = 10.
+        settings.A_h = 10.0
         settings.enable_hor_friction_cos_scaling = True
         settings.hor_friction_cosPower = 1
 
@@ -95,11 +93,45 @@ class FjordSetup(VerosSetup):
         var_meta = state.var_meta
         var_meta.update(
             sst_star=Variable("sst_star", ("yt",), "deg C", "Reference surface temperature"),
-            sst_rest=Variable("sst_rest", ("xt", "yt",), "m/s", "Surface temperature restoring time scale"),
+            sst_rest=Variable(
+                "sst_rest",
+                (
+                    "xt",
+                    "yt",
+                ),
+                "m/s",
+                "Surface temperature restoring time scale",
+            ),
             sss_star=Variable("sss_star", ("yt",), "g/kg", "Reference surface salinity"),
-            sss_rest=Variable("sss_rest", ("xt", "yt",), "m/s", "Surface salinity restoring time scale"),
-            s_star=Variable("s_star", ("xt", "yt", "zt",), "g/kg", "Salinity sponge layer forcing"),
-            rest_tscl=Variable("rest_tscl", ("xt", "yt", "zt",), "1/s", "Forcing restoration time scale"),
+            sss_rest=Variable(
+                "sss_rest",
+                (
+                    "xt",
+                    "yt",
+                ),
+                "m/s",
+                "Surface salinity restoring time scale",
+            ),
+            s_star=Variable(
+                "s_star",
+                (
+                    "xt",
+                    "yt",
+                    "zt",
+                ),
+                "g/kg",
+                "Salinity sponge layer forcing",
+            ),
+            rest_tscl=Variable(
+                "rest_tscl",
+                (
+                    "xt",
+                    "yt",
+                    "zt",
+                ),
+                "1/s",
+                "Forcing restoration time scale",
+            ),
         )
 
     @veros_routine
@@ -110,7 +142,7 @@ class FjordSetup(VerosSetup):
         # keep total domain size constant when nx or ny changes
         vs.dxt = update(vs.dxt, at[...], 0.0005 * 32 / settings.nx)
         vs.dyt = update(vs.dyt, at[...], 0.005 * 96 / settings.ny)
-        vs.dzt = update(vs.dzt, at[...], 4. * 10. / settings.nz)
+        vs.dzt = update(vs.dzt, at[...], 4.0 * 10.0 / settings.nz)
 
     @veros_routine
     def set_coriolis(self, state):
@@ -130,7 +162,7 @@ class FjordSetup(VerosSetup):
         landmass_eq_0 = landmass == 0
 
         vs.kbot = npx.ones(x.shape)
-        bathymetry = (y >= 58.2)
+        bathymetry = y >= 58.2
         vs.kbot = update(vs.kbot, at[bathymetry], kzt)
         vs.kbot = update(vs.kbot, at[landmass_eq_0], 0.0)
 
@@ -167,31 +199,44 @@ class FjordSetup(VerosSetup):
         settings = state.settings
 
         # initial conditions
-        vs.temp = update(vs.temp, at[...],
-                         (5. + (1 - vs.zt[None, None, :] / vs.zw[0]) * 11 * vs.maskT)[..., None])
-        vs.salt = update(vs.salt, at[...],
-                         (npx.linspace(34, 26, settings.nz)[None, None, :] * vs.maskT)[..., None])
+        vs.temp = update(vs.temp, at[...], (5.0 + (1 - vs.zt[None, None, :] / vs.zw[0]) * 11 * vs.maskT)[..., None])
+        vs.salt = update(vs.salt, at[...], (npx.linspace(34, 26, settings.nz)[None, None, :] * vs.maskT)[..., None])
 
         # wind stress forcing
         vs.surface_taux = 5e-2 * vs.maskU[:, :, -1]
         vs.surface_tauy = 2e-2 * vs.maskV[:, :, -1]
 
         # surface heatflux forcing
-        vs.sst_star = allocate(state.dimensions, ("yt",), fill=16.)
+        vs.sst_star = allocate(state.dimensions, ("yt",), fill=16.0)
 
         # surface salinity forcing
-        vs.sss_star = allocate(state.dimensions, ("yt",), fill=26.)
+        vs.sss_star = allocate(state.dimensions, ("yt",), fill=26.0)
         vs.sst_rest = vs.dzt[-1] / (10.0 * 86400.0) * vs.maskT[:, :, -1]
         vs.sss_rest = vs.dzt[-1] / (30.0 * 86400.0) * vs.maskT[:, :, -1]
 
         # salinity sponge layer forcing
-        _, _yt, _ = npx.meshgrid(vs.xt, vs.yt, vs.zt, indexing='ij')
+        _, _yt, _ = npx.meshgrid(vs.xt, vs.yt, vs.zt, indexing="ij")
         sponge_region = _yt <= vs.yt[4]
-        vs.s_star = allocate(state.dimensions, ("xt", "yt", "zt",))
-        vs.s_star = update(vs.s_star, at[sponge_region],
-                           (npx.linspace(34, 26, settings.nz)[None, None, :] * vs.maskT)[sponge_region])
-        vs.rest_tscl = allocate(state.dimensions, ("xt", "yt", "zt",))
-        vs.rest_tscl = update(vs.s_star, at[sponge_region], 1./(30.0 * 86400.0))
+        vs.s_star = allocate(
+            state.dimensions,
+            (
+                "xt",
+                "yt",
+                "zt",
+            ),
+        )
+        vs.s_star = update(
+            vs.s_star, at[sponge_region], (npx.linspace(34, 26, settings.nz)[None, None, :] * vs.maskT)[sponge_region]
+        )
+        vs.rest_tscl = allocate(
+            state.dimensions,
+            (
+                "xt",
+                "yt",
+                "zt",
+            ),
+        )
+        vs.rest_tscl = update(vs.s_star, at[sponge_region], 1.0 / (30.0 * 86400.0))
 
         if settings.enable_tke:
             vs.forc_tke_surface = update(
@@ -217,13 +262,14 @@ class FjordSetup(VerosSetup):
         vs.forc_salt_surface = vs.sss_rest * (vs.sss_star - vs.salt[:, :, -1, vs.tau])
 
         if settings.enable_tempsalt_sources:
-            vs.salt_source = update(vs.salt_source, at[...], vs.maskT * vs.rest_tscl
-                                    * (vs.s_star[:, :, :] - vs.salt[:, :, :, vs.tau]))
+            vs.salt_source = update(
+                vs.salt_source, at[...], vs.maskT * vs.rest_tscl * (vs.s_star[:, :, :] - vs.salt[:, :, :, vs.tau])
+            )
 
     @veros_routine
     def set_diagnostics(self, state):
         settings = state.settings
-        state.diagnostics["snapshot"].output_frequency = 86400.
+        state.diagnostics["snapshot"].output_frequency = 86400.0
         state.diagnostics["averages"].output_variables = (
             "salt",
             "temp",
@@ -235,9 +281,9 @@ class FjordSetup(VerosSetup):
             "surface_taux",
             "surface_tauy",
         )
-        state.diagnostics["averages"].output_frequency = 86400 / 4.
+        state.diagnostics["averages"].output_frequency = 86400 / 4.0
         state.diagnostics["averages"].sampling_frequency = settings.dt_tracer * 10
-        state.diagnostics["tracer_monitor"].output_frequency = 86400. / 4.
+        state.diagnostics["tracer_monitor"].output_frequency = 86400.0 / 4.0
         state.diagnostics["energy"].output_frequency = 86400.0 / 48
         state.diagnostics["energy"].sampling_frequency = settings.dt_tracer * 10
 
