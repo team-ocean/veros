@@ -1,0 +1,38 @@
+authors:
+  - family-names: Häfner
+    given-names: Dion
+  - family-names: Jacobsen
+    given-names: René Løwe
+  - family-names: Nuterman
+    given-names: Roman
+  - family-names: Jochum
+    given-names: Markus
+cff-version: 1.2.0
+message: "If you use this software, please cite the article from preferred-citation."
+title: Veros
+url: "https://github.com/team-ocean/veros"
+preferred-citation:
+  type: article
+  title: "Veros v0.1 – a fast and versatile ocean simulator in pure Python"
+  authors:
+    - family-names: Häfner
+      given-names: Dion
+    - family-names: Jacobsen
+      given-names: René Løwe
+    - family-names: Eden
+      given-names: Carsten
+    - family-names: Kristensen
+      given-names: Mads R. B.
+    - family-names: Jochum
+      given-names: Markus
+    - family-names: Nuterman
+      given-names: Roman
+    - family-names: Vinter
+      given-names: Brian
+  year: 2018
+  journal: "Geoscientific Model Development"
+  volume: 11
+  issue: 8
+  pages: "3299-3312"
+  doi: "10.5194/gmd-11-3299-2018"
+  url: "https://gmd.copernicus.org/articles/11/3299/2018/"
