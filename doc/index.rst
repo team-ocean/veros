@@ -38,7 +38,6 @@ If you want to learn more about the background and capabilities of Veros, you sh
    :maxdepth: 1
    :caption: Tutorials
 
-   tutorial/wave-propagation
    tutorial/dev
    tutorial/cluster
 
