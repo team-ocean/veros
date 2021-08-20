@@ -11,13 +11,10 @@ import veros.cli
 SETUPS = (
     "acc",
     "acc_basic",
-    "acc_sector",
-    "fjord",
     "global_4deg",
     "global_1deg",
     "global_flexible",
     "north_atlantic",
-    "wave_propagation",
 )
 
 

@@ -38,7 +38,6 @@ If you want to learn more about the background and capabilities of Veros, you sh
    :maxdepth: 1
    :caption: Tutorials
 
-   tutorial/wave-propagation
    tutorial/dev
    tutorial/cluster
 
@@ -59,6 +58,7 @@ If you want to learn more about the background and capabilities of Veros, you sh
 
    plugins/user-guide
    Biogeochemistry plugin (Veros-BGC) documentation <https://veros-bgc.readthedocs.io>
+   Extra setups plugin <https://veros-extra-setups.readthedocs.io>
    plugins/developer-guide
 
 .. toctree::
