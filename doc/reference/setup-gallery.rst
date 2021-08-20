@@ -8,9 +8,9 @@ Example::
    $ veros copy-setup acc
 
 
-.. note::
+.. seealso::
 
-   More setups are available through the `extra setups plugin <https://veros-extra-setups.readthedocs.io>`_.
+   More setups are available through the `veros-extra-setups plugin <https://veros-extra-setups.readthedocs.io>`_.
 
 
 Idealized configurations
