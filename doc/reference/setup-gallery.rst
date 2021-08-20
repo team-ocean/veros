@@ -8,6 +8,11 @@ Example::
    $ veros copy-setup acc
 
 
+.. note::
+
+   More setups are available through the `extra setups plugin <https://veros-extra-setups.readthedocs.io>`_.
+
+
 Idealized configurations
 ------------------------
 
@@ -15,10 +20,6 @@ Idealized configurations
 | :doc:`/reference/setups/acc`              | :doc:`/reference/setups/acc_basic`        |
 |                                           |                                           |
 | |acc|                                     | |acc_basic|                               |
-+-------------------------------------------+-------------------------------------------+
-| :doc:`/reference/setups/acc_sector`       | :doc:`/reference/setups/fjord`            |
-|                                           |                                           |
-| |acc_sector|                              | |fjord|                                   |
 +-------------------------------------------+-------------------------------------------+
 
 .. |acc| image:: /_images/gallery/acc.png
@@ -33,42 +34,24 @@ Idealized configurations
   :target: setups/acc_basic.html
   :alt: Steady-state stream function
 
-.. |acc_sector| image:: /_images/gallery/acc_sector.png
-  :width: 100%
-  :scale: 75%
-  :align: middle
-  :target: setups/acc_sector.html
-  :alt: Steady-state stream function
-
-.. |fjord| image:: /_images/gallery/fjord.png
-  :width: 70%
-  :align: middle
-  :target: setups/fjord.html
-  :alt: Steady-state stream function
 
 .. toctree::
    :hidden:
 
    setups/acc
    setups/acc_basic
-   setups/acc_sector
-   setups/fjord
 
 Realistic configurations
 ------------------------
 
 +--------------------------------------------+-------------------------------------------+
-| :doc:`/reference/setups/flexible`          | :doc:`/reference/setups/wave-propagation` |
+| :doc:`/reference/setups/flexible`          | :doc:`/reference/setups/4deg`             |
 |                                            |                                           |
-| |flexible|                                 | |wave-propagation|                        |
+| |flexible|                                 | |4deg|                                    |
 +--------------------------------------------+-------------------------------------------+
-| :doc:`/reference/setups/4deg`              | :doc:`/reference/setups/1deg`             |
+| :doc:`/reference/setups/1deg`              | :doc:`/reference/setups/north-atlantic`   |
 |                                            |                                           |
-| |4deg|                                     | |1deg|                                    |
-+--------------------------------------------+-------------------------------------------+
-| :doc:`/reference/setups/north-atlantic`    |                                           |
-|                                            |                                           |
-| |northatlantic|                            |                                           |
+| |1deg|                                     | |northatlantic|                           |
 +--------------------------------------------+-------------------------------------------+
 
 .. |flexible| image:: /_images/gallery/flexible.png
@@ -76,12 +59,6 @@ Realistic configurations
    :align: middle
    :target: setups/flexible.html
    :alt: Surface velocity at 0.25x0.25 degree resolution
-
-.. |wave-propagation| image:: /_images/gallery/wave-propagation.png
-   :width: 100%
-   :align: middle
-   :target: setups/wave-propagation.html
-   :alt: Stream function
 
 .. |northatlantic| image:: /_images/gallery/north-atlantic.png
    :width: 100%
@@ -107,7 +84,6 @@ Realistic configurations
    :hidden:
 
    setups/flexible
-   setups/wave-propagation
    setups/4deg
    setups/1deg
    setups/north-atlantic
