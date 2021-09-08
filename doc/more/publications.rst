@@ -29,6 +29,9 @@ Talks
 Theses
 ------
 
+- Ida Lei Stoustrup. (2021). Automated Parameter Tuning for the Versatile Ocean Simulator (VEROS),
+  MSc project, 111p.
+  `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Ida_Stoustrup_MSc_thesis.pdf>`__.
 - Till Grenzdörffer. (2020). Accelerating Ocean Modelling: Adressing performance bottlenecks of
   the ocean modelling framework Veros, MSc project, 16p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Till_Grenzdorffer_MSc_thesis.pdf>`__.
