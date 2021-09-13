@@ -2,4 +2,4 @@ click==8.0.1
 entrypoints==0.3
 Pillow==8.3.2
 Sphinx==4.2.0
-sphinx-rtd-theme==0.5.2
+sphinx-rtd-theme==1.0.0
