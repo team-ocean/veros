@@ -83,6 +83,7 @@ jobs:
           miniconda-version: "latest"
           activate-environment: veros
           environment-file: conda-environment.yml
+          python-version: 3.6
 
       - name: Install test dependencies
         run: |
