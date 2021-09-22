@@ -88,7 +88,7 @@ def get_extensions():
 
     extensions = []
     for module, sources in extension_modules.items():
-        extension_dir = os.path.join(here, *module.split(".")[:-1])
+        extension_dir = os.path.join(*module.split(".")[:-1])
 
         kwargs = dict()
         if any(source.endswith(".cu") for source in sources):
