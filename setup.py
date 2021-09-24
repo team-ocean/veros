@@ -115,7 +115,11 @@ def get_extensions():
 
         extensions.append(ext)
 
-    return cythonize(extensions, language_level=3, exclude_failures=True)
+    extensions = cythonize(extensions, language_level=3, exclude_failures=True)
+    for ext in extensions:
+        ext.optional = True
+
+    return extensions
 
 
 cmdclass = versioneer.get_cmdclass()
