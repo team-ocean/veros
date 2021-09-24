@@ -1,0 +1,45 @@
+name: Test installation
+
+on:
+  pull_request:
+
+  push:
+    branches:
+      - master
+
+jobs:
+  test-install:
+    name: Test pip install
+
+    defaults:
+      run:
+        shell: bash {0}
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+          os: [ubuntu-latest, macos-latest, windows-latest]
+          python-version: [3.6, 3.9]
+          nocc: [false]
+
+          include:
+            # also test whether installation without C compiler works
+            - os: ubuntu-latest
+              python-version: 3.6
+              nocc: true
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python ${{ matrix.python-version }} on ${{ matrix.os }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Veros
+        run: |
+          if ${{ matrix.nocc }}; then export CC=foobar; fi
+          python -m pip install .
