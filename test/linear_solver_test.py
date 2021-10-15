@@ -11,8 +11,8 @@ def solver_state(cyclic):
     settings = state.settings
 
     with settings.unlock():
-        settings.nx = 400
-        settings.ny = 200
+        settings.nx = 20
+        settings.ny = 10
         settings.nz = 1
 
         settings.enable_cyclic_x = cyclic
@@ -55,6 +55,7 @@ def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
     rhs = np.where(boundary_mask, rhs, boundary_val)
 
     rhs_sol = matrix @ sol.reshape(-1)
+
     np.testing.assert_allclose(rhs_sol, rhs.flatten(), atol=0, rtol=tol)
 
 

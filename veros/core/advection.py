@@ -41,7 +41,7 @@ def _adv_superbee(state, vel, var, mask, dx, axis):
     rjm = (var[s] - var[sm1]) * mask[sm1]
     cr = limiter(_calc_cr(rjp, rj, rjm, vel[s]))
 
-    if axis == 1:
+    if axis == 1: 
         vel = vel * vs.cosu[npx.newaxis, :, npx.newaxis]
 
     uCFL = npx.abs(vel[s] * settings.dt_tracer / dx)
