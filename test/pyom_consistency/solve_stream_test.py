@@ -17,6 +17,7 @@ def random_state(pyom2_lib):
             dt_tracer=3600,
             dt_mom=3600,
             enable_cyclic_x=True,
+            enable_streamfunction = True,
         ),
     )
 
@@ -26,3 +27,4 @@ def test_solve_streamfunction(random_state):
     vs_state.variables.update(streamfunction.solve_streamfunction(vs_state))
     pyom_obj.solve_streamfunction()
     compare_state(vs_state, pyom_obj)
+    

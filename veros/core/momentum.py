@@ -314,4 +314,7 @@ def momentum(state):
     external mode
     """
     with state.timers["pressure"]:
-        streamfunction.solve_streamfunction(state)
+        if state.settings.enable_streamfunction:
+            streamfunction.solve_streamfunction(state)
+        else:
+            streamfunction.solve_pressure.solve_pressure(state)

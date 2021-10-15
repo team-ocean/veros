@@ -1,0 +1,19 @@
+
+
+#for powerpc AIX (blizzard.dkrz.de)
+
+CDFPATH = /work/uo0780/u241161/libraries/netcdf-3.6.3_bin/
+
+# fortran front end
+F90       = mpxlf95 -q64
+F90FLAGS  = -O3 -qstrict -qcache=auto -lmass -lessl
+CDFFLAGS = -L${CDFPATH}/lib -lnetcdf -I${CDFPATH}/include 
+MPIFLAGS  =
+
+
+# python front end (does not work here)
+F2PYFLAGS = -llapack -lblas
+F2PY_MPIFLAGS = -I$(mpi)/include $(mpi)/lib/libmpi_f77.so
+
+
+

@@ -1,0 +1,29 @@
+
+# on thunder:  need to load modules
+# module purge
+# module load gcc/4.4.5 openmpi/1.6.5-gccsys python mpi4py
+# use the compiler version compatible for python version
+# seen invoking python interpreter commandline 
+
+# netcdf library
+cdf = /sw/squeeze-x64/netcdf-4.1.3-static-gccsys/bin/nc-config
+
+# mpi library
+mpi = /sw/squeeze-x64/mpilib/openmpi-1.6.5-gccsys
+# to get mpi lib we have to set
+# export LD_LIBRARY_PATH="$mpi/lib"
+
+# fortran front end
+F90 = mpif90
+CDFFLAGS = -I`$(cdf) --includedir`  `$(cdf) --flibs` 
+MPIFLAGS =
+F90FLAGS = -llapack -lblas -fconvert=big-endian -O3 -Wall #-check bounds
+
+# python front end
+F2PYFLAGS = -llapack -lblas
+F2PY_MPIFLAGS = -I$(mpi)/include $(mpi)/lib/libmpi_f77.so
+
+
+
+
+

@@ -18,7 +18,6 @@ def random_state(pyom2_lib):
             dt_mom=3600,
             enable_cyclic_x=True,
             coord_degree=False,
-            eq_of_state_type=1,
         ),
     )
 
