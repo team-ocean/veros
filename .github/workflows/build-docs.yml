@@ -20,7 +20,9 @@ jobs:
           git fetch --prune --unshallow --tags
 
       - name: Install requirements
-        run: pip install -r doc/requirements.txt
+        run:
+          pip install -r doc/requirements.txt
+          pip install ipython xarray matplotlib
 
       - name: Build docs
         run: make -C doc html SPHINXOPTS="-W --keep-going"
