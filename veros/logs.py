@@ -58,3 +58,15 @@ def setup_logging(loglevel="info", stream_sink=sys.stdout, log_all_processes=Fal
     logger.enable("veros")
 
     return logger
+
+
+def update_logging(**kwargs):
+    from veros import runtime_settings as rs
+
+    if "loglevel" not in kwargs:
+        kwargs["loglevel"] = rs.loglevel
+
+    if "log_all_processes" not in kwargs:
+        kwargs["log_all_processes"] = rs.log_all_processes
+
+    return setup_logging(**kwargs)

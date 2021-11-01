@@ -319,15 +319,11 @@ class VerosSetup(metaclass=abc.ABCMeta):
         # permutate time indices
         vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
-    def run(self, show_progress_bar=None):
+    def run(self):
         """Main routine of the simulation.
 
         Note:
             Make sure to call :meth:`setup` prior to this function.
-
-        Arguments:
-            show_progress_bar (:obj:`bool`, optional): Whether to show fancy progress bar via tqdm.
-                By default, only show if stdout is a terminal and Veros is running on a single process.
 
         """
         from veros import restart
@@ -342,10 +338,9 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         start_time = vs.time
 
-        # disable timers for first iteration
+        # disable timers and progress bar for first iteration
         timer_context.active = False
-
-        pbar = progress.get_progress_bar(self.state, use_tqdm=show_progress_bar)
+        pbar = progress.get_progress_bar(self.state, burnin=1)
 
         try:
             with signals.signals_to_exception(), pbar:

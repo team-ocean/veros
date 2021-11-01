@@ -12,9 +12,9 @@ def pytest_collection_modifyitems(items):
 @pytest.fixture(autouse=True)
 def setup_test():
     import veros
-    from veros.logs import setup_logging
+    from veros.logs import update_logging
 
-    setup_logging(loglevel="warning")
+    update_logging(loglevel="warning")
     object.__setattr__(veros.runtime_settings, "pyom_compatibility_mode", True)
 
     # reload all core modules to make sure changes take effect
