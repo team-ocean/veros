@@ -76,6 +76,7 @@ instance/
 
 # Sphinx documentation
 doc/_build/
+doc/savefig
 
 # PyBuilder
 target/
