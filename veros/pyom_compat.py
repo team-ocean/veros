@@ -190,12 +190,10 @@ def _override_settings(pyom_obj):
     idm = pyom_obj.idemix_module
     eke = pyom_obj.eke_module
 
-    m.enable_streamfunction = True
     m.enable_hydrostatic = True
     m.congr_epsilon = 1e-8
     m.congr_max_iterations = 10_000
     m.enable_congrad_verbose = False
-    m.enable_free_surface = False
     eke.enable_eke_leewave_dissipation = False
     idm.enable_idemix_m2 = False
     idm.enable_idemix_niw = False

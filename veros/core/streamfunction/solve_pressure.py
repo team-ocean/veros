@@ -154,7 +154,7 @@ def prepare_forcing(state):
             forc = update(
                 forc,
                 at[2:-2, 2:-2],
-                forc[2:-2,2:-2] - vs.psi[2:-2,2:-2,vs.tau]/(settings.grav*settings.dt_mom**2) * vs.maskT[2:-2,2:-2, settings.nz-1]
+                forc[2:-2,2:-2] - vs.psi[2:-2,2:-2,vs.tau]/(settings.grav*settings.dt_mom*settings.dt_tracer) * vs.maskT[2:-2,2:-2, settings.nz-1]
             )
 
     # First guess
