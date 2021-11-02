@@ -84,7 +84,7 @@ One can, for instance, compute annual mean meridional temperature and plot it in
     @savefig temp.png width=5in
     ds['temp'].isel(Time=-1).mean(dim='xt').plot.contourf(vmin=-2, vmax=27, levels=30, cmap='inferno')
 
-In order to computes the decadal mean (of the last 10yrs) of meridional ocean salinity use the following similar command:
+In order to compute the decadal mean (of the last 10yrs) of meridional ocean salinity use the following similar command:
 
 .. ipython:: python
     :okwarning:
