@@ -1,0 +1,14 @@
+{
+    "4deg": {
+        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/benchmarkdata/external/matrix-4deg.h5",
+        "md5": "5f10c2736427229227dd5df9a64e8410"
+    },
+    "1deg": {
+        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/benchmarkdata/external/matrix-1deg.h5",
+        "md5": "0c2f7151fa5962ec16e5c69c131bf529"
+    },
+    "01deg": {
+        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/benchmarkdata/external/matrix-01deg.h5",
+        "md5": "4fc6b2212449077af47ee139379338e3"
+    }
+}

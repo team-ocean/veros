@@ -23,9 +23,9 @@ def random_state(pyom2_lib):
     return get_random_state(
         pyom2_lib,
         extra_settings=dict(
-            nx=60,
-            ny=60,
-            nz=50,
+            nx=40,
+            ny=50,
+            nz=20,
             dt_tracer=3600,
             dt_mom=3600,
             enable_cyclic_x= True,
@@ -48,6 +48,4 @@ def test_solve_pressure(random_state):
     m.psi[:,:,vs.taum1] = utilities.enforce_boundaries(m.psi[:,:,vs.taum1],settings.enable_cyclic_x)
     pyom_obj.solve_pressure()
 
-    compare_state(vs_state,pyom_obj,rtol=2e-6)
-
-
+    compare_state(vs_state,pyom_obj,rtol=2e-5)
