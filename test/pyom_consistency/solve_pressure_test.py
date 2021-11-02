@@ -1,16 +1,8 @@
 
-
-from matplotlib import pyplot as plt
-import numpy as np
-
 import pytest
-
 from veros.core import streamfunction, utilities
 from veros.pyom_compat import get_random_state
-from veros.core.streamfunction.solve_pressure import prepare_forcing
-from veros.core.streamfunction.pressure_solvers import get_linear_solver
 from test_base import compare_state
-
 
 @pytest.fixture(autouse=True)
 def ensure_diskless():
