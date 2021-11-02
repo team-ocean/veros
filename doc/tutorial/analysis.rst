@@ -148,7 +148,7 @@ meaningful x-axis in figures devide ``Time`` coordinate by the number of days pe
     vsf_depth['Time'] = vsf_depth['Time'] / 360.
     vsf_depth.Time.attrs['units'] = 'year'
 
-Plot time series of MOC minimum between :math:`40^{\circ} N - 60^{\circ} N` and 550-1800 m depth:
+We also plot a time series of the overturning minimum between 40°N and 60°N and 550-1800m depth:
 
 .. ipython:: python
 
