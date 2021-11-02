@@ -6,22 +6,12 @@ from benchmark_base import benchmark_cli
 @benchmark_cli
 def main(pyom2_lib, timesteps, size):
 
-    from veros.core.streamfunction import solve_streamfunction
-    from veros.core.streamfunction.solve_pressure import solve_pressure
-    from time import time
-    from veros.pyom_compat import load_pyom, pyom_from_state, run_pyom
     from copy import deepcopy
     import h5py
     from veros.state import VerosState
     from veros.tools import get_assets
-    from veros import logger
-
-
     from veros.core.streamfunction.pressure_solvers import get_linear_solver
-    from veros.pyom_compat import load_pyom, pyom_from_state
     from veros.variables import allocate
-    from veros.core.operators import update, at
-    import numpy as onp
     from veros.state import resize_dimension
 
     assets = get_assets("bench-external", "bench-external-assets.json")["4deg"]
