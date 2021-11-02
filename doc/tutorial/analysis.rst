@@ -140,8 +140,8 @@ To inspect coordinates ``zw``, ``yu``, ``Time`` to be used for plotting of time 
     ds['yu']
     vsf_depth['Time'].isel(Time=slice(10,))
 
-One can see that the ``Time`` coordinate is given in days per year (a year corresponds to 360 days here). In order to have more
-meaningful x-axis in figures devide ``Time`` coordinate by the number of days per year and change its unit:
+We can see that the ``Time`` coordinate is given in days (a year corresponds to 360 days here). In order to have a more
+meaningful x-axis in our figures, we divide the ``Time`` coordinate by the number of days per year and change its unit:
 
 .. ipython:: python
 
