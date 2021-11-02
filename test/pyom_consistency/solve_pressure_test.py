@@ -1,8 +1,8 @@
-
 import pytest
 from veros.core import streamfunction, utilities
 from veros.pyom_compat import get_random_state
 from test_base import compare_state
+
 
 @pytest.fixture(autouse=True)
 def ensure_diskless():
@@ -10,19 +10,20 @@ def ensure_diskless():
 
     object.__setattr__(runtime_settings, "pyom_compatibility_mode", True)
 
+
 @pytest.fixture
 def random_state(pyom2_lib):
     return get_random_state(
         pyom2_lib,
         extra_settings=dict(
-            nx=40,
-            ny=50,
-            nz=20,
+            nx=60,
+            ny=60,
+            nz=40,
             dt_tracer=3600,
             dt_mom=3600,
-            enable_cyclic_x= True,
-            enable_free_surface = True,
-            enable_streamfunction = False,
+            enable_cyclic_x=True,
+            enable_free_surface=True,
+            enable_streamfunction=False,
         ),
     )
 
@@ -33,11 +34,11 @@ def test_solve_pressure(random_state):
     vs = vs_state.variables
     settings = vs_state.settings
 
-    compare_state(vs_state,pyom_obj)
+    compare_state(vs_state, pyom_obj)
     vs_state.variables.update(streamfunction.solve_pressure.solve_pressure(vs_state))
-    #Initial guess in pyOM should be cyclical
-    m.psi[:,:,vs.tau] = utilities.enforce_boundaries(m.psi[:,:,vs.tau],settings.enable_cyclic_x)
-    m.psi[:,:,vs.taum1] = utilities.enforce_boundaries(m.psi[:,:,vs.taum1],settings.enable_cyclic_x)
+    # Initial guess in pyOM should be cyclical
+    m.psi[:, :, vs.tau] = utilities.enforce_boundaries(m.psi[:, :, vs.tau], settings.enable_cyclic_x)
+    m.psi[:, :, vs.taum1] = utilities.enforce_boundaries(m.psi[:, :, vs.taum1], settings.enable_cyclic_x)
     pyom_obj.solve_pressure()
 
-    compare_state(vs_state,pyom_obj,rtol=2e-5)
+    compare_state(vs_state, pyom_obj, rtol=1e-4)
