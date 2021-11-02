@@ -9,7 +9,7 @@
 
     from veros import tools
 
-    OUTPUT_FILES = tools.get_assets("tutorial_analysis", os.path.join(os.getcwd(), "assets.json"))
+    OUTPUT_FILES = tools.get_assets("tutorial_analysis", os.path.join("tutorial", "analysis-assets.json"))
 
 
 Analysis of Veros output
