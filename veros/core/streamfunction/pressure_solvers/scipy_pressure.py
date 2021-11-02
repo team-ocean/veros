@@ -51,18 +51,7 @@ class SciPyPressureSolver(LinearSolver):
         orig_dtype = x0.dtype
 
         x0 = onp.asarray(x0.reshape(-1), dtype="float64")
-
-
-
-
         rhs = onp.asarray(rhs.reshape(-1) , dtype="float64")#*self._rhs_scale
-
-
-        
-
-
-
-
         rhs = npx.where(vs.maskT[:,:,-1].reshape(rhs.shape), rhs, 0)
 
         linear_solution, info = spalg.bicgstab(
@@ -71,10 +60,9 @@ class SciPyPressureSolver(LinearSolver):
             x0=x0,
             atol=1e-8,
             tol=0,
-            maxiter=10000,
+            maxiter=100,
             **self._extra_args,
         )
-
 
         if info > 0:
             logger.warning("Pressure solver did not converge after {} iterations", info)
@@ -171,9 +159,10 @@ class SciPyPressureSolver(LinearSolver):
                 main_diag,
                 at[2:-2,2:-2],
                 -1.0
-                /(settings.grav*settings.dt_mom**2)
+                /(settings.grav*settings.dt_mom*settings.dt_tracer)
                 * maskM[2:-2,2:-2]
             )
+        #TODO: Compatibility with pyom , use dt_mom squared
         
         east_diag = update(
             east_diag,
