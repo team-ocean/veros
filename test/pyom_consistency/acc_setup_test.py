@@ -45,7 +45,7 @@ def set_parameter_pyom(pyom_obj):
     m.enable_bottom_friction = 1
     m.r_bot = 1e-5
 
-    m.enable_stream_function = True
+    m.enable_streamfunction = True
     m.enable_free_surface = False
 
     m.enable_implicit_vert_friction = 1
