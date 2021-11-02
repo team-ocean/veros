@@ -16,9 +16,9 @@ def random_state(pyom2_lib):
     return get_random_state(
         pyom2_lib,
         extra_settings=dict(
-            nx=60,
-            ny=60,
-            nz=40,
+            nx=70,
+            ny=40,
+            nz=30,
             dt_tracer=3600,
             dt_mom=3600,
             enable_cyclic_x=True,
