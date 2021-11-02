@@ -15,7 +15,10 @@
 Analysis of Veros output
 ========================
 
-In this tutorial, we will use `IPython <https://ipython.readthedocs.io/en/stable/>`__ or `Jupyter Notebook <https://jupyter.org>`__, `xarray <http://xarray.pydata.org/en/stable/>`__ and `matplotlib <https://matplotlib.org>`__ to load and analyze the model output.
+In this tutorial, we will use `xarray <http://xarray.pydata.org/en/stable/>`__ and `matplotlib <https://matplotlib.org>`__ to load and analyze the model output. You can run these commands in `IPython <https://ipython.readthedocs.io/en/stable/>`__ or a `Jupyter Notebook <https://jupyter.org>`__. Just make sure to install the dependencies first:
+
+```bash
+$ pip install xarray matplotlib netcdf4
 The analysis below is performed for 100 yr integration of :doc:`global_4deg </reference/setups/4deg>` from the :doc:`setup gallery </reference/setup-gallery>`. The model output is preloaded in our case and it has 4 different files:
 
 .. code:: 
