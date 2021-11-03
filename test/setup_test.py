@@ -32,18 +32,6 @@ def test_setup_acc_basic():
     sim.run()
 
 
-def test_setup_acc_sector():
-    from veros.setups.acc_sector import ACCSectorSetup
-
-    sim = ACCSectorSetup()
-    sim.setup()
-
-    with sim.state.settings.unlock():
-        sim.state.settings.runlen = sim.state.settings.dt_tracer * 20
-
-    sim.run()
-
-
 def test_setup_4deg():
     from veros.setups.global_4deg import GlobalFourDegreeSetup
 
@@ -86,18 +74,6 @@ def test_setup_north_atlantic():
     from veros.setups.north_atlantic import NorthAtlanticSetup
 
     sim = NorthAtlanticSetup(override=dict(nx=100, ny=100, nz=50))
-    sim.setup()
-
-    with sim.state.settings.unlock():
-        sim.state.settings.runlen = sim.state.settings.dt_tracer
-
-    sim.run()
-
-
-def test_setup_wave_propagation():
-    from veros.setups.wave_propagation import WavePropagationSetup
-
-    sim = WavePropagationSetup(override=dict(nx=100, ny=100, nz=50))
     sim.setup()
 
     with sim.state.settings.unlock():
