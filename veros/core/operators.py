@@ -142,10 +142,16 @@ def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask, use_ext=None):
     return jnp.moveaxis(sol, 0, 2)
 
 
-def update_multiply_jax(arr, at, to):
-    import jax
+def update_jax(arr, at, to):
+    return arr.at[at].set(to)
 
-    return jax.ops.index_update(arr, at, arr[at] * to)
+
+def update_add_jax(arr, at, to):
+    return arr.at[at].add(to)
+
+
+def update_multiply_jax(arr, at, to):
+    return arr.at[at].multiply(to)
 
 
 def flush_jax():
@@ -172,13 +178,12 @@ if runtime_settings.backend == "numpy":
     flush = noop
 
 elif runtime_settings.backend == "jax":
-    import jax.ops
     import jax.lax
 
-    update = jax.ops.index_update
-    update_add = jax.ops.index_add
+    update = update_jax
+    update_add = update_add_jax
     update_multiply = update_multiply_jax
-    at = jax.ops.index
+    at = Index()
     solve_tridiagonal = solve_tridiagonal_jax
     for_loop = jax.lax.fori_loop
     scan = jax.lax.scan
