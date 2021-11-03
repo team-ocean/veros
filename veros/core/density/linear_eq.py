@@ -5,10 +5,17 @@
   pot. temperature ct in deg C
 ==========================================================================
 """
-from veros import veros_kernel
+from veros import veros_kernel, runtime_settings
 
 rho0 = 1024.0
-theta0 = 283.0 - 273.15
+
+if runtime_settings.pyom_compatibility_mode:
+    import numpy as onp
+
+    theta0 = onp.float32(283.0) - onp.float32(273.15)
+else:
+    theta0 = 283.0 - 273.15
+
 S0 = 35.0
 betaT = 1.67e-4
 betaS = 0.78e-3
