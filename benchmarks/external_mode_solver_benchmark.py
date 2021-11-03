@@ -1,4 +1,7 @@
+from time import perf_counter
 from benchmark_base import benchmark_cli
+from veros import logger
+from veros.pyom_compat import load_pyom, pyom_from_state
 
 
 @benchmark_cli
@@ -8,11 +11,22 @@ def main(pyom2_lib, timesteps, size):
     import h5py
     from veros.state import VerosState
     from veros.tools import get_assets
-    from veros.core.streamfunction.pressure_solvers import get_linear_solver
+    from veros.core.streamfunction.solve_stream import get_linear_solver
     from veros.variables import allocate
     from veros.state import resize_dimension
+    from veros.core.operators import flush
+    from veros.distributed import barrier
 
-    assets = get_assets("bench-external", "bench-external-assets.json")["4deg"]
+    if size[0] > 3000 and size[0] < 4000:
+        assets = get_assets("bench-external", "bench-external-assets.json")["01deg"]
+    elif size[0] > 300 and size[0] < 500:
+        assets = get_assets("bench-external", "bench-external-assets.json")["1deg"]
+    elif size[0] > 50 and size[0] < 100:
+        assets = get_assets("bench-external", "bench-external-assets.json")["4deg"]
+    else:
+        raise ValueError(
+            "External mode benchmark only works for 4deg, 1deg and 01deg setups. with nx = 94, 364, 3604 respectively."
+        )
 
     f = h5py.File(assets)
 
@@ -63,13 +77,32 @@ def main(pyom2_lib, timesteps, size):
 
     state = solver_state()
     x0 = allocate(state.dimensions, ("xt", "yt"), fill=0)
+    solver = get_linear_solver(state)
 
-    def run():
-        solver = get_linear_solver(state)
-        solver.solve(state, f["rhs_press"][:], x0)
+    if not pyom2_lib:
 
-    for i in range(timesteps):
+        def run():
+            solver.solve(state, f["rhs_stream"][:], x0)
+
+    else:
+        pyom_obj = load_pyom(pyom2_lib)
+        pyom_obj = pyom_from_state(state, pyom_obj, init_streamfunction=False)
+        m = pyom_obj.main_module
+        m.forc = f["rhs_stream"][:]
+
+        def run():
+            pyom_obj.congrad_streamfunction(
+                m.is_pe - m.onx, m.ie_pe + m.onx, m.js_pe - m.onx, m.je_pe + m.onx, m.forc, 100
+            )
+
+    start = perf_counter()
+    for _ in range(timesteps):
         run()
+        flush()
+        barrier()
+    end = perf_counter()
+
+    logger.debug(f"Streamfunction solver took {(end-start)/timesteps}s")
 
 
 if __name__ == "__main__":
