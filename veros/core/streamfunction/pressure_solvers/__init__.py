@@ -1,6 +1,6 @@
 import functools
 
-from veros import runtime_settings as rs, runtime_state as rst, logger
+from veros import logger
 
 
 def memoize(func):
@@ -17,42 +17,10 @@ def memoize(func):
 
 
 def _get_solver_class():
-    ls = rs.linear_solver
+    # TODO: implement other solvers
+    from veros.core.streamfunction.pressure_solvers.scipy_pressure import SciPyPressureSolver
 
-    def _get_best_solver():
-        if rst.proc_num > 1:
-            try:
-                from veros.core.streamfunction.solvers.petsc_ import PETScSolver
-            except ImportError:
-                logger.warning("PETSc linear solver not available, falling back to SciPy")
-            else:
-                return PETScSolver
-
-        if rs.backend == "jax" and rs.device == "gpu" and rs.float_type == "float64":
-            from veros.core.streamfunction.solvers.scipy_jax import JAXSciPySolver
-
-            return JAXSciPySolver
-
-        from veros.core.streamfunction.pressure_solvers.scipy_pressure import SciPyPressureSolver
-
-        return SciPyPressureSolver
-
-    if ls == "best":
-        return _get_best_solver()
-    elif ls == "petsc":
-        from veros.core.streamfunction.solvers.petsc_ import PETScSolver
-
-        return PETScSolver
-    elif ls == "scipy":
-        from veros.core.streamfunction.pressure_solvers.scipy_pressure import ScipyPressureSolver
-
-        return ScipyPressureSolver
-    elif ls == "scipy_jax":
-        from veros.core.streamfunction.solvers.scipy_jax import JAXSciPySolver
-
-        return JAXSciPySolver
-
-    raise ValueError(f"unrecognized linear solver {ls}")
+    return SciPyPressureSolver
 
 
 @memoize
