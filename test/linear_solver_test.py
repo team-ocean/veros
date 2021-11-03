@@ -11,8 +11,8 @@ def solver_state(cyclic):
     settings = state.settings
 
     with settings.unlock():
-        settings.nx = 20
-        settings.ny = 10
+        settings.nx = 400
+        settings.ny = 200
         settings.nz = 1
 
         settings.enable_cyclic_x = cyclic

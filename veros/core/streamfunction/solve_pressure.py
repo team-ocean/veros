@@ -1,12 +1,10 @@
 """
 solve two dimensional Possion equation
-     A * dpsi = forc,  where A = nabla_h^2  
+    A * dpsi = forc,  where A = nabla_h^2
 with Neumann boundary conditions
 used for surface pressure or free surface
 method same as pressure method in MITgcm
 """
-
-
 
 
 from veros import veros_routine
@@ -17,8 +15,8 @@ from veros.variables import allocate
 from veros.core import utilities as mainutils
 from veros.core.operators import update, update_add, at, for_loop
 from veros.core.operators import numpy as npx
-from veros.core.streamfunction import line_integrals
 from veros.core.streamfunction.pressure_solvers import get_linear_solver
+
 
 @veros_routine
 def solve_pressure(state):
@@ -28,8 +26,6 @@ def solve_pressure(state):
     state_update, (forc, uloc, vloc) = prepare_forcing(state)
     vs.update(state_update)
 
-
-
     linear_solver = get_linear_solver(state)
 
     linear_sol = linear_solver.solve(state, forc, vs.psi[..., vs.taup1])
@@ -37,12 +33,13 @@ def solve_pressure(state):
 
     vs.update(barotropic_velocity_update(state, uloc=uloc, vloc=vloc))
 
+
 @veros_kernel
 def prepare_forcing(state):
     vs = state.variables
     settings = state.settings
 
-    #hydrostatic pressure
+    # hydrostatic pressure
     if runtime_settings.pyom_compatibility_mode:
         fac = npx.float32(settings.grav) / npx.float32(settings.rho_0)
     else:
@@ -53,17 +50,16 @@ def prepare_forcing(state):
     )
 
     def compute_p_hydro(k_inv, p_hydro):
-            k = settings.nz - k_inv - 1
-            p_hydro = update(
-                p_hydro,
-                at[..., k],
-                vs.maskT[:, :, k]
-                * (p_hydro[:, :, k + 1] + 0.5 * vs.dzw[k] * fac * (vs.rho[:, :, k + 1, vs.tau] + vs.rho[:, :, k, vs.tau])),
-            )
-            return p_hydro
+        k = settings.nz - k_inv - 1
+        p_hydro = update(
+            p_hydro,
+            at[..., k],
+            vs.maskT[:, :, k]
+            * (p_hydro[:, :, k + 1] + 0.5 * vs.dzw[k] * fac * (vs.rho[:, :, k + 1, vs.tau] + vs.rho[:, :, k, vs.tau])),
+        )
+        return p_hydro
 
     vs.p_hydro = for_loop(1, settings.nz, compute_p_hydro, vs.p_hydro)
-
 
     # add hydrostatic pressure gradient
     vs.du = update_add(
@@ -95,8 +91,6 @@ def prepare_forcing(state):
         * vs.maskU,
     )
 
-
-
     vs.v = update(
         vs.v,
         at[:, :, :, vs.taup1],
@@ -114,19 +108,16 @@ def prepare_forcing(state):
     uloc = allocate(state.dimensions, ("xt", "yt"))
     vloc = allocate(state.dimensions, ("xt", "yt"))
 
-
     uloc = update(
         uloc,
-        at[2:-2,2:-2],
-        npx.sum((vs.u[2:-2, 2:-2, :, vs.taup1]) * vs.maskU[2:-2, 2:-2, :] * vs.dzt, axis=(2,)) / settings.dt_mom
-    ) 
+        at[2:-2, 2:-2],
+        npx.sum((vs.u[2:-2, 2:-2, :, vs.taup1]) * vs.maskU[2:-2, 2:-2, :] * vs.dzt, axis=(2,)) / settings.dt_mom,
+    )
     vloc = update(
         vloc,
-        at[2:-2,2:-2],
-        npx.sum((vs.v[2:-2, 2:-2, :, vs.taup1]) * vs.maskV[2:-2, 2:-2, :] * vs.dzt, axis=(2,)) / settings.dt_mom
-    ) 
-
-    
+        at[2:-2, 2:-2],
+        npx.sum((vs.v[2:-2, 2:-2, :, vs.taup1]) * vs.maskV[2:-2, 2:-2, :] * vs.dzt, axis=(2,)) / settings.dt_mom,
+    )
 
     uloc = mainutils.enforce_boundaries(uloc, settings.enable_cyclic_x)
     vloc = mainutils.enforce_boundaries(vloc, settings.enable_cyclic_x)
@@ -136,33 +127,33 @@ def prepare_forcing(state):
     forc = update(
         forc,
         at[2:-2, 2:-2],
-        (uloc[2:-2,2:-2] - uloc[1:-3, 2:-2])/ (vs.cost[2:-2]* vs.dxt[2:-2, npx.newaxis])
-        + (vs.cosu[2:-2]* vloc[2:-2,2:-2] - vs.cosu[1:-3]*vloc[2:-2,1:-3])/ (vs.cost[2:-2] * vs.dyt[2:-2])
+        (uloc[2:-2, 2:-2] - uloc[1:-3, 2:-2]) / (vs.cost[2:-2] * vs.dxt[2:-2, npx.newaxis])
+        + (vs.cosu[2:-2] * vloc[2:-2, 2:-2] - vs.cosu[1:-3] * vloc[2:-2, 1:-3]) / (vs.cost[2:-2] * vs.dyt[2:-2]),
     )
 
-    
-
     # NOTE: might need to change this for compatibility mode?
-    if(settings.enable_free_surface):
+    if settings.enable_free_surface:
         if runtime_settings.pyom_compatibility_mode:
             forc = update(
                 forc,
                 at[2:-2, 2:-2],
-                forc[2:-2,2:-2] - vs.psi[2:-2,2:-2,vs.tau]/(npx.float32(settings.grav)*npx.float32(settings.dt_mom)**2) * vs.maskT[2:-2,2:-2, settings.nz-1]
+                forc[2:-2, 2:-2]
+                - vs.psi[2:-2, 2:-2, vs.tau]
+                / (npx.float32(settings.grav) * npx.float32(settings.dt_mom) ** 2)
+                * vs.maskT[2:-2, 2:-2, settings.nz - 1],
             )
         else:
             forc = update(
                 forc,
                 at[2:-2, 2:-2],
-                forc[2:-2,2:-2] - vs.psi[2:-2,2:-2,vs.tau]/(settings.grav*settings.dt_mom*settings.dt_tracer) * vs.maskT[2:-2,2:-2, settings.nz-1]
+                forc[2:-2, 2:-2]
+                - vs.psi[2:-2, 2:-2, vs.tau]
+                / (settings.grav * settings.dt_mom * settings.dt_tracer)
+                * vs.maskT[2:-2, 2:-2, settings.nz - 1],
             )
 
     # First guess
-    vs.psi = update(
-        vs.psi,
-        at[:, :, vs.taup1],
-        2*vs.psi[:, :, vs.tau] - vs.psi[:, :, vs.taum1]
-    )
+    vs.psi = update(vs.psi, at[:, :, vs.taup1], 2 * vs.psi[:, :, vs.tau] - vs.psi[:, :, vs.taum1])
 
     return KernelOutput(du=vs.du, dv=vs.dv, u=vs.u, v=vs.v, psi=vs.psi, p_hydro=vs.p_hydro), (forc, uloc, vloc)
 
@@ -175,30 +166,26 @@ def barotropic_velocity_update(state, uloc, vloc):
     vs = state.variables
     settings = state.settings
 
-    vs.psi = update(vs.psi, at[:, :, vs.taup1], mainutils.enforce_boundaries(vs.psi[:, :, vs.taup1], settings.enable_cyclic_x))
+    vs.psi = update(
+        vs.psi, at[:, :, vs.taup1], mainutils.enforce_boundaries(vs.psi[:, :, vs.taup1], settings.enable_cyclic_x)
+    )
 
     vs.u = update_add(
         vs.u,
-        at[2:-2,2:-2, :, vs.taup1],
-        - settings.dt_mom
-        * (vs.psi[3:-1,2:-2,vs.taup1,npx.newaxis]
-        - vs.psi[2:-2,2:-2,vs.taup1,npx.newaxis])
-        / (vs.dxu[2:-2, npx.newaxis, npx.newaxis]
-        * vs.cost[2:-2, npx.newaxis])
-        * vs.maskU[2:-2,2:-2, :],
+        at[2:-2, 2:-2, :, vs.taup1],
+        -settings.dt_mom
+        * (vs.psi[3:-1, 2:-2, vs.taup1, npx.newaxis] - vs.psi[2:-2, 2:-2, vs.taup1, npx.newaxis])
+        / (vs.dxu[2:-2, npx.newaxis, npx.newaxis] * vs.cost[2:-2, npx.newaxis])
+        * vs.maskU[2:-2, 2:-2, :],
     )
 
     vs.v = update_add(
         vs.v,
-        at[2:-2,2:-2,:, vs.taup1],
-        - settings.dt_mom
-        * (vs.psi[2:-2,3:-1, vs.taup1, npx.newaxis]
-        - vs.psi[2:-2,2:-2,vs.taup1, npx.newaxis])
+        at[2:-2, 2:-2, :, vs.taup1],
+        -settings.dt_mom
+        * (vs.psi[2:-2, 3:-1, vs.taup1, npx.newaxis] - vs.psi[2:-2, 2:-2, vs.taup1, npx.newaxis])
         / vs.dyu[npx.newaxis, 2:-2, npx.newaxis]
         * vs.maskV[2:-2, 2:-2, :],
     )
 
-    return KernelOutput(u = vs.u, v = vs.v)
-
-
-        
+    return KernelOutput(u=vs.u, v=vs.v)
