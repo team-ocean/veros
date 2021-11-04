@@ -3,7 +3,7 @@ from veros.variables import allocate
 
 from veros.core import utilities
 from veros.core.operators import update, update_add, at, numpy as npx
-from veros.core.streamfunction.solvers.base import LinearSolver
+from veros.core.external.solvers.base import LinearSolver
 
 
 @veros_kernel(static_args=("solve_fun",))

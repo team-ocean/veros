@@ -22,33 +22,33 @@ def _get_solver_class():
     def _get_best_solver():
         if rst.proc_num > 1:
             try:
-                from veros.core.streamfunction.solvers.petsc_ import PETScSolver
+                from veros.core.external.solvers.petsc_ import PETScSolver
             except ImportError:
                 logger.warning("PETSc linear solver not available, falling back to SciPy")
             else:
                 return PETScSolver
 
         if rs.backend == "jax" and rs.device == "gpu" and rs.float_type == "float64":
-            from veros.core.streamfunction.solvers.scipy_jax import JAXSciPySolver
+            from veros.core.external.solvers.scipy_jax import JAXSciPySolver
 
             return JAXSciPySolver
 
-        from veros.core.streamfunction.solvers.scipy import SciPySolver
+        from veros.core.external.solvers.scipy import SciPySolver
 
         return SciPySolver
 
     if ls == "best":
         return _get_best_solver()
     elif ls == "petsc":
-        from veros.core.streamfunction.solvers.petsc_ import PETScSolver
+        from veros.core.external.solvers.petsc_ import PETScSolver
 
         return PETScSolver
     elif ls == "scipy":
-        from veros.core.streamfunction.solvers.scipy import SciPySolver
+        from veros.core.external.solvers.scipy import SciPySolver
 
         return SciPySolver
     elif ls == "scipy_jax":
-        from veros.core.streamfunction.solvers.scipy_jax import JAXSciPySolver
+        from veros.core.external.solvers.scipy_jax import JAXSciPySolver
 
         return JAXSciPySolver
 

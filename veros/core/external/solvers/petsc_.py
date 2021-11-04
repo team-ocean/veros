@@ -5,7 +5,7 @@ import numpy as onp
 
 from veros import logger, veros_kernel, runtime_settings as rs, runtime_state as rst
 from veros.core import utilities
-from veros.core.streamfunction.solvers.base import LinearSolver
+from veros.core.external.solvers.base import LinearSolver
 from veros.core.operators import numpy as npx, update, update_add, at, flush
 
 

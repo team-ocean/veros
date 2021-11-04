@@ -2,53 +2,63 @@ import numpy as onp
 import scipy.sparse
 import scipy.sparse.linalg as spalg
 
-from veros import logger, veros_kernel, veros_routine, distributed, runtime_state as rst
+from veros import logger, veros_kernel, veros_routine, distributed, runtime_settings, runtime_state as rst
 from veros.variables import allocate
-from veros.core import utilities
-from veros.core.operators import update, at, numpy as npx
-from veros.core.streamfunction.solvers.base import LinearSolver
+from veros.core.operators import update, update_add, at, numpy as npx
+from veros.core.external.solvers.base import LinearSolver
 
 
-class SciPySolver(LinearSolver):
+class SciPyPressureSolver(LinearSolver):
     @veros_routine(
-        local_variables=("hvr", "hur", "dxu", "dxt", "dyu", "dyt", "cosu", "cost", "boundary_mask"),
+        local_variables=("hv", "hu", "dxu", "dxt", "dyu", "dyt", "cosu", "cost", "boundary_mask", "maskT"),
         dist_safe=False,
     )
     def __init__(self, state):
+        npx.set_printoptions(threshold=npx.inf)
+        npx.set_printoptions(linewidth=2000)
+
         self._matrix = self._assemble_poisson_matrix(state)
-        jacobi_precon = self._jacobi_preconditioner(state, self._matrix)
-        self._matrix = jacobi_precon * self._matrix
-        self._rhs_scale = jacobi_precon.diagonal()
+        if runtime_settings.pyom_compatibility_mode and state.settings.enable_cyclic_x:
+            with state.settings.unlock():
+                state.settings.enable_cyclic_x = False
+                self._matrix_notcyclic = self._assemble_poisson_matrix(state)
+                state.settings.enable_cyclic_x = True
+
+        else:
+            self._matrix_notcyclic = self._matrix
+
+        self.jacobi_precon = self._jacobi_preconditioner(state, self._matrix)
+        self._rhs_scale = self.jacobi_precon.diagonal()
         self._extra_args = {}
 
-        logger.info("Computing ILU preconditioner...")
-        ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-6, fill_factor=100)
-        self._extra_args["M"] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
+        self._extra_args = {}
+
+        # logger.info("Computing ILU preconditioner...")
+        # ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-6, fill_factor=100)
+        # self._extra_args["M"] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
 
     def _scipy_solver(self, state, rhs, x0, boundary_mask, boundary_val):
-        settings = state.settings
+        vs = state.variables
 
         orig_shape = x0.shape
         orig_dtype = x0.dtype
-        x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x, local=True)
 
-        rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
-
-        rhs = onp.asarray(rhs.reshape(-1) * self._rhs_scale, dtype="float64")
         x0 = onp.asarray(x0.reshape(-1), dtype="float64")
+        rhs = onp.asarray(rhs.reshape(-1), dtype="float64")  # *self._rhs_scale
+        rhs = npx.where(vs.maskT[:, :, -1].reshape(rhs.shape), rhs, 0)
 
         linear_solution, info = spalg.bicgstab(
-            self._matrix,
-            rhs,
+            self.jacobi_precon * self._matrix,
+            rhs * self._rhs_scale,
             x0=x0,
             atol=1e-8,
             tol=0,
-            maxiter=1000,
+            maxiter=100,
             **self._extra_args,
         )
 
         if info > 0:
-            logger.warning("Streamfunction solver did not converge after {} iterations", info)
+            logger.warning("Pressure solver did not converge after {} iterations", info)
 
         return npx.asarray(linear_solution, dtype=orig_dtype).reshape(orig_shape)
 
@@ -90,99 +100,126 @@ class SciPySolver(LinearSolver):
 
     @staticmethod
     def _assemble_poisson_matrix(state):
-        """
-        Construct a sparse matrix based on the stencil for the 2D Poisson equation.
-        """
-        vs = state.variables
-        settings = state.settings
-
-        boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
-
-        # assemble diagonals
-        main_diag = allocate(state.dimensions, ("xu", "yu"), fill=1, local=False)
+        main_diag = allocate(state.dimensions, ("xu", "yu"), local=False)
         east_diag, west_diag, north_diag, south_diag = (
             allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(4)
         )
+
+        vs = state.variables
+        settings = state.settings
+
+        maskM = allocate(state.dimensions, ("xu", "yu"), local=False)
+        mp_i, mm_i, mp_j, mm_j = (
+            allocate(state.dimensions, ("xu", "yu"), local=False, include_ghosts=False) for _ in range(4)
+        )
+
+        maskM = update(maskM, at[:, :], vs.maskT[:, :, -1])
+
+        mp_i = update(mp_i, at[:, :], maskM[2:-2, 2:-2] * maskM[3:-1, 2:-2])
+        mm_i = update(mm_i, at[:, :], maskM[2:-2, 2:-2] * maskM[1:-3, 2:-2])
+
+        mp_j = update(mp_j, at[:, :], maskM[2:-2, 2:-2] * maskM[2:-2, 3:-1])
+        mm_j = update(mm_j, at[:, :], maskM[2:-2, 2:-2] * maskM[2:-2, 1:-3])
+
         main_diag = update(
             main_diag,
             at[2:-2, 2:-2],
-            -vs.hvr[3:-1, 2:-2]
-            / vs.dxu[2:-2, npx.newaxis]
-            / vs.dxt[3:-1, npx.newaxis]
-            / vs.cosu[npx.newaxis, 2:-2] ** 2
-            - vs.hvr[2:-2, 2:-2]
+            -mp_i
+            * vs.hu[2:-2, 2:-2]
             / vs.dxu[2:-2, npx.newaxis]
             / vs.dxt[2:-2, npx.newaxis]
-            / vs.cosu[npx.newaxis, 2:-2] ** 2
-            - vs.hur[2:-2, 2:-2]
+            / vs.cost[npx.newaxis, 2:-2] ** 2
+            - mm_i
+            * vs.hu[1:-3, 2:-2]
+            / vs.dxu[1:-3, npx.newaxis]
+            / vs.dxt[2:-2, npx.newaxis]
+            / vs.cost[npx.newaxis, 2:-2] ** 2
+            - mp_j
+            * vs.hv[2:-2, 2:-2]
             / vs.dyu[npx.newaxis, 2:-2]
             / vs.dyt[npx.newaxis, 2:-2]
-            * vs.cost[npx.newaxis, 2:-2]
-            / vs.cosu[npx.newaxis, 2:-2]
-            - vs.hur[2:-2, 3:-1]
-            / vs.dyu[npx.newaxis, 2:-2]
-            / vs.dyt[npx.newaxis, 3:-1]
-            * vs.cost[npx.newaxis, 3:-1]
-            / vs.cosu[npx.newaxis, 2:-2],
+            * vs.cosu[npx.newaxis, 2:-2]
+            / vs.cost[npx.newaxis, 2:-2]
+            - mm_j
+            * vs.hv[2:-2, 1:-3]
+            / vs.dyu[npx.newaxis, 1:-3]
+            / vs.dyt[npx.newaxis, 2:-2]
+            * vs.cosu[npx.newaxis, 1:-3]
+            / vs.cost[npx.newaxis, 2:-2],
         )
+
+        if settings.enable_free_surface:
+
+            main_diag = update_add(
+                main_diag,
+                at[2:-2, 2:-2],
+                -1.0 / (settings.grav * settings.dt_mom * settings.dt_tracer) * maskM[2:-2, 2:-2],
+            )
+        # TODO: Compatibility with pyom , use dt_mom squared
+
         east_diag = update(
             east_diag,
             at[2:-2, 2:-2],
-            vs.hvr[3:-1, 2:-2]
+            mp_i
+            * vs.hu[2:-2, 2:-2]
             / vs.dxu[2:-2, npx.newaxis]
-            / vs.dxt[3:-1, npx.newaxis]
-            / vs.cosu[npx.newaxis, 2:-2] ** 2,
+            / vs.dxt[2:-2, npx.newaxis]
+            / vs.cost[npx.newaxis, 2:-2] ** 2,
         )
+
         west_diag = update(
             west_diag,
             at[2:-2, 2:-2],
-            vs.hvr[2:-2, 2:-2]
-            / vs.dxu[2:-2, npx.newaxis]
+            mm_i
+            * vs.hu[1:-3, 2:-2]
+            / vs.dxu[1:-3, npx.newaxis]
             / vs.dxt[2:-2, npx.newaxis]
-            / vs.cosu[npx.newaxis, 2:-2] ** 2,
+            / vs.cost[npx.newaxis, 2:-2] ** 2,
         )
+
         north_diag = update(
             north_diag,
             at[2:-2, 2:-2],
-            vs.hur[2:-2, 3:-1]
+            mp_j
+            * vs.hv[2:-2, 2:-2]
             / vs.dyu[npx.newaxis, 2:-2]
-            / vs.dyt[npx.newaxis, 3:-1]
-            * vs.cost[npx.newaxis, 3:-1]
-            / vs.cosu[npx.newaxis, 2:-2],
+            / vs.dyt[npx.newaxis, 2:-2]
+            * vs.cosu[npx.newaxis, 2:-2]
+            / vs.cost[npx.newaxis, 2:-2],
         )
+
         south_diag = update(
             south_diag,
             at[2:-2, 2:-2],
-            vs.hur[2:-2, 2:-2]
-            / vs.dyu[npx.newaxis, 2:-2]
+            mm_j
+            * vs.hv[2:-2, 1:-3]
+            / vs.dyu[npx.newaxis, 1:-3]
             / vs.dyt[npx.newaxis, 2:-2]
-            * vs.cost[npx.newaxis, 2:-2]
-            / vs.cosu[npx.newaxis, 2:-2],
+            * vs.cosu[npx.newaxis, 1:-3]
+            / vs.cost[npx.newaxis, 2:-2],
         )
+        main_diag = main_diag * maskM
+        # main_diag = npx.where(main_diag == 0.0, 1, main_diag)
+
+        offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1)
 
         if settings.enable_cyclic_x:
-            # couple edges of the domain
             wrap_diag_east, wrap_diag_west = (allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(2))
-            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], west_diag[2, 2:-2] * boundary_mask[2, 2:-2])
-            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], east_diag[-3, 2:-2] * boundary_mask[-3, 2:-2])
+            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], west_diag[2, 2:-2] * maskM[2, 2:-2])
+            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], east_diag[-3, 2:-2] * maskM[-3, 2:-2])
             west_diag = update(west_diag, at[2, 2:-2], 0.0)
             east_diag = update(east_diag, at[-3, 2:-2], 0.0)
 
-        main_diag = main_diag * boundary_mask
-        main_diag = npx.where(main_diag == 0.0, 1.0, main_diag)
-
-        # construct sparse matrix
         cf = tuple(
             diag.reshape(-1)
             for diag in (
                 main_diag,
-                boundary_mask * east_diag,
-                boundary_mask * west_diag,
-                boundary_mask * north_diag,
-                boundary_mask * south_diag,
+                east_diag,
+                west_diag,
+                north_diag,
+                south_diag,
             )
         )
-        offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1)
 
         if settings.enable_cyclic_x:
             offsets += (-main_diag.shape[1] * (settings.nx - 1), main_diag.shape[1] * (settings.nx - 1))
