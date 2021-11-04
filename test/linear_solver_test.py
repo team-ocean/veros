@@ -44,7 +44,7 @@ def solver_state(cyclic):
 
 
 def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
-    from veros.core.streamfunction.solvers.scipy import SciPySolver
+    from veros.core.external.solvers.scipy import SciPySolver
 
     matrix = SciPySolver._assemble_poisson_matrix(state)
 
@@ -66,18 +66,18 @@ def test_solver(solver, solver_state, cyclic):
     from veros.core.operators import numpy as npx
 
     if solver == "scipy":
-        from veros.core.streamfunction.solvers.scipy import SciPySolver
+        from veros.core.external.solvers.scipy import SciPySolver
 
         solver_class = SciPySolver
     elif solver == "scipy_jax":
         if runtime_settings.backend != "jax":
             pytest.skip("scipy_jax solver requires JAX")
 
-        from veros.core.streamfunction.solvers.scipy_jax import JAXSciPySolver
+        from veros.core.external.solvers.scipy_jax import JAXSciPySolver
 
         solver_class = JAXSciPySolver
     elif solver == "petsc":
-        petsc_mod = pytest.importorskip("veros.core.streamfunction.solvers.petsc_")
+        petsc_mod = pytest.importorskip("veros.core.external.solvers.petsc_")
         solver_class = petsc_mod.PETScSolver
     else:
         raise ValueError("unknown solver")

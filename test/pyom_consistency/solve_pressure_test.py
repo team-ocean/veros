@@ -1,5 +1,5 @@
 import pytest
-from veros.core import streamfunction, utilities
+from veros.core import external, utilities
 from veros.pyom_compat import get_random_state
 from test_base import compare_state
 
@@ -35,7 +35,7 @@ def test_solve_pressure(random_state):
     settings = vs_state.settings
 
     compare_state(vs_state, pyom_obj)
-    vs_state.variables.update(streamfunction.solve_pressure.solve_pressure(vs_state))
+    vs_state.variables.update(external.solve_pressure.solve_pressure(vs_state))
     # Initial guess in pyOM should be cyclical
     m.psi[:, :, vs.tau] = utilities.enforce_boundaries(m.psi[:, :, vs.tau], settings.enable_cyclic_x)
     m.psi[:, :, vs.taum1] = utilities.enforce_boundaries(m.psi[:, :, vs.taum1], settings.enable_cyclic_x)

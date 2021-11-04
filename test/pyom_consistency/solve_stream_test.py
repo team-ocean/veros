@@ -1,6 +1,6 @@
 import pytest
 
-from veros.core import streamfunction
+from veros.core import external
 from veros.pyom_compat import get_random_state
 
 from test_base import compare_state
@@ -24,6 +24,6 @@ def random_state(pyom2_lib):
 
 def test_solve_streamfunction(random_state):
     vs_state, pyom_obj = random_state
-    vs_state.variables.update(streamfunction.solve_streamfunction(vs_state))
+    vs_state.variables.update(external.solve_streamfunction(vs_state))
     pyom_obj.solve_streamfunction()
     compare_state(vs_state, pyom_obj)

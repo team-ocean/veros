@@ -18,7 +18,7 @@ def memoize(func):
 
 def _get_solver_class():
     # TODO: implement other solvers
-    from veros.core.streamfunction.pressure_solvers.scipy_pressure import SciPyPressureSolver
+    from veros.core.external.pressure_solvers.scipy_pressure import SciPyPressureSolver
 
     return SciPyPressureSolver
 

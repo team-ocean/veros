@@ -11,8 +11,8 @@ from veros.variables import allocate
 from veros.core import utilities as mainutils
 from veros.core.operators import update, update_add, at, for_loop
 from veros.core.operators import numpy as npx
-from veros.core.streamfunction import line_integrals
-from veros.core.streamfunction.solvers import get_linear_solver
+from veros.core.external import line_integrals
+from veros.core.external.solvers import get_linear_solver
 
 
 @veros_routine

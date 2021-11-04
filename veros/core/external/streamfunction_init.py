@@ -3,8 +3,8 @@ from veros.variables import allocate
 from veros.distributed import global_max
 from veros.core import utilities as mainutils
 from veros.core.operators import numpy as npx, for_loop, update, at
-from veros.core.streamfunction import island, line_integrals
-from veros.core.streamfunction.solvers import get_linear_solver
+from veros.core.external import island, line_integrals
+from veros.core.external.solvers import get_linear_solver
 
 
 @veros_routine

@@ -2,7 +2,7 @@ from veros.core.operators import numpy as npx
 
 from veros import veros_routine, veros_kernel, KernelOutput, runtime_settings
 from veros.variables import allocate
-from veros.core import friction, streamfunction
+from veros.core import friction, external
 from veros.core.operators import update, update_add, at
 
 
@@ -315,6 +315,6 @@ def momentum(state):
     """
     with state.timers["pressure"]:
         if state.settings.enable_streamfunction:
-            streamfunction.solve_streamfunction(state)
+            external.solve_streamfunction(state)
         else:
-            streamfunction.solve_pressure.solve_pressure(state)
+            external.solve_pressure.solve_pressure(state)

@@ -485,7 +485,7 @@ def _generate_random_var(state, var):
 
 def get_random_state(pyom2_lib=None, extra_settings=None):
     """Generates random Veros and PyOM states (for testing)"""
-    from veros.core import numerics, streamfunction
+    from veros.core import numerics, external
 
     if extra_settings is None:
         extra_settings = {}
@@ -513,7 +513,7 @@ def get_random_state(pyom2_lib=None, extra_settings=None):
     numerics.calc_grid(state)
     numerics.calc_topo(state)
 
-    streamfunction.streamfunction_init(state)
+    external.streamfunction_init(state)
 
     if pyom2_lib is None:
         return state
