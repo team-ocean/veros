@@ -38,8 +38,9 @@ If you want to learn more about the background and capabilities of Veros, you sh
    :maxdepth: 1
    :caption: Tutorials
 
-   tutorial/dev
+   tutorial/analysis
    tutorial/cluster
+   tutorial/dev
 
 .. toctree::
    :maxdepth: 1
