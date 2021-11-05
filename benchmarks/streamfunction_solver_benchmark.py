@@ -19,15 +19,18 @@ def main(pyom2_lib, timesteps, size):
 
     assets = get_assets("bench-external", "bench-external-assets.json")
 
-    if size[0] > 3000 and size[0] < 4000:
+    total_size = size[0] * size[1] * size[2]
+
+    if 1e8 <= total_size <= 1e9:
         infile = assets["01deg-stream"]
-    elif size[0] > 300 and size[0] < 500:
+    elif 1e6 <= total_size <= 1e7:
         infile = assets["1deg-stream"]
-    elif size[0] > 50 and size[0] < 100:
+    elif 1e4 <= total_size <= 1e5:
         infile = assets["4deg-stream"]
     else:
         raise ValueError(
-            "Streamfunction solver benchmark only works for 4deg, 1deg and 01deg setups. with nx = 94, 364, 3604 respectively."
+            "Streamfunction solver benchmark only support 4deg, 1deg, and 0.1deg resolution"
+            " (n = 5e4, 5e6, 5e8, respectively)."
         )
 
     with h5py.File(infile, "r") as f:
