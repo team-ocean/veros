@@ -1,3 +1,4 @@
+import os
 from time import perf_counter
 
 from benchmark_base import benchmark_cli
@@ -94,7 +95,8 @@ def main(pyom2_lib, timesteps, size):
     from veros.core.utilities import enforce_boundaries
     from veros.core.external.solve_stream import get_linear_solver
 
-    assets = get_assets("bench-external", "bench-external-assets.json")
+    here = os.path.dirname(__file__)
+    assets = get_assets("bench-external", os.path.join(here, "bench-external-assets.json"))
 
     total_size = size[0] * size[1] * size[2]
 
@@ -155,10 +157,15 @@ def main(pyom2_lib, timesteps, size):
         barrier()
         end = perf_counter()
 
-        logger.debug(f"Streamfunction solver took {end - start}s")
+        logger.debug(f"Time step took {end - start}s")
 
     if not pyom2_lib:
-        npx.testing.assert_allclose(res[2:-2, 2:-2], input_data["res"][2:-2, 2:-2])
+        # monitor residual to expected solution, with generous margin
+        def rms(arr):
+            return npx.sqrt(npx.mean(arr ** 2))
+
+        rms_err = rms(res[2:-2, 2:-2] - input_data["res"][2:-2, 2:-2]) / rms(input_data["res"][2:-2, 2:-2])
+        assert rms_err < 1e-3, rms_err
 
 
 if __name__ == "__main__":
