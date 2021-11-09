@@ -5,17 +5,94 @@ from benchmark_base import benchmark_cli
 from veros import logger
 from veros.pyom_compat import load_pyom, pyom_from_state
 
+VARIABLES_USED = [
+    "boundary_mask",
+    "cost",
+    "cosu",
+    "dxt",
+    "dxu",
+    "dyt",
+    "dyu",
+    "hur",
+    "hvr",
+    "kbot",
+]
+
+SETTINGS_USED = [
+    "nx",
+    "ny",
+    "nz",
+    "dt_tracer",
+    "dt_mom",
+    "enable_free_surface",
+    "enable_streamfunction",
+    "enable_cyclic_x",
+]
+
+
+def get_dummy_state(infile):
+    import h5py
+    from veros.state import VerosState, resize_dimension
+    from veros.distributed import get_chunk_slices, exchange_overlap
+    from veros.variables import VARIABLES, DIM_TO_SHAPE_VAR, get_shape
+    from veros.settings import SETTINGS
+    from veros.core.operators import numpy as npx, update, at
+
+    variables_subset = {key: VARIABLES[key] for key in VARIABLES_USED}
+
+    state = VerosState(var_meta=variables_subset, setting_meta=SETTINGS, dimensions=DIM_TO_SHAPE_VAR)
+
+    with h5py.File(infile, "r") as f:
+        input_settings = dict(f["settings"].attrs.items())
+
+        with state.settings.unlock():
+            state.settings.update({sett: input_settings[sett] for sett in SETTINGS_USED})
+
+        state.initialize_variables()
+
+        nisle = f["boundary_mask"].shape[2]
+        resize_dimension(state, "isle", nisle)
+        dimensions = state.dimensions
+        var_meta = state.var_meta
+
+        input_data = {}
+        for v in f.keys():
+            if v == "settings":
+                continue
+
+            if v in var_meta:
+                dims = var_meta[v].dims
+            else:
+                dims = ("xt", "yt")
+
+            local_shape = get_shape(dimensions, dims, local=True, include_ghosts=True)
+            gidx, lidx = get_chunk_slices(dimensions["xt"], dimensions["yt"], dims, include_overlap=True)
+
+            var = npx.empty(local_shape, dtype=str(f[v].dtype))
+            var = update(var, at[lidx], f[v][gidx])
+            var = exchange_overlap(var, dims, state.settings.enable_cyclic_x)
+            input_data[v] = var
+
+    with state.variables.unlock():
+        for key in VARIABLES_USED:
+            if key == "kbot":
+                continue
+
+            setattr(state.variables, key, input_data[key])
+
+        # needed for PyOM init
+        state.variables.kbot = npx.where(state.variables.hur > 0, 1, 0)
+
+    return state, input_data
+
 
 @benchmark_cli
 def main(pyom2_lib, timesteps, size):
-    import h5py
-
-    from veros.state import VerosState
     from veros.tools import get_assets
-    from veros.core.external.solve_stream import get_linear_solver
-    from veros.state import resize_dimension
-    from veros.core.operators import flush, numpy as npx
     from veros.distributed import barrier
+    from veros.core.operators import flush, numpy as npx
+    from veros.core.utilities import enforce_boundaries
+    from veros.core.external.solve_stream import get_linear_solver
 
     assets = get_assets("bench-external", "bench-external-assets.json")
 
@@ -33,64 +110,7 @@ def main(pyom2_lib, timesteps, size):
             " (n = 5e4, 5e6, 5e8, respectively)."
         )
 
-    with h5py.File(infile, "r") as f:
-        input_data = {v: npx.array(f[v]) for v in f.keys()}
-        input_settings = dict(f["settings"].attrs.items())
-
-    def get_solver_state():
-        from veros import variables as var_mod, settings as settings_mod
-
-        default_settings = settings_mod.SETTINGS.copy()
-        default_dimensions = var_mod.DIM_TO_SHAPE_VAR.copy()
-        var_meta = var_mod.VARIABLES.copy()
-
-        keys_to_extract = [
-            "boundary_mask",
-            "cost",
-            "cosu",
-            "dxt",
-            "dxu",
-            "dyt",
-            "dyu",
-            "hur",
-            "hvr",
-            "kbot",
-        ]
-        variables_subset = {key: var_meta[key] for key in keys_to_extract}
-
-        settings_used = [
-            "nx",
-            "ny",
-            "nz",
-            "dt_tracer",
-            "dt_mom",
-            "enable_free_surface",
-            "enable_streamfunction",
-            "enable_cyclic_x",
-        ]
-
-        state = VerosState(var_meta=variables_subset, setting_meta=default_settings, dimensions=default_dimensions)
-        with state.settings.unlock():
-            state.settings.update({sett: input_settings[sett] for sett in settings_used})
-
-        state.initialize_variables()
-
-        boundary_mask = input_data["boundary_mask"]
-        nisle = boundary_mask.shape[2]
-        resize_dimension(state, "isle", nisle)
-
-        with state.variables.unlock():
-            for key in keys_to_extract:
-                if key == "kbot":
-                    continue
-                setattr(state.variables, key, input_data[key])
-
-            # needed for PyOM init
-            state.variables.kbot = npx.where(state.variables.hur > 0, 1, 0)
-
-        return state
-
-    state = get_solver_state()
+    state, input_data = get_dummy_state(infile)
     solver = get_linear_solver(state)
 
     if not pyom2_lib:
@@ -109,7 +129,7 @@ def main(pyom2_lib, timesteps, size):
         m.taum1, m.tau, m.taup1 = 1, 2, 3
 
         def reset():
-            m.dpsi[..., m.taup1 - 1] = input_data["x0"]
+            m.dpsi[..., m.taup1 - 1] = enforce_boundaries(input_data["x0"], True)
 
         def run():
             pyom_obj.congrad_streamfunction(
@@ -130,12 +150,15 @@ def main(pyom2_lib, timesteps, size):
         barrier()
 
         start = perf_counter()
-        _ = run()
+        res = run()
         flush()
         barrier()
         end = perf_counter()
 
         logger.debug(f"Streamfunction solver took {end - start}s")
+
+    if not pyom2_lib:
+        npx.testing.assert_allclose(res[2:-2, 2:-2], input_data["res"][2:-2, 2:-2])
 
 
 if __name__ == "__main__":
