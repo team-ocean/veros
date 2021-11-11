@@ -7,15 +7,31 @@ from veros.variables import allocate
 from veros.core import utilities
 from veros.core.operators import update, at, numpy as npx
 from veros.core.external.solvers.base import LinearSolver
+from veros.core.external.poisson_matrix import assemble_poisson_matrix
 
 
 class SciPySolver(LinearSolver):
     @veros_routine(
-        local_variables=("hvr", "hur", "dxu", "dxt", "dyu", "dyt", "cosu", "cost", "boundary_mask"),
+        local_variables=(
+            "hu",
+            "hv",
+            "hvr",
+            "hur",
+            "dxu",
+            "dxt",
+            "dyu",
+            "dyt",
+            "cosu",
+            "cost",
+            "boundary_mask",
+            "maskT",
+        ),
         dist_safe=False,
     )
     def __init__(self, state):
-        self._matrix = self._assemble_poisson_matrix(state)
+        cf, offsets = assemble_poisson_matrix(state, "scipy")
+        self._matrix = scipy.sparse.dia_matrix((cf, offsets), shape=(cf[0].size, cf[0].size)).T.tocsr()
+
         jacobi_precon = self._jacobi_preconditioner(state, self._matrix)
         self._matrix = jacobi_precon * self._matrix
         self._rhs_scale = jacobi_precon.diagonal()
@@ -32,7 +48,8 @@ class SciPySolver(LinearSolver):
         orig_dtype = x0.dtype
         x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x, local=True)
 
-        rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
+        if settings.enable_streamfunction:
+            rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
         rhs = onp.asarray(rhs.reshape(-1) * self._rhs_scale, dtype="float64")
         x0 = onp.asarray(x0.reshape(-1), dtype="float64")
