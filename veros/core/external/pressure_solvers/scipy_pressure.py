@@ -2,10 +2,11 @@ import numpy as onp
 import scipy.sparse
 import scipy.sparse.linalg as spalg
 
-from veros import logger, veros_kernel, veros_routine, distributed, runtime_settings, runtime_state as rst
+from veros import logger, veros_kernel, veros_routine, distributed, runtime_state as rst
 from veros.variables import allocate
 from veros.core.operators import update, update_add, at, numpy as npx
 from veros.core.external.solvers.base import LinearSolver
+from veros.core.external.poisson_matrix import assemble_poisson_matrix
 
 
 class SciPyPressureSolver(LinearSolver):
@@ -14,46 +15,31 @@ class SciPyPressureSolver(LinearSolver):
         dist_safe=False,
     )
     def __init__(self, state):
-        npx.set_printoptions(threshold=npx.inf)
-        npx.set_printoptions(linewidth=2000)
-
-        self._matrix = self._assemble_poisson_matrix(state)
-        if runtime_settings.pyom_compatibility_mode and state.settings.enable_cyclic_x:
-            with state.settings.unlock():
-                state.settings.enable_cyclic_x = False
-                self._matrix_notcyclic = self._assemble_poisson_matrix(state)
-                state.settings.enable_cyclic_x = True
-
-        else:
-            self._matrix_notcyclic = self._matrix
+        cf, offsets = assemble_poisson_matrix(state, "scipy")
+        self._matrix = scipy.sparse.dia_matrix((cf, offsets), shape=(cf[0].size, cf[0].size)).T.tocsr()
 
         self.jacobi_precon = self._jacobi_preconditioner(state, self._matrix)
+        self._matrix = self.jacobi_precon * self._matrix
         self._rhs_scale = self.jacobi_precon.diagonal()
         self._extra_args = {}
 
-        self._extra_args = {}
-
-        # logger.info("Computing ILU preconditioner...")
-        # ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-6, fill_factor=100)
-        # self._extra_args["M"] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
+        logger.info("Computing ILU preconditioner...")
+        ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-6, fill_factor=100)
+        self._extra_args["M"] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
 
     def _scipy_solver(self, state, rhs, x0, boundary_mask, boundary_val):
-        vs = state.variables
-
         orig_shape = x0.shape
         orig_dtype = x0.dtype
 
         x0 = onp.asarray(x0.reshape(-1), dtype="float64")
-        rhs = onp.asarray(rhs.reshape(-1), dtype="float64")  # *self._rhs_scale
-        rhs = npx.where(vs.maskT[:, :, -1].reshape(rhs.shape), rhs, 0)
-
+        rhs = onp.asarray(rhs.reshape(-1) * self._rhs_scale, dtype="float64")
         linear_solution, info = spalg.bicgstab(
-            self.jacobi_precon * self._matrix,
-            rhs * self._rhs_scale,
+            self._matrix,
+            rhs,
             x0=x0,
             atol=1e-8,
             tol=0,
-            maxiter=100,
+            maxiter=1000,
             **self._extra_args,
         )
 
@@ -199,7 +185,7 @@ class SciPyPressureSolver(LinearSolver):
             / vs.cost[npx.newaxis, 2:-2],
         )
         main_diag = main_diag * maskM
-        # main_diag = npx.where(main_diag == 0.0, 1, main_diag)
+        main_diag = npx.where(main_diag == 0.0, 1, main_diag)
 
         offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1)
 
