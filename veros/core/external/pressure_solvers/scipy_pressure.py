@@ -2,7 +2,7 @@ import numpy as onp
 import scipy.sparse
 import scipy.sparse.linalg as spalg
 
-from veros import logger, veros_kernel, veros_routine, distributed, runtime_state as rst
+from veros import logger, veros_kernel, veros_routine, distributed, runtime_settings, runtime_state as rst
 from veros.variables import allocate
 from veros.core.operators import update, update_add, at, numpy as npx
 from veros.core.external.solvers.base import LinearSolver
@@ -11,16 +11,15 @@ from veros.core.external.poisson_matrix import assemble_poisson_matrix
 
 class SciPyPressureSolver(LinearSolver):
     @veros_routine(
-        local_variables=("hv", "hu", "dxu", "dxt", "dyu", "dyt", "cosu", "cost", "boundary_mask", "maskT"),
+        local_variables=("hv", "hu", "dxu", "dxt", "dyu", "dyt", "cosu", "cost", "maskT"),
         dist_safe=False,
     )
     def __init__(self, state):
         cf, offsets = assemble_poisson_matrix(state, "scipy")
         self._matrix = scipy.sparse.dia_matrix((cf, offsets), shape=(cf[0].size, cf[0].size)).T.tocsr()
-
-        self.jacobi_precon = self._jacobi_preconditioner(state, self._matrix)
-        self._matrix = self.jacobi_precon * self._matrix
-        self._rhs_scale = self.jacobi_precon.diagonal()
+        jacobi_precon = self._jacobi_preconditioner(state, self._matrix)
+        self._matrix = jacobi_precon @ self._matrix
+        self._rhs_scale = jacobi_precon.diagonal()
         self._extra_args = {}
 
         logger.info("Computing ILU preconditioner...")
@@ -31,15 +30,17 @@ class SciPyPressureSolver(LinearSolver):
         orig_shape = x0.shape
         orig_dtype = x0.dtype
 
+        rhs = npx.where(boundary_mask, rhs, boundary_val)
         x0 = onp.asarray(x0.reshape(-1), dtype="float64")
         rhs = onp.asarray(rhs.reshape(-1) * self._rhs_scale, dtype="float64")
+
         linear_solution, info = spalg.bicgstab(
             self._matrix,
             rhs,
             x0=x0,
             atol=1e-8,
             tol=0,
-            maxiter=1000,
+            maxiter=10000,
             **self._extra_args,
         )
 
@@ -59,11 +60,11 @@ class SciPyPressureSolver(LinearSolver):
             boundary_val: Array containing values to set on boundary elements. Defaults to `x0`.
 
         """
-        rhs_global, x0_global, boundary_mask_global, boundary_val = gather_variables(state, rhs, x0, boundary_val)
+        rhs_global, x0_global, boundary_mask, boundary_val = gather_variables(state, rhs, x0, boundary_val)
 
         if rst.proc_rank == 0:
             linear_solution = self._scipy_solver(
-                state, rhs_global, x0_global, boundary_mask=boundary_mask_global, boundary_val=boundary_val
+                state, rhs_global, x0_global, boundary_mask=boundary_mask, boundary_val=boundary_val
             )
         else:
             linear_solution = npx.empty_like(rhs)
@@ -135,13 +136,16 @@ class SciPyPressureSolver(LinearSolver):
         )
 
         if settings.enable_free_surface:
+            if runtime_settings.pyom_compatibility_mode:
+                dt = settings.dt_mom
+            else:
+                dt = settings.dt_tracer
 
-            main_diag = update_add(
-                main_diag,
-                at[2:-2, 2:-2],
-                -1.0 / (settings.grav * settings.dt_mom * settings.dt_tracer) * maskM[2:-2, 2:-2],
-            )
-        # TODO: Compatibility with pyom , use dt_mom squared
+        main_diag = update_add(
+            main_diag,
+            at[2:-2, 2:-2],
+            -1.0 / (settings.grav * settings.dt_mom * dt) * maskM[2:-2, 2:-2],
+        )
 
         east_diag = update(
             east_diag,
@@ -217,19 +221,17 @@ class SciPyPressureSolver(LinearSolver):
 
 @veros_kernel
 def gather_variables(state, rhs, x0, boundary_val):
-    vs = state.variables
     rhs_global = distributed.gather(rhs, state.dimensions, ("xt", "yt"))
     x0_global = distributed.gather(x0, state.dimensions, ("xt", "yt"))
 
-    boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
-    boundary_mask_global = distributed.gather(boundary_mask, state.dimensions, ("xt", "yt"))
+    boundary_mask = distributed.gather(state.variables.maskT[..., -1], state.dimensions, ("xt", "yt"))
 
     if boundary_val is None:
         boundary_val = x0_global
     else:
         boundary_val = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
 
-    return rhs_global, x0_global, boundary_mask_global, boundary_val
+    return rhs_global, x0_global, boundary_mask, boundary_val
 
 
 @veros_kernel

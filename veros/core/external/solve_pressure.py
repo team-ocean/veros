@@ -21,7 +21,6 @@ from veros.core.external.solvers import get_linear_solver
 @veros_routine
 def solve_pressure(state):
     vs = state.variables
-
     state_update, (forc, uloc, vloc) = prepare_forcing(state)
     vs.update(state_update)
 
