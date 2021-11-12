@@ -1,14 +1,22 @@
 {
-    "4deg": {
-        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/benchmarkdata/external/matrix-4deg.h5",
-        "md5": "5f10c2736427229227dd5df9a64e8410"
+    "4deg-press": {
+        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-4deg-press.h5",
+        "md5": "0e6b9b4119133a56d78bdb1079a0d22e"
     },
-    "1deg": {
-        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/benchmarkdata/external/matrix-1deg.h5",
-        "md5": "0c2f7151fa5962ec16e5c69c131bf529"
+    "4deg-stream": {
+        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-4deg-stream.h5",
+        "md5": "a9528169ddb40e85beba02a2a2550847"
     },
-    "01deg": {
-        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/benchmarkdata/external/matrix-01deg.h5",
-        "md5": "4fc6b2212449077af47ee139379338e3"
+    "1deg-press": {
+        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-1deg-press.h5",
+        "md5": "5ea1bfea8f2118df4c407cbd244f32f0"
+    },
+    "1deg-stream": {
+        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-1deg-stream.h5",
+        "md5": "1d599d1340708ed1e3aec48de5d8b212"
+    },
+    "01deg-stream": {
+        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-01deg-stream.h5",
+        "md5": "bd7ec591915207c3fe51254c104b1a55"
     }
 }

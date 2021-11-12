@@ -21,8 +21,6 @@ from veros.core.external.pressure_solvers import get_linear_solver
 @veros_routine
 def solve_pressure(state):
     vs = state.variables
-    npx.set_printoptions(threshold=npx.inf)
-    npx.set_printoptions(linewidth=2000)
     state_update, (forc, uloc, vloc) = prepare_forcing(state)
     vs.update(state_update)
 
