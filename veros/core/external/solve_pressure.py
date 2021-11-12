@@ -15,19 +15,17 @@ from veros.variables import allocate
 from veros.core import utilities as mainutils
 from veros.core.operators import update, update_add, at, for_loop
 from veros.core.operators import numpy as npx
-from veros.core.external.pressure_solvers import get_linear_solver
+from veros.core.external.solvers import get_linear_solver
 
 
 @veros_routine
 def solve_pressure(state):
     vs = state.variables
-    npx.set_printoptions(threshold=npx.inf)
-    npx.set_printoptions(linewidth=2000)
+
     state_update, (forc, uloc, vloc) = prepare_forcing(state)
     vs.update(state_update)
 
     linear_solver = get_linear_solver(state)
-
     linear_sol = linear_solver.solve(state, forc, vs.psi[..., vs.taup1])
     vs.psi = update(vs.psi, at[..., vs.taup1], mainutils.enforce_boundaries(linear_sol, state.settings.enable_cyclic_x))
 
