@@ -28,7 +28,7 @@ class SciPyPressureSolver(LinearSolver):
         orig_shape = x0.shape
         orig_dtype = x0.dtype
 
-        rhs = npx.where(boundary_mask, rhs, 0)
+        rhs = npx.where(boundary_mask, rhs, boundary_val)
         x0 = onp.asarray(x0.reshape(-1), dtype="float64")
         rhs = onp.asarray(rhs.reshape(-1) * self._rhs_scale, dtype="float64")
 
