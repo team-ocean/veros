@@ -9,6 +9,22 @@ from veros.core.external.solvers.base import LinearSolver
 from veros.core.operators import numpy as npx, update, update_add, at, flush
 from veros.core.external.poisson_matrix import assemble_poisson_matrix
 
+STREAM_OPTIONS = {
+    "solver_type": "bcgs",
+    "atol": 1e-24,
+    "rtol": 1e-14,
+    "max_it": 1000,
+    "PC_type": "gamg",
+    "pc_gamg_type": "agg",
+    "pc_gamg_reuse_interpolation": True,
+    "pc_gamg_threshold": 1e-4,
+    "pc_gamg_sym_graph": True,
+    "pc_gamg_agg_nsmooths": 2,
+    "mg_levels_pc_type": "jacobi",
+}
+
+PRESSURE_OPTIONS = STREAM_OPTIONS
+
 
 class PETScSolver(LinearSolver):
     def __init__(self, state):
@@ -19,6 +35,10 @@ class PETScSolver(LinearSolver):
             )
 
         settings = state.settings
+        if settings.enable_streamfunction:
+            OPTIONS = STREAM_OPTIONS
+        else:
+            OPTIONS = PRESSURE_OPTIONS
 
         if settings.enable_cyclic_x:
             boundary_type = ("periodic", "ghosted")
@@ -72,17 +92,18 @@ class PETScSolver(LinearSolver):
         self._ksp.create(self._da.comm)
         self._ksp.setOperators(self._matrix)
 
-        self._ksp.setType("bcgs")
+        self._ksp.setType(OPTIONS["solver_type"])
         self._ksp.setTolerances(atol=1e-24, rtol=1e-14, max_it=1000)
 
         # preconditioner
-        self._ksp.getPC().setType("gamg")
-        petsc_options["pc_gamg_type"] = "agg"
-        petsc_options["pc_gamg_reuse_interpolation"] = True
-        petsc_options["pc_gamg_threshold"] = 1e-4
-        petsc_options["pc_gamg_sym_graph"] = True
-        petsc_options["pc_gamg_agg_nsmooths"] = 2
-        petsc_options["mg_levels_pc_type"] = "jacobi"
+        self._ksp.getPC().setType(OPTIONS["PC_type"])
+
+        petsc_options["pc_gamg_type"] = OPTIONS["pc_gamg_type"]
+        petsc_options["pc_gamg_reuse_interpolation"] = OPTIONS["pc_gamg_reuse_interpolation"]
+        petsc_options["pc_gamg_threshold"] = OPTIONS["pc_gamg_threshold"]
+        petsc_options["pc_gamg_sym_graph"] = OPTIONS["pc_gamg_sym_graph"]
+        petsc_options["pc_gamg_agg_nsmooths"] = OPTIONS["pc_gamg_agg_nsmooths"]
+        petsc_options["mg_levels_pc_type"] = OPTIONS["mg_levels_pc_type"]
 
         if rs.petsc_options:
             petsc_options.insertString(rs.petsc_options)
