@@ -93,7 +93,7 @@ class PETScSolver(LinearSolver):
         self._ksp.setOperators(self._matrix)
 
         self._ksp.setType(OPTIONS["solver_type"])
-        self._ksp.setTolerances(atol=1e-24, rtol=1e-14, max_it=1000)
+        self._ksp.setTolerances(atol=OPTIONS["atol"], rtol=OPTIONS["rtol"], max_it=OPTIONS["max_it"])
 
         # preconditioner
         self._ksp.getPC().setType(OPTIONS["PC_type"])
