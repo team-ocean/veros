@@ -1,6 +1,5 @@
 from veros.core.operators import update, update_add, at, numpy as npx
 from veros.variables import allocate
-import numpy as onp
 
 
 def assemble_poisson_matrix(state, solver_type=None):
@@ -110,42 +109,14 @@ def assemble_pressure_matrix(state, solver_type):
     )
     main_diag = main_diag * maskM
     main_diag = npx.where(main_diag == 0.0, 1, main_diag)
-    if solver_type == "scipy":
-        offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1)
 
-        if settings.enable_cyclic_x:
-            wrap_diag_east, wrap_diag_west = (allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(2))
-            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], west_diag[2, 2:-2] * maskM[2, 2:-2])
-            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], east_diag[-3, 2:-2] * maskM[-3, 2:-2])
-            west_diag = update(west_diag, at[2, 2:-2], 0.0)
-            east_diag = update(east_diag, at[-3, 2:-2], 0.0)
-    else:
-        offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
-
-    cf = tuple(
-        diag.reshape(-1)
-        for diag in (
-            main_diag,
-            east_diag,
-            west_diag,
-            north_diag,
-            south_diag,
-        )
-    )
-    if solver_type == "scipy":
-        if settings.enable_cyclic_x:
-            offsets += (-main_diag.shape[1] * (settings.nx - 1), main_diag.shape[1] * (settings.nx - 1))
-            cf += (wrap_diag_east.reshape(-1), wrap_diag_west.reshape(-1))
-
-    print(len(npx.argwhere(vs.maskT[:, :, -1] == 0)))
-    cf = onp.asarray(cf, dtype="float64")
-
-    return cf, offsets
+    offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
+    diags = [main_diag, east_diag, west_diag, north_diag, south_diag]
+    return diags, offsets
 
 
 def assemble_streamfunction_matrix(state, solver_type):
     vs = state.variables
-    settings = state.settings
 
     boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
 
@@ -202,35 +173,6 @@ def assemble_streamfunction_matrix(state, solver_type):
     main_diag = main_diag * boundary_mask
     main_diag = npx.where(main_diag == 0.0, 1.0, main_diag)
 
-    if solver_type == "scipy":
-        if settings.enable_cyclic_x:
-            # couple edges of the domain
-            wrap_diag_east, wrap_diag_west = (allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(2))
-            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], west_diag[2, 2:-2] * boundary_mask[2, 2:-2])
-            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], east_diag[-3, 2:-2] * boundary_mask[-3, 2:-2])
-            west_diag = update(west_diag, at[2, 2:-2], 0.0)
-            east_diag = update(east_diag, at[-3, 2:-2], 0.0)
-
-        offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1)
-    else:
-        offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
-
-    # construct sparse matrix
-    cf = tuple(
-        diag.reshape(-1)
-        for diag in (
-            main_diag,
-            boundary_mask * east_diag,
-            boundary_mask * west_diag,
-            boundary_mask * north_diag,
-            boundary_mask * south_diag,
-        )
-    )
-
-    if solver_type == "scipy":
-        if settings.enable_cyclic_x:
-            offsets += (-main_diag.shape[1] * (settings.nx - 1), main_diag.shape[1] * (settings.nx - 1))
-            cf += (wrap_diag_east.reshape(-1), wrap_diag_west.reshape(-1))
-
-    cf = onp.asarray(cf, dtype="float64")
-    return cf, offsets
+    diags = [main_diag, east_diag, west_diag, north_diag, south_diag]
+    offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
+    return diags, offsets

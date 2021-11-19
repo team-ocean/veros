@@ -29,8 +29,31 @@ class SciPySolver(LinearSolver):
         dist_safe=False,
     )
     def __init__(self, state):
-        cf, offsets = assemble_poisson_matrix(state, "scipy")
-        self._matrix = scipy.sparse.dia_matrix((cf, offsets), shape=(cf[0].size, cf[0].size)).T.tocsr()
+        diags, _ = assemble_poisson_matrix(state, "scipy")
+        offsets = (0, -diags[0].shape[1], diags[0].shape[1], -1, 1)
+        vs = state.variables
+        settings = state.settings
+
+        if settings.enable_streamfunction:
+            mask = ~npx.any(vs.boundary_mask, axis=2)
+        else:
+            mask = vs.maskT[..., -1]
+
+        if settings.enable_cyclic_x:
+            wrap_diag_east, wrap_diag_west = (allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(2))
+            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], diags[2][2, 2:-2] * mask[2, 2:-2])
+            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], diags[1][-3, 2:-2] * mask[-3, 2:-2])
+            diags[2] = update(diags[2], at[2, 2:-2], 0.0)
+            diags[1] = update(diags[1], at[-3, 2:-2], 0.0)
+
+            offsets += (-diags[0].shape[1] * (settings.nx - 1), diags[0].shape[1] * (settings.nx - 1))
+            diags += (wrap_diag_east, wrap_diag_west)
+
+        if settings.enable_streamfunction:
+            diags[1:5] *= mask
+        diags = tuple(diag.reshape(-1) for diag in (diags))
+
+        self._matrix = scipy.sparse.dia_matrix((diags, offsets), shape=(diags[0].size, diags[0].size)).T.tocsr()
 
         jacobi_precon = self._jacobi_preconditioner(state, self._matrix)
         self._matrix = jacobi_precon * self._matrix

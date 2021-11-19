@@ -62,8 +62,7 @@ class PETScSolver(LinearSolver):
             self._da.setVecType("cuda")
             self._da.setMatType("aijcusparse")
 
-        cf, offsets = assemble_poisson_matrix(state)
-        cf = cf.reshape((5, settings.nx + 4, settings.ny + 4))[:, 2:-2, 2:-2]
+        diags, offsets = assemble_poisson_matrix(state)
         row = PETSc.Mat.Stencil()
         col = PETSc.Mat.Stencil()
         (i0, i1), (j0, j1) = self._da.getRanges()
@@ -72,16 +71,16 @@ class PETScSolver(LinearSolver):
             for i in range(i0, i1):
                 iloc, jloc = i % (settings.nx // rs.num_proc[0]), j % (settings.ny // rs.num_proc[1])
                 row.index = (i, j)
-                for diag, offset in zip(cf, offsets):
+                for diag, offset in zip(diags, offsets):
                     io, jo = (i + offset[0], j + offset[1])
                     col.index = (io, jo)
                     matrix.setValueStencil(row, col, diag[iloc, jloc])
         matrix.assemble()
         self._boundary_fac = {
-            "east": npx.asarray(cf[1][-1, :]),
-            "west": npx.asarray(cf[2][0, :]),
-            "north": npx.asarray(cf[3][:, -1]),
-            "south": npx.asarray(cf[4][:, 0]),
+            "east": npx.asarray(diags[1][-1, :]),
+            "west": npx.asarray(diags[2][0, :]),
+            "north": npx.asarray(diags[3][:, -1]),
+            "south": npx.asarray(diags[4][:, 0]),
         }
         self._matrix = matrix
 
