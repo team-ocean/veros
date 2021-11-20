@@ -1,5 +1,6 @@
 from veros.core.operators import update, update_add, at, numpy as npx
 from veros.variables import allocate
+import numpy as onp
 
 
 def assemble_poisson_matrix(state):
@@ -111,7 +112,7 @@ def assemble_pressure_matrix(state):
     main_diag = npx.where(main_diag == 0.0, 1, main_diag)
 
     offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
-    diags = [main_diag, east_diag, west_diag, north_diag, south_diag]
+    diags = onp.asarray([main_diag, east_diag, west_diag, north_diag, south_diag])
     return diags, offsets
 
 
@@ -173,6 +174,6 @@ def assemble_streamfunction_matrix(state):
     main_diag = main_diag * boundary_mask
     main_diag = npx.where(main_diag == 0.0, 1.0, main_diag)
 
-    diags = [main_diag, east_diag, west_diag, north_diag, south_diag]
     offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
+    diags = onp.asarray([main_diag, east_diag, west_diag, north_diag, south_diag])
     return diags, offsets
