@@ -2,14 +2,14 @@ from veros.core.operators import update, update_add, at, numpy as npx
 from veros.variables import allocate
 
 
-def assemble_poisson_matrix(state, solver_type=None):
+def assemble_poisson_matrix(state):
     if state.settings.enable_streamfunction:
-        return assemble_streamfunction_matrix(state, solver_type=solver_type)
+        return assemble_streamfunction_matrix(state)
     else:
-        return assemble_pressure_matrix(state, solver_type=solver_type)
+        return assemble_pressure_matrix(state)
 
 
-def assemble_pressure_matrix(state, solver_type):
+def assemble_pressure_matrix(state):
     main_diag = allocate(state.dimensions, ("xu", "yu"), local=False)
     east_diag, west_diag, north_diag, south_diag = (
         allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(4)
@@ -115,7 +115,7 @@ def assemble_pressure_matrix(state, solver_type):
     return diags, offsets
 
 
-def assemble_streamfunction_matrix(state, solver_type):
+def assemble_streamfunction_matrix(state):
     vs = state.variables
 
     boundary_mask = ~npx.any(vs.boundary_mask, axis=2)

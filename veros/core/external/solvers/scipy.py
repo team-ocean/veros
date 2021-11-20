@@ -29,7 +29,7 @@ class SciPySolver(LinearSolver):
         dist_safe=False,
     )
     def __init__(self, state):
-        diags, _ = assemble_poisson_matrix(state, "scipy")
+        diags, _ = assemble_poisson_matrix(state)
         offsets = (0, -diags[0].shape[1], diags[0].shape[1], -1, 1)
         vs = state.variables
         settings = state.settings

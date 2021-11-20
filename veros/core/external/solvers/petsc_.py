@@ -63,6 +63,7 @@ class PETScSolver(LinearSolver):
             self._da.setMatType("aijcusparse")
 
         diags, offsets = assemble_poisson_matrix(state)
+        diags = diags[:][2:-2, 2:-2]
         row = PETSc.Mat.Stencil()
         col = PETSc.Mat.Stencil()
         (i0, i1), (j0, j1) = self._da.getRanges()
