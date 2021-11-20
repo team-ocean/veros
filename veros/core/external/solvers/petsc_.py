@@ -63,6 +63,7 @@ class PETScSolver(LinearSolver):
             self._da.setMatType("aijcusparse")
 
         diags, offsets = assemble_poisson_matrix(state)
+        diags = onp.asarray(diags, dtype=onp.float64)
         diags = diags[:, 2:-2, 2:-2]
         row = PETSc.Mat.Stencil()
         col = PETSc.Mat.Stencil()
