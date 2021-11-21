@@ -49,8 +49,6 @@ class SciPySolver(LinearSolver):
             offsets += (-diags[0].shape[1] * (settings.nx - 1), diags[0].shape[1] * (settings.nx - 1))
             diags += (wrap_diag_east, wrap_diag_west)
 
-        if settings.enable_streamfunction:
-            diags[1:5] *= mask
         diags = tuple(diag.reshape(-1) for diag in (diags))
 
         self._matrix = scipy.sparse.dia_matrix((diags, offsets), shape=(diags[0].size, diags[0].size)).T.tocsr()
