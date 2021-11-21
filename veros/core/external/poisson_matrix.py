@@ -174,5 +174,11 @@ def assemble_streamfunction_matrix(state):
     main_diag = npx.where(main_diag == 0.0, 1.0, main_diag)
 
     offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
-    diags = [main_diag, east_diag, west_diag, north_diag, south_diag]
+    diags = [
+        main_diag,
+        east_diag * boundary_mask,
+        west_diag * boundary_mask,
+        north_diag * boundary_mask,
+        south_diag * boundary_mask,
+    ]
     return diags, offsets
