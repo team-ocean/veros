@@ -6,6 +6,7 @@ from benchmark_base import benchmark_cli
 from veros import logger
 from veros.pyom_compat import load_pyom, pyom_from_state
 
+
 VARIABLES_USED = [
     "boundary_mask",
     "cost",
@@ -18,6 +19,7 @@ VARIABLES_USED = [
     "hvr",
     "kbot",
 ]
+VARIABLES_ALLOCATED = VARIABLES_USED + ["hu", "hv", "maskT"]
 
 SETTINGS_USED = [
     "nx",
@@ -39,7 +41,7 @@ def get_dummy_state(infile):
     from veros.settings import SETTINGS
     from veros.core.operators import numpy as npx, update, at
 
-    variables_subset = {key: VARIABLES[key] for key in VARIABLES_USED}
+    variables_subset = {key: VARIABLES[key] for key in VARIABLES_ALLOCATED}
 
     state = VerosState(var_meta=variables_subset, setting_meta=SETTINGS, dimensions=DIM_TO_SHAPE_VAR)
 

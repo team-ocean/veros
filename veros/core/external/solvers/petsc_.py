@@ -23,7 +23,19 @@ STREAM_OPTIONS = {
     "mg_levels_pc_type": "jacobi",
 }
 
-PRESSURE_OPTIONS = STREAM_OPTIONS
+PRESSURE_OPTIONS = {
+    "solver_type": "bcgs",
+    "atol": 1e-24,
+    "rtol": 1e-14,
+    "max_it": 1000,
+    "PC_type": "gamg",
+    "pc_gamg_type": "agg",
+    "pc_gamg_reuse_interpolation": True,
+    "pc_gamg_threshold": 1e-4,
+    "pc_gamg_sym_graph": True,
+    "pc_gamg_agg_nsmooths": 2,
+    "mg_levels_pc_type": "jacobi",
+}
 
 
 class PETScSolver(LinearSolver):

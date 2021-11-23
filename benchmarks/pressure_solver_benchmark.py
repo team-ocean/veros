@@ -8,6 +8,8 @@ from veros.pyom_compat import load_pyom, pyom_from_state
 
 VARIABLES_USED = ["cost", "cosu", "dxt", "dxu", "dyt", "dyu", "hu", "hv", "maskT"]
 
+VARIABLES_ALLOCATED = VARIABLES_USED + ["hur", "hvr", "boundary_mask"]
+
 SETTINGS_USED = [
     "nx",
     "ny",
@@ -28,7 +30,7 @@ def get_dummy_state(infile):
     from veros.settings import SETTINGS
     from veros.core.operators import numpy as npx, update, at
 
-    variables_subset = {key: VARIABLES[key] for key in VARIABLES_USED}
+    variables_subset = {key: VARIABLES[key] for key in VARIABLES_ALLOCATED}
 
     state = VerosState(var_meta=variables_subset, setting_meta=SETTINGS, dimensions=DIM_TO_SHAPE_VAR)
 

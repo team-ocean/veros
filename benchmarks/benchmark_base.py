@@ -9,11 +9,12 @@ def benchmark_cli(func):
     @click.option("-b", "--backend", type=click.Choice(["numpy", "jax"]), default="numpy")
     @click.option("-d", "--device", type=click.Choice(["cpu", "gpu"]), default="cpu")
     @click.option("-n", "--nproc", type=int, nargs=2, default=(1, 1))
+    @click.option("-ls", "--linear-solver", type=click.Choice(["petsc", "scipy", "scipy_jax", "best"]), default="best")
     @click.option("--float-type", type=click.Choice(["float64", "float32"]), default="float64")
     @click.option("-v", "--loglevel", type=click.Choice(["debug", "trace"]), default="debug")
     @click.option("--profile-mode", is_flag=True)
     @click.command()
-    def inner(backend, device, nproc, float_type, loglevel, profile_mode, **kwargs):
+    def inner(backend, device, nproc, float_type, loglevel, profile_mode, linear_solver, **kwargs):
         from veros import runtime_settings, runtime_state
 
         runtime_settings.update(
@@ -23,6 +24,7 @@ def benchmark_cli(func):
             num_proc=nproc,
             loglevel=loglevel,
             profile_mode=profile_mode,
+            linear_solver=linear_solver,
         )
 
         if device == "gpu" and runtime_state.proc_num > 1:

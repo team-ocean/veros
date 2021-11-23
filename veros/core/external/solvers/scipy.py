@@ -29,10 +29,11 @@ class SciPySolver(LinearSolver):
         dist_safe=False,
     )
     def __init__(self, state):
-        diags, _ = assemble_poisson_matrix(state)
-        offsets = (0, -diags[0].shape[1], diags[0].shape[1], -1, 1)
         vs = state.variables
         settings = state.settings
+
+        diags, _ = assemble_poisson_matrix(state)
+        offsets = (0, -diags[0].shape[1], diags[0].shape[1], -1, 1)
 
         if settings.enable_streamfunction:
             mask = ~npx.any(vs.boundary_mask, axis=2)
@@ -128,106 +129,30 @@ class SciPySolver(LinearSolver):
 
     @staticmethod
     def _assemble_poisson_matrix(state):
-        """
-        Construct a sparse matrix based on the stencil for the 2D Poisson equation.
-        """
-        vs = state.variables
         settings = state.settings
+        vs = state.variables
 
-        boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
+        diags, _ = assemble_poisson_matrix(state)
+        offsets = (0, -diags[0].shape[1], diags[0].shape[1], -1, 1)
 
-        # assemble diagonals
-        main_diag = allocate(state.dimensions, ("xu", "yu"), fill=1, local=False)
-        east_diag, west_diag, north_diag, south_diag = (
-            allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(4)
-        )
-        main_diag = update(
-            main_diag,
-            at[2:-2, 2:-2],
-            -vs.hvr[3:-1, 2:-2]
-            / vs.dxu[2:-2, npx.newaxis]
-            / vs.dxt[3:-1, npx.newaxis]
-            / vs.cosu[npx.newaxis, 2:-2] ** 2
-            - vs.hvr[2:-2, 2:-2]
-            / vs.dxu[2:-2, npx.newaxis]
-            / vs.dxt[2:-2, npx.newaxis]
-            / vs.cosu[npx.newaxis, 2:-2] ** 2
-            - vs.hur[2:-2, 2:-2]
-            / vs.dyu[npx.newaxis, 2:-2]
-            / vs.dyt[npx.newaxis, 2:-2]
-            * vs.cost[npx.newaxis, 2:-2]
-            / vs.cosu[npx.newaxis, 2:-2]
-            - vs.hur[2:-2, 3:-1]
-            / vs.dyu[npx.newaxis, 2:-2]
-            / vs.dyt[npx.newaxis, 3:-1]
-            * vs.cost[npx.newaxis, 3:-1]
-            / vs.cosu[npx.newaxis, 2:-2],
-        )
-        east_diag = update(
-            east_diag,
-            at[2:-2, 2:-2],
-            vs.hvr[3:-1, 2:-2]
-            / vs.dxu[2:-2, npx.newaxis]
-            / vs.dxt[3:-1, npx.newaxis]
-            / vs.cosu[npx.newaxis, 2:-2] ** 2,
-        )
-        west_diag = update(
-            west_diag,
-            at[2:-2, 2:-2],
-            vs.hvr[2:-2, 2:-2]
-            / vs.dxu[2:-2, npx.newaxis]
-            / vs.dxt[2:-2, npx.newaxis]
-            / vs.cosu[npx.newaxis, 2:-2] ** 2,
-        )
-        north_diag = update(
-            north_diag,
-            at[2:-2, 2:-2],
-            vs.hur[2:-2, 3:-1]
-            / vs.dyu[npx.newaxis, 2:-2]
-            / vs.dyt[npx.newaxis, 3:-1]
-            * vs.cost[npx.newaxis, 3:-1]
-            / vs.cosu[npx.newaxis, 2:-2],
-        )
-        south_diag = update(
-            south_diag,
-            at[2:-2, 2:-2],
-            vs.hur[2:-2, 2:-2]
-            / vs.dyu[npx.newaxis, 2:-2]
-            / vs.dyt[npx.newaxis, 2:-2]
-            * vs.cost[npx.newaxis, 2:-2]
-            / vs.cosu[npx.newaxis, 2:-2],
-        )
+        if settings.enable_streamfunction:
+            mask = ~npx.any(vs.boundary_mask, axis=2)
+        else:
+            mask = vs.maskT[..., -1]
 
         if settings.enable_cyclic_x:
-            # couple edges of the domain
             wrap_diag_east, wrap_diag_west = (allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(2))
-            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], west_diag[2, 2:-2] * boundary_mask[2, 2:-2])
-            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], east_diag[-3, 2:-2] * boundary_mask[-3, 2:-2])
-            west_diag = update(west_diag, at[2, 2:-2], 0.0)
-            east_diag = update(east_diag, at[-3, 2:-2], 0.0)
+            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], diags[2][2, 2:-2] * mask[2, 2:-2])
+            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], diags[1][-3, 2:-2] * mask[-3, 2:-2])
+            diags[2] = update(diags[2], at[2, 2:-2], 0.0)
+            diags[1] = update(diags[1], at[-3, 2:-2], 0.0)
 
-        main_diag = main_diag * boundary_mask
-        main_diag = npx.where(main_diag == 0.0, 1.0, main_diag)
+            offsets += (-diags[0].shape[1] * (settings.nx - 1), diags[0].shape[1] * (settings.nx - 1))
+            diags += (wrap_diag_east, wrap_diag_west)
 
-        # construct sparse matrix
-        cf = tuple(
-            diag.reshape(-1)
-            for diag in (
-                main_diag,
-                boundary_mask * east_diag,
-                boundary_mask * west_diag,
-                boundary_mask * north_diag,
-                boundary_mask * south_diag,
-            )
-        )
-        offsets = (0, -main_diag.shape[1], main_diag.shape[1], -1, 1)
+        diags = tuple(diag.reshape(-1) for diag in (diags))
 
-        if settings.enable_cyclic_x:
-            offsets += (-main_diag.shape[1] * (settings.nx - 1), main_diag.shape[1] * (settings.nx - 1))
-            cf += (wrap_diag_east.reshape(-1), wrap_diag_west.reshape(-1))
-
-        cf = onp.asarray(cf, dtype="float64")
-        return scipy.sparse.dia_matrix((cf, offsets), shape=(main_diag.size, main_diag.size)).T.tocsr()
+        return scipy.sparse.dia_matrix((diags, offsets), shape=(diags[0].size, diags[0].size)).T.tocsr()
 
 
 @veros_kernel
