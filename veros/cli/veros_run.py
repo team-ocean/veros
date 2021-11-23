@@ -87,7 +87,7 @@ def run(setup_file, *args, **kwargs):
 
 
 @click.command("veros-run")
-@click.argument("SETUP_FILE", type=click.Path(readable=True, dir_okay=False, resolve_path=True))
+@click.argument("SETUP_FILE", type=click.Path(readable=True, dir_okay=False, resolve_path=True, exists=True))
 @click.option(
     "-b",
     "--backend",
@@ -146,6 +146,6 @@ def run(setup_file, *args, **kwargs):
 @functools.wraps(run)
 def cli(setup_file, *args, **kwargs):
     if not setup_file.endswith(".py"):
-        raise click.Abort(f"The given setup file {setup_file} does not appear to be a Python file.")
+        raise click.UsageError(f"The given setup file {setup_file} does not appear to be a Python file.")
 
     return run(setup_file, *args, **kwargs)
