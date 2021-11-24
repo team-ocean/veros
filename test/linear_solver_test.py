@@ -6,7 +6,7 @@ from veros.state import get_default_state, resize_dimension
 
 
 @pytest.fixture
-def solver_state(cyclic):
+def solver_state(cyclic, problem):
     state = get_default_state()
     settings = state.settings
 
@@ -15,7 +15,12 @@ def solver_state(cyclic):
         settings.ny = 200
         settings.nz = 1
 
+        settings.dt_tracer = 1800
+        settings.dt_mom = 1800
+
         settings.enable_cyclic_x = cyclic
+        settings.enable_streamfunction = problem == "streamfunction"
+        settings.enable_free_surface = True
 
     state.initialize_variables()
     resize_dimension(state, "isle", 1)
@@ -31,14 +36,17 @@ def solver_state(cyclic):
 
         vs.hur = 1.0 / np.linspace(500, 2000, settings.nx + 4)[:, None] * np.ones((settings.nx + 4, settings.ny + 4))
         vs.hvr = 1.0 / np.linspace(500, 2000, settings.ny + 4)[None, :] * np.ones((settings.nx + 4, settings.ny + 4))
+        vs.hu = 1.0 / vs.hur
+        vs.hv = 1.0 / vs.hvr
 
         vs.cosu = np.ones(settings.ny + 4)
         vs.cost = np.ones(settings.ny + 4)
 
-        boundary_mask = np.zeros((settings.nx + 4, settings.ny + 4, settings.nz), dtype="bool")
-        boundary_mask[:, :2] = 1
+        boundary_mask = np.zeros((settings.nx + 4, settings.ny + 4, 1), dtype="bool")
+        boundary_mask[:100, :2] = 1
         boundary_mask[50:100, 50:100] = 1
         vs.boundary_mask = boundary_mask
+        vs.maskT = ~boundary_mask
 
     return state
 
@@ -62,13 +70,10 @@ def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
 
 @pytest.mark.parametrize("cyclic", [True, False])
 @pytest.mark.parametrize("solver", ["scipy", "scipy_jax", "petsc"])
-@pytest.mark.parametrize("streamfunction", [True, False])
-def test_solver(solver, solver_state, cyclic, streamfunction):
+@pytest.mark.parametrize("problem", ["streamfunction", "pressure"])
+def test_solver(solver, solver_state, cyclic, problem):
     from veros import runtime_settings
     from veros.core.operators import numpy as npx
-
-    with solver_state.settings.unlock():
-        solver_state.settings.enable_streamfunction = streamfunction
 
     if solver == "scipy":
         from veros.core.external.solvers.scipy import SciPySolver
