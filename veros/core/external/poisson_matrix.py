@@ -10,18 +10,14 @@ def assemble_poisson_matrix(state):
 
 
 def assemble_pressure_matrix(state):
-    main_diag = allocate(state.dimensions, ("xu", "yu"), local=False)
-    east_diag, west_diag, north_diag, south_diag = (
-        allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(4)
-    )
+    main_diag = allocate(state.dimensions, ("xu", "yu"))
+    east_diag, west_diag, north_diag, south_diag = (allocate(state.dimensions, ("xu", "yu")) for _ in range(4))
 
     vs = state.variables
     settings = state.settings
 
-    maskM = allocate(state.dimensions, ("xu", "yu"), local=False)
-    mp_i, mm_i, mp_j, mm_j = (
-        allocate(state.dimensions, ("xu", "yu"), local=False, include_ghosts=False) for _ in range(4)
-    )
+    maskM = allocate(state.dimensions, ("xu", "yu"))
+    mp_i, mm_i, mp_j, mm_j = (allocate(state.dimensions, ("xu", "yu"), include_ghosts=False) for _ in range(4))
 
     maskM = update(maskM, at[:, :], vs.maskT[:, :, -1])
 
@@ -121,10 +117,8 @@ def assemble_streamfunction_matrix(state):
     boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
 
     # assemble diagonals
-    main_diag = allocate(state.dimensions, ("xu", "yu"), fill=1, local=False)
-    east_diag, west_diag, north_diag, south_diag = (
-        allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(4)
-    )
+    main_diag = allocate(state.dimensions, ("xu", "yu"), fill=1)
+    east_diag, west_diag, north_diag, south_diag = (allocate(state.dimensions, ("xu", "yu")) for _ in range(4))
     main_diag = update(
         main_diag,
         at[2:-2, 2:-2],

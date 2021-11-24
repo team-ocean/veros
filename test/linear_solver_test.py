@@ -50,7 +50,7 @@ def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
 
     if boundary_val is None:
         boundary_val = sol
-    
+
     if state.settings.enable_streamfunction:
         boundary_mask = ~np.any(state.variables.boundary_mask, axis=2)
         rhs = np.where(boundary_mask, rhs, boundary_val)
@@ -66,6 +66,7 @@ def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
 def test_solver(solver, solver_state, cyclic, streamfunction):
     from veros import runtime_settings
     from veros.core.operators import numpy as npx
+
     with solver_state.settings.unlock():
         solver_state.settings.enable_streamfunction = streamfunction
 
