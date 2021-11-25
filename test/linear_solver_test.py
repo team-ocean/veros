@@ -67,7 +67,6 @@ def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
     rhs = np.where(boundary_mask, rhs, boundary_val)
 
     rhs_sol = matrix @ sol.reshape(-1)
-
     np.testing.assert_allclose(rhs_sol, rhs.flatten(), atol=0, rtol=tol)
 
 

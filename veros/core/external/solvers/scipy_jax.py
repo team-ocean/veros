@@ -37,18 +37,18 @@ def solve_kernel(state, rhs, x0, boundary_val, solve_fun):
 class JAXSciPySolver(LinearSolver):
     @veros_routine(
         local_variables=(
-            "hvr",
-            "hur",
             "hu",
             "hv",
+            "hvr",
+            "hur",
             "dxu",
             "dxt",
             "dyu",
             "dyt",
             "cosu",
             "cost",
-            "maskT",
             "boundary_mask",
+            "maskT",
         ),
         dist_safe=False,
     )
