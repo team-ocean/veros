@@ -4,6 +4,7 @@ from veros.variables import allocate
 from veros.core import utilities
 from veros.core.operators import update, update_add, at, numpy as npx
 from veros.core.external.solvers.base import LinearSolver
+from veros.core.external.poisson_matrix import assemble_poisson_matrix
 
 
 @veros_kernel(static_args=("solve_fun",))
@@ -31,7 +32,20 @@ def solve_kernel(state, rhs, x0, boundary_val, solve_fun):
 
 class JAXSciPySolver(LinearSolver):
     @veros_routine(
-        local_variables=("hvr", "hur", "dxu", "dxt", "dyu", "dyt", "cosu", "cost", "boundary_mask"),
+        local_variables=(
+            "hvr",
+            "hur",
+            "hu",
+            "hv",
+            "dxu",
+            "dxt",
+            "dyu",
+            "dyt",
+            "cosu",
+            "cost",
+            "maskT",
+            "boundary_mask",
+        ),
         dist_safe=False,
     )
     def __init__(self, state):
@@ -39,14 +53,47 @@ class JAXSciPySolver(LinearSolver):
 
         settings = state.settings
 
-        matrix_diags, offsets = self._assemble_poisson_matrix(state)
+        matrix_diags, offsets = assemble_poisson_matrix(state)
+        matrix_diags = tuple(diag[2:-2, 2:-2] for diag in matrix_diags)
+
+        if settings.enable_streamfunction:
+            mask = ~npx.any(state.variables.boundary_mask[2:-2, 2:-2], axis=2)
+        else:
+            mask = state.variables.maskT[2:-2, 2:-2, -1]
+
+        if settings.enable_cyclic_x:
+            wrap_diag_east, wrap_diag_west = (
+                allocate(state.dimensions, ("xu", "yu"), local=False, include_ghosts=False) for _ in range(2)
+            )
+            west_diag, east_diag = (
+                allocate(state.dimensions, ("xu", "yu"), local=False, include_ghosts=False) for _ in range(2)
+            )
+
+            wrap_diag_east = update(wrap_diag_east, at[0, :], matrix_diags[2][0, :] * mask[0, :])
+            wrap_diag_west = update(wrap_diag_west, at[-1, :], matrix_diags[1][-1, :] * mask[-1, :])
+            west_diag = update(matrix_diags[2], at[0, :], 0.0)
+            east_diag = update(matrix_diags[1], at[-1, :], 0.0)
+
+            offsets += ((settings.nx, 0), (-settings.nx, 0))
+            matrix_diags = (
+                matrix_diags[0],
+                east_diag,
+                west_diag,
+                matrix_diags[3],
+                matrix_diags[4],
+                wrap_diag_east,
+                wrap_diag_west,
+            )
+
         jacobi_precon = self._jacobi_preconditioner(state, matrix_diags)
+
         matrix_diags = tuple(jacobi_precon * diag for diag in matrix_diags)
 
         @veros_kernel
         def linear_solve(rhs, x0, boundary_mask, boundary_val):
             x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x, local=True)
-            rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
+            if settings.enable_streamfunction:
+                rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
             def matmul(rhs):
                 nx, ny = rhs.shape
