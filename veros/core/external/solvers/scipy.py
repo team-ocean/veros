@@ -4,7 +4,6 @@ import scipy.sparse.linalg as spalg
 
 from veros import logger, veros_kernel, veros_routine, distributed, runtime_state as rst
 from veros.variables import allocate
-from veros.core import utilities
 from veros.core.operators import update, at, numpy as npx
 from veros.core.external.solvers.base import LinearSolver
 from veros.core.external.poisson_matrix import assemble_poisson_matrix
@@ -64,14 +63,10 @@ class SciPySolver(LinearSolver):
         self._extra_args["M"] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
 
     def _scipy_solver(self, state, rhs, x0, boundary_mask, boundary_val):
-        settings = state.settings
-
         orig_shape = x0.shape
         orig_dtype = x0.dtype
-        x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x, local=True)
 
-        if settings.enable_streamfunction:
-            rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
+        rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
         rhs = onp.asarray(rhs.reshape(-1) * self._rhs_scale, dtype="float64")
         x0 = onp.asarray(x0.reshape(-1), dtype="float64")
@@ -158,10 +153,16 @@ class SciPySolver(LinearSolver):
 @veros_kernel
 def gather_variables(state, rhs, x0, boundary_val):
     vs = state.variables
+    settings = state.settings
+
     rhs_global = distributed.gather(rhs, state.dimensions, ("xt", "yt"))
     x0_global = distributed.gather(x0, state.dimensions, ("xt", "yt"))
 
-    boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
+    if settings.enable_streamfunction:
+        boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
+    else:
+        boundary_mask = vs.maskT[..., -1]
+
     boundary_mask_global = distributed.gather(boundary_mask, state.dimensions, ("xt", "yt"))
 
     if boundary_val is None:

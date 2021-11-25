@@ -58,8 +58,8 @@ def get_inputs():
         vs.cost = update(vs.cost, at[...], 1)
 
         boundary_mask = npx.zeros((settings.nx + 4, settings.ny + 4, 1), dtype="bool")
-        boundary_mask[:50, :2] = 1
-        boundary_mask[20:30, 20:30] = 1
+        boundary_mask = update(boundary_mask, at[:50, :2], 1)
+        boundary_mask = update(boundary_mask, at[20:30, 20:30], 1)
         vs.boundary_mask = boundary_mask[idx_global]
 
     rhs = npx.ones_like(vs.hur)

@@ -61,7 +61,10 @@ def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
 
     if state.settings.enable_streamfunction:
         boundary_mask = ~np.any(state.variables.boundary_mask, axis=2)
-        rhs = np.where(boundary_mask, rhs, boundary_val)
+    else:
+        boundary_mask = state.variables.maskT[..., -1]
+
+    rhs = np.where(boundary_mask, rhs, boundary_val)
 
     rhs_sol = matrix @ sol.reshape(-1)
 
@@ -75,8 +78,9 @@ def test_solver(solver, solver_state, cyclic, problem):
     from veros import runtime_settings
     from veros.core.operators import numpy as npx
 
+    from veros.core.external.solvers.scipy import SciPySolver
+
     if solver == "scipy":
-        from veros.core.external.solvers.scipy import SciPySolver
 
         solver_class = SciPySolver
     elif solver == "scipy_jax":
@@ -97,6 +101,8 @@ def test_solver(solver, solver_state, cyclic, problem):
     rhs = npx.ones((settings.nx + 4, settings.ny + 4))
     x0 = npx.asarray(np.random.rand(settings.nx + 4, settings.ny + 4))
 
-    sol = solver_class(solver_state).solve(solver_state, rhs, x0, boundary_val=10)
+    sol = solver_class(solver_state).solve(solver_state, rhs, x0)
+    assert_solution(solver_state, rhs, sol, tol=1e-8)
 
-    assert_solution(solver_state, rhs, sol, boundary_val=10, tol=1e-8)
+    sol = solver_class(solver_state).solve(solver_state, rhs, x0, boundary_val=10)
+    assert_solution(solver_state, rhs, sol, tol=1e-8, boundary_val=10)
