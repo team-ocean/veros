@@ -75,8 +75,8 @@ class PETScSolver(LinearSolver):
             self._da.setMatType("aijcusparse")
 
         diags, offsets = assemble_poisson_matrix(state)
-        diags = onp.asarray(diags, dtype=onp.float64)
-        diags = diags[:, 2:-2, 2:-2]
+        diags = onp.asarray(diags)[:, 2:-2, 2:-2]
+
         row = PETSc.Mat.Stencil()
         col = PETSc.Mat.Stencil()
         (i0, i1), (j0, j1) = self._da.getRanges()
@@ -276,21 +276,20 @@ def prepare_solver_inputs(state, rhs, x0, boundary_val, boundary_fac):
 
     boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
 
-    if settings.enable_streamfunction:
-        rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
+    rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
-        # add dirichlet BC to rhs
-        if not settings.enable_cyclic_x:
-            if rst.proc_idx[0] == rs.num_proc[0] - 1:
-                rhs = update_add(rhs, at[-3, 2:-2], -rhs[-2, 2:-2] * boundary_fac["east"])
+    # add dirichlet BC to rhs
+    if not settings.enable_cyclic_x:
+        if rst.proc_idx[0] == rs.num_proc[0] - 1:
+            rhs = update_add(rhs, at[-3, 2:-2], -rhs[-2, 2:-2] * boundary_fac["east"])
 
-            if rst.proc_idx[0] == 0:
-                rhs = update_add(rhs, at[2, 2:-2], -rhs[1, 2:-2] * boundary_fac["west"])
+        if rst.proc_idx[0] == 0:
+            rhs = update_add(rhs, at[2, 2:-2], -rhs[1, 2:-2] * boundary_fac["west"])
 
-        if rst.proc_idx[1] == rs.num_proc[1] - 1:
-            rhs = update_add(rhs, at[2:-2, -3], -rhs[2:-2, -2] * boundary_fac["north"])
+    if rst.proc_idx[1] == rs.num_proc[1] - 1:
+        rhs = update_add(rhs, at[2:-2, -3], -rhs[2:-2, -2] * boundary_fac["north"])
 
-        if rst.proc_idx[1] == 0:
-            rhs = update_add(rhs, at[2:-2, 2], -rhs[2:-2, 1] * boundary_fac["south"])
+    if rst.proc_idx[1] == 0:
+        rhs = update_add(rhs, at[2:-2, 2], -rhs[2:-2, 1] * boundary_fac["south"])
 
     return rhs, x0

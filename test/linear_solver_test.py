@@ -62,10 +62,16 @@ def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
     if state.settings.enable_streamfunction:
         boundary_mask = ~np.any(state.variables.boundary_mask, axis=2)
         rhs = np.where(boundary_mask, rhs, boundary_val)
+    else:
+        mask = state.variables.maskT[2:-2, 2:-2, -1]
 
     rhs_sol = matrix @ sol.reshape(-1)
-
-    np.testing.assert_allclose(rhs_sol, rhs.flatten(), atol=0, rtol=tol)
+    if state.settings.enable_streamfunction:
+        np.testing.assert_allclose(rhs_sol, rhs.flatten(), atol=0, rtol=tol)
+    else:
+        np.testing.assert_allclose(
+            rhs_sol.reshape(rhs.shape)[2:-2, 2:-2] * mask, rhs[2:-2, 2:-2] * mask, atol=0, rtol=tol
+        )
 
 
 @pytest.mark.parametrize("cyclic", [True, False])
