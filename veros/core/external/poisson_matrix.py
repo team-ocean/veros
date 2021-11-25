@@ -104,7 +104,7 @@ def assemble_pressure_matrix(state):
         / vs.cost[npx.newaxis, 2:-2],
     )
     main_diag = main_diag * maskM
-    main_diag = npx.where(main_diag == 0.0, 10, main_diag)
+    main_diag = npx.where(main_diag == 0.0, 1, main_diag)
 
     offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
     diags = [main_diag, east_diag, west_diag, north_diag, south_diag]
