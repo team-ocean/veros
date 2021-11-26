@@ -65,7 +65,7 @@ SETTINGS = {
         True, bool, "solve external mode with streamfunction formulation, else derive from pressure formulation"
     ),
     "enable_free_surface": Setting(
-        False,
+        True,
         bool,
         "Controls whether to use rigid lid or linear free surface pressure formulation, if streamfunction is disabled",
     ),
