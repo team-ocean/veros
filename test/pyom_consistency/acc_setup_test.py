@@ -160,6 +160,9 @@ class ACCSetup(VerosSetup):
         settings.coord_degree = True
         settings.enable_cyclic_x = True
 
+        settings.enable_streamfunction = True
+        settings.enable_free_surface = False
+
         settings.enable_neutral_diffusion = True
         settings.K_iso_0 = 1000.0
         settings.K_iso_steep = 500.0
@@ -298,5 +301,4 @@ def test_acc_setup(pyom2_lib):
     sim = ACCSetup()
     sim.setup()
 
-    compare_state(sim.state, pyom_obj, allowed_failures=("rho", "Hd"))
     compare_state(sim.state, pyom_obj, atol=1e-5)

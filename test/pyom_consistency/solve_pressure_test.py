@@ -41,4 +41,4 @@ def test_solve_pressure(random_state):
     m.psi[:, :, vs.taum1] = utilities.enforce_boundaries(m.psi[:, :, vs.taum1], settings.enable_cyclic_x)
     pyom_obj.solve_pressure()
 
-    compare_state(vs_state, pyom_obj, rtol=2e-5)
+    compare_state(vs_state, pyom_obj)
