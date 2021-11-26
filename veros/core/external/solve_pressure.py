@@ -26,7 +26,12 @@ def solve_pressure(state):
 
     linear_solver = get_linear_solver(state)
     linear_sol = linear_solver.solve(state, forc, vs.psi[..., vs.taup1])
-    vs.psi = update(vs.psi, at[..., vs.taup1], mainutils.enforce_boundaries(linear_sol, state.settings.enable_cyclic_x))
+    linear_sol = mainutils.enforce_boundaries(linear_sol, state.settings.enable_cyclic_x)
+
+    if vs.itt == 0:
+        vs.psi = update(vs.psi, at[...], linear_sol[..., npx.newaxis])
+    else:
+        vs.psi = update(vs.psi, at[..., vs.taup1], linear_sol)
 
     vs.update(barotropic_velocity_update(state, uloc=uloc, vloc=vloc))
 
@@ -128,26 +133,17 @@ def prepare_forcing(state):
         + (vs.cosu[2:-2] * vloc[2:-2, 2:-2] - vs.cosu[1:-3] * vloc[2:-2, 1:-3]) / (vs.cost[2:-2] * vs.dyt[2:-2]),
     )
 
-    # NOTE: might need to change this for compatibility mode?
     if settings.enable_free_surface:
         if runtime_settings.pyom_compatibility_mode:
-            forc = update(
-                forc,
-                at[2:-2, 2:-2],
-                forc[2:-2, 2:-2]
-                - vs.psi[2:-2, 2:-2, vs.tau]
-                / (npx.float32(settings.grav) * npx.float32(settings.dt_mom) ** 2)
-                * vs.maskT[2:-2, 2:-2, settings.nz - 1],
-            )
+            fac = npx.float32(settings.grav) * settings.dt_mom ** 2
         else:
-            forc = update(
-                forc,
-                at[2:-2, 2:-2],
-                forc[2:-2, 2:-2]
-                - vs.psi[2:-2, 2:-2, vs.tau]
-                / (settings.grav * settings.dt_mom * settings.dt_tracer)
-                * vs.maskT[2:-2, 2:-2, settings.nz - 1],
-            )
+            fac = settings.grav * settings.dt_mom * settings.dt_tracer
+
+        forc = update(
+            forc,
+            at[2:-2, 2:-2],
+            forc[2:-2, 2:-2] - vs.psi[2:-2, 2:-2, vs.tau] / fac * vs.maskT[2:-2, 2:-2, settings.nz - 1],
+        )
 
     # First guess
     vs.psi = update(vs.psi, at[:, :, vs.taup1], 2 * vs.psi[:, :, vs.tau] - vs.psi[:, :, vs.taum1])

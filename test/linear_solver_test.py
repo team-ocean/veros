@@ -46,7 +46,15 @@ def solver_state(cyclic, problem):
         boundary_mask[:100, :2] = 1
         boundary_mask[50:100, 50:100] = 1
         vs.boundary_mask = boundary_mask
-        vs.maskT = ~boundary_mask
+
+        maskT = np.zeros_like(boundary_mask)
+
+        if settings.enable_cyclic_x:
+            maskT[:, 2:-2] = ~boundary_mask[:, 2:-2]
+        else:
+            maskT[2:-2, 2:-2] = ~boundary_mask[2:-2, 2:-2]
+
+        vs.maskT = maskT
 
     return state
 
@@ -77,9 +85,8 @@ def test_solver(solver, solver_state, cyclic, problem):
     from veros import runtime_settings
     from veros.core.operators import numpy as npx
 
-    from veros.core.external.solvers.scipy import SciPySolver
-
     if solver == "scipy":
+        from veros.core.external.solvers.scipy import SciPySolver
 
         solver_class = SciPySolver
     elif solver == "scipy_jax":

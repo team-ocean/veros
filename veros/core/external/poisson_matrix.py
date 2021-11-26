@@ -1,3 +1,4 @@
+from veros import runtime_settings as rs
 from veros.core.operators import update, update_add, at, numpy as npx
 from veros.variables import allocate
 
@@ -55,12 +56,16 @@ def assemble_pressure_matrix(state):
     )
 
     if settings.enable_free_surface:
+        if rs.pyom_compatibility_mode:
+            fac = npx.float32(settings.grav) * settings.dt_mom ** 2
+        else:
+            fac = settings.grav * settings.dt_mom * settings.dt_tracer
+
         main_diag = update_add(
             main_diag,
             at[2:-2, 2:-2],
-            -1.0 / (settings.grav * settings.dt_mom * settings.dt_tracer) * maskM[2:-2, 2:-2],
+            -1.0 / fac * maskM[2:-2, 2:-2],
         )
-    # TODO: Compatibility with pyom , use dt_mom squared
 
     east_diag = update(
         east_diag,
@@ -108,6 +113,7 @@ def assemble_pressure_matrix(state):
 
     offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
     diags = [main_diag, east_diag, west_diag, north_diag, south_diag]
+
     return diags, offsets
 
 
@@ -175,4 +181,5 @@ def assemble_streamfunction_matrix(state):
         north_diag * boundary_mask,
         south_diag * boundary_mask,
     ]
+
     return diags, offsets
