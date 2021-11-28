@@ -21,7 +21,7 @@ from veros.core.external.solvers import get_linear_solver
 @veros_routine
 def solve_pressure(state):
     vs = state.variables
-    state_update, (forc, uloc, vloc) = prepare_forcing(state)
+    state_update, forc = prepare_forcing(state)
     vs.update(state_update)
 
     linear_solver = get_linear_solver(state)
@@ -33,7 +33,7 @@ def solve_pressure(state):
     else:
         vs.psi = update(vs.psi, at[..., vs.taup1], linear_sol)
 
-    vs.update(barotropic_velocity_update(state, uloc=uloc, vloc=vloc))
+    vs.update(barotropic_velocity_update(state))
 
 
 @veros_kernel
@@ -42,13 +42,10 @@ def prepare_forcing(state):
     settings = state.settings
 
     # hydrostatic pressure
-    if runtime_settings.pyom_compatibility_mode:
-        fac = npx.float32(settings.grav) / npx.float32(settings.rho_0)
-    else:
-        fac = settings.grav / settings.rho_0
-
     vs.p_hydro = update(
-        vs.p_hydro, at[:, :, -1], 0.5 * vs.rho[:, :, -1, vs.tau] * fac * vs.dzw[-1] * vs.maskT[:, :, -1]
+        vs.p_hydro,
+        at[:, :, -1],
+        0.5 * vs.rho[:, :, -1, vs.tau] * settings.grav / settings.rho_0 * vs.dzw[-1] * vs.maskT[:, :, -1],
     )
 
     def compute_p_hydro(k_inv, p_hydro):
@@ -57,7 +54,14 @@ def prepare_forcing(state):
             p_hydro,
             at[..., k],
             vs.maskT[:, :, k]
-            * (p_hydro[:, :, k + 1] + 0.5 * vs.dzw[k] * fac * (vs.rho[:, :, k + 1, vs.tau] + vs.rho[:, :, k, vs.tau])),
+            * (
+                p_hydro[:, :, k + 1]
+                + 0.5
+                * vs.dzw[k]
+                * settings.grav
+                / settings.rho_0
+                * (vs.rho[:, :, k + 1, vs.tau] + vs.rho[:, :, k, vs.tau])
+            ),
         )
         return p_hydro
 
@@ -135,24 +139,25 @@ def prepare_forcing(state):
 
     if settings.enable_free_surface:
         if runtime_settings.pyom_compatibility_mode:
-            fac = npx.float32(settings.grav) * settings.dt_mom ** 2
+            dt_surf = settings.dt_mom
         else:
-            fac = settings.grav * settings.dt_mom * settings.dt_tracer
+            dt_surf = settings.dt_tracer
 
         forc = update(
             forc,
             at[2:-2, 2:-2],
-            forc[2:-2, 2:-2] - vs.psi[2:-2, 2:-2, vs.tau] / fac * vs.maskT[2:-2, 2:-2, settings.nz - 1],
+            forc[2:-2, 2:-2]
+            - vs.psi[2:-2, 2:-2, vs.tau] / (settings.grav * settings.dt_mom * dt_surf) * vs.maskT[2:-2, 2:-2, -1],
         )
 
     # First guess
     vs.psi = update(vs.psi, at[:, :, vs.taup1], 2 * vs.psi[:, :, vs.tau] - vs.psi[:, :, vs.taum1])
 
-    return KernelOutput(du=vs.du, dv=vs.dv, u=vs.u, v=vs.v, psi=vs.psi, p_hydro=vs.p_hydro), (forc, uloc, vloc)
+    return KernelOutput(du=vs.du, dv=vs.dv, u=vs.u, v=vs.v, psi=vs.psi, p_hydro=vs.p_hydro), forc
 
 
 @veros_kernel
-def barotropic_velocity_update(state, uloc, vloc):
+def barotropic_velocity_update(state):
     """
     solve for surface pressure
     """

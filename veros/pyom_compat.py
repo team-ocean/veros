@@ -84,7 +84,7 @@ def suppress_stdout(stdout_fd=1):
             os.dup2(std.fileno(), stdout_fd)
 
 
-def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=True):
+def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=None):
     """Force-updates internal PyOM library state to match given Veros state."""
     if ignore_attrs is None:
         ignore_attrs = []
@@ -141,6 +141,9 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=True
             continue
 
         set_fortran_attr(var, val)
+
+    if init_streamfunction is None:
+        init_streamfunction = state.settings.enable_streamfunction
 
     if init_streamfunction:
         with suppress_stdout():
@@ -513,7 +516,8 @@ def get_random_state(pyom2_lib=None, extra_settings=None):
     numerics.calc_grid(state)
     numerics.calc_topo(state)
 
-    external.streamfunction_init(state)
+    if settings.enable_streamfunction:
+        external.streamfunction_init(state)
 
     if pyom2_lib is None:
         return state

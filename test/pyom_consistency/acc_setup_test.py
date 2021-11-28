@@ -29,6 +29,8 @@ def set_parameter_pyom(pyom_obj):
     m.congr_epsilon = 1e-8
     m.congr_max_iterations = 10_000
 
+    m.ab_eps = 0.1
+
     i = pyom_obj.isoneutral_module
     i.enable_neutral_diffusion = 1
     i.k_iso_0 = 1000.0
@@ -79,6 +81,7 @@ def set_parameter_pyom(pyom_obj):
     i.tau_v = 86400.0
     i.jstar = 10.0
     i.mu0 = 4.0 / 3.0
+    i.gamma = 1.57
 
     m.eq_of_state_type = 3
 

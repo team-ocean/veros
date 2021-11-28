@@ -122,7 +122,7 @@ class SciPySolver(LinearSolver):
             offsets += (-diags[0].shape[1] * (settings.nx - 1), diags[0].shape[1] * (settings.nx - 1))
             diags += (wrap_diag_east, wrap_diag_west)
 
-        diags = tuple(diag.reshape(-1) for diag in (diags))
+        diags = tuple(onp.asarray(diag.reshape(-1)) for diag in (diags))
 
         return scipy.sparse.dia_matrix((diags, offsets), shape=(diags[0].size, diags[0].size)).T.tocsr()
 

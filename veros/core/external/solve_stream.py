@@ -6,7 +6,7 @@ used for streamfunction
 """
 
 
-from veros import veros_kernel, veros_routine, KernelOutput, runtime_settings
+from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core import utilities as mainutils
 from veros.core.operators import update, update_add, at, for_loop
@@ -35,14 +35,10 @@ def prepare_forcing(state):
     settings = state.settings
 
     # hydrostatic pressure
-
-    if runtime_settings.pyom_compatibility_mode:
-        fac = npx.float32(settings.grav) / npx.float32(settings.rho_0)
-    else:
-        fac = settings.grav / settings.rho_0
-
     vs.p_hydro = update(
-        vs.p_hydro, at[:, :, -1], 0.5 * vs.rho[:, :, -1, vs.tau] * fac * vs.dzw[-1] * vs.maskT[:, :, -1]
+        vs.p_hydro,
+        at[:, :, -1],
+        0.5 * vs.rho[:, :, -1, vs.tau] * settings.grav / settings.rho_0 * vs.dzw[-1] * vs.maskT[:, :, -1],
     )
 
     def compute_p_hydro(k_inv, p_hydro):
@@ -51,7 +47,14 @@ def prepare_forcing(state):
             p_hydro,
             at[..., k],
             vs.maskT[:, :, k]
-            * (p_hydro[:, :, k + 1] + 0.5 * vs.dzw[k] * fac * (vs.rho[:, :, k + 1, vs.tau] + vs.rho[:, :, k, vs.tau])),
+            * (
+                p_hydro[:, :, k + 1]
+                + 0.5
+                * vs.dzw[k]
+                * settings.grav
+                / settings.rho_0
+                * (vs.rho[:, :, k + 1, vs.tau] + vs.rho[:, :, k, vs.tau])
+            ),
         )
         return p_hydro
 
