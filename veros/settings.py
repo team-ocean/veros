@@ -14,6 +14,13 @@ def optional(type_):
     return wrapped
 
 
+def float32(val):
+    # pyOM encodes constants with float32 precision, so we do the same
+    import numpy as np
+
+    return float(np.float32(val))
+
+
 SETTINGS = {
     "identifier": Setting("UNNAMED", str, "Identifier of the current simulation"),
     # Model parameters
@@ -27,12 +34,12 @@ SETTINGS = {
     "x_origin": Setting(0, float, "Grid origin in x-direction"),
     "y_origin": Setting(0, float, "Grid origin in y-direction"),
     # Physical constants
-    "pi": Setting(pi, float, "Pi"),
-    "radius": Setting(6370e3, float, "Earth radius in m"),
-    "degtom": Setting(6370e3 / 180.0 * pi, float, "Conversion factor from degrees latitude to meters"),
-    "omega": Setting(pi / 43082.0, float, "Earth rotation frequency in 1/s"),
-    "rho_0": Setting(1024.0, float, "Boussinesq reference density in :math:`kg/m^3`"),
-    "grav": Setting(9.81, float, "Gravitational constant in :math:`m/s^2`"),
+    "pi": Setting(pi, float32, "Pi"),
+    "radius": Setting(6370e3, float32, "Earth radius in m"),
+    "degtom": Setting(6370e3 / 180.0 * pi, float32, "Conversion factor from degrees latitude to meters"),
+    "omega": Setting(pi / 43082.0, float32, "Earth rotation frequency in 1/s"),
+    "rho_0": Setting(1024.0, float32, "Boussinesq reference density in :math:`kg/m^3`"),
+    "grav": Setting(9.81, float32, "Gravitational constant in :math:`m/s^2`"),
     # Logical switches for general model setup
     "coord_degree": Setting(False, bool, "either spherical (True) or cartesian (False) coordinates"),
     "enable_cyclic_x": Setting(False, bool, "enable cyclic boundary conditions"),
