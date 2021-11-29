@@ -88,7 +88,9 @@ def set_tke_diffusivities_kernel(state):
         fac = 6.6
 
         if runtime_settings.pyom_compatibility_mode:
-            fac = float(npx.float32(fac))
+            import numpy as onp
+
+            fac = float(onp.float32(fac))
 
         vs.Prandtlnumber = npx.maximum(1.0, npx.minimum(10, fac * Rinumber))
     else:
