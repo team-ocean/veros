@@ -14,7 +14,7 @@ def set_tke_diffusivities(state):
         vs.update(tke_diff_out)
     else:
         vs.kappaM = update(vs.kappaM, at[...], settings.kappaM_0)
-        vs.kappaH = update(vs.kappaH, at[...], settings.kappaH_0)
+        vs.kappaH = npx.where(vs.Nsqr[..., vs.tau] < 0.0, 1.0, settings.kappaH_0)
 
 
 @veros_kernel
@@ -85,7 +85,12 @@ def set_tke_diffusivities_kernel(state):
         )
 
     if settings.enable_Prandtl_tke:
-        vs.Prandtlnumber = npx.maximum(1.0, npx.minimum(10, 6.6 * Rinumber))
+        fac = 6.6
+
+        if runtime_settings.pyom_compatibility_mode:
+            fac = float(npx.float32(fac))
+
+        vs.Prandtlnumber = npx.maximum(1.0, npx.minimum(10, fac * Rinumber))
     else:
         vs.Prandtlnumber = update(vs.Prandtlnumber, at[...], settings.Prandtl_tke0)
 
