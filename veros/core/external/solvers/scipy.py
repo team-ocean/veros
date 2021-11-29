@@ -96,7 +96,7 @@ class SciPySolver(LinearSolver):
         precon = allocate(state.dimensions, ("xu", "yu"), fill=1, local=False)
         diag = npx.reshape(matrix.diagonal().copy(), (settings.nx + 4, settings.ny + 4))[2:-2, 2:-2]
         precon = update(precon, at[2:-2, 2:-2], npx.where(npx.abs(diag) > eps, 1.0 / (diag + eps), 1.0))
-        precon = onp.array(precon)
+        precon = onp.asarray(precon)
         return scipy.sparse.dia_matrix((precon.reshape(-1), 0), shape=(precon.size, precon.size)).tocsr()
 
     @staticmethod
@@ -124,7 +124,12 @@ class SciPySolver(LinearSolver):
 
         diags = tuple(onp.asarray(diag.reshape(-1)) for diag in (diags))
 
-        return scipy.sparse.dia_matrix((diags, offsets), shape=(diags[0].size, diags[0].size)).T.tocsr()
+        matrix = scipy.sparse.dia_matrix(
+            (diags, offsets),
+            shape=(diags[0].size, diags[0].size),
+            dtype="float64",
+        )
+        return matrix.T.tocsr()
 
 
 @veros_kernel
