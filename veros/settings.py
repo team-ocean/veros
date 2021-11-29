@@ -1,4 +1,5 @@
 from math import pi
+from ctypes import c_float
 from collections import namedtuple
 
 Setting = namedtuple("setting", ("default", "type", "description"))
@@ -16,9 +17,7 @@ def optional(type_):
 
 def float32(val):
     # pyOM encodes some constants with float32 precision, so we do the same
-    import numpy as np
-
-    return float(np.float32(val))
+    return c_float(val).value
 
 
 SETTINGS = {
