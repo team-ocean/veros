@@ -55,26 +55,7 @@ class JAXSciPySolver(LinearSolver):
     def __init__(self, state):
         from jax.scipy.sparse.linalg import bicgstab
 
-        vs = state.variables
-        settings = state.settings
-
-        matrix_diags, offsets = assemble_poisson_matrix(state)
-
-        if settings.enable_streamfunction:
-            mask = ~npx.any(vs.boundary_mask, axis=2)
-        else:
-            mask = vs.maskT[:, :, -1]
-
-        if settings.enable_cyclic_x:
-            wrap_diag_east, wrap_diag_west = (allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(2))
-            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], matrix_diags[2][2, 2:-2] * mask[2, 2:-2])
-            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], matrix_diags[1][-3, 2:-2] * mask[-3, 2:-2])
-            matrix_diags[2] = update(matrix_diags[2], at[2, 2:-2], 0.0)
-            matrix_diags[1] = update(matrix_diags[1], at[-3, 2:-2], 0.0)
-
-            offsets += ((settings.nx - 1, 0), (-settings.nx + 1, 0))
-            matrix_diags += (wrap_diag_east, wrap_diag_west)
-
+        matrix_diags, offsets = self._assemble_poisson_matrix(state)
         jacobi_precon = self._jacobi_preconditioner(state, matrix_diags)
         matrix_diags = tuple(jacobi_precon * diag for diag in matrix_diags)
 
@@ -148,3 +129,26 @@ class JAXSciPySolver(LinearSolver):
         main_diag = matrix_diags[0][2:-2, 2:-2]
         precon = update(precon, at[2:-2, 2:-2], npx.where(npx.abs(main_diag) > eps, 1.0 / (main_diag + eps), 1.0))
         return precon
+
+    @staticmethod
+    def _assemble_poisson_matrix(state):
+        matrix_diags, offsets = assemble_poisson_matrix(state)
+        settings = state.settings
+        vs = state.variables
+
+        if settings.enable_streamfunction:
+            mask = ~npx.any(vs.boundary_mask, axis=2)
+        else:
+            mask = vs.maskT[:, :, -1]
+
+        if settings.enable_cyclic_x:
+            wrap_diag_east, wrap_diag_west = (allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(2))
+            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], matrix_diags[2][2, 2:-2] * mask[2, 2:-2])
+            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], matrix_diags[1][-3, 2:-2] * mask[-3, 2:-2])
+            matrix_diags[2] = update(matrix_diags[2], at[2, 2:-2], 0.0)
+            matrix_diags[1] = update(matrix_diags[1], at[-3, 2:-2], 0.0)
+
+            offsets += ((settings.nx - 1, 0), (-settings.nx + 1, 0))
+            matrix_diags += (wrap_diag_east, wrap_diag_west)
+
+        return matrix_diags, offsets

@@ -74,34 +74,7 @@ class PETScSolver(LinearSolver):
             self._da.setVecType("cuda")
             self._da.setMatType("aijcusparse")
 
-        diags, offsets = assemble_poisson_matrix(state)
-        diags = onp.asarray(diags, dtype=onp.float64)
-        diags = diags[:, 2:-2, 2:-2]
-
-        row = PETSc.Mat.Stencil()
-        col = PETSc.Mat.Stencil()
-
-        (i0, i1), (j0, j1) = self._da.getRanges()
-        matrix = self._da.getMatrix()
-
-        for j in range(j0, j1):
-            for i in range(i0, i1):
-                iloc, jloc = i % (settings.nx // rs.num_proc[0]), j % (settings.ny // rs.num_proc[1])
-                row.index = (i, j)
-                for diag, offset in zip(diags, offsets):
-                    io, jo = (i + offset[0], j + offset[1])
-                    col.index = (io, jo)
-                    matrix.setValueStencil(row, col, diag[iloc, jloc])
-
-        matrix.assemble()
-
-        self._boundary_fac = {
-            "east": npx.asarray(diags[1][-1, :]),
-            "west": npx.asarray(diags[2][0, :]),
-            "north": npx.asarray(diags[3][:, -1]),
-            "south": npx.asarray(diags[4][:, 0]),
-        }
-        self._matrix = matrix
+        self._matrix = self._assemble_poisson_matrix(state)
 
         petsc_options = PETSc.Options()
 
@@ -171,6 +144,37 @@ class PETScSolver(LinearSolver):
         rhs, x0 = prepare_solver_inputs(state, rhs, x0, boundary_val, self._boundary_fac)
         linear_solution = self._petsc_solver(rhs, x0)
         return update(rhs, at[2:-2, 2:-2], linear_solution)
+
+    def _assemble_poisson_matrix(self, state):
+        diags, offsets = assemble_poisson_matrix(state)
+        diags = onp.asarray(diags, dtype=onp.float64)
+        diags = diags[:, 2:-2, 2:-2]
+
+        row = PETSc.Mat.Stencil()
+        col = PETSc.Mat.Stencil()
+
+        (i0, i1), (j0, j1) = self._da.getRanges()
+        matrix = self._da.getMatrix()
+
+        for j in range(j0, j1):
+            for i in range(i0, i1):
+                iloc, jloc = i % (state.settings.nx // rs.num_proc[0]), j % (state.settings.ny // rs.num_proc[1])
+                row.index = (i, j)
+                for diag, offset in zip(diags, offsets):
+                    io, jo = (i + offset[0], j + offset[1])
+                    col.index = (io, jo)
+                    matrix.setValueStencil(row, col, diag[iloc, jloc])
+
+        matrix.assemble()
+
+        self._boundary_fac = {
+            "east": npx.asarray(diags[1][-1, :]),
+            "west": npx.asarray(diags[2][0, :]),
+            "north": npx.asarray(diags[3][:, -1]),
+            "south": npx.asarray(diags[4][:, 0]),
+        }
+
+        return matrix
 
 
 @veros_kernel
