@@ -18,7 +18,7 @@ def _normalize(*arrays):
 
 
 def compare_state(
-    vs_state, pyom_obj, atol=1e-8, rtol=1e-6, include_ghosts=False, allowed_failures=None, normalize=False
+    vs_state, pyom_obj, atol=1e-10, rtol=1e-8, include_ghosts=False, allowed_failures=None, normalize=False
 ):
     IGNORE_SETTINGS = ("congr_max_iterations",)
 

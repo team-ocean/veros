@@ -34,7 +34,8 @@ def test_set_idemix_parameter(random_state):
     vs_state, pyom_obj = random_state
     vs_state.variables.update(idemix.set_idemix_parameter(vs_state))
     pyom_obj.set_idemix_parameter()
-    compare_state(vs_state, pyom_obj)
+    allowed_failures = ["c0"]  # computation of c0 uses several float literals in PyOM
+    compare_state(vs_state, pyom_obj, allowed_failures=allowed_failures)
 
 
 def test_integrate_idemix(random_state):
