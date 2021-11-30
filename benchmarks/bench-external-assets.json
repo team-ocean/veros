@@ -18,5 +18,9 @@
     "01deg-stream": {
         "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-01deg-stream.h5",
         "md5": "bd7ec591915207c3fe51254c104b1a55"
+    },
+    "01deg-press": {
+        "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-01deg-press.h5",
+        "md5": "0eb93209b5c759b362b46c53a836b523"
     }
 }
