@@ -13,10 +13,12 @@ def benchmark_cli(func):
     @click.option("--float-type", type=click.Choice(["float64", "float32"]), default="float64")
     @click.option("-v", "--loglevel", type=click.Choice(["debug", "trace"]), default="debug")
     @click.option("--profile-mode", is_flag=True)
+    @click.option("--petsc-options", type=str, default=None)
     @click.command()
-    def inner(backend, device, nproc, float_type, loglevel, profile_mode, linear_solver, **kwargs):
+    def inner(backend, device, nproc, float_type, loglevel, profile_mode, linear_solver, petsc_options, **kwargs):
         from veros import runtime_settings, runtime_state
 
+        print(petsc_options)
         runtime_settings.update(
             backend=backend,
             device=device,
@@ -25,6 +27,7 @@ def benchmark_cli(func):
             loglevel=loglevel,
             profile_mode=profile_mode,
             linear_solver=linear_solver,
+            petsc_options=petsc_options,
         )
 
         if device == "gpu" and runtime_state.proc_num > 1:
