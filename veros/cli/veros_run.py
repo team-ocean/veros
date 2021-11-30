@@ -9,7 +9,7 @@ import click
 from veros import runtime_settings, VerosSetup, __version__ as veros_version
 from veros.settings import SETTINGS
 from veros.backend import BACKENDS
-from veros.runtime import LOGLEVELS, DEVICES, FLOAT_TYPES, LINEAR_SOLVERS
+from veros.runtime import LOGLEVELS, DEVICES, FLOAT_TYPES
 
 
 class VerosSetting(click.ParamType):
@@ -57,7 +57,6 @@ def run(setup_file, *args, **kwargs):
         "float_type",
         "diskless_mode",
         "force_overwrite",
-        "linear_solver",
     )
     for setting in runtime_setting_kwargs:
         setattr(runtime_settings, setting, kwargs.pop(setting))
@@ -95,14 +94,6 @@ def run(setup_file, *args, **kwargs):
     default="numpy",
     type=click.Choice(BACKENDS),
     help="Backend to use for computations",
-    show_default=True,
-)
-@click.option(
-    "-ls",
-    "--linear-solver",
-    default="best",
-    type=click.Choice(LINEAR_SOLVERS),
-    help="Linear solver to use for computations",
     show_default=True,
 )
 @click.option(
