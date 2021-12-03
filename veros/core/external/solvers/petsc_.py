@@ -15,12 +15,14 @@ STREAM_OPTIONS = {
     "rtol": 1e-14,
     "max_it": 1000,
     "PC_type": "gamg",
-    "pc_gamg_type": "agg",
-    "pc_gamg_reuse_interpolation": True,
-    "pc_gamg_threshold": 1e-4,
-    "pc_gamg_sym_graph": True,
-    "pc_gamg_agg_nsmooths": 2,
-    "mg_levels_pc_type": "jacobi",
+    "pc_options": {
+        "pc_gamg_type": "agg",
+        "pc_gamg_reuse_interpolation": True,
+        "pc_gamg_threshold": 1e-4,
+        "pc_gamg_sym_graph": True,
+        "pc_gamg_agg_nsmooths": 2,
+        "mg_levels_pc_type": "jacobi",
+    },
 }
 
 PRESSURE_OPTIONS = {
@@ -29,12 +31,14 @@ PRESSURE_OPTIONS = {
     "rtol": 1e-14,
     "max_it": 1000,
     "PC_type": "gamg",
-    "pc_gamg_type": "agg",
-    "pc_gamg_reuse_interpolation": True,
-    "pc_gamg_threshold": 1e-4,
-    "pc_gamg_sym_graph": True,
-    "pc_gamg_agg_nsmooths": 2,
-    "mg_levels_pc_type": "jacobi",
+    "pc_options": {
+        "pc_gamg_type": "agg",
+        "pc_gamg_reuse_interpolation": True,
+        "pc_gamg_threshold": 1e-4,
+        "pc_gamg_sym_graph": True,
+        "pc_gamg_agg_nsmooths": 2,
+        "mg_levels_pc_type": "jacobi",
+    },
 }
 
 
@@ -89,12 +93,8 @@ class PETScSolver(LinearSolver):
         # preconditioner
         self._ksp.getPC().setType(options["PC_type"])
 
-        petsc_options["pc_gamg_type"] = options["pc_gamg_type"]
-        petsc_options["pc_gamg_reuse_interpolation"] = options["pc_gamg_reuse_interpolation"]
-        petsc_options["pc_gamg_threshold"] = options["pc_gamg_threshold"]
-        petsc_options["pc_gamg_sym_graph"] = options["pc_gamg_sym_graph"]
-        petsc_options["pc_gamg_agg_nsmooths"] = options["pc_gamg_agg_nsmooths"]
-        petsc_options["mg_levels_pc_type"] = options["mg_levels_pc_type"]
+        for key in options["pc_options"]:
+            petsc_options[key] = options[key]
 
         if rs.petsc_options:
             petsc_options.insertString(rs.petsc_options)
