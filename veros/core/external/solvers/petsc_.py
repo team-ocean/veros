@@ -80,7 +80,7 @@ class PETScSolver(LinearSolver):
 
         self._matrix = self._assemble_poisson_matrix(state)
 
-        petsc_options = PETSc.options()
+        petsc_options = PETSc.Options()
 
         # setup krylov method
         self._ksp = PETSc.KSP()
@@ -94,7 +94,7 @@ class PETScSolver(LinearSolver):
         self._ksp.getPC().setType(options["PC_type"])
 
         for key in options["pc_options"]:
-            petsc_options[key] = options[key]
+            petsc_options[key] = options["pc_options"][key]
 
         if rs.petsc_options:
             petsc_options.insertString(rs.petsc_options)
