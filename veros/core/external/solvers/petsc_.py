@@ -48,9 +48,9 @@ class PETScSolver(LinearSolver):
 
         settings = state.settings
         if settings.enable_streamfunction:
-            OPTIONS = STREAM_OPTIONS
+            options = STREAM_OPTIONS
         else:
-            OPTIONS = PRESSURE_OPTIONS
+            options = PRESSURE_OPTIONS
 
         if settings.enable_cyclic_x:
             boundary_type = ("periodic", "ghosted")
@@ -76,25 +76,25 @@ class PETScSolver(LinearSolver):
 
         self._matrix = self._assemble_poisson_matrix(state)
 
-        petsc_options = PETSc.Options()
+        petsc_options = PETSc.options()
 
         # setup krylov method
         self._ksp = PETSc.KSP()
         self._ksp.create(self._da.comm)
         self._ksp.setOperators(self._matrix)
 
-        self._ksp.setType(OPTIONS["solver_type"])
-        self._ksp.setTolerances(atol=OPTIONS["atol"], rtol=OPTIONS["rtol"], max_it=OPTIONS["max_it"])
+        self._ksp.setType(options["solver_type"])
+        self._ksp.setTolerances(atol=options["atol"], rtol=options["rtol"], max_it=options["max_it"])
 
         # preconditioner
-        self._ksp.getPC().setType(OPTIONS["PC_type"])
+        self._ksp.getPC().setType(options["PC_type"])
 
-        petsc_options["pc_gamg_type"] = OPTIONS["pc_gamg_type"]
-        petsc_options["pc_gamg_reuse_interpolation"] = OPTIONS["pc_gamg_reuse_interpolation"]
-        petsc_options["pc_gamg_threshold"] = OPTIONS["pc_gamg_threshold"]
-        petsc_options["pc_gamg_sym_graph"] = OPTIONS["pc_gamg_sym_graph"]
-        petsc_options["pc_gamg_agg_nsmooths"] = OPTIONS["pc_gamg_agg_nsmooths"]
-        petsc_options["mg_levels_pc_type"] = OPTIONS["mg_levels_pc_type"]
+        petsc_options["pc_gamg_type"] = options["pc_gamg_type"]
+        petsc_options["pc_gamg_reuse_interpolation"] = options["pc_gamg_reuse_interpolation"]
+        petsc_options["pc_gamg_threshold"] = options["pc_gamg_threshold"]
+        petsc_options["pc_gamg_sym_graph"] = options["pc_gamg_sym_graph"]
+        petsc_options["pc_gamg_agg_nsmooths"] = options["pc_gamg_agg_nsmooths"]
+        petsc_options["mg_levels_pc_type"] = options["mg_levels_pc_type"]
 
         if rs.petsc_options:
             petsc_options.insertString(rs.petsc_options)
