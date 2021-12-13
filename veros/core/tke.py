@@ -13,8 +13,8 @@ def set_tke_diffusivities(state):
         tke_diff_out = set_tke_diffusivities_kernel(state)
         vs.update(tke_diff_out)
     else:
-        vs.kappaM = update(vs.kappaM, at[...], vs.kappaM_0)
-        vs.kappaH = update(vs.kappaH, at[...], vs.kappaH_0)
+        vs.kappaM = update(vs.kappaM, at[...], settings.kappaM_0)
+        vs.kappaH = update(vs.kappaH, at[...], settings.kappaH_0)
 
 
 @veros_kernel
