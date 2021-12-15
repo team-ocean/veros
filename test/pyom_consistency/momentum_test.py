@@ -38,7 +38,13 @@ def test_momentum_advection(random_state):
     vs_state, pyom_obj = random_state
     vs_state.variables.update(momentum.momentum_advection(vs_state))
     pyom_obj.momentum_advection()
-    compare_state(vs_state, pyom_obj, allowed_failures=("du", "dv"))
+
+    # not a part of momentum_advection in PyOM
+    m = pyom_obj.main_module
+    m.du[..., m.tau - 1] += m.du_adv
+    m.dv[..., m.tau - 1] += m.dv_adv
+
+    compare_state(vs_state, pyom_obj)
 
 
 def test_vertical_velocity(random_state):
@@ -50,6 +56,15 @@ def test_vertical_velocity(random_state):
 
 def test_momentum(random_state):
     vs_state, pyom_obj = random_state
+
+    # results are only identical if initial guess is already cyclic
+    from veros.core import utilities
+
+    vs = vs_state.variables
+    m = pyom_obj.main_module
+    m.psi[...] = utilities.enforce_boundaries(m.psi, vs_state.settings.enable_cyclic_x)
+    vs.psi = utilities.enforce_boundaries(vs.psi, vs_state.settings.enable_cyclic_x)
+
     vs_state.variables.update(momentum.momentum(vs_state))
     pyom_obj.momentum()
     compare_state(vs_state, pyom_obj)

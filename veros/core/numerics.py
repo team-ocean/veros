@@ -312,9 +312,8 @@ def calc_initial_conditions(state):
 @veros_kernel
 def ugrid_to_tgrid(state, a):
     vs = state.variables
-    b = npx.zeros_like(a)
     b = update(
-        b,
+        a,
         at[2:-2, :, :],
         (
             vs.dxu[2:-2, npx.newaxis, npx.newaxis] * a[2:-2, :, :]
@@ -328,9 +327,8 @@ def ugrid_to_tgrid(state, a):
 @veros_kernel
 def vgrid_to_tgrid(state, a):
     vs = state.variables
-    b = npx.zeros_like(a)
     b = update(
-        b,
+        a,
         at[:, 2:-2, :],
         (vs.area_v[:, 2:-2, npx.newaxis] * a[:, 2:-2, :] + vs.area_v[:, 1:-3, npx.newaxis] * a[:, 1:-3, :])
         / (2 * vs.area_t[:, 2:-2, npx.newaxis]),

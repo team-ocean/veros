@@ -9,7 +9,6 @@ method same as pressure method in MITgcm
 
 from veros import veros_routine
 from veros.routines import veros_kernel
-from veros import runtime_settings
 from veros.state import KernelOutput
 from veros.variables import allocate
 from veros.core import utilities as mainutils
@@ -138,16 +137,15 @@ def prepare_forcing(state):
     )
 
     if settings.enable_free_surface:
-        if runtime_settings.pyom_compatibility_mode:
-            dt_surf = settings.dt_mom
-        else:
-            dt_surf = settings.dt_tracer
+        # if runtime_settings.pyom_compatibility_mode:
+        #     dt_surf = settings.dt_mom
+        # else:
+        dt_surf = settings.dt_tracer
 
-        forc = update(
+        forc = update_add(
             forc,
             at[2:-2, 2:-2],
-            forc[2:-2, 2:-2]
-            - vs.psi[2:-2, 2:-2, vs.tau] / (settings.grav * settings.dt_mom * dt_surf) * vs.maskT[2:-2, 2:-2, -1],
+            -vs.psi[2:-2, 2:-2, vs.tau] / (settings.grav * settings.dt_mom * dt_surf) * vs.maskT[2:-2, 2:-2, -1],
         )
 
     # First guess
@@ -163,10 +161,6 @@ def barotropic_velocity_update(state):
     """
     vs = state.variables
     settings = state.settings
-
-    vs.psi = update(
-        vs.psi, at[:, :, vs.taup1], mainutils.enforce_boundaries(vs.psi[:, :, vs.taup1], settings.enable_cyclic_x)
-    )
 
     vs.u = update_add(
         vs.u,

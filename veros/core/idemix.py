@@ -1,6 +1,6 @@
 from veros.core.operators import numpy as npx
 
-from veros import veros_kernel, veros_routine, KernelOutput, runtime_settings
+from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core import advection, utilities
 from veros.core.operators import update, update_add, at
@@ -32,11 +32,6 @@ def set_idemix_parameter(state):
     cstar = npx.maximum(1e-2, bN0[:, :, npx.newaxis] / (settings.pi * settings.jstar))
 
     vs.c0 = npx.maximum(0.0, settings.gamma * cstar * gofx2(fxa, settings.pi) * vs.maskW)
-
-    if runtime_settings.pyom_compatibility_mode:
-        # bug in PyOM2
-        fxa = npx.maximum(3.0, fxa)
-
     vs.v0 = npx.maximum(0.0, settings.gamma * cstar * hofx1(fxa, settings.pi) * vs.maskW)
     vs.alpha_c = (
         npx.maximum(
@@ -69,13 +64,10 @@ def integrate_idemix_kernel(state):
 
     else:  # shortcut without EKE model
         if settings.enable_store_cabbeling_heat:
-            forc = vs.K_diss_h - vs.P_diss_skew - vs.P_diss_hmix - vs.P_diss_iso
+            forc = vs.K_diss_gmvs.K_diss_h - vs.P_diss_skew - vs.P_diss_hmix - vs.P_diss_iso
 
         else:
-            forc = vs.K_diss_h - vs.P_diss_skew
-
-        if settings.enable_TEM_friction:
-            forc = forc + vs.K_diss_gm
+            forc = vs.K_diss_gmvs.K_diss_h - vs.P_diss_skew
 
     if settings.enable_eke and (settings.enable_eke_diss_bottom or settings.enable_eke_diss_surfbot):
         """
@@ -202,11 +194,6 @@ def integrate_idemix_kernel(state):
             * vs.maskU[:-1, :, :],
         )
 
-        if runtime_settings.pyom_compatibility_mode:
-            flux_east = update(flux_east, at[-5, :, :], 0.0)
-        else:
-            flux_east = update(flux_east, at[-1, :, :], 0.0)
-
         flux_north = update(
             flux_north,
             at[:, :-1, :],
@@ -288,9 +275,14 @@ def gofx2(x, pi):
 
 @veros_kernel
 def hofx1(x, pi):
-    eps = npx.finfo(x.dtype).eps  # prevent division by zero
-    x = npx.maximum(1.0 + eps, x)
-    return (2.0 / pi) / (1.0 - (2.0 / pi) * npx.arcsin(1.0 / x)) * (x - 1.0) / (x + 1.0)
+    valid = x > 1
+    # replace with dummy value to prevent NaNs
+    x = npx.where(valid, x, 2)
+    return npx.where(
+        valid,
+        (2.0 / pi) / (1.0 - (2.0 / pi) * npx.arcsin(1.0 / x)) * (x - 1.0) / (x + 1.0),
+        0,
+    )
 
 
 @veros_routine

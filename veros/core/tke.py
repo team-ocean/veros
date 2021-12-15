@@ -1,4 +1,4 @@
-from veros import veros_kernel, veros_routine, runtime_settings, KernelOutput
+from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core import advection, utilities
 from veros.core.operators import update, update_add, at, for_loop, numpy as npx
@@ -85,14 +85,7 @@ def set_tke_diffusivities_kernel(state):
         )
 
     if settings.enable_Prandtl_tke:
-        fac = 6.6
-
-        if runtime_settings.pyom_compatibility_mode:
-            import numpy as onp
-
-            fac = float(onp.float32(fac))
-
-        vs.Prandtlnumber = npx.maximum(1.0, npx.minimum(10, fac * Rinumber))
+        vs.Prandtlnumber = npx.maximum(1.0, npx.minimum(10, 6.6 * Rinumber))
     else:
         vs.Prandtlnumber = update(vs.Prandtlnumber, at[...], settings.Prandtl_tke0)
 
@@ -178,12 +171,9 @@ def integrate_tke_kernel(state):
 
         else:  # and without EKE model
             if settings.enable_store_cabbeling_heat:
-                forc = forc + vs.K_diss_h - vs.P_diss_skew - vs.P_diss_hmix - vs.P_diss_iso
+                forc = forc + vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew - vs.P_diss_hmix - vs.P_diss_iso
             else:
-                forc = forc + vs.K_diss_h - vs.P_diss_skew
-
-            if settings.enable_TEM_friction:
-                forc = forc + vs.K_diss_gm
+                forc = forc + vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew
 
         forc = forc + vs.K_diss_bot
 
@@ -265,11 +255,6 @@ def integrate_tke_kernel(state):
             / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
             * vs.maskU[:-1, :, :],
         )
-
-        if runtime_settings.pyom_compatibility_mode:
-            flux_east = update(flux_east, at[-5, :, :], 0.0)
-        else:
-            flux_east = update(flux_east, at[-1, :, :], 0.0)
 
         flux_north = update(
             flux_north,

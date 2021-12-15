@@ -37,9 +37,9 @@ def random_state(pyom2_lib):
         "P_diss_sources",
         "P_diss_hmix",
     ):
-        getattr(pyom_obj.main_module, var.lower())[...] = 0.0
+        getattr(pyom_obj.main_module, var.lower())[...] *= vs.maskT
         with vs.unlock():
-            setattr(vs, var, vs.get(var) * 0.0)
+            setattr(vs, var, vs.get(var) * vs.maskT)
 
     return vs_state, pyom_obj
 
@@ -49,6 +49,4 @@ def test_thermodynamics(random_state):
     vs_state.variables.update(thermodynamics.thermodynamics(vs_state))
     pyom_obj.thermodynamics()
 
-    # eq of state seems to be more sensitive to numerical errors
-    compare_state(vs_state, pyom_obj, allowed_failures=("rho", "Hd"))
-    compare_state(vs_state, pyom_obj, rtol=1e-4)
+    compare_state(vs_state, pyom_obj)

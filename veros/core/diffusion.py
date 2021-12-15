@@ -1,6 +1,6 @@
 from veros.core.operators import numpy as npx
 
-from veros import veros_kernel, KernelOutput, runtime_settings
+from veros import veros_kernel, KernelOutput
 from veros.variables import allocate
 from veros.core import utilities
 from veros.core.operators import update, update_add, update_multiply, at
@@ -78,13 +78,9 @@ def tempsalt_biharmonic(state):
     vs.dtemp_hmix = update(vs.dtemp_hmix, at[1:, 1:, :], dtemp[1:, 1:, :])
     vs.temp = update_add(vs.temp, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dtemp_hmix * vs.maskT)
 
-    vs.P_diss_hmix = allocate(state.dimensions, ("xt", "yt", "zt"))
     if settings.enable_conserve_energy:
-        if runtime_settings.pyom_compatibility_mode:
-            fxa = vs.int_drhodT[-3, -3, -1, vs.tau]
-
         diss = compute_dissipation(state, vs.int_drhodT[..., vs.tau], flux_east, flux_north)
-        vs.P_diss_hmix = vs.P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
+        vs.P_diss_hmix = dissipation_on_wgrid(state, diss, vs.kbot)
 
     # update salt
     dsalt, flux_east, flux_north = biharmonic_diffusion(state, vs.salt[:, :, :, vs.tau], fxa)
@@ -145,11 +141,17 @@ def tempsalt_sources(state):
     vs.salt = update_add(vs.salt, at[:, :, :, vs.taup1], settings.dt_tracer * vs.salt_source * vs.maskT)
 
     if settings.enable_conserve_energy:
-        diss = (
+        diss = allocate(state.dimensions, ("xt", "yt", "zt"))
+        diss = update(
+            diss,
+            at[1:-1, 1:-1, :],
             -settings.grav
             / settings.rho_0
-            * vs.maskT
-            * (vs.int_drhodT[..., vs.tau] * vs.temp_source + vs.int_drhodS[..., vs.tau] * vs.salt_source)
+            * vs.maskT[1:-1, 1:-1, :]
+            * (
+                vs.int_drhodT[1:-1, 1:-1, :, vs.tau] * vs.temp_source[1:-1, 1:-1]
+                + vs.int_drhodS[1:-1, 1:-1, :, vs.tau] * vs.salt_source[1:-1, 1:-1]
+            ),
         )
 
         vs.P_diss_sources = dissipation_on_wgrid(state, diss, vs.kbot)

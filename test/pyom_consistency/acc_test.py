@@ -7,6 +7,13 @@ from veros.setups.acc import ACCSetup
 from test_base import compare_state
 
 
+TEST_SETS = {
+    "standard": dict(),
+    "pressure": dict(enable_streamfunction=False),
+    "no-energy-conservation": dict(enable_conserve_energy=False),
+}
+
+
 class ACCTest(ACCSetup):
     @veros_routine
     def set_parameter(self, state):
@@ -34,14 +41,15 @@ class ACCTest(ACCSetup):
         state.diagnostics.clear()
 
 
-@pytest.mark.parametrize("external_mode", ("pressure", "streamfunction"))
-def test_acc(pyom2_lib, external_mode):
-    use_stream = external_mode == "streamfunction"
-    sim = ACCTest(override={"enable_streamfunction": use_stream})
+@pytest.mark.parametrize("test_set", TEST_SETS.keys())
+def test_acc(pyom2_lib, test_set):
+    extra_settings = TEST_SETS[test_set]
+
+    sim = ACCTest(override=extra_settings)
     sim.setup()
 
     pyom_obj = load_pyom(pyom2_lib)
-    pyom_obj = pyom_from_state(sim.state, pyom_obj, ignore_attrs=("t_star", "t_rest"), init_streamfunction=use_stream)
+    pyom_obj = pyom_from_state(sim.state, pyom_obj, ignore_attrs=("t_star", "t_rest"))
 
     t_rest = sim.state.variables.t_rest
     t_star = sim.state.variables.t_star
@@ -56,17 +64,18 @@ def test_acc(pyom2_lib, external_mode):
 
     # salt is not used by this setup
     allowed_failures = ("salt", "dsalt", "dsalt_vmix", "dsalt_iso")
+    atol = 1e-8
 
-    if external_mode == "pressure":
-        # TODO: can't get some other variables to match, investigate
-        # only test "observables" for now
-        allowed_failures = set(sim.state.variables.fields()) - {"temp", "psi", "u", "v"}
+    if test_set == "pressure":
+        # pressure setups are more numerically sensitive
+        atol = 1e-4
+        allowed_failures += ("tke_surf_corr", "Nsqr", "Ai_ez", "Ai_nz", "Ai_bx", "Ai_by")
 
     compare_state(
         sim.state,
         pyom_obj,
-        normalize=True,
+        atol=atol,
         rtol=0,
-        atol=1e-4,
+        normalize=True,
         allowed_failures=allowed_failures,
     )

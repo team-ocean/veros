@@ -236,10 +236,11 @@ def state_from_pyom(pyom_obj):
             state.settings.update({setting: get_fortran_attr(setting)})
 
     state.initialize_variables()
-    resize_dimension(state, "isle", int(pyom_obj.main_module.nisle))
 
     with state.variables.unlock():
-        state.variables.isle = npx.arange(state.dimensions["isle"])
+        if state.settings.enable_streamfunction:
+            resize_dimension(state, "isle", int(pyom_obj.main_module.nisle))
+            state.variables.isle = npx.arange(state.dimensions["isle"])
 
         for var, val in state.variables.items():
             var = VEROS_TO_PYOM_VAR.get(var, var)
