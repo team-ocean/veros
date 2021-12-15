@@ -3,7 +3,7 @@ from time import perf_counter
 
 from benchmark_base import benchmark_cli
 
-from veros import logger
+from veros import logger, runtime_settings
 from veros.pyom_compat import load_pyom, pyom_from_state
 
 VARIABLES_USED = ["cost", "cosu", "dxt", "dxu", "dyt", "dyu", "hu", "hv", "maskT"]
@@ -58,7 +58,12 @@ def get_dummy_state(infile):
             local_shape = get_shape(dimensions, dims, local=True, include_ghosts=True)
             gidx, lidx = get_chunk_slices(dimensions["xt"], dimensions["yt"], dims, include_overlap=True)
 
-            var = npx.empty(local_shape, dtype=str(f[v].dtype))
+            if npx.issubdtype(f[v].dtype, npx.floating):
+                dtype = runtime_settings.float_type
+            else:
+                dtype = str(f[v].dtype)
+
+            var = npx.empty(local_shape, dtype=dtype)
             var = update(var, at[lidx], f[v][gidx])
             var = exchange_overlap(var, dims, state.settings.enable_cyclic_x)
             input_data[v] = var
