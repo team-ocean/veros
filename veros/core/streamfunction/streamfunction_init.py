@@ -3,7 +3,7 @@ from veros.variables import allocate
 from veros.distributed import global_max
 from veros.core import utilities as mainutils
 from veros.core.operators import numpy as npx, for_loop, update, at
-from veros.core.streamfunction import island, line_integrals
+from veros.core.streamfunction import island, line_integrals, solve_stream
 from veros.core.streamfunction.solvers import get_linear_solver
 
 
@@ -59,6 +59,27 @@ def streamfunction_init(state):
 
     line_psin_out = island_integrals(state)
     vs.update(line_psin_out)
+
+    """
+    take care of initial velocity
+    """
+
+    # transfer initial velocity to tendency
+    vs.du = update(vs.du, at[..., vs.tau], vs.u[..., vs.tau] / settings.dt_mom / (1.5 + settings.AB_eps))
+    vs.dv = update(vs.dv, at[..., vs.tau], vs.v[..., vs.tau] / settings.dt_mom / (1.5 + settings.AB_eps))
+    vs.u = update(vs.u, at[...], 0)
+    vs.v = update(vs.v, at[...], 0)
+
+    # run streamfunction solver to determine initial barotropic and baroclinic modes
+    solve_stream.solve_streamfunction(state)
+
+    vs.psi = update(vs.psi, at[...], vs.psi[..., vs.taup1, npx.newaxis])
+    vs.u = update(
+        vs.u, at[...], mainutils.enforce_boundaries(vs.u[..., vs.taup1, npx.newaxis], settings.enable_cyclic_x)
+    )
+    vs.u = update(
+        vs.v, at[...], mainutils.enforce_boundaries(vs.v[..., vs.taup1, npx.newaxis], settings.enable_cyclic_x)
+    )
 
 
 @veros_kernel
