@@ -1,20 +1,21 @@
-Publications
-============
+Publications involving Veros
+============================
 
 Peer-reviewed articles
 ----------------------
 
-- Lohmann, J., and Ditlevsen, P. D.: Risk of tipping the overturning circulation due to
-  increasing rates of ice melt, PNAS, 118 (9), e2017989118,
-  `https://doi.org/10.1073/pnas.2017989118 <https://doi.org/10.1073/pnas.2017989118>`__, 2021.
-- Häfner, D., Jacobsen, R. L., Eden, C., Kristensen, M. R. B., Jochum, M.,
-  Nuterman, R., and Vinter, B.: Veros v0.1 – a fast and versatile ocean
-  simulator in pure Python, Geosci. Model Dev., 11, 3299-3312,
-  `https://doi.org/10.5194/gmd-11-3299-2018 <https://doi.org/10.5194/gmd-11-3299-2018>`__, 2018.
+-  Häfner, D., Nuterman, R., & Jochum, M. (2021). Fast, cheap, & turbulent — Global ocean modelling with GPU acceleration in Python. Journal of Advances in Modeling Earth Systems, 13, e2021MS002717. `https://doi.org/10.1029/2021MS002717 <https://doi.org/10.1029/2021MS002717>`__
+- Lohmann, J., & Ditlevsen, P. D. (2021). Risk of tipping the overturning circulation due to increasing rates of ice melt. Proceedings of the National Academy of Sciences, 118(9).
+  `https://doi.org/10.1073/pnas.2017989118 <https://doi.org/10.1073/pnas.2017989118>`__
+- Häfner, D., Jacobsen, R. L., Eden, C., Kristensen, M. R., Jochum, M., Nuterman, R., & Vinter, B. (2018). Veros v0. 1–a fast and versatile ocean simulator in pure Python. Geoscientific Model Development, 11(8), 3299-3312.
+  `https://doi.org/10.5194/gmd-11-3299-2018 <https://doi.org/10.5194/gmd-11-3299-2018>`__
 
 Talks
 -----
 
+- Fast multi-platform ocean modelling in Python with JAX.
+  A talk held at the AGU fall meeting 2021.
+  `Abstract <https://agu.confex.com/agu/fm21/meetingapp.cgi/Paper/792922>`__
 - Higher-level geophysical modelling.
   A talk held at the European Geosciences Union General Assembly 2021.
   `Abstract <https://meetingorganizer.copernicus.org/EGU21/EGU21-2127.html>`__

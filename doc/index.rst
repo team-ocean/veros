@@ -68,6 +68,6 @@ If you want to learn more about the background and capabilities of Veros, you sh
 
    more/benchmarks
    more/external_tools
+   more/howtocite
    more/publications
-   more/contact
    Visit us on GitHub <https://github.com/team-ocean/veros>
