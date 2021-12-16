@@ -1,5 +1,3 @@
-from math import pi
-from ctypes import c_float
 from collections import namedtuple
 
 Setting = namedtuple("setting", ("default", "type", "description"))
@@ -15,10 +13,7 @@ def optional(type_):
     return wrapped
 
 
-def float32(val):
-    # pyOM encodes some constants with float32 precision, so we do the same
-    return c_float(val).value
-
+PI = 3.14159265358979323846264338327950588
 
 SETTINGS = {
     "identifier": Setting("UNNAMED", str, "Identifier of the current simulation"),
@@ -33,14 +28,12 @@ SETTINGS = {
     "x_origin": Setting(0, float, "Grid origin in x-direction"),
     "y_origin": Setting(0, float, "Grid origin in y-direction"),
     # Physical constants
-    "pi": Setting(float32(pi), float, "Pi"),
-    "radius": Setting(float32(6370e3), float, "Earth radius in m"),
-    "degtom": Setting(
-        float32(6370e3) / float32(180.0) * float32(pi), float, "Conversion factor from degrees latitude to meters"
-    ),
-    "omega": Setting(float32(pi) / float32(43082.0), float, "Earth rotation frequency in 1/s"),
-    "rho_0": Setting(float32(1024.0), float, "Boussinesq reference density in :math:`kg/m^3`"),
-    "grav": Setting(float32(9.81), float, "Gravitational constant in :math:`m/s^2`"),
+    "pi": Setting(PI, float, "Pi"),
+    "radius": Setting(6370e3, float, "Earth radius in m"),
+    "degtom": Setting(6370e3 / 180.0 * PI, float, "Conversion factor from degrees latitude to meters"),
+    "omega": Setting(PI / 43082.0, float, "Earth rotation frequency in 1/s"),
+    "rho_0": Setting(1024.0, float, "Boussinesq reference density in :math:`kg/m^3`"),
+    "grav": Setting(9.81, float, "Gravitational constant in :math:`m/s^2`"),
     # Logical switches for general model setup
     "coord_degree": Setting(False, bool, "either spherical (True) or cartesian (False) coordinates"),
     "enable_cyclic_x": Setting(False, bool, "enable cyclic boundary conditions"),

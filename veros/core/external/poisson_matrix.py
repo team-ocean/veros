@@ -1,4 +1,3 @@
-from veros import runtime_settings as rs
 from veros.core.operators import update, update_add, at, numpy as npx
 from veros.variables import allocate
 
@@ -57,10 +56,10 @@ def assemble_pressure_matrix(state):
     )
 
     if settings.enable_free_surface:
-        if rs.pyom_compatibility_mode:
-            dt_surf = settings.dt_mom
-        else:
-            dt_surf = settings.dt_tracer
+        # if rs.pyom_compatibility_mode:
+        #     dt_surf = settings.dt_mom
+        # else:
+        dt_surf = settings.dt_tracer
 
         main_diag = update_add(
             main_diag,

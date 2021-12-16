@@ -70,10 +70,14 @@ jobs:
         if: steps.pyom2-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p $PYOM2_DIR
-          cp vendor/pyom2/pyOM2.1.0.tar.gz $PYOM2_DIR
-          cp vendor/pyom2/pyOM2_site_specific $PYOM2_DIR/site_specific.mk_
+          cp -r vendor/pyom2/* $PYOM2_DIR
           pushd $PYOM2_DIR
+          mv pyOM2_site_specific site_specific.mk_
           tar xzf pyOM2.1.0.tar.gz
+          git init
+          for patchfile in ./patches/*.patch; do
+            git apply $patchfile
+          done
           make -C py_src -j 4 > /dev/null
           popd
 
