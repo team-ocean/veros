@@ -8,7 +8,7 @@ from veros.pyom_compat import load_pyom, pyom_from_state
 
 VARIABLES_USED = ["cost", "cosu", "dxt", "dxu", "dyt", "dyu", "hu", "hv", "maskT"]
 
-VARIABLES_ALLOCATED = VARIABLES_USED + ["hur", "hvr", "boundary_mask"]
+VARIABLES_ALLOCATED = VARIABLES_USED + ["hur", "hvr", "isle_boundary_mask"]
 
 SETTINGS_USED = [
     "nx",

@@ -42,17 +42,17 @@ def solver_state(cyclic, problem):
         vs.cosu = np.ones(settings.ny + 4)
         vs.cost = np.ones(settings.ny + 4)
 
-        boundary_mask = np.zeros((settings.nx + 4, settings.ny + 4, 1), dtype="bool")
-        boundary_mask[:100, :2] = 1
-        boundary_mask[50:100, 50:100] = 1
-        vs.boundary_mask = boundary_mask
+        isle_boundary_mask = np.zeros((settings.nx + 4, settings.ny + 4, 1), dtype="bool")
+        isle_boundary_mask[:100, :2] = 1
+        isle_boundary_mask[50:100, 50:100] = 1
+        vs.isle_boundary_mask = isle_boundary_mask
 
-        maskT = np.zeros_like(boundary_mask)
+        maskT = np.zeros_like(isle_boundary_mask)
 
         if settings.enable_cyclic_x:
-            maskT[:, 2:-2] = ~boundary_mask[:, 2:-2]
+            maskT[:, 2:-2] = ~isle_boundary_mask[:, 2:-2]
         else:
-            maskT[2:-2, 2:-2] = ~boundary_mask[2:-2, 2:-2]
+            maskT[2:-2, 2:-2] = ~isle_boundary_mask[2:-2, 2:-2]
 
         vs.maskT = maskT
 
@@ -68,11 +68,11 @@ def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
         boundary_val = sol
 
     if state.settings.enable_streamfunction:
-        boundary_mask = ~np.any(state.variables.boundary_mask, axis=2)
+        isle_boundary_mask = ~np.any(state.variables.isle_boundary_mask, axis=2)
     else:
-        boundary_mask = state.variables.maskT[..., -1]
+        isle_boundary_mask = state.variables.maskT[..., -1]
 
-    rhs = np.where(boundary_mask, rhs, boundary_val)
+    rhs = np.where(isle_boundary_mask, rhs, boundary_val)
 
     rhs_sol = matrix @ sol.reshape(-1)
     np.testing.assert_allclose(rhs_sol, rhs.flatten(), atol=0, rtol=tol)

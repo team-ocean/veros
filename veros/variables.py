@@ -108,7 +108,7 @@ DEFAULT_MASKS = {
 }
 
 # custom mask for streamfunction
-ZETA_HOR_ERODED = lambda vs: vs.maskZ[:, :, -1] | vs.boundary_mask.sum(axis=2)  # noqa: E731
+ZETA_HOR_ERODED = lambda vs: vs.maskZ[:, :, -1] | vs.isle_boundary_mask.sum(axis=2)  # noqa: E731
 
 
 def get_shape(dimensions, grid, include_ghosts=True, local=True):
@@ -445,7 +445,7 @@ VARIABLES = {
     "line_psin": Variable(
         "Boundary line integrals", ISLE + ISLE, "m^4/s^2", "Boundary line integrals", time_dependent=False
     ),
-    "boundary_mask": Variable("Boundary mask", T_HOR + ISLE, "", "Boundary mask", time_dependent=False, dtype="bool"),
+    "isle_boundary_mask": Variable("Boundary mask", T_HOR, "", "Boundary mask", time_dependent=False, dtype="bool"),
     "line_dir_south_mask": Variable(
         "Line integral mask", T_HOR + ISLE, "", "Line integral mask", time_dependent=False, dtype="bool"
     ),

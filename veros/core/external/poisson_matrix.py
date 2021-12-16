@@ -121,7 +121,7 @@ def assemble_pressure_matrix(state):
 def assemble_streamfunction_matrix(state):
     vs = state.variables
 
-    boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
+    isle_boundary_mask = ~npx.any(vs.isle_boundary_mask, axis=2)
 
     # assemble diagonals
     main_diag = allocate(state.dimensions, ("xu", "yu"), fill=1)
@@ -171,16 +171,16 @@ def assemble_streamfunction_matrix(state):
         / vs.cosu[npx.newaxis, 2:-2],
     )
 
-    main_diag = main_diag * boundary_mask
+    main_diag = main_diag * isle_boundary_mask
     main_diag = npx.where(main_diag == 0.0, 1.0, main_diag)
 
     offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
     diags = [
         main_diag,
-        east_diag * boundary_mask,
-        west_diag * boundary_mask,
-        north_diag * boundary_mask,
-        south_diag * boundary_mask,
+        east_diag * isle_boundary_mask,
+        west_diag * isle_boundary_mask,
+        north_diag * isle_boundary_mask,
+        south_diag * isle_boundary_mask,
     ]
 
     return diags, offsets

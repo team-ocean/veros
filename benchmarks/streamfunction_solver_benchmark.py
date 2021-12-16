@@ -8,7 +8,7 @@ from veros.pyom_compat import load_pyom, pyom_from_state
 
 
 VARIABLES_USED = [
-    "boundary_mask",
+    "isle_boundary_mask",
     "cost",
     "cosu",
     "dxt",
@@ -53,7 +53,7 @@ def get_dummy_state(infile):
 
         state.initialize_variables()
 
-        nisle = f["boundary_mask"].shape[2]
+        nisle = f["isle_boundary_mask"].shape[2]
         resize_dimension(state, "isle", nisle)
         dimensions = state.dimensions
         var_meta = state.var_meta

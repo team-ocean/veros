@@ -2,7 +2,7 @@ from veros import logger, veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.distributed import global_max
 from veros.core import utilities as mainutils
-from veros.core.operators import numpy as npx, for_loop, update, at
+from veros.core.operators import numpy as npx, update, at
 from veros.core.external import island, line_integrals
 from veros.core.external.solvers import get_linear_solver
 
@@ -37,8 +37,7 @@ def streamfunction_init(state):
 
     get_isleperim(state)
 
-    boundary_masks_out = boundary_masks(state)
-    vs.update(boundary_masks_out)
+    vs.update(isle_boundary_masks(state))
 
     # populate linear solver cache
     linear_solver = get_linear_solver(state)
@@ -52,7 +51,13 @@ def streamfunction_init(state):
 
     for isle in range(state.dimensions["isle"]):
         logger.info(f" Solving for boundary contribution by island {isle:d}")
-        isle_sol = linear_solver.solve(state, forc, vs.psin[:, :, isle], boundary_val=vs.boundary_mask[:, :, isle])
+        isle_boundary = (
+            vs.line_dir_east_mask[..., isle]
+            | vs.line_dir_west_mask[..., isle]
+            | vs.line_dir_north_mask[..., isle]
+            | vs.line_dir_south_mask[..., isle]
+        )
+        isle_sol = linear_solver.solve(state, forc, vs.psin[:, :, isle], boundary_val=isle_boundary)
         vs.psin = update(vs.psin, at[:, :, isle], isle_sol)
 
     vs.psin = mainutils.enforce_boundaries(vs.psin, settings.enable_cyclic_x)
@@ -94,56 +99,48 @@ def island_integrals(state):
 
 
 @veros_kernel
-def boundary_masks(state):
+def isle_boundary_masks(state):
     """
     now that the number of islands is known we can allocate the rest of the variables
     """
     vs = state.variables
     settings = state.settings
 
-    def loop_body(isle, masks):
-        (east_mask, west_mask, south_mask, north_mask, boundary_mask) = masks
-        boundary_map = vs.land_map == (isle + 1)
+    boundary_map = vs.land_map[..., npx.newaxis] == npx.arange(1, state.dimensions["isle"] + 1)
 
-        if settings.enable_cyclic_x:
-            east_mask = update(east_mask, at[2:-2, 1:-1, isle], boundary_map[3:-1, 1:-1] & ~boundary_map[3:-1, 2:])
-            west_mask = update(west_mask, at[2:-2, 1:-1, isle], boundary_map[2:-2, 2:] & ~boundary_map[2:-2, 1:-1])
-            south_mask = update(south_mask, at[2:-2, 1:-1, isle], boundary_map[2:-2, 1:-1] & ~boundary_map[3:-1, 1:-1])
-            north_mask = update(north_mask, at[2:-2, 1:-1, isle], boundary_map[3:-1, 2:] & ~boundary_map[2:-2, 2:])
-        else:
-            east_mask = update(east_mask, at[1:-1, 1:-1, isle], boundary_map[2:, 1:-1] & ~boundary_map[2:, 2:])
-            west_mask = update(west_mask, at[1:-1, 1:-1, isle], boundary_map[1:-1, 2:] & ~boundary_map[1:-1, 1:-1])
-            south_mask = update(south_mask, at[1:-1, 1:-1, isle], boundary_map[1:-1, 1:-1] & ~boundary_map[2:, 1:-1])
-            north_mask = update(north_mask, at[1:-1, 1:-1, isle], boundary_map[2:, 2:] & ~boundary_map[1:-1, 2:])
-
-        boundary_mask = update(
-            boundary_mask,
-            at[..., isle],
-            (east_mask[..., isle] | west_mask[..., isle] | north_mask[..., isle] | south_mask[..., isle]),
+    if settings.enable_cyclic_x:
+        vs.line_dir_east_mask = update(
+            vs.line_dir_east_mask, at[2:-2, 1:-1], boundary_map[3:-1, 1:-1] & ~boundary_map[3:-1, 2:]
         )
-        return (east_mask, west_mask, south_mask, north_mask, boundary_mask)
+        vs.line_dir_west_mask = update(
+            vs.line_dir_west_mask, at[2:-2, 1:-1], boundary_map[2:-2, 2:] & ~boundary_map[2:-2, 1:-1]
+        )
+        vs.line_dir_south_mask = update(
+            vs.line_dir_south_mask, at[2:-2, 1:-1], boundary_map[2:-2, 1:-1] & ~boundary_map[3:-1, 1:-1]
+        )
+        vs.line_dir_north_mask = update(
+            vs.line_dir_north_mask, at[2:-2, 1:-1], boundary_map[3:-1, 2:] & ~boundary_map[2:-2, 2:]
+        )
+    else:
+        vs.line_dir_east_mask = update(
+            vs.line_dir_east_mask, at[1:-1, 1:-1], boundary_map[2:, 1:-1] & ~boundary_map[2:, 2:]
+        )
+        vs.line_dir_west_mask = update(
+            vs.line_dir_west_mask, at[1:-1, 1:-1], boundary_map[1:-1, 2:] & ~boundary_map[1:-1, 1:-1]
+        )
+        vs.line_dir_south_mask = update(
+            vs.line_dir_south_mask, at[1:-1, 1:-1], boundary_map[1:-1, 1:-1] & ~boundary_map[2:, 1:-1]
+        )
+        vs.line_dir_north_mask = update(
+            vs.line_dir_north_mask, at[1:-1, 1:-1], boundary_map[2:, 2:] & ~boundary_map[1:-1, 2:]
+        )
 
-    (
-        vs.line_dir_east_mask,
-        vs.line_dir_west_mask,
-        vs.line_dir_south_mask,
-        vs.line_dir_north_mask,
-        vs.boundary_mask,
-    ) = for_loop(
-        0,
-        state.dimensions["isle"],
-        loop_body,
-        (
-            vs.line_dir_east_mask,
-            vs.line_dir_west_mask,
-            vs.line_dir_south_mask,
-            vs.line_dir_north_mask,
-            vs.boundary_mask,
-        ),
+    vs.isle_boundary_mask = npx.any(
+        vs.line_dir_east_mask | vs.line_dir_west_mask | vs.line_dir_south_mask | vs.line_dir_north_mask, axis=2
     )
 
     return KernelOutput(
-        boundary_mask=vs.boundary_mask,
+        isle_boundary_mask=vs.isle_boundary_mask,
         line_dir_east_mask=vs.line_dir_east_mask,
         line_dir_west_mask=vs.line_dir_west_mask,
         line_dir_south_mask=vs.line_dir_south_mask,

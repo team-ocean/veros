@@ -15,11 +15,11 @@ def solve_kernel(state, rhs, x0, boundary_val, solve_fun):
     x0_global = distributed.gather(x0, state.dimensions, ("xt", "yt"))
 
     if settings.enable_streamfunction:
-        boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
+        isle_boundary_mask = ~npx.any(vs.isle_boundary_mask, axis=2)
     else:
-        boundary_mask = vs.maskT[..., -1]
+        isle_boundary_mask = vs.maskT[..., -1]
 
-    boundary_mask_global = distributed.gather(boundary_mask, state.dimensions, ("xt", "yt"))
+    isle_boundary_mask_global = distributed.gather(isle_boundary_mask, state.dimensions, ("xt", "yt"))
 
     if boundary_val is None:
         boundary_val = x0_global
@@ -27,7 +27,7 @@ def solve_kernel(state, rhs, x0, boundary_val, solve_fun):
         boundary_val = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
 
     if rst.proc_rank == 0:
-        linear_solution = solve_fun(rhs_global, x0_global, boundary_mask_global, boundary_val)
+        linear_solution = solve_fun(rhs_global, x0_global, isle_boundary_mask_global, boundary_val)
     else:
         linear_solution = npx.empty_like(rhs)
 
@@ -47,7 +47,7 @@ class JAXSciPySolver(LinearSolver):
             "dyt",
             "cosu",
             "cost",
-            "boundary_mask",
+            "isle_boundary_mask",
             "maskT",
         ),
         dist_safe=False,
@@ -60,8 +60,8 @@ class JAXSciPySolver(LinearSolver):
         matrix_diags = tuple(jacobi_precon * diag for diag in matrix_diags)
 
         @veros_kernel
-        def linear_solve(rhs, x0, boundary_mask, boundary_val):
-            rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
+        def linear_solve(rhs, x0, isle_boundary_mask, boundary_val):
+            rhs = npx.where(isle_boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
             def matmul(rhs):
                 nx, ny = rhs.shape
@@ -137,7 +137,7 @@ class JAXSciPySolver(LinearSolver):
         vs = state.variables
 
         if settings.enable_streamfunction:
-            mask = ~npx.any(vs.boundary_mask, axis=2)
+            mask = ~npx.any(vs.isle_boundary_mask, axis=2)
         else:
             mask = vs.maskT[:, :, -1]
 

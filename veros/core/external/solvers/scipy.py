@@ -22,7 +22,7 @@ class SciPySolver(LinearSolver):
             "dyt",
             "cosu",
             "cost",
-            "boundary_mask",
+            "isle_boundary_mask",
             "maskT",
         ),
         dist_safe=False,
@@ -39,11 +39,11 @@ class SciPySolver(LinearSolver):
         ilu_preconditioner = spalg.spilu(self._matrix.tocsc(), drop_tol=1e-6, fill_factor=100)
         self._extra_args["M"] = spalg.LinearOperator(self._matrix.shape, ilu_preconditioner.solve)
 
-    def _scipy_solver(self, state, rhs, x0, boundary_mask, boundary_val):
+    def _scipy_solver(self, state, rhs, x0, isle_boundary_mask, boundary_val):
         orig_shape = x0.shape
         orig_dtype = x0.dtype
 
-        rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
+        rhs = npx.where(isle_boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
         rhs = onp.asarray(rhs.reshape(-1) * self._rhs_scale, dtype="float64")
         x0 = onp.asarray(x0.reshape(-1), dtype="float64")
@@ -74,11 +74,11 @@ class SciPySolver(LinearSolver):
             boundary_val: Array containing values to set on boundary elements. Defaults to `x0`.
 
         """
-        rhs_global, x0_global, boundary_mask_global, boundary_val = gather_variables(state, rhs, x0, boundary_val)
+        rhs_global, x0_global, isle_boundary_mask_global, boundary_val = gather_variables(state, rhs, x0, boundary_val)
 
         if rst.proc_rank == 0:
             linear_solution = self._scipy_solver(
-                state, rhs_global, x0_global, boundary_mask=boundary_mask_global, boundary_val=boundary_val
+                state, rhs_global, x0_global, isle_boundary_mask=isle_boundary_mask_global, boundary_val=boundary_val
             )
         else:
             linear_solution = npx.empty_like(rhs)
@@ -105,14 +105,18 @@ class SciPySolver(LinearSolver):
         settings = state.settings
 
         diags, offsets = assemble_poisson_matrix(state)
+
+        # flatten offsets (as expected by scipy.sparse)
         offsets = tuple(-dx * diags[0].shape[1] - dy for dx, dy in offsets)
 
         if settings.enable_streamfunction:
-            mask = ~npx.any(vs.boundary_mask, axis=2)
+            mask = ~npx.any(vs.isle_boundary_mask, axis=2)
         else:
             mask = vs.maskT[..., -1]
 
         if settings.enable_cyclic_x:
+            # add cyclic boundary conditions as additional matrix diagonals
+            # (only works in single-process mode)
             wrap_diag_east, wrap_diag_west = (allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(2))
             wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], diags[2][2, 2:-2] * mask[2, 2:-2])
             wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], diags[1][-3, 2:-2] * mask[-3, 2:-2])
@@ -141,18 +145,18 @@ def gather_variables(state, rhs, x0, boundary_val):
     x0_global = distributed.gather(x0, state.dimensions, ("xt", "yt"))
 
     if settings.enable_streamfunction:
-        boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
+        isle_boundary_mask = ~npx.any(vs.isle_boundary_mask, axis=2)
     else:
-        boundary_mask = vs.maskT[..., -1]
+        isle_boundary_mask = vs.maskT[..., -1]
 
-    boundary_mask_global = distributed.gather(boundary_mask, state.dimensions, ("xt", "yt"))
+    isle_boundary_mask_global = distributed.gather(isle_boundary_mask, state.dimensions, ("xt", "yt"))
 
     if boundary_val is None:
         boundary_val = x0_global
     else:
         boundary_val = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
 
-    return rhs_global, x0_global, boundary_mask_global, boundary_val
+    return rhs_global, x0_global, isle_boundary_mask_global, boundary_val
 
 
 @veros_kernel

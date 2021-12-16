@@ -188,11 +188,11 @@ def prepare_solver_inputs(state, rhs, x0, boundary_val, boundary_fac):
     x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x)
 
     if settings.enable_streamfunction:
-        boundary_mask = ~npx.any(vs.boundary_mask, axis=2)
+        isle_boundary_mask = ~npx.any(vs.isle_boundary_mask, axis=2)
     else:
-        boundary_mask = vs.maskT[..., -1]
+        isle_boundary_mask = vs.maskT[..., -1]
 
-    rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
+    rhs = npx.where(isle_boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
     if settings.enable_streamfunction:
         # add dirichlet BC to rhs
