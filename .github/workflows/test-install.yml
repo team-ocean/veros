@@ -20,13 +20,13 @@ jobs:
 
       matrix:
           os: [ubuntu-latest, macos-latest, windows-latest]
-          python-version: [3.6, 3.9]
+          python-version: ["3.7", "3.10"]
           nocc: [false]
 
           include:
             # also test whether installation without C compiler works
             - os: ubuntu-latest
-              python-version: 3.6
+              python-version: "3.7"
               nocc: true
 
     runs-on: ${{ matrix.os }}
