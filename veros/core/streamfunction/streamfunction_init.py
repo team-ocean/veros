@@ -77,9 +77,11 @@ def streamfunction_init(state):
     vs.u = update(
         vs.u, at[...], mainutils.enforce_boundaries(vs.u[..., vs.taup1, npx.newaxis], settings.enable_cyclic_x)
     )
-    vs.u = update(
+    vs.v = update(
         vs.v, at[...], mainutils.enforce_boundaries(vs.v[..., vs.taup1, npx.newaxis], settings.enable_cyclic_x)
     )
+    vs.du = update(vs.du, at[..., vs.tau], 0)
+    vs.dv = update(vs.dv, at[..., vs.tau], 0)
 
 
 @veros_kernel
