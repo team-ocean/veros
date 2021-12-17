@@ -222,7 +222,7 @@ def isoneutral_diffusion_pre(state):
         sumx / (4 * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
         + sumy / (4 * vs.dyt[npx.newaxis, 2:-2, npx.newaxis] * vs.cost[npx.newaxis, 2:-2, npx.newaxis]),
     )
-    vs.K_33 = update(vs.K_33, at[2:-2, 2:-2, -1], 0.0)
+    vs.K_33 = update(vs.K_33, at[..., -1], 0.0)
 
     return KernelOutput(
         Ai_ez=vs.Ai_ez, Ai_nz=vs.Ai_nz, Ai_bx=vs.Ai_bx, Ai_by=vs.Ai_by, K_11=vs.K_11, K_22=vs.K_22, K_33=vs.K_33

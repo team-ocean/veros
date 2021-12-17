@@ -108,6 +108,7 @@ def tend_tauxyf(state):
     settings = state.settings
 
     if runtime_settings.pyom_compatibility_mode:
+        # surface_tau* has different units in PyOM
         vs.du = update_add(
             vs.du, at[2:-2, 2:-2, -1, vs.tau], vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1]
         )

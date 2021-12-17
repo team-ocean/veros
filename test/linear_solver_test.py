@@ -6,7 +6,7 @@ from veros.state import get_default_state, resize_dimension
 
 
 @pytest.fixture
-def solver_state(cyclic):
+def solver_state(cyclic, problem):
     state = get_default_state()
     settings = state.settings
 
@@ -15,7 +15,11 @@ def solver_state(cyclic):
         settings.ny = 200
         settings.nz = 1
 
+        settings.dt_tracer = 1800
+        settings.dt_mom = 1800
+
         settings.enable_cyclic_x = cyclic
+        settings.enable_streamfunction = problem == "streamfunction"
 
     state.initialize_variables()
     resize_dimension(state, "isle", 1)
@@ -31,14 +35,27 @@ def solver_state(cyclic):
 
         vs.hur = 1.0 / np.linspace(500, 2000, settings.nx + 4)[:, None] * np.ones((settings.nx + 4, settings.ny + 4))
         vs.hvr = 1.0 / np.linspace(500, 2000, settings.ny + 4)[None, :] * np.ones((settings.nx + 4, settings.ny + 4))
+        vs.hu = 1.0 / vs.hur
+        vs.hv = 1.0 / vs.hvr
 
         vs.cosu = np.ones(settings.ny + 4)
         vs.cost = np.ones(settings.ny + 4)
 
-        boundary_mask = np.zeros((settings.nx + 4, settings.ny + 4, settings.nz), dtype="bool")
-        boundary_mask[:, :2] = 1
-        boundary_mask[50:100, 50:100] = 1
-        vs.boundary_mask = boundary_mask
+        boundary_mask = np.ones((settings.nx + 4, settings.ny + 4), dtype="bool")
+        boundary_mask[:100, :2] = 0
+        boundary_mask[50:100, 50:100] = 0
+
+        if settings.enable_streamfunction:
+            vs.isle_boundary_mask = boundary_mask
+
+        maskT = np.zeros((settings.nx + 4, settings.ny + 4, settings.nz), dtype="bool")
+
+        if settings.enable_cyclic_x:
+            maskT[:, 2:-2, 0] = boundary_mask[:, 2:-2]
+        else:
+            maskT[2:-2, 2:-2, 0] = boundary_mask[2:-2, 2:-2]
+
+        vs.maskT = maskT
 
     return state
 
@@ -46,22 +63,21 @@ def solver_state(cyclic):
 def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
     from veros.core.external.solvers.scipy import SciPySolver
 
-    matrix = SciPySolver._assemble_poisson_matrix(state)
+    matrix, boundary_mask = SciPySolver._assemble_poisson_matrix(state)
 
     if boundary_val is None:
         boundary_val = sol
 
-    boundary_mask = ~np.any(state.variables.boundary_mask, axis=2)
     rhs = np.where(boundary_mask, rhs, boundary_val)
 
     rhs_sol = matrix @ sol.reshape(-1)
-
     np.testing.assert_allclose(rhs_sol, rhs.flatten(), atol=0, rtol=tol)
 
 
 @pytest.mark.parametrize("cyclic", [True, False])
 @pytest.mark.parametrize("solver", ["scipy", "scipy_jax", "petsc"])
-def test_solver(solver, solver_state, cyclic):
+@pytest.mark.parametrize("problem", ["streamfunction", "pressure"])
+def test_solver(solver, solver_state, cyclic, problem):
     from veros import runtime_settings
     from veros.core.operators import numpy as npx
 
@@ -87,6 +103,8 @@ def test_solver(solver, solver_state, cyclic):
     rhs = npx.ones((settings.nx + 4, settings.ny + 4))
     x0 = npx.asarray(np.random.rand(settings.nx + 4, settings.ny + 4))
 
-    sol = solver_class(solver_state).solve(solver_state, rhs, x0, boundary_val=10)
+    sol = solver_class(solver_state).solve(solver_state, rhs, x0)
+    assert_solution(solver_state, rhs, sol, tol=1e-8)
 
-    assert_solution(solver_state, rhs, sol, boundary_val=10, tol=1e-8)
+    sol = solver_class(solver_state).solve(solver_state, rhs, x0, boundary_val=10)
+    assert_solution(solver_state, rhs, sol, tol=1e-8, boundary_val=10)

@@ -9,27 +9,30 @@ method same as pressure method in MITgcm
 
 from veros import veros_routine
 from veros.routines import veros_kernel
-from veros import runtime_settings
 from veros.state import KernelOutput
 from veros.variables import allocate
 from veros.core import utilities as mainutils
 from veros.core.operators import update, update_add, at, for_loop
 from veros.core.operators import numpy as npx
-from veros.core.external.pressure_solvers import get_linear_solver
+from veros.core.external.solvers import get_linear_solver
 
 
 @veros_routine
 def solve_pressure(state):
     vs = state.variables
-    state_update, (forc, uloc, vloc) = prepare_forcing(state)
+    state_update, forc = prepare_forcing(state)
     vs.update(state_update)
 
     linear_solver = get_linear_solver(state)
-
     linear_sol = linear_solver.solve(state, forc, vs.psi[..., vs.taup1])
-    vs.psi = update(vs.psi, at[..., vs.taup1], mainutils.enforce_boundaries(linear_sol, state.settings.enable_cyclic_x))
+    linear_sol = mainutils.enforce_boundaries(linear_sol, state.settings.enable_cyclic_x)
 
-    vs.update(barotropic_velocity_update(state, uloc=uloc, vloc=vloc))
+    if vs.itt == 0:
+        vs.psi = update(vs.psi, at[...], linear_sol[..., npx.newaxis])
+    else:
+        vs.psi = update(vs.psi, at[..., vs.taup1], linear_sol)
+
+    vs.update(barotropic_velocity_update(state))
 
 
 @veros_kernel
@@ -38,13 +41,10 @@ def prepare_forcing(state):
     settings = state.settings
 
     # hydrostatic pressure
-    if runtime_settings.pyom_compatibility_mode:
-        fac = npx.float32(settings.grav) / npx.float32(settings.rho_0)
-    else:
-        fac = settings.grav / settings.rho_0
-
     vs.p_hydro = update(
-        vs.p_hydro, at[:, :, -1], 0.5 * vs.rho[:, :, -1, vs.tau] * fac * vs.dzw[-1] * vs.maskT[:, :, -1]
+        vs.p_hydro,
+        at[:, :, -1],
+        0.5 * vs.rho[:, :, -1, vs.tau] * settings.grav / settings.rho_0 * vs.dzw[-1] * vs.maskT[:, :, -1],
     )
 
     def compute_p_hydro(k_inv, p_hydro):
@@ -53,7 +53,14 @@ def prepare_forcing(state):
             p_hydro,
             at[..., k],
             vs.maskT[:, :, k]
-            * (p_hydro[:, :, k + 1] + 0.5 * vs.dzw[k] * fac * (vs.rho[:, :, k + 1, vs.tau] + vs.rho[:, :, k, vs.tau])),
+            * (
+                p_hydro[:, :, k + 1]
+                + 0.5
+                * vs.dzw[k]
+                * settings.grav
+                / settings.rho_0
+                * (vs.rho[:, :, k + 1, vs.tau] + vs.rho[:, :, k, vs.tau])
+            ),
         )
         return p_hydro
 
@@ -126,47 +133,26 @@ def prepare_forcing(state):
         forc,
         at[2:-2, 2:-2],
         (uloc[2:-2, 2:-2] - uloc[1:-3, 2:-2]) / (vs.cost[2:-2] * vs.dxt[2:-2, npx.newaxis])
-        + (vs.cosu[2:-2] * vloc[2:-2, 2:-2] - vs.cosu[1:-3] * vloc[2:-2, 1:-3]) / (vs.cost[2:-2] * vs.dyt[2:-2]),
+        + (vs.cosu[2:-2] * vloc[2:-2, 2:-2] - vs.cosu[1:-3] * vloc[2:-2, 1:-3]) / (vs.cost[2:-2] * vs.dyt[2:-2])
+        # free surface
+        - vs.psi[2:-2, 2:-2, vs.tau]
+        / (settings.grav * settings.dt_mom * settings.dt_tracer)
+        * vs.maskT[2:-2, 2:-2, -1],
     )
 
-    # NOTE: might need to change this for compatibility mode?
-    if settings.enable_free_surface:
-        if runtime_settings.pyom_compatibility_mode:
-            forc = update(
-                forc,
-                at[2:-2, 2:-2],
-                forc[2:-2, 2:-2]
-                - vs.psi[2:-2, 2:-2, vs.tau]
-                / (npx.float32(settings.grav) * npx.float32(settings.dt_mom) ** 2)
-                * vs.maskT[2:-2, 2:-2, settings.nz - 1],
-            )
-        else:
-            forc = update(
-                forc,
-                at[2:-2, 2:-2],
-                forc[2:-2, 2:-2]
-                - vs.psi[2:-2, 2:-2, vs.tau]
-                / (settings.grav * settings.dt_mom * settings.dt_tracer)
-                * vs.maskT[2:-2, 2:-2, settings.nz - 1],
-            )
-
-    # First guess
+    # first guess
     vs.psi = update(vs.psi, at[:, :, vs.taup1], 2 * vs.psi[:, :, vs.tau] - vs.psi[:, :, vs.taum1])
 
-    return KernelOutput(du=vs.du, dv=vs.dv, u=vs.u, v=vs.v, psi=vs.psi, p_hydro=vs.p_hydro), (forc, uloc, vloc)
+    return KernelOutput(du=vs.du, dv=vs.dv, u=vs.u, v=vs.v, psi=vs.psi, p_hydro=vs.p_hydro), forc
 
 
 @veros_kernel
-def barotropic_velocity_update(state, uloc, vloc):
+def barotropic_velocity_update(state):
     """
     solve for surface pressure
     """
     vs = state.variables
     settings = state.settings
-
-    vs.psi = update(
-        vs.psi, at[:, :, vs.taup1], mainutils.enforce_boundaries(vs.psi[:, :, vs.taup1], settings.enable_cyclic_x)
-    )
 
     vs.u = update_add(
         vs.u,
@@ -186,4 +172,6 @@ def barotropic_velocity_update(state, uloc, vloc):
         * vs.maskV[2:-2, 2:-2, :],
     )
 
-    return KernelOutput(u=vs.u, v=vs.v)
+    vs.ssh = vs.psi[..., vs.tau] / settings.grav
+
+    return KernelOutput(u=vs.u, v=vs.v, ssh=vs.ssh)

@@ -1,4 +1,3 @@
-from math import pi
 from collections import namedtuple
 
 Setting = namedtuple("setting", ("default", "type", "description"))
@@ -14,6 +13,8 @@ def optional(type_):
     return wrapped
 
 
+PI = 3.14159265358979323846264338327950588
+
 SETTINGS = {
     "identifier": Setting("UNNAMED", str, "Identifier of the current simulation"),
     # Model parameters
@@ -27,10 +28,10 @@ SETTINGS = {
     "x_origin": Setting(0, float, "Grid origin in x-direction"),
     "y_origin": Setting(0, float, "Grid origin in y-direction"),
     # Physical constants
-    "pi": Setting(pi, float, "Pi"),
+    "pi": Setting(PI, float, "Pi"),
     "radius": Setting(6370e3, float, "Earth radius in m"),
-    "degtom": Setting(6370e3 / 180.0 * pi, float, "Conversion factor from degrees latitude to meters"),
-    "omega": Setting(pi / 43082.0, float, "Earth rotation frequency in 1/s"),
+    "degtom": Setting(6370e3 / 180.0 * PI, float, "Conversion factor from degrees latitude to meters"),
+    "omega": Setting(PI / 43082.0, float, "Earth rotation frequency in 1/s"),
     "rho_0": Setting(1024.0, float, "Boussinesq reference density in :math:`kg/m^3`"),
     "grav": Setting(9.81, float, "Gravitational constant in :math:`m/s^2`"),
     # Logical switches for general model setup
@@ -63,11 +64,6 @@ SETTINGS = {
     ),
     "enable_streamfunction": Setting(
         True, bool, "solve external mode with streamfunction formulation, else derive from pressure formulation"
-    ),
-    "enable_free_surface": Setting(
-        False,
-        bool,
-        "Controls whether to use rigid lid or linear free surface pressure formulation, if streamfunction is disabled",
     ),
     # Mixing parameters
     "A_h": Setting(0.0, float, "lateral viscosity in m^2/s"),

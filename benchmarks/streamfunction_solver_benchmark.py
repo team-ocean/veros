@@ -3,11 +3,12 @@ from time import perf_counter
 
 from benchmark_base import benchmark_cli
 
-from veros import logger
+from veros import logger, runtime_settings
 from veros.pyom_compat import load_pyom, pyom_from_state
 
+
 VARIABLES_USED = [
-    "boundary_mask",
+    "isle_boundary_mask",
     "cost",
     "cosu",
     "dxt",
@@ -18,6 +19,7 @@ VARIABLES_USED = [
     "hvr",
     "kbot",
 ]
+VARIABLES_ALLOCATED = VARIABLES_USED + ["hu", "hv", "maskT"]
 
 SETTINGS_USED = [
     "nx",
@@ -25,7 +27,6 @@ SETTINGS_USED = [
     "nz",
     "dt_tracer",
     "dt_mom",
-    "enable_free_surface",
     "enable_streamfunction",
     "enable_cyclic_x",
 ]
@@ -33,13 +34,13 @@ SETTINGS_USED = [
 
 def get_dummy_state(infile):
     import h5py
-    from veros.state import VerosState, resize_dimension
+    from veros.state import VerosState
     from veros.distributed import get_chunk_slices, exchange_overlap
     from veros.variables import VARIABLES, DIM_TO_SHAPE_VAR, get_shape
     from veros.settings import SETTINGS
     from veros.core.operators import numpy as npx, update, at
 
-    variables_subset = {key: VARIABLES[key] for key in VARIABLES_USED}
+    variables_subset = {key: VARIABLES[key] for key in VARIABLES_ALLOCATED}
 
     state = VerosState(var_meta=variables_subset, setting_meta=SETTINGS, dimensions=DIM_TO_SHAPE_VAR)
 
@@ -51,8 +52,6 @@ def get_dummy_state(infile):
 
         state.initialize_variables()
 
-        nisle = f["boundary_mask"].shape[2]
-        resize_dimension(state, "isle", nisle)
         dimensions = state.dimensions
         var_meta = state.var_meta
 
@@ -69,7 +68,12 @@ def get_dummy_state(infile):
             local_shape = get_shape(dimensions, dims, local=True, include_ghosts=True)
             gidx, lidx = get_chunk_slices(dimensions["xt"], dimensions["yt"], dims, include_overlap=True)
 
-            var = npx.empty(local_shape, dtype=str(f[v].dtype))
+            if npx.issubdtype(f[v].dtype, npx.floating):
+                dtype = runtime_settings.float_type
+            else:
+                dtype = str(f[v].dtype)
+
+            var = npx.empty(local_shape, dtype=dtype)
             var = update(var, at[lidx], f[v][gidx])
             var = exchange_overlap(var, dims, state.settings.enable_cyclic_x)
             input_data[v] = var

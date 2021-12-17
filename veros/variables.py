@@ -17,9 +17,6 @@ class Variable:
         active=True,
         initial=None,
     ):
-        if dims is not None:
-            dims = tuple(dims)
-
         self.name = name
         self.dims = dims
         self.units = units
@@ -31,12 +28,14 @@ class Variable:
         self.active = active
         self.initial = initial
 
-        self.get_mask = lambda vs: None
+        self.get_mask = lambda settings, vs: None
 
         if mask is not None:
             if not callable(mask):
                 raise TypeError("mask argument has to be callable")
+
             self.get_mask = mask
+
         elif dims is not None:
             if dims[:3] in DEFAULT_MASKS:
                 self.get_mask = DEFAULT_MASKS[dims[:3]]
@@ -54,8 +53,8 @@ class Variable:
         return f"{self.__class__.__qualname__}({attr_str})"
 
 
-# fill value for netCDF output (invalid data is replaced by this value)
-FILL_VALUE = -1e18
+# fill value for netCDF output (invalid floating data is replaced by this value)
+FLOAT_FILL_VALUE = -1e18
 
 #
 XT = ("xt",)
@@ -96,19 +95,34 @@ DIM_TO_SHAPE_VAR = {
 }
 
 DEFAULT_MASKS = {
-    T_HOR: lambda vs: vs.maskT[:, :, -1],
-    U_HOR: lambda vs: vs.maskU[:, :, -1],
-    V_HOR: lambda vs: vs.maskV[:, :, -1],
-    ZETA_HOR: lambda vs: vs.maskZ[:, :, -1],
-    T_GRID: lambda vs: vs.maskT,
-    U_GRID: lambda vs: vs.maskU,
-    V_GRID: lambda vs: vs.maskV,
-    W_GRID: lambda vs: vs.maskW,
-    ZETA_GRID: lambda vs: vs.maskZ,
+    T_HOR: lambda settings, vs: vs.maskT[:, :, -1],
+    U_HOR: lambda settings, vs: vs.maskU[:, :, -1],
+    V_HOR: lambda settings, vs: vs.maskV[:, :, -1],
+    ZETA_HOR: lambda settings, vs: vs.maskZ[:, :, -1],
+    T_GRID: lambda settings, vs: vs.maskT,
+    U_GRID: lambda settings, vs: vs.maskU,
+    V_GRID: lambda settings, vs: vs.maskV,
+    W_GRID: lambda settings, vs: vs.maskW,
+    ZETA_GRID: lambda settings, vs: vs.maskZ,
 }
 
+
 # custom mask for streamfunction
-ZETA_HOR_ERODED = lambda vs: vs.maskZ[:, :, -1] | vs.boundary_mask.sum(axis=2)  # noqa: E731
+def _get_psi_mask(settings, vs):
+    if not settings.enable_streamfunction:
+        return vs.maskT[:, :, -1]
+
+    # eroded around the edges
+    return vs.maskZ[:, :, -1] | ~vs.isle_boundary_mask
+
+
+def get_fill_value(dtype):
+    import numpy as onp
+
+    if onp.issubdtype(dtype, onp.floating):
+        return FLOAT_FILL_VALUE
+
+    return onp.iinfo(dtype).max
 
 
 def get_shape(dimensions, grid, include_ghosts=True, local=True):
@@ -414,26 +428,53 @@ VARIABLES = {
         "Meridional surface wind stress",
     ),
     "forc_rho_surface": Variable("Surface density flux", T_HOR, "kg / (m^2 s)", "Surface potential density flux"),
+    "ssh": Variable(
+        "Sea surface height",
+        T_HOR,
+        "m",
+        "Sea surface height",
+        active=lambda settings: not settings.enable_streamfunction,
+    ),
     "psi": Variable(
-        "Streamfunction",
-        ZETA_HOR + TIMESTEPS,
-        "m^3/s",
-        "Barotropic streamfunction",
+        lambda settings: "Streamfunction" if settings.enable_streamfunction else "Surface pressure",
+        lambda settings: ZETA_HOR + TIMESTEPS if settings.enable_streamfunction else T_HOR + TIMESTEPS,
+        lambda settings: "m^3/s" if settings.enable_streamfunction else "m^2/s^2",
+        lambda settings: "Barotropic streamfunction" if settings.enable_streamfunction else "Surface pressure",
         write_to_restart=True,
-        mask=ZETA_HOR_ERODED,
+        mask=_get_psi_mask,
     ),
     "dpsi": Variable(
-        "Streamfunction tendency", ZETA_HOR + TIMESTEPS, "m^3/s^2", "Streamfunction tendency", write_to_restart=True
+        "Streamfunction tendency",
+        ZETA_HOR + TIMESTEPS,
+        "m^3/s^2",
+        "Streamfunction tendency",
+        write_to_restart=True,
+        active=lambda settings: settings.enable_streamfunction,
     ),
-    "land_map": Variable("Land map", T_HOR, "", "Land map", dtype="int32"),
-    "isle": Variable("Island number", ISLE, "", "Island number"),
+    "land_map": Variable(
+        "Land map",
+        T_HOR,
+        "",
+        "Land map",
+        dtype="int32",
+        active=lambda settings: settings.enable_streamfunction,
+    ),
+    "isle": Variable(
+        "Island number",
+        ISLE,
+        "",
+        "Island number",
+        dtype="int32",
+        active=lambda settings: settings.enable_streamfunction,
+    ),
     "psin": Variable(
         "Boundary streamfunction",
         ZETA_HOR + ISLE,
         "m^3/s",
         "Boundary streamfunction",
         time_dependent=False,
-        mask=ZETA_HOR_ERODED,
+        mask=_get_psi_mask,
+        active=lambda settings: settings.enable_streamfunction,
     ),
     "dpsin": Variable(
         "Boundary streamfunction factor",
@@ -441,22 +482,60 @@ VARIABLES = {
         "m^3/s^2",
         "Boundary streamfunction factor",
         write_to_restart=True,
+        active=lambda settings: settings.enable_streamfunction,
     ),
     "line_psin": Variable(
-        "Boundary line integrals", ISLE + ISLE, "m^4/s^2", "Boundary line integrals", time_dependent=False
+        "Boundary line integrals",
+        ISLE + ISLE,
+        "m^4/s^2",
+        "Boundary line integrals",
+        time_dependent=False,
+        active=lambda settings: settings.enable_streamfunction,
     ),
-    "boundary_mask": Variable("Boundary mask", T_HOR + ISLE, "", "Boundary mask", time_dependent=False, dtype="bool"),
+    "isle_boundary_mask": Variable(
+        "Island boundary mask",
+        T_HOR,
+        "",
+        "Island boundary mask",
+        time_dependent=False,
+        dtype="bool",
+        active=lambda settings: settings.enable_streamfunction,
+    ),
     "line_dir_south_mask": Variable(
-        "Line integral mask", T_HOR + ISLE, "", "Line integral mask", time_dependent=False, dtype="bool"
+        "Line integral mask",
+        T_HOR + ISLE,
+        "",
+        "Line integral mask",
+        time_dependent=False,
+        dtype="bool",
+        active=lambda settings: settings.enable_streamfunction,
     ),
     "line_dir_north_mask": Variable(
-        "Line integral mask", T_HOR + ISLE, "", "Line integral mask", time_dependent=False, dtype="bool"
+        "Line integral mask",
+        T_HOR + ISLE,
+        "",
+        "Line integral mask",
+        time_dependent=False,
+        dtype="bool",
+        active=lambda settings: settings.enable_streamfunction,
     ),
     "line_dir_east_mask": Variable(
-        "Line integral mask", T_HOR + ISLE, "", "Line integral mask", time_dependent=False, dtype="bool"
+        "Line integral mask",
+        T_HOR + ISLE,
+        "",
+        "Line integral mask",
+        time_dependent=False,
+        dtype="bool",
+        active=lambda settings: settings.enable_streamfunction,
     ),
     "line_dir_west_mask": Variable(
-        "Line integral mask", T_HOR + ISLE, "", "Line integral mask", time_dependent=False, dtype="bool"
+        "Line integral mask",
+        T_HOR + ISLE,
+        "",
+        "Line integral mask",
+        time_dependent=False,
+        dtype="bool",
+        active=lambda settings: settings.enable_streamfunction,
     ),
     "K_gm": Variable("Skewness diffusivity", W_GRID, "m^2/s", "GM diffusivity, either constant or from EKE model"),
     "K_iso": Variable("Isopycnal diffusivity", W_GRID, "m^2/s", "Along-isopycnal diffusivity"),

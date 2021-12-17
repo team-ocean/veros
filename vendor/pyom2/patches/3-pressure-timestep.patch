@@ -1,0 +1,22 @@
+diff --git a/for_src/external/solve_pressure.f90 b/for_src/external/solve_pressure.f90
+index d331ae8..07b62f8 100644
+--- a/for_src/external/solve_pressure.f90
++++ b/for_src/external/solve_pressure.f90
+@@ -59,7 +59,7 @@ subroutine solve_pressure
+  if (enable_free_surface) then
+   do j=js_pe,je_pe
+    do i=is_pe,ie_pe
+-     forc(i,j) = forc(i,j) - psi(i,j,tau)/(grav*dt_mom**2)*maskT(i,j,nz)
++     forc(i,j) = forc(i,j) - psi(i,j,tau)/(grav*dt_mom*dt_tracer)*maskT(i,j,nz)
+    enddo
+   enddo
+  endif
+@@ -125,7 +125,7 @@ end subroutine solve_pressure
+       if (enable_free_surface) then
+        do j=js_pe,je_pe
+         do i=is_pe,ie_pe
+-         cf(i,j,0+2,0+2) = cf(i,j,0+2,0+2) - 1D0/(grav*dt_mom**2) *maskM(i,j)
++         cf(i,j,0+2,0+2) = cf(i,j,0+2,0+2) - 1D0/(grav*dt_mom*dt_tracer) *maskM(i,j)
+         end do
+        end do
+       endif

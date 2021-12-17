@@ -45,6 +45,11 @@ def initialize_file(state, ncfile, extra_dimensions=None, create_time_dimension=
 
         if dim in state.var_meta:
             var = state.var_meta[dim]
+
+            # skip inactive dimensions
+            if not var.active:
+                continue
+
             var_data = getattr(state.variables, dim)
         else:
             # create dummy variable for dimensions without data
@@ -94,11 +99,11 @@ def initialize_variable(state, key, var, ncfile):
     elif dtype == "bool":
         dtype = "uint8"
 
+    fillvalue = variables.get_fill_value(dtype)
+
     # transpose all dimensions in netCDF output (convention in most ocean models)
-    v = ncfile.create_variable(
-        key, dims[::-1], dtype, fillvalue=variables.FILL_VALUE, chunks=tuple(chunksize[::-1]), **kwargs
-    )
-    v.missing_value = variables.FILL_VALUE
+    v = ncfile.create_variable(key, dims[::-1], dtype, fillvalue=fillvalue, chunks=tuple(chunksize[::-1]), **kwargs)
+    v.missing_value = fillvalue
     v.attrs.update(long_name=var.name, units=var.units, **var.extra_attributes)
 
 
@@ -115,10 +120,10 @@ def add_dimension(dim, dim_size, ncfile):
 def write_variable(state, key, var, var_data, ncfile, time_step=-1):
     var_data = var_data * var.scale
 
-    gridmask = var.get_mask(state.variables)
+    gridmask = var.get_mask(state.settings, state.variables)
     if gridmask is not None:
         newaxes = (slice(None),) * gridmask.ndim + (np.newaxis,) * (var_data.ndim - gridmask.ndim)
-        var_data = np.where(gridmask.astype("bool")[newaxes], var_data, variables.FILL_VALUE)
+        var_data = np.where(gridmask.astype("bool")[newaxes], var_data, variables.get_fill_value(var_data.dtype))
 
     if var.dims:
         tmask = tuple(state.variables.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)

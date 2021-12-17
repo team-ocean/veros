@@ -1,4 +1,4 @@
-Available model settings
+Model settings
 ------------------------
 
 The following list of available settings is automatically created from the file :file:`settings.py` in the Veros main folder.

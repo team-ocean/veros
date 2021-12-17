@@ -15,11 +15,12 @@ VEROS_TO_PYOM_VAR = dict(
     prho=None,
     land_map=None,
     isle=None,
-    boundary_mask=None,
+    isle_boundary_mask=None,
     line_dir_south_mask=None,
     line_dir_east_mask=None,
     line_dir_north_mask=None,
     line_dir_west_mask=None,
+    ssh=None,
 )
 
 # all setting that are re-named or unique to Veros
@@ -35,18 +36,12 @@ VEROS_TO_PYOM_SETTING = dict(
     enable_Prandtl_tke=None,
     Prandtl_tke0=None,
     biharmonic_friction_cosPower=None,
-    # constants
-    pi=None,
-    radius=None,
-    degtom=None,
-    mtodeg=None,
-    omega=None,
-    rho_0=None,
-    grav=None,
 )
 
+# these are read-only
+CONSTANTS = ("pi", "radius", "degtom", "mtodeg", "omega", "rho_0", "grav")
 
-STREAMFUNCTION_VARS = ("psin", "dpsin", "line_psin")
+INIT_STREAM_VARS = ("psin", "dpsin", "line_psin")
 
 
 def _load_fortran_module(module, path):
@@ -84,7 +79,7 @@ def suppress_stdout(stdout_fd=1):
             os.dup2(std.fileno(), stdout_fd)
 
 
-def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=True):
+def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=None):
     """Force-updates internal PyOM library state to match given Veros state."""
     if ignore_attrs is None:
         ignore_attrs = []
@@ -111,7 +106,7 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=True
     # settings
     for setting, val in state.settings.items():
         setting = VEROS_TO_PYOM_SETTING.get(setting, setting)
-        if setting is None or setting in ignore_attrs:
+        if setting is None or setting in ignore_attrs or setting in CONSTANTS:
             continue
 
         set_fortran_attr(setting, val)
@@ -137,16 +132,19 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=True
         if var is None or var in ignore_attrs:
             continue
 
-        if var in STREAMFUNCTION_VARS:
+        if var in INIT_STREAM_VARS:
             continue
 
         set_fortran_attr(var, val)
+
+    if init_streamfunction is None:
+        init_streamfunction = state.settings.enable_streamfunction
 
     if init_streamfunction:
         with suppress_stdout():
             pyom_obj.streamfunction_init()
 
-        for var in STREAMFUNCTION_VARS:
+        for var in INIT_STREAM_VARS:
             set_fortran_attr(var, state.variables.get(var))
 
     # correct for 1-based indexing
@@ -191,9 +189,10 @@ def _override_settings(pyom_obj):
     eke = pyom_obj.eke_module
 
     m.enable_hydrostatic = True
-    m.congr_epsilon = 1e-8
+    m.congr_epsilon = 1e-12
     m.congr_max_iterations = 10_000
     m.enable_congrad_verbose = False
+    m.enable_free_surface = True
     eke.enable_eke_leewave_dissipation = False
     idm.enable_idemix_m2 = False
     idm.enable_idemix_niw = False
@@ -233,10 +232,11 @@ def state_from_pyom(pyom_obj):
             state.settings.update({setting: get_fortran_attr(setting)})
 
     state.initialize_variables()
-    resize_dimension(state, "isle", int(pyom_obj.main_module.nisle))
 
     with state.variables.unlock():
-        state.variables.isle = npx.arange(state.dimensions["isle"])
+        if state.settings.enable_streamfunction:
+            resize_dimension(state, "isle", int(pyom_obj.main_module.nisle))
+            state.variables.isle = npx.arange(state.dimensions["isle"])
 
         for var, val in state.variables.items():
             var = VEROS_TO_PYOM_VAR.get(var, var)
@@ -513,7 +513,8 @@ def get_random_state(pyom2_lib=None, extra_settings=None):
     numerics.calc_grid(state)
     numerics.calc_topo(state)
 
-    external.streamfunction_init(state)
+    if settings.enable_streamfunction:
+        external.streamfunction_init(state)
 
     if pyom2_lib is None:
         return state

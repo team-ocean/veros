@@ -24,3 +24,20 @@ def test_scatter():
 
 def test_acc():
     run_dist_kernel("acc_kernel.py")
+
+
+@pytest.mark.parametrize("solver", ["scipy", "scipy_jax", "petsc"])
+@pytest.mark.parametrize("streamfunction", [True, False])
+def test_linear_solver(solver, streamfunction):
+    from veros import runtime_settings
+
+    if solver == "scipy_jax" and runtime_settings.backend != "jax":
+        pytest.skip("scipy_jax solver requires JAX")
+
+    kernel = "streamfunction_kernel.py" if streamfunction else "pressure_kernel.py"
+    orig_solver = os.environ.get("VEROS_LINEAR_SOLVER", "best")
+    try:
+        os.environ["VEROS_LINEAR_SOLVER"] = solver
+        run_dist_kernel(kernel)
+    finally:
+        os.environ["VEROS_LINEAR_SOLVER"] = orig_solver
