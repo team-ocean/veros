@@ -51,7 +51,7 @@ jobs:
         id: pyom2-cache
         with:
           path: ~/pyom2/py_src/*.so
-          key: ${{ matrix.os }}-${{ matrix.python-version }}
+          key: ${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('vendor/pyom2/patches/*.patch') }}
 
       - name: Setup Python environment
         run: |
