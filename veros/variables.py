@@ -53,8 +53,8 @@ class Variable:
         return f"{self.__class__.__qualname__}({attr_str})"
 
 
-# fill value for netCDF output (invalid data is replaced by this value)
-FILL_VALUE = -1e18
+# fill value for netCDF output (invalid floating data is replaced by this value)
+FLOAT_FILL_VALUE = -1e18
 
 #
 XT = ("xt",)
@@ -114,6 +114,15 @@ def _get_psi_mask(settings, vs):
 
     # eroded around the edges
     return vs.maskZ[:, :, -1] | vs.isle_boundary_mask
+
+
+def get_fill_value(dtype):
+    import numpy as onp
+
+    if onp.issubdtype(dtype, onp.floating):
+        return FLOAT_FILL_VALUE
+
+    return onp.iinfo(dtype).max
 
 
 def get_shape(dimensions, grid, include_ghosts=True, local=True):
