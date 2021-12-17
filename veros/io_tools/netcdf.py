@@ -45,6 +45,11 @@ def initialize_file(state, ncfile, extra_dimensions=None, create_time_dimension=
 
         if dim in state.var_meta:
             var = state.var_meta[dim]
+
+            # skip inactive dimensions
+            if not var.active:
+                continue
+
             var_data = getattr(state.variables, dim)
         else:
             # create dummy variable for dimensions without data

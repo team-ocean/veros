@@ -113,7 +113,7 @@ def _get_psi_mask(settings, vs):
         return vs.maskT[:, :, -1]
 
     # eroded around the edges
-    return vs.maskZ[:, :, -1] | vs.isle_boundary_mask
+    return vs.maskZ[:, :, -1] | ~vs.isle_boundary_mask
 
 
 def get_fill_value(dtype):
