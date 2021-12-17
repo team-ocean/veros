@@ -18,7 +18,7 @@ jobs:
 
       matrix:
         os: [ubuntu-20.04]
-        python-version: ["3.7", "3.10"]
+        python-version: ["3.7", "3.9"]
         backend: [numpy, jax]
 
     env:
