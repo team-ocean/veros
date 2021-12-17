@@ -8,26 +8,16 @@ from veros.core.external.poisson_matrix import assemble_poisson_matrix
 
 @veros_kernel(static_args=("solve_fun",))
 def solve_kernel(state, rhs, x0, boundary_val, solve_fun):
-    vs = state.variables
-    settings = state.settings
-
     rhs_global = distributed.gather(rhs, state.dimensions, ("xt", "yt"))
     x0_global = distributed.gather(x0, state.dimensions, ("xt", "yt"))
 
-    if settings.enable_streamfunction:
-        isle_boundary_mask = ~npx.any(vs.isle_boundary_mask, axis=2)
-    else:
-        isle_boundary_mask = vs.maskT[..., -1]
-
-    isle_boundary_mask_global = distributed.gather(isle_boundary_mask, state.dimensions, ("xt", "yt"))
-
     if boundary_val is None:
-        boundary_val = x0_global
+        boundary_val_global = x0_global
     else:
-        boundary_val = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
+        boundary_val_global = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
 
     if rst.proc_rank == 0:
-        linear_solution = solve_fun(rhs_global, x0_global, isle_boundary_mask_global, boundary_val)
+        linear_solution = solve_fun(rhs_global, x0_global, boundary_val_global)
     else:
         linear_solution = npx.empty_like(rhs)
 
@@ -55,13 +45,13 @@ class JAXSciPySolver(LinearSolver):
     def __init__(self, state):
         from jax.scipy.sparse.linalg import bicgstab
 
-        matrix_diags, offsets = self._assemble_poisson_matrix(state)
+        matrix_diags, offsets, boundary_mask = self._assemble_poisson_matrix(state)
         jacobi_precon = self._jacobi_preconditioner(state, matrix_diags)
         matrix_diags = tuple(jacobi_precon * diag for diag in matrix_diags)
 
         @veros_kernel
-        def linear_solve(rhs, x0, isle_boundary_mask, boundary_val):
-            rhs = npx.where(isle_boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
+        def linear_solve(rhs, x0, boundary_val):
+            rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
             def matmul(rhs):
                 nx, ny = rhs.shape
@@ -132,23 +122,18 @@ class JAXSciPySolver(LinearSolver):
 
     @staticmethod
     def _assemble_poisson_matrix(state):
-        matrix_diags, offsets = assemble_poisson_matrix(state)
         settings = state.settings
-        vs = state.variables
 
-        if settings.enable_streamfunction:
-            mask = ~npx.any(vs.isle_boundary_mask, axis=2)
-        else:
-            mask = vs.maskT[:, :, -1]
+        matrix_diags, offsets, boundary_mask = assemble_poisson_matrix(state)
 
         if settings.enable_cyclic_x:
             wrap_diag_east, wrap_diag_west = (allocate(state.dimensions, ("xu", "yu"), local=False) for _ in range(2))
-            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], matrix_diags[2][2, 2:-2] * mask[2, 2:-2])
-            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], matrix_diags[1][-3, 2:-2] * mask[-3, 2:-2])
+            wrap_diag_east = update(wrap_diag_east, at[2, 2:-2], matrix_diags[2][2, 2:-2] * boundary_mask[2, 2:-2])
+            wrap_diag_west = update(wrap_diag_west, at[-3, 2:-2], matrix_diags[1][-3, 2:-2] * boundary_mask[-3, 2:-2])
             matrix_diags[2] = update(matrix_diags[2], at[2, 2:-2], 0.0)
             matrix_diags[1] = update(matrix_diags[1], at[-3, 2:-2], 0.0)
 
             offsets += ((settings.nx - 1, 0), (-settings.nx + 1, 0))
             matrix_diags += (wrap_diag_east, wrap_diag_west)
 
-        return matrix_diags, offsets
+        return matrix_diags, offsets, boundary_mask

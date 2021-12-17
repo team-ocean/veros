@@ -57,10 +57,10 @@ def get_inputs():
         vs.cosu = update(vs.cosu, at[...], 1)
         vs.cost = update(vs.cost, at[...], 1)
 
-        isle_boundary_mask = npx.zeros((settings.nx + 4, settings.ny + 4, 1), dtype="bool")
-        isle_boundary_mask = update(isle_boundary_mask, at[:50, :2], 1)
-        isle_boundary_mask = update(isle_boundary_mask, at[20:30, 20:30], 1)
-        vs.isle_boundary_mask = isle_boundary_mask[idx_global]
+        boundary_mask = npx.ones((settings.nx + 4, settings.ny + 4), dtype="bool")
+        boundary_mask = update(boundary_mask, at[:50, :2], 0)
+        boundary_mask = update(boundary_mask, at[20:30, 20:30], 0)
+        vs.isle_boundary_mask = boundary_mask[idx_global]
 
     rhs = npx.ones_like(vs.hur)
     x0 = npx.zeros_like(vs.hur)

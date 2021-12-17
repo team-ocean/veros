@@ -17,9 +17,6 @@ class Variable:
         active=True,
         initial=None,
     ):
-        if dims is not None:
-            dims = tuple(dims)
-
         self.name = name
         self.dims = dims
         self.units = units
@@ -31,12 +28,14 @@ class Variable:
         self.active = active
         self.initial = initial
 
-        self.get_mask = lambda vs: None
+        self.get_mask = lambda settings, vs: None
 
         if mask is not None:
             if not callable(mask):
                 raise TypeError("mask argument has to be callable")
+
             self.get_mask = mask
+
         elif dims is not None:
             if dims[:3] in DEFAULT_MASKS:
                 self.get_mask = DEFAULT_MASKS[dims[:3]]
@@ -96,19 +95,25 @@ DIM_TO_SHAPE_VAR = {
 }
 
 DEFAULT_MASKS = {
-    T_HOR: lambda vs: vs.maskT[:, :, -1],
-    U_HOR: lambda vs: vs.maskU[:, :, -1],
-    V_HOR: lambda vs: vs.maskV[:, :, -1],
-    ZETA_HOR: lambda vs: vs.maskZ[:, :, -1],
-    T_GRID: lambda vs: vs.maskT,
-    U_GRID: lambda vs: vs.maskU,
-    V_GRID: lambda vs: vs.maskV,
-    W_GRID: lambda vs: vs.maskW,
-    ZETA_GRID: lambda vs: vs.maskZ,
+    T_HOR: lambda settings, vs: vs.maskT[:, :, -1],
+    U_HOR: lambda settings, vs: vs.maskU[:, :, -1],
+    V_HOR: lambda settings, vs: vs.maskV[:, :, -1],
+    ZETA_HOR: lambda settings, vs: vs.maskZ[:, :, -1],
+    T_GRID: lambda settings, vs: vs.maskT,
+    U_GRID: lambda settings, vs: vs.maskU,
+    V_GRID: lambda settings, vs: vs.maskV,
+    W_GRID: lambda settings, vs: vs.maskW,
+    ZETA_GRID: lambda settings, vs: vs.maskZ,
 }
 
+
 # custom mask for streamfunction
-ZETA_HOR_ERODED = lambda vs: vs.maskZ[:, :, -1] | vs.isle_boundary_mask.sum(axis=2)  # noqa: E731
+def _get_psi_mask(settings, vs):
+    if not settings.enable_streamfunction:
+        return vs.maskT[:, :, -1]
+
+    # eroded around the edges
+    return vs.maskZ[:, :, -1] | vs.isle_boundary_mask
 
 
 def get_shape(dimensions, grid, include_ghosts=True, local=True):
@@ -419,17 +424,15 @@ VARIABLES = {
         T_HOR,
         "m",
         "Sea surface height",
-        write_to_restart=True,
         active=lambda settings: not settings.enable_streamfunction,
     ),
     "psi": Variable(
-        "Streamfunction",
-        ZETA_HOR + TIMESTEPS,
-        "m^3/s",
-        "Barotropic streamfunction",
+        lambda settings: "Streamfunction" if settings.enable_streamfunction else "Surface pressure",
+        lambda settings: ZETA_HOR + TIMESTEPS if settings.enable_streamfunction else T_HOR + TIMESTEPS,
+        lambda settings: "m^3/s" if settings.enable_streamfunction else "m^2/s^2",
+        lambda settings: "Barotropic streamfunction" if settings.enable_streamfunction else "Surface pressure",
         write_to_restart=True,
-        mask=ZETA_HOR_ERODED,
-        active=lambda settings: settings.enable_streamfunction,
+        mask=_get_psi_mask,
     ),
     "dpsi": Variable(
         "Streamfunction tendency",
@@ -461,7 +464,7 @@ VARIABLES = {
         "m^3/s",
         "Boundary streamfunction",
         time_dependent=False,
-        mask=ZETA_HOR_ERODED,
+        mask=_get_psi_mask,
         active=lambda settings: settings.enable_streamfunction,
     ),
     "dpsin": Variable(
@@ -482,7 +485,7 @@ VARIABLES = {
     ),
     "isle_boundary_mask": Variable(
         "Island boundary mask",
-        T_HOR + ISLE,
+        T_HOR,
         "",
         "Island boundary mask",
         time_dependent=False,

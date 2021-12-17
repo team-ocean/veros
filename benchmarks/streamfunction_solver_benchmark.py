@@ -27,7 +27,6 @@ SETTINGS_USED = [
     "nz",
     "dt_tracer",
     "dt_mom",
-    "enable_free_surface",
     "enable_streamfunction",
     "enable_cyclic_x",
 ]
@@ -35,7 +34,7 @@ SETTINGS_USED = [
 
 def get_dummy_state(infile):
     import h5py
-    from veros.state import VerosState, resize_dimension
+    from veros.state import VerosState
     from veros.distributed import get_chunk_slices, exchange_overlap
     from veros.variables import VARIABLES, DIM_TO_SHAPE_VAR, get_shape
     from veros.settings import SETTINGS
@@ -53,8 +52,6 @@ def get_dummy_state(infile):
 
         state.initialize_variables()
 
-        nisle = f["isle_boundary_mask"].shape[2]
-        resize_dimension(state, "isle", nisle)
         dimensions = state.dimensions
         var_meta = state.var_meta
 

@@ -115,7 +115,7 @@ def add_dimension(dim, dim_size, ncfile):
 def write_variable(state, key, var, var_data, ncfile, time_step=-1):
     var_data = var_data * var.scale
 
-    gridmask = var.get_mask(state.variables)
+    gridmask = var.get_mask(state.settings, state.variables)
     if gridmask is not None:
         newaxes = (slice(None),) * gridmask.ndim + (np.newaxis,) * (var_data.ndim - gridmask.ndim)
         var_data = np.where(gridmask.astype("bool")[newaxes], var_data, variables.FILL_VALUE)

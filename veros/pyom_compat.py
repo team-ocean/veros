@@ -20,6 +20,7 @@ VEROS_TO_PYOM_VAR = dict(
     line_dir_east_mask=None,
     line_dir_north_mask=None,
     line_dir_west_mask=None,
+    ssh=None,
 )
 
 # all setting that are re-named or unique to Veros
@@ -35,18 +36,12 @@ VEROS_TO_PYOM_SETTING = dict(
     enable_Prandtl_tke=None,
     Prandtl_tke0=None,
     biharmonic_friction_cosPower=None,
-    # constants
-    pi=None,
-    radius=None,
-    degtom=None,
-    mtodeg=None,
-    omega=None,
-    rho_0=None,
-    grav=None,
 )
 
+# these are read-only
+CONSTANTS = ("pi", "radius", "degtom", "mtodeg", "omega", "rho_0", "grav")
 
-STREAMFUNCTION_VARS = ("psin", "dpsin", "line_psin")
+INIT_STREAM_VARS = ("psin", "dpsin", "line_psin")
 
 
 def _load_fortran_module(module, path):
@@ -111,7 +106,7 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=None
     # settings
     for setting, val in state.settings.items():
         setting = VEROS_TO_PYOM_SETTING.get(setting, setting)
-        if setting is None or setting in ignore_attrs:
+        if setting is None or setting in ignore_attrs or setting in CONSTANTS:
             continue
 
         set_fortran_attr(setting, val)
@@ -137,7 +132,7 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=None
         if var is None or var in ignore_attrs:
             continue
 
-        if var in STREAMFUNCTION_VARS:
+        if var in INIT_STREAM_VARS:
             continue
 
         set_fortran_attr(var, val)
@@ -149,7 +144,7 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=None
         with suppress_stdout():
             pyom_obj.streamfunction_init()
 
-        for var in STREAMFUNCTION_VARS:
+        for var in INIT_STREAM_VARS:
             set_fortran_attr(var, state.variables.get(var))
 
     # correct for 1-based indexing
@@ -197,6 +192,7 @@ def _override_settings(pyom_obj):
     m.congr_epsilon = 1e-12
     m.congr_max_iterations = 10_000
     m.enable_congrad_verbose = False
+    m.enable_free_surface = True
     eke.enable_eke_leewave_dissipation = False
     idm.enable_idemix_m2 = False
     idm.enable_idemix_niw = False

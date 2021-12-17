@@ -16,7 +16,6 @@ SETTINGS_USED = [
     "nz",
     "dt_tracer",
     "dt_mom",
-    "enable_free_surface",
     "enable_streamfunction",
     "enable_cyclic_x",
 ]

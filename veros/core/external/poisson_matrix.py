@@ -1,4 +1,4 @@
-from veros.core.operators import update, update_add, at, numpy as npx
+from veros.core.operators import update, at, numpy as npx
 from veros.variables import allocate
 
 
@@ -52,20 +52,10 @@ def assemble_pressure_matrix(state):
         / vs.dyu[npx.newaxis, 1:-3]
         / vs.dyt[npx.newaxis, 2:-2]
         * vs.cosu[npx.newaxis, 1:-3]
-        / vs.cost[npx.newaxis, 2:-2],
+        / vs.cost[npx.newaxis, 2:-2]
+        # free surface
+        - 1.0 / (settings.grav * settings.dt_mom * settings.dt_tracer) * maskM[2:-2, 2:-2],
     )
-
-    if settings.enable_free_surface:
-        # if rs.pyom_compatibility_mode:
-        #     dt_surf = settings.dt_mom
-        # else:
-        dt_surf = settings.dt_tracer
-
-        main_diag = update_add(
-            main_diag,
-            at[2:-2, 2:-2],
-            -1.0 / (settings.grav * settings.dt_mom * dt_surf) * maskM[2:-2, 2:-2],
-        )
 
     east_diag = update(
         east_diag,
@@ -114,13 +104,11 @@ def assemble_pressure_matrix(state):
     offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
     diags = [main_diag, east_diag, west_diag, north_diag, south_diag]
 
-    return diags, offsets
+    return diags, offsets, maskM
 
 
 def assemble_streamfunction_matrix(state):
     vs = state.variables
-
-    isle_boundary_mask = ~npx.any(vs.isle_boundary_mask, axis=2)
 
     # assemble diagonals
     main_diag = allocate(state.dimensions, ("xu", "yu"), fill=1)
@@ -170,16 +158,16 @@ def assemble_streamfunction_matrix(state):
         / vs.cosu[npx.newaxis, 2:-2],
     )
 
-    main_diag = main_diag * isle_boundary_mask
+    main_diag = main_diag * vs.isle_boundary_mask
     main_diag = npx.where(main_diag == 0.0, 1.0, main_diag)
 
     offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
     diags = [
         main_diag,
-        east_diag * isle_boundary_mask,
-        west_diag * isle_boundary_mask,
-        north_diag * isle_boundary_mask,
-        south_diag * isle_boundary_mask,
+        east_diag * vs.isle_boundary_mask,
+        west_diag * vs.isle_boundary_mask,
+        north_diag * vs.isle_boundary_mask,
+        south_diag * vs.isle_boundary_mask,
     ]
 
-    return diags, offsets
+    return diags, offsets, vs.isle_boundary_mask

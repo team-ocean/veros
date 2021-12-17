@@ -67,9 +67,9 @@ def test_acc(pyom2_lib, test_set):
     atol = 1e-8
 
     if test_set == "pressure":
-        # pressure setups are more numerically sensitive
-        atol = 1e-4
-        allowed_failures += ("tke_surf_corr", "Nsqr", "Ai_ez", "Ai_nz", "Ai_bx", "Ai_by")
+        # pressure setups are more numerically sensitive, stick to "observables"
+        atol = 1e-5
+        allowed_failures = set(sim.state.variables.fields()) - {"u", "v", "temp", "psi"}
 
     compare_state(
         sim.state,

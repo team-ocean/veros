@@ -20,7 +20,6 @@ def solver_state(cyclic, problem):
 
         settings.enable_cyclic_x = cyclic
         settings.enable_streamfunction = problem == "streamfunction"
-        settings.enable_free_surface = True
 
     state.initialize_variables()
     resize_dimension(state, "isle", 1)
@@ -42,17 +41,19 @@ def solver_state(cyclic, problem):
         vs.cosu = np.ones(settings.ny + 4)
         vs.cost = np.ones(settings.ny + 4)
 
-        isle_boundary_mask = np.zeros((settings.nx + 4, settings.ny + 4, 1), dtype="bool")
-        isle_boundary_mask[:100, :2] = 1
-        isle_boundary_mask[50:100, 50:100] = 1
-        vs.isle_boundary_mask = isle_boundary_mask
+        boundary_mask = np.ones((settings.nx + 4, settings.ny + 4), dtype="bool")
+        boundary_mask[:100, :2] = 0
+        boundary_mask[50:100, 50:100] = 0
 
-        maskT = np.zeros_like(isle_boundary_mask)
+        if settings.enable_streamfunction:
+            vs.isle_boundary_mask = boundary_mask
+
+        maskT = np.zeros((settings.nx + 4, settings.ny + 4, settings.nz), dtype="bool")
 
         if settings.enable_cyclic_x:
-            maskT[:, 2:-2] = ~isle_boundary_mask[:, 2:-2]
+            maskT[:, 2:-2, 0] = boundary_mask[:, 2:-2]
         else:
-            maskT[2:-2, 2:-2] = ~isle_boundary_mask[2:-2, 2:-2]
+            maskT[2:-2, 2:-2, 0] = boundary_mask[2:-2, 2:-2]
 
         vs.maskT = maskT
 
@@ -62,17 +63,12 @@ def solver_state(cyclic, problem):
 def assert_solution(state, rhs, sol, boundary_val=None, tol=1e-8):
     from veros.core.external.solvers.scipy import SciPySolver
 
-    matrix = SciPySolver._assemble_poisson_matrix(state)
+    matrix, boundary_mask = SciPySolver._assemble_poisson_matrix(state)
 
     if boundary_val is None:
         boundary_val = sol
 
-    if state.settings.enable_streamfunction:
-        isle_boundary_mask = ~np.any(state.variables.isle_boundary_mask, axis=2)
-    else:
-        isle_boundary_mask = state.variables.maskT[..., -1]
-
-    rhs = np.where(isle_boundary_mask, rhs, boundary_val)
+    rhs = np.where(boundary_mask, rhs, boundary_val)
 
     rhs_sol = matrix @ sol.reshape(-1)
     np.testing.assert_allclose(rhs_sol, rhs.flatten(), atol=0, rtol=tol)

@@ -133,22 +133,14 @@ def prepare_forcing(state):
         forc,
         at[2:-2, 2:-2],
         (uloc[2:-2, 2:-2] - uloc[1:-3, 2:-2]) / (vs.cost[2:-2] * vs.dxt[2:-2, npx.newaxis])
-        + (vs.cosu[2:-2] * vloc[2:-2, 2:-2] - vs.cosu[1:-3] * vloc[2:-2, 1:-3]) / (vs.cost[2:-2] * vs.dyt[2:-2]),
+        + (vs.cosu[2:-2] * vloc[2:-2, 2:-2] - vs.cosu[1:-3] * vloc[2:-2, 1:-3]) / (vs.cost[2:-2] * vs.dyt[2:-2])
+        # free surface
+        - vs.psi[2:-2, 2:-2, vs.tau]
+        / (settings.grav * settings.dt_mom * settings.dt_tracer)
+        * vs.maskT[2:-2, 2:-2, -1],
     )
 
-    if settings.enable_free_surface:
-        # if runtime_settings.pyom_compatibility_mode:
-        #     dt_surf = settings.dt_mom
-        # else:
-        dt_surf = settings.dt_tracer
-
-        forc = update_add(
-            forc,
-            at[2:-2, 2:-2],
-            -vs.psi[2:-2, 2:-2, vs.tau] / (settings.grav * settings.dt_mom * dt_surf) * vs.maskT[2:-2, 2:-2, -1],
-        )
-
-    # First guess
+    # first guess
     vs.psi = update(vs.psi, at[:, :, vs.taup1], 2 * vs.psi[:, :, vs.tau] - vs.psi[:, :, vs.taum1])
 
     return KernelOutput(du=vs.du, dv=vs.dv, u=vs.u, v=vs.v, psi=vs.psi, p_hydro=vs.p_hydro), forc
@@ -180,4 +172,6 @@ def barotropic_velocity_update(state):
         * vs.maskV[2:-2, 2:-2, :],
     )
 
-    return KernelOutput(u=vs.u, v=vs.v)
+    vs.ssh = vs.psi[..., vs.tau] / settings.grav
+
+    return KernelOutput(u=vs.u, v=vs.v, ssh=vs.ssh)

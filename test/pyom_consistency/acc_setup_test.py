@@ -48,7 +48,6 @@ def set_parameter_pyom(pyom_obj):
     m.r_bot = 1e-5
 
     m.enable_streamfunction = True
-    m.enable_free_surface = False
 
     m.enable_implicit_vert_friction = 1
     t = pyom_obj.tke_module
@@ -164,7 +163,6 @@ class ACCSetup(VerosSetup):
         settings.enable_cyclic_x = True
 
         settings.enable_streamfunction = True
-        settings.enable_free_surface = False
 
         settings.enable_neutral_diffusion = True
         settings.K_iso_0 = 1000.0

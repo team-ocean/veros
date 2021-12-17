@@ -13,10 +13,9 @@ def benchmark_cli(func):
     @click.option("-v", "--loglevel", type=click.Choice(["debug", "trace"]), default="debug")
     @click.option("--profile-mode", is_flag=True)
     @click.command()
-    def inner(backend, device, nproc, float_type, loglevel, profile_mode, linear_solver, petsc_options, **kwargs):
+    def inner(backend, device, nproc, float_type, loglevel, profile_mode, **kwargs):
         from veros import runtime_settings, runtime_state
 
-        print(petsc_options)
         runtime_settings.update(
             backend=backend,
             device=device,

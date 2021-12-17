@@ -78,7 +78,7 @@ class PETScSolver(LinearSolver):
             self._da.setVecType("cuda")
             self._da.setMatType("aijcusparse")
 
-        self._matrix = self._assemble_poisson_matrix(state)
+        self._matrix, self._boundary_mask = self._assemble_poisson_matrix(state)
 
         petsc_options = PETSc.Options()
 
@@ -141,12 +141,12 @@ class PETScSolver(LinearSolver):
             x0: Initial guess
             boundary_val: Array containing values to set on boundary elements. Defaults to `x0`.
         """
-        rhs, x0 = prepare_solver_inputs(state, rhs, x0, boundary_val, self._boundary_fac)
+        rhs, x0 = prepare_solver_inputs(state, rhs, x0, boundary_val, self._boundary_mask, self._boundary_fac)
         linear_solution = self._petsc_solver(rhs, x0)
         return update(rhs, at[2:-2, 2:-2], linear_solution)
 
     def _assemble_poisson_matrix(self, state):
-        diags, offsets = assemble_poisson_matrix(state)
+        diags, offsets, boundary_mask = assemble_poisson_matrix(state)
         diags = onp.asarray(diags, dtype=onp.float64)
         diags = diags[:, 2:-2, 2:-2]
 
@@ -174,12 +174,11 @@ class PETScSolver(LinearSolver):
             "south": npx.asarray(diags[4][:, 0]),
         }
 
-        return matrix
+        return matrix, boundary_mask
 
 
 @veros_kernel
-def prepare_solver_inputs(state, rhs, x0, boundary_val, boundary_fac):
-    vs = state.variables
+def prepare_solver_inputs(state, rhs, x0, boundary_val, boundary_mask, boundary_fac):
     settings = state.settings
 
     if boundary_val is None:
@@ -187,12 +186,7 @@ def prepare_solver_inputs(state, rhs, x0, boundary_val, boundary_fac):
 
     x0 = utilities.enforce_boundaries(x0, settings.enable_cyclic_x)
 
-    if settings.enable_streamfunction:
-        isle_boundary_mask = ~npx.any(vs.isle_boundary_mask, axis=2)
-    else:
-        isle_boundary_mask = vs.maskT[..., -1]
-
-    rhs = npx.where(isle_boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
+    rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
     if settings.enable_streamfunction:
         # add dirichlet BC to rhs

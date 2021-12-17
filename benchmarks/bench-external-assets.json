@@ -5,7 +5,7 @@
     },
     "4deg-stream": {
         "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-4deg-stream.h5",
-        "md5": "a9528169ddb40e85beba02a2a2550847"
+        "md5": "6ea76c736f2d58a1848b66407402f797"
     },
     "1deg-press": {
         "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-1deg-press.h5",
@@ -13,11 +13,11 @@
     },
     "1deg-stream": {
         "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-1deg-stream.h5",
-        "md5": "1d599d1340708ed1e3aec48de5d8b212"
+        "md5": "0161722c7e36f505e1a227ee5a70bd75"
     },
     "01deg-stream": {
         "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-01deg-stream.h5",
-        "md5": "bd7ec591915207c3fe51254c104b1a55"
+        "md5": "7995b3a6c9b199a4182fa5c38f7b37f8"
     },
     "01deg-press": {
         "url": "https://sid.erda.dk/share_redirect/CD8UzHCj2Q/testdata/external/matrix-01deg-press.h5",

@@ -37,7 +37,7 @@ def streamfunction_init(state):
 
     get_isleperim(state)
 
-    vs.update(isle_boundary_masks(state))
+    vs.update(boundary_masks(state))
 
     # populate linear solver cache
     linear_solver = get_linear_solver(state)
@@ -99,7 +99,7 @@ def island_integrals(state):
 
 
 @veros_kernel
-def isle_boundary_masks(state):
+def boundary_masks(state):
     """
     now that the number of islands is known we can allocate the rest of the variables
     """
@@ -135,7 +135,7 @@ def isle_boundary_masks(state):
             vs.line_dir_north_mask, at[1:-1, 1:-1], boundary_map[2:, 2:] & ~boundary_map[1:-1, 2:]
         )
 
-    vs.isle_boundary_mask = npx.any(
+    vs.isle_boundary_mask = ~npx.any(
         vs.line_dir_east_mask | vs.line_dir_west_mask | vs.line_dir_south_mask | vs.line_dir_north_mask, axis=2
     )
 
