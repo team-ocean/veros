@@ -1,8 +1,17 @@
+import pytest
+
 from veros.routines import veros_routine
 from veros.pyom_compat import load_pyom, pyom_from_state, run_pyom
 from veros.setups.acc import ACCSetup
 
 from test_base import compare_state
+
+
+TEST_SETS = {
+    "standard": dict(),
+    "pressure": dict(enable_streamfunction=False),
+    "no-energy-conservation": dict(enable_conserve_energy=False),
+}
 
 
 class ACCTest(ACCSetup):
@@ -32,8 +41,11 @@ class ACCTest(ACCSetup):
         state.diagnostics.clear()
 
 
-def test_acc(pyom2_lib):
-    sim = ACCTest()
+@pytest.mark.parametrize("test_set", TEST_SETS.keys())
+def test_acc(pyom2_lib, test_set):
+    extra_settings = TEST_SETS[test_set]
+
+    sim = ACCTest(override=extra_settings)
     sim.setup()
 
     pyom_obj = load_pyom(pyom2_lib)
@@ -50,11 +62,20 @@ def test_acc(pyom2_lib):
 
     run_pyom(pyom_obj, set_forcing_pyom)
 
+    # salt is not used by this setup
+    allowed_failures = ("salt", "dsalt", "dsalt_vmix", "dsalt_iso")
+    atol = 1e-8
+
+    if test_set == "pressure":
+        # pressure setups are more numerically sensitive, stick to "observables"
+        atol = 1e-5
+        allowed_failures = set(sim.state.variables.fields()) - {"u", "v", "temp", "psi"}
+
     compare_state(
         sim.state,
         pyom_obj,
-        normalize=True,
+        atol=atol,
         rtol=0,
-        atol=1e-4,
-        allowed_failures=("salt", "dsalt", "dsalt_vmix", "dsalt_iso"),
+        normalize=True,
+        allowed_failures=allowed_failures,
     )

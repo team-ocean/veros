@@ -107,10 +107,7 @@ def integrate_eke_kernel(state):
     """
     forcing by dissipation by lateral friction and GM using TRM formalism or skew diffusion
     """
-    forc = vs.K_diss_h - vs.P_diss_skew
-
-    if settings.enable_TEM_friction:
-        forc = forc + vs.K_diss_gm
+    forc = vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew
 
     """
     store transfer due to isopycnal and horizontal mixing from dyn. enthalpy

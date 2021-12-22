@@ -41,7 +41,7 @@ else:
     sim.setup()
     sim.run()
 
-    psi_global = gather(sim.state.variables.psi, sim.state.dimensions, ("xt", "yt", "isle"))
+    psi_global = gather(sim.state.variables.psi, sim.state.dimensions, ("xt", "yt"))
 
     if rst.proc_rank == 0:
         rs.mpi_comm.Get_parent().Send(np.array(psi_global), 0)

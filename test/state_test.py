@@ -4,6 +4,14 @@ from veros.state import VerosSettings, VerosVariables, VerosState
 
 
 @pytest.fixture
+def dummy_state():
+    from veros.variables import VARIABLES, DIM_TO_SHAPE_VAR
+    from veros.settings import SETTINGS
+
+    return VerosState(VARIABLES, SETTINGS, DIM_TO_SHAPE_VAR)
+
+
+@pytest.fixture
 def dummy_settings():
     from veros.settings import SETTINGS
 
@@ -13,17 +21,11 @@ def dummy_settings():
 @pytest.fixture
 def dummy_variables():
     from veros.variables import VARIABLES, DIM_TO_SHAPE_VAR
-
-    fixed_dims = {k: 10 for k in DIM_TO_SHAPE_VAR.keys()}
-    return VerosVariables(VARIABLES, fixed_dims)
-
-
-@pytest.fixture
-def dummy_state():
-    from veros.variables import VARIABLES, DIM_TO_SHAPE_VAR
     from veros.settings import SETTINGS
 
-    return VerosState(VARIABLES, SETTINGS, DIM_TO_SHAPE_VAR)
+    dummy_state = VerosState(VARIABLES, SETTINGS, DIM_TO_SHAPE_VAR)
+    dummy_state.initialize_variables()
+    return dummy_state.variables
 
 
 def test_lock_settings(dummy_settings):

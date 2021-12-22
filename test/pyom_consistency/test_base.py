@@ -18,7 +18,13 @@ def _normalize(*arrays):
 
 
 def compare_state(
-    vs_state, pyom_obj, atol=1e-8, rtol=1e-6, include_ghosts=False, allowed_failures=None, normalize=False
+    vs_state,
+    pyom_obj,
+    atol=1e-10,
+    rtol=1e-8,
+    include_ghosts=False,
+    allowed_failures=None,
+    normalize=False,
 ):
     IGNORE_SETTINGS = ("congr_max_iterations",)
 
@@ -34,16 +40,7 @@ def compare_state(
             return
 
         pyom_val = pyom_state.settings.get(setting)
-
-        if np.issubdtype(type(vs_val), np.floating):
-            # pyOM's settings only have float precision
-            vs_val = np.float32(vs_val)
-            pyom_val = np.float32(pyom_val)
-
-        assert vs_val == pyom_val
-
-    for setting in vs_state.settings.fields():
-        assert_setting(setting)
+        assert vs_val == pyom_val, (vs_val, pyom_val)
 
     def assert_var(var):
         vs_val = vs_state.variables.get(var)
@@ -71,6 +68,15 @@ def compare_state(
         np.testing.assert_allclose(vs_val, pyom_val, atol=atol, rtol=rtol)
 
     passed = True
+
+    for setting in vs_state.settings.fields():
+        try:
+            assert_setting(setting)
+        except AssertionError as exc:
+            if setting not in allowed_failures:
+                print(f"{setting}:{indent(str(exc), ' ' * 4)}")
+                passed = False
+
     for var in vs_state.variables.fields():
         try:
             assert_var(var)

@@ -168,7 +168,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
     def setup(self):
         from veros import diagnostics, restart
-        from veros.core import numerics, streamfunction, isoneutral
+        from veros.core import numerics, external, isoneutral
 
         setup_funcs = (
             self.set_parameter,
@@ -219,7 +219,9 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
             self.set_initial_conditions(self.state)
             numerics.calc_initial_conditions(self.state)
-            streamfunction.streamfunction_init(self.state)
+
+            if self.state.settings.enable_streamfunction:
+                external.streamfunction_init(self.state)
 
             for plugin in self._plugin_interfaces:
                 plugin.setup_entrypoint(self.state)
