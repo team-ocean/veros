@@ -25,7 +25,7 @@ def test_solve_pressure(pyom2_lib):
     m.psi[...] = utilities.enforce_boundaries(m.psi, settings.enable_cyclic_x)
     vs.psi = utilities.enforce_boundaries(vs.psi, settings.enable_cyclic_x)
 
-    vs.update(external.solve_pressure.solve_pressure(vs_state))
+    vs.update(external.solve_pressure(vs_state))
     pyom_obj.solve_pressure()
 
     compare_state(vs_state, pyom_obj)
