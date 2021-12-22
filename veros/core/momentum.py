@@ -318,4 +318,4 @@ def momentum(state):
         if state.settings.enable_streamfunction:
             external.solve_streamfunction(state)
         else:
-            external.solve_pressure.solve_pressure(state)
+            external.solve_pressure(state)

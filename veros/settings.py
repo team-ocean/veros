@@ -63,7 +63,9 @@ SETTINGS = {
         False, bool, "enable lateral no-slip boundary conditions in harmonic- and biharmonic friction."
     ),
     "enable_streamfunction": Setting(
-        True, bool, "solve external mode with streamfunction formulation, else derive from pressure formulation"
+        True,
+        bool,
+        "solve for external mode with barotropic streamfunction, else solve for surface pressure and sea surface height",
     ),
     # Mixing parameters
     "A_h": Setting(0.0, float, "lateral viscosity in m^2/s"),
