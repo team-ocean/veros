@@ -1,3 +1,5 @@
+import pytest
+
 from veros.core import idemix
 from veros.pyom_compat import get_random_state
 
@@ -22,6 +24,13 @@ TEST_SETTINGS = dict(
     enable_TEM_friction=True,
 )
 
+PROBLEM_SETS = {
+    "eke": dict(enable_eke=True),
+    "no-eke": dict(enable_eke=False),
+    "no-eke_diss_bottom": dict(enable_eke_diss_bottom=False),
+    "no-eke_diss_surfbot": dict(enable_eke_diss_surfbot=False),
+}
+
 
 def test_set_idemix_parameter(pyom2_lib):
     vs_state, pyom_obj = get_random_state(pyom2_lib, extra_settings=TEST_SETTINGS)
@@ -30,8 +39,11 @@ def test_set_idemix_parameter(pyom2_lib):
     compare_state(vs_state, pyom_obj)
 
 
-def test_integrate_idemix(pyom2_lib):
-    vs_state, pyom_obj = get_random_state(pyom2_lib, extra_settings=TEST_SETTINGS)
+@pytest.mark.parametrize("problem_set", PROBLEM_SETS)
+def test_integrate_idemix(pyom2_lib, problem_set):
+    settings = {**TEST_SETTINGS, **PROBLEM_SETS[problem_set]}
+    vs_state, pyom_obj = get_random_state(pyom2_lib, extra_settings=settings)
+
     vs_state.variables.update(idemix.integrate_idemix(vs_state))
     pyom_obj.integrate_idemix()
     compare_state(vs_state, pyom_obj)

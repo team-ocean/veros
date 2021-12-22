@@ -23,15 +23,22 @@ TEST_SETTINGS = dict(
     enable_tke_upwind_advection=True,
 )
 
-PROBLEM_SETS = {
+PROBLEM_SETS_SET_DIFF = {
     "tke": dict(enable_tke=True),
-    "no_tke": dict(enable_tke=False),
+    "no-tke": dict(enable_tke=False),
+}
+
+PROBLEM_SETS_INTEGRATE = {
+    "eke+idemix": dict(enable_eke=True, enable_idemix=True),
+    "no-eke+idemix": dict(enable_eke=False, enable_idemix=True),
+    "eke+no-idemix": dict(enable_eke=True, enable_idemix=False),
+    "no-eke+no-idemix": dict(enable_eke=False, enable_idemix=False),
 }
 
 
-@pytest.mark.parametrize("problem_set", PROBLEM_SETS)
+@pytest.mark.parametrize("problem_set", PROBLEM_SETS_SET_DIFF)
 def test_set_tke_diffusivities(pyom2_lib, problem_set):
-    settings = {**TEST_SETTINGS, **PROBLEM_SETS[problem_set]}
+    settings = {**TEST_SETTINGS, **PROBLEM_SETS_SET_DIFF[problem_set]}
     vs_state, pyom_obj = get_random_state(pyom2_lib, extra_settings=settings)
 
     vs_state.variables.update(tke.set_tke_diffusivities(vs_state))
@@ -39,8 +46,10 @@ def test_set_tke_diffusivities(pyom2_lib, problem_set):
     compare_state(vs_state, pyom_obj)
 
 
-def test_integrate_tke(pyom2_lib):
-    vs_state, pyom_obj = get_random_state(pyom2_lib, extra_settings=TEST_SETTINGS)
+@pytest.mark.parametrize("problem_set", PROBLEM_SETS_INTEGRATE)
+def test_integrate_tke(pyom2_lib, problem_set):
+    settings = {**TEST_SETTINGS, **PROBLEM_SETS_INTEGRATE[problem_set]}
+    vs_state, pyom_obj = get_random_state(pyom2_lib, extra_settings=settings)
 
     vs_state.variables.update(tke.integrate_tke(vs_state))
     pyom_obj.integrate_tke()

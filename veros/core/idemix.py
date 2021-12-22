@@ -63,11 +63,10 @@ def integrate_idemix_kernel(state):
         forc = vs.eke_diss_iw
 
     else:  # shortcut without EKE model
-        if settings.enable_store_cabbeling_heat:
-            forc = vs.K_diss_gmvs.K_diss_h - vs.P_diss_skew - vs.P_diss_hmix - vs.P_diss_iso
+        forc = vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew
 
-        else:
-            forc = vs.K_diss_gmvs.K_diss_h - vs.P_diss_skew
+        if settings.enable_store_cabbeling_heat:
+            forc += -vs.P_diss_hmix - vs.P_diss_iso
 
     if settings.enable_eke and (settings.enable_eke_diss_bottom or settings.enable_eke_diss_surfbot):
         """
