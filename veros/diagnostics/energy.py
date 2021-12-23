@@ -267,6 +267,7 @@ def diagnose_kernel(state):
 
     # wind work
     if runtime_settings.pyom_compatibility_mode:
+        # surface_tau* has different units in PyOM
         wind = global_sum(
             npx.sum(
                 vs.u[2:-2, 2:-2, -1, vs.tau]

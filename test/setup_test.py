@@ -2,13 +2,18 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def ensure_diskless():
+def set_options():
     from veros import runtime_settings
 
     object.__setattr__(runtime_settings, "diskless_mode", True)
 
 
-def test_setup_acc():
+@pytest.mark.parametrize("float_type", ("float32", "float64"))
+def test_setup_acc(float_type):
+    from veros import runtime_settings
+
+    object.__setattr__(runtime_settings, "float_type", float_type)
+
     from veros.setups.acc import ACCSetup
 
     sim = ACCSetup()

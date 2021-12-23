@@ -1,9 +1,9 @@
 click==8.0.3
 entrypoints==0.3
 requests==2.26.0
-numpy==1.21.4
+numpy==1.21.5
 scipy==1.7.3
-h5netcdf==0.11.0
+h5netcdf==0.12.0
 h5py==3.6.0
 pillow==8.4.0
 loguru==0.5.3

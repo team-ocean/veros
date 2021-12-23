@@ -2,7 +2,7 @@ from veros.core.operators import numpy as npx
 
 from veros import veros_routine, veros_kernel, KernelOutput, runtime_settings
 from veros.variables import allocate
-from veros.core import friction, streamfunction
+from veros.core import friction, external
 from veros.core.operators import update, update_add, at
 
 
@@ -108,6 +108,7 @@ def tend_tauxyf(state):
     settings = state.settings
 
     if runtime_settings.pyom_compatibility_mode:
+        # surface_tau* has different units in PyOM
         vs.du = update_add(
             vs.du, at[2:-2, 2:-2, -1, vs.tau], vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1]
         )
@@ -314,4 +315,7 @@ def momentum(state):
     external mode
     """
     with state.timers["pressure"]:
-        streamfunction.solve_streamfunction(state)
+        if state.settings.enable_streamfunction:
+            external.solve_streamfunction(state)
+        else:
+            external.solve_pressure(state)

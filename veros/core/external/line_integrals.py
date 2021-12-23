@@ -51,10 +51,10 @@ def line_integrals(state, uloc, vloc, kind="same"):
     )
 
     if kind == "same":
-        east = npx.sum(east * (vs.line_dir_east_mask[i, j] & vs.boundary_mask[i, j]), axis=(0, 1))
-        west = npx.sum(west * (vs.line_dir_west_mask[i, j] & vs.boundary_mask[i, j]), axis=(0, 1))
-        north = npx.sum(north * (vs.line_dir_north_mask[i, j] & vs.boundary_mask[i, j]), axis=(0, 1))
-        south = npx.sum(south * (vs.line_dir_south_mask[i, j] & vs.boundary_mask[i, j]), axis=(0, 1))
+        east = npx.sum(east * vs.line_dir_east_mask[i, j], axis=(0, 1))
+        west = npx.sum(west * vs.line_dir_west_mask[i, j], axis=(0, 1))
+        north = npx.sum(north * vs.line_dir_north_mask[i, j], axis=(0, 1))
+        south = npx.sum(south * vs.line_dir_south_mask[i, j], axis=(0, 1))
         return global_sum(east + west + north + south)
 
     elif kind == "full":
@@ -62,19 +62,19 @@ def line_integrals(state, uloc, vloc, kind="same"):
 
         def loop_body(isle, isle_int):
             east_isle = npx.sum(
-                east[..., isle, npx.newaxis] * (vs.line_dir_east_mask[i, j] & vs.boundary_mask[i, j]),
+                east[..., isle, npx.newaxis] * vs.line_dir_east_mask[i, j],
                 axis=(0, 1),
             )
             west_isle = npx.sum(
-                west[..., isle, npx.newaxis] * (vs.line_dir_west_mask[i, j] & vs.boundary_mask[i, j]),
+                west[..., isle, npx.newaxis] * vs.line_dir_west_mask[i, j],
                 axis=(0, 1),
             )
             north_isle = npx.sum(
-                north[..., isle, npx.newaxis] * (vs.line_dir_north_mask[i, j] & vs.boundary_mask[i, j]),
+                north[..., isle, npx.newaxis] * vs.line_dir_north_mask[i, j],
                 axis=(0, 1),
             )
             south_isle = npx.sum(
-                south[..., isle, npx.newaxis] * (vs.line_dir_south_mask[i, j] & vs.boundary_mask[i, j]),
+                south[..., isle, npx.newaxis] * vs.line_dir_south_mask[i, j],
                 axis=(0, 1),
             )
             isle_int = update(isle_int, at[:, isle], east_isle + west_isle + north_isle + south_isle)

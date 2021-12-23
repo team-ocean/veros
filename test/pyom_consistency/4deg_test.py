@@ -14,6 +14,7 @@ class GlobalFourDegreeTest(GlobalFourDegreeSetup):
     def set_parameter(self, state):
         settings = state.settings
         super().set_parameter(state)
+
         settings.runlen = settings.dt_tracer * 100
         settings.restart_output_filename = None
 

@@ -1,0 +1,224 @@
+diff --git a/for_src/idemix/idemix.f90 b/for_src/idemix/idemix.f90
+index 21f9775..60c6070 100644
+--- a/for_src/idemix/idemix.f90
++++ b/for_src/idemix/idemix.f90
+@@ -143,7 +143,7 @@ subroutine integrate_idemix
+                      (v0(i+1,j,:)*E_iw(i+1,j,:,tau)-v0(i,j,:)*E_iw(i,j,:,tau))/(cost(j)*dxu(i))*maskU(i,j,:)
+    enddo
+   enddo
+-  flux_east(ie_pe-onx,:,:)=0.d0
++  flux_east(ie_pe+onx,:,:)=0.d0
+   do j=js_pe-onx,je_pe+onx-1
+     flux_north(:,j,:)= tau_h*0.5d0*(v0(:,j+1,:)+v0(:,j,:)) * &
+                        (v0(:,j+1,:)*E_iw(:,j+1,:,tau)-v0(:,j,:)*E_iw(:,j,:,tau))/dyu(j)*maskV(:,j,:)*cosu(j)
+@@ -197,11 +197,11 @@ function gofx2(x)
+ ! a function g(x)
+ !=======================================================================
+  implicit none
+- real*8 :: gofx2,x,c
++ real*8 :: gofx2,x,fxa,c
+  real*8, parameter :: pi = 3.14159265358979323846264338327950588d0
+- x=max(3d0,x)
+- c= 1.d0-(2.d0/pi)*asin(1.d0/x)
+- gofx2 = 2/pi/c*0.9d0*x**(-2.d0/3.d0)*(1-exp(-x/4.3d0))
++ fxa=max(3d0,x)
++ c= 1.d0-(2.d0/pi)*asin(1.d0/fxa)
++ gofx2 = 2/pi/c*0.9d0*fxa**(-2.d0/3.d0)*(1-exp(-fxa/4.3d0))
+ end function gofx2
+ 
+ function hofx1(x)
+diff --git a/for_src/isoneutral/isoneutral_diffusion.f90 b/for_src/isoneutral/isoneutral_diffusion.f90
+index 2ccf689..3c52400 100644
+--- a/for_src/isoneutral/isoneutral_diffusion.f90
++++ b/for_src/isoneutral/isoneutral_diffusion.f90
+@@ -23,6 +23,8 @@ subroutine isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp)
+  real*8 :: bloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+  real*8 :: fxa,diffloc
+ 
++ aloc = 0
++
+ !-----------------------------------------------------------------------
+ !     construct total isoneutral tracer flux at east face of "T" cells
+ !-----------------------------------------------------------------------
+@@ -161,6 +163,7 @@ if (enable_conserve_energy) then
+   bloc(:,:,:) = int_drhodS(:,:,:,tau)
+  endif
+ 
++ aloc = 0
+  do k=1,nz
+    do j=js_pe-onx+1,je_pe+onx-1
+     do i=is_pe-onx+1,ie_pe+onx-1
+@@ -241,6 +244,8 @@ subroutine isoneutral_skew_diffusion(is_,ie_,js_,je_,nz_,tr,istemp)
+  real*8 :: bloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+  real*8 :: fxa,diffloc
+ 
++ aloc = 0
++
+ !-----------------------------------------------------------------------
+ !     construct total isoneutral tracer flux at east face of "T" cells
+ !-----------------------------------------------------------------------
+@@ -341,6 +346,7 @@ if (enable_conserve_energy) then
+   bloc(:,:,:) = int_drhodS(:,:,:,tau)
+  endif
+ 
++ aloc = 0
+  do k=1,nz
+    do j=js_pe-onx+1,je_pe+onx-1
+     do i=is_pe-onx+1,ie_pe+onx-1
+@@ -555,6 +561,7 @@ if (enable_conserve_energy) then
+   bloc(:,:,:) = int_drhodS(:,:,:,tau)
+  endif
+ 
++ aloc = 0
+  do k=1,nz
+    do j=js_pe-onx+1,je_pe+onx-1
+     do i=is_pe-onx+1,ie_pe+onx-1
+diff --git a/for_src/isoneutral/isoneutral_friction.f90 b/for_src/isoneutral/isoneutral_friction.f90
+index 695008d..095dc09 100644
+--- a/for_src/isoneutral/isoneutral_friction.f90
++++ b/for_src/isoneutral/isoneutral_friction.f90
+@@ -15,6 +15,8 @@ subroutine isoneutral_friction
+  real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+  real*8 :: aloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+ 
++ diss = 0
++
+  if (enable_implicit_vert_friction) then
+    aloc=u(:,:,:,taup1)
+  else
+diff --git a/for_src/main/diffusion.f90 b/for_src/main/diffusion.f90
+index 378fd77..ab51b00 100644
+--- a/for_src/main/diffusion.f90
++++ b/for_src/main/diffusion.f90
+@@ -11,7 +11,7 @@ subroutine tempsalt_biharmonic
+  implicit none
+  integer :: i,j,k,ks,is,ie,js,je
+  real*8 :: aloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+- real*8 :: del2(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa
++ real*8 :: del2(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa,fxb
+ 
+  is = is_pe-onx; ie = ie_pe+onx; js = js_pe-onx; je = je_pe+onx
+  fxa = sqrt(abs(K_hbi))
+@@ -56,14 +56,15 @@ subroutine tempsalt_biharmonic
+ 
+ if (enable_conserve_energy) then
+   ! diagnose dissipation of dynamic enthalpy by hor. mixing of temperature
++  aloc = 0
+   do k=1,nz
+-   do j=js_pe,je_pe
+-    do i=is_pe,ie_pe
+-     fxa = int_drhodT(i,j,k,tau)
+-     aloc(i,j,k) =+0.5d0*grav/rho_0*( (int_drhodT(i+1,j,k,tau)-fxa)*flux_east(i  ,j,k) &
+-                                   +(fxa-int_drhodT(i-1,j,k,tau))*flux_east(i-1,j,k) ) /(dxt(i)*cost(j))  &
+-                  +0.5d0*grav/rho_0*( (int_drhodT(i,j+1,k,tau)-fxa)*flux_north(i,j  ,k) &
+-                                   +(fxa-int_drhodT(i,j-1,k,tau))*flux_north(i,j-1,k) ) /(dyt(j)*cost(j))
++   do j=js_pe-onx+1,je_pe+onx-1
++    do i=is_pe-onx+1,ie_pe+onx-1
++     fxb = int_drhodT(i,j,k,tau)
++     aloc(i,j,k) =+0.5d0*grav/rho_0*( (int_drhodT(i+1,j,k,tau)-fxb)*flux_east(i  ,j,k) &
++                                   +(fxb-int_drhodT(i-1,j,k,tau))*flux_east(i-1,j,k) ) /(dxt(i)*cost(j))  &
++                  +0.5d0*grav/rho_0*( (int_drhodT(i,j+1,k,tau)-fxb)*flux_north(i,j  ,k) &
++                                   +(fxb-int_drhodT(i,j-1,k,tau))*flux_north(i,j-1,k) ) /(dyt(j)*cost(j))
+     enddo
+    enddo
+   end do
+@@ -125,14 +126,15 @@ endif
+ 
+ if (enable_conserve_energy) then
+   ! diagnose dissipation of dynamic enthalpy by hor. mixing of salinity
++  aloc = 0
+   do k=1,nz
+    do j=js_pe-onx+1,je_pe+onx-1
+     do i=is_pe-onx+1,ie_pe+onx-1
+-     fxa = int_drhodS(i,j,k,tau)
+-     aloc(i,j,k) =+0.5d0*grav/rho_0*( (int_drhodS(i+1,j,k,tau)-fxa)*flux_east(i  ,j,k) &
+-                                   +(fxa-int_drhodS(i-1,j,k,tau))*flux_east(i-1,j,k) ) /(dxt(i)*cost(j))  &
+-                  +0.5d0*grav/rho_0*( (int_drhodS(i,j+1,k,tau)-fxa)*flux_north(i,j  ,k) &
+-                                   +(fxa-int_drhodS(i,j-1,k,tau))*flux_north(i,j-1,k) ) /(dyt(j)*cost(j))
++     fxb = int_drhodS(i,j,k,tau)
++     aloc(i,j,k) =+0.5d0*grav/rho_0*( (int_drhodS(i+1,j,k,tau)-fxb)*flux_east(i  ,j,k) &
++                                   +(fxb-int_drhodS(i-1,j,k,tau))*flux_east(i-1,j,k) ) /(dxt(i)*cost(j))  &
++                  +0.5d0*grav/rho_0*( (int_drhodS(i,j+1,k,tau)-fxb)*flux_north(i,j  ,k) &
++                                   +(fxb-int_drhodS(i,j-1,k,tau))*flux_north(i,j-1,k) ) /(dyt(j)*cost(j))
+     enddo
+    enddo
+   end do
+@@ -197,6 +199,7 @@ subroutine tempsalt_diffusion
+ 
+ if (enable_conserve_energy) then
+   ! diagnose dissipation of dynamic enthalpy by hor. mixing of temperature
++  aloc = 0
+   do k=1,nz
+    do j=js_pe-onx+1,je_pe+onx-1
+     do i=is_pe-onx+1,ie_pe+onx-1
+@@ -253,6 +256,7 @@ endif
+ 
+ if (enable_conserve_energy) then
+   ! diagnose dissipation of dynamic enthalpy by hor. mixing of salinity
++  aloc = 0
+   do k=1,nz
+    do j=js_pe-onx+1,je_pe+onx-1
+     do i=is_pe-onx+1,ie_pe+onx-1
+@@ -303,6 +307,7 @@ subroutine tempsalt_sources
+ 
+   if (enable_conserve_energy) then
+     ! diagnose effect on dynamic enthalpy
++    aloc = 0
+     do k=1,nz
+      do j=js_pe-onx+1,je_pe+onx-1
+       do i=is_pe-onx+1,ie_pe+onx-1
+diff --git a/for_src/main/friction.f90 b/for_src/main/friction.f90
+index be0c02b..52ad9bf 100644
+--- a/for_src/main/friction.f90
++++ b/for_src/main/friction.f90
+@@ -12,6 +12,8 @@ subroutine explicit_vert_friction
+  integer :: i,j,k
+  real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa
+ 
++ diss = 0
++
+  !---------------------------------------------------------------------------------
+  ! vertical friction of zonal momentum
+  !---------------------------------------------------------------------------------
+@@ -116,6 +118,8 @@ subroutine implicit_vert_friction
+  real*8 :: a_tri(nz),b_tri(nz),c_tri(nz),d_tri(nz),delta(nz),fxa
+  real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+ 
++ diss = 0
++
+  !---------------------------------------------------------------------------------
+  ! implicit vertical friction of zonal momentum
+  !---------------------------------------------------------------------------------
+diff --git a/for_src/main/thermodynamics.f90 b/for_src/main/thermodynamics.f90
+index f5017ed..8a4d527 100644
+--- a/for_src/main/thermodynamics.f90
++++ b/for_src/main/thermodynamics.f90
+@@ -298,6 +298,7 @@ subroutine advect_temperature
+  else
+   call adv_flux_2nd(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,temp(:,:,:,tau))
+  endif
++ dtemp(:,:,:,tau) = 0
+  do j=js_pe,je_pe
+    do i=is_pe,ie_pe
+       dtemp(i,j,:,tau)=maskT(i,j,:)* (-( flux_east(i,j,:)-  flux_east(i-1,j,:))/(cost(j)*dxt(i)) &
+@@ -325,6 +326,7 @@ subroutine advect_salinity
+  else
+   call adv_flux_2nd(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,salt(:,:,:,tau))
+  endif
++ dsalt(:,:,:,tau) = 0
+  do j=js_pe,je_pe
+    do i=is_pe,ie_pe
+       dsalt(i,j,:,tau)=maskT(i,j,:)* (-( flux_east(i,j,:)-  flux_east(i-1,j,:))/(cost(j)*dxt(i)) &
+diff --git a/for_src/tke/tke.f90 b/for_src/tke/tke.f90
+index 7226d76..6f888c3 100644
+--- a/for_src/tke/tke.f90
++++ b/for_src/tke/tke.f90
+@@ -193,7 +193,7 @@ subroutine integrate_tke
+     flux_east(i,j,:)=K_h_tke*(tke(i+1,j,:,tau)-tke(i,j,:,tau))/(cost(j)*dxu(i))*maskU(i,j,:)
+    enddo
+   enddo
+-  flux_east(ie_pe-onx,:,:)=0.d0
++  flux_east(ie_pe+onx,:,:)=0.d0
+   do j=js_pe-onx,je_pe+onx-1
+     flux_north(:,j,:)=K_h_tke*(tke(:,j+1,:,tau)-tke(:,j,:,tau))/dyu(j)*maskV(:,j,:)*cosu(j)
+   enddo
