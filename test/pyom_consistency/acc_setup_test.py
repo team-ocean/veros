@@ -302,5 +302,8 @@ def test_acc_setup(pyom2_lib):
     sim = ACCSetup()
     sim.setup()
 
+    # Veros runs a streamfunction solve during setup
+    allowed_failures = ("p_hydro",)
+
     # psin and line_psin don't quite meet the tolerance
-    compare_state(sim.state, pyom_obj, rtol=1e-6)
+    compare_state(sim.state, pyom_obj, rtol=1e-6, allowed_failures=allowed_failures)
