@@ -8,72 +8,24 @@ on:
       - master
 
 jobs:
-  linux:
-    name: Test conda env (Linux)
-    runs-on: "ubuntu-latest"
-    defaults:
-      run:
-        shell: bash -l {0}
+  test-conda:
+    name: Test conda env
 
-    steps:
-      - uses: actions/checkout@v2
+    runs-on: ${{ matrix.os }}
 
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniconda-version: "latest"
-          activate-environment: veros
-          environment-file: conda-environment.yml
+    strategy:
+      fail-fast: false
 
-      - name: Install test dependencies
-        run: |
-          pip install pytest
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
-      - name: List
-        run: |
-          conda info
-          conda list
-
-      - name: Run tests
-        run: pytest .
-
-  osx:
-    name: Test conda env (OSX)
-    runs-on: "macos-latest"
     defaults:
       run:
         shell: bash -l {0}
 
     env:
-      # requests crashes without this
+      # requests crashes on OSX without this
       no_proxy: "*"
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniconda-version: "latest"
-          activate-environment: veros
-          environment-file: conda-environment.yml
-
-      - name: Install test dependencies
-        run: |
-          pip install pytest
-
-      - name: List
-        run: |
-          conda info
-          conda list
-
-      - name: Run tests
-        run: pytest .
-
-  windows:
-    name: Test conda env (Windows)
-    runs-on: "windows-latest"
-    defaults:
-      run:
-        shell: bash -l {0}
 
     steps:
       - uses: actions/checkout@v2
