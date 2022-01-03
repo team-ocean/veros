@@ -1,6 +1,6 @@
 click==8.0.3
 entrypoints==0.3
-Pillow==8.4.0
+Pillow==9.0.0
 Sphinx==4.3.2
 sphinx-rtd-theme==1.0.0
 ipython==7.30.1
