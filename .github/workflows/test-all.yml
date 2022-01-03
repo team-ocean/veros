@@ -57,8 +57,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install wheel
-          # need to install numpy here to get f2py
-          pip install cython numpy
+          pip install cython
 
       - name: Install system requirements
         run: |
@@ -66,6 +65,19 @@ jobs:
           sudo apt-get install libopenmpi-dev libpetsc-real3.12-dev
           echo "PETSC_DIR=/usr/lib/petscdir/petsc3.12/x86_64-linux-gnu-real" >> $GITHUB_ENV
 
+      - name: Install Veros
+        run: |
+          pip install mpi4py
+          pip install petsc4py==3.12 --no-deps
+          if [ ${{ matrix.backend }} == "jax" ]
+          then
+            pip install mpi4jax
+            pip install .[test,jax]
+          else
+            pip install .[test]
+          fi
+
+      # build PyOM after Veros to make sure we have compatible versions
       - name: Build PyOM2
         if: steps.pyom2-cache.outputs.cache-hit != 'true'
         run: |
@@ -85,18 +97,6 @@ jobs:
         run: |
           echo "PYOM2_LIB=$(readlink -f $PYOM2_DIR/py_src/pyOM_code.*.so)" >> $GITHUB_ENV
           echo "PYOM2_LIB_MPI=$(readlink -f $PYOM2_DIR/py_src/pyOM_code_MPI.*.so)" >> $GITHUB_ENV
-
-      - name: Install Veros
-        run: |
-          pip install mpi4py
-          pip install petsc4py==3.12 --no-deps
-          if [ ${{ matrix.backend }} == "jax" ]
-          then
-            pip install mpi4jax
-            pip install .[test,jax]
-          else
-            pip install .[test]
-          fi
 
       - name: Run tests
         run: |
