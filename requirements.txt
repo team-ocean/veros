@@ -1,6 +1,6 @@
 click==8.0.3
 entrypoints==0.3
-requests==2.27.0
+requests==2.27.1
 numpy==1.21.5
 scipy==1.7.3
 h5netcdf==0.12.0
