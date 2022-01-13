@@ -26,6 +26,8 @@ jobs:
     env:
       # requests crashes on OSX without this
       no_proxy: "*"
+      # issue with SciPy on Windows, see https://github.com/scipy/scipy/issues/14002
+      CONDA_DLL_SEARCH_MODIFICATION_ENABLE: "1"
 
     steps:
       - uses: actions/checkout@v2
