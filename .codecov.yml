@@ -1,3 +1,7 @@
 coverage:
   ignore:
     - "veros/_version.py"
+
+codecov:
+  notify:
+    after_n_builds: 4
