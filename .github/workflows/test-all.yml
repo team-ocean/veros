@@ -23,7 +23,7 @@ jobs:
 
     env:
       PYOM2_DIR: /home/runner/pyom2
-      PETSC_VERSION: 3.15
+      PETSC_VERSION: 3.15.5
       PETSC_DIR: /home/runner/petsc
       PETSC_ARCH: arch-linux-c-opt
       OMPI_MCA_rmaps_base_oversubscribe: "1"
@@ -53,14 +53,14 @@ jobs:
         uses: actions/cache@v2
         id: pyom2-cache
         with:
-          path: ${{ env.PYOM_DIR }}/py_src/*.so
+          path: ${{ env.PYOM2_DIR }}/py_src/*.so
           key: ${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('vendor/pyom2/patches/*.patch') }}
 
       - name: Restore PETSc build cache
         uses: actions/cache@v2
         id: petsc-cache
         with:
-          path: ${{ env.PETSC_DIR }}/${{ env.PETSC_ARCH }}
+          path: ${{ env.PETSC_DIR }}/${{ env.PETSC_ARCH }}/lib
           key: ${{ matrix.os }}-${{ env.PETSC_VERSION }}
 
       - name: Setup Python environment
