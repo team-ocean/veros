@@ -74,15 +74,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install libopenmpi-dev
 
-      - name: Build PETSc
-        if: steps.petsc-cache.outputs.cache-hit != 'true'
-        run: |
-          git clone -b v$PETSC_VERSION --depth 1 https://gitlab.com/petsc/petsc.git $PETSC_DIR
-          pushd $PETSC_DIR
-          ./configure --with-debugging=0 -with-shared-libraries --with-precision=double
-          make all
-          popd
-
       - name: Install Veros
         run: |
           pip install mpi4py
@@ -93,9 +84,17 @@ jobs:
           else
             pip install .[test]
           fi
-          pip install petsc4py==$PETSC_VERSION --no-deps
 
-      # build PyOM after Veros to make sure we have compatible versions
+      # Build other libraries after Veros to make sure we have compatible versions
+      - name: Build PETSc
+        if: steps.petsc-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone -b v$PETSC_VERSION --depth 1 https://gitlab.com/petsc/petsc.git $PETSC_DIR
+          pushd $PETSC_DIR
+          ./configure --with-debugging=0 -with-shared-libraries --with-precision=double --with-petsc4py=1
+          make all
+          popd
+
       - name: Build PyOM2
         if: steps.pyom2-cache.outputs.cache-hit != 'true'
         run: |
@@ -111,10 +110,11 @@ jobs:
           make -C py_src -j 4 > /dev/null
           popd
 
-      - name: Export PyOM2 paths
+      - name: Export paths
         run: |
           echo "PYOM2_LIB=$(readlink -f $PYOM2_DIR/py_src/pyOM_code.*.so)" >> $GITHUB_ENV
           echo "PYOM2_LIB_MPI=$(readlink -f $PYOM2_DIR/py_src/pyOM_code_MPI.*.so)" >> $GITHUB_ENV
+          echo "PYTHONPATH=$PYTHONPATH:$PETSC_DIR/$PETSC_ARCH/lib" >> $GITHUB_ENV
 
       - name: Run tests
         run: |
