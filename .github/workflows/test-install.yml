@@ -40,7 +40,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install CUDA
-        if: runner.os == "Linux"
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install nvidia-cuda-toolkit
@@ -51,7 +51,7 @@ jobs:
           python -m pip install .
 
       - name: Test building extensions
-        if: matrix.nocc != "true"
+        if: matrix.nocc != 'true'
         run: |
           pip install cython
           python setup.py build_ext --inplace
