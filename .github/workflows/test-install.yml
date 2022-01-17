@@ -39,18 +39,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install system requirements
-        if: matrix.os.contains("ubuntu")
+      - name: Install CUDA
+        if: runner.os == "Linux"
         run: |
           sudo apt-get update
           sudo apt-get install nvidia-cuda-toolkit
 
-      - name: Install Veros
+      - name: Test installing Veros
         run: |
           if ${{ matrix.nocc }}; then export CC=foobar; fi
           python -m pip install .
 
-      - name: Try building extensions
+      - name: Test building extensions
         if: matrix.nocc != "true"
         run: |
           pip install cython
