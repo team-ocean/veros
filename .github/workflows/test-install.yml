@@ -59,9 +59,9 @@ jobs:
       - name: Test whether Cython extensions are present
         if: matrix.nocc != 'true'
         run: |
-          test -f veros/core/special/tdma_cython_.*+(.so|.exp)
+          test -f veros/core/special/tdma_cython_.*+{.so|.exp}
 
       - name: Test whether CUDA extensions are present
         if: runner.os == 'Linux' && matrix.nocc != 'true'
         run: |
-          test -f veros/core/special/tdma_cuda_.*+(.so|.exp)
+          test -f veros/core/special/tdma_cuda_.*+{.so|.exp}
