@@ -50,10 +50,18 @@ jobs:
           if ${{ matrix.nocc }}; then export CC=foobar; fi
           python -m pip install .
 
-      - name: Test building extensions
+      - name: Build extensions
         if: matrix.nocc != 'true'
         run: |
           pip install cython
           python setup.py build_ext --inplace
+
+      - name: Test whether Cython extensions are present
+        if: matrix.nocc != 'true'
+        run: |
           test -f veros/core/special/tdma_cython_.*.so
+
+      - name: Test whether CUDA extensions are present
+        if: runner.os == 'Linux' && matrix.nocc != 'true'
+        run: |
           test -f veros/core/special/tdma_cuda_.*.so
