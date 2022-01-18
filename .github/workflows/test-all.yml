@@ -81,14 +81,10 @@ jobs:
           if [ ${{ matrix.backend }} == "jax" ]
           then
             pip install mpi4jax
-            pip install .[test,jax]
+            pip install -e .[test,jax]
           else
-            pip install .[test]
+            pip install -e .[test]
           fi
-
-          cd /tmp
-          python -c "import veros.core.special.tdma_cython_"
-          python -c "from veros.core.special import tdma_cython_"
 
       # Build other libraries after Veros to make sure we have compatible versions
       - name: Build PETSc
