@@ -18,13 +18,17 @@ jobs:
 
       matrix:
         os: [ubuntu-20.04]
-        python-version: ["3.7", "3.9"]
+        python-version: ["3.7", "3.10"]
         backend: [numpy, jax]
 
     env:
       PYOM2_DIR: /home/runner/pyom2
+      PETSC_VERSION: 3.15.5
+      PETSC_DIR: /home/runner/petsc
+      PETSC_ARCH: arch-linux-c-opt
       OMPI_MCA_rmaps_base_oversubscribe: "1"
       OMPI_MCA_mpi_yield_when_idle: "1"
+      VEROS_REQUIRE_CYTHON_EXT: "1"
 
     steps:
       - uses: actions/checkout@v2
@@ -46,12 +50,19 @@ jobs:
           restore-keys: |
             ${{ matrix.os }}-pip-
 
-      - name: Restore PyOM2 cache
+      - name: Restore PyOM2 build cache
         uses: actions/cache@v2
         id: pyom2-cache
         with:
-          path: ~/pyom2/py_src/*.so
+          path: ${{ env.PYOM2_DIR }}/py_src/*.so
           key: ${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('vendor/pyom2/patches/*.patch') }}
+
+      - name: Restore PETSc build cache
+        uses: actions/cache@v2
+        id: petsc-cache
+        with:
+          path: ${{ env.PETSC_DIR }}/${{ env.PETSC_ARCH }}
+          key: ${{ matrix.os }}-${{ matrix.python-version }}-${{ env.PETSC_VERSION }}
 
       - name: Setup Python environment
         run: |
@@ -62,8 +73,7 @@ jobs:
       - name: Install system requirements
         run: |
           sudo apt-get update
-          sudo apt-get install libopenmpi-dev libpetsc-real3.12-dev
-          echo "PETSC_DIR=/usr/lib/petscdir/petsc3.12/x86_64-linux-gnu-real" >> $GITHUB_ENV
+          sudo apt-get install libopenmpi-dev
 
       - name: Install Veros
         run: |
@@ -71,13 +81,21 @@ jobs:
           if [ ${{ matrix.backend }} == "jax" ]
           then
             pip install mpi4jax
-            pip install .[test,jax]
+            pip install -e .[test,jax]
           else
-            pip install .[test]
+            pip install -e .[test]
           fi
-          pip install petsc4py==3.12 --no-deps
 
-      # build PyOM after Veros to make sure we have compatible versions
+      # Build other libraries after Veros to make sure we have compatible versions
+      - name: Build PETSc
+        if: steps.petsc-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone -b v$PETSC_VERSION --depth 1 https://gitlab.com/petsc/petsc.git $PETSC_DIR
+          pushd $PETSC_DIR
+          ./configure --with-debugging=0 -with-shared-libraries --with-precision=double --with-petsc4py=1
+          make all
+          popd
+
       - name: Build PyOM2
         if: steps.pyom2-cache.outputs.cache-hit != 'true'
         run: |
@@ -93,10 +111,11 @@ jobs:
           make -C py_src -j 4 > /dev/null
           popd
 
-      - name: Export PyOM2 paths
+      - name: Export paths
         run: |
           echo "PYOM2_LIB=$(readlink -f $PYOM2_DIR/py_src/pyOM_code.*.so)" >> $GITHUB_ENV
           echo "PYOM2_LIB_MPI=$(readlink -f $PYOM2_DIR/py_src/pyOM_code_MPI.*.so)" >> $GITHUB_ENV
+          echo "PYTHONPATH=$PYTHONPATH:$PETSC_DIR/$PETSC_ARCH/lib" >> $GITHUB_ENV
 
       - name: Run tests
         run: |

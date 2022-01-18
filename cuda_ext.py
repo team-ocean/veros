@@ -1,11 +1,11 @@
 import os
-import platform
 
 from Cython.Distutils import build_ext
+from distutils.unixccompiler import UnixCCompiler
 
-
-# code taken from https://github.com/rmcgibbo/npcuda-example
-# under BSD 2-Clause "Simplified" License
+# This is based on
+# https://github.com/rmcgibbo/npcuda-example/blob/dd2768d8ccb5688c0f08678dd8f1ad5afe3e4332/cython/setup.py
+# published under BSD 2-Clause "Simplified" License
 
 
 def find_in_path(name, path):
@@ -47,8 +47,8 @@ def locate_cuda():
 
     if cuda_root is None:
         return {
-            "cuda_root": None,
-            "nvcc": None,
+            "cuda_root": "",
+            "nvcc": "nvcc",
             "include": [],
             "lib64": [],
             "cflags": [],
@@ -75,7 +75,18 @@ def locate_cuda():
 
 
 def customize_compiler_for_nvcc(self):
-    # Tell the compiler it can processes .cu
+    if not isinstance(self, UnixCCompiler):
+        # Just give up
+        default_compile = self._compile
+
+        def _compile(obj, src, ext, cc_args, extra_postargs, pp_opts):
+            postargs = extra_postargs["gcc"]
+            return default_compile(obj, src, ext, cc_args, postargs, pp_opts)
+
+        self._compile = _compile
+        return
+
+    # Tell the compiler it can process .cu
     self.src_extensions.append(".cu")
 
     # Save references to the default compiler_so and _compile methods
@@ -106,9 +117,6 @@ def customize_compiler_for_nvcc(self):
 # Run the customize_compiler
 class custom_build_ext(build_ext):
     def build_extensions(self):
-        if platform.system().lower() == "windows":
-            return super().build_extensions()
-
         customize_compiler_for_nvcc(self.compiler)
         build_ext.build_extensions(self)
 

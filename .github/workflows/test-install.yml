@@ -20,7 +20,7 @@ jobs:
 
       matrix:
           os: [ubuntu-latest, macos-latest, windows-latest]
-          python-version: ["3.7", "3.9"]
+          python-version: ["3.7", "3.10"]
           nocc: [false]
 
           include:
@@ -39,7 +39,37 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Veros
+      - name: Install CUDA
+        if: runner.os == 'Linux' && matrix.nocc != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install nvidia-cuda-toolkit
+
+      - name: Test installing Veros
         run: |
           if ${{ matrix.nocc }}; then export CC=foobar; fi
           python -m pip install .
+
+      - name: Build extensions
+        if: matrix.nocc != 'true'
+        run: |
+          export VEROS_REQUIRE_CYTHON_EXT=1
+          if [ ${{ runner.os }} = "Linux" ]; then
+            export VEROS_REQUIRE_CUDA_EXT=1
+          fi
+          pip install cython
+          python setup.py build_ext --inplace
+
+      - name: Test whether Cython extensions are present
+        if: matrix.nocc != 'true'
+        run: |
+          if [ ${{ runner.os }} = "Windows" ]; then
+            test -f veros/core/special/tdma_cython_.*.pyd
+          else
+            test -f veros/core/special/tdma_cython_.*.so
+          fi
+
+      - name: Test whether CUDA extensions are present
+        if: runner.os == 'Linux' && matrix.nocc != 'true'
+        run: |
+          test -f veros/core/special/tdma_cuda_.*.so

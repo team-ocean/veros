@@ -65,8 +65,8 @@ def tdma_impl(*args, **kwargs):
 
 
 def tdma_xla_encode_cpu(builder, a, b, c, d, system_depths):
-    if not HAS_CPU_EXT:
-        raise RuntimeError("CPU TDMA extensions could not be imported")
+    # try import again to trigger exception on ImportError
+    from veros.core.special import tdma_cython_  # noqa: F401
 
     x_shape = builder.GetShape(a)
     dtype = x_shape.element_type()
@@ -121,8 +121,8 @@ def tdma_xla_encode_cpu(builder, a, b, c, d, system_depths):
 
 
 def tdma_xla_encode_gpu(builder, a, b, c, d, system_depths):
-    if not HAS_GPU_EXT:
-        raise RuntimeError("GPU TDMA extensions could not be imported")
+    # try import again to trigger exception on ImportError
+    from veros.core.special import tdma_cuda_  # noqa: F401
 
     if system_depths is not None:
         raise ValueError("TDMA does not support system_depths argument on GPU")
