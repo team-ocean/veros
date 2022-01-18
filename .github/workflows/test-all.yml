@@ -85,6 +85,8 @@ jobs:
             pip install .[test]
           fi
 
+          ls -l veros/core/special
+
       # Build other libraries after Veros to make sure we have compatible versions
       - name: Build PETSc
         if: steps.petsc-cache.outputs.cache-hit != 'true'
