@@ -86,6 +86,7 @@ jobs:
             pip install .[test]
           fi
 
+          cd /tmp
           python -c "import veros.core.special.tdma_cython_"
           python -c "from veros.core.special import tdma_cython_"
 
