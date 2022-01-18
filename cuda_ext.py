@@ -1,5 +1,4 @@
 import os
-import platform
 
 from Cython.Distutils import build_ext
 
@@ -47,8 +46,8 @@ def locate_cuda():
 
     if cuda_root is None:
         return {
-            "cuda_root": None,
-            "nvcc": None,
+            "cuda_root": "",
+            "nvcc": "nvcc",
             "include": [],
             "lib64": [],
             "cflags": [],
@@ -106,9 +105,6 @@ def customize_compiler_for_nvcc(self):
 # Run the customize_compiler
 class custom_build_ext(build_ext):
     def build_extensions(self):
-        if platform.system().lower() == "windows":
-            return super().build_extensions()
-
         customize_compiler_for_nvcc(self.compiler)
         build_ext.build_extensions(self)
 
