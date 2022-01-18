@@ -28,6 +28,7 @@ jobs:
       PETSC_ARCH: arch-linux-c-opt
       OMPI_MCA_rmaps_base_oversubscribe: "1"
       OMPI_MCA_mpi_yield_when_idle: "1"
+      VEROS_REQUIRE_CYTHON_EXT: "1"
 
     steps:
       - uses: actions/checkout@v2
@@ -84,8 +85,6 @@ jobs:
           else
             pip install .[test]
           fi
-
-          python -c "from veros.core.special import tdma_cython_"
 
       # Build other libraries after Veros to make sure we have compatible versions
       - name: Build PETSc

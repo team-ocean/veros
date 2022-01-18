@@ -78,7 +78,7 @@ EXTRAS_REQUIRE = {
 EXTRAS_REQUIRE["jax"] = parse_requirements("requirements_jax.txt")
 
 
-def get_extensions():
+def get_extensions(require_cython_ext, require_cuda_ext):
     cuda_info = cuda_ext.cuda_info
 
     extension_modules = {
@@ -86,16 +86,15 @@ def get_extensions():
         "veros.core.special.tdma_cuda_": ["tdma_cuda_.pyx", "cuda_tdma_kernels.cu"],
     }
 
+    def is_cuda_ext(sources):
+        return any(source.endswith(".cu") for source in sources)
+
     extensions = []
     for module, sources in extension_modules.items():
         extension_dir = os.path.join(*module.split(".")[:-1])
 
         kwargs = dict()
-        if any(source.endswith(".cu") for source in sources):
-            # skip GPU extension if CUDA is not available
-            if cuda_info["cuda_root"] is None:
-                continue
-
+        if is_cuda_ext(sources):
             kwargs.update(
                 library_dirs=cuda_info["lib64"],
                 libraries=["cudart"],
@@ -116,8 +115,14 @@ def get_extensions():
         extensions.append(ext)
 
     extensions = cythonize(extensions, language_level=3, exclude_failures=True)
+
     for ext in extensions:
-        ext.optional = True
+        is_required = (not is_cuda_ext(ext.sources) and require_cython_ext) or (
+            is_cuda_ext(ext.sources) and require_cuda_ext
+        )
+
+        if not is_required:
+            ext.optional = True
 
     return extensions
 
@@ -125,6 +130,15 @@ def get_extensions():
 cmdclass = versioneer.get_cmdclass()
 cmdclass.update(build_ext=cuda_ext.custom_build_ext)
 
+
+def _env_to_bool(envvar):
+    return os.environ.get(envvar, "").lower() in ("1", "true", "on")
+
+
+extensions = get_extensions(
+    require_cython_ext=_env_to_bool("VEROS_REQUIRE_CYTHON_EXT"),
+    require_cython_ext=_env_to_bool("VEROS_REQUIRE_CUDA_EXT"),
+)
 
 setup(
     name="veros",
@@ -142,7 +156,7 @@ setup(
     packages=find_packages(),
     install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS_REQUIRE,
-    ext_modules=get_extensions(),
+    ext_modules=extensions,
     entry_points={"console_scripts": CONSOLE_SCRIPTS, "veros.setup_dirs": ["base = veros.setups"]},
     package_data={"veros": PACKAGE_DATA},
     classifiers=[c for c in CLASSIFIERS.split("\n") if c],

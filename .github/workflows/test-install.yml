@@ -53,6 +53,10 @@ jobs:
       - name: Build extensions
         if: matrix.nocc != 'true'
         run: |
+          export VEROS_REQUIRE_CYTHON_EXT=1
+          if [ ${{ runner.os }} = "Linux" ]; then
+            export VEROS_REQUIRE_CUDA_EXT=1
+          fi
           pip install cython
           python setup.py build_ext --inplace
 
