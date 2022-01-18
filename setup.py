@@ -123,7 +123,7 @@ def get_extensions():
 
 
 cmdclass = versioneer.get_cmdclass()
-# cmdclass.update(build_ext=cuda_ext.custom_build_ext)
+cmdclass.update(build_ext=cuda_ext.custom_build_ext)
 
 
 setup(

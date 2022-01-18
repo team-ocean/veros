@@ -60,7 +60,7 @@ jobs:
         if: matrix.nocc != 'true'
         run: |
           if [ ${{ runner.os }} = "Windows" ]; then
-            test -f veros/core/special/tdma_cython_.*.exp
+            test -f veros/core/special/tdma_cython_.*.pyd
           else
             test -f veros/core/special/tdma_cython_.*.so
           fi

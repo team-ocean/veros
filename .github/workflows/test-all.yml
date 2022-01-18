@@ -85,7 +85,7 @@ jobs:
             pip install .[test]
           fi
 
-          ls -l veros/core/special
+          python -c "from veros.core.special import tdma_cython_"
 
       # Build other libraries after Veros to make sure we have compatible versions
       - name: Build PETSc
