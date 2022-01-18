@@ -137,7 +137,7 @@ def _env_to_bool(envvar):
 
 extensions = get_extensions(
     require_cython_ext=_env_to_bool("VEROS_REQUIRE_CYTHON_EXT"),
-    require_cython_ext=_env_to_bool("VEROS_REQUIRE_CUDA_EXT"),
+    require_cuda_ext=_env_to_bool("VEROS_REQUIRE_CUDA_EXT"),
 )
 
 setup(
