@@ -3,6 +3,10 @@
 </p>
 
 <p align="center">
+<i>Versatile Ocean Simulation in Pure Python</i>
+</p>
+
+<p align="center">
   <a href="http://veros.readthedocs.io/?badge=latest">
     <img src="https://readthedocs.org/projects/veros/badge/?version=latest" alt="Documentation status">
   </a>
@@ -17,16 +21,14 @@
   </a>
 </p>
 
-# Versatile Ocean Simulation in Pure Python
-
 Veros, *the versatile ocean simulator*, aims to be the swiss army knife of ocean modeling. It is a full-fledged primitive equation ocean model that supports anything between idealized toy models and [realistic, high-resolution, global ocean simulations](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2021MS002717). And because Veros is written in pure Python, the days of struggling with complicated model setup workflows, ancient programming environments, and obscure legacy code are finally over.
+
+*In a nutshell, we want to enable high-performance ocean modelling with a clear focus on flexibility and usability.*
 
 Veros supports a NumPy backend for small-scale problems, and a
 high-performance [JAX](https://github.com/google/jax) backend
 with CPU and GPU support. It is fully parallelized via MPI and supports
 distributed execution on any number of nodes, including multi-GPU architectures (see also [our benchmarks](https://veros.readthedocs.io/en/latest/more/benchmarks.html)).
-
-In a nutshell, we want to enable ocean modelling with a clear focus on flexibility and usability.
 
 The dynamical core of Veros is based on [pyOM2](https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2), an ocean model with a Fortran backend and Fortran and Python frontends.
 
@@ -145,5 +147,5 @@ If you use Veros in scientific work, please consider citing [the following publi
 }
 ```
 
-See also [our documentation](https://veros.readthedocs.io/en/latest/more/publications.html)
+Or have a look at [our documentation](https://veros.readthedocs.io/en/latest/more/publications.html)
 for more publications involving Veros.
