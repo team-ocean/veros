@@ -5,6 +5,9 @@ Benchmarks
 
    The following benchmarks are for general orientation only. Benchmark results are highly platform dependent; your mileage may vary.
 
+.. seealso::
+
+   See our recent paper `Fast, Cheap, and Turbulent—Global Ocean Modeling With GPU Acceleration in Python <https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2021MS002717>`_ for a more in-depth benchmarks, results, and interpretations.
 
 Varying problem size
 --------------------

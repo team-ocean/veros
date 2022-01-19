@@ -17,23 +17,20 @@
   </a>
 </p>
 
-Veros is the *versatile ocean simulator* -- it aims to be a powerful tool
-that makes high-performance ocean modeling approachable and fun. Because
-Veros is a pure Python module, the days of struggling with complicated
-model setup workflows, ancient programming environments, and obscure
-legacy code are finally over.
+# Versatile Ocean Simulation in Pure Python
 
-Veros supports a NumPy backend for small-scale problems and a
+Veros, *the versatile ocean simulator*, aims to be the swiss army knife of ocean modeling. It is a full-fledged primitive equation ocean model that supports anything between idealized toy models and [realistic, high-resolution, global ocean simulations](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2021MS002717). And because Veros is written in pure Python, the days of struggling with complicated model setup workflows, ancient programming environments, and obscure legacy code are finally over.
+
+Veros supports a NumPy backend for small-scale problems, and a
 high-performance [JAX](https://github.com/google/jax) backend
-with CPU and GPU support. It is fully parallelized via MPI and supports distributed execution.
+with CPU and GPU support. It is fully parallelized via MPI and supports
+distributed execution on any number of nodes, including multi-GPU architectures (see also [our benchmarks](https://veros.readthedocs.io/en/latest/more/benchmarks.html)).
 
-The underlying numerics are based on
-[pyOM2](https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2), a Fortran ocean model
-developed at Institut für Meereskunde, Hamburg
-University.
+In a nutshell, we want to enable ocean modelling with a clear focus on flexibility and usability.
 
-Veros is currently being developed at Niels Bohr Institute,
-Copenhagen University.
+The dynamical core of Veros is based on [pyOM2](https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2), an ocean model with a Fortran backend and Fortran and Python frontends.
+
+To learn more about Veros, make sure to [visit our documentation](https://veros.readthedocs.io/en/latest/).
 
 #### How about a demonstration?
 
@@ -55,12 +52,12 @@ Veros provides
 -   a fully staggered **3-D grid geometry** (*C-grid*)
 -   support for both **idealized and realistic configurations** in
     Cartesian or pseudo-spherical coordinates
--   several **friction and advection schemes** to choose from
+-   several **friction and advection schemes**
 -   isoneutral mixing, eddy-kinetic energy, turbulent kinetic energy,
     and internal wave energy **parameterizations**
 -   several **pre-implemented diagnostics** such as energy fluxes,
     variable time averages, and a vertical overturning stream function
-    (written to netCDF output)
+    (written to netCDF4 output)
 -   **pre-configured idealized and realistic set-ups** that are ready to
     run and easy to adapt
 -   **accessibility and extensibility** - thanks to the
@@ -81,7 +78,7 @@ documentation](https://veros.readthedocs.io).
 
 ## Basic usage
 
-To run Veros, you need to set up a model - i.e., specify which settings
+To run Veros, you need to set up a model --- i.e., specify which settings
 and model domain you want to use. This is done by subclassing the
 `VerosSetup` base class in a *setup script* that is written in Python. You
 should use the `veros copy-setup` command to copy one into your current
@@ -147,3 +144,6 @@ If you use Veros in scientific work, please consider citing [the following publi
 	pages = {3299--3312},
 }
 ```
+
+See also [our documentation](https://veros.readthedocs.io/en/latest/more/publications.html)
+for more publications involving Veros.

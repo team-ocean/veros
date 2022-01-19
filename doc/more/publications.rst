@@ -4,11 +4,19 @@ Publications involving Veros
 Peer-reviewed articles
 ----------------------
 
--  Häfner, D., Nuterman, R., & Jochum, M. (2021). Fast, cheap, & turbulent — Global ocean modelling with GPU acceleration in Python. Journal of Advances in Modeling Earth Systems, 13, e2021MS002717. `https://doi.org/10.1029/2021MS002717 <https://doi.org/10.1029/2021MS002717>`__
-- Lohmann, J., & Ditlevsen, P. D. (2021). Risk of tipping the overturning circulation due to increasing rates of ice melt. Proceedings of the National Academy of Sciences, 118(9).
-  `https://doi.org/10.1073/pnas.2017989118 <https://doi.org/10.1073/pnas.2017989118>`__
+About Veros
++++++++++++
+
+- Häfner, D., Nuterman, R., & Jochum, M. (2021). Fast, cheap, and turbulent—Global ocean modeling with GPU acceleration in Python. Journal of Advances in Modeling Earth Systems, 13, e2021MS002717.
+  `https://doi.org/10.1029/2021MS002717 <https://doi.org/10.1029/2021MS002717>`__
 - Häfner, D., Jacobsen, R. L., Eden, C., Kristensen, M. R., Jochum, M., Nuterman, R., & Vinter, B. (2018). Veros v0. 1–a fast and versatile ocean simulator in pure Python. Geoscientific Model Development, 11(8), 3299-3312.
   `https://doi.org/10.5194/gmd-11-3299-2018 <https://doi.org/10.5194/gmd-11-3299-2018>`__
+
+Using Veros
++++++++++++
+
+- Lohmann, J., & Ditlevsen, P. D. (2021). Risk of tipping the overturning circulation due to increasing rates of ice melt. Proceedings of the National Academy of Sciences, 118(9).
+  `https://doi.org/10.1073/pnas.2017989118 <https://doi.org/10.1073/pnas.2017989118>`__
 
 Talks
 -----
