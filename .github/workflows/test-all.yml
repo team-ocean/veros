@@ -61,8 +61,8 @@ jobs:
         uses: actions/cache@v2
         id: petsc-cache
         with:
-          path: ${{ env.PETSC_DIR }}/${{ env.PETSC_ARCH }}
-          key: ${{ matrix.os }}-${{ env.PETSC_VERSION }}-${{ env.PETSC_ARCH }}
+          path: ${{ env.PETSC_DIR }}
+          key: ${{ matrix.os }}-${{ env.PETSC_VERSION }}
 
       - name: Setup Python environment
         run: |
