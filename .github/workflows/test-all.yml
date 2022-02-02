@@ -117,6 +117,9 @@ jobs:
           echo "PYOM2_LIB=$(readlink -f $PYOM2_DIR/py_src/pyOM_code.*.so)" >> $GITHUB_ENV
           echo "PYOM2_LIB_MPI=$(readlink -f $PYOM2_DIR/py_src/pyOM_code_MPI.*.so)" >> $GITHUB_ENV
 
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
+
       - name: Run tests
         run: |
           pytest . -v --cov --pyom2-lib $PYOM2_LIB --backend ${{ matrix.backend }}
