@@ -98,7 +98,7 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=None
 
         for module in pyom_modules:
             if hasattr(module, attr):
-                setattr(module, attr, val)
+                getattr(module, attr)[...] = val
                 break
         else:
             raise RuntimeError(f"Could not set attribute {attr} on Fortran library")
