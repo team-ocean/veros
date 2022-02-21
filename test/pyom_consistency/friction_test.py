@@ -73,7 +73,7 @@ def test_biharmonic_friction(pyom2_lib):
     for attr in dir(pyom_obj.main_module):
         try:
             data = getattr(pyom_obj.main_module, attr)[...]
-        except AttributeError:
+        except TypeError:
             continue
         statedict[attr] = data
     pyom_obj.biharmonic_friction()
