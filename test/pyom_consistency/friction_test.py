@@ -69,15 +69,30 @@ def test_biharmonic_friction(pyom2_lib):
     vs_state, pyom_obj = get_random_state(pyom2_lib, extra_settings=TEST_SETTINGS)
     vs_state.variables.update(friction.biharmonic_friction(vs_state))
 
-    statedict = {}
-    for attr in dir(pyom_obj.main_module):
+    statedict = dict(
+        inputs={},
+        outputs={},
+        settings={},
+    )
+    for sett in vs_state.settings:
         try:
-            data = getattr(pyom_obj.main_module, attr)[...]
-        except TypeError:
+            val = getattr(pyom_obj.main_module, sett)[...]
+        except Exception:
             continue
-        statedict[attr] = data
+        statedict["settings"][sett] = val
+
+    for var in vs_state.variables:
+        try:
+            data = getattr(pyom_obj.main_module, var)[...]
+        except Exception:
+            continue
+        statedict["inputs"][var] = data
+
     pyom_obj.biharmonic_friction()
-    statedict["K_diss_h_out"] = pyom_obj.main_module.k_diss_h[...]
+
+    statedict["outputs"] = dict(
+        K_diss_h=pyom_obj.main_module.k_diss_h[...],
+    )
 
     import pickle
 
