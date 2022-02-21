@@ -121,5 +121,12 @@ jobs:
         run: |
           pytest . -v --cov --pyom2-lib $PYOM2_LIB --backend ${{ matrix.backend }}
 
+      - name: Upload debug artifact
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: debug-data
+          path: "**/*.pkl"
+
       - name: Upload coverage
         uses: codecov/codecov-action@v1
