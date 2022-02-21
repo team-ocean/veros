@@ -119,7 +119,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest . -v --cov --pyom2-lib $PYOM2_LIB --backend ${{ matrix.backend }}
+          pytest . -v --cov --pyom2-lib $PYOM2_LIB --backend ${{ matrix.backend }} -k biharmonic
 
       - name: Upload debug artifact
         if: failure()
