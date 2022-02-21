@@ -74,14 +74,14 @@ def test_biharmonic_friction(pyom2_lib):
         outputs={},
         settings={},
     )
-    for sett in vs_state.settings:
+    for sett in vs_state.settings.fields():
         try:
             val = getattr(pyom_obj.main_module, sett)[...]
         except Exception:
             continue
         statedict["settings"][sett] = val
 
-    for var in vs_state.variables:
+    for var in vs_state.variables.fields():
         try:
             data = getattr(pyom_obj.main_module, var)[...]
         except Exception:
