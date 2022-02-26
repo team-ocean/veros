@@ -168,7 +168,7 @@ index 378fd77..ab51b00 100644
       do j=js_pe-onx+1,je_pe+onx-1
        do i=is_pe-onx+1,ie_pe+onx-1
 diff --git a/for_src/main/friction.f90 b/for_src/main/friction.f90
-index be0c02b..52ad9bf 100644
+index be0c02b..e0c944d 100644
 --- a/for_src/main/friction.f90
 +++ b/for_src/main/friction.f90
 @@ -12,6 +12,8 @@ subroutine explicit_vert_friction
@@ -189,6 +189,15 @@ index be0c02b..52ad9bf 100644
   !---------------------------------------------------------------------------------
   ! implicit vertical friction of zonal momentum
   !---------------------------------------------------------------------------------
+@@ -695,6 +699,8 @@ subroutine biharmonic_friction
+                 +(flux_north(i,j,:) - flux_north(i,j-1,:))/(cost(j)*dyt(j))
+   enddo
+  enddo
++ del2(is,:,:)=0.d0
++ del2(:,js,:)=0.d0
+ 
+  do j=js,je
+    do i=is,ie-1
 diff --git a/for_src/main/thermodynamics.f90 b/for_src/main/thermodynamics.f90
 index f5017ed..8a4d527 100644
 --- a/for_src/main/thermodynamics.f90
