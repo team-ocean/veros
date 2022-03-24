@@ -7,4 +7,4 @@ h5netcdf==0.15.0
 h5py==3.6.0
 pillow==9.0.1
 loguru==0.6.0
-tqdm==4.63.0
+tqdm==4.63.1
