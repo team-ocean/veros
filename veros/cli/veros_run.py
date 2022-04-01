@@ -6,11 +6,6 @@ import importlib
 
 import click
 
-# from veros import runtime_settings, VerosSetup, __version__ as veros_version
-# from veros.settings import SETTINGS
-# from veros.backend import BACKENDS
-# from veros.runtime import LOGLEVELS, DEVICES, FLOAT_TYPES
-
 
 class VerosSetting(click.ParamType):
     name = "setting"
