@@ -5,6 +5,7 @@ import shutil
 import datetime
 import functools
 import textwrap
+import importlib
 
 import click
 import entrypoints
@@ -17,10 +18,8 @@ SETUPS = {}
 setup_dirs = []
 
 for e in entrypoints.get_group_all("veros.setup_dirs"):
-    try:
-        setup_dirs.append(os.path.dirname(e.load().__file__))
-    except ImportError:
-        click.echo(f"Warning: Veros plugin {e!s} failed to import", err=True)
+    modpath = os.path.dirname(importlib.util.find_spec(e.module_name).origin)
+    setup_dirs.append(modpath)
 
 for setup_dir in os.environ.get(SETUPDIR_ENVVAR, "").split(";"):
     if os.path.isdir(setup_dir):

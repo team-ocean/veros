@@ -6,10 +6,10 @@ import importlib
 
 import click
 
-from veros import runtime_settings, VerosSetup, __version__ as veros_version
-from veros.settings import SETTINGS
-from veros.backend import BACKENDS
-from veros.runtime import LOGLEVELS, DEVICES, FLOAT_TYPES
+# from veros import runtime_settings, VerosSetup, __version__ as veros_version
+# from veros.settings import SETTINGS
+# from veros.backend import BACKENDS
+# from veros.runtime import LOGLEVELS, DEVICES, FLOAT_TYPES
 
 
 class VerosSetting(click.ParamType):
@@ -17,6 +17,8 @@ class VerosSetting(click.ParamType):
     current_key = None
 
     def convert(self, value, param, ctx):
+        from veros.settings import SETTINGS
+
         assert param.nargs == 2
 
         if self.current_key is None:
@@ -46,6 +48,8 @@ def _import_from_file(path):
 
 def run(setup_file, *args, **kwargs):
     """Runs a Veros setup from given file"""
+    from veros import runtime_settings, VerosSetup, __version__ as veros_version
+
     kwargs["override"] = dict(kwargs["override"])
 
     runtime_setting_kwargs = (
@@ -92,14 +96,14 @@ def run(setup_file, *args, **kwargs):
     "-b",
     "--backend",
     default="numpy",
-    type=click.Choice(BACKENDS),
+    type=click.Choice(["numpy", "jax"]),
     help="Backend to use for computations",
     show_default=True,
 )
 @click.option(
     "--device",
     default="cpu",
-    type=click.Choice(DEVICES),
+    type=click.Choice(["cpu", "gpu"]),
     help="Hardware device to use (JAX backend only)",
     show_default=True,
 )
@@ -107,7 +111,7 @@ def run(setup_file, *args, **kwargs):
     "-v",
     "--loglevel",
     default="info",
-    type=click.Choice(LOGLEVELS),
+    type=click.Choice(["trace", "debug", "info", "warning", "error"]),
     help="Log level used for output",
     show_default=True,
 )
@@ -136,7 +140,7 @@ def run(setup_file, *args, **kwargs):
 @click.option(
     "--float-type",
     default="float64",
-    type=click.Choice(FLOAT_TYPES),
+    type=click.Choice(["float64", "float32"]),
     help="Floating point precision to use",
     show_default=True,
 )

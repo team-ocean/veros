@@ -1,7 +1,10 @@
 import os
+import sys
 import filecmp
 import fnmatch
 import pkg_resources
+import subprocess
+from textwrap import dedent
 
 from click.testing import CliRunner
 import pytest
@@ -44,3 +47,30 @@ def test_veros_copy_setup(setup, runner, tmpdir):
         setup_content = f.read()
 
     assert "VEROS_VERSION" in setup_content
+
+
+def test_import_isolation(tmpdir):
+    TEST_KERNEL = dedent(
+        """
+    import sys
+    import veros.cli
+
+    for mod in sys.modules:
+        print(mod)
+    """
+    )
+
+    tmpfile = tmpdir / "isolation.py"
+    with open(tmpfile, "w") as f:
+        f.write(TEST_KERNEL)
+
+    proc = subprocess.run([sys.executable, tmpfile], check=True, capture_output=True, text=True)
+
+    imported_modules = proc.stdout.split()
+    veros_modules = [mod for mod in imported_modules if mod.startswith("veros.")]
+
+    for mod in veros_modules:
+        assert mod.startswith("veros.cli") or mod == "veros._version"
+
+    # make sure using the CLI does not initialize MPI
+    assert "mpi4py" not in imported_modules
