@@ -1,5 +1,6 @@
 #include <array>
 #include <cstddef>
+#include <stdexcept>
 
 #include <cuda_runtime.h>
 
