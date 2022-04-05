@@ -20,20 +20,20 @@ z0 = 0.0
 @veros_kernel
 def nonlin1_eq_of_state_rho(sa, ct):
     thetas = ct - theta0
-    return -(betaT * thetas + betaTs * thetas ** 2 - betaS * (sa - S0)) * rho0
+    return -(betaT * thetas + betaTs * thetas**2 - betaS * (sa - S0)) * rho0
 
 
 @veros_kernel
 def nonlin1_eq_of_state_dyn_enthalpy(sa, ct, p):
     zz = -p - z0
     thetas = ct - theta0
-    return grav * zz * (-betaT * thetas - betaTs * thetas ** 2 + betaS * (sa - S0))
+    return grav * zz * (-betaT * thetas - betaTs * thetas**2 + betaS * (sa - S0))
 
 
 @veros_kernel
 def nonlin1_eq_of_state_salt(rho, ct):
     thetas = ct - theta0
-    return (rho + (betaT * thetas + betaTs * thetas ** 2) * rho0) / (betaS * rho0) + S0
+    return (rho + (betaT * thetas + betaTs * thetas**2) * rho0) / (betaS * rho0) + S0
 
 
 @veros_kernel

@@ -192,7 +192,7 @@ def isoneutral_diffusion_pre(state):
                 + vs.dxu[1 + ip : -3 + ip, npx.newaxis, npx.newaxis]
                 * vs.K_iso[2:-2, 2:-2, :-1]
                 * taper
-                * sxb ** 2
+                * sxb**2
                 * vs.maskW[2:-2, 2:-2, :-1]
             )
             vs.Ai_bx = update(vs.Ai_bx, at[2:-2, 2:-2, :-1, ip, kr], taper * sxb * vs.maskW[2:-2, 2:-2, :-1])
@@ -211,7 +211,7 @@ def isoneutral_diffusion_pre(state):
                 + facty[npx.newaxis, :, npx.newaxis]
                 * vs.K_iso[2:-2, 2:-2, :-1]
                 * taper
-                * syb ** 2
+                * syb**2
                 * vs.maskW[2:-2, 2:-2, :-1]
             )
             vs.Ai_by = update(vs.Ai_by, at[2:-2, 2:-2, :-1, jp, kr], taper * syb * vs.maskW[2:-2, 2:-2, :-1])

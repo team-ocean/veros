@@ -36,7 +36,7 @@ def set_idemix_parameter(state):
     vs.alpha_c = (
         npx.maximum(
             1e-4,
-            settings.mu0 * npx.arccosh(npx.maximum(1.0, fxa)) * npx.abs(vs.coriolis_t[..., npx.newaxis]) / cstar ** 2,
+            settings.mu0 * npx.arccosh(npx.maximum(1.0, fxa)) * npx.abs(vs.coriolis_t[..., npx.newaxis]) / cstar**2,
         )
         * vs.maskW
     )
