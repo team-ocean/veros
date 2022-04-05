@@ -166,7 +166,7 @@ def main(pyom2_lib, timesteps, size):
     if not pyom2_lib:
         # monitor residual to expected solution, with generous margin
         def rms(arr):
-            return npx.sqrt(npx.mean(arr ** 2))
+            return npx.sqrt(npx.mean(arr**2))
 
         rms_err = rms(res[2:-2, 2:-2] - input_data["res"][2:-2, 2:-2]) / rms(input_data["res"][2:-2, 2:-2])
         assert rms_err < 1e-3, rms_err

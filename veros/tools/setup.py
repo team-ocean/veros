@@ -366,21 +366,21 @@ def get_vinokur_grid_steps(
             inv = npx.pi * (
                 1
                 - y
-                + y ** 2
-                - (1 + npx.pi ** 2 / 6) * y ** 3
-                + 6.794732 * y ** 4
-                - 13.205501 * y ** 5
-                + 11.726095 * y ** 6
+                + y**2
+                - (1 + npx.pi**2 / 6) * y**3
+                + 6.794732 * y**4
+                - 13.205501 * y**5
+                + 11.726095 * y**6
             )
         else:
             ybar = 1.0 - y
             inv = npx.sqrt(6 * ybar) * (
                 1
                 + 0.15 * ybar
-                + 0.057321429 * ybar ** 2
-                + 0.048774238 * ybar ** 3
-                - 0.053337753 * ybar ** 4
-                + 0.075845134 * ybar ** 5
+                + 0.057321429 * ybar**2
+                + 0.048774238 * ybar**3
+                - 0.053337753 * ybar**4
+                + 0.075845134 * ybar**5
             )
         assert abs(1 - npx.sin(inv) / inv / y) < 1e-2, "precision error"
         return inv
@@ -392,10 +392,10 @@ def get_vinokur_grid_steps(
             inv = npx.sqrt(6 * ybar) * (
                 1
                 - 0.15 * ybar
-                + 0.057321429 * ybar ** 2
-                - 0.024907295 * ybar ** 3
-                + 0.0077424461 * ybar ** 4
-                - 0.0010794123 * ybar ** 5
+                + 0.057321429 * ybar**2
+                - 0.024907295 * ybar**3
+                + 0.0077424461 * ybar**4
+                - 0.0010794123 * ybar**5
             )
         else:
             v = npx.log(y)
@@ -405,9 +405,9 @@ def get_vinokur_grid_steps(
                 + (1 + 1.0 / v) * npx.log(2 * v)
                 - 0.02041793
                 + 0.24902722 * w
-                + 1.9496443 * w ** 2
-                - 2.6294547 * w ** 3
-                + 8.56795911 * w ** 4
+                + 1.9496443 * w**2
+                - 2.6294547 * w**3
+                + 8.56795911 * w**4
             )
         assert abs(1 - npx.sinh(inv) / inv / y) < 1e-2, "precision error"
         return inv

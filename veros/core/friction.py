@@ -388,7 +388,7 @@ def harmonic_friction(state):
     Zonal velocity
     """
     if settings.enable_hor_friction_cos_scaling:
-        fxa = vs.cost ** settings.hor_friction_cosPower
+        fxa = vs.cost**settings.hor_friction_cosPower
         flux_east = update(
             flux_east,
             at[:-1],
@@ -399,7 +399,7 @@ def harmonic_friction(state):
             * vs.maskU[1:]
             * vs.maskU[:-1],
         )
-        fxa = vs.cosu ** settings.hor_friction_cosPower
+        fxa = vs.cosu**settings.hor_friction_cosPower
         flux_north = update(
             flux_north,
             at[:, :-1],
