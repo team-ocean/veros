@@ -4,7 +4,7 @@ requests==2.27.1
 numpy==1.21.6
 scipy==1.8.1
 h5netcdf==1.0.0
-h5py==3.6.0
+h5py==3.7.0
 pillow==9.1.1
 loguru==0.6.0
 tqdm==4.64.0
