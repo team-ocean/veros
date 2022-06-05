@@ -46,6 +46,7 @@ If you want to learn more about the background and capabilities of Veros, you sh
    tutorial/analysis
    tutorial/cluster
    tutorial/dev
+   tutorial/erda
 
 .. toctree::
    :maxdepth: 1
