@@ -7,7 +7,7 @@
 
 echo started at `date`
 
-srun -N 1 -n 1 --exclusive singularity exec ~/modi_images/hpc-ocean-notebook_latest.sif ~/modi_mount/modi_veros_run.sh
+srun -N 1 -n 1 --exclusive singularity exec ~/modi_images/hpc-ocean-notebook_latest.sif ~/modi_mount/modi_veros_run.sh $1
 
 echo finished at `date`
 
