@@ -9,8 +9,8 @@ source $CONDA_DIR/etc/profile.d/conda.sh
 conda activate ~/modi_mount/conda-env-veros
 
 # Change your current directory to available Veros-BGC setup
-cd ~/modi_mount/$1
+cd `dirname "$1"`
 
 # Run your setup in the current directory (~/modi_mount/bgc_global_4deg)
-python3 *.py
+python3 $1
 

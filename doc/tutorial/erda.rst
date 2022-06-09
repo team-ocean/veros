@@ -139,34 +139,29 @@ MPI Oriented Development and Investigation (MODI)
 
 In order to install Veros with the `veros-bgc biogeochemistry plugin <https://veros-bgc.readthedocs.io/en/latest/>`__ start an **Ocean HPC Notebook** from the **Jupyter service** home page following :ref:`the instructions above <erda-jupyter>`.
 
-1. Define in the **Terminal** where the package(s) with Veros dependencies should be installed. To do so, create the corresponding environment variable and the directory for the packages::
-
-      $ export CONDA_PKGS_DIRS=~/modi_mount/conda_dir
-      $ mkdir $CONDA_PKGS_DIRS
-
-2. Change your current directory to ~/modi_mount and clone the Veros repository::
+1. Launch the **Terminal**, change your current directory to ~/modi_mount and clone the Veros repository::
 
       $ cd ~/modi_mount
       $ git clone https://github.com/team-ocean/veros.git -b v0.2.3
 
-3. Create a new conda environment for Veros::
+2. Create a new conda environment for Veros::
 
       $ conda create --prefix ~/modi_mount/conda-env-veros -y python=3.7
 
-4. To use the new environment, activate it via::
+3. To use the new environment, activate it via::
 
       $ conda activate ~/modi_mount/conda-env-veros
 
-5. Install Veros, its biogeochemistry plugin and all relevant dependencies by running::
+4. Install Veros, its biogeochemistry plugin and all relevant dependencies by running::
 
       $ pip3 install ./veros
       $ pip3 install veros-bgc
 
-6. Copy the ``bgc_global_4deg`` model template from the `setup gallery <https://veros-bgc.readthedocs.io/en/latest/reference/setup-gallery.html>`__::
+5. Copy the ``bgc_global_4deg`` model template from the `setup gallery <https://veros-bgc.readthedocs.io/en/latest/reference/setup-gallery.html>`__::
 
       $ veros copy-setup bgc_global_4deg
 
-7. Change your current directory in the JupyterLab file browser (left panel) of the **JupyterLab interface** to ~/modi_mount by double-clicking the modi_mount folder (circled in red).
+6. Change your current directory in the JupyterLab file browser (left panel) of the **JupyterLab interface** to ~/modi_mount by double-clicking the modi_mount folder (circled in red).
 
 .. figure:: /_images/erda/erda_modi_terminal.png
    :width: 100%
@@ -174,17 +169,13 @@ In order to install Veros with the `veros-bgc biogeochemistry plugin <https://ve
 
    JupyterLab interface on MODI.
 
-8. Download the :download:`modi_veros_batch.sh </_downloads/modi_veros_batch.sh>` and :download:`modi_veros_run.sh </_downloads/modi_veros_run.sh>` scripts on your PC/Laptop and upload them to MODI (press circled in red arrow button as on the figure above).
+7. Download the :download:`modi_veros_batch.sh </_downloads/modi_veros_batch.sh>` and :download:`modi_veros_run.sh </_downloads/modi_veros_run.sh>` scripts on your PC/Laptop and upload them to MODI (press circled in red arrow button as on the figure above).
 
-9. Navigate to your setup directory in the JupyterLab file browser and modify (if needed) the model parameters in the :file:`bgc_global_four_degree.py` file with the **JupyterLab editor** following :ref:`the instructions above <erda-jupyter-editor>`.
+8. Navigate to your setup directory in the JupyterLab file browser and modify (if needed) the model parameters in the :file:`bgc_global_four_degree.py` file with the **JupyterLab editor** following :ref:`the instructions above <erda-jupyter-editor>`.
 
-10. Change :file:`modi_veros_batch.sh` and :file:`modi_veros_run.sh` files mode to executables in the **Terminal**::
+9. To run your BGC setup submit a job to MODI's `Slurm <https://slurm.schedmd.com/quickstart.html>`__ queue::
 
-      $ chmod u=rwx ~/modi_mount/modi_veros_batch.sh ~/modi_mount/modi_veros_run.sh
-
-11. To run your BGC setup submit a job to MODI's `Slurm <https://slurm.schedmd.com/quickstart.html>`__ queue::
-
-      $ sbatch ./modi_veros_batch.sh bgc_global_4deg
+      $ sbatch ./modi_veros_batch.sh ~/modi_mount/bgc_global_4deg/bgc_global_four_degree.py
 
 .. note::
 
