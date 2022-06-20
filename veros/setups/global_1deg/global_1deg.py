@@ -193,6 +193,9 @@ class GlobalOneDegreeSetup(VerosSetup):
         vs.taux = update(vs.taux, at[2:-2, 2:-2, :], self._read_forcing("tau_x"))
         vs.tauy = update(vs.tauy, at[2:-2, 2:-2, :], self._read_forcing("tau_y"))
 
+        qnet_data = self._read_forcing("q_net")
+        vs.qnet = update(vs.qnet, at[2:-2, 2:-2, :], -qnet_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
+
         qnec_data = self._read_forcing("dqdt")
         vs.qnec = update(vs.qnec, at[2:-2, 2:-2, :], qnec_data * vs.maskT[2:-2, 2:-2, -1, npx.newaxis])
 
