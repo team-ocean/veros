@@ -4,7 +4,7 @@ Pillow==9.1.1
 Sphinx==5.0.2
 sphinx-rtd-theme==1.0.0
 ipython==8.4.0
-netCDF4==1.5.8
+netCDF4==1.6.0
 xarray==2022.3.0
 matplotlib==3.5.2
 cmocean==2.0
