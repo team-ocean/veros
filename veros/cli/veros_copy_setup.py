@@ -17,8 +17,14 @@ SETUPS = {}
 
 setup_dirs = []
 
+
 for e in entrypoints.get_group_all("veros.setup_dirs"):
-    modpath = os.path.dirname(importlib.util.find_spec(e.module_name).origin)
+    # - hack to prevent actually importing plugins -
+    # we can only find the location of top-level modules
+    # so assume that foo.bar.baz always resolves to foo/bar/baz
+    base_module, *submodules = e.module_name.split(".")
+
+    modpath = os.path.join(os.path.dirname(importlib.util.find_spec(base_module).origin), *submodules)
     setup_dirs.append(modpath)
 
 for setup_dir in os.environ.get(SETUPDIR_ENVVAR, "").split(";"):
