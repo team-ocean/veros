@@ -89,13 +89,6 @@ class _PublicAPI(types.ModuleType):
 
         return VerosState
 
-    @property
-    @_reraise_exceptions
-    def VerosLegacy(self):
-        from veros.veros_legacy import VerosLegacy
-
-        return VerosLegacy
-
 
 sys.modules[__name__].__class__ = _PublicAPI
 
