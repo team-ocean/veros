@@ -72,10 +72,17 @@ def parse_requirements(reqfile):
 
 INSTALL_REQUIRES = parse_requirements("requirements.txt")
 
+
+jax_req = parse_requirements("requirements_jax.txt")
+for line in jax_req:  # inject jaxlib requirement
+    if line.startswith("jax"):
+        jax_req.append(line.replace("jax", "jaxlib"))
+        break
+
 EXTRAS_REQUIRE = {
     "test": ["pytest", "pytest-cov", "pytest-forked", "codecov", "xarray"],
+    "jax": jax_req,
 }
-EXTRAS_REQUIRE["jax"] = parse_requirements("requirements_jax.txt")
 
 
 def get_extensions(require_cython_ext, require_cuda_ext):
