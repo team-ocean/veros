@@ -3,7 +3,7 @@ entrypoints==0.4
 requests==2.28.1
 numpy==1.23.1
 scipy==1.9.0
-h5netcdf==1.0.1
+h5netcdf==1.0.2
 h5py==3.7.0
 pillow==9.2.0
 loguru==0.6.0
