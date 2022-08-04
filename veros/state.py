@@ -438,24 +438,24 @@ class VerosState:
         return xr.Dataset(data_vars, coords=coords, attrs=attrs)
 
 
-def get_default_state(use_plugins=None):
-    if use_plugins is not None:
-        plugin_interfaces = tuple(plugins.load_plugin(p) for p in use_plugins)
-    else:
-        plugin_interfaces = tuple()
-
-    default_settings = deepcopy(settings_mod.SETTINGS)
+def get_default_state(plugin_interfaces=()):
+    if isinstance(plugin_interfaces, plugins.VerosPlugin):
+        plugin_interfaces = [plugin_interfaces]
 
     for plugin in plugin_interfaces:
-        default_settings.update(plugin.settings)
+        if not isinstance(plugin, plugins.VerosPlugin):
+            raise TypeError(f"Got unexpected type {type(plugin)}")
 
-    default_dimensions = deepcopy(var_mod.DIM_TO_SHAPE_VAR)
+    settings = deepcopy(settings_mod.SETTINGS)
+    dimensions = deepcopy(var_mod.DIM_TO_SHAPE_VAR)
     var_meta = deepcopy(var_mod.VARIABLES)
 
     for plugin in plugin_interfaces:
+        settings.update(plugin.settings)
         var_meta.update(plugin.variables)
+        dimensions.update(plugin.dimensions)
 
-    return VerosState(var_meta, default_settings, default_dimensions, plugin_interfaces=plugin_interfaces)
+    return VerosState(var_meta, settings, dimensions, plugin_interfaces=plugin_interfaces)
 
 
 def veros_state_pytree_flatten(state):

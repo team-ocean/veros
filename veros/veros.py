@@ -15,7 +15,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         This class is meant to be subclassed. Subclasses need to implement the
         methods :meth:`set_parameter`, :meth:`set_topography`, :meth:`set_grid`,
         :meth:`set_coriolis`, :meth:`set_initial_conditions`, :meth:`set_forcing`,
-        and :meth:`set_diagnostics`.
+        :meth:`set_diagnostics`, and :meth:`after_timestep`.
 
     Example:
         >>> import matplotlib.pyplot as plt
@@ -42,7 +42,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         self._plugin_interfaces = tuple(load_plugin(p) for p in self.__veros_plugins__)
         self._setup_done = False
 
-        self.state = get_default_state(use_plugins=self.__veros_plugins__)
+        self.state = get_default_state(plugin_interfaces=self._plugin_interfaces)
 
     @abc.abstractmethod
     def set_parameter(self, state):
@@ -142,7 +142,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def set_diagnostics(self, vs):
+    def set_diagnostics(self, state):
         """To be implemented by subclass.
 
         Called before setting up the :ref:`diagnostics <diagnostics>`. Use this method e.g. to
@@ -204,7 +204,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
             self.state.diagnostics.update(diagnostics.create_default_diagnostics(self.state))
 
-            for plugin in self.state.plugin_interfaces:
+            for plugin in self._plugin_interfaces:
                 for diagnostic in plugin.diagnostics:
                     self.state.diagnostics[diagnostic.name] = diagnostic()
 
@@ -413,7 +413,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         timing_summary.extend(
             [
                 "   {:<22} = {:.2f}s".format(plugin.name, self.state.timers[plugin.name].total_time)
-                for plugin in self.state._plugin_interfaces
+                for plugin in self._plugin_interfaces
             ]
         )
 
