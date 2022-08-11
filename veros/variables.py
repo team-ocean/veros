@@ -36,7 +36,7 @@ class Variable:
 
             self.get_mask = mask
 
-        elif dims is not None:
+        elif isinstance(dims, tuple):
             if dims[:3] in DEFAULT_MASKS:
                 self.get_mask = DEFAULT_MASKS[dims[:3]]
             elif dims[:2] in DEFAULT_MASKS:

@@ -6,6 +6,10 @@ def set_options():
     from veros import runtime_settings
 
     object.__setattr__(runtime_settings, "diskless_mode", True)
+    try:
+        yield
+    finally:
+        object.__setattr__(runtime_settings, "diskless_mode", False)
 
 
 @pytest.mark.parametrize("float_type", ("float32", "float64"))

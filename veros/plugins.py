@@ -12,6 +12,7 @@ VerosPlugin = namedtuple(
         "run_entrypoint",
         "settings",
         "variables",
+        "dimensions",
         "diagnostics",
     ],
 )
@@ -37,17 +38,22 @@ def load_plugin(module):
     if not callable(run_entrypoint):
         raise RuntimeError(f"module {modname} is missing a valid run entrypoint")
 
-    name = interface.get("name", module.__name__)
+    name = interface.get("name", modname)
 
-    settings = interface.get("settings", [])
+    settings = interface.get("settings", {})
     for setting, val in settings.items():
         if not isinstance(val, Setting):
             raise TypeError(f"got unexpected type {type(val)} for setting {setting}")
 
-    variables = interface.get("variables", [])
+    variables = interface.get("variables", {})
     for variable, val in variables.items():
         if not isinstance(val, Variable):
             raise TypeError(f"got unexpected type {type(val)} for variable {variable}")
+
+    dimensions = interface.get("dimensions", {})
+    for dim, val in dimensions.items():
+        if not isinstance(val, (str, int)):
+            raise TypeError(f"got unexpected type {type(val)} for dimension {dim}")
 
     diagnostics = interface.get("diagnostics", [])
     for diagnostic in diagnostics:
@@ -61,5 +67,6 @@ def load_plugin(module):
         run_entrypoint=run_entrypoint,
         settings=settings,
         variables=variables,
+        dimensions=dimensions,
         diagnostics=diagnostics,
     )
