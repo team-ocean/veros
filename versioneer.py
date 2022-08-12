@@ -1831,6 +1831,11 @@ def get_cmdclass(cmdclass=None):
             cfg = get_config_from_root(root)
             versions = get_versions()
             _build_py.run(self)
+            # PATCHED MANUALLY
+            # TODO: remove once python-versioneer/python-versioneer#314 is fixed
+            if self.editable_mode:
+                return
+            # /PATCHED MANUALLY
             # now locate _version.py in the new build/ directory and replace
             # it with an updated value
             if cfg.versionfile_build:
