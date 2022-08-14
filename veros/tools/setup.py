@@ -143,7 +143,7 @@ def make_cyclic(longitude, array=None, wrap=360.0):
     return cyclic_longitudes, cyclic_array
 
 
-def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num_candidates=None, n_jobs=-1):
+def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num_candidates=None):
     """Calculate the (approximate) distance of each water cell from the nearest coastline.
 
     Arguments:
@@ -162,8 +162,6 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
             for for each water cell. The higher this value, the more accurate the returned
             distances become when `spherical` is `True`. Defaults to the square root
             of the number of coastal cells.
-        n_jobs (int): Number of parallel jobs to determine nearest neighbors
-            (defaults to -1, which uses all available cores).
 
     Returns:
         :obj:`ndarray` of shape (nx, ny) indicating the distance to the nearest land
@@ -206,12 +204,12 @@ def get_coastline_distance(coords, coast_mask, spherical=False, radius=None, num
         if not num_candidates:
             num_candidates = int(onp.sqrt(onp.count_nonzero(~coast_mask)))
 
-        i_nearest = coast_kdtree.query(watercoords, k=num_candidates, n_jobs=n_jobs)[1]
+        i_nearest = coast_kdtree.query(watercoords, k=num_candidates)[1]
         approx_nearest = coastcoords[i_nearest]
         distance[~coast_mask] = onp.min(spherical_distance(approx_nearest, watercoords[..., onp.newaxis, :]), axis=-1)
 
     else:
-        distance[~coast_mask] = coast_kdtree.query(watercoords, n_jobs=n_jobs)[0]
+        distance[~coast_mask] = coast_kdtree.query(watercoords)[0]
 
     return npx.asarray(distance)
 
