@@ -57,7 +57,7 @@ jobs:
           if [ ${{ runner.os }} = "Linux" ]; then
             export VEROS_REQUIRE_CUDA_EXT=1
           fi
-          pip install cython
+          pip install -U setuptools wheel cython
           python setup.py build_ext --inplace
 
       - name: Test whether Cython extensions are present
