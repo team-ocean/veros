@@ -1,6 +1,6 @@
 import os
 
-from Cython.Distutils import build_ext
+from setuptools.command.build_ext import build_ext
 from distutils.unixccompiler import UnixCCompiler
 
 # This is based on
@@ -118,7 +118,7 @@ def customize_compiler_for_nvcc(self):
 class custom_build_ext(build_ext):
     def build_extensions(self):
         customize_compiler_for_nvcc(self.compiler)
-        build_ext.build_extensions(self)
+        super().build_extensions()
 
 
 cuda_info = locate_cuda()

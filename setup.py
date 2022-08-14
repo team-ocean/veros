@@ -135,7 +135,8 @@ def get_extensions(require_cython_ext, require_cuda_ext):
 
 
 cmdclass = versioneer.get_cmdclass()
-cmdclass.update(build_ext=cuda_ext.custom_build_ext)
+build_ext = type("custom_build_ext", (cuda_ext.custom_build_ext, cmdclass["build_ext"]), {})
+cmdclass.update(build_ext=build_ext)
 
 
 def _env_to_bool(envvar):
