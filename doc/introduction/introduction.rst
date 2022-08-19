@@ -4,7 +4,7 @@ A short introduction to Veros
 The vision
 ----------
 
-Veros is an adaptation of `pyOM2 <https://wiki.zmaw.de/ifm/TO/pyOM2>`_ (v2.1.0), developed at Institut für Meereskunde, Hamburg University. In contrast to pyOM2, however, this implementation does not rely on a Fortran backend for computations - everything runs in pure Python, down to the last parameterization. We believe that using this approach it is possible to create an open source ocean model that is:
+  Veros is an adaptation of `pyOM2 <https://wiki.cen.uni-hamburg.de/ifm/TO/pyOM2>`_ (v2.1.0), developed at Institut für Meereskunde, Hamburg University. In contrast to pyOM2, however, this implementation does not rely on a Fortran backend for computations - everything runs in pure Python, down to the last parameterization. We believe that using this approach it is possible to create an open source ocean model that is:
 
 1. **Easy to access**: Python modules are simple to install, and projects like `Anaconda <https://www.continuum.io/anaconda-overview>`_ are doing a great job in creating platform-independent environments.
 2. **Easy to use**: Anyone with some experience can use their favorite Python tools to set up, control, and post-process Veros.
