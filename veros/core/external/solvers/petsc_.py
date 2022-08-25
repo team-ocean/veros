@@ -125,7 +125,7 @@ class PETScSolver(LinearSolver):
             rhs_norm = self._rhs_petsc.norm(PETSc.NormType.NORM_2)
             self._matrix.multAdd(self._sol_petsc, -self._rhs_petsc, self._rhs_petsc)
             residual_norm = self._rhs_petsc.norm(PETSc.NormType.NORM_2)
-            rel_residual = residual_norm / rhs_norm
+            rel_residual = residual_norm / max(rhs_norm, 1e-22)
 
             if rel_residual > 1e-8:
                 logger.warning(
