@@ -38,11 +38,20 @@ Talks
 Theses
 ------
 
-- Ida Lei Stoustrup. (2021). Automated Parameter Tuning for the Versatile Ocean Simulator (VEROS),
-  MSc project, 111p.
+- Magnus Quaade Oddershede. (2022). Modelling of ocean turbulence.
+  Effects of resolution on predictive power of ocean models, BSc Thesis, 27p.
+  `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Magnus_Quaade_Oddershede_BSc_thesis.pdf>`__.
+- Rasmus Ranum Hansen. (2021). Solving the turbulence closure problem I. The tropical ocean mixed layer,
+  BSc Thesis, 55p.
+  `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Rasmus_Ranum_Hansen_BSc_thesis.pdf>`__.
+- Ida Lei Stoustrup. (2021). Automated parameter tuning for the Versatile Ocean Simulator (Veros),
+  MSc Thesis, 111p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Ida_Stoustrup_MSc_thesis.pdf>`__.
-- Till Grenzdörffer. (2020). Accelerating Ocean Modelling: Adressing performance bottlenecks of
-  the ocean modelling framework Veros, MSc project, 16p.
+- Marte Voorneveld. (2020). The effect of bathymetry changes on major oceanic currents and
+  overturning circulations, BSc Thesis, 31p.
+  `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Marte_Voorneveld_BSc_thesis.pdf>`__.
+- Till Grenzdörffer. (2020). Accelerating ocean modelling: Adressing performance bottlenecks of
+  the ocean modelling framework Veros, MSc Thesis, 16p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Till_Grenzdorffer_MSc_thesis.pdf>`__.
 - Franka Jesse. (2020). Verification of various Island Rules using simulations in application
   to the Indonesian Throughflow, BSc Thesis, 30p.
@@ -50,7 +59,7 @@ Theses
 - Denise Ruijsch. (2020). Multiple equilibria in the Eocene ocean circulation leading to the
   Eocene-Oligocene transition, BSc Thesis, 48p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Denise_Ruijsch_BSc_thesis.pdf>`__.
-- Marie Cecilie Boysen. (2020). Godfrey's Island Rule and the Indonesian Through Flow,
+- Marie Cecilie Boysen. (2020). Godfrey's island rule and the Indonesian Through Flow,
   BSc Thesis, 30p.
   `Link to PDF <https://sid.erda.dk/share_redirect/CVvcrowL22/Thesis/Marie_Cecilie_Boysen_BSc_thesis.pdf>`__.
 - Laurits S. Andreasen. (2019). Time scales of the Bipolar seesaw:
