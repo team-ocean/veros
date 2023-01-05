@@ -123,6 +123,8 @@ class NorthAtlanticSetup(VerosSetup):
 
     @veros_routine(dist_safe=False, local_variables=["kbot", "xt", "yt", "zt"])
     def set_topography(self, state):
+        import numpy as onp
+
         vs = state.variables
         settings = state.settings
 
@@ -137,7 +139,12 @@ class NorthAtlanticSetup(VerosSetup):
         interp_coords = npx.meshgrid(vs.xt[2:-2], vs.yt[2:-2], indexing="ij")
         interp_coords = npx.rollaxis(npx.asarray(interp_coords), 0, 3)
         z_interp = scipy.interpolate.interpn(
-            (topo_x, topo_y), topo_bottom_depth, interp_coords, method="nearest", bounds_error=False, fill_value=0
+            (onp.asarray(topo_x), onp.asarray(topo_y)),
+            topo_bottom_depth,
+            onp.asarray(interp_coords),
+            method="nearest",
+            bounds_error=False,
+            fill_value=0,
         )
         vs.kbot = update(
             vs.kbot,
