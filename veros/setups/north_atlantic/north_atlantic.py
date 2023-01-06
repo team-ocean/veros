@@ -139,9 +139,9 @@ class NorthAtlanticSetup(VerosSetup):
         interp_coords = npx.meshgrid(vs.xt[2:-2], vs.yt[2:-2], indexing="ij")
         interp_coords = npx.rollaxis(npx.asarray(interp_coords), 0, 3)
         z_interp = scipy.interpolate.interpn(
-            (onp.asarray(topo_x), onp.asarray(topo_y)),
+            (onp.array(topo_x), onp.array(topo_y)),
             topo_bottom_depth,
-            onp.asarray(interp_coords),
+            onp.array(interp_coords),
             method="nearest",
             bounds_error=False,
             fill_value=0,
