@@ -37,9 +37,12 @@ def interpolate(coords, var, interp_coords, missing_value=None, fill=True, kind=
     else:
         interp_grid = interp_coords
 
-    coords = [onp.array(c) for c in coords]
+    def as_floatarray(x):
+        return onp.array(x, dtype="float64")
+
+    coords = tuple(as_floatarray(c) for c in coords)
     var = scipy.interpolate.interpn(
-        coords, onp.array(var), interp_grid, bounds_error=False, fill_value=npx.nan, method=kind
+        coords, as_floatarray(var), as_floatarray(interp_grid), bounds_error=False, fill_value=onp.nan, method=kind
     )
     var = npx.asarray(var)
 
