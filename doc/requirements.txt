@@ -7,4 +7,4 @@ ipython==8.11.0
 netCDF4==1.6.3
 xarray==2023.2.0
 matplotlib==3.7.1
-cmocean==2.0
+cmocean==3.0.3
