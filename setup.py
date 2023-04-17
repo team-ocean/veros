@@ -80,7 +80,7 @@ for line in jax_req:  # inject jaxlib requirement
         break
 
 EXTRAS_REQUIRE = {
-    "test": ["pytest", "pytest-cov", "pytest-forked", "codecov", "xarray"],
+    "test": ["pytest", "pytest-cov", "pytest-forked", "xarray"],
     "jax": jax_req,
 }
 
