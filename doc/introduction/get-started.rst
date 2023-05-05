@@ -32,7 +32,7 @@ Using Conda (multi-platform)
    .. exec::
 
       from veros import __version__ as veros_version
-      if "unknown" in veros_version:
+      if "0+untagged" in veros_version:
           veros_version = "main"
       else:
           veros_version = f"v{veros_version}"
@@ -66,10 +66,14 @@ Using pip (Linux / OSX)
    .. exec::
 
       from veros import __version__ as veros_version
+      if "0+untagged" in veros_version:
+          veros_version = "main"
+      else:
+          veros_version = f"v{veros_version}"
       if "+" in veros_version:
           veros_version, _ = veros_version.split("+")
       print(".. code-block::\n")
-      print(f"   $ git clone https://github.com/team-ocean/veros.git -b v{veros_version}")
+      print(f"   $ git clone https://github.com/team-ocean/veros.git -b {veros_version}")
 
    (or `any other version of Veros <https://github.com/team-ocean/veros/releases>`__), or use ::
 

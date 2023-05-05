@@ -34,6 +34,10 @@ sys.path.insert(0, os.path.abspath('_3rdparty'))
 import sphinx_fontawesome
 
 extensions = [
+    # TODO: remove this once fixed upstream
+    # see https://github.com/readthedocs/sphinx_rtd_theme/issues/1452
+    'sphinxcontrib.jquery',
+    #
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.coverage',
@@ -68,6 +72,9 @@ author = u'The Veros Team, NBI Copenhagen'
 # built documents.
 #
 from veros import __version__ as veros_version
+
+if "0+untagged" in veros_version:
+    veros_version = "main"
 
 # The short X.Y version.
 version = veros_version
