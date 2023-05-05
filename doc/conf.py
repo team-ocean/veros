@@ -34,6 +34,10 @@ sys.path.insert(0, os.path.abspath('_3rdparty'))
 import sphinx_fontawesome
 
 extensions = [
+    # TODO: remove this once fixed upstream
+    # see https://github.com/readthedocs/sphinx_rtd_theme/issues/1452
+    'sphinxcontrib.jquery',
+    #
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.coverage',
