@@ -14,7 +14,7 @@
     <img src="https://github.com/team-ocean/veros/actions/workflows/test-all.yml/badge.svg" alt="Test status">
   </a>
   <a href="https://codecov.io/gh/team-ocean/veros">
-    <img src="https://codecov.io/gh/team-ocean/veros/branch/master/graph/badge.svg" alt="Code Coverage">
+    <img src="https://codecov.io/gh/team-ocean/veros/branch/main/graph/badge.svg" alt="Code Coverage">
   </a>
   <a href="https://zenodo.org/badge/latestdoi/87419383">
     <img src="https://zenodo.org/badge/87419383.svg" alt="DOI">
@@ -85,7 +85,7 @@ and model domain you want to use. This is done by subclassing the
 `VerosSetup` base class in a *setup script* that is written in Python. You
 should use the `veros copy-setup` command to copy one into your current
 folder. A good place to start is the
-[ACC model](https://github.com/team-ocean/veros/blob/master/veros/setups/acc/acc.py):
+[ACC model](https://github.com/team-ocean/veros/blob/main/veros/setups/acc/acc.py):
 
 ```bash
 $ veros copy-setup acc
