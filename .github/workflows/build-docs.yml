@@ -22,7 +22,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.9
+          # make sure to use the same version as in .readthedocs.yml
+          python-version: "3.11"
 
       - name: Install requirements
         run: pip install -r doc/requirements.txt

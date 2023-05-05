@@ -69,6 +69,9 @@ author = u'The Veros Team, NBI Copenhagen'
 #
 from veros import __version__ as veros_version
 
+if "0+untagged" in veros_version:
+    veros_version = "main"
+
 # The short X.Y version.
 version = veros_version
 # The full version, including alpha/beta/rc tags.
