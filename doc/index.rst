@@ -66,6 +66,7 @@ If you want to learn more about the background and capabilities of Veros, you sh
    plugins/user-guide
    Biogeochemistry plugin (external) <https://veros-bgc.readthedocs.io>
    Extra setups plugin (external) <https://veros-extra-setups.readthedocs.io>
+   Sea ice plugin (external) <https://veris.readthedocs.io>
    plugins/developer-guide
 
 .. toctree::
