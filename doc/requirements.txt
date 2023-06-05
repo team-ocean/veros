@@ -3,7 +3,7 @@ entrypoints==0.4
 Pillow==9.5.0
 Sphinx==6.2.0
 sphinx-rtd-theme==1.2.1
-ipython==8.13.2
+ipython==8.14.0
 netCDF4==1.6.3
 xarray==2023.5.0
 matplotlib==3.7.1
