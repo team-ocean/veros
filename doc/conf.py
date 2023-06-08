@@ -103,18 +103,16 @@ ipython_savefig_dir = '_generated'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_book_theme"
+html_theme = "furo"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
 html_theme_options = {
-    "logo": {
-        "image_light": "_static/veros-logo-400px.png",
-        "image_dark": "_static/veros-logo-bright-400px.png",
-        "text": f"v{version}",
-    }
+    "light_logo": "veros-logo-400px.png",
+    "dark_logo": "veros-logo-bright-400px.png",
+    "sidebar_hide_name": True,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
