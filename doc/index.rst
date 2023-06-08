@@ -1,11 +1,5 @@
 :tocdepth: 5
 
-
-.. image:: /_images/veros-logo-400px.png
-   :align: center
-
-|
-
 Versatile Ocean Simulation in Pure Python
 =========================================
 

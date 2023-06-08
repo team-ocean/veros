@@ -34,10 +34,6 @@ sys.path.insert(0, os.path.abspath('_3rdparty'))
 import sphinx_fontawesome
 
 extensions = [
-    # TODO: remove this once fixed upstream
-    # see https://github.com/readthedocs/sphinx_rtd_theme/issues/1452
-    'sphinxcontrib.jquery',
-    #
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.coverage',
@@ -107,22 +103,24 @@ ipython_savefig_dir = '_generated'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-import sphinx_rtd_theme
-
-html_theme = "sphinx_rtd_theme"
-
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme = "sphinx_book_theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    "logo": {
+        "image_light": "_static/veros-logo-400px.png",
+        "image_dark": "_static/veros-logo-bright-400px.png",
+        "text": f"v{version}",
+    }
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = []
+html_static_path = ["_static"]
 
 
 # -- Options for HTMLHelp output ------------------------------------------
