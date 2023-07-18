@@ -5,6 +5,6 @@ Sphinx==7.0.1
 furo==2023.5.20
 ipython==8.14.0
 netCDF4==1.6.4
-xarray==2023.6.0
+xarray==2023.7.0
 matplotlib==3.7.2
 cmocean==3.0.3
