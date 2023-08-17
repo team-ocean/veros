@@ -17,6 +17,7 @@ PI = 3.14159265358979323846264338327950588
 
 SETTINGS = {
     "identifier": Setting("UNNAMED", str, "Identifier of the current simulation"),
+    "description": Setting("", str, "Description of the current simulation"),
     # Model parameters
     "nx": Setting(0, int, "Grid points in zonal (x) direction"),
     "ny": Setting(0, int, "Grid points in meridional (y,j) direction"),

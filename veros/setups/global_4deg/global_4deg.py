@@ -32,7 +32,8 @@ class GlobalFourDegreeSetup(VerosSetup):
     def set_parameter(self, state):
         settings = state.settings
 
-        settings.identifier = "4deg"
+        settings.identifier = "global_4deg"
+        settings.description = "My global 4 degree setup"
 
         settings.nx, settings.ny, settings.nz = 90, 40, 15
         settings.dt_mom = 1800.0

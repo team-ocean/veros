@@ -60,6 +60,8 @@ def run(setup_file, *args, **kwargs):
     for setting in runtime_setting_kwargs:
         setattr(runtime_settings, setting, kwargs.pop(setting))
 
+    runtime_settings.setup_file = setup_file
+
     # determine setup class from given Python file
     setup_module = _import_from_file(setup_file)
 

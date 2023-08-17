@@ -92,6 +92,9 @@ class StrictContainer:
     def get(self, key, default=None):
         return getattr(self, key, default)
 
+    def todict(self):
+        return {k: getattr(self, k) for k in self.__fields__}
+
     def __repr__(self):
         attr_str = []
 
