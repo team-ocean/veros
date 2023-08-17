@@ -49,6 +49,17 @@ def test_veros_copy_setup(setup, runner, tmpdir):
     assert "VEROS_VERSION" in setup_content
 
 
+def test_veros_run(runner, tmpdir):
+    from veros import runtime_settings as rs
+
+    setup = "acc"
+    result = runner.invoke(veros.cli.veros_copy_setup.cli, [setup, "--to", os.path.join(tmpdir, setup)])
+
+    object.__setattr__(rs, "__locked__", False)
+    result = runner.invoke(veros.cli.veros_run.cli, [os.path.join(tmpdir, setup, f"{setup}.py")])
+    assert result.exit_code == 0
+
+
 def test_import_isolation(tmpdir):
     TEST_KERNEL = dedent(
         """
