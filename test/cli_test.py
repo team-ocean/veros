@@ -53,11 +53,24 @@ def test_veros_run(runner, tmpdir):
     from veros import runtime_settings as rs
 
     setup = "acc"
-    result = runner.invoke(veros.cli.veros_copy_setup.cli, [setup, "--to", os.path.join(tmpdir, setup)])
 
-    object.__setattr__(rs, "__locked__", False)
-    result = runner.invoke(veros.cli.veros_run.cli, [os.path.join(tmpdir, setup, f"{setup}.py")])
-    assert result.exit_code == 0
+    with runner.isolated_filesystem(tmpdir):
+        result = runner.invoke(veros.cli.veros_copy_setup.cli, [setup])
+
+        old_rs = {key: getattr(rs, key) for key in rs.__settings__}
+        object.__setattr__(rs, "__locked__", False)
+
+        try:
+
+            result = runner.invoke(
+                veros.cli.veros_run.cli, [os.path.join(setup, f"{setup}.py"), "--backend", rs.backend]
+            )
+        finally:
+            # restore old settings
+            for key, val in old_rs.items():
+                object.__setattr__(rs, key, val)
+
+        assert result.exit_code == 0
 
 
 def test_import_isolation(tmpdir):
