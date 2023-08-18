@@ -1,3 +1,4 @@
+import json
 import datetime
 import threading
 import contextlib
@@ -19,6 +20,14 @@ http://ferret.pmel.noaa.gov/Ferret/documentation/coards-netcdf-conventions
 """
 
 
+def _get_setup_code(pyfile):
+    try:
+        with open(pyfile, "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "UNKNOWN"
+
+
 def initialize_file(state, ncfile, extra_dimensions=None, create_time_dimension=True):
     """
     Define standard grid in netcdf file
@@ -28,10 +37,21 @@ def initialize_file(state, ncfile, extra_dimensions=None, create_time_dimension=
     if not isinstance(ncfile, h5netcdf.File):
         raise TypeError("Argument needs to be a netCDF4 Dataset")
 
+    if rs.setup_file is None:
+        setup_file = "UNKNOWN"
+        setup_code = "UNKNOWN"
+    else:
+        setup_file = rs.setup_file
+        setup_code = _get_setup_code(rs.setup_file)
+
     ncfile.attrs.update(
         date_created=datetime.datetime.today().isoformat(),
         veros_version=veros_version,
         setup_identifier=state.settings.identifier,
+        setup_description=state.settings.description,
+        setup_settings=json.dumps(state.settings.todict()),
+        setup_file=setup_file,
+        setup_code=setup_code,
     )
 
     dimensions = dict(state.dimensions)

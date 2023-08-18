@@ -105,6 +105,7 @@ AVAILABLE_SETTINGS = {
     "force_overwrite": RuntimeSetting(bool, False),
     "diskless_mode": RuntimeSetting(bool, False),
     "pyom_compatibility_mode": RuntimeSetting(bool, False),
+    "setup_file": RuntimeSetting(str, None, read_from_env=False),
 }
 
 

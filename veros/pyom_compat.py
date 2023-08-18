@@ -27,6 +27,7 @@ VEROS_TO_PYOM_VAR = dict(
 VEROS_TO_PYOM_SETTING = dict(
     # do not exist in pyom
     identifier=None,
+    description=None,
     enable_noslip_lateral=None,
     restart_input_filename=None,
     restart_output_filename=None,
