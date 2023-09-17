@@ -6,5 +6,5 @@ furo==2023.9.10
 ipython==8.15.0
 netCDF4==1.6.4
 xarray==2023.8.0
-matplotlib==3.7.3
+matplotlib==3.8.0
 cmocean==3.0.3
