@@ -104,7 +104,12 @@ def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask, use_ext=None):
     import jax.lax
     import jax.numpy as jnp
 
-    from veros.core.special.tdma_ import tdma, HAS_CPU_EXT, HAS_GPU_EXT
+    try:
+        from veros.core.special.tdma_ import tdma, HAS_CPU_EXT, HAS_GPU_EXT
+    except ImportError:
+        # graceful fallback if TDMA extension is broken
+        HAS_CPU_EXT = False
+        HAS_GPU_EXT = False
 
     if use_ext is None:
         use_ext = (HAS_CPU_EXT and runtime_settings.device == "cpu") or (
