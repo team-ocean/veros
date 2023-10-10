@@ -141,12 +141,22 @@ In order to install Veros with the `veros-bgc biogeochemistry plugin <https://ve
 
 1. Launch the **Terminal**, change your current directory to ~/modi_mount and clone the Veros repository::
 
-      $ cd ~/modi_mount
-      $ git clone https://github.com/team-ocean/veros.git -b v0.2.3
+.. exec::
+
+      from veros import __version__ as veros_version
+      if "0+untagged" in veros_version:
+            veros_version = "main"
+      else:
+            veros_version = f"v{veros_version}"
+      if "+" in veros_version:
+            veros_version, _ = veros_version.split("+")
+      print(".. code-block::\n")
+      print("   $ cd ~/modi_mount")
+      print(f"   $ git clone https://github.com/team-ocean/veros.git -b {veros_version}")
 
 2. Create a new conda environment for Veros::
 
-      $ conda create --prefix ~/modi_mount/conda-env-veros -y python=3.7
+      $ conda create --prefix ~/modi_mount/conda-env-veros -y python=3.11
 
 3. To use the new environment, activate it via::
 
