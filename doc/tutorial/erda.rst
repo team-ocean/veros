@@ -71,15 +71,20 @@ Data Analysis Gateway (DAG)
 
 In order to install Veros on a DAG instance do the following after launching the **Terminal**:
 
-1. Clone the Veros repository
+1. Clone the Veros repository:
 
    .. exec::
 
       from veros import __version__ as veros_version
+      if "0+untagged" in veros_version:
+            veros_version = "main"
+      else:
+            veros_version = f"v{veros_version}"
       if "+" in veros_version:
-          veros_version, _ = veros_version.split("+")
+            veros_version, _ = veros_version.split("+")
       print(".. code-block::\n")
-      print(f"   $ git clone https://github.com/team-ocean/veros.git -b v{veros_version}")
+      print("   $ cd ~/modi_mount")
+      print(f"   $ git clone https://github.com/team-ocean/veros.git -b {veros_version}")
 
    (or `any other version of Veros <https://github.com/team-ocean/veros/releases>`__).
 
@@ -139,9 +144,9 @@ MPI Oriented Development and Investigation (MODI)
 
 In order to install Veros with the `veros-bgc biogeochemistry plugin <https://veros-bgc.readthedocs.io/en/latest/>`__ start an **Ocean HPC Notebook** from the **Jupyter service** home page following :ref:`the instructions above <erda-jupyter>`.
 
-1. Launch the **Terminal**, change your current directory to ~/modi_mount and clone the Veros repository::
+1. Launch the **Terminal**, change your current directory to ~/modi_mount and clone the Veros repository:
 
-.. exec::
+   .. exec::
 
       from veros import __version__ as veros_version
       if "0+untagged" in veros_version:
