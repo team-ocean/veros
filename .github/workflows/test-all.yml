@@ -48,7 +48,7 @@ jobs:
           path: ~/.cache/pip
           key: ${{ matrix.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements*.txt') }}
           restore-keys: |
-            ${{ matrix.os }}-pip-
+            ${{ matrix.os }}-pip-${{ matrix.python-version }}-
 
       - name: Restore PyOM2 build cache
         uses: actions/cache@v2
