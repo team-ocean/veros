@@ -148,7 +148,7 @@ def tdma_xla_encode_gpu(ctx, a, b, c, d, system_depths):
         raise ValueError("TDMA does not support system_depths argument on GPU")
 
     x_aval, *_ = ctx.avals_in
-    x_nptype = x_aval.dtype
+    np_dtype = x_aval.dtype
 
     x_type = ir.RankedTensorType(a.type)
     dtype = x_type.element_type
@@ -159,7 +159,7 @@ def tdma_xla_encode_gpu(ctx, a, b, c, d, system_depths):
         np.dtype(np.float64),
     )
 
-    if x_nptype not in supported_dtypes:
+    if np_dtype not in supported_dtypes:
         raise TypeError(f"TDMA only supports {supported_dtypes} arrays, got: {dtype}")
 
     # compute number of elements to vectorize over
@@ -169,9 +169,9 @@ def tdma_xla_encode_gpu(ctx, a, b, c, d, system_depths):
 
     system_depth = dims[-1]
 
-    if dtype is np.dtype(np.float32):
+    if np_dtype is np.dtype(np.float32):
         kernel = b"tdma_cuda_float"
-    elif dtype is np.dtype(np.float64):
+    elif np_dtype is np.dtype(np.float64):
         kernel = b"tdma_cuda_double"
     else:
         raise RuntimeError("got unrecognized dtype")
@@ -187,7 +187,7 @@ def tdma_xla_encode_gpu(ctx, a, b, c, d, system_depths):
     out = custom_call(
         kernel,
         operands=(a, b, c, d),
-        result_tyes=out_types,
+        result_types=out_types,
         result_layouts=out_layouts,
         operand_layouts=(arr_layout,) * 4,
         backend_config=descriptor,
