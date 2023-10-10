@@ -80,7 +80,7 @@ jobs:
         run: |
           git clone -b v$PETSC_VERSION --depth 1 https://gitlab.com/petsc/petsc.git $PETSC_DIR
           pushd $PETSC_DIR
-          ./configure --with-debugging=0 -with-shared-libraries --with-precision=double
+          python2 ./configure --with-debugging=0 -with-shared-libraries --with-precision=double
           make all
           popd
 
