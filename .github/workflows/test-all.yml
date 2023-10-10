@@ -23,7 +23,7 @@ jobs:
 
     env:
       PYOM2_DIR: /home/runner/pyom2
-      PETSC_VERSION: "3.20"
+      PETSC_VERSION: "3.20.0"
       PETSC_DIR: /home/runner/petsc
       PETSC_ARCH: arch-linux-c-opt
       OMPI_MCA_rmaps_base_oversubscribe: "1"
