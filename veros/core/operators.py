@@ -99,10 +99,12 @@ def scan_numpy(f, init, xs, length=None):
     return carry, np.stack(ys)
 
 
-@veros_kernel(static_args=("use_ext",))
-def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask, use_ext=None):
+@veros_kernel
+def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask):
     import jax.lax
     import jax.numpy as jnp
+
+    use_ext = runtime_settings.use_special_tdma
 
     try:
         from veros.core.special.tdma_ import tdma, HAS_CPU_EXT, HAS_GPU_EXT

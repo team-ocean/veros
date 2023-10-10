@@ -31,7 +31,8 @@ def test_solve_tridiag_jax(pyom2_lib, use_ext):
             )
 
     _, water_mask, edge_mask = create_water_masks(kbot, nz)
-    out_vs = solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask, use_ext=use_ext)
+    object.__setattr__(runtime_settings, "use_special_tdma", use_ext)
+    out_vs = solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask)
 
     np.testing.assert_allclose(out_pyom, out_vs)
 

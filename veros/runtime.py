@@ -101,11 +101,12 @@ AVAILABLE_SETTINGS = {
     "log_all_processes": RuntimeSetting(set_log_all_processes, False),
     "use_io_threads": RuntimeSetting(parse_bool, False),
     "io_timeout": RuntimeSetting(float, 20),
-    "hdf5_gzip_compression": RuntimeSetting(bool, True),
-    "force_overwrite": RuntimeSetting(bool, False),
-    "diskless_mode": RuntimeSetting(bool, False),
-    "pyom_compatibility_mode": RuntimeSetting(bool, False),
+    "hdf5_gzip_compression": RuntimeSetting(parse_bool, True),
+    "force_overwrite": RuntimeSetting(parse_bool, False),
+    "diskless_mode": RuntimeSetting(parse_bool, False),
+    "pyom_compatibility_mode": RuntimeSetting(parse_bool, False),
     "setup_file": RuntimeSetting(str, None, read_from_env=False),
+    "use_special_tdma": RuntimeSetting(parse_bool, None),
 }
 
 
