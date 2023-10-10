@@ -16,12 +16,13 @@ import numpy as np
 import jax.numpy as jnp
 
 import jax
-from jax import abstract_arrays
-from jax.core import Primitive
-from jax.lib import xla_client
-from jax.interpreters import xla
+from jax.core import Primitive, ShapedArray
 
-_ops = xla_client.ops
+from jax.lib import xla_client
+from jax.interpreters import xla, mlir
+import jaxlib.mlir.ir as ir
+from jaxlib.mlir.dialects import mhlo
+
 
 if HAS_CPU_EXT:
     for kernel_name in (b"tdma_cython_double", b"tdma_cython_float"):
@@ -31,11 +32,16 @@ if HAS_CPU_EXT:
 if HAS_GPU_EXT:
     for kernel_name in (b"tdma_cuda_double", b"tdma_cuda_float"):
         fn = tdma_cuda_.gpu_custom_call_targets[kernel_name]
-        xla_client.register_custom_call_target(kernel_name, fn, platform="gpu")
+        xla_client.register_custom_call_target(kernel_name, fn, platform="CUDA")
 
 
-def _constant_s64_scalar(c, x):
-    return _ops.Constant(c, np.int64(x))
+def as_mhlo_constant(val, dtype):
+    if isinstance(val, mhlo.ConstantOp):
+        return val
+
+    return mhlo.ConstantOp(
+        ir.DenseElementsAttr.get(np.array([val], dtype=dtype), type=mlir.dtype_to_ir_type(np.dtype(dtype)))
+    ).result
 
 
 def tdma(a, b, c, d, interior_mask, edge_mask, device=None):
@@ -64,20 +70,23 @@ def tdma_impl(*args, **kwargs):
     return xla.apply_primitive(tdma_p, *args, **kwargs)
 
 
-def tdma_xla_encode_cpu(builder, a, b, c, d, system_depths):
+def tdma_xla_encode_cpu(ctx, a, b, c, d, system_depths):
     # try import again to trigger exception on ImportError
     from veros.core.special import tdma_cython_  # noqa: F401
 
-    x_shape = builder.GetShape(a)
-    dtype = x_shape.element_type()
-    dims = x_shape.dimensions()
+    x_aval, *_ = ctx.avals_in
+    np_dtype = x_aval.dtype
+
+    x_type = ir.RankedTensorType(a.type)
+    dtype = x_type.element_type
+    dims = x_type.shape
 
     supported_dtypes = (
         np.dtype(np.float32),
         np.dtype(np.float64),
     )
 
-    if dtype not in supported_dtypes:
+    if np_dtype not in supported_dtypes:
         raise TypeError(f"TDMA only supports {supported_dtypes} arrays, got: {dtype}")
 
     # compute number of elements to vectorize over
@@ -87,24 +96,19 @@ def tdma_xla_encode_cpu(builder, a, b, c, d, system_depths):
 
     stride = dims[-1]
 
-    sys_depth_shape = builder.get_shape(system_depths)
-    sys_depth_dtype = sys_depth_shape.element_type()
-    sys_depth_dims = sys_depth_shape.dimensions()
-    assert sys_depth_dtype is np.dtype(np.int32)
-    assert tuple(sys_depth_dims) == tuple(dims[:-1])
+    out_types = [
+        ir.RankedTensorType.get(dims, dtype),
+        ir.RankedTensorType.get((stride,), dtype),
+    ]
 
-    arr_shape = xla_client.Shape.array_shape(dtype, dims)
-    out_shape = xla_client.Shape.tuple_shape([arr_shape, xla_client.Shape.array_shape(dtype, (stride,))])
-
-    if dtype is np.dtype(np.float32):
+    if np_dtype is np.dtype(np.float32):
         kernel = b"tdma_cython_float"
-    elif dtype is np.dtype(np.float64):
+    elif np_dtype is np.dtype(np.float64):
         kernel = b"tdma_cython_double"
     else:
         raise RuntimeError("got unrecognized dtype")
 
-    out = _ops.CustomCall(
-        builder,
+    out = mlir.custom_call(
         kernel,
         operands=(
             a,
@@ -112,31 +116,34 @@ def tdma_xla_encode_cpu(builder, a, b, c, d, system_depths):
             c,
             d,
             system_depths,
-            _constant_s64_scalar(builder, num_systems),
-            _constant_s64_scalar(builder, stride),
+            as_mhlo_constant(num_systems, np.int64),
+            as_mhlo_constant(stride, np.int64),
         ),
-        shape=out_shape,
+        result_types=out_types,
     )
-    return _ops.GetTupleElement(out, 0)
+    return out.results[:-1]
 
 
-def tdma_xla_encode_gpu(builder, a, b, c, d, system_depths):
+def tdma_xla_encode_gpu(ctx, a, b, c, d, system_depths):
     # try import again to trigger exception on ImportError
     from veros.core.special import tdma_cuda_  # noqa: F401
 
     if system_depths is not None:
         raise ValueError("TDMA does not support system_depths argument on GPU")
 
-    a_shape = builder.get_shape(a)
-    dtype = a_shape.element_type()
-    dims = a_shape.dimensions()
+    x_aval, *_ = ctx.avals_in
+    x_nptype = x_aval.dtype
+
+    x_type = ir.RankedTensorType(a.type)
+    dtype = x_type.element_type
+    dims = x_type.shape
 
     supported_dtypes = (
         np.dtype(np.float32),
         np.dtype(np.float64),
     )
 
-    if dtype not in supported_dtypes:
+    if x_nptype not in supported_dtypes:
         raise TypeError(f"TDMA only supports {supported_dtypes} arrays, got: {dtype}")
 
     # compute number of elements to vectorize over
@@ -153,31 +160,32 @@ def tdma_xla_encode_gpu(builder, a, b, c, d, system_depths):
     else:
         raise RuntimeError("got unrecognized dtype")
 
-    opaque = tdma_cuda_.build_tridiag_descriptor(num_systems, system_depth)
+    descriptor = tdma_cuda_.build_tridiag_descriptor(num_systems, system_depth)
 
     ndims = len(dims)
     arr_layout = tuple(range(ndims - 2, -1, -1)) + (ndims - 1,)
-    arr_shape = xla_client.Shape.array_shape(dtype, dims, arr_layout)
-    out_shape = xla_client.Shape.tuple_shape([arr_shape, arr_shape])
 
-    out = _ops.CustomCallWithLayout(
-        builder,
+    out_types = [ir.RankedTensorType.get(dims, dtype), ir.RankedTensorType.get(dims, dtype)]
+    out_layouts = (arr_layout, arr_layout)
+
+    out = mlir.custom_call(
         kernel,
         operands=(a, b, c, d),
-        shape_with_layout=out_shape,
-        operand_shapes_with_layout=(arr_shape,) * 4,
-        opaque=opaque,
+        result_tyes=out_types,
+        result_layouts=out_layouts,
+        operand_layouts=(arr_layout,) * 4,
+        backend_config=descriptor,
     )
-    return _ops.GetTupleElement(out, 0)
+    return out.results[:-1]
 
 
 def tdma_abstract_eval(a, b, c, d, system_depths):
-    return abstract_arrays.ShapedArray(a.shape, a.dtype)
+    return ShapedArray(a.shape, a.dtype)
 
 
 tdma_p = Primitive("tdma")
 tdma_p.def_impl(tdma_impl)
 tdma_p.def_abstract_eval(tdma_abstract_eval)
 
-xla.backend_specific_translations["cpu"][tdma_p] = tdma_xla_encode_cpu
-xla.backend_specific_translations["gpu"][tdma_p] = tdma_xla_encode_gpu
+mlir.register_lowering(tdma_p, tdma_xla_encode_cpu, platform="cpu")
+mlir.register_lowering(tdma_p, tdma_xla_encode_gpu, platform="cuda")
