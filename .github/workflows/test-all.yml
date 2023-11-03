@@ -73,7 +73,7 @@ jobs:
       - name: Install system requirements
         run: |
           sudo apt-get update
-          sudo apt-get install libopenmpi-dev meson
+          sudo apt-get install libopenmpi-dev
 
       - name: Build PETSc
         if: steps.petsc-cache.outputs.cache-hit != 'true'
@@ -100,6 +100,7 @@ jobs:
       - name: Build PyOM2
         if: steps.pyom2-cache.outputs.cache-hit != 'true'
         run: |
+          pip install meson
           mkdir -p $PYOM2_DIR
           cp -r vendor/pyom2/* $PYOM2_DIR
           pushd $PYOM2_DIR
