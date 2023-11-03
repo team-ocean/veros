@@ -100,7 +100,7 @@ jobs:
       - name: Build PyOM2
         if: steps.pyom2-cache.outputs.cache-hit != 'true'
         run: |
-          pip install meson
+          pip install meson ninja
           mkdir -p $PYOM2_DIR
           cp -r vendor/pyom2/* $PYOM2_DIR
           pushd $PYOM2_DIR
