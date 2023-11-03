@@ -109,7 +109,7 @@ jobs:
           for patchfile in ./patches/*.patch; do
             git apply --whitespace=fix $patchfile
           done
-          make -C py_src -j 4 > /dev/null
+          make -C py_src -j 4
           popd
 
       - name: Export paths
