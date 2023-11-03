@@ -40,7 +40,8 @@ class NorthAtlanticSetup(VerosSetup):
     def set_parameter(self, state):
         settings = state.settings
 
-        settings.identifier = "na"
+        settings.identifier = "north_atlantic"
+        settings.description = "North Atlantic setup"
 
         settings.nx, settings.ny, settings.nz = 250, 350, 50
         settings.x_origin = -98.0

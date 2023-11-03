@@ -30,7 +30,8 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
     def set_parameter(self, state):
         settings = state.settings
 
-        settings.identifier = "UNNAMED"
+        settings.identifier = "global_flexible"
+        settings.description = "Global model with flexible resolution"
 
         settings.nx = 360
         settings.ny = 160

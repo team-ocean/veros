@@ -22,6 +22,9 @@ class GlobalOneDegreeSetup(VerosSetup):
         """
         settings = state.settings
 
+        settings.identifier = "global_1deg"
+        settings.description = "My global 1 degree setup"
+
         settings.nx = 360
         settings.ny = 160
         settings.nz = 115

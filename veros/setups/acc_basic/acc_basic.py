@@ -24,6 +24,7 @@ class ACCBasicSetup(VerosSetup):
     def set_parameter(self, state):
         settings = state.settings
         settings.identifier = "acc_basic"
+        settings.description = "My ACC basic setup"
 
         settings.nx, settings.ny, settings.nz = 30, 42, 15
         settings.dt_mom = 4800

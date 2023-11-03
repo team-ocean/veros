@@ -23,6 +23,7 @@ class ACCSetup(VerosSetup):
     def set_parameter(self, state):
         settings = state.settings
         settings.identifier = "acc"
+        settings.description = "My ACC setup"
 
         settings.nx, settings.ny, settings.nz = 30, 42, 15
         settings.dt_mom = 4800
