@@ -41,7 +41,7 @@ def unparse(args):
 
 def call_veros(cmd, name, n, runlen):
     identifier = f"{name}.{n:0>4}"
-    prev_id = f"{name}.{n-1:0>4}"
+    prev_id = f"{name}.{n - 1:0>4}"
     args = [
         "-s",
         "identifier",

@@ -47,7 +47,7 @@ def main(pyom2_lib, timesteps, size):
 
         end = perf_counter()
 
-        logger.debug(f"Time step took {end-start}s")
+        logger.debug(f"Time step took {end - start}s")
 
 
 if __name__ == "__main__":

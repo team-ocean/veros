@@ -61,7 +61,6 @@ def test_veros_run(runner, tmpdir):
         object.__setattr__(rs, "__locked__", False)
 
         try:
-
             result = runner.invoke(
                 veros.cli.veros_run.cli, [os.path.join(setup, f"{setup}.py"), "--backend", rs.backend]
             )
