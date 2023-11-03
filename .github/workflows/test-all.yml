@@ -67,7 +67,7 @@ jobs:
       - name: Setup Python environment
         run: |
           python -m pip install --upgrade pip
-          pip install wheel
+          pip install setuptools wheel
           pip install cython
 
       - name: Install system requirements
