@@ -60,7 +60,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Veros'
-copyright = u'2017-2020, The Veros Team, NBI Copenhagen'
+copyright = u'2017-2023, The Veros Team, NBI Copenhagen'
 author = u'The Veros Team, NBI Copenhagen'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -95,7 +95,7 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
-# Redifine the default output path of ipython directive @savefig
+# Redefine the default output path of ipython directive @savefig
 ipython_savefig_dir = '_generated'
 
 # -- Options for HTML output ----------------------------------------------
