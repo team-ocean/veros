@@ -6,4 +6,4 @@ F90FLAGS = -llapack -lblas -fconvert=big-endian -O3 -Wall #-check bounds
 
 # python front end
 F2PYFLAGS = -llapack -lblas
-F2PY_MPIFLAGS = -I/usr/lib/x86_64-linux-gnu/openmpi/include -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi
+F2PY_MPIFLAGS = $(shell mpif90 --showme:link) $(shell mpif90 --showme:compile)
