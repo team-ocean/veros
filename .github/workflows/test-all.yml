@@ -73,7 +73,7 @@ jobs:
       - name: Install system requirements
         run: |
           sudo apt-get update
-          sudo apt-get install libopenmpi-dev
+          sudo apt-get install libopenmpi-dev liblapack-dev libblas-dev
 
       - name: Build PETSc
         if: steps.petsc-cache.outputs.cache-hit != 'true'
