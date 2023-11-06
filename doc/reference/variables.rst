@@ -27,7 +27,7 @@ condition is :obj:`True` at the time of variable allocation.
 .. _flag_legend:
 
 Attributes:
-  | :fa:`clock-o`: Time-dependent
+  | :fa:`clock`: Time-dependent
   | :fa:`question-circle`: Conditional
   | :fa:`repeat`: Written to restart files by default
 
@@ -54,7 +54,7 @@ Attributes:
 
       flags = ""
       if var.time_dependent:
-          flags += ":fa:`clock-o` "
+          flags += ":fa:`clock` "
       if is_conditional:
           flags += ":fa:`question-circle` "
       if var.write_to_restart:
