@@ -5,5 +5,5 @@ MPIFLAGS =
 F90FLAGS = -llapack -lblas -fconvert=big-endian -O3 -Wall #-check bounds
 
 # python front end
-F2PYFLAGS = -llapack -lblas
+F2PYFLAGS = -llapack -lblas -L/usr/lib/x86_64-linux-gnu/blas -L/usr/lib/x86_64-linux-gnu/lapack
 F2PY_MPIFLAGS = $(shell mpif90 --showme:link) $(shell mpif90 --showme:compile)
