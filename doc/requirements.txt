@@ -8,3 +8,4 @@ netCDF4==1.6.5
 xarray==2023.10.1
 matplotlib==3.8.1
 cmocean==3.0.3
+pickleshare==0.7.5
