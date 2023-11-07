@@ -111,8 +111,7 @@ jobs:
             git apply --whitespace=fix $patchfile
           done
           make -C py_src -j 4
-          ls /usr/lib/x86_64-linux-gnu/blas
-          ls /usr/lib/x86_64-linux-gnu/lapack
+          cd py_src
           python -c "import pyOM_code; print(pyOM_code.__file__)"
           python -c "import pyOM_code_MPI; print(pyOM_code_MPI.__file__)"
           popd
