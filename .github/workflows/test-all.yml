@@ -116,10 +116,6 @@ jobs:
             git apply --whitespace=fix $patchfile
           done
           make -C py_src -j 4
-          cd py_src
-          ls -l
-          python -c "import pyOM_code; print(pyOM_code.__file__)"
-          python -c "import pyOM_code_MPI; print(pyOM_code_MPI.__file__)"
           popd
 
       - name: Export paths
