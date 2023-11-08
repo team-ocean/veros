@@ -100,11 +100,16 @@ jobs:
       - name: Build PyOM2
         if: steps.pyom2-cache.outputs.cache-hit != 'true'
         run: |
-          pip install meson ninja
           mkdir -p $PYOM2_DIR
           cp -r vendor/pyom2/* $PYOM2_DIR
           pushd $PYOM2_DIR
-          mv pyOM2_site_specific site_specific.mk_
+          if [ ${{ matrix.python-version }} == "3.8" ]
+          then
+            mv pyOM2_site_specific_distutils site_specific.mk_
+          else
+            pip install meson ninja
+            mv pyOM2_site_specific_meson site_specific.mk_
+          fi
           tar xzf pyOM2.1.0.tar.gz
           git init
           for patchfile in ./patches/*.patch; do
