@@ -47,7 +47,7 @@ Using Conda (multi-platform)
 
 3. Create a new conda environment for Veros, and install all relevant dependencies by running ::
 
-       $ conda env create -f conda-environment.yml
+       $ cd veros/ && conda env create -f conda-environment.yml
 
    from the Veros root directory.
 
