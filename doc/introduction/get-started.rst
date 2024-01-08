@@ -27,7 +27,7 @@ Using Conda (multi-platform)
 
 1. `Download and install Miniconda <https://docs.conda.io/en/latest/miniconda.html>`__. If you are using Windows, you may use the Anaconda prompt to execute the following steps.
 
-2. Clone the Veros repository
+2. Clone the Veros repository:
 
    .. exec::
 
@@ -47,9 +47,8 @@ Using Conda (multi-platform)
 
 3. Create a new conda environment for Veros, and install all relevant dependencies by running ::
 
+       $ cd veros/  # if not already in the veros directory
        $ conda env create -f conda-environment.yml
-
-   from the Veros root directory.
 
 4. To use Veros, just activate your new conda environment via ::
 
