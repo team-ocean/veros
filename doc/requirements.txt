@@ -2,7 +2,7 @@ click==8.1.7
 entrypoints==0.4
 Pillow==10.2.0
 Sphinx==7.2.6
-furo==2023.9.10
+furo==2024.1.29
 ipython==8.20.0
 netCDF4==1.6.5
 xarray==2024.1.1
