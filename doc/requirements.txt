@@ -3,7 +3,7 @@ entrypoints==0.4
 Pillow==10.2.0
 Sphinx==7.2.6
 furo==2024.1.29
-ipython==8.21.0
+ipython==8.22.1
 netCDF4==1.6.5
 xarray==2024.2.0
 matplotlib==3.8.3
