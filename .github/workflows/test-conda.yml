@@ -39,9 +39,8 @@ jobs:
           key:
             ${{ runner.os }}-conda-${{hashFiles('conda-environment.yml') }}
 
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: conda-incubator/setup-miniconda@v3
         with:
-          miniconda-version: "latest"
           activate-environment: veros
           environment-file: conda-environment.yml
           use-only-tar-bz2: true
