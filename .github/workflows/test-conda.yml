@@ -41,7 +41,7 @@ jobs:
 
       - uses: conda-incubator/setup-miniconda@v3
         with:
-          # miniconda-version: "latest"
+          miniconda-version: "latest"
           # miniforge-version: "latest"
           activate-environment: veros
           environment-file: conda-environment.yml
