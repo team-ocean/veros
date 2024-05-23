@@ -43,9 +43,9 @@ jobs:
         with:
           miniconda-version: "latest"
           # miniforge-version: "latest"
-          activate-environment: veros
-          environment-file: conda-environment.yml
-          use-only-tar-bz2: true
+          # activate-environment: veros
+          # environment-file: conda-environment.yml
+          # use-only-tar-bz2: true
           # auto-update-conda: true
 
       - name: Install test dependencies
