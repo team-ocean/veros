@@ -32,12 +32,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Cache conda
-        uses: actions/cache@v2
-        with:
-          path: ~/conda_pkgs_dir
-          key:
-            ${{ runner.os }}-conda-${{hashFiles('conda-environment.yml') }}
+      # - name: Cache conda
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: ~/conda_pkgs_dir
+      #     key:
+      #       ${{ runner.os }}-conda-${{hashFiles('conda-environment.yml') }}
 
       - uses: conda-incubator/setup-miniconda@v3
         with:
