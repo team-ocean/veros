@@ -40,11 +40,11 @@ jobs:
       #       ${{ runner.os }}-conda-${{hashFiles('conda-environment.yml') }}
 
       - uses: conda-incubator/setup-miniconda@v3
-        # with:
+        with:
           # miniconda-version: "latest"
           # miniforge-version: "latest"
           # activate-environment: veros
-          # environment-file: conda-environment.yml
+          environment-file: conda-environment.yml
           # use-only-tar-bz2: true
           # auto-update-conda: true
 
