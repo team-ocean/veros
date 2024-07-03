@@ -53,7 +53,7 @@ class SciPySolver(LinearSolver):
             rhs,
             x0=x0,
             atol=1e-8,
-            rtol=0,
+            tol=0,
             maxiter=1000,
             **self._extra_args,
         )
