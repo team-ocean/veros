@@ -6,6 +6,7 @@ channels:
 dependencies:
     - python=3.12
     - pip
+    - setuptools
     - click
     - entrypoints
     - requests
