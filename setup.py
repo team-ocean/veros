@@ -22,7 +22,6 @@ Development Status :: 4 - Beta
 Intended Audience :: Science/Research
 License :: OSI Approved :: MIT License
 Programming Language :: Python :: 3
-Programming Language :: Python :: 3.8
 Programming Language :: Python :: 3.9
 Programming Language :: Python :: 3.10
 Programming Language :: Python :: 3.11
@@ -159,7 +158,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://veros.readthedocs.io",
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     version=versioneer.get_version(),
     cmdclass=cmdclass,
     packages=find_packages(),

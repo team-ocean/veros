@@ -18,7 +18,7 @@ jobs:
 
       matrix:
         os: [ubuntu-20.04]
-        python-version: ["3.8", "3.12"]
+        python-version: ["3.9", "3.12"]
         backend: [numpy, jax]
 
     env:
@@ -103,13 +103,8 @@ jobs:
           mkdir -p $PYOM2_DIR
           cp -r vendor/pyom2/* $PYOM2_DIR
           pushd $PYOM2_DIR
-          if [ ${{ matrix.python-version }} == "3.8" ]
-          then
-            mv pyOM2_site_specific_distutils site_specific.mk_
-          else
-            pip install meson ninja
-            mv pyOM2_site_specific_meson site_specific.mk_
-          fi
+          pip install meson ninja
+          mv pyOM2_site_specific_meson site_specific.mk_
           tar xzf pyOM2.1.0.tar.gz
           git init
           for patchfile in ./patches/*.patch; do

@@ -2,10 +2,11 @@ name: veros
 
 channels:
     - conda-forge
+    - nodefaults
 
 dependencies:
-    - python=3.8
-    - pip
+    - python=3.12
+    - pip>=24.0
     - click
     - entrypoints
     - requests
