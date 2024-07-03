@@ -2,6 +2,7 @@ name: veros
 
 channels:
     - conda-forge
+    - nodefaults
 
 dependencies:
     - python=3.12
@@ -18,4 +19,4 @@ dependencies:
     - tqdm
     - cython
     - pip:
-        - -e .
+        - -e . --no-deps
