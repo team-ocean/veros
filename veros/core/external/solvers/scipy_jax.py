@@ -81,7 +81,7 @@ class JAXSciPySolver(LinearSolver):
                 matmul,
                 rhs * self._rhs_scale,
                 x0=x0,
-                rtol=0,
+                tol=0,
                 atol=1e-8,
                 maxiter=10_000,
             )
