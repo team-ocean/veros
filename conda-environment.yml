@@ -19,4 +19,4 @@ dependencies:
     - tqdm
     - cython
     - pip:
-        - -e . --no-deps
+        - -e .
