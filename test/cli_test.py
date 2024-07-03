@@ -2,7 +2,6 @@ import os
 import sys
 import filecmp
 import fnmatch
-import pkg_resources
 import subprocess
 from textwrap import dedent
 
@@ -28,12 +27,14 @@ def runner():
 
 @pytest.mark.parametrize("setup", SETUPS)
 def test_veros_copy_setup(setup, runner, tmpdir):
-    result = runner.invoke(veros.cli.veros_copy_setup.cli, [setup, "--to", os.path.join(tmpdir, setup)])
+    import veros
+
+    outpath = os.path.join(tmpdir, setup)
+    result = runner.invoke(veros.cli.veros_copy_setup.cli, [setup, "--to", outpath])
     assert result.exit_code == 0, setup
     assert not result.output
 
-    outpath = os.path.join(tmpdir, setup)
-    srcpath = pkg_resources.resource_filename("veros", f"setups/{setup}")
+    srcpath = os.path.join(os.path.dirname(veros.__file__), "setups", setup)
     ignore = [
         f
         for f in os.listdir(srcpath)

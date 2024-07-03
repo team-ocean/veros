@@ -3,7 +3,6 @@
 import functools
 import subprocess
 import shlex
-import pipes
 import sys
 import os
 import time
@@ -36,7 +35,7 @@ def write_next_n(n, filename):
 
 
 def unparse(args):
-    return " ".join(map(pipes.quote, args))
+    return shlex.join(args)
 
 
 def call_veros(cmd, name, n, runlen):
