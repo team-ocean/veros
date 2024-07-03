@@ -33,7 +33,8 @@ def test_veros_copy_setup(setup, runner, tmpdir):
     assert result.exit_code == 0, setup
     assert not result.output
 
-    with importlib.resources.path("veros", f"setups/{setup}") as srcpath:
+    setupdir = importlib.resources.files("veros") / "setups" / setup
+    with importlib.resources.as_file(setupdir) as srcpath:
         ignore = [
             f
             for f in os.listdir(srcpath)
