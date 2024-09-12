@@ -121,6 +121,8 @@ jobs:
       - name: Run tests
         run: |
           pytest . -v --cov --pyom2-lib $PYOM2_LIB --backend ${{ matrix.backend }}
+        env:
+          JAX_CPU_ENABLE_ASYNC_DISPATCH: "false"
 
       - name: Upload coverage
         uses: codecov/codecov-action@v1
