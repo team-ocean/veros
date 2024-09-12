@@ -119,6 +119,8 @@ jobs:
           echo "PYOM2_LIB_MPI=$(readlink -f $PYOM2_DIR/py_src/pyOM_code_MPI.*.so)" >> $GITHUB_ENV
 
       - name: Run tests
+        env:
+          XLA_FLAGS: "--xla_cpu_use_thunk_runtime=false"
         run: |
           pytest . -v --cov --pyom2-lib $PYOM2_LIB --backend ${{ matrix.backend }}
 
