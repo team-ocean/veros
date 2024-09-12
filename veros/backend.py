@@ -12,6 +12,8 @@ def init_jax_config():
         return
 
     import jax
+
+    jax.config.update("jax_cpu_enable_async_dispatch", False)
     from veros import runtime_settings, runtime_state
     from veros.state import (
         VerosState,
