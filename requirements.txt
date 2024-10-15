@@ -5,6 +5,6 @@ numpy==1.26.4
 scipy==1.14.1
 h5netcdf==1.4.0
 h5py==3.12.1
-pillow==10.4.0
+pillow==11.0.0
 loguru==0.7.2
 tqdm==4.66.5
