@@ -86,10 +86,10 @@ jobs:
 
       - name: Install Veros
         run: |
-          pip install mpi4py
+          pip install "mpi4py<4"
           if [ ${{ matrix.backend }} == "jax" ]
           then
-            pip install mpi4jax
+            pip install mpi4jax --no-build-isolation
             pip install -e .[test,jax]
           else
             pip install -e .[test]
