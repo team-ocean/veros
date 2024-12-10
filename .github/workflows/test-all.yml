@@ -24,8 +24,6 @@ jobs:
     env:
       PYOM2_DIR: /home/runner/pyom2
       PETSC_VERSION: "3.22.1"
-      # PETSC_DIR: /home/runner/petsc
-      # PETSC_ARCH: arch-linux-c-opt
       OMPI_MCA_rmaps_base_oversubscribe: "1"
       OMPI_MCA_mpi_yield_when_idle: "1"
       VEROS_REQUIRE_CYTHON_EXT: "1"
@@ -57,13 +55,6 @@ jobs:
           path: ${{ env.PYOM2_DIR }}/py_src/*.so
           key: ${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('vendor/pyom2/**/*') }}-${{ hashFiles('requirements.txt') }}
 
-      # - name: Restore PETSc build cache
-      #   uses: actions/cache@v2
-      #   id: petsc-cache
-      #   with:
-      #     path: ${{ env.PETSC_DIR }}
-      #     key: ${{ matrix.os }}-${{ env.PETSC_VERSION }}  
-
       - name: Setup Python environment
         run: |
           python -m pip install --upgrade pip
@@ -75,25 +66,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install libopenmpi-dev liblapack-dev libblas-dev
 
-      # - name: Build PETSc
-      #   if: steps.petsc-cache.outputs.cache-hit != 'true'
-      #   run: |
-      #     git clone -b v$PETSC_VERSION --depth 1 https://gitlab.com/petsc/petsc.git $PETSC_DIR
-      #     pushd $PETSC_DIR
-      #     ./configure --with-debugging=0 -with-shared-libraries --with-precision=double
-      #     make all
-      #     popd
-
       - name: Install Veros
         run: |
-          pip install "mpi4py<4"
           if [ ${{ matrix.backend }} == "jax" ]
           then
-            pip install mpi4jax --no-build-isolation
             pip install -e .[test,jax]
           else
             pip install -e .[test]
           fi
+
+      - name: Install optional requirements
+        run: |
+          # PETSc has issues with mpi4py v4
+          pip install "mpi4py<4"
+          pip install mpi4jax --no-build-isolation
           pip install petsc==$PETSC_VERSION --no-build-isolation
           pip install petsc4py==$PETSC_VERSION --no-build-isolation
 
@@ -121,7 +107,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest . -x -v --cov --pyom2-lib $PYOM2_LIB --backend ${{ matrix.backend }}
+          pytest . -v --cov --pyom2-lib $PYOM2_LIB --backend ${{ matrix.backend }}
 
       - name: Upload coverage
         uses: codecov/codecov-action@v1
