@@ -94,8 +94,8 @@ jobs:
           else
             pip install -e .[test]
           fi
-          pip install petsc==$PETSC_VERSION --no-deps --no-build-isolation
-          pip install petsc4py==$PETSC_VERSION --no-deps --no-build-isolation
+          pip install petsc==$PETSC_VERSION --no-build-isolation
+          pip install petsc4py==$PETSC_VERSION --no-build-isolation
 
       # Build PyOM2 after Veros to make sure we have compatible versions of NumPy / f2py
       - name: Build PyOM2
