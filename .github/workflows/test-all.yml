@@ -121,7 +121,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest . -v --cov --pyom2-lib $PYOM2_LIB --backend ${{ matrix.backend }}
+          pytest . -x -v --cov --pyom2-lib $PYOM2_LIB --backend ${{ matrix.backend }}
 
       - name: Upload coverage
         uses: codecov/codecov-action@v1
