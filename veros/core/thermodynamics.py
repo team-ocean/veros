@@ -253,9 +253,6 @@ def vertmix_tempsalt(state):
     vs = state.variables
     settings = state.settings
 
-    vs.dtemp_vmix = update(vs.dtemp_vmix, at[...], vs.temp[:, :, :, vs.taup1])
-    vs.dsalt_vmix = update(vs.dsalt_vmix, at[...], vs.salt[:, :, :, vs.taup1])
-
     a_tri = allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 2:-2]
     b_tri = allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 2:-2]
     c_tri = allocate(state.dimensions, ("xt", "yt", "zt"))[2:-2, 2:-2]
@@ -275,18 +272,13 @@ def vertmix_tempsalt(state):
     d_tri = update(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_temp_surface[2:-2, 2:-2] / vs.dzt[-1])
 
     sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
-    vs.temp = update_add(
-        vs.temp, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.temp[2:-2, 2:-2, :, vs.taup1])
-    )
+    vs.temp = update_add(vs.temp, at[2:-2, 2:-2, :, vs.taup1], water_mask * sol)
+    vs.dtemp_vmix = water_mask * sol / settings.dt_tracer
 
     d_tri = update(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_salt_surface[2:-2, 2:-2] / vs.dzt[-1])
     sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
-    vs.salt = update_add(
-        vs.salt, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.salt[2:-2, 2:-2, :, vs.taup1])
-    )
-
-    vs.dtemp_vmix = (vs.temp[:, :, :, vs.taup1] - vs.dtemp_vmix) / settings.dt_tracer
-    vs.dsalt_vmix = (vs.salt[:, :, :, vs.taup1] - vs.dsalt_vmix) / settings.dt_tracer
+    vs.salt = update_add(vs.salt, at[2:-2, 2:-2, :, vs.taup1], water_mask * sol)
+    vs.dsalt_vmix = water_mask * sol / settings.dt_tracer
 
     """
     boundary exchange
