@@ -272,17 +272,18 @@ def vertmix_tempsalt(state):
     b_tri = update(b_tri, at[:, :, 1:], 1 + (delta[:, :, 1:] + delta[:, :, :-1]) / vs.dzt[npx.newaxis, npx.newaxis, 1:])
     b_tri_edge = 1 + delta / vs.dzt[npx.newaxis, npx.newaxis, :]
     c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, :-1])
-    d_tri = vs.temp[2:-2, 2:-2, :, vs.taup1]
-    d_tri = update_add(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_temp_surface[2:-2, 2:-2] / vs.dzt[-1])
+    d_tri = update(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_temp_surface[2:-2, 2:-2] / vs.dzt[-1])
 
     sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
-    vs.temp = update(vs.temp, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.temp[2:-2, 2:-2, :, vs.taup1]))
+    vs.temp = update_add(
+        vs.temp, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.temp[2:-2, 2:-2, :, vs.taup1])
+    )
 
-    d_tri = vs.salt[2:-2, 2:-2, :, vs.taup1]
-    d_tri = update_add(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_salt_surface[2:-2, 2:-2] / vs.dzt[-1])
-
+    d_tri = update(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_salt_surface[2:-2, 2:-2] / vs.dzt[-1])
     sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
-    vs.salt = update(vs.salt, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.salt[2:-2, 2:-2, :, vs.taup1]))
+    vs.salt = update_add(
+        vs.salt, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.salt[2:-2, 2:-2, :, vs.taup1])
+    )
 
     vs.dtemp_vmix = (vs.temp[:, :, :, vs.taup1] - vs.dtemp_vmix) / settings.dt_tracer
     vs.dsalt_vmix = (vs.salt[:, :, :, vs.taup1] - vs.dsalt_vmix) / settings.dt_tracer
