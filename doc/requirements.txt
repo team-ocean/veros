@@ -6,6 +6,6 @@ furo==2024.8.6
 ipython==8.30.0
 netCDF4==1.7.2
 xarray==2024.11.0
-matplotlib==3.9.3
+matplotlib==3.10.0
 cmocean==4.0.3
 pickleshare==0.7.5
