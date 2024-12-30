@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
 
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-24.04]
         python-version: ["3.9", "3.12"]
         backend: [numpy, jax]
 
@@ -97,13 +97,12 @@ jobs:
           for patchfile in ./patches/*.patch; do
             git apply --whitespace=fix $patchfile
           done
-          make -C py_src -j 4
+          make -C py_src -j 4 pyOM_code.so
           popd
 
       - name: Export paths
         run: |
           echo "PYOM2_LIB=$(readlink -f $PYOM2_DIR/py_src/pyOM_code.*.so)" >> $GITHUB_ENV
-          echo "PYOM2_LIB_MPI=$(readlink -f $PYOM2_DIR/py_src/pyOM_code_MPI.*.so)" >> $GITHUB_ENV
 
       - name: Run tests
         run: |
