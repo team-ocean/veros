@@ -121,7 +121,7 @@ class Overturning(VerosDiagnostic):
 
         ovt_vs = self.variables
 
-        mean_variables = ("trans", "vsf_iso", "vsf_depth")
+        mean_variables = ("trans", "vsf_iso", "vsf_depth", "bolus_iso", "bolus_depth")
 
         if ovt_vs.nitts > 0:
             for var in mean_variables:
