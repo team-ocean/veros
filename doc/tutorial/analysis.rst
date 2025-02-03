@@ -42,8 +42,9 @@ Load and manipulate averages
 In order to load our first output file and display its content execute the following two commands:
 
 .. ipython:: python
+    :okwarning:
 
-    ds_avg = xr.open_dataset(OUTPUT_FILES["averages"], decode_timedelta=False)
+    ds_avg = xr.open_dataset(OUTPUT_FILES["averages"])
     ds_avg
 
 We can easily access/modify individual data variables and their attributes. To demonstrate this let's convert the units of the barotropic stream function from :math:`\frac{m^{3}}{s}` to :math:`Sv`:
@@ -78,6 +79,7 @@ One can also compute meridional mean temperature. Since the model output is defi
 To get an accurate mean value, we need to weight each cell by its area:
 
 .. ipython:: python
+    :okwarning:
 
     ds_snap = xr.open_dataset(OUTPUT_FILES["snapshot"])
     # use cell area as weights, replace missing values (land) with 0
@@ -101,6 +103,7 @@ Explore overturning circulation
 -------------------------------
 
 .. ipython:: python
+    :okwarning:
 
     ds_ovr = xr.open_dataset(OUTPUT_FILES["overturning"])
     ds_ovr
