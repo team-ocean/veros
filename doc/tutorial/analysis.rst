@@ -43,7 +43,7 @@ In order to load our first output file and display its content execute the follo
 
 .. ipython:: python
 
-    ds_avg = xr.open_dataset(OUTPUT_FILES["averages"])
+    ds_avg = xr.open_dataset(OUTPUT_FILES["averages"], decode_timedelta=False)
     ds_avg
 
 We can easily access/modify individual data variables and their attributes. To demonstrate this let's convert the units of the barotropic stream function from :math:`\frac{m^{3}}{s}` to :math:`Sv`:
