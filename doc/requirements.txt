@@ -1,6 +1,6 @@
 click==8.1.8
 entrypoints==0.4
-Pillow==11.2.1
+Pillow==11.3.0
 Sphinx==8.2.3
 furo==2024.8.6
 ipython==9.3.0
