@@ -17,27 +17,14 @@ import numpy as np
 
 import jax
 import jax.numpy as jnp
-from jax.core import Primitive, ShapedArray
+from jax.extend.core import Primitive
+from jax.core import ShapedArray
 from jax.lib import xla_client
 from jax.interpreters import xla, mlir
 import jaxlib.mlir.ir as ir
 from jaxlib.mlir.dialects import mhlo
 
-try:
-    from jax.interpreters.mlir import custom_call  # noqa: F401
-except ImportError:
-    # TODO: remove once we require jax > 0.4.16
-    from jaxlib.hlo_helpers import custom_call as _custom_call
-
-    # Recent versions return a structure with a field 'results'. We mock it on
-    # older versions
-    from collections import namedtuple
-
-    MockResult = namedtuple("MockResult", ["results"])
-
-    def custom_call(*args, result_types, **kwargs):
-        results = _custom_call(*args, out_types=result_types, **kwargs)
-        return MockResult(results)
+from jax.interpreters.mlir import custom_call
 
 
 if HAS_CPU_EXT:
