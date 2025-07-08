@@ -9,6 +9,7 @@ veros
 This is a wrapper script that provides easy access to all Veros command line tools.
 
 .. run-click:: veros.cli.veros:cli
+   :args: --help
 
 veros-create-mask
 -----------------
