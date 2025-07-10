@@ -22,7 +22,6 @@ Development Status :: 4 - Beta
 Intended Audience :: Science/Research
 License :: OSI Approved :: MIT License
 Programming Language :: Python :: 3
-Programming Language :: Python :: 3.9
 Programming Language :: Python :: 3.10
 Programming Language :: Python :: 3.11
 Programming Language :: Python :: 3.12
@@ -75,8 +74,6 @@ def parse_requirements(reqfile):
 
 
 INSTALL_REQUIRES = parse_requirements("requirements.txt")
-print(INSTALL_REQUIRES)
-
 
 jax_req = parse_requirements("requirements_jax.txt")
 for line in jax_req:  # inject jaxlib requirement
@@ -163,7 +160,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://veros.readthedocs.io",
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     version=versioneer.get_version(),
     cmdclass=cmdclass,
     packages=find_packages(),
