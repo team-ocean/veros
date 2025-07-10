@@ -22,9 +22,9 @@ cpdef bytes build_tridiag_descriptor(int num_systems, int system_depth):
 
 gpu_custom_call_targets = {}
 
-cdef register_custom_call_target(fn_name, void* fn):
+cdef register_custom_call_target(unicode fn_name, void* fn):
     cdef const char* name = "xla._CUSTOM_CALL_TARGET"
     gpu_custom_call_targets[fn_name] = PyCapsule_New(fn, name, NULL)
 
-register_custom_call_target(b"tdma_cuda_float", <void*>(CudaTridiagFloat))
-register_custom_call_target(b"tdma_cuda_double", <void*>(CudaTridiagDouble))
+register_custom_call_target("tdma_cuda_float", <void*>(CudaTridiagFloat))
+register_custom_call_target("tdma_cuda_double", <void*>(CudaTridiagDouble))

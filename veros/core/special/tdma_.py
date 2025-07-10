@@ -19,7 +19,6 @@ import jax
 import jax.numpy as jnp
 from jax.extend.core import Primitive
 from jax.core import ShapedArray
-from jax.lib import xla_client
 from jax.interpreters import xla, mlir
 import jaxlib.mlir.ir as ir
 from jaxlib.mlir.dialects import mhlo
@@ -28,14 +27,14 @@ from jax.interpreters.mlir import custom_call
 
 
 if HAS_CPU_EXT:
-    for kernel_name in (b"tdma_cython_double", b"tdma_cython_float"):
+    for kernel_name in ("tdma_cython_double", "tdma_cython_float"):
         fn = tdma_cython_.cpu_custom_call_targets[kernel_name]
-        xla_client.register_custom_call_target(kernel_name, fn, platform="cpu")
+        jax.ffi.register_ffi_target(kernel_name, fn, platform="cpu", api_version=0)
 
 if HAS_GPU_EXT:
-    for kernel_name in (b"tdma_cuda_double", b"tdma_cuda_float"):
+    for kernel_name in ("tdma_cuda_double", "tdma_cuda_float"):
         fn = tdma_cuda_.gpu_custom_call_targets[kernel_name]
-        xla_client.register_custom_call_target(kernel_name, fn, platform="CUDA")
+        jax.ffi.register_ffi_target(kernel_name, fn, platform="CUDA", api_version=0)
 
 
 def as_mhlo_constant(val, dtype):

@@ -122,9 +122,9 @@ cdef void tdma_cython_float(void** out_ptr, void** data_ptr) nogil:
 
 cpu_custom_call_targets = {}
 
-cdef register_custom_call_target(fn_name, void* fn):
+cdef register_custom_call_target(unicode fn_name, void* fn):
     cdef const char* name = 'xla._CUSTOM_CALL_TARGET'
     cpu_custom_call_targets[fn_name] = PyCapsule_New(fn, name, NULL)
 
-register_custom_call_target(b'tdma_cython_double', <void*>(tdma_cython_double))
-register_custom_call_target(b'tdma_cython_float', <void*>(tdma_cython_float))
+register_custom_call_target('tdma_cython_double', <void*>(tdma_cython_double))
+register_custom_call_target('tdma_cython_float', <void*>(tdma_cython_float))
