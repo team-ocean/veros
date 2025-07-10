@@ -47,7 +47,6 @@ class RoutineStack:
 CURRENT_CONTEXT = threading.local()
 CURRENT_CONTEXT.is_dist_safe = True
 CURRENT_CONTEXT.routine_stack = RoutineStack()
-CURRENT_CONTEXT.mpi4jax_token = None
 
 
 @contextmanager
@@ -305,10 +304,8 @@ class VerosKernel:
         self.function = function
 
     def __call__(self, *args, **kwargs):
-        from veros import runtime_settings, runtime_state
+        from veros import runtime_settings
         from veros.core.operators import flush
-
-        inject_tokens = runtime_settings.backend == "jax" and runtime_state.proc_num > 1
 
         # apply JIT
         if runtime_settings.backend == "jax":
@@ -317,23 +314,6 @@ class VerosKernel:
             CompiledFunction = type(jax.jit(lambda: None))
 
             if not isinstance(self.function, CompiledFunction):
-                if inject_tokens:
-                    function = self.function
-
-                    @functools.wraps(function)
-                    def token_wrapper(*args):
-                        inputs = args[:-1]
-                        token = args[-1]
-                        CURRENT_CONTEXT.mpi4jax_token = token
-                        out = function(*inputs)
-                        token = CURRENT_CONTEXT.mpi4jax_token
-                        return out, token
-
-                    if CURRENT_CONTEXT.mpi4jax_token is None:
-                        CURRENT_CONTEXT.mpi4jax_token = jax.lax.create_token()
-
-                    self.function = token_wrapper
-
                 self.function = jax.jit(self.function, static_argnums=self.static_argnums)
 
         # JAX only accepts positional args when using static_argnums
@@ -364,18 +344,11 @@ class VerosKernel:
 
             args = list(bound_args.arguments.values())
 
-            if inject_tokens:
-                args.append(CURRENT_CONTEXT.mpi4jax_token)
-
             with enter_routine(self.name, self, timer):
                 out = self.function(*args)
 
                 if runtime_settings.profile_mode:
                     flush()
-
-            if inject_tokens:
-                out, token = out
-                CURRENT_CONTEXT.mpi4jax_token = token
 
         return out
 

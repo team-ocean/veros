@@ -36,9 +36,7 @@ def send(buf, dest, comm, tag=None):
     if rs.backend == "jax":
         from mpi4jax import send
 
-        token = CURRENT_CONTEXT.mpi4jax_token
-        new_token = send(buf, dest=dest, comm=comm, token=token, **kwargs)
-        CURRENT_CONTEXT.mpi4jax_token = new_token
+        send(buf, dest=dest, comm=comm, **kwargs)
     else:
         comm.Send(ascontiguousarray(buf), dest=dest, **kwargs)
 
@@ -51,9 +49,7 @@ def recv(buf, source, comm, tag=None):
     if rs.backend == "jax":
         from mpi4jax import recv
 
-        token = CURRENT_CONTEXT.mpi4jax_token
-        buf, new_token = recv(buf, source=source, comm=comm, token=token, **kwargs)
-        CURRENT_CONTEXT.mpi4jax_token = new_token
+        buf = recv(buf, source=source, comm=comm, **kwargs)
         return buf
 
     buf = buf.copy()
@@ -73,9 +69,7 @@ def sendrecv(sendbuf, recvbuf, source, dest, comm, sendtag=None, recvtag=None):
     if rs.backend == "jax":
         from mpi4jax import sendrecv
 
-        token = CURRENT_CONTEXT.mpi4jax_token
-        recvbuf, new_token = sendrecv(sendbuf, recvbuf, source=source, dest=dest, comm=comm, token=token, **kwargs)
-        CURRENT_CONTEXT.mpi4jax_token = new_token
+        recvbuf = sendrecv(sendbuf, recvbuf, source=source, dest=dest, comm=comm, **kwargs)
         return recvbuf
 
     recvbuf = recvbuf.copy()
@@ -87,9 +81,7 @@ def bcast(buf, comm, root=0):
     if rs.backend == "jax":
         from mpi4jax import bcast
 
-        token = CURRENT_CONTEXT.mpi4jax_token
-        buf, new_token = bcast(buf, root=root, comm=comm, token=token)
-        CURRENT_CONTEXT.mpi4jax_token = new_token
+        buf = bcast(buf, root=root, comm=comm)
         return buf
 
     return comm.bcast(buf, root=root)
@@ -99,9 +91,7 @@ def allreduce(buf, op, comm):
     if rs.backend == "jax":
         from mpi4jax import allreduce
 
-        token = CURRENT_CONTEXT.mpi4jax_token
-        buf, new_token = allreduce(buf, op=op, comm=comm, token=token)
-        CURRENT_CONTEXT.mpi4jax_token = new_token
+        buf = allreduce(buf, op=op, comm=comm)
         return buf
 
     from veros.core.operators import numpy as npx
