@@ -3,7 +3,7 @@ entrypoints==0.4
 requests==2.32.4
 numpy==2.3.2
 numpy==1.26.4; python_version < '3.10'
-scipy==1.16.0
+scipy==1.16.1
 h5netcdf==1.6.3
 h5py==3.14.0
 pillow==11.3.0
