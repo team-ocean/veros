@@ -1,4 +1,4 @@
-click==8.3.0
+click==8.3.1
 entrypoints==0.4
 requests==2.32.5
 numpy==2.3.4
