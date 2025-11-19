@@ -23,7 +23,7 @@ from jax.interpreters import xla, mlir
 import jaxlib.mlir.ir as ir
 from jaxlib.mlir.dialects import mhlo
 
-from jax.interpreters.mlir import custom_call
+from jax.ffi import build_ffi_lowering_function
 
 
 if HAS_CPU_EXT:
@@ -104,24 +104,21 @@ def tdma_xla_encode_cpu(ctx, a, b, c, d, system_depths):
     ]
 
     if np_dtype is np.dtype(np.float32):
-        kernel = b"tdma_cython_float"
+        kernel = "tdma_cython_float"
     elif np_dtype is np.dtype(np.float64):
-        kernel = b"tdma_cython_double"
+        kernel = "tdma_cython_double"
     else:
         raise RuntimeError("got unrecognized dtype")
 
+    custom_call = build_ffi_lowering_function(kernel)
     out = custom_call(
-        kernel,
-        operands=(
-            a,
-            b,
-            c,
-            d,
-            system_depths,
-            as_mhlo_constant(num_systems, np.int64),
-            as_mhlo_constant(stride, np.int64),
-        ),
-        result_types=out_types,
+        a,
+        b,
+        c,
+        d,
+        system_depths,
+        as_mhlo_constant(num_systems, np.int64),
+        as_mhlo_constant(stride, np.int64),
     )
     return out.results[:-1]
 
