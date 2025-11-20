@@ -23,7 +23,7 @@ from jax.interpreters import xla, mlir
 import jaxlib.mlir.ir as ir
 from jaxlib.mlir.dialects import mhlo
 
-from jax.interpreters.mlir import custom_call
+from jax.ffi import build_ffi_lowering_function
 
 
 if HAS_CPU_EXT:
@@ -58,14 +58,15 @@ def tdma(a, b, c, d, interior_mask, edge_mask, device=None):
 
     if device == "cpu":
         system_depths = jnp.sum(interior_mask, axis=-1, dtype="int32")
-        return tdma_p.bind(a, b, c, d, system_depths)
+        return tdma_p.bind(a, b, c, d, system_depths)[0]
 
     a = interior_mask * a * jnp.logical_not(edge_mask)
     b = jnp.where(interior_mask, b, 1.0)
     c = interior_mask * c
     d = interior_mask * d
 
-    return tdma_p.bind(a, b, c, d, system_depths=None)
+    res = tdma_p.bind(a, b, c, d, system_depths=None)
+    return res[0]
 
 
 def tdma_impl(*args, **kwargs):
@@ -104,26 +105,23 @@ def tdma_xla_encode_cpu(ctx, a, b, c, d, system_depths):
     ]
 
     if np_dtype is np.dtype(np.float32):
-        kernel = b"tdma_cython_float"
+        kernel = "tdma_cython_float"
     elif np_dtype is np.dtype(np.float64):
-        kernel = b"tdma_cython_double"
+        kernel = "tdma_cython_double"
     else:
         raise RuntimeError("got unrecognized dtype")
 
-    out = custom_call(
-        kernel,
-        operands=(
-            a,
-            b,
-            c,
-            d,
-            system_depths,
-            as_mhlo_constant(num_systems, np.int64),
-            as_mhlo_constant(stride, np.int64),
-        ),
-        result_types=out_types,
+    operands = (
+        a,
+        b,
+        c,
+        d,
+        system_depths,
+        as_mhlo_constant(num_systems, np.int64),
+        as_mhlo_constant(stride, np.int64),
     )
-    return out.results[:-1]
+    out = build_ffi_lowering_function(kernel, result_types=out_types)(ctx, *operands)
+    return out.results
 
 
 def tdma_xla_encode_gpu(ctx, a, b, c, d, system_depths):
@@ -178,16 +176,17 @@ def tdma_xla_encode_gpu(ctx, a, b, c, d, system_depths):
         operand_layouts=(arr_layout,) * 4,
         backend_config=descriptor,
     )
-    return out.results[:-1]
+    return out.results
 
 
 def tdma_abstract_eval(a, b, c, d, system_depths):
-    return ShapedArray(a.shape, a.dtype)
+    return (ShapedArray(a.shape, a.dtype), ShapedArray((a.shape[-1],), a.dtype))
 
 
 tdma_p = Primitive("tdma")
 tdma_p.def_impl(tdma_impl)
 tdma_p.def_abstract_eval(tdma_abstract_eval)
+tdma_p.multiple_results = True
 
 mlir.register_lowering(tdma_p, tdma_xla_encode_cpu, platform="cpu")
 mlir.register_lowering(tdma_p, tdma_xla_encode_gpu, platform="cuda")
