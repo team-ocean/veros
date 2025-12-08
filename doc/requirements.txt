@@ -5,7 +5,7 @@ Sphinx==8.2.3
 furo==2025.9.25
 ipython==9.8.0
 netCDF4==1.7.3
-xarray==2025.11.0
+xarray==2025.12.0
 matplotlib==3.10.7
 cmocean==4.0.3
 pickleshare==0.7.5
