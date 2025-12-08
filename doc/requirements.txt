@@ -1,7 +1,7 @@
 click==8.3.1
 entrypoints==0.4
 Pillow==12.0.0
-Sphinx==8.2.3
+Sphinx==9.0.4
 furo==2025.9.25
 ipython==9.8.0
 netCDF4==1.7.3
