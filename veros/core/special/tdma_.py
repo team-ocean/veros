@@ -23,7 +23,7 @@ from jax.interpreters import xla, mlir
 import jaxlib.mlir.ir as ir
 from jaxlib.mlir.dialects import mhlo
 
-from jax.interpreters.mlir import custom_call
+from jax._src.interpreters.mlir import custom_call
 
 
 if HAS_CPU_EXT:
