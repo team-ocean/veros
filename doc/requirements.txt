@@ -4,7 +4,7 @@ Pillow==12.1.0
 Sphinx==9.0.4
 furo==2025.12.19
 ipython==9.9.0
-netCDF4==1.7.3
+netCDF4==1.7.4
 xarray==2025.12.0
 matplotlib==3.10.8
 cmocean==4.0.3
