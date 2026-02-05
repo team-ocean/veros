@@ -3,6 +3,7 @@ Some publications involving Veros
 
 Peer-reviewed articles
 ----------------------
+
 - Mrozowska, M. A., Avery, J., Stoustrup, A., Nuterman, R., Johnsen, C.-J., Thormann, A., & Jochum, M. (2025).
   Bayesian optimization with GPU acceleration for ocean models. Journal of Geophysical Research: Machine Learning and Computation, 2, e2024JH000517.
   `https://doi.org/10.1029/2024JH000517 <https://doi.org/10.1029/2024JH000517>`__
