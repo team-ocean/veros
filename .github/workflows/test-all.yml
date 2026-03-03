@@ -18,12 +18,12 @@ jobs:
 
       matrix:
         os: [ubuntu-24.04]
-        python-version: ["3.10", "3.12"]
+        python-version: ["3.10", "3.14"]
         backend: [numpy, jax]
 
     env:
       PYOM2_DIR: /home/runner/pyom2
-      PETSC_VERSION: "3.23.3"
+      PETSC_VERSION: "3.24.5"
       OMPI_MCA_rmaps_base_oversubscribe: "1"
       OMPI_MCA_mpi_yield_when_idle: "1"
       VEROS_REQUIRE_CYTHON_EXT: "1"
@@ -77,9 +77,10 @@ jobs:
 
       - name: Install optional requirements
         run: |
-          # PETSc has issues with mpi4py v4
-          pip install "mpi4py<4"
-          pip install mpi4jax --no-build-isolation
+          pip install mpi4py nanobind
+          if [ ${{ matrix.backend }} == "jax" ]; then
+            pip install mpi4jax --no-build-isolation
+          fi
           pip install petsc==$PETSC_VERSION --no-build-isolation
           pip install petsc4py==$PETSC_VERSION --no-build-isolation
 
