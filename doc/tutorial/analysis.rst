@@ -3,7 +3,7 @@ Analysis of Veros output
 
 In this tutorial, we will use `xarray <http://xarray.pydata.org/en/stable/>`__ and `matplotlib <https://matplotlib.org>`__ to load, analyze, and plot the model output. We will also use the `cmocean colormaps <https://matplotlib.org/cmocean/>`__. You can run these commands in `IPython <https://ipython.readthedocs.io/en/stable/>`__ or a `Jupyter Notebook <https://jupyter.org>`__. Just make sure to install the dependencies first::
 
-  $ pip install xarray matplotlib h5netcdf cmocean
+  $ pip install xarray matplotlib h5py h5netcdf cmocean
 
 The analysis below is performed for 100 yr integration of the :doc:`global_4deg </reference/setups/4deg>` setup from the :doc:`setup gallery </reference/setup-gallery>`.
 
