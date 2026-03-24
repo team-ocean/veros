@@ -3,7 +3,7 @@ Analysis of Veros output
 
 In this tutorial, we will use `xarray <http://xarray.pydata.org/en/stable/>`__ and `matplotlib <https://matplotlib.org>`__ to load, analyze, and plot the model output. We will also use the `cmocean colormaps <https://matplotlib.org/cmocean/>`__. You can run these commands in `IPython <https://ipython.readthedocs.io/en/stable/>`__ or a `Jupyter Notebook <https://jupyter.org>`__. Just make sure to install the dependencies first::
 
-  $ pip install xarray matplotlib netcdf4 h5netcdf cmocean
+  $ pip install xarray matplotlib h5netcdf cmocean
 
 The analysis below is performed for 100 yr integration of the :doc:`global_4deg </reference/setups/4deg>` setup from the :doc:`setup gallery </reference/setup-gallery>`.
 
@@ -44,14 +44,8 @@ In order to load our first output file and display its content execute the follo
 .. ipython:: python
     :okwarning:
 
-    ds_avg = xr.open_dataset(OUTPUT_FILES["averages"])
+    ds_avg = xr.open_dataset(OUTPUT_FILES["averages"], engine="h5netcdf")
     ds_avg
-
-.. warning:: 
-
-    If the ``xarray``'s ``open_dataset`` method is unable to read the output file and returns an error such as ``getfattr: <path-to-nc-file>: Operation not supported``, add ``engine="h5netcdf"`` keyword argument to ``open_dataset``::
-
-      $ ds_avg = xr.open_dataset(OUTPUT_FILES["averages"], engine="h5netcdf")
 
 We can easily access/modify individual data variables and their attributes. To demonstrate this let's convert the units of the barotropic stream function from :math:`\frac{m^{3}}{s}` to :math:`Sv`:
 
