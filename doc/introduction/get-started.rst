@@ -178,7 +178,7 @@ Running Veros through MPI requires some additional dependencies. For optimal per
 
    :doc:`advanced-installation`
 
-After you have installed everything, you can start Veros on multiple processes like so:::
+After you have installed everything, you can start Veros on multiple processes like so::
 
    $ mpirun -np 4 veros run my_setup.py -n 2 2
 
