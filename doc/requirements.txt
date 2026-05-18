@@ -1,4 +1,4 @@
-click==8.3.3
+click==8.4.0
 entrypoints==0.4
 Pillow==12.2.0
 Sphinx==9.0.4
