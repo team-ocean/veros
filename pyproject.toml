@@ -10,5 +10,5 @@ testpaths = [
 
 
 [build-system]
-requires = ["setuptools>=82.0.1", "wheel", "cython"]
+requires = ["setuptools>=83.0.0", "wheel", "cython"]
 build-backend = "setuptools.build_meta"
