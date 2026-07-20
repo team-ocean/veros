@@ -6,7 +6,7 @@ furo==2025.12.19
 ipython==9.15.0
 h5py==3.16.0
 h5netcdf==1.8.1
-xarray==2026.2.0
+xarray==2026.7.0
 matplotlib==3.11.1
 cmocean==4.0.3
 pickleshare==0.7.5
