@@ -1,19 +1,29 @@
 from veros.core.operators import numpy as npx
 
-from veros import veros_kernel, veros_routine, KernelOutput
+from veros import veros_kernel, veros_routine, KernelOutput, runtime_settings
 from veros.variables import allocate
 from veros.core import utilities, diffusion
 from veros.core.operators import update, update_add, at
 
 
-@veros_kernel
-def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
+@veros_kernel(static_args=("iso",))
+def _calc_tracer_fluxes(state, tr, K_iso, K_skew, iso=True):
     vs = state.variables
 
     tr_pad = utilities.pad_z_edges(tr[..., vs.tau])
 
     K1 = K_iso - K_skew
     K2 = K_iso + K_skew
+
+    # the diagonal components K_11, K_22 (and K_33, treated implicitly by the caller)
+    # belong to the symmetric (Redi) part only; the skew tensor has no diagonal part.
+    # PyOM erroneously adds them in the skew-only pass, so keep them for compatibility.
+    if iso or runtime_settings.pyom_compatibility_mode:
+        K_11 = vs.K_11
+        K_22 = vs.K_22
+    else:
+        K_11 = npx.zeros_like(vs.K_11)
+        K_22 = npx.zeros_like(vs.K_22)
 
     flux_east = allocate(state.dimensions, ("xt", "yt", "zt"))
     flux_north = allocate(state.dimensions, ("xt", "yt", "zt"))
@@ -43,7 +53,7 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
         sumz / (4.0 * vs.dzt[npx.newaxis, npx.newaxis, :])
         + (tr[2:-1, 2:-2, :, vs.tau] - tr[1:-2, 2:-2, :, vs.tau])
         / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxu[1:-2, npx.newaxis, npx.newaxis])
-        * vs.K_11[1:-2, 2:-2, :],
+        * K_11[1:-2, 2:-2, :],
     )
 
     """
@@ -72,7 +82,7 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
             sumz / (4.0 * vs.dzt[npx.newaxis, npx.newaxis, :])
             + (tr[2:-2, 2:-1, :, vs.tau] - tr[2:-2, 1:-2, :, vs.tau])
             / vs.dyu[npx.newaxis, 1:-2, npx.newaxis]
-            * vs.K_22[2:-2, 1:-2, :]
+            * K_22[2:-2, 1:-2, :]
         ),
     )
 
@@ -187,7 +197,7 @@ def isoneutral_diffusion_tracer(state, tr, dtracer_iso, iso=True, skew=False):
     else:
         K_skew = 0.0
 
-    flux_east, flux_north, flux_top = _calc_tracer_fluxes(state, tr, K_iso, K_skew)
+    flux_east, flux_north, flux_top = _calc_tracer_fluxes(state, tr, K_iso, K_skew, iso=iso)
 
     """
     add explicit part
