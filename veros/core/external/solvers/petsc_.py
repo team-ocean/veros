@@ -154,7 +154,7 @@ class PETScSolver(LinearSolver):
         col = PETSc.Mat.Stencil()
 
         (i0, i1), (j0, j1) = self._da.getRanges()
-        matrix = self._da.getMatrix()
+        matrix = self._da.createMat()
 
         for j in range(j0, j1):
             for i in range(i0, i1):
