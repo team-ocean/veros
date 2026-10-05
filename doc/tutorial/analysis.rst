@@ -105,7 +105,7 @@ Explore overturning circulation
 .. ipython:: python
     :okwarning:
 
-    ds_ovr = xr.open_dataset(OUTPUT_FILES["overturning"])
+    ds_ovr = xr.open_dataset(OUTPUT_FILES["overturning"], decode_timedelta=True)
     ds_ovr
 
 Let"s convert the units of meridional overturning circulation (MOC) from :math:`\frac{m^{3}}{s}` to :math:`Sv` and plot it:
