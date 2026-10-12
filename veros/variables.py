@@ -195,7 +195,9 @@ VARIABLES = {
         "Current time",
         write_to_restart=True,
     ),
-    "itt": Variable("Current iteration", None, "", "Current iteration", dtype="int32", initial=0),
+    "itt": Variable(
+        "Current iteration", None, "", "Current iteration", dtype="int32", initial=0, write_to_restart=True
+    ),
     # base variables
     "dxt": Variable("Zonal T-grid spacing", XT, "m", "Zonal (x) spacing of T-grid point", time_dependent=False),
     "dxu": Variable("Zonal U-grid spacing", XU, "m", "Zonal (x) spacing of U-grid point", time_dependent=False),

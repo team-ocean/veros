@@ -7,3 +7,5 @@ Compiled integration
 .. autoclass:: veros.integration.IntegrationState
 
 .. autoclass:: veros.integration.DiagnosticRecord
+
+.. autofunction:: veros.integration.run_compiled

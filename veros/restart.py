@@ -1,4 +1,5 @@
 import os
+import math
 
 from veros import logger, runtime_settings, runtime_state
 from veros.io_tools import hdf5 as h5tools
@@ -95,6 +96,18 @@ def read_restart(state):
             try:
                 var_data = restart_data[key]
             except KeyError:
+                if key == "itt":
+                    dt = settings.dt_tracer
+                    model_time = float(restart_data["time"])
+                    if (
+                        not math.isfinite(dt)
+                        or dt <= 0
+                        or not math.isfinite(model_time)
+                        or abs(model_time / dt - round(model_time / dt)) > 1e-6
+                    ):
+                        raise RuntimeError("Cannot recover iteration count from this legacy restart") from None
+                    state.variables.itt = round(model_time / dt)
+                    continue
                 raise RuntimeError(f"No restart data found for variable {key} in {restart_filename}") from None
 
             setattr(state.variables, key, var_data)
