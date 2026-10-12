@@ -12,6 +12,22 @@ from veros.routines import tracing_context
 IntegrationState = namedtuple("IntegrationState", "variables diagnostics failure_code failed_iteration")
 DiagnosticRecord = namedtuple("DiagnosticRecord", "time iteration valid values")
 
+# These settings affect frozen grid, reference data, operators, or execution schedules.
+FIXED_PARAMETERS = {
+    "pi",
+    "radius",
+    "degtom",
+    "omega",
+    "x_origin",
+    "y_origin",
+    "rho_0",
+    "grav",
+    "dt_mom",
+    "dt_tracer",
+    "runlen",
+    "restart_frequency",
+}
+
 
 class CompiledCompatibilityError(RuntimeError):
     """A configuration needs ordinary execution."""
@@ -59,10 +75,7 @@ def compilation_reasons(simulation, linear_solver=None):
 
 
 class PreparedIntegrator:
-    """Integrate an initialized model with fixed configuration.
-
-    Configuration and hooks are captured at preparation. Floating model
-    variables remain dynamic.
+    """Integrate captured configuration with dynamic floating variables and settings.
 
     Args:
         simulation: An initialized :class:`veros.VerosSetup`.
@@ -71,6 +84,8 @@ class PreparedIntegrator:
         checkpoint: Recompute step intermediates during differentiation.
         linear_solver: Override the compiled solver selection with
             ``scipy_jax`` or ``best``. Defaults to the runtime selection.
+        fixed_parameters: Additional setting names used to prepare cached data
+            by this setup or its plugins. These cannot be overridden at runtime.
     """
 
     def __init__(
@@ -80,6 +95,7 @@ class PreparedIntegrator:
         record_diagnostics=None,
         checkpoint=False,
         linear_solver=None,
+        fixed_parameters=(),
     ):
         simulation._ensure_setup_done()
         reasons = compilation_reasons(simulation, linear_solver)
@@ -94,6 +110,10 @@ class PreparedIntegrator:
         self._step_dynamics = copy(simulation)._step_dynamics
         self._template = copy(simulation.state)
         self._template._settings = copy(simulation.state.settings)
+        self._fixed_parameters = FIXED_PARAMETERS | set(fixed_parameters)
+        unknown = self._fixed_parameters - set(self._template.settings.fields()) - FIXED_PARAMETERS
+        if unknown:
+            raise ValueError(f"Unknown fixed parameters: {sorted(unknown)}")
         self._template._dimensions = dict(simulation.state.dimensions)
         self._template._diagnostics = {}
         self._template._linear_solver = get_compiled_solver(simulation.state, linear_solver)
@@ -148,7 +168,7 @@ class PreparedIntegrator:
         self._configuration = {
             name: value
             for name, value in simulation.state.settings.items()
-            if name not in {"identifier", "description", "restart_input_filename", "restart_output_filename"}
+            if simulation.state.settings.__metadata__[name].type in (bool, int) or name in self._fixed_parameters
         }
         self._runtime_configuration = (
             runtime_settings.backend,
@@ -244,6 +264,31 @@ class PreparedIntegrator:
             state.diagnostics["snapshot"].variables = state.variables
         return state
 
+    def validate_parameters(self, parameters):
+        """Normalize scalar floating overrides without inspecting traced values."""
+        import jax.numpy as jnp
+
+        if parameters is None:
+            return {}
+        if not isinstance(parameters, Mapping):
+            raise TypeError("parameters must be a mapping of setting names to scalar values")
+        metadata = self._template.settings.__metadata__
+        normalized = {}
+        for name, value in parameters.items():
+            if name not in metadata:
+                raise ValueError(f"Unknown setting {name!r}")
+            if metadata[name].type is not float:
+                raise TypeError(f"Setting {name!r} is not a floating-point setting")
+            if name in self._fixed_parameters:
+                raise ValueError(f"Setting {name!r} depends on fixed preparation data or schedules")
+            if f"control_{name}" in self._template.variables:
+                raise ValueError(f"Setting {name!r} already has a variable control; use only one control path")
+            value = jnp.asarray(value)
+            if value.ndim or not jnp.issubdtype(value.dtype, jnp.floating):
+                raise TypeError(f"Parameter {name!r} must be a floating-point scalar")
+            normalized[name] = jnp.asarray(value, dtype=runtime_settings.float_type)
+        return normalized
+
     def validate_step_inputs(self, step_inputs):
         """Normalize explicit forcing arrays to the prepared variable schema."""
         import jax.numpy as jnp
@@ -274,9 +319,11 @@ class PreparedIntegrator:
             values[name] = value
         return values
 
-    def _make_state(self, variables, step_inputs=None):
+    def _make_state(self, variables, parameters=None, step_inputs=None):
         state = copy(self._template)
         state._variables = copy(variables)
+        if parameters:
+            state._settings = state.settings._with_parameters(parameters)
         state._solver_residual_ok = True
         state._forcing_inputs = step_inputs or {}
         return state
@@ -344,13 +391,13 @@ class PreparedIntegrator:
                 records[name] = DiagnosticRecord(state.variables.time, state.variables.itt, due, values)
         return variables, records, valid_cfl
 
-    def _step(self, carry, step_inputs=None):
+    def _step(self, carry, parameters=None, step_inputs=None):
         import jax
         import jax.numpy as jnp
         from veros.core import numerics, isoneutral
 
         def advance(current):
-            state = self._make_state(current.variables, step_inputs)
+            state = self._make_state(current.variables, parameters, step_inputs)
             with state.variables.unlock():
                 self._step_dynamics(state)
                 sane = numerics.sanity_check(state)
@@ -386,17 +433,19 @@ class PreparedIntegrator:
                 carry,
             )
 
-    def step(self, carry, *, step_inputs=None):
+    def step(self, carry, *, parameters=None, step_inputs=None):
         """Return one compiled timestep and event records without a leading step axis."""
         self.check_configuration()
-        return self._compiled_step(carry, self.validate_step_inputs(step_inputs))
+        return self._compiled_step(carry, self.validate_parameters(parameters), self.validate_step_inputs(step_inputs))
 
-    def advance(self, carry, *, n_steps, final_only=False, step_inputs=None):
+    def advance(self, carry, *, n_steps, final_only=False, parameters=None, step_inputs=None):
         """Compose compiled timesteps in a Python loop and return output records.
 
         Records have a leading step axis unless ``final_only=True``. Their
         ``valid`` masks identify output events. Failed trajectories carry a
         nonzero failure code and freeze after the first failed step.
+        ``parameters`` overrides floating step-time settings through
+        ``state.settings`` without modifying the model or continuation state.
         JAX can differentiate this composition without jitting the whole loop.
         Every horizon reuses the same compiled timestep.
         """
@@ -407,13 +456,14 @@ class PreparedIntegrator:
         import jax
         import jax.numpy as jnp
 
+        parameters = self.validate_parameters(parameters)
         records = self._empty_records(carry)
         history = []
         if step_inputs is not None and len(step_inputs) != n_steps:
             raise ValueError("step_inputs must contain one mapping per timestep")
         for index in range(n_steps):
             inputs = self.validate_step_inputs(None if step_inputs is None else step_inputs[index])
-            carry, records = self._compiled_step(carry, inputs)
+            carry, records = self._compiled_step(carry, parameters, inputs)
             if not final_only:
                 history.append(records)
         if not final_only:
