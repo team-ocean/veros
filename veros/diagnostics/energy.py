@@ -330,7 +330,7 @@ def diagnose_kernel(state):
     if settings.enable_idemix:
         iw_m = mean_w(vs.E_iw[..., vs.tau])
         diw_m = global_sum(
-            npx.sum(vol_w * (vs.E_iw[2:-2, 2:-2, :, vs.taup1] - vs.E_iw[2:-2, 2:-2, :, vs.tau]) / vs.dt_tracer)
+            npx.sum(vol_w * (vs.E_iw[2:-2, 2:-2, :, vs.taup1] - vs.E_iw[2:-2, 2:-2, :, vs.tau]) / settings.dt_tracer)
         )
         iw_diss = mean_w(vs.iw_diss)
 

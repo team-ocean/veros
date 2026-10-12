@@ -89,3 +89,23 @@ def test_setup_north_atlantic():
         sim.state.settings.runlen = sim.state.settings.dt_tracer
 
     sim.run()
+
+
+def test_setup_idemix_parameters():
+    import numpy as np
+
+    from veros.core import idemix
+    from veros.setups.acc_basic import ACCBasicSetup
+
+    sim = ACCBasicSetup(override=dict(nx=12, ny=12, enable_idemix=True))
+    sim.setup()
+    expected = idemix.set_idemix_parameter(sim.state)
+
+    assert np.any(expected.c0 > 0)
+    assert np.any(expected.v0 > 0)
+    assert np.any(expected.alpha_c > 0)
+
+    sim.step(sim.state)
+
+    for name, value in expected._asdict().items():
+        np.testing.assert_allclose(sim.state.variables.get(name), value)
