@@ -1,18 +1,15 @@
-import os
 import copy
 
 from veros.diagnostics.base import VerosDiagnostic
 from veros.variables import TIMESTEPS, Variable
+from veros.core.operators import numpy as npx
 
 
 class Averages(VerosDiagnostic):
-    """Time average output diagnostic.
-
-    All registered variables are summed up when :meth:`diagnose` is called,
-    and averaged and output upon calling :meth:`output`.
-    """
+    """Accumulate selected variables and output their time averages."""
 
     name = "averages"  #:
+    supports_compilation = True
     output_path = "{identifier}.averages.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
     output_variables = None  #: Iterable containing all variables to be averaged. Changes have no effect after ``initialize`` has been called.
     output_frequency = None  #: Frequency (in seconds) in which output is written.
@@ -61,21 +58,13 @@ class Averages(VerosDiagnostic):
                 setattr(avg_vs, key, var_data + getattr(vs, key))
 
     def output(self, state):
-        """Write averages to netcdf file and zero array"""
+        """Finalize the averaging window and write its values."""
+        self.write_finalized(state, self.finalize(state))
+
+    def finalize(self, state):
         avg_vs = self.variables
-
-        if not os.path.isfile(self.get_output_file_name(state)):
-            self.initialize_output(state)
-
-        if avg_vs.average_nitts > 0:
-            for key in self.output_variables:
-                val = getattr(avg_vs, key)
-                setattr(avg_vs, key, val / avg_vs.average_nitts)
-
-        self.write_output(state)
-
+        values = {key: avg_vs.get(key) / npx.maximum(avg_vs.average_nitts, 1) for key in self.output_variables}
         for key in self.output_variables:
-            val = getattr(avg_vs, key)
-            setattr(avg_vs, key, 0 * val)
-
+            setattr(avg_vs, key, npx.zeros_like(avg_vs.get(key)))
         avg_vs.average_nitts = 0
+        return values
