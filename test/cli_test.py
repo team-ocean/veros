@@ -144,6 +144,7 @@ def test_compiled_solver_requires_compiled(runner, tmp_path):
         (["--execution", "compiled"], "compiled", None),
         (["--compiled"], "compiled", None),
         (["--execution", "compiled", "--compiled-solver", "scipy_jax"], "compiled", "scipy_jax"),
+        (["--execution", "compiled", "--compiled-solver", "petsc"], "compiled", "petsc"),
     ],
 )
 def test_execution_options_route_to_runner(runner, tmp_path, monkeypatch, runtime_options, options, execution, solver):

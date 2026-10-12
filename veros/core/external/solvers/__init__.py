@@ -65,11 +65,22 @@ def get_linear_solver(state):
 def get_compiled_solver(state, linear_solver=None):
     if linear_solver is None:
         linear_solver = rs.linear_solver
-    if linear_solver not in ("best", "scipy_jax"):
-        raise ValueError("Compiled linear_solver must be 'best' or 'scipy_jax'")
+    if linear_solver not in ("best", "petsc", "scipy_jax"):
+        raise ValueError("Compiled linear_solver must be 'best', 'petsc', or 'scipy_jax'")
+    if linear_solver == "petsc" or (linear_solver == "best" and rst.proc_num > 1):
+        try:
+            from veros.core.external.solvers.petsc_jax import CompiledPETScSolver
+        except ImportError:
+            if linear_solver == "petsc":
+                raise
+            logger.warning("PETSc linear solver not available, falling back to replicated JAX solves")
+        else:
+            return CompiledPETScSolver(state)
     from veros.core.external.solvers.scipy_jax import JAXSciPySolver
 
-    return JAXSciPySolver(state)
+    solver = JAXSciPySolver(state)
+    solver.prepare_compiled()
+    return solver
 
 
 @memoize

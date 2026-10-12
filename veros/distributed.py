@@ -81,6 +81,11 @@ def bcast(buf, comm, root=0):
     if rs.backend == "jax":
         from mpi4jax import bcast
 
+        if getattr(CURRENT_CONTEXT, "tracing", False):
+            from veros._distributed_jax import numerical_communicator
+
+            comm = numerical_communicator(comm)
+
         buf = bcast(buf, root=root, comm=comm)
         return buf
 
@@ -90,6 +95,23 @@ def bcast(buf, comm, root=0):
 def allreduce(buf, op, comm):
     if rs.backend == "jax":
         from mpi4jax import allreduce
+
+        if getattr(CURRENT_CONTEXT, "tracing", False):
+            import jax
+            import jax.numpy as jnp
+            from mpi4py import MPI
+            from veros._distributed_jax import numerical_communicator, sum_transfer
+
+            if op == MPI.SUM and jnp.issubdtype(buf.dtype, jnp.inexact):
+                return sum_transfer(buf, comm)
+            host_comm = comm
+            comm = numerical_communicator(comm)
+            if op in (MPI.MAX, MPI.MIN) and jnp.issubdtype(buf.dtype, jnp.inexact):
+                value = allreduce(jax.lax.stop_gradient(buf), op=op, comm=comm)
+                winner = buf == value
+                count = allreduce(winner.astype(buf.dtype), op=MPI.SUM, comm=comm)
+                tangent_value = jnp.where(winner, buf - jax.lax.stop_gradient(buf), 0)
+                return value + sum_transfer(tangent_value, host_comm) / jnp.maximum(count, 1)
 
         buf = allreduce(buf, op=op, comm=comm)
         return buf
@@ -217,8 +239,14 @@ def get_process_neighbors(cyclic=False):
 
 @dist_context_only(noop_return_arg=0)
 def exchange_overlap(arr, var_grid, cyclic):
-    from veros.core.operators import numpy as npx, update, at
+    if getattr(CURRENT_CONTEXT, "tracing", False):
+        from veros._distributed_jax import halo_exchange
 
+        return halo_exchange(arr, var_grid, cyclic)
+    return _exchange_overlap(arr, var_grid, cyclic)
+
+
+def _overlap_slices(var_grid):
     # start west, go clockwise
     send_order = (
         "west",
@@ -250,9 +278,7 @@ def exchange_overlap(arr, var_grid, cyclic):
 
     if d1 not in SCATTERED_DIMENSIONS[0] and d1 not in SCATTERED_DIMENSIONS[1] and d2 not in SCATTERED_DIMENSIONS[1]:
         # neither x nor y dependent, nothing to do
-        return arr
-
-    proc_neighbors = get_process_neighbors(cyclic)
+        return None
 
     if d1 in SCATTERED_DIMENSIONS[0] and d2 in SCATTERED_DIMENSIONS[1]:
         overlap_slices_from = dict(
@@ -301,6 +327,18 @@ def exchange_overlap(arr, var_grid, cyclic):
             north=(slice(-2, None), Ellipsis),
         )
 
+    return send_order, recv_order, overlap_slices_from, overlap_slices_to
+
+
+def _exchange_overlap(arr, var_grid, cyclic):
+    from veros.core.operators import numpy as npx, update, at
+
+    slices = _overlap_slices(var_grid)
+    if slices is None:
+        return arr
+    send_order, recv_order, overlap_slices_from, overlap_slices_to = slices
+    proc_neighbors = get_process_neighbors(cyclic)
+
     for send_dir, recv_dir in zip(send_order, recv_order):
         send_proc = proc_neighbors[send_dir]
         recv_proc = proc_neighbors[recv_dir]
@@ -313,6 +351,14 @@ def exchange_overlap(arr, var_grid, cyclic):
 
         send_idx = overlap_slices_from[send_dir]
         send_arr = arr[send_idx]
+
+        if getattr(CURRENT_CONTEXT, "tracing", False):
+            from veros._distributed_jax import exchange
+
+            recv_arr = exchange(send_arr, recv_arr, recv_proc, send_proc)
+            if recv_proc is not None:
+                arr = update(arr, at[recv_idx], recv_arr)
+            continue
 
         if send_proc is None:
             recv_arr = recv(recv_arr, recv_proc, rs.mpi_comm)
@@ -345,7 +391,7 @@ def _memoize(function):
 
 
 @_memoize
-def _mpi_comm_along_axis(comm, procs, rank):
+def _mpi_comm_along_axis(comm, procs, rank, axis):
     return comm.Split(procs, rank)
 
 
@@ -359,7 +405,7 @@ def _reduce(arr, op, axis=None):
         assert axis in (0, 1)
         pi = proc_rank_to_index(rst.proc_rank)
         other_axis = 1 - axis
-        comm = _mpi_comm_along_axis(rs.mpi_comm, pi[other_axis], rst.proc_rank)
+        comm = _mpi_comm_along_axis(rs.mpi_comm, pi[other_axis], rst.proc_rank, axis)
 
     if npx.isscalar(arr):
         squeeze = True
@@ -484,6 +530,8 @@ def _gather_xy(nx, ny, arr):
 
 @dist_context_only(noop_return_arg=0)
 def gather(arr, dimensions, var_grid):
+    if getattr(CURRENT_CONTEXT, "tracing", False):
+        raise RuntimeError("Root-only gather is a host operation inside a compiled integration")
     nx, ny = dimensions["xt"], dimensions["yt"]
 
     if var_grid is None:
@@ -583,6 +631,8 @@ def _scatter_xy(nx, ny, arr):
 
 @dist_context_only(noop_return_arg=0)
 def scatter(arr, dimensions, var_grid):
+    if getattr(CURRENT_CONTEXT, "tracing", False):
+        raise RuntimeError("Root-only scatter is a host operation inside a compiled integration")
     from veros.core.operators import numpy as npx
 
     if var_grid is None:
