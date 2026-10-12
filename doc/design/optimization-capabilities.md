@@ -58,9 +58,11 @@ Adapt scientific objectives to the existing checkpoint gradient interface and
 provide response JVP/VJP operations for observation and implicit-solve workflows.
 Connect closure and geometry inputs as they are implemented. Measure the
 requested horizons and ensemble costs using the existing execution path.
-Per-step JIT is the execution baseline. Compiled blocks require a substantial,
-repeatable end-to-end gain well beyond a few percent, accounting for compilation,
-memory, and implementation complexity. They are outside the required milestones.
+Per-step JIT is the execution baseline. Reconsider compiled blocks for a
+substantial, repeatable end-to-end performance gain well beyond a few percent
+or a demonstrated material UX improvement. Establish whether the user workflow
+benefit requires blocks, and account for compilation, memory, and implementation
+complexity. Blocks remain outside the required milestones.
 
 ### 3. Inverse, constrained-optimization, and uncertainty tools
 
@@ -157,6 +159,10 @@ statistical sensitivity is a distinct problem from differentiating a single
 finite trajectory. See
 [Wang, Hu, and Blonigan, 2014](https://doi.org/10.1016/j.jcp.2014.03.002).
 No particular estimator is established for these Veros cases yet.
+
+The [shadowing evaluation plan](shadowing-evaluation-plan.md) makes NILSS/NILSAS
+an early feasibility investigation, including validation of potential bias from
+an omitted unstable-response contribution.
 
 Validate derivatives against independently simulated ensemble finite differences
 with resolved signal and sampling uncertainty. Extend the same estimator to

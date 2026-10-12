@@ -15,8 +15,11 @@ main new scientific tooling and numerical extensions.
 
 Execution retains one compiled numerical timestep with host orchestration and
 checkpoint replay. Block compilation is outside the implementation milestones.
-Reconsider it only with a substantial, repeatable end-to-end benefit well beyond
-a few percent, accounting for compilation, memory, and implementation complexity.
+Reconsider it for a substantial, repeatable end-to-end performance gain well
+beyond a few percent, or a material UX improvement such as simpler long-horizon
+differentiation or less manual memory management. Demonstrate the user workflow
+benefit and assess whether it requires block compilation. Account for compilation,
+memory, and implementation complexity in either case.
 
 ## Completion criteria
 
@@ -140,9 +143,10 @@ Connecting those interfaces is the immediate remaining work.
    Reuse the existing carried state, forcing records, and checkpoint storage.
 4. Benchmark the requested annual and ten-year windows and repeated ensembles
    using the existing single-step execution. Keep per-step JIT as the baseline.
-   Consider blocks only after evidence of a substantial, repeatable end-to-end
-   gain well beyond a few percent. Include compilation and memory costs in that
-   comparison and justify the additional complexity.
+   Consider blocks for a substantial, repeatable end-to-end performance gain
+   well beyond a few percent or a demonstrated material UX improvement. Compare
+   the user workflows as well as compilation and memory costs, and justify why
+   the benefit requires the additional execution machinery.
 
 ### Acceptance gate
 
@@ -281,6 +285,12 @@ partial-cell setting guards is the final consequence of validated support.
 
 ## 7. Statistical response
 
+Run the [shadowing evaluation](shadowing-evaluation-plan.md) as an explicit early
+investigation during M1. Compare NILSS and NILSAS using the existing per-step
+JVP/VJP machinery. Test whether they estimate the full statistical response or
+require an additional unstable contribution; a bounded shadowing direction is
+not sufficient evidence of an unbiased climate derivative.
+
 ### Implementation slices
 
 1. During M1, establish a feasibility benchmark with an understood stable
@@ -293,8 +303,8 @@ partial-cell setting guards is the final consequence of validated support.
 3. Provide invariant responses from validated stable equilibria and cycles.
    These are a baseline for the statistics interface, with a limited physical
    scope.
-4. Compare candidate chaotic-response estimators against independent ensemble
-   finite differences on the feasibility benchmark. Select a method based on
+4. Compare shadowing and other candidate chaotic-response estimators against
+   independent ensemble finite differences on the feasibility benchmark. Select a method based on
    validity, bias, variance, memory, and cost. Record assumptions and conditions
    where the response may not be differentiable.
 5. Implement the selected estimator using shared JVP/VJP and integration tools.
