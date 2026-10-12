@@ -40,12 +40,10 @@ def compilation_reasons(simulation, linear_solver=None):
     reasons = []
     if runtime_settings.backend != "jax":
         reasons.append("compiled integration requires the JAX backend")
-    if runtime_state.proc_num > 1:
-        reasons.append("compiled integration currently requires serial execution")
     solver = runtime_settings.linear_solver if linear_solver is None else linear_solver
     if solver not in ("best", "scipy", "petsc", "scipy_jax"):
         raise ValueError("Unrecognized compiled linear_solver")
-    if solver not in ("best", "scipy_jax"):
+    if solver not in ("best", "petsc", "scipy_jax"):
         reasons.append(f"solver {solver!r} requires ordinary execution")
     if simulation.__dict__.get("step", getattr(type(simulation), "step")) is not VerosSetup.step:
         reasons.append("overridden step requires ordinary execution")
@@ -82,8 +80,8 @@ class PreparedIntegrator:
         record_diagnostics: Names whose output events should be retained. By
             default, retain enabled diagnostics except snapshots.
         checkpoint: Recompute step intermediates during differentiation.
-        linear_solver: Override the compiled solver selection with
-            ``scipy_jax`` or ``best``. Defaults to the runtime selection.
+        linear_solver: Override the compiled solver selection with ``petsc``,
+            ``scipy_jax``, or ``best``. Defaults to the runtime selection.
         fixed_parameters: Additional setting names used to prepare cached data
             by this setup or its plugins. These cannot be overridden at runtime.
     """
@@ -106,6 +104,15 @@ class PreparedIntegrator:
 
         if not math.isfinite(simulation.state.settings.dt_tracer) or simulation.state.settings.dt_tracer <= 0:
             raise ValueError("dt_tracer must be finite and positive")
+        if runtime_state.proc_num > 1:
+            from veros._distributed_jax import prepare_communicator
+            from veros.distributed import _mpi_comm_along_axis, proc_rank_to_index
+
+            prepare_communicator(runtime_settings.mpi_comm)
+            index = proc_rank_to_index(runtime_state.proc_rank)
+            for axis in (0, 1):
+                comm = _mpi_comm_along_axis(runtime_settings.mpi_comm, index[1 - axis], runtime_state.proc_rank, axis)
+                prepare_communicator(comm)
         self.simulation = simulation
         self._step_dynamics = copy(simulation)._step_dynamics
         self._template = copy(simulation.state)

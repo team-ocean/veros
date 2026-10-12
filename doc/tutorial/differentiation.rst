@@ -3,7 +3,8 @@ Compiled integration and differentiation
 
 The JAX backend can compile a numerical timestep, including forcing, physics,
 and diagnostic sampling and finalization. Setup and file output run on the host.
-The pure API supports serial CPU and GPU execution with the JAX pressure solver.
+The pure API supports CPU and GPU execution with JAX or PETSc pressure solvers,
+including distributed execution through MPI.
 
 Running a simulation
 --------------------
@@ -13,7 +14,6 @@ and reports the selected path. NumPy, explicit SciPy solver selection, unmarked
 numerical hooks, and setups overriding ``step()`` use ordinary execution.
 ``run(execution="compiled")`` requires compilation and raises when the model is
 unsupported. ``run(execution="eager")`` selects ordinary execution explicitly.
-Compiled integration currently requires serial execution.
 
 To run a fixed number of timesteps with diagnostics, restarts, and progress,
 call ``simulation.run_compiled(n_steps=24)`` after setup. Without ``n_steps``,
@@ -28,7 +28,8 @@ The corresponding command line options are::
     veros run acc_basic.py --backend jax --execution eager
 
 ``--compiled`` is an alias for ``--execution compiled``. A compiled run can
-select ``--compiled-solver scipy_jax`` or ``--compiled-solver best``. An explicit
+select ``--compiled-solver scipy_jax``, ``--compiled-solver petsc``, or
+``--compiled-solver best``. An explicit
 solver override must be honored by compiled execution. An automatic fallback
 raises if ordinary execution would use a different solver.
 
@@ -189,3 +190,39 @@ the corresponding settings. Replace those leaves with ``replace_variables``
 to differentiate the parameterization. Constant diffusivity controls are used
 when their prognostic TKE/EKE parameterization is disabled. A setting with an
 existing ``control_*`` variable cannot also receive a setting override.
+
+
+MPI execution
+-------------
+
+Install the ``jax-mpi`` extra for the supported JAX and MPI Python dependencies.
+All ranks must use the same timestep count and integration options. Compiled
+hooks must support local execution; root-only gather and scatter are host
+operations and are rejected during numerical tracing.
+
+Run a model on a 2 by 2 process grid with::
+
+    mpiexec -n 4 veros run acc_basic.py --backend jax --device cpu \
+        --num-proc 2 2 --compiled --compiled-solver petsc
+
+``linear_solver="best"`` selects PETSc for distributed compiled integration
+when available and otherwise uses replicated JAX solves. Select either solver
+explicitly through ``prepare_integrator(linear_solver=...)`` or
+``run_compiled(linear_solver=...)``. The replicated JAX solver stores the global
+pressure operator and solves the global system on every rank.
+
+PETSc callbacks share an ordering token with numerical MPI transfers on
+communicators prepared separately from host operations. Halo exchanges and
+collectives provide forward and reverse derivatives. PETSc derivatives solve
+the fixed operator and its separately prepared transpose, including
+right-hand-side and boundary-value sensitivities. Numerical right-hand sides
+are normalized globally; failed solves set the integration failure status.
+PETSc callbacks require ``MPI_THREAD_MULTIPLE`` and use CPU vectors. GPU models
+transfer their local pressure arrays to the host for these solves.
+
+Global diagnostic values are replicated across ranks. Seed a replicated scalar
+objective once, for example by differentiating ``loss / runtime_state.proc_num``
+on each rank. Sum the resulting local sensitivities to obtain the gradient
+for a shared parameter. Identical forward tangents on every rank already
+produce the shared directional derivative. Parallel file output requires
+MPI-enabled HDF5, as in ordinary execution.
