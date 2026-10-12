@@ -9,10 +9,7 @@ from veros import distributed, runtime_settings, time
 
 
 class VerosDiagnostic(metaclass=abc.ABCMeta):
-    """Base class for diagnostics. Provides an interface and wrappers for common I/O.
-
-    Any diagnostic needs to implement the 5 interface methods and set some attributes.
-    """
+    """Diagnostic interface with shared initialization and output helpers."""
 
     name = None  #: Name that identifies the current diagnostic
     sampling_frequency = 0.0
@@ -23,8 +20,8 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
 
     var_meta = None  #: Metadata of internal variables
     extra_dimensions = None  #: Dict of extra dimensions used in var_meta
-    supports_compilation = False
-    observes_model = False  #: Host compatibility requires no mutation of model variables or settings.
+    supports_compilation = False  #: Numerical methods support JAX tracing.
+    observes_model = False  #: Diagnostic methods leave model variables and settings unchanged.
 
     def __init__(self, state):
         pass

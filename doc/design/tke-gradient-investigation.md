@@ -57,4 +57,4 @@ PYTHONPATH=. VEROS_DEVICE=cpu VEROS_USE_SPECIAL_TDMA=1 \
   python benchmarks/tke_gradient_probe.py --zero-unstable-slopes
 ```
 
-The probe prints synchronized primal values, both derivative modes, finite differences at three scales, and process peak RSS. The `--zero-unstable-slopes` switch applies the experimental divider only inside that process. The [raw investigation measurements](../../benchmarks/tke-gradient-investigation.json) retain the horizon checks and unsuccessful interventions alongside the zero-slope result.
+The probe prints synchronized primal values, both derivative modes, finite differences at three scales, and process peak RSS. The `--zero-unstable-slopes` switch applies the experimental divider only inside that process. The [raw investigation measurements](https://github.com/team-ocean/veros/blob/6432c0c85576c6b9dd2254513e19f2816fff4b2c/benchmarks/tke-gradient-investigation.json) retain the horizon checks and unsuccessful interventions alongside the zero-slope result.

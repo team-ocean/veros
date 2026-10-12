@@ -6,11 +6,7 @@ from veros.core.operators import numpy as npx
 
 
 class Averages(VerosDiagnostic):
-    """Time average output diagnostic.
-
-    All registered variables are summed up when :meth:`diagnose` is called,
-    and averaged and output upon calling :meth:`output`.
-    """
+    """Accumulate selected variables and output their time averages."""
 
     name = "averages"  #:
     supports_compilation = True
@@ -62,7 +58,7 @@ class Averages(VerosDiagnostic):
                 setattr(avg_vs, key, var_data + getattr(vs, key))
 
     def output(self, state):
-        """Write averages to netcdf file and zero array"""
+        """Finalize the averaging window and write its values."""
         self.write_finalized(state, self.finalize(state))
 
     def finalize(self, state):

@@ -1,8 +1,6 @@
-"""Estimate mixing settings from synthetic final-state TKE observations.
+"""Fit mixing settings to synthetic final-state TKE observations.
 
-Run with PYTHONPATH=. and VEROS_BACKEND=jax. Initial conditions and geometry
-are held fixed. This validates the numerical parameter path, not parameter
-identifiability or the quality of the model's mixing parameterization.
+Run with PYTHONPATH=. and VEROS_BACKEND=jax, using fixed initial conditions and geometry.
 """
 
 import argparse

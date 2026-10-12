@@ -40,9 +40,13 @@ def compilation_reasons(simulation, linear_solver=None):
     reasons = []
     if runtime_settings.backend != "jax":
         reasons.append("compiled integration requires the JAX backend")
+    if simulation.state.settings.enable_partial_cells and runtime_state.proc_num != 1:
+        reasons.append("Partial cells currently require serial JAX execution")
     solver = runtime_settings.linear_solver if linear_solver is None else linear_solver
+    if simulation.state.settings.enable_partial_cells and solver == "petsc":
+        raise ValueError("Partial cells require the variable-coefficient scipy_jax solver")
     if solver not in ("best", "scipy", "petsc", "scipy_jax"):
-        raise ValueError("Compiled linear_solver must be 'best', 'petsc', or 'scipy_jax'")
+        raise ValueError("Unrecognized compiled linear_solver")
     if solver not in ("best", "petsc", "scipy_jax"):
         reasons.append(f"solver {solver!r} requires ordinary execution")
     if simulation.__dict__.get("step", getattr(type(simulation), "step")) is not VerosSetup.step:
@@ -73,11 +77,7 @@ def compilation_reasons(simulation, linear_solver=None):
 
 
 class PreparedIntegrator:
-    """Integrate an initialized model with fixed configuration.
-
-    Configuration and hooks are captured at preparation. Floating variables
-    and step-time setting overrides remain dynamic. Partial-cell models also
-    rebuild their pressure coefficients from the carry's geometry.
+    """Integrate captured configuration with dynamic floating variables and settings.
 
     Args:
         simulation: An initialized :class:`veros.VerosSetup`.
@@ -280,47 +280,6 @@ class PreparedIntegrator:
             state.diagnostics["snapshot"].variables = state.variables
         return state
 
-    def bathymetry_bounds(self, carry, *, minimum_fraction=0.1):
-        """Return interior depth bounds in meters for the fixed bottom-cell indices."""
-        from veros.core.geometry import bathymetry_bounds
-
-        if not self._template.settings.enable_partial_cells:
-            raise ValueError("Bathymetry controls require enable_partial_cells=True before setup")
-        if not 0 < minimum_fraction <= 1:
-            raise ValueError("minimum_fraction must lie in (0, 1]")
-        with tracing_context():
-            lower, upper = bathymetry_bounds(self._make_state(carry.variables), minimum_fraction)
-        return lower[2:-2, 2:-2], upper[2:-2, 2:-2]
-
-    def with_bathymetry(self, carry, depth, *, minimum_fraction=0.1):
-        """Return a carry with positive interior bottom depths in meters.
-
-        Wet cells, reference z levels, concentrations, and velocity histories
-        remain fixed. Geometry persists through continuation and checkpoints.
-        Depths outside :meth:`bathymetry_bounds`, including nonzero land depths,
-        mark the carry as failed. Construct depth-dependent initial profiles
-        after updating geometry.
-        """
-        import jax.numpy as jnp
-        from veros.core.geometry import bathymetry_geometry
-        from veros.core.operators import update, at
-
-        lower, upper = self.bathymetry_bounds(carry, minimum_fraction=minimum_fraction)
-        depth = jnp.asarray(depth, dtype=carry.variables.dzt.dtype)
-        if depth.shape != upper.shape:
-            raise ValueError(f"depth must have interior shape {upper.shape}, got {depth.shape}")
-        valid = jnp.all(jnp.isfinite(depth) & (depth >= lower) & (depth <= upper))
-        # Keep geometry finite when invalid inputs freeze the trajectory.
-        safe_depth = jnp.where(valid, depth, upper)
-        full_depth = update(carry.variables.ht, at[2:-2, 2:-2], safe_depth)
-        with tracing_context():
-            fields = bathymetry_geometry(self._make_state(carry.variables), full_depth)
-        carry = self.replace_variables(carry, **fields._asdict())
-        return carry._replace(
-            failure_code=jnp.where((carry.failure_code == 0) & ~valid, 4, carry.failure_code),
-            failed_iteration=jnp.where((carry.failure_code == 0) & ~valid, carry.variables.itt, carry.failed_iteration),
-        )
-
     def validate_parameters(self, parameters):
         """Normalize scalar floating overrides without inspecting traced values."""
         import jax.numpy as jnp
@@ -345,6 +304,40 @@ class PreparedIntegrator:
                 raise TypeError(f"Parameter {name!r} must be a floating-point scalar")
             normalized[name] = jnp.asarray(value, dtype=runtime_settings.float_type)
         return normalized
+
+    def bathymetry_bounds(self, carry, *, minimum_fraction=0.1):
+        """Return interior depth bounds in meters for the fixed bottom-cell indices."""
+        from veros.core.geometry import bathymetry_bounds
+
+        if not self._template.settings.enable_partial_cells:
+            raise ValueError("Bathymetry controls require enable_partial_cells=True before setup")
+        if not 0 < minimum_fraction <= 1:
+            raise ValueError("minimum_fraction must lie in (0, 1]")
+        with tracing_context():
+            lower, upper = bathymetry_bounds(self._make_state(carry.variables), minimum_fraction)
+        return lower[2:-2, 2:-2], upper[2:-2, 2:-2]
+
+    def with_bathymetry(self, carry, depth, *, minimum_fraction=0.1):
+        """Return a carry with positive interior bottom depths in meters."""
+        import jax.numpy as jnp
+        from veros.core.geometry import bathymetry_geometry
+        from veros.core.operators import update, at
+
+        lower, upper = self.bathymetry_bounds(carry, minimum_fraction=minimum_fraction)
+        depth = jnp.asarray(depth, dtype=carry.variables.dzt.dtype)
+        if depth.shape != upper.shape:
+            raise ValueError(f"depth must have interior shape {upper.shape}, got {depth.shape}")
+        valid = jnp.all(jnp.isfinite(depth) & (depth >= lower) & (depth <= upper))
+        # Keep geometry finite when invalid inputs freeze the trajectory.
+        safe_depth = jnp.where(valid, depth, upper)
+        full_depth = update(carry.variables.ht, at[2:-2, 2:-2], safe_depth)
+        with tracing_context():
+            fields = bathymetry_geometry(self._make_state(carry.variables), full_depth)
+        carry = self.replace_variables(carry, **fields._asdict())
+        return carry._replace(
+            failure_code=jnp.where((carry.failure_code == 0) & ~valid, 4, carry.failure_code),
+            failed_iteration=jnp.where((carry.failure_code == 0) & ~valid, carry.variables.itt, carry.failed_iteration),
+        )
 
     def validate_step_inputs(self, step_inputs):
         """Normalize explicit forcing arrays to the prepared variable schema."""
@@ -491,12 +484,7 @@ class PreparedIntegrator:
             )
 
     def step(self, carry, *, parameters=None, step_inputs=None):
-        """Return the next carry and event records from one compiled timestep.
-
-        Records have no leading step axis.
-        This pure operation supports JAX differentiation. It neither installs
-        results nor performs host output or status checks.
-        """
+        """Return one compiled timestep and event records without a leading step axis."""
         self.check_configuration()
         return self._compiled_step(carry, self.validate_parameters(parameters), self.validate_step_inputs(step_inputs))
 

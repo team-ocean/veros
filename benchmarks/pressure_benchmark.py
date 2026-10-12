@@ -46,7 +46,10 @@ def main():
     rs.linear_solver = "scipy_jax"
     rs.num_proc = tuple(args.num_proc)
     PETSc.Log.begin()
-    from integration_benchmark import make_acc_setup
+    if __package__:
+        from .integration_benchmark import make_acc_setup
+    else:
+        from integration_benchmark import make_acc_setup
 
     sim = make_acc_setup(
         dict(

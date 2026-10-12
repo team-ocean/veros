@@ -8,6 +8,8 @@ Compiled integration
 
 .. autoclass:: veros.integration.DiagnosticRecord
 
+.. autofunction:: veros.integration.run_compiled
+
 Host-managed adjoint checkpoints
 --------------------------------
 

@@ -18,11 +18,7 @@ class Response:
         days = 30 if ocean.case.task == "sensitivity" else 360
         if ocean.case.task == "perturbation":
             days = 3600
-        default = (
-            1
-            if self.kind == "local"
-            else (6 if config["mode"] == "smoke" else round(days * 86400 / ocean.dt))
-        )
+        default = 1 if self.kind == "local" else (6 if config["mode"] == "smoke" else round(days * 86400 / ocean.dt))
         self.steps = config["steps"] or default
         self.window_steps = max(self.period_steps, self.steps)
         self.windows = 4 if config["mode"] == "smoke" else 16
@@ -108,19 +104,13 @@ class Response:
 
         rng = np.random.default_rng(seed)
         full = self.full(z).at[0].add(float(rng.uniform(-0.3, 0.3)))
-        carry, parameters = self.ocean.controls(
-            full, phase_days=float(rng.uniform(0, 360)), realized=realized
-        )
-        carry, _ = self.ocean.prepared.advance(
-            carry, n_steps=self.burnin_steps, parameters=parameters, final_only=True
-        )
+        carry, parameters = self.ocean.controls(full, phase_days=float(rng.uniform(0, 360)), realized=realized)
+        carry, _ = self.ocean.prepared.advance(carry, n_steps=self.burnin_steps, parameters=parameters, final_only=True)
         values = []
         # Monthly samples resolve the stock forcing, matching the response provider.
         stride = max(1, self.window_steps // 12)
         for _ in range(12 * self.windows * (2 if doubled else 1)):
-            carry, _ = self.ocean.prepared.advance(
-                carry, n_steps=stride, parameters=parameters, final_only=True
-            )
+            carry, _ = self.ocean.prepared.advance(carry, n_steps=stride, parameters=parameters, final_only=True)
             self.ocean.prepared.check_status(carry)
             values.append(self.ocean.observe(carry))
         samples = jnp.stack(values)
@@ -141,9 +131,7 @@ class Response:
             burnin_years=20,
         )
         if self.config["mode"] == "acceptance":
-            checks.require(
-                "global research configuration", self.config["setup"] == "global_4deg", self.config["setup"]
-            )
+            checks.require("global research configuration", self.config["setup"] == "global_4deg", self.config["setup"])
             if self.kind == "trajectory":
                 required_days = (
                     3600
@@ -222,9 +210,7 @@ class Response:
             float(result["effective_sample_size"]),
         )
         se = np.asarray(result["standard_error"])
-        checks.require(
-            "finite positive uncertainty", bool(np.isfinite(se).all() and (se >= 0).all()), se.tolist()
-        )
+        checks.require("finite positive uncertainty", bool(np.isfinite(se).all() and (se >= 0).all()), se.tolist())
         checks.require(
             "split-window convergence",
             bool(np.all(np.abs(result["window_drift"]) <= 3 * se + 1e-5)),
@@ -234,12 +220,7 @@ class Response:
         uncertainty = np.std(empirical, axis=0, ddof=1) / 2
         checks.require(
             "independent climate statistics",
-            bool(
-                np.all(
-                    np.abs(np.mean(empirical, axis=0) - result["observations"])
-                    <= 3 * (se + uncertainty) + 1e-4
-                )
-            ),
+            bool(np.all(np.abs(np.mean(empirical, axis=0) - result["observations"]) <= 3 * (se + uncertainty) + 1e-4)),
             dict(
                 provider=result["observations"],
                 forward=np.mean(empirical, axis=0),
@@ -284,9 +265,7 @@ class Response:
             )
             mean, se = float(np.mean(differences)), float(np.std(differences, ddof=1) / 2)
             estimates.append(dict(epsilon=epsilon, derivative=mean, standard_error=se))
-            checks.require(
-                f"resolved climate finite difference {epsilon}", abs(mean) > 3 * se + 1e-8, estimates[-1]
-            )
+            checks.require(f"resolved climate finite difference {epsilon}", abs(mean) > 3 * se + 1e-8, estimates[-1])
             checks.require(
                 f"climate derivative confidence {epsilon}",
                 abs(mean - float(tangent)) <= 3 * se + 0.02 * abs(mean),

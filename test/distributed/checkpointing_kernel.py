@@ -148,7 +148,7 @@ with tempfile.TemporaryDirectory(prefix="veros-checkpoint-test-") as directory:
                 local_result.parameter_gradient["scale"], (plus_value - minus_value) / (2 * epsilon), rtol=1e-8
             )
 
-    # A rank-local host failure must wake every peer and clean all owned files.
+    # Propagate a rank-local host failure and clean all owned files.
     def fail(index, carry):
         if index == 1 and rst.proc_rank == 0:
             raise ValueError("injected observer failure")

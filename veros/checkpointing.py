@@ -52,11 +52,11 @@ def _materialize(start, end, extra, disk=0):
         yield CheckpointAction("advance", start, end)
 
 
-def _reverse(start, end, extra, prepared, disk=0):
+def _reverse(start, end, extra, checkpoints_prepared, disk=0):
     # An explicit stack also handles long horizons without Python recursion.
-    tasks = [("segment", start, end, extra, prepared, disk)]
+    tasks = [("segment", start, end, extra, checkpoints_prepared, disk)]
     while tasks:
-        kind, start, end, extra, prepared, disk = tasks.pop()
+        kind, start, end, extra, checkpoints_prepared, disk = tasks.pop()
         if kind == "drop":
             yield CheckpointAction("drop", start)
             continue
@@ -70,7 +70,7 @@ def _reverse(start, end, extra, prepared, disk=0):
                 yield CheckpointAction("reverse", index, index + 1)
             continue
         middle = start + _split(end - start, extra)
-        if not prepared:
+        if not checkpoints_prepared:
             yield CheckpointAction("restore", start)
             # Prepare nested right segments without advancing the final timestep.
             current, slots, disk_slots = start, extra, disk
@@ -220,12 +220,10 @@ def validate_schedule(schedule):
 
 
 class CheckpointStore:
-    """Exact PyTree checkpoints in host RAM or run-local NumPy archives.
+    """Exact PyTree checkpoints in host RAM or temporary NumPy archives.
 
-    Use as a context manager. Disk files live in a uniquely owned temporary
-    subdirectory of ``directory`` and are removed on success or error. Files
-    contain arrays only. The template's tree structure stays in the process.
-    This store is for adjoint replay, not persistent simulation restarts.
+    Use as a context manager. Array-only archives occupy an owned subdirectory
+    of ``directory`` and are removed on exit. Tree structure stays in the process.
     """
 
     def __init__(self, template, *, ram_checkpoints, directory=None, disk_checkpoints=None, max_ram_bytes=None):
@@ -363,19 +361,14 @@ class CheckpointStore:
 
 
 class CheckpointedIntegrator:
-    """First-order reverse integration with host-managed checkpoint replay.
+    """First-order reverse integration with host checkpoint replay.
 
-    Reuses jitted forward steps and one-step VJPs. Scheduling and disk I/O run
-    on the host, so JAX cannot transform ``value_and_grad``. MPI ranks store
-    local states and follow the same schedule. Objectives must return the same
-    global scalar on each rank, with adjoint seeds divided across ranks.
-
-    ``terminal_objective(final)`` returns a scalar loss.
-    ``record_objective(records)`` returns a scalar timestep contribution,
-    summed during the original forward traversal. Records have a singleton
-    step axis, matching ``advance(n_steps=1)``. Either objective may accept a
-    ``parameters`` keyword for direct dependence on setting overrides.
-    Replay performs no diagnostic file writes.
+    Jitted steps and one-step VJPs run on device. Host scheduling and I/O prevent
+    JAX transformations of ``value_and_grad``. MPI ranks use the same schedule and
+    global scalar objectives, with adjoint seeds divided across ranks.
+    ``terminal_objective(final)`` returns the final loss. ``record_objective(records)``
+    contributes a loss per forward step with a singleton step axis. Both may accept
+    ``parameters`` for direct dependence on setting overrides.
     """
 
     def __init__(self, prepared, *, terminal_objective=None, record_objective=None):
@@ -480,16 +473,14 @@ class CheckpointedIntegrator:
     ):
         """Return loss, carry and setting gradients, final carry, and storage statistics.
 
-        Integer and Boolean cotangent leaves have JAX's ``float0`` dtype.
+        ``gradient`` is the initial-carry cotangent, with ``float0`` leaves for integers
+        and Booleans. ``parameter_gradient`` contains setting-override derivatives.
         The prepared integrator's supported inputs and fixed configuration apply.
-        ``gradient`` is the initial-carry cotangent, and ``parameter_gradient``
-        contains setting-override derivatives. Each call cleans its checkpoint
-        files, including on failure. ``step_inputs`` is consumed once and saved
-        in ``input_storage`` for replay. Use the pure API for forcing derivatives.
+        ``step_inputs`` is read once and saved in ``input_storage`` for replay.
         ``observer(index, carry)`` runs once per original forward step.
-        MPI parameters are shared by default. ``shared_parameters=()`` selects
-        rank-local parameters. ``shared_variables`` names replicated initial
-        controls whose cotangents are summed across ranks.
+        MPI parameters are shared unless ``shared_parameters=()`` selects rank-local
+        parameters. ``shared_variables`` names replicated initial controls whose
+        cotangents are summed across ranks. Files are cleaned on success or failure.
         """
         import jax
         import jax.numpy as jnp

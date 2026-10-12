@@ -146,7 +146,7 @@ def test_petsc_trajectory(streamfunction):
         record_diagnostics=tuple(sim.state.diagnostics), checkpoint=True, linear_solver="petsc"
     )
     initial = prepared.pack(sim.state)
-    with pytest.raises(ValueError, match="Compiled linear_solver"):
+    with pytest.raises(ValueError, match="linear_solver"):
         sim.prepare_integrator(linear_solver="unknown")
     final, _ = prepared.advance(initial, n_steps=6)
     prepared.check_status(final)

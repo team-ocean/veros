@@ -121,12 +121,7 @@ def _halo_operator(comm_handle, var_grid, cyclic, shape, dtype):
 
 
 def halo_exchange(value, var_grid, cyclic):
-    """Keep each field's complete exchange ordered under JVP and transpose.
-
-    Boundary ranks have different point-to-point data dependencies. Treating
-    the complete exchange as one linear operation keeps their transformed
-    programs from interleaving messages for different fields.
-    """
+    """Keep a field's messages ordered as one linear operation under JVP and transpose."""
     return _halo_operator(MPI._handleof(rs.mpi_comm), tuple(var_grid), cyclic, value.shape, value.dtype)(value)
 
 

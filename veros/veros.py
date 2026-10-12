@@ -412,7 +412,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         if prepared is not None:
             self.execution_mode = "compiled"
             self.execution_reason = "native JAX hooks and supported solver"
-            logger.info("Execution: compiled; derivative support is checked before checkpoint replay")
+            logger.info("Execution: compiled")
             return run_compiled(self, prepared=prepared, show_progress_bar=show_progress_bar)
         self.execution_mode = "eager"
         self.execution_reason = "explicit ordinary execution" if execution == "eager" else "; ".join(reasons)
@@ -424,16 +424,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         return self._run_eager(show_progress_bar)
 
     def _run_eager(self, show_progress_bar=None):
-        """Main routine of the simulation.
-
-        Note:
-            Make sure to call :meth:`setup` prior to this function.
-
-        Arguments:
-            show_progress_bar (:obj:`bool`, optional): Whether to show fancy progress bar via tqdm.
-                By default, only show if stdout is a terminal and Veros is running on a single process.
-
-        """
+        """Run ordinary timesteps with diagnostics and restarts."""
         from veros import restart
 
         self._ensure_setup_done()

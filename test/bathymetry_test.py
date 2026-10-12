@@ -21,7 +21,7 @@ def options():
 
 
 def test_full_cells_match_existing_model():
-    from benchmarks.ad_demos.bathymetry import make_simulation
+    from bathymetry_helpers import make_simulation
 
     finals = []
     for partial in (False, True):
@@ -42,7 +42,7 @@ def test_full_cells_match_existing_model():
 def test_geometry_bounds_faces_and_purity():
     import jax
     import jax.numpy as jnp
-    from benchmarks.ad_demos.bathymetry import BathymetryBasin
+    from bathymetry_helpers import BathymetryBasin
 
     basin = BathymetryBasin()
     initial = basin.initial
@@ -71,7 +71,7 @@ def test_geometry_bounds_faces_and_purity():
 
 def test_resting_basin_stays_at_rest():
     import jax.numpy as jnp
-    from benchmarks.ad_demos.bathymetry import make_simulation
+    from bathymetry_helpers import make_simulation
 
     sim = make_simulation(wind=0, kappaH_0=0.0)
     prepared = sim.prepare_integrator(record_diagnostics=())
@@ -88,7 +88,7 @@ def test_resting_basin_stays_at_rest():
 
 @pytest.mark.parametrize("cyclic", (False, True))
 def test_mixed_bottom_indices_land_and_periodic_faces(cyclic):
-    from benchmarks.ad_demos.bathymetry import make_simulation
+    from bathymetry_helpers import make_simulation
 
     indices = np.broadcast_to(np.arange(10) % 5, (8, 10)).copy()
     sim = make_simulation(bottom_indices=indices, cyclic_x=cyclic, wind=0, kappaH_0=0.0)
@@ -118,7 +118,7 @@ def test_mixed_bottom_indices_land_and_periodic_faces(cyclic):
 @pytest.mark.parametrize("superbee", (False, True))
 def test_tracer_fluxes_and_vertical_mixing_conserve_content(superbee):
     import jax.numpy as jnp
-    from benchmarks.ad_demos.bathymetry import BathymetryBasin
+    from bathymetry_helpers import BathymetryBasin
     from veros.core import diffusion, thermodynamics
     from veros.core.geometry import cell_thickness
     from veros.routines import tracing_context
@@ -154,7 +154,7 @@ def test_tracer_fluxes_and_vertical_mixing_conserve_content(superbee):
 def test_variable_operator_derivatives():
     import jax
     import jax.numpy as jnp
-    from benchmarks.ad_demos.bathymetry import BathymetryBasin
+    from bathymetry_helpers import BathymetryBasin
     from veros.routines import tracing_context
 
     basin = BathymetryBasin()
@@ -178,10 +178,35 @@ def test_variable_operator_derivatives():
         np.testing.assert_allclose(gradient[0], finite, rtol=1e-5, atol=1e-10)
 
 
+def test_trajectory_depth_derivatives():
+    import jax
+    import jax.numpy as jnp
+    from bathymetry_helpers import BathymetryBasin
+
+    basin = BathymetryBasin()
+    seed = jnp.sin(jnp.arange(80).reshape(8, 10))
+
+    def objective(control):
+        final, _ = basin.prepared.advance(basin.controls(control), n_steps=3)
+        vs = final.variables
+        value = jnp.sum(vs.v[2:-2, 2:-2, -1, vs.tau] * seed)
+        return jnp.where(final.failure_code == 0, value, jnp.nan)
+
+    point = jnp.array([0.2])
+    value, gradient = jax.value_and_grad(objective)(point)
+    forward_value, tangent = jax.jvp(objective, (point,), (jnp.ones_like(point),))
+    assert np.isfinite(gradient).all() and abs(float(gradient[0])) > 1e-12
+    np.testing.assert_allclose(forward_value, value, rtol=1e-10)
+    np.testing.assert_allclose(tangent, gradient[0], rtol=1e-8)
+    for epsilon in (1e-3, 1e-4):
+        difference = (objective(point + epsilon) - objective(point - epsilon)) / (2 * epsilon)
+        np.testing.assert_allclose(gradient[0], difference, rtol=1e-5, atol=1e-12)
+
+
 @pytest.mark.parametrize("implicit", (False, True))
 def test_vertical_momentum_mixing_conserves_column_transport(implicit):
     import jax.numpy as jnp
-    from benchmarks.ad_demos.bathymetry import BathymetryBasin
+    from bathymetry_helpers import BathymetryBasin
     from veros.core import friction
     from veros.core.geometry import cell_thickness
     from veros.routines import tracing_context
@@ -201,8 +226,8 @@ def test_vertical_momentum_mixing_conserves_column_transport(implicit):
         np.testing.assert_allclose(jnp.sum(getattr(result, tendency) * thickness, axis=2), 0, atol=1e-12)
 
 
-def test_unsupported_physics_and_solver_are_rejected():
-    from benchmarks.ad_demos.bathymetry import BathymetryBasin
+def test_unsupported_physics_and_solver_are_rejected(monkeypatch):
+    from bathymetry_helpers import BathymetryBasin
     from veros.settings import check_setting_conflicts
 
     basin = BathymetryBasin()
@@ -215,12 +240,22 @@ def test_unsupported_physics_and_solver_are_rejected():
         basin.sim.prepare_integrator(linear_solver="petsc")
     with pytest.raises(ValueError, match="records"):
         basin.sim.prepare_integrator(record_diagnostics=("energy",))
+    from veros import runtime_state
+    from veros.integration import CompiledCompatibilityError
+    from veros.core.external.solvers import get_compiled_solver
+
+    with pytest.raises(ValueError, match="variable-coefficient"):
+        get_compiled_solver(basin.sim.state, linear_solver="petsc")
+    with monkeypatch.context() as patch:
+        patch.setattr(type(runtime_state), "proc_num", property(lambda self: 2))
+        with pytest.raises(CompiledCompatibilityError, match="serial JAX"):
+            basin.sim.prepare_integrator()
 
 
 def test_stress_and_drag_in_a_partial_surface_cell():
     import jax
     import jax.numpy as jnp
-    from benchmarks.ad_demos.bathymetry import make_simulation
+    from bathymetry_helpers import make_simulation
     from veros.core import friction, momentum
     from veros.routines import tracing_context
 
@@ -264,7 +299,7 @@ def test_stress_and_drag_in_a_partial_surface_cell():
 
 def test_restart_preserves_candidate_geometry(tmp_path):
     import jax.numpy as jnp
-    from benchmarks.ad_demos.bathymetry import BathymetryBasin
+    from bathymetry_helpers import BathymetryBasin
     from veros import restart
     from veros.io_tools import hdf5 as h5tools
 
@@ -292,3 +327,42 @@ def test_restart_preserves_candidate_geometry(tmp_path):
     resumed, _ = basin.prepared.advance(restored, n_steps=2)
     reference, _ = basin.prepared.advance(final, n_steps=2)
     np.testing.assert_allclose(resumed.variables.psi, reference.variables.psi, rtol=1e-12, atol=1e-12)
+
+
+@pytest.mark.parametrize("storage", ("ram", "disk"))
+def test_checkpointed_depth_control_gradient(tmp_path, storage):
+    import jax
+    import jax.numpy as jnp
+    from bathymetry_helpers import BathymetryBasin
+    from veros.checkpointing import BinomialSchedule, CheckpointedIntegrator
+
+    basin = BathymetryBasin()
+    seed = jnp.sin(jnp.arange(80).reshape(8, 10))
+    steps = 3
+
+    def terminal(carry):
+        vs = carry.variables
+        return jnp.sum(vs.v[2:-2, 2:-2, -1, vs.tau] * seed)
+
+    def reference(control):
+        final, _ = basin.prepared.advance(basin.controls(control), n_steps=steps)
+        return terminal(final)
+
+    point = jnp.array([0.2])
+    value, gradient = jax.value_and_grad(reference)(point)
+    initial, pullback = jax.vjp(basin.controls, point)
+    expected, _ = basin.prepared.advance(initial, n_steps=steps)
+    driver = CheckpointedIntegrator(basin.prepared, terminal_objective=terminal)
+    schedule = BinomialSchedule(steps, ram_checkpoints=1, disk_checkpoints=int(storage == "disk"))
+    result = driver.value_and_grad(initial, n_steps=steps, schedule=schedule, directory=tmp_path)
+
+    np.testing.assert_allclose(result.value, value, rtol=1e-10, atol=1e-12)
+    np.testing.assert_allclose(pullback(result.gradient)[0], gradient, rtol=1e-7, atol=1e-12)
+    for name in ("hfacT", "hfacU", "hfacV", "ht", "u", "v", "psi"):
+        np.testing.assert_allclose(result.final.variables.get(name), expected.variables.get(name), atol=1e-12)
+    if storage == "disk":
+        assert result.statistics["disk_saves"] > 0
+    else:
+        assert result.statistics["disk_saves"] == 0
+    assert int(basin.sim.state.variables.itt) == 0
+    assert not list(tmp_path.iterdir())

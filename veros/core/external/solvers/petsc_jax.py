@@ -1,4 +1,4 @@
-"""Distributed PETSc solves with ordered callbacks and fixed-operator derivatives."""
+"""Distributed PETSc solves with ordered callbacks and derivatives for fixed operators."""
 
 from threading import Lock
 
@@ -19,7 +19,7 @@ _callback_lock = Lock()
 
 
 class PETScEffect(effects.Effect):
-    """Ordering for single-rank PETSc when mpi4jax is not needed."""
+    """Order PETSc callbacks on a single rank."""
 
 
 _single_rank_effect = PETScEffect()
@@ -60,8 +60,8 @@ _solve_p.def_impl(jax.jit(_bind_solve, static_argnames=("solver", "transpose")))
 
 
 def _lower_solve(ctx, rhs, *, solver, transpose):
-    # Share mpi4jax's token so PETSc and numerical transfers may use one
-    # communicator because XLA sequences their complete operations.
+    # Share mpi4jax's ordering token to sequence PETSc and numerical
+    # transfers on the same communicator.
     callback = solver._transpose_callback if transpose else solver._callback
     result, token, _ = emit_python_callback(
         ctx,

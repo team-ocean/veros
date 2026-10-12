@@ -25,6 +25,7 @@ from jaxlib.mlir.dialects import mhlo
 
 from jax._src.interpreters.mlir import custom_call
 
+
 if HAS_CPU_EXT:
     for kernel_name in ("tdma_cython_double", "tdma_cython_float"):
         fn = tdma_cython_.cpu_custom_call_targets[kernel_name]

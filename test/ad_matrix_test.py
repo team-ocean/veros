@@ -64,9 +64,7 @@ def test_cli_exports_matrix_and_filters(monkeypatch, capsys, tmp_path):
         return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr(subprocess, "run", child)
-    monkeypatch.setattr(
-        sys, "argv", ["demos", "--demo", "matrix", "--task", "geometry", "--output", str(tmp_path)]
-    )
+    monkeypatch.setattr(sys, "argv", ["demos", "--demo", "matrix", "--task", "geometry", "--output", str(tmp_path)])
     assert main() == 1
     assert selected == [f"geometry_{response}" for response in RESPONSES]
 

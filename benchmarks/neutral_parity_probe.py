@@ -1,8 +1,7 @@
 """Trace neutral-coefficient parity and replay the first sensitive surface face.
 
-Use a fresh process with the desired JAX device and PETSc library selected.
---zero-surface-slopes applies an experimental boundary policy in this process.
-It does not change Veros defaults.
+Run in a fresh process with the desired JAX device and PETSc library selected.
+--zero-surface-slopes applies an experimental boundary policy to that process.
 """
 
 import argparse

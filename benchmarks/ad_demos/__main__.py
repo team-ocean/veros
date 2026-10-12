@@ -35,9 +35,7 @@ def write_result(path, result):
 
 def worker(name, config, path):
     start = time.monotonic()
-    result = dict(
-        demo=name, config=config, measured_utc=datetime.datetime.now(datetime.timezone.utc).isoformat()
-    )
+    result = dict(demo=name, config=config, measured_utc=datetime.datetime.now(datetime.timezone.utc).isoformat())
     checks = None
     try:
         # These demos run serially, including in installations that provide MPI.
@@ -87,9 +85,7 @@ def worker(name, config, path):
             else ("passed" if passed else "failed")
         )
     except Exception as error:
-        result.update(
-            status="error", error=f"{type(error).__name__}: {error}", traceback=traceback.format_exc()
-        )
+        result.update(status="error", error=f"{type(error).__name__}: {error}", traceback=traceback.format_exc())
     if checks is not None:
         result.update(checks=checks.items, metrics=checks.metrics)
     result["seconds"] = time.monotonic() - start
@@ -107,9 +103,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--demo", choices=("all", "matrix", *DEMOS), default="all")
     parser.add_argument("--list", action="store_true")
-    parser.add_argument(
-        "--matrix", action="store_true", help="print machine-readable capability and question coverage"
-    )
+    parser.add_argument("--matrix", action="store_true", help="print machine-readable capability and question coverage")
     parser.add_argument("--task", choices=tuple(TASKS))
     parser.add_argument("--response", choices=tuple(RESPONSES))
     parser.add_argument("--setup", choices=("acc", "global_4deg"), default="acc")
@@ -130,9 +124,7 @@ def main():
         return 0
     if (args.steps is not None and args.steps < 1) or args.spinup_steps < 0 or args.timeout <= 0:
         parser.error("steps and timeout must be positive; spinup-steps must be nonnegative")
-    config = {
-        key: getattr(args, key) for key in ("setup", "mode", "physics", "device", "steps", "spinup_steps")
-    }
+    config = {key: getattr(args, key) for key in ("setup", "mode", "physics", "device", "steps", "spinup_steps")}
     if args.worker:
         if args.demo in ("all", "matrix"):
             parser.error("a worker requires one demo")
@@ -179,17 +171,13 @@ def main():
                 )
                 if process.returncode or not result_path.exists():
                     interrupted = (
-                        json.loads(result_path.read_text())
-                        if result_path.exists()
-                        else dict(demo=name, config=config)
+                        json.loads(result_path.read_text()) if result_path.exists() else dict(demo=name, config=config)
                     )
                     interrupted.update(status="error", returncode=process.returncode, log=str(log_path))
                     write_result(result_path, interrupted)
             except subprocess.TimeoutExpired:
                 interrupted = (
-                    json.loads(result_path.read_text())
-                    if result_path.exists()
-                    else dict(demo=name, config=config)
+                    json.loads(result_path.read_text()) if result_path.exists() else dict(demo=name, config=config)
                 )
                 interrupted.update(status="timeout", timeout_seconds=args.timeout, log=str(log_path))
                 write_result(result_path, interrupted)

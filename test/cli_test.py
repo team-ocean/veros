@@ -94,13 +94,15 @@ def test_veros_run(runner, tmpdir, monkeypatch, runtime_options):
 
 
 def test_import_isolation(tmpdir):
-    TEST_KERNEL = dedent("""
+    TEST_KERNEL = dedent(
+        """
     import sys
     import veros.cli
 
     for mod in sys.modules:
         print(mod)
-    """)
+    """
+    )
 
     tmpfile = tmpdir / "isolation.py"
     with open(tmpfile, "w") as f:
@@ -129,7 +131,7 @@ def test_compiled_requires_jax(runner, tmp_path):
 def test_compiled_solver_requires_compiled(runner, tmp_path):
     setup = tmp_path / "setup.py"
     setup.write_text("")
-    result = runner.invoke(veros.cli.veros_run.cli, [str(setup), "--compiled-solver", "petsc"])
+    result = runner.invoke(veros.cli.veros_run.cli, [str(setup), "--compiled-solver", "scipy_jax"])
     assert result.exit_code == 2
     assert "--compiled-solver requires --compiled" in result.output
 
@@ -142,6 +144,7 @@ def test_compiled_solver_requires_compiled(runner, tmp_path):
         (["--execution", "compiled"], "compiled", None),
         (["--compiled"], "compiled", None),
         (["--execution", "compiled", "--compiled-solver", "scipy_jax"], "compiled", "scipy_jax"),
+        (["--execution", "compiled", "--compiled-solver", "petsc"], "compiled", "petsc"),
     ],
 )
 def test_execution_options_route_to_runner(runner, tmp_path, monkeypatch, runtime_options, options, execution, solver):

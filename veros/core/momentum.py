@@ -135,9 +135,7 @@ def tend_tauxyf(state):
 
 @veros_kernel
 def momentum_advection(state):
-    """
-    Second-order finite-volume advection of momentum.
-    """
+    """Second-order finite-volume advection of momentum."""
     vs = state.variables
     thickness_u = cell_thickness(state, "U")
     thickness_v = cell_thickness(state, "V")

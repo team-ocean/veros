@@ -23,9 +23,7 @@ class CFLMonitor(VerosDiagnostic):
         pass
 
     def finalize(self, state):
-        """
-        check for CFL violation
-        """
+        """Return maximum horizontal and vertical CFL numbers."""
         vs = state.variables
         settings = state.settings
 
@@ -77,7 +75,7 @@ class CFLMonitor(VerosDiagnostic):
                 npx.max(
                     npx.abs(vs.w_wgrid[2:-2, 2:-2, :])
                     * vs.maskW[2:-2, 2:-2, :]
-                    / vs.dzt[npx.newaxis, npx.newaxis, :]
+                    / cell_thickness(state)[2:-2, 2:-2]
                     * settings.dt_tracer
                 )
             )

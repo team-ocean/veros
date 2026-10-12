@@ -68,4 +68,4 @@ PYTHONPATH=. VEROS_DEVICE=gpu VEROS_USE_SPECIAL_TDMA=1 \
 
 Repeat with `--zero-surface-slopes` for the boundary-policy control. The probe records per-step comparisons, all final fields, identical-input replays, and the isolated perturbation. It intentionally saves scientific parity failures as measurements. Instrumentation or replay inconsistencies raise errors.
 
-The [raw results](../../benchmarks/neutral-parity-investigation.json) include all four runs, source hashes, software/build information, and memory-guard measurements. Heavy runs executed serially with incremental GPU allocation and a host-memory reserve. The largest sampled process-tree RSS was 2620 MiB.
+The [raw results](https://github.com/team-ocean/veros/blob/6432c0c85576c6b9dd2254513e19f2816fff4b2c/benchmarks/neutral-parity-investigation.json) include all four runs, source hashes, software/build information, and memory-guard measurements. Heavy runs executed serially with incremental GPU allocation and a host-memory reserve. The largest sampled process-tree RSS was 2620 MiB.

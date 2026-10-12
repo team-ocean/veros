@@ -103,7 +103,8 @@ class JAXSciPySolver(LinearSolver):
                 tolerance = 10 * npx.finfo(value.dtype).eps
                 guess = npx.zeros(value.shape, dtype=value.dtype)
                 solution, _ = bicgstab(operator, normalized, x0=guess, tol=tolerance, atol=0, maxiter=10_000)
-                residual = operator(solution) - normalized
+                # Rescaling can move the true residual across the convergence limit.
+                residual = (operator(scale * solution) - value) / scale
                 converged = npx.all(npx.isfinite(solution)) & (
                     npx.linalg.norm(residual)
                     <= npx.maximum(1e-8, 100 * npx.finfo(value.dtype).eps) * npx.linalg.norm(normalized)

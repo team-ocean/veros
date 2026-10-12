@@ -17,7 +17,7 @@ def noop(*args, **kwargs):
 
 
 def safe_sqrt(value):
-    """Square root with a zero derivative at zero and unchanged positive values."""
+    """Square root with a zero derivative at zero."""
     zero = value == 0
     return numpy.where(zero, 0, numpy.sqrt(numpy.where(zero, 1, value)))
 

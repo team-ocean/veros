@@ -32,9 +32,7 @@ class TracerMonitor(VerosDiagnostic):
         pass
 
     def finalize(self, state):
-        """
-        Diagnose tracer content
-        """
+        """Return tracer statistics and update their previous values."""
         vs = state.variables
         tracer_vs = self.variables
 

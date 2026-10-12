@@ -102,9 +102,7 @@ def fit_controls(response, checks, *, geometry=False, initial_point=None):
     scale = jnp.maximum(jnp.abs(target - baseline), 1e-3)
     # Fit northern profiles and heat transport, withholding southern profiles and ACC.
     nz, ocean = response.ocean.nz, response.ocean
-    train_indices = jnp.concatenate(
-        (jnp.arange(2 * nz), jnp.asarray([ocean.heat_transport_index, ocean.amoc_index]))
-    )
+    train_indices = jnp.concatenate((jnp.arange(2 * nz), jnp.asarray([ocean.heat_transport_index, ocean.amoc_index])))
     if response.kind == "local":
         train_indices = jnp.arange(4 * nz + 4)
     hold_indices = jnp.concatenate((jnp.arange(2 * nz, 4 * nz), jnp.asarray([ocean.acc_index])))
@@ -134,8 +132,7 @@ def fit_controls(response, checks, *, geometry=False, initial_point=None):
     def held_loss(values):
         return float(
             jnp.mean(
-                ((values[..., hold_indices] - held_target[..., hold_indices]) / held_scale[..., hold_indices])
-                ** 2
+                ((values[..., hold_indices] - held_target[..., hold_indices]) / held_scale[..., hold_indices]) ** 2
             )
         )
 
@@ -198,14 +195,10 @@ def perturbation(response, checks):
     if response.kind in ("local", "trajectory"):
         initial_response = Response(ocean, (0, 1), response.config)
         zero_initial = jnp.zeros(2)
-        initial_baseline = mean_feature(
-            initial_response.values(zero_initial), ocean.heat_index, response.kind
-        )
+        initial_baseline = mean_feature(initial_response.values(zero_initial), ocean.heat_index, response.kind)
 
         def initial_state_loss(z):
-            return -(
-                mean_feature(initial_response.values(z), ocean.heat_index, response.kind) - initial_baseline
-            )
+            return -(mean_feature(initial_response.values(z), ocean.heat_index, response.kind) - initial_baseline)
 
         initial_response.audit(initial_state_loss, zero_initial, checks)
         initial_fit, initial_history = descend(initial_state_loss, zero_initial, radius=1)
@@ -215,9 +208,7 @@ def perturbation(response, checks):
             initial_history,
         )
         ocean.check_controls(initial_response.full(initial_fit), checks)
-        checks.metrics.update(
-            initial_perturbation=initial_fit.tolist(), initial_perturbation_history=initial_history
-        )
+        checks.metrics.update(initial_perturbation=initial_fit.tolist(), initial_perturbation_history=initial_history)
     if response.kind == "statistics":
 
         def event_loss(z, forward=False, seed=0):
@@ -225,9 +216,7 @@ def perturbation(response, checks):
 
         response.audit(lambda z: event_loss(z), point, checks, lambda z, seed: event_loss(z, True, seed))
         event_fit, event_history = descend(lambda z: event_loss(z), point, radius=1)
-        checks.require(
-            "warm-event probability improves", event_history[-1] < event_history[0] - 1e-6, event_history
-        )
+        checks.require("warm-event probability improves", event_history[-1] < event_history[0] - 1e-6, event_history)
         ocean.check_controls(response.full(event_fit), checks)
         checks.metrics.update(climate_event_controls=event_fit.tolist(), climate_event_history=event_history)
     baseline = float(mean_feature(baseline_values, ocean.amoc_index, response.kind))
@@ -235,9 +224,7 @@ def perturbation(response, checks):
     target = 0.9 * baseline
 
     def constraint(z, forward=False, seed=0):
-        return target - mean_feature(
-            response.values(z, forward=forward, seed=seed), ocean.amoc_index, response.kind
-        )
+        return target - mean_feature(response.values(z, forward=forward, seed=seed), ocean.amoc_index, response.kind)
 
     response.audit(constraint, point, checks, lambda z, seed: constraint(z, True, seed))
     derivative = jax.grad(constraint)
@@ -274,8 +261,7 @@ def perturbation(response, checks):
     )
     checks.require(
         "constraint complementarity",
-        abs(multipliers[0] * slack) < 1e-3
-        and abs(multipliers[1] * (1 - optimization.x @ optimization.x)) < 1e-3,
+        abs(multipliers[0] * slack) < 1e-3 and abs(multipliers[1] * (1 - optimization.x @ optimization.x)) < 1e-3,
         multipliers.tolist(),
     )
     ocean.check_controls(response.full(optimum), checks)
@@ -320,9 +306,7 @@ def observation_design(response, checks):
     direction = jnp.arange(1, point.size + 1, dtype=point.dtype)
     seed = jnp.sin(jnp.arange(values.size, dtype=point.dtype))
     tangent = jax.jvp(candidates, (point,), (direction,))[1]
-    checks.close(
-        "observation transpose identity", jnp.vdot(tangent, seed), jnp.vdot(direction, pullback(seed)[0])
-    )
+    checks.close("observation transpose identity", jnp.vdot(tangent, seed), jnp.vdot(direction, pullback(seed)[0]))
     response.audit(
         target,
         point,
@@ -369,9 +353,7 @@ def observation_design(response, checks):
         [
             float(
                 mean_feature(
-                    response.values(
-                        jnp.asarray(sample), heldout=True, forward=response.kind == "statistics", seed=71
-                    ),
+                    response.values(jnp.asarray(sample), heldout=True, forward=response.kind == "statistics", seed=71),
                     ocean.amoc_index,
                     response.kind,
                 )
@@ -510,9 +492,7 @@ def geometry_validation(response, fit, checks):
     checks.require(
         "bounded bathymetric exchange improves", exchange_history[-1] < exchange_history[0], exchange_history
     )
-    checks.require(
-        "admissible depth-design norm", float(jnp.linalg.norm(depth_fit)) <= 1 + 1e-9, depth_fit.tolist()
-    )
+    checks.require("admissible depth-design norm", float(jnp.linalg.norm(depth_fit)) <= 1 + 1e-9, depth_fit.tolist())
     checks.metrics.update(grid_accuracy_history=history, grid_accuracy_controls=grid_fit.tolist())
     checks.metrics.update(depth_design_controls=depth_fit.tolist(), exchange_design_history=exchange_history)
 
@@ -528,9 +508,7 @@ def run(name, config, checks):
         research_questions={key: QUESTIONS[key] for key in case.questions},
         controls=[CONTROL_NAMES[index] for index in indices],
         experiment_scope=(
-            "global 4-degree research acceptance"
-            if config["setup"] == "global_4deg"
-            else "small ACC numerical fixture"
+            "global 4-degree research acceptance" if config["setup"] == "global_4deg" else "small ACC numerical fixture"
         ),
         extension_contracts=case.requirements,
     )

@@ -93,22 +93,16 @@ class ResearchOcean:
                 vs.forc_temp_surface = vs.forc_temp_surface + heat / (CP * state.settings.rho_0)
                 vs.forc_salt_surface = vs.forc_salt_surface + salt
                 vs.surface_taux = (
-                    vs.surface_taux
-                    + (vs.research_wind_mean + seasonal * vs.research_wind_seasonal) * vs.maskU[..., -1]
+                    vs.surface_taux + (vs.research_wind_mean + seasonal * vs.research_wind_seasonal) * vs.maskU[..., -1]
                 )
                 if state.settings.enable_tke:
                     taux = 0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1])
                     tauy = 0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2])
                     vs.forc_tke_surface = vs.forc_tke_surface.at[1:-1, 1:-1].set(
-                        safe_sqrt((taux / state.settings.rho_0) ** 2 + (tauy / state.settings.rho_0) ** 2)
-                        ** 1.5
+                        safe_sqrt((taux / state.settings.rho_0) ** 2 + (tauy / state.settings.rho_0) ** 2) ** 1.5
                     )
-                vs.research_heat_input += state.settings.dt_tracer * jnp.sum(
-                    heat[2:-2, 2:-2] * vs.area_t[2:-2, 2:-2]
-                )
-                vs.research_salt_input += state.settings.dt_tracer * jnp.sum(
-                    salt[2:-2, 2:-2] * vs.area_t[2:-2, 2:-2]
-                )
+                vs.research_heat_input += state.settings.dt_tracer * jnp.sum(heat[2:-2, 2:-2] * vs.area_t[2:-2, 2:-2])
+                vs.research_salt_input += state.settings.dt_tracer * jnp.sum(salt[2:-2, 2:-2] * vs.area_t[2:-2, 2:-2])
 
             @veros_routine
             def set_diagnostics(self, state):
@@ -149,12 +143,8 @@ class ResearchOcean:
             self.north = jnp.broadcast_to(latitude[None, :] > jnp.mean(latitude), area.shape)
             self.south = ~self.north
             self.section, self.drake = vs.v.shape[1] // 2, vs.u.shape[0] // 2
-            self.atlantic, self.drake_latitudes = jnp.ones_like(longitude, bool), jnp.ones_like(
-                latitude, bool
-            )
-            sill = jnp.broadcast_to(
-                (jnp.abs(jnp.arange(area.shape[0]) + 2 - self.drake) <= 1)[:, None], area.shape
-            )
+            self.atlantic, self.drake_latitudes = jnp.ones_like(longitude, bool), jnp.ones_like(latitude, bool)
+            sill = jnp.broadcast_to((jnp.abs(jnp.arange(area.shape[0]) + 2 - self.drake) <= 1)[:, None], area.shape)
         self.depth_patterns = jnp.stack((sill.astype(vs.temp.dtype), self.north.astype(vs.temp.dtype)))
         phase = (latitude - jnp.min(latitude)) / (jnp.max(latitude) - jnp.min(latitude))
         heat = self.north.astype(vs.temp.dtype)
@@ -190,9 +180,7 @@ class ResearchOcean:
     @staticmethod
     def volume(carry):
         vs = carry.variables
-        return (
-            vs.area_t[2:-2, 2:-2, None] * vs.dzt[None, None, :] * ResearchOcean.fraction(vs, "T")[2:-2, 2:-2]
-        )
+        return vs.area_t[2:-2, 2:-2, None] * vs.dzt[None, None, :] * ResearchOcean.fraction(vs, "T")[2:-2, 2:-2]
 
     @staticmethod
     def upper_fraction(variables, fraction):
@@ -213,9 +201,7 @@ class ResearchOcean:
         if self.case.task == "geometry":
             widths = vs.dzt * jnp.exp(0.15 * full[14] * jnp.linspace(-1, 1, self.nz))
             widths *= jnp.sum(vs.dzt) / jnp.sum(widths)
-            carry = self.prepared.with_vertical_grid(
-                carry, widths=widths, conserve=("temp", "salt", "momentum")
-            )
+            carry = self.prepared.with_vertical_grid(carry, widths=widths, conserve=("temp", "salt", "momentum"))
             lower, upper = self.prepared.bathymetry_bounds(carry)
             room = upper - lower
             mode = self.depth_patterns
@@ -235,9 +221,7 @@ class ResearchOcean:
         vs = carry.variables
         interior_shift = self.patterns[0, ..., None] * jnp.exp(vs.zt / 300) * vs.maskT[2:-2, 2:-2]
         volume = self.volume(carry)
-        level_mean = jnp.sum(interior_shift * volume, axis=(0, 1)) / jnp.maximum(
-            jnp.sum(volume, axis=(0, 1)), 1
-        )
+        level_mean = jnp.sum(interior_shift * volume, axis=(0, 1)) / jnp.maximum(jnp.sum(volume, axis=(0, 1)), 1)
         interior_shift = (interior_shift - level_mean) * vs.maskT[2:-2, 2:-2]
         shift = jnp.zeros_like(vs.maskT, dtype=vs.temp.dtype).at[2:-2, 2:-2].set(interior_shift)
         changes = dict(
@@ -257,11 +241,7 @@ class ResearchOcean:
             ("salt_mean", 3.5e-6, 6, self.patterns[2]),
             ("salt_seasonal", 3.5e-6, 7, self.patterns[1]),
         ):
-            field = (
-                jnp.zeros_like(getattr(vs, "research_" + name))
-                .at[2:-2, 2:-2]
-                .set(scale * full[index] * pattern)
-            )
+            field = jnp.zeros_like(getattr(vs, "research_" + name)).at[2:-2, 2:-2].set(scale * full[index] * pattern)
             changes["research_" + name] = enforce_boundaries(field, self.sim.state.settings.enable_cyclic_x)
         carry = self.prepared.replace_variables(carry, **changes)
         state = self.prepared._make_state(carry.variables)
@@ -305,17 +285,12 @@ class ResearchOcean:
                 vs.dxt[2:-2, None] * vs.cosu[section] * vs.maskV[2:-2, section]
             )
         face_temp = 0.5 * (temperature[2:-2, section] + temperature[2:-2, section + 1])
-        heat_transport = (
-            CP * self.sim.state.settings.rho_0 * jnp.sum(volume_flux * face_temp * self.atlantic[:, None])
-        )
+        heat_transport = CP * self.sim.state.settings.rho_0 * jnp.sum(volume_flux * face_temp * self.atlantic[:, None])
         upper_v = self.upper_fraction(vs, self.fraction(vs, "V")[2:-2, section])
         amoc = -jnp.sum(volume_flux * (1 - upper_v) * self.atlantic[:, None])
         drake_area = vs.dyt[2:-2, None] * vs.dzt * self.fraction(vs, "U")[self.drake, 2:-2]
         acc = jnp.sum(vs.u[self.drake, 2:-2, :, vs.tau] * drake_area * self.drake_latitudes[:, None])
-        return (
-            jnp.concatenate((*features, jnp.stack((heat, heat_transport, acc, amoc))))
-            / self.observation_scales
-        )
+        return jnp.concatenate((*features, jnp.stack((heat, heat_transport, acc, amoc)))) / self.observation_scales
 
     def advance(self, full, steps, *, phase_days=0, realized=False):
         carry, parameters = self.controls(full, phase_days=phase_days, realized=realized)
@@ -332,18 +307,14 @@ class ResearchOcean:
         for name, scale in (("heat", 20), ("salt", 3.5e-6)):
             for harmonic in ("mean", "seasonal"):
                 field = getattr(vs, f"research_{name}_{harmonic}")[2:-2, 2:-2]
-                checks.close(
-                    f"prescribed {name} {harmonic} budget", jnp.sum(field * area) / jnp.sum(area) / scale, 0
-                )
+                checks.close(f"prescribed {name} {harmonic} budget", jnp.sum(field * area) / jnp.sum(area) / scale, 0)
         checks.require("positive salinity", bool(jnp.all(vs.salt >= 0)), float(jnp.min(vs.salt)))
         if self.case.task != "geometry":
             volume = self.volume(carry)
             for name in ("temp", "salt"):
                 before = getattr(self.initial.variables, name)[2:-2, 2:-2, :, self.initial.variables.tau]
                 after = getattr(vs, name)[2:-2, 2:-2, :, vs.tau]
-                checks.close(
-                    "initial " + name + " inventory", jnp.sum((after - before) * volume) / jnp.sum(volume), 0
-                )
+                checks.close("initial " + name + " inventory", jnp.sum((after - before) * volume) / jnp.sum(volume), 0)
         if self.case.task == "closure":
             diffusivity = closure_law(vs, full[10:12])
             checks.require(

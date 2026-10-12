@@ -49,7 +49,7 @@ def require_jax():
         pytest.skip("requires JAX")
 
 
-def test_selection_and_ordinary_fallback(monkeypatch):
+def test_selection_and_ordinary_fallback():
     sim = make_simulation()
     sim.run(show_progress_bar=False)
     assert sim.execution_mode == ("compiled" if runtime_settings.backend == "jax" else "eager")

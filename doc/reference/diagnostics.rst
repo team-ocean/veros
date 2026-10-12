@@ -27,7 +27,21 @@ to write your own diagnostics: Just derive from this class, and implement the
 virtual functions.
 
 .. autoclass:: veros.diagnostics.base.VerosDiagnostic
-   :members: name, initialize, diagnose, output
+   :members: name, initialize, diagnose, output, finalize, write_finalized, supports_compilation, observes_model
+
+Built-in diagnostics separate numerical calculation from output. Calling
+:meth:`VerosDiagnostic.finalize` returns a dictionary of output values and updates
+the diagnostic's accumulation window or history. Snapshot values select the
+current model time step. Calling :meth:`VerosDiagnostic.write_finalized` writes
+those values without resetting accumulators and accepts an optional ``time_value``
+in seconds for delayed output. The existing :meth:`VerosDiagnostic.output` method
+calls both methods in sequence.
+
+Custom diagnostics can continue implementing ``initialize``, ``diagnose``, and
+``output``. Set ``supports_compilation`` only when their numerical methods support
+JAX tracing, and implement ``finalize`` to return output values without writing
+files or logs. The ``observes_model`` attribute declares that diagnostic methods
+leave model variables and settings unchanged.
 
 Available diagnostics
 ---------------------
