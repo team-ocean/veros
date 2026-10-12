@@ -1,7 +1,7 @@
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core.utilities import pad_z_edges
-from veros.core.operators import numpy as npx, update, update_add, update_multiply, at
+from veros.core.operators import numpy as npx, update, update_add, update_multiply, at, stable_divide
 
 
 @veros_kernel
@@ -10,7 +10,7 @@ def _calc_cr(rjp, rj, rjm, vel):
     Calculates cr value used in superbee advection scheme
     """
     eps = 1e-20  # prevent division by 0
-    return npx.where(vel > 0.0, rjm, rjp) / npx.where(npx.abs(rj) < eps, eps, rj)
+    return stable_divide(npx.where(vel > 0.0, rjm, rjp), npx.where(npx.abs(rj) < eps, eps, rj))
 
 
 @veros_kernel

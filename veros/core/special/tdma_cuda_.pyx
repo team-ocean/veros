@@ -11,8 +11,8 @@ cdef extern from "cuda_runtime_api.h":
 
 
 cdef extern from "cuda_tdma_kernels.h":
-    void CudaTridiagFloat(cudaStream_t stream, void** buffers, const char* opaque, size_t opaque_len)
-    void CudaTridiagDouble(cudaStream_t stream, void** buffers, const char* opaque, size_t opaque_len)
+    void CudaTridiagFloat(cudaStream_t stream, void** buffers, const char* opaque, size_t opaque_len, void* status)
+    void CudaTridiagDouble(cudaStream_t stream, void** buffers, const char* opaque, size_t opaque_len, void* status)
 
 
 cpdef bytes build_tridiag_descriptor(int num_systems, int system_depth):

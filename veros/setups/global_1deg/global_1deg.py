@@ -3,7 +3,7 @@ import h5netcdf
 
 from veros import VerosSetup, tools, time, veros_routine, veros_kernel, KernelOutput
 from veros.variables import Variable, allocate
-from veros.core.operators import numpy as npx, update, update_multiply, at
+from veros.core.operators import numpy as npx, safe_sqrt, update, update_multiply, at
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = tools.get_assets("global_1deg", os.path.join(BASE_PATH, "assets.json"))
@@ -313,7 +313,7 @@ def set_forcing_kernel(state):
         vs.forc_tke_surface = update(
             vs.forc_tke_surface,
             at[1:-1, 1:-1],
-            npx.sqrt(
+            safe_sqrt(
                 (0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / settings.rho_0) ** 2
                 + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / settings.rho_0) ** 2
             )
