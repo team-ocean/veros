@@ -94,13 +94,15 @@ def test_veros_run(runner, tmpdir, monkeypatch, runtime_options):
 
 
 def test_import_isolation(tmpdir):
-    TEST_KERNEL = dedent("""
+    TEST_KERNEL = dedent(
+        """
     import sys
     import veros.cli
 
     for mod in sys.modules:
         print(mod)
-    """)
+    """
+    )
 
     tmpfile = tmpdir / "isolation.py"
     with open(tmpfile, "w") as f:
