@@ -13,8 +13,8 @@ def set_tke_diffusivities(state):
         tke_diff_out = set_tke_diffusivities_kernel(state)
         vs.update(tke_diff_out)
     else:
-        vs.kappaM = update(vs.kappaM, at[...], settings.kappaM_0)
-        vs.kappaH = npx.where(vs.Nsqr[..., vs.tau] < 0.0, 1.0, settings.kappaH_0)
+        vs.kappaM = update(vs.kappaM, at[...], vs.get("control_kappaM_0", settings.kappaM_0))
+        vs.kappaH = npx.where(vs.Nsqr[..., vs.tau] < 0.0, 1.0, vs.get("control_kappaH_0", settings.kappaH_0))
 
 
 @veros_kernel

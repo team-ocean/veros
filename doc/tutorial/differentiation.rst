@@ -75,8 +75,9 @@ Differentiate an objective through the continuation state::
     sensitivity = jax.grad(objective)(1.0)
 
 ``t_star`` is the restoring target used by the ACC basic setup. Other setups have
-their own forcing variables. Integer indices, grid topology, settings, diagnostic
-schedules, and hooks are fixed at preparation. Reprepare after changing them.
+their own forcing variables. Integer indices, grid topology, fixed settings,
+diagnostic schedules, and hooks are captured at preparation. Reprepare after
+changing them. Floating step-time settings can be overridden as described below.
 For the same shapes and dtypes, changing model arrays reuses the compiled step.
 ``checkpoint=True`` recomputes step intermediates during reverse differentiation.
 
@@ -144,3 +145,47 @@ when that ratio is integral. Restart reads and writes are host operations and
 do not reconnect derivatives to the computation that produced the file.
 Changing restart paths, the identifier, or description does not require
 repreparation.
+
+Dynamic physical parameters
+---------------------------
+
+Pass scalar floating setting overrides to a pure timestep or trajectory::
+
+    import jax.numpy as jnp
+
+    def loss(parameters):
+        final, _ = prepared.advance(
+            initial, n_steps=24, parameters=parameters, final_only=True
+        )
+        vs = final.variables
+        return jnp.sum(vs.temp[2:-2, 2:-2, :, vs.tau] ** 2)
+
+    parameters = {"c_k": jnp.array(0.1), "c_eps": jnp.array(0.7)}
+    sensitivity = jax.grad(loss)(parameters)
+
+Kernels and hooks read overrides through ``state.settings``. Host settings and
+the continuation state retain their original values. Pass overrides to each
+continuation call. The same names, shapes, and normalized dtype reuse the
+compiled step. Changing the names creates a new signature. A setting unused by
+the enabled physics has zero sensitivity.
+
+Overrides reject nonfloating settings, nonscalar values, and settings that
+define frozen grid data, reference constants, or schedules: ``pi``, ``radius``,
+``degtom``, ``omega``, ``x_origin``, ``y_origin``, ``rho_0``, ``grav``,
+``dt_mom``, ``dt_tracer``, ``runlen``, and ``restart_frequency``. Setup and
+plugin authors must list additional settings used to prepare cached data in
+``prepare_integrator(fixed_parameters=(...))``. Overrides do not rerun setup
+or rebuild a fixed pressure operator.
+
+Register restart-persistent scalar controls at construction when they should
+travel with the model state::
+
+    simulation = ACCBasicSetup(
+        control_parameters=("kappaH_0", "kappaM_0", "K_iso_0", "K_gm_0")
+    )
+
+These create variables named ``control_kappaH_0`` and so on, initialized from
+the corresponding settings. Replace those leaves with ``replace_variables``
+to differentiate the parameterization. Constant diffusivity controls are used
+when their prognostic TKE/EKE parameterization is disabled. A setting with an
+existing ``control_*`` variable cannot also receive a setting override.

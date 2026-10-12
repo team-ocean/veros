@@ -179,6 +179,16 @@ class VerosSettings(Lockable, StrictContainer):
         val = meta.type(val)
         return super().__setattr__(key, val)
 
+    def _with_parameters(self, parameters):
+        """Create a local settings view from validated numerical overrides."""
+        from copy import copy
+
+        settings = copy(self)
+        settings._parameter_names = tuple(sorted(parameters))
+        for name, value in parameters.items():
+            object.__setattr__(settings, name, value)
+        return settings
+
 
 class VerosVariables(Lockable, StrictContainer):
     """ """
@@ -462,28 +472,43 @@ def get_default_state(plugin_interfaces=()):
 
 
 def veros_state_pytree_flatten(state):
-    aux_data = tuple((k, v) for k, v in vars(state).items() if k != "_variables")
-
-    # ensure that functions are re-traced when settings change
-    with state.settings.unlock():
-        pseudo_hash = hash(tuple(state.settings.items()))
-
-    return ([state.variables], (aux_data, pseudo_hash))
+    aux_data = tuple((k, v) for k, v in vars(state).items() if k not in ("_variables", "_settings"))
+    return ([state.variables, state.settings], aux_data)
 
 
 def veros_state_pytree_unflatten(aux_data, leaves):
-    assert len(leaves) == 1
-    variables = leaves[0]
+    assert len(leaves) == 2
+    variables, settings = leaves
 
     # by-pass __init__ and set attributes manually
     state = VerosState.__new__(VerosState)
     state._variables = variables
+    state._settings = settings
 
-    state_attrs, _ = aux_data
-    for attr, val in state_attrs:
+    for attr, val in aux_data:
         setattr(state, attr, val)
 
     return state
+
+
+def veros_settings_pytree_flatten(settings):
+    names = getattr(settings, "_parameter_names", ())
+    static_values = tuple((name, value) for name, value in settings.items() if name not in names)
+    metadata = tuple(settings.__metadata__.items())
+    return [getattr(settings, name) for name in names], (names, static_values, metadata, settings.__locked__)
+
+
+def veros_settings_pytree_unflatten(aux_data, leaves):
+    names, static_values, metadata, locked = aux_data
+    settings = VerosSettings.__new__(VerosSettings)
+    settings.__metadata__ = dict(metadata)
+    settings.__fields__ = tuple(settings.__metadata__)
+    settings.__field_types__ = {}
+    settings.__locked__ = locked
+    settings._parameter_names = names
+    for name, value in (*static_values, *zip(names, leaves)):
+        object.__setattr__(settings, name, value)
+    return settings
 
 
 def veros_variables_pytree_flatten(variables):
