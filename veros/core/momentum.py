@@ -3,6 +3,7 @@ from veros.core.operators import numpy as npx
 from veros import veros_routine, veros_kernel, KernelOutput, runtime_settings
 from veros.variables import allocate
 from veros.core import friction, external
+from veros.core.geometry import cell_thickness
 from veros.core.operators import update, update_add, at
 
 
@@ -106,25 +107,27 @@ def tend_tauxyf(state):
     """
     vs = state.variables
     settings = state.settings
+    thickness_u = cell_thickness(state, "U")[2:-2, 2:-2, -1]
+    thickness_v = cell_thickness(state, "V")[2:-2, 2:-2, -1]
 
     if runtime_settings.pyom_compatibility_mode:
         # surface_tau* has different units in PyOM
         vs.du = update_add(
-            vs.du, at[2:-2, 2:-2, -1, vs.tau], vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1]
+            vs.du, at[2:-2, 2:-2, -1, vs.tau], vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / thickness_u
         )
         vs.dv = update_add(
-            vs.dv, at[2:-2, 2:-2, -1, vs.tau], vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1]
+            vs.dv, at[2:-2, 2:-2, -1, vs.tau], vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / thickness_v
         )
     else:
         vs.du = update_add(
             vs.du,
             at[2:-2, 2:-2, -1, vs.tau],
-            vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / vs.dzt[-1] / settings.rho_0,
+            vs.maskU[2:-2, 2:-2, -1] * vs.surface_taux[2:-2, 2:-2] / thickness_u / settings.rho_0,
         )
         vs.dv = update_add(
             vs.dv,
             at[2:-2, 2:-2, -1, vs.tau],
-            vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / vs.dzt[-1] / settings.rho_0,
+            vs.maskV[2:-2, 2:-2, -1] * vs.surface_tauy[2:-2, 2:-2] / thickness_v / settings.rho_0,
         )
 
     return KernelOutput(du=vs.du, dv=vs.dv)
@@ -132,18 +135,18 @@ def tend_tauxyf(state):
 
 @veros_kernel
 def momentum_advection(state):
-    """
-    Advection of momentum with second order which is energy conserving
-    """
+    """Second-order finite-volume advection of momentum."""
     vs = state.variables
+    thickness_u = cell_thickness(state, "U")
+    thickness_v = cell_thickness(state, "V")
 
     """
     Code from MITgcm
     """
 
-    utr = vs.u[..., vs.tau] * vs.maskU * vs.dyt[npx.newaxis, :, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :]
+    utr = vs.u[..., vs.tau] * vs.maskU * vs.dyt[npx.newaxis, :, npx.newaxis] * thickness_u
     vtr = (
-        vs.dzt[npx.newaxis, npx.newaxis, :]
+        thickness_v
         * vs.cosu[npx.newaxis, :, npx.newaxis]
         * vs.dxt[:, npx.newaxis, npx.newaxis]
         * vs.v[..., vs.tau]
@@ -181,10 +184,10 @@ def momentum_advection(state):
         -1
         * vs.maskU[2:-2, 2:-2]
         * (flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2] + flux_north[2:-2, 2:-2] - flux_north[2:-2, 1:-3])
-        / (vs.dzt[npx.newaxis, npx.newaxis, :] * vs.area_u[2:-2, 2:-2, npx.newaxis]),
+        / (thickness_u[2:-2, 2:-2] * vs.area_u[2:-2, 2:-2, npx.newaxis]),
     )
 
-    tmp = vs.maskU / (vs.dzt * vs.area_u[:, :, npx.newaxis])
+    tmp = vs.maskU / (thickness_u * vs.area_u[:, :, npx.newaxis])
     vs.du_adv = vs.du_adv - tmp * flux_top
     vs.du_adv = update_add(vs.du_adv, at[:, :, 1:], tmp[:, :, 1:] * flux_top[:, :, :-1])
 
@@ -216,10 +219,10 @@ def momentum_advection(state):
         -1
         * vs.maskV[2:-2, 2:-2]
         * (flux_east[2:-2, 2:-2] - flux_east[1:-3, 2:-2] + flux_north[2:-2, 2:-2] - flux_north[2:-2, 1:-3])
-        / (vs.dzt * vs.area_v[2:-2, 2:-2, npx.newaxis]),
+        / (thickness_v[2:-2, 2:-2] * vs.area_v[2:-2, 2:-2, npx.newaxis]),
     )
 
-    tmp = vs.maskV / (vs.dzt * vs.area_v[:, :, npx.newaxis])
+    tmp = vs.maskV / (thickness_v * vs.area_v[:, :, npx.newaxis])
     vs.dv_adv = vs.dv_adv - tmp * flux_top
     vs.dv_adv = update_add(vs.dv_adv, at[:, :, 1:], tmp[:, :, 1:] * flux_top[:, :, :-1])
 
@@ -243,6 +246,17 @@ def vertical_velocity_kernel(state):
     w(z) = -int dz u_x + v_y
     """
     vs = state.variables
+
+    if state.settings.enable_partial_cells:
+        u_transport = vs.u[..., vs.taup1] * vs.hfacU * vs.dzt
+        v_transport = vs.v[..., vs.taup1] * vs.hfacV * vs.dzt
+        divergence = (u_transport[1:, 1:] - u_transport[:-1, 1:]) / (
+            vs.cost[None, 1:, None] * vs.dxt[1:, None, None]
+        ) + (vs.cosu[None, 1:, None] * v_transport[1:, 1:] - vs.cosu[None, :-1, None] * v_transport[1:, :-1]) / (
+            vs.cost[None, 1:, None] * vs.dyt[None, 1:, None]
+        )
+        vs.w = update(vs.w, at[1:, 1:, :, vs.taup1], -npx.cumsum(divergence, axis=2) * vs.maskW[1:, 1:])
+        return KernelOutput(w=vs.w)
 
     fxa = allocate(state.dimensions, ("xt", "yt", "zw"))
 

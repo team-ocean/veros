@@ -242,6 +242,15 @@ def calc_topo_kernel(state):
         hur=vs.hur,
         hvr=vs.hvr,
         kbot=vs.kbot,
+        **(
+            {
+                "hfacT": vs.maskT.astype(vs.dzt.dtype),
+                "hfacU": vs.maskU.astype(vs.dzt.dtype),
+                "hfacV": vs.maskV.astype(vs.dzt.dtype),
+            }
+            if settings.enable_partial_cells
+            else {}
+        ),
     )
 
 
