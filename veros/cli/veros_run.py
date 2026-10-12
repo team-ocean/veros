@@ -46,6 +46,17 @@ def run(setup_file, *args, **kwargs):
     from veros import runtime_settings, VerosSetup, __version__ as veros_version
 
     kwargs["override"] = dict(kwargs["override"])
+    compiled = kwargs.pop("compiled", False)
+    execution = kwargs.pop("execution", "auto")
+    if compiled:
+        if execution == "eager":
+            raise click.UsageError("--compiled conflicts with --execution eager")
+        execution = "compiled"
+    compiled_solver = kwargs.pop("compiled_solver", None)
+    if compiled_solver is not None and execution != "compiled":
+        raise click.UsageError("--compiled-solver requires --compiled")
+    if execution == "compiled" and kwargs["backend"] != "jax":
+        raise click.UsageError("--compiled requires --backend jax")
 
     runtime_setting_kwargs = (
         "backend",
@@ -83,8 +94,18 @@ def run(setup_file, *args, **kwargs):
         )
 
     sim = SetupClass(*args, **kwargs)
+    run_kwargs = {}
+    if execution != "auto":
+        run_kwargs["execution"] = execution
+    if compiled_solver is not None:
+        run_kwargs["linear_solver"] = compiled_solver
+    if run_kwargs:
+        try:
+            inspect.signature(sim.run).bind(**run_kwargs)
+        except TypeError as error:
+            raise click.UsageError(f"Setup run() does not accept the requested execution options: {error}") from error
     sim.setup()
-    sim.run()
+    sim.run(**run_kwargs)
 
 
 @click.command("veros-run")
@@ -134,6 +155,19 @@ def run(setup_file, *args, **kwargs):
 )
 @click.option("--force-overwrite", is_flag=True, help="Silently overwrite existing outputs")
 @click.option("--diskless-mode", is_flag=True, help="Supress all output to disk")
+@click.option("--compiled", is_flag=True, help="Compile numerical steps and diagnostics together (JAX only)")
+@click.option(
+    "--execution",
+    type=click.Choice(["auto", "compiled", "eager"]),
+    default="auto",
+    show_default=True,
+    help="Select automatic, compiled, or ordinary execution",
+)
+@click.option(
+    "--compiled-solver",
+    type=click.Choice(["best", "petsc", "scipy_jax"]),
+    help="Override the pressure solver for compiled integration",
+)
 @click.option(
     "--float-type",
     default="float64",

@@ -7,7 +7,6 @@ from veros import logger
 
 from veros.state import VerosState
 
-
 # stack helpers
 
 
@@ -47,6 +46,18 @@ class RoutineStack:
 CURRENT_CONTEXT = threading.local()
 CURRENT_CONTEXT.is_dist_safe = True
 CURRENT_CONTEXT.routine_stack = RoutineStack()
+CURRENT_CONTEXT.tracing = False
+
+
+@contextmanager
+def tracing_context():
+    """Run routines on local state without host instrumentation."""
+    previous = getattr(CURRENT_CONTEXT, "tracing", False)
+    CURRENT_CONTEXT.tracing = True
+    try:
+        yield
+    finally:
+        CURRENT_CONTEXT.tracing = previous
 
 
 @contextmanager
@@ -114,25 +125,23 @@ def _is_method(function):
 # routine
 
 
-def veros_routine(function=None, *, dist_safe=True, local_variables=()):
-    """
-    .. note::
+def veros_routine(function=None, *, dist_safe=True, local_variables=(), supports_compilation=False):
+    """Decorate functions that access the Veros state, including setup methods.
 
-      This decorator should be applied to all functions that access the Veros state object
-      (even when subclassing :class:`veros.VerosSetup`).
-
-    The first argument to the decorated function must be a VerosState instance.
-
-    Veros routines cannot return anything. All changes must be applied to the passed state object.
+    The first function argument must be a VerosState instance. Routines modify
+    that state and return nothing.
 
     Parameters:
-        dist_safe (bool): If set to False, all variables specified in local_variables are synced
-            to the root process before execution and synced back after. This means that the routine
-            will only be executed on rank 0. Has no effect in non-distributed contexts.
+        dist_safe (bool): If False, run only on rank 0, syncing local_variables
+            to the root process before execution and back afterward. Ignored
+            in non-distributed runs.
 
-        local_variables (Tuple[str]): List of variable names to be synced if dist_safe=False. This
-            must include all variables retrieved from the state object throughout the routine (inputs
-            *and* outputs).
+        local_variables (Tuple[str]): Variables to sync when dist_safe=False.
+            Include all state variables accessed by the routine, both inputs
+            and outputs.
+
+        supports_compilation (bool): Declare that a numerical setup hook or plugin
+            uses JAX operations without host side effects during a timestep.
 
     Example:
        >>> from veros import VerosSetup, veros_routine
@@ -143,7 +152,6 @@ def veros_routine(function=None, *, dist_safe=True, local_variables=()):
        >>>         vs = state.variables
        >>>         settings = state.settings
        >>>         vs.kbot = npx.random.randint(0, settings.nz, size=vs.kbot.shape)
-
     """
 
     def inner_decorator(function):
@@ -153,6 +161,7 @@ def veros_routine(function=None, *, dist_safe=True, local_variables=()):
             raise TypeError("Veros routines must take at least one argument")
 
         routine = VerosRoutine(function, state_argnum=narg, dist_safe=dist_safe, local_variables=local_variables)
+        routine.supports_compilation = supports_compilation
         routine = functools.wraps(function)(routine)
         return routine
 
@@ -184,6 +193,15 @@ class VerosRoutine:
 
         if not isinstance(veros_state, VerosState):
             raise TypeError(f"Argument {self.state_argnum} to this Veros routine must be a VerosState object")
+
+        if getattr(CURRENT_CONTEXT, "tracing", False):
+            if not self.dist_safe and rst.proc_num > 1:
+                raise RuntimeError(f"Routine {self.name} requires host gathering and cannot run inside an integration")
+            import jax
+
+            with jax.named_scope(self.name), veros_state.variables.unlock():
+                self.function(*args, **kwargs)
+            return
 
         timer = veros_state.profile_timers[self.name]
 
@@ -226,6 +244,8 @@ class VerosRoutine:
             )
 
     def __get__(self, instance, _):
+        if instance is None:
+            return self
         return functools.partial(self.__call__, instance)
 
     def __repr__(self):
@@ -306,6 +326,16 @@ class VerosKernel:
     def __call__(self, *args, **kwargs):
         from veros import runtime_settings
         from veros.core.operators import flush
+
+        if getattr(CURRENT_CONTEXT, "tracing", False):
+            bound_args = self.func_sig.bind(*args, **kwargs)
+            bound_args.apply_defaults()
+            function = getattr(self.function, "__wrapped__", self.function)
+            with ExitStack() as es:
+                for arg in bound_args.arguments.values():
+                    if isinstance(arg, VerosState):
+                        es.enter_context(arg.variables.unlock())
+                return function(*bound_args.arguments.values())
 
         # apply JIT
         if runtime_settings.backend == "jax":

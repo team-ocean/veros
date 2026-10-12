@@ -1,0 +1,5866 @@
+{
+  "schema_version": 1,
+  "measured_dates_utc": [
+    "2026-10-10",
+    "2026-10-11"
+  ],
+  "collected_utc": "2026-10-11T08:52:45.837531+00:00",
+  "hardware": {
+    "cpu": "AMD Ryzen 5 5600",
+    "logical_cpus_available": 12,
+    "logical_cpus_used": 4,
+    "host_ram_bytes": 16144773120,
+    "gpu": "NVIDIA RTX 3060",
+    "gpu_ram_gb": 12,
+    "gpu_count": 1
+  },
+  "software": {
+    "python": "3.14.4",
+    "numpy": "2.5.3",
+    "jax": "0.11.2",
+    "jaxlib": "0.11.2",
+    "petsc": "3.26.0",
+    "petsc4py": "3.26.0",
+    "mpi4py": "4.1.2",
+    "mpi4jax": "0.9.1.post2",
+    "mpich": "5.0.0",
+    "gcc": "15.2.0",
+    "cython": "3.3.0"
+  },
+  "environment": {
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "XLA_FLAGS": "--xla_cpu_multi_thread_eigen=false --xla_cpu_parallel_codegen_split_count=1",
+    "XLA_PYTHON_CLIENT_PREALLOCATE": "false",
+    "XLA_PYTHON_CLIENT_MEM_FRACTION": ".35",
+    "minimum_available_host_memory_mib": 3000,
+    "process_tree_limit_mib": 5500,
+    "mpi_process_tree_limit_mib": 6500,
+    "guard_sampling_seconds": 1
+  },
+  "builds": {
+    "original": {
+      "petsc_c_flags": "-g -O",
+      "blas": "reference BLAS/LAPACK",
+      "debugging": false
+    },
+    "optimized": {
+      "petsc_c_flags": "-O3 -march=native -mtune=native",
+      "blas": "OpenBLAS 0.3.32 pthread",
+      "debugging": false,
+      "cuda": false,
+      "build_peak_tree_mib": 526
+    },
+    "cpu_tdma": {
+      "c_flags": "-g -O2",
+      "baseline_exception_checks": "per-column GIL checks",
+      "optimized_exception_checks": "noexcept",
+      "build_peak_tree_mib": 8
+    }
+  },
+  "sources": {
+    "current": {
+      "benchmarks/integration_benchmark.py": "a4cf05feeb63be72ea40b8b0e2d3fcab58f1eea70b27e23cbde47a7ef77a5dd0",
+      "benchmarks/pressure_benchmark.py": "81b545760c7cbaa8ba6e42207ff37fb06a4db1b8c423e9eb26269ff4540e806c",
+      "veros/runtime.py": "3684b6d797dc791dfea33ac62848cb3b4b7d43273bb959e6b012c1118671006f",
+      "veros/core/special/tdma_cython_.pyx": "443c67a87cd354c9cade9e28576dc1695d0af3d2ac62d238024f42d970b94f32",
+      "veros/core/external/solvers/petsc_jax.py": "8eea6509f93fc54bdefce46037ca2db381290058b2e203f9968c94c85f7760bb"
+    },
+    "baseline_callback_sha256": "cfdc30f49670d201a7ada6f7ddbbdb22eea9db78c47ec6bc5ce47ceb4acd257a",
+    "baseline_cpu_tdma_sha256": "6133d3bb0b4eb8691b3c45ea8891add676a5edf62cd3712647cc8ff22eb83a46"
+  },
+  "pressure_runs": [
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.0004254396066744448,
+          "MatMult": 0.00012304876678626898,
+          "VecNorm": 1.7824632580717056e-06,
+          "VecScale": 2.531233394620358e-07,
+          "VecSet": 7.222603221634926e-06
+        },
+        "samples": [
+          0.0004593029333288238,
+          0.00045493378335474216,
+          0.0004747371666477799,
+          0.0004630430667020846,
+          0.00046641848336245555
+        ],
+        "seconds": 0.0004630430667020846
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.00042997497000214936,
+          "MatMult": 0.00012410485659529512,
+          "VecNorm": 1.7926600366990896e-06,
+          "VecScale": 3.7837667908509807e-07,
+          "VecSet": 7.429403328084542e-06
+        },
+        "samples": [
+          0.0005299161999573698,
+          0.00047880490001261933,
+          0.00047660319996793986,
+          0.00047771381669008405,
+          0.00048047591662907506
+        ],
+        "seconds": 0.00047880490001261933
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 18,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.00042093936334670917,
+          "MatMult": 0.00012222846312245867,
+          "VecNorm": 1.6891000116932749e-06,
+          "VecScale": 0.0,
+          "VecSet": 7.076570029009114e-06
+        },
+        "samples": [
+          0.0004354638833319768,
+          0.000424041483347537,
+          0.0004176793499937048,
+          0.00041862216664109535,
+          0.00041293951665769175
+        ],
+        "seconds": 0.00041862216664109535
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 883.05078125,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 16,
+      "solves": 60,
+      "case": "cpu16-tuned",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 883,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.0027812843666621726,
+          "MatMult": 0.001407316183479755,
+          "VecNorm": 7.007069974254894e-06,
+          "VecScale": 5.432833465116952e-07,
+          "VecSet": 2.0314799953666807e-05
+        },
+        "samples": [
+          0.002836681899983281,
+          0.0028416961166537174,
+          0.0028359844166819435,
+          0.0028255096333547653,
+          0.0028337276000456766
+        ],
+        "seconds": 0.0028359844166819435
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.002794039186658968,
+          "MatMult": 0.0014087173935392154,
+          "VecNorm": 7.042456622912141e-06,
+          "VecScale": 6.331199877725642e-07,
+          "VecSet": 2.0560463443265084e-05
+        },
+        "samples": [
+          0.0028780022333497377,
+          0.0028722679833056946,
+          0.0028735163666472846,
+          0.002870218749982693,
+          0.0028709506332840343
+        ],
+        "seconds": 0.0028722679833056946
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 9,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.0027781490766907763,
+          "MatMult": 0.0013964376466325727,
+          "VecNorm": 3.964979997969446e-06,
+          "VecScale": 0.0,
+          "VecSet": 1.9959896661324213e-05
+        },
+        "samples": [
+          0.0027815369166395007,
+          0.0027749472166760823,
+          0.0027795292666875564,
+          0.0027788897166828976,
+          0.002780027883333484
+        ],
+        "seconds": 0.0027795292666875564
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 957.375,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 64,
+      "solves": 60,
+      "case": "cpu64-baseline",
+      "callback_implementation": "baseline",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 958,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.002903035339980609,
+          "MatMult": 0.001445932436649855,
+          "VecNorm": 4.925763329689895e-06,
+          "VecScale": 6.90059999518174e-07,
+          "VecSet": 2.0328720147517742e-05
+        },
+        "samples": [
+          0.002961793250021098,
+          0.002968635783327045,
+          0.0029687087666995164,
+          0.0029637207500248525,
+          0.0029689004499838727
+        ],
+        "seconds": 0.002968635783327045
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.0028234884233446183,
+          "MatMult": 0.001412837803347126,
+          "VecNorm": 4.08811004490417e-06,
+          "VecScale": 7.194000045274152e-07,
+          "VecSet": 2.0113176686512208e-05
+        },
+        "samples": [
+          0.0029053135667102955,
+          0.0028937462000006536,
+          0.002894799883324595,
+          0.00290178085003087,
+          0.002928713950010812
+        ],
+        "seconds": 0.00290178085003087
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 9,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.0028452149033334232,
+          "MatMult": 0.0014166737399333822,
+          "VecNorm": 4.3811166748734345e-06,
+          "VecScale": 0.0,
+          "VecSet": 1.9924393418477847e-05
+        },
+        "samples": [
+          0.002891545866683979,
+          0.002886799483349023,
+          0.002849070983332543,
+          0.0028000241166713145,
+          0.0028029271499690365
+        ],
+        "seconds": 0.002849070983332543
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 941.90625,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 64,
+      "solves": 60,
+      "case": "cpu64-tuned",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 942,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.011706540706669936,
+          "MatMult": 0.0060912763467952874,
+          "VecNorm": 1.2872006651984217e-05,
+          "VecScale": 2.0377266628202052e-06,
+          "VecSet": 5.20407134990819e-05
+        },
+        "samples": [
+          0.011913025583332152,
+          0.011846930416686519,
+          0.011804996583305184,
+          0.011835208099970866,
+          0.011819065033341758
+        ],
+        "seconds": 0.011835208099970866
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.011854297013336084,
+          "MatMult": 0.00615267708986418,
+          "VecNorm": 1.3003470076000668e-05,
+          "VecScale": 2.14684000335789e-06,
+          "VecSet": 5.476847333587405e-05
+        },
+        "samples": [
+          0.01208502721668386,
+          0.011965599516649187,
+          0.01203145673328739,
+          0.012024795200037868,
+          0.012028743566649307
+        ],
+        "seconds": 0.012028743566649307
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 9,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.011678364363334973,
+          "MatMult": 0.00605205830033204,
+          "VecNorm": 1.2702699953782333e-05,
+          "VecScale": 0.0,
+          "VecSet": 5.0578710136809e-05
+        },
+        "samples": [
+          0.011705337183351124,
+          0.011714272366649918,
+          0.011666007466677305,
+          0.011636328799977492,
+          0.011676937449980567
+        ],
+        "seconds": 0.011676937449980567
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1191.44140625,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 128,
+      "solves": 60,
+      "case": "cpu128-bcgs",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1192,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.011099257453332333,
+          "MatMult": 0.005609374240311809,
+          "VecNorm": 2.3549563329652302e-05,
+          "VecScale": 2.312096998442333e-05,
+          "VecSet": 5.3774173523682596e-05
+        },
+        "samples": [
+          0.01105687594996804,
+          0.011275740466650556,
+          0.011083381250015616,
+          0.011727131849996415,
+          0.011104467716722865
+        ],
+        "seconds": 0.011104467716722865
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.011072490586677001,
+          "MatMult": 0.0055974795101186225,
+          "VecNorm": 2.365887003179523e-05,
+          "VecScale": 2.318455673654777e-05,
+          "VecSet": 5.207229997116277e-05
+        },
+        "samples": [
+          0.011249382783353213,
+          0.011368376999962492,
+          0.011221624783320294,
+          0.011088247833322384,
+          0.011324894050024644
+        ],
+        "seconds": 0.011249382783353213
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 16,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "gmres",
+      "native": {
+        "events": {
+          "KSPSolve": 0.010870245239999955,
+          "MatMult": 0.0054514124399959955,
+          "VecNorm": 2.2769626639274065e-05,
+          "VecScale": 2.0651243315417862e-05,
+          "VecSet": 4.585078341430441e-05
+        },
+        "samples": [
+          0.010859860366629922,
+          0.0109082793833295,
+          0.010855372483335183,
+          0.01085188485000496,
+          0.010882391766669268
+        ],
+        "seconds": 0.010859860366629922
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1178.13671875,
+      "petsc_options": "-ksp_type gmres",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 128,
+      "solves": 60,
+      "case": "cpu128-gmres",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1178,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.009573433773331697,
+          "MatMult": 0.00485469879015606,
+          "VecNorm": 2.5616096691010172e-05,
+          "VecScale": 2.354736992250158e-05,
+          "VecSet": 4.257270701297481e-05
+        },
+        "samples": [
+          0.009695992716660839,
+          0.009737177133380707,
+          0.009756245933325166,
+          0.009647570533343242,
+          0.00972187031663149
+        ],
+        "seconds": 0.00972187031663149
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.009663722020003054,
+          "MatMult": 0.0048993002831972865,
+          "VecNorm": 2.5751149922446834e-05,
+          "VecScale": 2.3989529957664975e-05,
+          "VecSet": 4.649473984197054e-05
+        },
+        "samples": [
+          0.009816185383351694,
+          0.009890238033343242,
+          0.010040377866668374,
+          0.009735891183299827,
+          0.009759865816643771
+        ],
+        "seconds": 0.009816185383351694
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 14,
+      "ksp_tolerances": [
+        1e-12,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "gmres",
+      "native": {
+        "events": {
+          "KSPSolve": 0.009550463696671917,
+          "MatMult": 0.00480273589678139,
+          "VecNorm": 2.5309899939808626e-05,
+          "VecScale": 2.1934583346592264e-05,
+          "VecSet": 3.991161653175368e-05
+        },
+        "samples": [
+          0.009576926699992327,
+          0.009537799883340388,
+          0.009540741983316062,
+          0.009540254549998886,
+          0.00956384564997279
+        ],
+        "seconds": 0.009540741983316062
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1193.390625,
+      "petsc_options": "-ksp_type gmres -ksp_rtol 1e-12",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 128,
+      "solves": 60,
+      "case": "cpu128-gmres12",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1194,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.00041624497666816753,
+          "MatMult": 0.00012413179351976092,
+          "VecNorm": 2.143363315857035e-06,
+          "VecScale": 2.348133345246121e-07,
+          "VecSet": 7.181816751350804e-06
+        },
+        "samples": [
+          0.00045287220000318485,
+          0.00045299524996759527,
+          0.00044923626664967743,
+          0.00044946419996752713,
+          0.00045089959997615854
+        ],
+        "seconds": 0.00045089959997615854
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.00043586445665975287,
+          "MatMult": 0.00012722636988807306,
+          "VecNorm": 2.4892800001907746e-06,
+          "VecScale": 4.486900115807657e-07,
+          "VecSet": 7.418423426012547e-06
+        },
+        "samples": [
+          0.0005452221833062746,
+          0.0005347996666387189,
+          0.0005452422166854376,
+          0.0005786301166760192,
+          0.0005874764666562745
+        ],
+        "seconds": 0.0005452422166854376
+      },
+      "device": "cuda:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 18,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.0004176088399966223,
+          "MatMult": 0.00012518989668630336,
+          "VecNorm": 1.6922766690186108e-06,
+          "VecScale": 0.0,
+          "VecSet": 7.1234432728791335e-06
+        },
+        "samples": [
+          0.0004122896000505231,
+          0.00040950313335391306,
+          0.0004118612833432659,
+          0.0004142411500045758,
+          0.00044320594994739316
+        ],
+        "seconds": 0.0004122896000505231
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1077.4765625,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 16,
+      "solves": 60,
+      "case": "gpu16-baseline",
+      "callback_implementation": "baseline",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1078,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.00042410054667622415,
+          "MatMult": 0.0001257867199440928,
+          "VecNorm": 1.7622800305616693e-06,
+          "VecScale": 2.0585331943342075e-07,
+          "VecSet": 7.331443290847043e-06
+        },
+        "samples": [
+          0.00045991609998357794,
+          0.0004599862333634519,
+          0.0004573353500139395,
+          0.00045765779996145286,
+          0.00045912493333162275
+        ],
+        "seconds": 0.00045912493333162275
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.0004357232999973348,
+          "MatMult": 0.00012777027985824436,
+          "VecNorm": 1.7969033903379265e-06,
+          "VecScale": 4.796433434724653e-07,
+          "VecSet": 7.548270176206036e-06
+        },
+        "samples": [
+          0.0005612057667046126,
+          0.0005299780000010894,
+          0.0005498055666369813,
+          0.000532023550052448,
+          0.0005746789332988555
+        ],
+        "seconds": 0.0005498055666369813
+      },
+      "device": "cuda:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 18,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.00041895272666958285,
+          "MatMult": 0.000123869643322602,
+          "VecNorm": 1.6639599668148246e-06,
+          "VecScale": 0.0,
+          "VecSet": 7.180610094413471e-06
+        },
+        "samples": [
+          0.00042000026666452566,
+          0.0004186861166696569,
+          0.00041911441670284454,
+          0.000419831283337165,
+          0.00041983713332835275
+        ],
+        "seconds": 0.000419831283337165
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1076.10546875,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 16,
+      "solves": 60,
+      "case": "gpu16-tuned",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1076,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.002812677083337197,
+          "MatMult": 0.0014126247868292315,
+          "VecNorm": 7.371133398616318e-06,
+          "VecScale": 6.236866677985138e-07,
+          "VecSet": 1.984424321562983e-05
+        },
+        "samples": [
+          0.0028663281833360087,
+          0.0028636622833194754,
+          0.0028616880166737247,
+          0.0028713260166114197,
+          0.002875708033328313
+        ],
+        "seconds": 0.0028663281833360087
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.002873692190011449,
+          "MatMult": 0.0014365939900032269,
+          "VecNorm": 7.766773364892288e-06,
+          "VecScale": 7.869366603093416e-07,
+          "VecSet": 1.9906696700976074e-05
+        },
+        "samples": [
+          0.003098294133390785,
+          0.0030390410000109115,
+          0.0029917006999918764,
+          0.003087025850012045,
+          0.0029969712333089166
+        ],
+        "seconds": 0.0030390410000109115
+      },
+      "device": "cuda:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 9,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.002832253236673144,
+          "MatMult": 0.0014261060400046215,
+          "VecNorm": 4.041810017649065e-06,
+          "VecScale": 0.0,
+          "VecSet": 1.9769030019839797e-05
+        },
+        "samples": [
+          0.0027898084999833372,
+          0.002796240416682849,
+          0.002917373366653919,
+          0.0027872853500108857,
+          0.0028759296333494906
+        ],
+        "seconds": 0.002796240416682849
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1093.9765625,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 64,
+      "solves": 60,
+      "case": "gpu64-baseline",
+      "callback_implementation": "baseline",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1094,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.002809850246659759,
+          "MatMult": 0.0014162771331424058,
+          "VecNorm": 5.812643319889806e-06,
+          "VecScale": 5.451533373464675e-07,
+          "VecSet": 2.003490669570359e-05
+        },
+        "samples": [
+          0.002899698533353027,
+          0.0028442307833150457,
+          0.0028633434833560995,
+          0.0028627618999962578,
+          0.002873808583353821
+        ],
+        "seconds": 0.0028633434833560995
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.0028288180066662486,
+          "MatMult": 0.0014121636931228446,
+          "VecNorm": 5.897670052945614e-06,
+          "VecScale": 7.28953336874838e-07,
+          "VecSet": 2.0281630071015874e-05
+        },
+        "samples": [
+          0.0029980179000024996,
+          0.0029825753333473887,
+          0.0029778980833119325,
+          0.0029756920500100628,
+          0.003014680116696885
+        ],
+        "seconds": 0.0029825753333473887
+      },
+      "device": "cuda:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 9,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.002778818229991581,
+          "MatMult": 0.001397579016547752,
+          "VecNorm": 5.771620038406885e-06,
+          "VecScale": 0.0,
+          "VecSet": 1.9645340054618523e-05
+        },
+        "samples": [
+          0.002781138499994995,
+          0.0027771620833542936,
+          0.0027785644166215206,
+          0.0027831299500273112,
+          0.0027780244000193003
+        ],
+        "seconds": 0.0027785644166215206
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1086.84375,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 64,
+      "solves": 60,
+      "case": "gpu64-tuned",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1089,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.0025335981500029447,
+          "MatMult": 0.0012957118899703346,
+          "VecNorm": 5.221646697464166e-06,
+          "VecScale": 6.638899746273334e-07,
+          "VecSet": 1.8049706545753e-05
+        },
+        "samples": [
+          0.002574225066685661,
+          0.00257139333334635,
+          0.0025752890833246056,
+          0.0026619322000139317,
+          0.0025731468499846717
+        ],
+        "seconds": 0.002574225066685661
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.002581600776658585,
+          "MatMult": 0.001318337023356738,
+          "VecNorm": 5.312016720987837e-06,
+          "VecScale": 7.726566491328412e-07,
+          "VecSet": 1.8562430042644943e-05
+        },
+        "samples": [
+          0.0028206978166660217,
+          0.0026392144666412304,
+          0.0026721122666761707,
+          0.002608617866705269,
+          0.002602941566631974
+        ],
+        "seconds": 0.0026392144666412304
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "pressure",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 8,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.0025245259033514836,
+          "MatMult": 0.001283734846955061,
+          "VecNorm": 5.1790933684969786e-06,
+          "VecScale": 0.0,
+          "VecSet": 1.777073998103636e-05
+        },
+        "samples": [
+          0.0025313990333112693,
+          0.00251822828334601,
+          0.0025203060832912644,
+          0.002534319916655174,
+          0.002523308116663732
+        ],
+        "seconds": 0.002523308116663732
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 808.5234375,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 64,
+      "solves": 60,
+      "case": "cpu64-pressure-bcgs",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 809,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.002182627636661891,
+          "MatMult": 0.0010815865133220843,
+          "VecNorm": 5.770179968749289e-06,
+          "VecScale": 5.651113406202058e-06,
+          "VecSet": 1.6108636711275418e-05
+        },
+        "samples": [
+          0.0022341893666331697,
+          0.0022224124333661164,
+          0.0022096748666323644,
+          0.0022974125500089333,
+          0.0022590805832805928
+        ],
+        "seconds": 0.0022341893666331697
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.002160489133348165,
+          "MatMult": 0.0010679488034717602,
+          "VecNorm": 5.746366655330348e-06,
+          "VecScale": 5.6810766227499696e-06,
+          "VecSet": 1.6453026689002096e-05
+        },
+        "samples": [
+          0.002229551533370492,
+          0.0022288157999961794,
+          0.0022345894500176654,
+          0.0022287170999940524,
+          0.0022881305500050074
+        ],
+        "seconds": 0.002229551533370492
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "pressure",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 13,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "gmres",
+      "native": {
+        "events": {
+          "KSPSolve": 0.002129531256673545,
+          "MatMult": 0.001052240133350703,
+          "VecNorm": 5.464919941005064e-06,
+          "VecScale": 4.955200010954286e-06,
+          "VecSet": 1.546404993860051e-05
+        },
+        "samples": [
+          0.0021296524999949423,
+          0.0021306964833153566,
+          0.0021310428166543714,
+          0.0021272943333315196,
+          0.00213428098334892
+        ],
+        "seconds": 0.0021306964833153566
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 807.609375,
+      "petsc_options": "-ksp_type gmres",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 64,
+      "solves": 60,
+      "case": "cpu64-pressure-gmres",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 808,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.00041868247998384805,
+          "MatMult": 0.00012399161015461384,
+          "VecNorm": 2.1412032917093407e-06,
+          "VecScale": 2.698200250961236e-07,
+          "VecSet": 7.091589823176036e-06
+        },
+        "samples": [
+          0.00045349254996835954,
+          0.00045142826663019755,
+          0.00045084985000964174,
+          0.0004581081500267222,
+          0.0004515126000114833
+        ],
+        "seconds": 0.0004515126000114833
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.00042754879998634955,
+          "MatMult": 0.00012489585325511143,
+          "VecNorm": 2.2633800229717356e-06,
+          "VecScale": 3.3854666829332323e-07,
+          "VecSet": 7.4783467486364925e-06
+        },
+        "samples": [
+          0.0005049323166531394,
+          0.0004818371833001341,
+          0.00047950989998450194,
+          0.0004802543166685306,
+          0.00048086231666578293
+        ],
+        "seconds": 0.00048086231666578293
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 18,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.00041313342334584985,
+          "MatMult": 0.0001231590366569435,
+          "VecNorm": 1.6091900306491879e-06,
+          "VecScale": 0.0,
+          "VecSet": 6.865493322341839e-06
+        },
+        "samples": [
+          0.00041302666668343593,
+          0.0004167090166447451,
+          0.00041258298333559653,
+          0.00041254375003821526,
+          0.0004133148833110075
+        ],
+        "seconds": 0.00041302666668343593
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 882.91015625,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 16,
+      "solves": 60,
+      "case": "cpu16-baseline",
+      "callback_implementation": "baseline",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 883,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.0037046658633547243,
+          "MatMult": 0.0015345046232020346,
+          "VecNorm": 3.661919331989338e-05,
+          "VecScale": 7.936733315242842e-07,
+          "VecSet": 2.0245443491451926e-05
+        },
+        "samples": [
+          0.0037874174333410336,
+          0.0037578723500094687,
+          0.003786017266672085,
+          0.0037545623833769542,
+          0.0037565216166816147
+        ],
+        "seconds": 0.0037578723500094687
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.0037385568400016686,
+          "MatMult": 0.0015484356502383889,
+          "VecNorm": 3.7109096735245357e-05,
+          "VecScale": 8.780333564573084e-07,
+          "VecSet": 2.0698850206220717e-05
+        },
+        "samples": [
+          0.0038290039499770502,
+          0.0038447203833129606,
+          0.003795983433337824,
+          0.003826730633348537,
+          0.003857934533334628
+        ],
+        "seconds": 0.0038290039499770502
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 9,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.0036765769866603172,
+          "MatMult": 0.0015158261764706064,
+          "VecNorm": 2.8715180039095383e-05,
+          "VecScale": 0.0,
+          "VecSet": 1.976013007454943e-05
+        },
+        "samples": [
+          0.0036778166166792896,
+          0.0036754105333481374,
+          0.0036782818500190237,
+          0.003682455116662216,
+          0.003674361050010096
+        ],
+        "seconds": 0.0036778166166792896
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 955.83984375,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 64,
+      "solves": 60,
+      "case": "cpu64-old-build",
+      "callback_implementation": "baseline",
+      "petsc_build": "original",
+      "guard_peak_tree_mib": 956,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.023805949603338376,
+          "MatMult": 0.005461053166639734,
+          "VecNorm": 1.8149990000893013e-05,
+          "VecScale": 2.034769981946738e-06,
+          "VecSet": 4.616971674749948e-05
+        },
+        "samples": [
+          0.023950374016688633,
+          0.023941335983302756,
+          0.023945294866643964,
+          0.023946434516680406,
+          0.02393854266665585
+        ],
+        "seconds": 0.023945294866643964
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.023976348516648614,
+          "MatMult": 0.005513501010179122,
+          "VecNorm": 1.841503002196987e-05,
+          "VecScale": 2.18686667115738e-06,
+          "VecSet": 4.810015660799157e-05
+        },
+        "samples": [
+          0.02412103359996157,
+          0.024562302366697018,
+          0.02404647381669444,
+          0.02407630378329486,
+          0.024022133316672505
+        ],
+        "seconds": 0.02407630378329486
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 8,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.024070244146682854,
+          "MatMult": 0.0055253076767182085,
+          "VecNorm": 1.811561670365336e-05,
+          "VecScale": 0.0,
+          "VecSet": 4.650836691628986e-05
+        },
+        "samples": [
+          0.023793913483374732,
+          0.0240586050666631,
+          0.02392838299995977,
+          0.024319818049965154,
+          0.024258553083321508
+        ],
+        "seconds": 0.0240586050666631
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1202.6328125,
+      "petsc_options": "-mg_levels_pc_type sor",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 128,
+      "solves": 60,
+      "case": "cpu128-sor",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1203,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.019919672059983594,
+          "MatMult": 0.00450730411001435,
+          "VecNorm": 2.7898116660859764e-05,
+          "VecScale": 2.5184839996654775e-05,
+          "VecSet": 4.277738665678043e-05
+        },
+        "samples": [
+          0.020173841966667775,
+          0.020033544200002022,
+          0.020036977900053897,
+          0.020006882766635196,
+          0.02003850063332114
+        ],
+        "seconds": 0.020036977900053897
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.019971386029984994,
+          "MatMult": 0.004502805623496897,
+          "VecNorm": 2.8119996666949495e-05,
+          "VecScale": 2.528136667478975e-05,
+          "VecSet": 4.619169331969412e-05
+        },
+        "samples": [
+          0.02017109173333059,
+          0.020206618866723147,
+          0.020119816283295223,
+          0.020139775783294074,
+          0.020104737749958683
+        ],
+        "seconds": 0.020139775783294074
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 13,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "gmres",
+      "native": {
+        "events": {
+          "KSPSolve": 0.019899954529998164,
+          "MatMult": 0.004473781263162285,
+          "VecNorm": 2.7959099938925646e-05,
+          "VecScale": 2.3692436652709148e-05,
+          "VecSet": 4.0001230010299576e-05
+        },
+        "samples": [
+          0.019881915699988893,
+          0.019881212033336246,
+          0.01991546706661514,
+          0.019956423366663027,
+          0.019874632999987322
+        ],
+        "seconds": 0.019881915699988893
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1203.1796875,
+      "petsc_options": "-ksp_type gmres -mg_levels_pc_type sor",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 128,
+      "solves": 60,
+      "case": "cpu128-gmres-sor",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1204,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.017022799719992085,
+          "MatMult": 0.003881287116657101,
+          "VecNorm": 2.0772936680562754e-05,
+          "VecScale": 1.966040665441445e-05,
+          "VecSet": 3.3461013140367867e-05
+        },
+        "samples": [
+          0.017235939683329586,
+          0.017159413166700686,
+          0.017091342250023445,
+          0.01716268205000233,
+          0.0171363439166574
+        ],
+        "seconds": 0.017159413166700686
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.01703626453999732,
+          "MatMult": 0.00387679522668653,
+          "VecNorm": 2.0841213352772077e-05,
+          "VecScale": 1.975760331333731e-05,
+          "VecSet": 3.511694675429074e-05
+        },
+        "samples": [
+          0.017287936183371735,
+          0.017133773349996773,
+          0.017200290983358475,
+          0.017261544283307253,
+          0.017154356883293077
+        ],
+        "seconds": 0.017200290983358475
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 11,
+      "ksp_tolerances": [
+        1e-12,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "gmres",
+      "native": {
+        "events": {
+          "KSPSolve": 0.01696191732667406,
+          "MatMult": 0.003825990276529107,
+          "VecNorm": 2.0711703327833675e-05,
+          "VecScale": 1.7665673296202538e-05,
+          "VecSet": 3.229374649284485e-05
+        },
+        "samples": [
+          0.016961725816630253,
+          0.016977129800034164,
+          0.01696192986667787,
+          0.016971475533318882,
+          0.016943884683314536
+        ],
+        "seconds": 0.01696192986667787
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1200.10546875,
+      "petsc_options": "-ksp_type gmres -mg_levels_pc_type sor -ksp_rtol 1e-12",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 128,
+      "solves": 60,
+      "case": "cpu128-gmres-sor12",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1200,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.00444358826001159,
+          "MatMult": 0.0009981743232917021,
+          "VecNorm": 4.1167433725301335e-06,
+          "VecScale": 5.398233224696014e-07,
+          "VecSet": 1.4787776687323154e-05
+        },
+        "samples": [
+          0.004479503716659868,
+          0.004509488483320941,
+          0.004547398500047469,
+          0.0045142196499606746,
+          0.0044787629999821854
+        ],
+        "seconds": 0.004509488483320941
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.004473963960026595,
+          "MatMult": 0.0010103992701003032,
+          "VecNorm": 4.152756696385041e-06,
+          "VecScale": 6.54509999549191e-07,
+          "VecSet": 1.4563896747858962e-05
+        },
+        "samples": [
+          0.0046339490999647145,
+          0.004670820133287634,
+          0.004504099399976743,
+          0.0045000815666450455,
+          0.00452139948332236
+        ],
+        "seconds": 0.00452139948332236
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "pressure",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 6,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.004413083036668771,
+          "MatMult": 0.0009823742999136205,
+          "VecNorm": 4.010213291015437e-06,
+          "VecScale": 0.0,
+          "VecSet": 1.4185160224163458e-05
+        },
+        "samples": [
+          0.004416146116697443,
+          0.004411627500000274,
+          0.004411616316671522,
+          0.0044169137333180215,
+          0.004413637483351825
+        ],
+        "seconds": 0.004413637483351825
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 813.05078125,
+      "petsc_options": "-mg_levels_pc_type sor",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 64,
+      "solves": 60,
+      "case": "cpu64-pressure-sor",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 814,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.0041143394466522905,
+          "MatMult": 0.0009193751800436682,
+          "VecNorm": 4.728163318456306e-06,
+          "VecScale": 4.858876659454836e-06,
+          "VecSet": 1.355245675919529e-05
+        },
+        "samples": [
+          0.004175270533293466,
+          0.004170375200010313,
+          0.004174509233356123,
+          0.004174137016646758,
+          0.004168059949976547
+        ],
+        "seconds": 0.004174137016646758
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.0041216947599847726,
+          "MatMult": 0.0009180671533188918,
+          "VecNorm": 4.693726664299902e-06,
+          "VecScale": 4.895673325033083e-06,
+          "VecSet": 1.3817739945807262e-05
+        },
+        "samples": [
+          0.004221575016708811,
+          0.004198795649972453,
+          0.004195947716652881,
+          0.004194086999996216,
+          0.004196406599961241
+        ],
+        "seconds": 0.004196406599961241
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "pressure",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 11,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "gmres",
+      "native": {
+        "events": {
+          "KSPSolve": 0.0041018091200051765,
+          "MatMult": 0.0009063533867902151,
+          "VecNorm": 4.631006643952181e-06,
+          "VecScale": 4.3267933309228585e-06,
+          "VecSet": 1.3300013271570303e-05
+        },
+        "samples": [
+          0.004101967966683636,
+          0.004102061149994066,
+          0.00410148971665573,
+          0.004101550333325576,
+          0.004106213383298988
+        ],
+        "seconds": 0.004101967966683636
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 807.37890625,
+      "petsc_options": "-ksp_type gmres -mg_levels_pc_type sor",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "size": 64,
+      "solves": 60,
+      "case": "cpu64-pressure-gmres-sor",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 808,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      },
+      "topology_independent_rhs": true
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.0020539028933323302,
+          "MatMult": 0.0010907854737115487,
+          "VecNorm": 3.887463328889377e-05,
+          "VecScale": 5.155000038333431e-07,
+          "VecSet": 1.6330873492430935e-05
+        },
+        "samples": [
+          0.0021336425333326283,
+          0.0021284800500022054,
+          0.002126068950000596,
+          0.0021398373333340716,
+          0.0021261863500020204
+        ],
+        "seconds": 0.0021284800500022054
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.00206676418000067,
+          "MatMult": 0.0010970964097714387,
+          "VecNorm": 3.9097433312538976e-05,
+          "VecScale": 5.803233352708048e-07,
+          "VecSet": 1.6666346823512868e-05
+        },
+        "samples": [
+          0.002197420116666156,
+          0.002161939916663869,
+          0.0021647435833301643,
+          0.0021656703333330068,
+          0.002165855516667155
+        ],
+        "seconds": 0.0021656703333330068
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 8,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.00203544863334173,
+          "MatMult": 0.0010799551565408667,
+          "VecNorm": 2.731830001266644e-05,
+          "VecScale": 0.0,
+          "VecSet": 1.587171668688825e-05
+        },
+        "samples": [
+          0.002036005666669401,
+          0.002035202983332359,
+          0.0020327837166670784,
+          0.002042673033334571,
+          0.002035848716665593
+        ],
+        "seconds": 0.002035848716665593
+      },
+      "num_proc": [
+        2,
+        1
+      ],
+      "peak_rss_mib": 954.51953125,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "rhs_seed": 42,
+      "size": 64,
+      "solves": 60,
+      "topology_independent_rhs": true,
+      "case": "cpu2-64-baseline",
+      "callback_implementation": "baseline",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1801,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      }
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.0020682151633248697,
+          "MatMult": 0.0011006926163736352,
+          "VecNorm": 2.766278000459958e-05,
+          "VecScale": 5.463433262775652e-07,
+          "VecSet": 1.6817632930118027e-05
+        },
+        "samples": [
+          0.0021384026000002146,
+          0.0021354585000002164,
+          0.002138657266664268,
+          0.0021502331166667926,
+          0.0021417484666661343
+        ],
+        "seconds": 0.002138657266664268
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.0020856265300259716,
+          "MatMult": 0.0011079384766708245,
+          "VecNorm": 2.7771803317288383e-05,
+          "VecScale": 5.997399997189253e-07,
+          "VecSet": 1.7220826765272554e-05
+        },
+        "samples": [
+          0.002193977216666099,
+          0.0021838611499977864,
+          0.0021840070833339573,
+          0.0021807398499997057,
+          0.0021760829999986223
+        ],
+        "seconds": 0.0021838611499977864
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 8,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.002054393783338734,
+          "MatMult": 0.0010911328964084532,
+          "VecNorm": 2.745707335937671e-05,
+          "VecScale": 0.0,
+          "VecSet": 1.6467583286612353e-05
+        },
+        "samples": [
+          0.002058285750001687,
+          0.0020529352333331493,
+          0.0020469227833359582,
+          0.0020508305666680827,
+          0.002068567150001854
+        ],
+        "seconds": 0.0020529352333331493
+      },
+      "num_proc": [
+        2,
+        1
+      ],
+      "peak_rss_mib": 940.69140625,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "rhs_seed": 42,
+      "size": 64,
+      "solves": 60,
+      "topology_independent_rhs": true,
+      "case": "cpu2-64-tuned",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1782,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      }
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.010802761790002174,
+          "MatMult": 0.0054587506866285666,
+          "VecNorm": 2.74560599882534e-05,
+          "VecScale": 2.537992000573771e-05,
+          "VecSet": 4.785695323031784e-05
+        },
+        "samples": [
+          0.010898495066665721,
+          0.010950071933333068,
+          0.010946267033333849,
+          0.010948968649999339,
+          0.010937646433334672
+        ],
+        "seconds": 0.010946267033333849
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.010786934019997717,
+          "MatMult": 0.005450900736782387,
+          "VecNorm": 2.7390393255094145e-05,
+          "VecScale": 2.5308003315937337e-05,
+          "VecSet": 4.8298393415583027e-05
+        },
+        "samples": [
+          0.01095718563333321,
+          0.010951833116666875,
+          0.010941169983334475,
+          0.010953391249999337,
+          0.01094195131666614
+        ],
+        "seconds": 0.010951833116666875
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 16,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "gmres",
+      "native": {
+        "events": {
+          "KSPSolve": 0.011063623579992358,
+          "MatMult": 0.005545173053492363,
+          "VecNorm": 2.7857236739995037e-05,
+          "VecScale": 2.4440949982817983e-05,
+          "VecSet": 4.740236660836672e-05
+        },
+        "samples": [
+          0.010844968850002109,
+          0.010833452599998357,
+          0.01120474673333168,
+          0.011202335816665254,
+          0.011240036083332445
+        ],
+        "seconds": 0.011202335816665254
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1183.90625,
+      "petsc_options": "-ksp_type gmres",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "rhs_seed": 42,
+      "size": 128,
+      "solves": 60,
+      "topology_independent_rhs": true,
+      "case": "cpu128-gmres",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 1184,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      }
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.006904819486664261,
+          "MatMult": 0.003453404123166971,
+          "VecNorm": 6.789320002705305e-05,
+          "VecScale": 1.4790730083404925e-05,
+          "VecSet": 3.625564999917212e-05
+        },
+        "samples": [
+          0.00699827626666547,
+          0.007012817949998862,
+          0.007030820716666616,
+          0.007043845166667021,
+          0.007016544716664915
+        ],
+        "seconds": 0.007016544716664915
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.006851593530019878,
+          "MatMult": 0.0034283340599070775,
+          "VecNorm": 6.725692994981122e-05,
+          "VecScale": 1.4722536652698182e-05,
+          "VecSet": 3.6442996696071834e-05
+        },
+        "samples": [
+          0.007031764850000855,
+          0.0069804588333340686,
+          0.006976084366666176,
+          0.00697730851666544,
+          0.006988071499999175
+        ],
+        "seconds": 0.0069804588333340686
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 16,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "gmres",
+      "native": {
+        "events": {
+          "KSPSolve": 0.006960681453333564,
+          "MatMult": 0.0034726263302233443,
+          "VecNorm": 7.190107670794532e-05,
+          "VecScale": 1.4076689970655327e-05,
+          "VecSet": 3.6809556672778856e-05
+        },
+        "samples": [
+          0.006893639233332275,
+          0.0069253564499983135,
+          0.006922632599999663,
+          0.006925397199999376,
+          0.007144242966664175
+        ],
+        "seconds": 0.0069253564499983135
+      },
+      "num_proc": [
+        2,
+        1
+      ],
+      "peak_rss_mib": 1067.6953125,
+      "petsc_options": "-ksp_type gmres",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "rhs_seed": 42,
+      "size": 128,
+      "solves": 60,
+      "topology_independent_rhs": true,
+      "case": "cpu2-128-gmres",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 2013,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      }
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.004590186366672242,
+          "MatMult": 0.0023365322300999956,
+          "VecNorm": 9.342330999061232e-05,
+          "VecScale": 8.282049993795226e-06,
+          "VecSet": 2.5875223330634373e-05
+        },
+        "samples": [
+          0.0046602003500008015,
+          0.004649649050001396,
+          0.004763618433332795,
+          0.004673120749998816,
+          0.0046568391666672445
+        ],
+        "seconds": 0.0046602003500008015
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.004634285626661949,
+          "MatMult": 0.0023415045967537175,
+          "VecNorm": 9.235343994835906e-05,
+          "VecScale": 8.448116658049305e-06,
+          "VecSet": 2.6797016621458168e-05
+        },
+        "samples": [
+          0.004845226233332293,
+          0.004726736916666141,
+          0.004681483633335878,
+          0.004694761900001746,
+          0.00482140101666649
+        ],
+        "seconds": 0.004726736916666141
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 16,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "gmres",
+      "native": {
+        "events": {
+          "KSPSolve": 0.004558530176661103,
+          "MatMult": 0.002313175996417461,
+          "VecNorm": 9.32295433631225e-05,
+          "VecScale": 7.649776554596125e-06,
+          "VecSet": 2.5251043242254432e-05
+        },
+        "samples": [
+          0.004533846950001437,
+          0.004640073816665336,
+          0.00453915490000251,
+          0.0045385902999972435,
+          0.004548120799999348
+        ],
+        "seconds": 0.00453915490000251
+      },
+      "num_proc": [
+        2,
+        2
+      ],
+      "peak_rss_mib": 1056.83203125,
+      "petsc_options": "-ksp_type gmres",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "rhs_seed": 42,
+      "size": 128,
+      "solves": 60,
+      "topology_independent_rhs": true,
+      "case": "cpu4-128-gmres",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 3797,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      }
+    },
+    {
+      "callback": {
+        "events": {
+          "KSPSolve": 0.0006817483433375553,
+          "MatMult": 0.00031252251344236965,
+          "VecNorm": 1.9523066718344732e-06,
+          "VecScale": 3.4463331606578624e-07,
+          "VecSet": 7.993629857689181e-06
+        },
+        "samples": [
+          0.0007200348999996701,
+          0.0007225686500002363,
+          0.0007300062500007698,
+          0.0007193958333308122,
+          0.0007222971333324797
+        ],
+        "seconds": 0.0007222971333324797
+      },
+      "compiled": {
+        "events": {
+          "KSPSolve": 0.0006829142300011881,
+          "MatMult": 0.0003118125467790378,
+          "VecNorm": 1.947626606124686e-06,
+          "VecScale": 4.12496672955361e-07,
+          "VecSet": 8.263933412611854e-06
+        },
+        "samples": [
+          0.0007536465833330416,
+          0.0007450692833306979,
+          0.0007442129666666612,
+          0.0007479253333334176,
+          0.0007424725833326799
+        ],
+        "seconds": 0.0007450692833306979
+      },
+      "device": "cpu:0",
+      "dtype": "float64",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "formulation": "streamfunction",
+      "jax_version": "0.11.2",
+      "ksp_iterations": 9,
+      "ksp_tolerances": [
+        1e-14,
+        1e-24,
+        10000.0,
+        1000
+      ],
+      "ksp_type": "bcgs",
+      "native": {
+        "events": {
+          "KSPSolve": 0.0006744086066661718,
+          "MatMult": 0.0003088070069876873,
+          "VecNorm": 1.840686672949232e-06,
+          "VecScale": 0.0,
+          "VecSet": 7.619193267297912e-06
+        },
+        "samples": [
+          0.0006772131666669642,
+          0.0006736028500010131,
+          0.0006746984666657833,
+          0.0006738655166676229,
+          0.0006758598833319714
+        ],
+        "seconds": 0.0006746984666657833
+      },
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 908.27734375,
+      "petsc_options": "",
+      "petsc_version": [
+        3,
+        26,
+        0
+      ],
+      "repeats": 5,
+      "rhs_seed": 42,
+      "size": 32,
+      "solves": 60,
+      "topology_independent_rhs": true,
+      "case": "cpu32-bcgs",
+      "callback_implementation": "tuned",
+      "petsc_build": "optimized",
+      "guard_peak_tree_mib": 909,
+      "validation": {
+        "primal_callback_parity": true,
+        "global_adjoint_dot_product": true
+      }
+    }
+  ],
+  "integration_runs": [
+    {
+      "backward_buffer_bytes": 86801160,
+      "backward_samples": [
+        0.6192994519988133,
+        0.6395708650015877,
+        0.6173519039984967,
+        0.5944205870000587,
+        0.6475936299975729
+      ],
+      "backward_seconds": 0.6192994519988133,
+      "checkpoint": true,
+      "checkpoint_interval": 6,
+      "compile_backward_seconds": 25.71010058899992,
+      "compile_forward_seconds": 4.427774731000682,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.546158623998053,
+      "eager_samples": [
+        0.8958841580024455,
+        0.5365372460000799,
+        0.5116001290007262,
+        0.5123608370013244,
+        0.5170539420032583
+      ],
+      "eager_seconds": 0.5170539420032583,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 14.0121970820103,
+      "forward_samples": [
+        0.12781496999741648,
+        0.12986693700077012,
+        0.12785957499727374,
+        0.12854863699976704,
+        0.13144284700319986
+      ],
+      "forward_seconds": 0.12854863699976704,
+      "gradient": 14.012197082010323,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2365.0078125,
+      "petsc_options": "",
+      "prepare_seconds": 1.0996518799984187,
+      "repeats": 5,
+      "setup": "acc",
+      "shape": [
+        16,
+        16,
+        15
+      ],
+      "steps": 24,
+      "tdma_accelerated": true,
+      "value": 34484.129872261496,
+      "case": "perf-baseline-cpu-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "original",
+      "callback_implementation": "baseline",
+      "guard_peak_tree_mib": 2365,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        32,
+        32
+      ],
+      "eager_warmup": "one step"
+    },
+    {
+      "backward_buffer_bytes": 86767296,
+      "backward_samples": [
+        0.6114654570010316,
+        0.6222631140008161,
+        0.6157569479983067,
+        0.6186940099978528,
+        0.6202125810013968
+      ],
+      "backward_seconds": 0.6186940099978528,
+      "checkpoint": true,
+      "checkpoint_interval": 6,
+      "compile_backward_seconds": 27.49892735299727,
+      "compile_forward_seconds": 5.138219830998423,
+      "compiled_solver": "scipy_jax",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.405134766999254,
+      "eager_samples": [
+        0.9152927579998504,
+        0.4995832509994216,
+        0.4959575180000684,
+        0.4985880870008259,
+        0.5014438130019698
+      ],
+      "eager_seconds": 0.4995832509994216,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 14.0121970820103,
+      "forward_samples": [
+        0.11610852299781982,
+        0.11299963399869739,
+        0.11468384099862305,
+        0.11598144099843921,
+        0.11804082199887489
+      ],
+      "forward_seconds": 0.11598144099843921,
+      "gradient": 14.012197082010323,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2489.69140625,
+      "petsc_options": "",
+      "prepare_seconds": 1.5077611089982383,
+      "repeats": 5,
+      "setup": "acc",
+      "shape": [
+        16,
+        16,
+        15
+      ],
+      "steps": 24,
+      "tdma_accelerated": true,
+      "value": 34484.129872261496,
+      "case": "perf-baseline-cpu-jax",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "original",
+      "callback_implementation": "baseline",
+      "guard_peak_tree_mib": 2490,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        32,
+        32
+      ],
+      "eager_warmup": "one step"
+    },
+    {
+      "backward_buffer_bytes": 65559944,
+      "backward_samples": [
+        0.18803595200006384,
+        0.18711593099942547,
+        0.1887676550031756,
+        0.18848855399846798,
+        0.18836321500202757
+      ],
+      "backward_seconds": 0.18836321500202757,
+      "checkpoint": true,
+      "checkpoint_interval": 6,
+      "compile_backward_seconds": 44.12882717899993,
+      "compile_forward_seconds": 6.9459238950003055,
+      "compiled_solver": "petsc",
+      "device": "cuda:0",
+      "device_peak_bytes": 190900480,
+      "dtype": "float64",
+      "eager_cold_seconds": 8.030031279999093,
+      "eager_samples": [
+        1.1680247010008316,
+        0.7230912660015747,
+        0.7222343550020014,
+        0.7397473969977,
+        0.712755387998186
+      ],
+      "eager_seconds": 0.7230912660015747,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": 14.012197082010324,
+      "forward_samples": [
+        0.05582711600072798,
+        0.05460341700018034,
+        0.05337098000018159,
+        0.05277325200222549,
+        0.05126120299973991
+      ],
+      "forward_seconds": 0.05337098000018159,
+      "gradient": 14.012197082010323,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2777.81640625,
+      "petsc_options": "",
+      "prepare_seconds": 1.3189907480009424,
+      "repeats": 5,
+      "setup": "acc",
+      "shape": [
+        16,
+        16,
+        15
+      ],
+      "steps": 24,
+      "tdma_accelerated": true,
+      "value": 34484.129872261474,
+      "case": "perf-baseline-gpu-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "original",
+      "callback_implementation": "baseline",
+      "guard_peak_tree_mib": 2857,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        32,
+        32
+      ],
+      "eager_warmup": "one step"
+    },
+    {
+      "backward_buffer_bytes": 67869448,
+      "backward_samples": [
+        0.1607193869999719,
+        0.15788912900006835,
+        0.1625931840000021,
+        0.1597510940000575,
+        0.1595622639999874
+      ],
+      "backward_seconds": 0.1597510940000575,
+      "checkpoint": true,
+      "checkpoint_interval": 3,
+      "compile_backward_seconds": 24.94523898400007,
+      "compile_forward_seconds": 4.28182881500004,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.211395315999994,
+      "eager_samples": [
+        0.11671367500002816,
+        0.11898981699994238,
+        0.12014298299993698,
+        0.11863199599997643,
+        0.11615975999995953
+      ],
+      "eager_seconds": 0.11863199599997643,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 3.509654327457714,
+      "forward_samples": [
+        0.032628274000103374,
+        0.03245218799997929,
+        0.03139071700002205,
+        0.03249109299997599,
+        0.03129655800000819
+      ],
+      "forward_seconds": 0.03245218799997929,
+      "gradient": 3.509654327457715,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2472.703125,
+      "petsc_options": "",
+      "prepare_seconds": 1.1094452520000004,
+      "repeats": 5,
+      "rescale_grid": false,
+      "setup": "acc",
+      "shape": [
+        16,
+        16,
+        15
+      ],
+      "steps": 6,
+      "tdma_accelerated": true,
+      "value": 34488.87137096372,
+      "case": "perf-tuned-cpu16-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2412,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        32,
+        32
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 65588672,
+      "backward_samples": [
+        0.3813712469999473,
+        0.3804939159999776,
+        0.3804768339999782,
+        0.3811850819998881,
+        0.3818027580000489
+      ],
+      "backward_seconds": 0.3811850819998881,
+      "checkpoint": true,
+      "checkpoint_interval": 6,
+      "compile_backward_seconds": 47.64043608399993,
+      "compile_forward_seconds": 8.089019804000031,
+      "compiled_solver": "scipy_jax",
+      "device": "cuda:0",
+      "device_peak_bytes": 190900480,
+      "dtype": "float64",
+      "eager_cold_seconds": 7.903654909000011,
+      "eager_samples": [
+        0.6740111880000086,
+        0.6819057760000078,
+        0.6770489699999871,
+        0.6815552280000929,
+        0.6815116760000137
+      ],
+      "eager_seconds": 0.6815116760000137,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": 14.012197082010324,
+      "forward_samples": [
+        0.10568374700005734,
+        0.10215518000006796,
+        0.10171509199994944,
+        0.10190664699996432,
+        0.10163830700003018
+      ],
+      "forward_seconds": 0.10190664699996432,
+      "gradient": 14.012197082010323,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2910.125,
+      "petsc_options": "",
+      "prepare_seconds": 1.481613427999946,
+      "repeats": 5,
+      "rescale_grid": false,
+      "setup": "acc",
+      "shape": [
+        16,
+        16,
+        15
+      ],
+      "steps": 24,
+      "tdma_accelerated": true,
+      "value": 34484.129872261474,
+      "case": "perf-tuned-gpu16-jax",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2935,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        32,
+        32
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 257019656,
+      "backward_samples": [
+        1.1175154140000814,
+        1.10574877199997,
+        1.1051383050000823,
+        1.0899477719999595,
+        1.0917386589999296
+      ],
+      "backward_seconds": 1.1051383050000823,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 26.15634120800007,
+      "compile_forward_seconds": 4.589488647999929,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.689438711999969,
+      "eager_samples": [
+        0.398679877999939,
+        0.39314690400010477,
+        0.39855686399994283,
+        0.3935250829999859,
+        0.3974453399999902
+      ],
+      "eager_seconds": 0.3974453399999902,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842628,
+      "forward_samples": [
+        0.2089694400000326,
+        0.20540314999993825,
+        0.2579436710000209,
+        0.2588702739999462,
+        0.25814318100003675
+      ],
+      "forward_seconds": 0.2579436710000209,
+      "gradient": 31.533012805842628,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2650.84375,
+      "petsc_options": "",
+      "prepare_seconds": 1.0724425409999867,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": 137111.64713138225,
+      "case": "perf-cpu32-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2651,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 256966592,
+      "backward_samples": [
+        1.1418221569999787,
+        1.141197009999928,
+        1.1940108809999401,
+        1.159582210999929,
+        1.1368788810000297
+      ],
+      "backward_seconds": 1.1418221569999787,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 27.723405845000002,
+      "compile_forward_seconds": 5.4279864070000485,
+      "compiled_solver": "scipy_jax",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.632746632000021,
+      "eager_samples": [
+        0.3944553909999513,
+        0.39955670500000906,
+        0.39285593400006746,
+        0.3885420750000321,
+        0.3950016379999397
+      ],
+      "eager_seconds": 0.3944553909999513,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842628,
+      "forward_samples": [
+        0.21296182300000055,
+        0.23625472799994895,
+        0.2087798689999545,
+        0.2116083890000482,
+        0.23777592099997946
+      ],
+      "forward_seconds": 0.21296182300000055,
+      "gradient": 31.533012805842628,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2792.53125,
+      "petsc_options": "",
+      "prepare_seconds": 1.5260886119999668,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": 137111.64713138225,
+      "case": "perf-cpu32-jax",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2793,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 184442504,
+      "backward_samples": [
+        0.15352715500000613,
+        0.15485364500000287,
+        0.15500641500000256,
+        0.15449422199992568,
+        0.15385076999996272
+      ],
+      "backward_seconds": 0.15449422199992568,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 54.59342856400008,
+      "compile_forward_seconds": 7.095863089999966,
+      "compiled_solver": "petsc",
+      "device": "cuda:0",
+      "device_peak_bytes": 307850752,
+      "dtype": "float64",
+      "eager_cold_seconds": 8.27060614800007,
+      "eager_samples": [
+        0.3870830250000381,
+        0.38401169199994456,
+        0.38622363199999654,
+        0.3833691119999685,
+        0.3920606479999833
+      ],
+      "eager_seconds": 0.38622363199999654,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842628,
+      "forward_samples": [
+        0.048831100999905175,
+        0.04821034199994756,
+        0.047748965999971915,
+        0.04771140499997273,
+        0.04553544400005194
+      ],
+      "forward_seconds": 0.047748965999971915,
+      "gradient": 31.533012805842624,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2783.00390625,
+      "petsc_options": "",
+      "prepare_seconds": 1.3113647549999996,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": 137111.64713138225,
+      "case": "perf-gpu32-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2783,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 184413888,
+      "backward_samples": [
+        0.4096676080000634,
+        0.40899648100003105,
+        0.4094239439998546,
+        0.4097298359999968,
+        0.40892779899991183
+      ],
+      "backward_seconds": 0.4094239439998546,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 57.432006768000065,
+      "compile_forward_seconds": 8.264039596999964,
+      "compiled_solver": "scipy_jax",
+      "device": "cuda:0",
+      "device_peak_bytes": 307874304,
+      "dtype": "float64",
+      "eager_cold_seconds": 8.23432982700001,
+      "eager_samples": [
+        0.38643967899997733,
+        0.3973846900000808,
+        0.38943021099998987,
+        0.3931912089999514,
+        0.3913498840001921
+      ],
+      "eager_seconds": 0.3913498840001921,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842628,
+      "forward_samples": [
+        0.12192497999990337,
+        0.11796670199987602,
+        0.11804314799996973,
+        0.11720316200012348,
+        0.11769548699999177
+      ],
+      "forward_seconds": 0.11796670199987602,
+      "gradient": 31.533012805842624,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2909.40625,
+      "petsc_options": "",
+      "prepare_seconds": 1.4592304560000002,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": 137111.64713138225,
+      "case": "perf-gpu32-jax",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2930,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 156630008,
+      "backward_samples": [
+        0.6014438010001868,
+        0.603228505000061,
+        0.5924490650002099,
+        0.6013232820000667,
+        0.6077501339998435
+      ],
+      "backward_seconds": 0.6014438010001868,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 58.43772242,
+      "compile_forward_seconds": 10.271803263000038,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 7.918414751,
+      "eager_samples": [
+        0.37395457200000237,
+        0.36938914999996086,
+        0.36491286700015735,
+        0.3782667030000084,
+        0.3691287750000356
+      ],
+      "eager_seconds": 0.36938914999996086,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 31.53301280584262,
+      "forward_samples": [
+        0.08285387499995522,
+        0.07784881599991422,
+        0.08013611599994874,
+        0.07971918399994138,
+        0.07973203799997464
+      ],
+      "forward_seconds": 0.07973203799997464,
+      "gradient": 31.53301280579034,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        2,
+        1
+      ],
+      "peak_rss_mib": 2621.296875,
+      "petsc_options": "",
+      "prepare_seconds": 1.1303476890000184,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": false,
+      "value": 137111.64713138223,
+      "case": "perf-cpu2-32-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 5155,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "jax",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 19.331897616000106,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 13.478077958999847,
+      "eager_samples": [
+        0.43769304300008116,
+        0.430341492000025,
+        0.4432736759999898,
+        0.4609217400000034,
+        0.43155818500008536
+      ],
+      "eager_seconds": 0.43769304300008116,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        0.1014981330001774,
+        0.10937570500004767,
+        0.10778640299986364,
+        0.09757144500008508,
+        0.10321534900003826
+      ],
+      "forward_seconds": 0.10321534900003826,
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        2,
+        2
+      ],
+      "peak_rss_mib": 1112.38671875,
+      "petsc_options": "",
+      "prepare_seconds": 1.1849413810000442,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": false,
+      "value": null,
+      "case": "perf-cpu4-32-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 4710,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "jax",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 114497592,
+      "backward_samples": [
+        0.4734802210000453,
+        0.47123899399980473,
+        0.47314399999982015,
+        0.4707135639998796,
+        0.4711646319999545
+      ],
+      "backward_seconds": 0.47123899399980473,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 78.93944866800007,
+      "compile_forward_seconds": 14.202848025999856,
+      "compiled_solver": "petsc",
+      "device": "cuda:0",
+      "device_peak_bytes": 156417792,
+      "dtype": "float64",
+      "eager_cold_seconds": 10.630593621000116,
+      "eager_samples": [
+        0.6854228550000698,
+        0.6789117390001138,
+        0.684864571999924,
+        0.6824150889999601,
+        0.6787188630000855
+      ],
+      "eager_seconds": 0.6824150889999601,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": 31.53301280584262,
+      "forward_samples": [
+        0.16382776000000376,
+        0.1653454499999043,
+        0.1609944669999095,
+        0.16170306599997275,
+        0.1622005229999104
+      ],
+      "forward_seconds": 0.1622005229999104,
+      "gradient": 31.533012805790342,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        2,
+        1
+      ],
+      "peak_rss_mib": 2811.70703125,
+      "petsc_options": "",
+      "prepare_seconds": 1.621252444999982,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": false,
+      "value": 137111.64713138225,
+      "case": "perf-gpu2-32-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 5568,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "jax",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 5.148670942999843,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.7945180789999995,
+      "eager_samples": [
+        0.997046267000087,
+        0.9935634559999471,
+        1.0138060910001059,
+        1.0160357960000965,
+        1.000449996000043
+      ],
+      "eager_seconds": 1.000449996000043,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        0.8175679429998581,
+        0.8222830790000444,
+        0.8210872120000658,
+        0.8537501610001073,
+        0.8302871949999826
+      ],
+      "forward_seconds": 0.8222830790000444,
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1568.29296875,
+      "petsc_options": "",
+      "prepare_seconds": 1.1567633710001246,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        64,
+        64,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": null,
+      "case": "perf-cpu64-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 1549,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 7.530166123999834,
+      "compiled_solver": "petsc",
+      "device": "cuda:0",
+      "device_peak_bytes": 369943296,
+      "dtype": "float64",
+      "eager_cold_seconds": 9.236582623000004,
+      "eager_samples": [
+        0.5025952949999919,
+        0.5016013330000533,
+        0.5028177589999814,
+        0.4992871179999838,
+        0.5042481810000936
+      ],
+      "eager_seconds": 0.5025952949999919,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        0.12196334600002956,
+        0.11951830099997096,
+        0.119114331999981,
+        0.11926962799998364,
+        0.11904807600012646
+      ],
+      "forward_seconds": 0.11926962799998364,
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1606.66796875,
+      "petsc_options": "",
+      "prepare_seconds": 1.3750041359999159,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        64,
+        64,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": null,
+      "case": "perf-gpu64-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 1568,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 8.722016539999913,
+      "compiled_solver": "scipy_jax",
+      "device": "cuda:0",
+      "device_peak_bytes": 369943296,
+      "dtype": "float64",
+      "eager_cold_seconds": 9.089912355000024,
+      "eager_samples": [
+        0.5024747550000939,
+        0.5030785950000336,
+        0.5025552490001246,
+        0.5055221460002031,
+        0.5007890260001204
+      ],
+      "eager_seconds": 0.5025552490001246,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        0.26084551799999645,
+        0.2591921809998894,
+        0.2592080510000869,
+        0.2589790949998587,
+        0.25838453400001526
+      ],
+      "forward_seconds": 0.2591921809998894,
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1660.9453125,
+      "petsc_options": "",
+      "prepare_seconds": 1.5210528810000596,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        64,
+        64,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": null,
+      "case": "perf-gpu64-jax",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 1660,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 156851984,
+      "backward_samples": [
+        0.6133751910001592,
+        0.6246769489998769,
+        0.6238510769999266,
+        0.6141370010000173,
+        0.6229037919999882
+      ],
+      "backward_seconds": 0.6229037919999882,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 61.34281286700002,
+      "compile_forward_seconds": 11.962493885000185,
+      "compiled_solver": "scipy_jax",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 8.011691725999981,
+      "eager_samples": [
+        0.37116798500005643,
+        0.37706347899984394,
+        0.37301364900008593,
+        0.37098457499996584,
+        0.3733984110001529
+      ],
+      "eager_seconds": 0.37301364900008593,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842624,
+      "forward_samples": [
+        0.07554227099990385,
+        0.07614856700001837,
+        0.079961522000076,
+        0.07708002300000771,
+        0.07676358999992772
+      ],
+      "forward_seconds": 0.07676358999992772,
+      "forward_solver_profile": null,
+      "gradient": 31.53301280579034,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        2,
+        1
+      ],
+      "peak_rss_mib": 2805.859375,
+      "petsc_options": "",
+      "prepare_seconds": 2.9016381840001486,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": false,
+      "value": 137111.64713138223,
+      "case": "perf-cpu2-32-jax",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 5516,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "jax",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 266286344,
+      "backward_samples": [
+        0.6425982700000077,
+        0.6358146450002096,
+        0.6352200920000541,
+        0.665019189000077,
+        0.6403977209999994
+      ],
+      "backward_seconds": 0.6403977209999994,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 27.374026245000096,
+      "compile_forward_seconds": 4.633731376000014,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.818250419000151,
+      "eager_samples": [
+        0.26096906799989483,
+        0.2514106690000517,
+        0.24723222400007216,
+        0.24243442900001355,
+        0.24452825599996686
+      ],
+      "eager_seconds": 0.24723222400007216,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842624,
+      "forward_samples": [
+        0.081800807000036,
+        0.07902849800007061,
+        0.07807181600014701,
+        0.0804867550000381,
+        0.08053489700000682
+      ],
+      "forward_seconds": 0.0804867550000381,
+      "forward_solver_profile": null,
+      "gradient": 31.533012805842624,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2672.84375,
+      "petsc_options": "",
+      "prepare_seconds": 1.0587958799999342,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": false,
+      "value": 137111.64713138223,
+      "case": "perf-cpu1-32-petsc-jax-tdma",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2673,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "jax",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 65559944,
+      "backward_samples": [
+        0.1718309620000582,
+        0.17161317799991593,
+        0.1705918030002067,
+        0.17033176800009642,
+        0.17038388600008147
+      ],
+      "backward_seconds": 0.1705918030002067,
+      "checkpoint": true,
+      "checkpoint_interval": 6,
+      "compile_backward_seconds": 43.28453978499988,
+      "compile_forward_seconds": 6.806861750999815,
+      "compiled_solver": "petsc",
+      "device": "cuda:0",
+      "device_peak_bytes": 190900480,
+      "dtype": "float64",
+      "eager_cold_seconds": 7.856857013999843,
+      "eager_samples": [
+        0.6638016510000853,
+        0.6758706409998467,
+        0.6697313409999879,
+        0.6685140140000385,
+        0.675153704999957
+      ],
+      "eager_seconds": 0.6697313409999879,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": 14.012197082010324,
+      "forward_samples": [
+        0.052027518999921085,
+        0.05107082699987586,
+        0.050413696000077834,
+        0.048270465000086915,
+        0.04806835099998352
+      ],
+      "forward_seconds": 0.050413696000077834,
+      "forward_solver_profile": null,
+      "gradient": 14.01219708201032,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2739.9765625,
+      "petsc_options": "",
+      "prepare_seconds": 1.299764057999937,
+      "repeats": 5,
+      "rescale_grid": false,
+      "setup": "acc",
+      "shape": [
+        16,
+        16,
+        15
+      ],
+      "steps": 24,
+      "tdma_accelerated": true,
+      "value": 34484.129872261474,
+      "case": "perf-gpu16-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2827,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        32,
+        32
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 257019656,
+      "backward_samples": [
+        1.0972046990000308,
+        1.1074401179998858,
+        1.0995574700000361,
+        1.1022080560001086,
+        1.0807462130001113
+      ],
+      "backward_seconds": 1.0995574700000361,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 26.2279899509997,
+      "compile_forward_seconds": 4.602852694000148,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.524666062999586,
+      "eager_samples": [
+        0.4029012639998655,
+        0.3942000570000346,
+        0.3965169690000039,
+        0.3902628509999886,
+        0.3931280650003828
+      ],
+      "eager_seconds": 0.3942000570000346,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842628,
+      "forward_samples": [
+        0.20030380299999706,
+        0.20994953900003566,
+        0.23219233800000438,
+        0.21425608799995643,
+        0.21876607499984857
+      ],
+      "forward_seconds": 0.21425608799995643,
+      "forward_solver_profile": null,
+      "gradient": 31.533012805842628,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2657.62109375,
+      "petsc_options": "-ksp_type gmres",
+      "prepare_seconds": 1.09091829099998,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": 137111.64713138225,
+      "case": "perf-cpu32-gmres",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2658,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 184442504,
+      "backward_samples": [
+        0.15793315100017935,
+        0.1528044360002241,
+        0.15375779099986175,
+        0.15385426399961943,
+        0.1528571569997439
+      ],
+      "backward_seconds": 0.15375779099986175,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 54.955870700000105,
+      "compile_forward_seconds": 7.085749065000073,
+      "compiled_solver": "petsc",
+      "device": "cuda:0",
+      "device_peak_bytes": 307850752,
+      "dtype": "float64",
+      "eager_cold_seconds": 8.298252189000323,
+      "eager_samples": [
+        0.39374705399995946,
+        0.3929547160000766,
+        0.3858601679999083,
+        0.3916692279999552,
+        0.38958573099989735
+      ],
+      "eager_seconds": 0.3916692279999552,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842628,
+      "forward_samples": [
+        0.04965331899984449,
+        0.04670240099994771,
+        0.04541194399962478,
+        0.04583940700013045,
+        0.04543316299987055
+      ],
+      "forward_seconds": 0.04583940700013045,
+      "forward_solver_profile": null,
+      "gradient": 31.533012805842624,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2791.57421875,
+      "petsc_options": "-ksp_type gmres",
+      "prepare_seconds": 1.3031116509996536,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": 137111.64713138225,
+      "case": "perf-gpu32-gmres",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2792,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 8.063167744999646,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.956460318000154,
+      "eager_samples": [
+        3.8958586079997986,
+        3.8997975379998024,
+        3.8864341739999873,
+        3.8458555409997643,
+        3.9449770309997803
+      ],
+      "eager_seconds": 3.8958586079997986,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        3.615087012999993,
+        3.61307496299969,
+        3.6144315249998726,
+        3.6164800249998734,
+        3.6190566810000746
+      ],
+      "forward_seconds": 3.615087012999993,
+      "forward_solver_profile": null,
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2673.04296875,
+      "petsc_options": "",
+      "prepare_seconds": 1.2631641019997915,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        128,
+        128,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": null,
+      "case": "perf-cpu128-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2613,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 9.342222741000114,
+      "compiled_solver": "scipy_jax",
+      "device": "cuda:0",
+      "device_peak_bytes": 917213184,
+      "dtype": "float64",
+      "eager_cold_seconds": 9.776593248000154,
+      "eager_samples": [
+        0.8127817079998749,
+        0.8129464319999897,
+        0.8108747549999862,
+        0.8137998869997318,
+        0.8160188220003874
+      ],
+      "eager_seconds": 0.8129464319999897,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        0.6269697550001183,
+        0.6259474680000494,
+        0.6264295060000222,
+        0.625515415999871,
+        0.6253496809999888
+      ],
+      "forward_seconds": 0.6259474680000494,
+      "forward_solver_profile": null,
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2115.0,
+      "petsc_options": "",
+      "prepare_seconds": 1.5107928690003973,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        128,
+        128,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": null,
+      "case": "perf-gpu128-scipy_jax",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 1910,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 5.1292939270001625,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.738743823999812,
+      "eager_samples": [
+        1.0196922239997548,
+        1.0081369730000915,
+        1.0198189249999814,
+        1.0045308559997466,
+        0.9863783739997416
+      ],
+      "eager_seconds": 1.0081369730000915,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        0.8309538190001149,
+        0.8445717079998758,
+        0.8204395389998353,
+        0.8250026179998713,
+        0.8068373900000552
+      ],
+      "forward_seconds": 0.8250026179998713,
+      "forward_solver_profile": {
+        "count": 60,
+        "time": 0.18758327599994118,
+        "wall_seconds": 4.1278050739997525
+      },
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1580.14453125,
+      "petsc_options": "",
+      "prepare_seconds": 1.1157369180000387,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        64,
+        64,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": null,
+      "case": "profile-cpu64-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 1559,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 7.501054352999745,
+      "compiled_solver": "petsc",
+      "device": "cuda:0",
+      "device_peak_bytes": 369943296,
+      "dtype": "float64",
+      "eager_cold_seconds": 9.23223970800018,
+      "eager_samples": [
+        0.5025051800002984,
+        0.5015041639999254,
+        0.49998209500017765,
+        0.5031383849996018,
+        0.5051567279997471
+      ],
+      "eager_seconds": 0.5025051800002984,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        0.12357981000013751,
+        0.12030589699998018,
+        0.12157385199998316,
+        0.12109881700007463,
+        0.12185364400011167
+      ],
+      "forward_seconds": 0.12157385199998316,
+      "forward_solver_profile": {
+        "count": 60,
+        "time": 0.1534700509999425,
+        "wall_seconds": 0.6084120200002872
+      },
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1607.0859375,
+      "petsc_options": "",
+      "prepare_seconds": 1.3771030479997535,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        64,
+        64,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": null,
+      "case": "profile-gpu64-petsc",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 1591,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 89182344,
+      "backward_samples": [
+        0.38605963300005897,
+        0.37696168000002217,
+        0.3864503270001478,
+        0.38128657500010377,
+        0.3699350410001898
+      ],
+      "backward_seconds": 0.38128657500010377,
+      "checkpoint": true,
+      "checkpoint_interval": 6,
+      "compile_backward_seconds": 26.69466694699986,
+      "compile_forward_seconds": 4.46504028299978,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.598256781000146,
+      "eager_samples": [
+        0.3827791970002181,
+        0.38276925799982564,
+        0.38046590200019637,
+        0.379383942000004,
+        0.38007247300038216
+      ],
+      "eager_seconds": 0.38046590200019637,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 14.012197082010296,
+      "forward_samples": [
+        0.05635616400013532,
+        0.05950833599990801,
+        0.057467960999929346,
+        0.060629951000009896,
+        0.05537837200017748
+      ],
+      "forward_seconds": 0.057467960999929346,
+      "forward_solver_profile": null,
+      "gradient": 14.012197082010315,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2613.45703125,
+      "petsc_options": "",
+      "prepare_seconds": 1.061631208000108,
+      "repeats": 5,
+      "rescale_grid": false,
+      "setup": "acc",
+      "shape": [
+        16,
+        16,
+        15
+      ],
+      "steps": 24,
+      "tdma_accelerated": false,
+      "value": 34484.129872261496,
+      "case": "perf-cpu16-jax-tdma",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2614,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "jax",
+      "extent_degrees": [
+        32,
+        32
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 4.908592303000205,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 6.222049647999938,
+      "eager_samples": [
+        0.5388569049996477,
+        0.5182628129996374,
+        0.5278600760002519,
+        0.5263663139999153,
+        0.5367525959995874
+      ],
+      "eager_seconds": 0.5278600760002519,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        0.35461883800007854,
+        0.34997996499987494,
+        0.36230301000023246,
+        0.3469766069997604,
+        0.35189723599978606
+      ],
+      "forward_seconds": 0.35189723599978606,
+      "forward_solver_profile": null,
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1608.55078125,
+      "petsc_options": "",
+      "prepare_seconds": 1.1052565820000382,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        64,
+        64,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": false,
+      "value": null,
+      "case": "perf-cpu64-jax-tdma",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 1609,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "jax",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 6.7540316730000995,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 6.360186970000086,
+      "eager_samples": [
+        2.3077469259997088,
+        2.317541954999797,
+        2.3119633679998515,
+        2.2953450410000187,
+        2.2926013250003052
+      ],
+      "eager_seconds": 2.3077469259997088,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        2.088838466999732,
+        2.1014012380001077,
+        2.0711166780001804,
+        2.0782788020001135,
+        2.0740924269998686
+      ],
+      "forward_seconds": 2.0782788020001135,
+      "forward_solver_profile": null,
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2663.890625,
+      "petsc_options": "",
+      "prepare_seconds": 1.2171714770001927,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        128,
+        128,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": false,
+      "value": null,
+      "case": "perf-cpu128-jax-tdma",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2594,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "jax",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 257019656,
+      "backward_samples": [
+        1.0859309100001155,
+        1.107662598999923,
+        1.1093626869997024,
+        1.1096408469998096,
+        1.095594859999892
+      ],
+      "backward_seconds": 1.107662598999923,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 26.32108594700003,
+      "compile_forward_seconds": 4.592721942000026,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.524249923999832,
+      "eager_samples": [
+        0.40214362300002904,
+        0.40000504900035594,
+        0.39375594400007685,
+        0.4003163709999171,
+        0.3931962779997775
+      ],
+      "eager_seconds": 0.40000504900035594,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842628,
+      "forward_samples": [
+        0.22608229399975244,
+        0.20749767200004499,
+        0.22022023799991075,
+        0.20367847699981212,
+        0.2168650959997649
+      ],
+      "forward_seconds": 0.2168650959997649,
+      "forward_solver_profile": null,
+      "gradient": 31.533012805842628,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2723.48046875,
+      "petsc_options": "",
+      "prepare_seconds": 1.0916106009999567,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": 137111.64713138225,
+      "case": "perf-cpu32-native-repeat",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2724,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 266286344,
+      "backward_samples": [
+        0.64200361300027,
+        0.664803104999919,
+        0.6571908939999958,
+        0.6394912870000553,
+        0.6633116339999106
+      ],
+      "backward_seconds": 0.6571908939999958,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 27.115644339000028,
+      "compile_forward_seconds": 4.661838857000021,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.809922364000158,
+      "eager_samples": [
+        0.24909131599997636,
+        0.24772081499986598,
+        0.25006029199994373,
+        0.24707611700023335,
+        0.24885047699990537
+      ],
+      "eager_seconds": 0.24885047699990537,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842624,
+      "forward_samples": [
+        0.0826894589999938,
+        0.07964105200017002,
+        0.0807020030001695,
+        0.08075422199999593,
+        0.08020860300030108
+      ],
+      "forward_seconds": 0.0807020030001695,
+      "forward_solver_profile": null,
+      "gradient": 31.533012805842624,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2515.796875,
+      "petsc_options": "",
+      "prepare_seconds": 1.0612928969999302,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": null,
+      "value": 137111.64713138223,
+      "case": "perf-cpu32-auto",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2516,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "jax",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 184442504,
+      "backward_samples": [
+        0.16004124000028241,
+        0.1546694670000761,
+        0.1554642609999064,
+        0.15542043799996463,
+        0.15408935200002816
+      ],
+      "backward_seconds": 0.15542043799996463,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 55.34480286300004,
+      "compile_forward_seconds": 7.093874454999877,
+      "compiled_solver": "petsc",
+      "device": "cuda:0",
+      "device_peak_bytes": 307851008,
+      "dtype": "float64",
+      "eager_cold_seconds": 8.296138926000367,
+      "eager_samples": [
+        0.39048119599965503,
+        0.38688025599958564,
+        0.38813116899973465,
+        0.3829996639997262,
+        0.384925112000019
+      ],
+      "eager_seconds": 0.38688025599958564,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842628,
+      "forward_samples": [
+        0.049920044999907986,
+        0.047742526999627444,
+        0.04638737499999479,
+        0.0461303060001228,
+        0.045785269000134576
+      ],
+      "forward_seconds": 0.04638737499999479,
+      "forward_solver_profile": null,
+      "gradient": 31.533012805842624,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2781.94140625,
+      "petsc_options": "",
+      "prepare_seconds": 1.3170854580002924,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": null,
+      "value": 137111.64713138225,
+      "case": "perf-gpu32-auto",
+      "cpu_extension": "gil_checks",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2782,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 67869448,
+      "backward_samples": [
+        0.09925240999973539,
+        0.1044482029997198,
+        0.10274837699989803,
+        0.10361666000017067,
+        0.1018728789999841
+      ],
+      "backward_seconds": 0.10274837699989803,
+      "checkpoint": true,
+      "checkpoint_interval": 3,
+      "compile_backward_seconds": 24.58486155899982,
+      "compile_forward_seconds": 4.282585292000022,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.241639548999956,
+      "eager_samples": [
+        0.09564379900029962,
+        0.09251258599988432,
+        0.09331289000010656,
+        0.09265668100033508,
+        0.09144120600012684
+      ],
+      "eager_seconds": 0.09265668100033508,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 3.509654327457714,
+      "forward_samples": [
+        0.018075247000069794,
+        0.018317088000003423,
+        0.016927120999753242,
+        0.01778196899977047,
+        0.017100891999689338
+      ],
+      "forward_seconds": 0.01778196899977047,
+      "forward_solver_profile": null,
+      "gradient": 3.509654327457715,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2469.65234375,
+      "petsc_options": "",
+      "prepare_seconds": 1.1232842119998168,
+      "repeats": 5,
+      "rescale_grid": false,
+      "setup": "acc",
+      "shape": [
+        16,
+        16,
+        15
+      ],
+      "steps": 6,
+      "tdma_accelerated": true,
+      "value": 34488.87137096372,
+      "case": "perf-cpu16-native-noexcept",
+      "cpu_extension": "noexcept",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2454,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        32,
+        32
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 257019656,
+      "backward_samples": [
+        0.6146792710001137,
+        0.6237727259999701,
+        0.603260388000308,
+        0.6135169680001127,
+        0.6107924999996612
+      ],
+      "backward_seconds": 0.6135169680001127,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 25.55778206900004,
+      "compile_forward_seconds": 4.443038276000152,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.430053114000202,
+      "eager_samples": [
+        0.2572546970000076,
+        0.25345468199975585,
+        0.2479064570002265,
+        0.24634311999989222,
+        0.24208958100007294
+      ],
+      "eager_seconds": 0.2479064570002265,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842628,
+      "forward_samples": [
+        0.08621917199980089,
+        0.08729019200018229,
+        0.08544592999987799,
+        0.08473476700009996,
+        0.08471017900001243
+      ],
+      "forward_seconds": 0.08544592999987799,
+      "forward_solver_profile": null,
+      "gradient": 31.533012805842628,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2546.11328125,
+      "petsc_options": "",
+      "prepare_seconds": 1.1028092260003177,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": 137111.64713138225,
+      "case": "perf-cpu32-native-noexcept",
+      "cpu_extension": "noexcept",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2546,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 4.719748940000045,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.635811946999638,
+      "eager_samples": [
+        0.5524853160000021,
+        0.5450685229998271,
+        0.5576679539999532,
+        0.543250461000298,
+        0.5343865330000881
+      ],
+      "eager_seconds": 0.5450685229998271,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        0.3524126309998792,
+        0.3487850530000287,
+        0.34865278100005526,
+        0.36085953499969037,
+        0.3542823910001971
+      ],
+      "forward_seconds": 0.3524126309998792,
+      "forward_solver_profile": {
+        "count": 60,
+        "time": 0.17902037899830248,
+        "wall_seconds": 1.7649923909998506
+      },
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 1556.41015625,
+      "petsc_options": "",
+      "prepare_seconds": 1.1149974830000247,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        64,
+        64,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": null,
+      "case": "perf-cpu64-native-noexcept",
+      "cpu_extension": "noexcept",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 1555,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": null,
+      "backward_samples": [],
+      "backward_seconds": null,
+      "checkpoint": false,
+      "checkpoint_interval": null,
+      "compile_backward_seconds": null,
+      "compile_forward_seconds": 6.522869681999964,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 5.895627599999898,
+      "eager_samples": [
+        2.2174938440002734,
+        2.237002350000239,
+        2.23291499700008,
+        2.212103824999758,
+        2.2147277909998593
+      ],
+      "eager_seconds": 2.2174938440002734,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": null,
+      "forward_samples": [
+        2.0240088919999835,
+        2.018059244000142,
+        2.0274909730001127,
+        2.0270315580000897,
+        2.017015886000081
+      ],
+      "forward_seconds": 2.0240088919999835,
+      "forward_solver_profile": {
+        "count": 60,
+        "time": 0.7611094069993669,
+        "wall_seconds": 10.113606553000409
+      },
+      "gradient": null,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2645.4921875,
+      "petsc_options": "",
+      "prepare_seconds": 1.2474264759998732,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        128,
+        128,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": null,
+      "case": "perf-cpu128-native-noexcept",
+      "cpu_extension": "noexcept",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2535,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": false,
+        "finite_difference_steps": []
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 151934584,
+      "backward_samples": [
+        0.5690591680004218,
+        0.574766875000023,
+        0.5670699490001425,
+        0.575379561999398,
+        0.5715745870002138
+      ],
+      "backward_seconds": 0.5715745870002138,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 54.93801517999964,
+      "compile_forward_seconds": 9.929750010999669,
+      "compiled_solver": "petsc",
+      "device": "cpu:0",
+      "device_peak_bytes": null,
+      "dtype": "float64",
+      "eager_cold_seconds": 7.628661563000605,
+      "eager_samples": [
+        0.36877300499963894,
+        0.3740484709996963,
+        0.3695599639995635,
+        0.37547609900047973,
+        0.37139544900037436
+      ],
+      "eager_seconds": 0.37139544900037436,
+      "eager_solver": "petsc",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842628,
+      "forward_samples": [
+        0.0801171590001104,
+        0.0789279859995986,
+        0.07908253999994486,
+        0.07755514200016478,
+        0.08046178599988707
+      ],
+      "forward_seconds": 0.07908253999994486,
+      "forward_solver_profile": null,
+      "gradient": 31.53301280579034,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        2,
+        1
+      ],
+      "peak_rss_mib": 2513.28125,
+      "petsc_options": "",
+      "prepare_seconds": 1.1488394180000796,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": true,
+      "value": 137111.64713138225,
+      "case": "perf-cpu2-32-native-noexcept",
+      "cpu_extension": "noexcept",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 5055,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "native",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    },
+    {
+      "backward_buffer_bytes": 188087880,
+      "backward_samples": [
+        0.2262742459997753,
+        0.22423185699972237,
+        0.226042153999515,
+        0.22678834499947698,
+        0.22621537400027592
+      ],
+      "backward_seconds": 0.22621537400027592,
+      "checkpoint": true,
+      "checkpoint_interval": 4,
+      "compile_backward_seconds": 38.999813202999576,
+      "compile_forward_seconds": 6.5127668240002095,
+      "compiled_solver": "petsc",
+      "device": "cuda:0",
+      "device_peak_bytes": 307851264,
+      "dtype": "float64",
+      "eager_cold_seconds": 8.000480658000015,
+      "eager_samples": [
+        0.4058339729999716,
+        0.400258876999942,
+        0.40554183699987334,
+        0.4158187839993843,
+        0.4105015799996181
+      ],
+      "eager_seconds": 0.4058339729999716,
+      "eager_solver": "scipy_jax",
+      "fixed_mixing": false,
+      "forward_derivative": 31.533012805842624,
+      "forward_samples": [
+        0.06384694000007585,
+        0.06142292499953328,
+        0.05918842000028235,
+        0.05928449300063221,
+        0.058203845000207366
+      ],
+      "forward_seconds": 0.05928449300063221,
+      "forward_solver_profile": null,
+      "gradient": 31.53301280584262,
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "num_proc": [
+        1,
+        1
+      ],
+      "peak_rss_mib": 2748.84375,
+      "petsc_options": "",
+      "prepare_seconds": 1.2961157150002691,
+      "repeats": 5,
+      "rescale_grid": true,
+      "setup": "acc",
+      "shape": [
+        32,
+        32,
+        15
+      ],
+      "steps": 12,
+      "tdma_accelerated": false,
+      "value": 137111.64713138223,
+      "case": "perf-gpu32-jax-tdma",
+      "cpu_extension": "noexcept",
+      "petsc_build": "optimized",
+      "callback_implementation": "tuned",
+      "guard_peak_tree_mib": 2749,
+      "validation": {
+        "all_model_variables": true,
+        "numerical_status": true,
+        "forward_reverse_derivatives": true,
+        "finite_difference_steps": [
+          0.001,
+          0.0001
+        ]
+      },
+      "effective_tdma": "jax",
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "eager_warmup": "complete horizon"
+    }
+  ],
+  "tdma_runs": [
+    {
+      "columns": 256,
+      "depth": 15,
+      "native": true,
+      "forward": {
+        "seconds": 4.751136999857408e-05,
+        "samples": [
+          5.168220000086876e-05,
+          4.455933999906847e-05,
+          4.824116000236245e-05,
+          4.751136999857408e-05,
+          4.4471369997154397e-05
+        ]
+      },
+      "gradient": {
+        "seconds": 0.0006365177600036986,
+        "samples": [
+          0.000644852330001413,
+          0.0006839378400036367,
+          0.0006365177600036986,
+          0.0006332127700034107,
+          0.0006305803600025684
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 748
+    },
+    {
+      "columns": 1024,
+      "depth": 15,
+      "native": true,
+      "forward": {
+        "seconds": 0.00016501588999744853,
+        "samples": [
+          0.00016874949999873934,
+          0.00016300967000006493,
+          0.0001637125199977163,
+          0.00016501588999744853,
+          0.00016739372000301955
+        ]
+      },
+      "gradient": {
+        "seconds": 0.0024980854499972336,
+        "samples": [
+          0.0025144292699997095,
+          0.002469664840000405,
+          0.002462101139999504,
+          0.00250809831999959,
+          0.0024980854499972336
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 748
+    },
+    {
+      "columns": 4096,
+      "depth": 15,
+      "native": true,
+      "forward": {
+        "seconds": 0.0006373036500008311,
+        "samples": [
+          0.0006550004500013529,
+          0.0006369488800010004,
+          0.0006373036500008311,
+          0.0006376863800005594,
+          0.0006310753999969165
+        ]
+      },
+      "gradient": {
+        "seconds": 0.010229184569998323,
+        "samples": [
+          0.01025261328000397,
+          0.010229184569998323,
+          0.010015100750001693,
+          0.010069632170002478,
+          0.01028464175999943
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 748
+    },
+    {
+      "columns": 256,
+      "depth": 115,
+      "native": true,
+      "forward": {
+        "seconds": 0.00026743501000055405,
+        "samples": [
+          0.0002768752899964966,
+          0.0002672341200013761,
+          0.00026687543999742047,
+          0.00026743501000055405,
+          0.0002676669499987838
+        ]
+      },
+      "gradient": {
+        "seconds": 0.0011036771399994905,
+        "samples": [
+          0.0010799315300027957,
+          0.0010786763400028577,
+          0.0011036771399994905,
+          0.0012050035699985528,
+          0.0011305089400002544
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 748
+    },
+    {
+      "columns": 1024,
+      "depth": 115,
+      "native": true,
+      "forward": {
+        "seconds": 0.0017999663099999453,
+        "samples": [
+          0.001593864480000775,
+          0.0018658586599985937,
+          0.00184427616999983,
+          0.0017999663099999453,
+          0.001652898180000193
+        ]
+      },
+      "gradient": {
+        "seconds": 0.004986586149998402,
+        "samples": [
+          0.005021253159998196,
+          0.00492810038999778,
+          0.004986586149998402,
+          0.005008299900000565,
+          0.004977683209999668
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 748
+    },
+    {
+      "columns": 4096,
+      "depth": 115,
+      "native": true,
+      "forward": {
+        "seconds": 0.007681140690001484,
+        "samples": [
+          0.007710512620001282,
+          0.007681849539999348,
+          0.007678735609997603,
+          0.00755560216000049,
+          0.007681140690001484
+        ]
+      },
+      "gradient": {
+        "seconds": 0.018106494880003085,
+        "samples": [
+          0.018106494880003085,
+          0.018097744319998128,
+          0.018142236029998458,
+          0.018126054620001924,
+          0.018064478480000618
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 748
+    },
+    {
+      "columns": 256,
+      "depth": 15,
+      "native": false,
+      "forward": {
+        "seconds": 1.691070000106265e-05,
+        "samples": [
+          1.8155759998990107e-05,
+          2.0247349998498975e-05,
+          1.691070000106265e-05,
+          1.6168590000233963e-05,
+          1.6407940001954558e-05
+        ]
+      },
+      "gradient": {
+        "seconds": 3.138665999813384e-05,
+        "samples": [
+          3.7677840000469585e-05,
+          3.249947999847791e-05,
+          3.098419999787438e-05,
+          3.138665999813384e-05,
+          3.093850999903225e-05
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 812
+    },
+    {
+      "columns": 1024,
+      "depth": 15,
+      "native": false,
+      "forward": {
+        "seconds": 6.0033009999642674e-05,
+        "samples": [
+          6.0033009999642674e-05,
+          6.32087500025591e-05,
+          6.123247999767045e-05,
+          5.736733000048844e-05,
+          5.956821999916428e-05
+        ]
+      },
+      "gradient": {
+        "seconds": 0.00010012814999754482,
+        "samples": [
+          9.840657000040665e-05,
+          9.074748999864823e-05,
+          0.00010012814999754482,
+          0.00010485413999958837,
+          0.00010095271999944089
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 812
+    },
+    {
+      "columns": 4096,
+      "depth": 15,
+      "native": false,
+      "forward": {
+        "seconds": 0.00025097186000039073,
+        "samples": [
+          0.00027635047999865494,
+          0.00025152360999982195,
+          0.00025097186000039073,
+          0.0002486589600039224,
+          0.0002494294200005243
+        ]
+      },
+      "gradient": {
+        "seconds": 0.0003924620599991613,
+        "samples": [
+          0.00040860690000045,
+          0.0004081578500017713,
+          0.00037672409999686354,
+          0.0003783498899974802,
+          0.0003924620599991613
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 812
+    },
+    {
+      "columns": 256,
+      "depth": 115,
+      "native": false,
+      "forward": {
+        "seconds": 0.00013254437000341567,
+        "samples": [
+          0.00014430555999751958,
+          0.00012879213000360323,
+          0.00012925139999879322,
+          0.00013254437000341567,
+          0.00013740021000103298
+        ]
+      },
+      "gradient": {
+        "seconds": 0.00023973997000211966,
+        "samples": [
+          0.00023973997000211966,
+          0.00024336296999990736,
+          0.0002350806000004013,
+          0.0002456094499984829,
+          0.0002347512699998333
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 812
+    },
+    {
+      "columns": 1024,
+      "depth": 115,
+      "native": false,
+      "forward": {
+        "seconds": 0.0005167912899969451,
+        "samples": [
+          0.0005173706899995522,
+          0.0005258835999984512,
+          0.0005163268100022833,
+          0.0005167912899969451,
+          0.0005008910100013964
+        ]
+      },
+      "gradient": {
+        "seconds": 0.0007847339699992517,
+        "samples": [
+          0.0007926563499995609,
+          0.000767810739998822,
+          0.0007847339699992517,
+          0.000774474130003,
+          0.000796911050001654
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 812
+    },
+    {
+      "columns": 4096,
+      "depth": 115,
+      "native": false,
+      "forward": {
+        "seconds": 0.002782757279996986,
+        "samples": [
+          0.0028097532800029513,
+          0.0026969714400001976,
+          0.00281092481000087,
+          0.002743884760002402,
+          0.002782757279996986
+        ]
+      },
+      "gradient": {
+        "seconds": 0.007160714879996703,
+        "samples": [
+          0.007164640460000555,
+          0.00752410890000192,
+          0.007004117619999306,
+          0.00686092637999991,
+          0.007160714879996703
+        ]
+      },
+      "cpu_extension": "gil_checks",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 812
+    },
+    {
+      "columns": 256,
+      "depth": 15,
+      "native": true,
+      "forward": {
+        "seconds": 2.9631020001943398e-05,
+        "samples": [
+          3.1136590000642175e-05,
+          2.9746939999313328e-05,
+          2.9631020001943398e-05,
+          2.9527020001296477e-05,
+          2.9510489998756384e-05
+        ]
+      },
+      "gradient": {
+        "seconds": 5.1792219996968926e-05,
+        "samples": [
+          5.42277499971533e-05,
+          5.1792219996968926e-05,
+          5.18030400007774e-05,
+          5.1586029999270975e-05,
+          5.116632999943249e-05
+        ]
+      },
+      "cpu_extension": "noexcept",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 741
+    },
+    {
+      "columns": 1024,
+      "depth": 15,
+      "native": true,
+      "forward": {
+        "seconds": 0.00010289823000221076,
+        "samples": [
+          0.00010430641999846557,
+          0.00010294081000211008,
+          0.00010284312999829126,
+          0.00010273271000187379,
+          0.00010289823000221076
+        ]
+      },
+      "gradient": {
+        "seconds": 0.00019588179000038509,
+        "samples": [
+          0.00021241577000182587,
+          0.0001962482799990539,
+          0.00019571556000300917,
+          0.00019588179000038509,
+          0.0001957473300035417
+        ]
+      },
+      "cpu_extension": "noexcept",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 741
+    },
+    {
+      "columns": 4096,
+      "depth": 15,
+      "native": true,
+      "forward": {
+        "seconds": 0.00039133134000167045,
+        "samples": [
+          0.0004025615299997298,
+          0.0003908231800005524,
+          0.000391323740000189,
+          0.00039133134000167045,
+          0.0003913591000036831
+        ]
+      },
+      "gradient": {
+        "seconds": 0.0008841252900037943,
+        "samples": [
+          0.0009031747700009873,
+          0.000863904390002972,
+          0.0008852561499998046,
+          0.0008841252900037943,
+          0.0008640422500002387
+        ]
+      },
+      "cpu_extension": "noexcept",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 741
+    },
+    {
+      "columns": 256,
+      "depth": 115,
+      "native": true,
+      "forward": {
+        "seconds": 0.00025356632000239187,
+        "samples": [
+          0.0002556701299999986,
+          0.0002536420700016606,
+          0.0002534975900016434,
+          0.0002535615200031316,
+          0.00025356632000239187
+        ]
+      },
+      "gradient": {
+        "seconds": 0.0005258351599968592,
+        "samples": [
+          0.0005364838399964356,
+          0.0005178159899969614,
+          0.0005175760400015861,
+          0.0005288530999996511,
+          0.0005258351599968592
+        ]
+      },
+      "cpu_extension": "noexcept",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 741
+    },
+    {
+      "columns": 1024,
+      "depth": 115,
+      "native": true,
+      "forward": {
+        "seconds": 0.0011223526100002346,
+        "samples": [
+          0.0011576137500014737,
+          0.001110538920002,
+          0.0011152676099982274,
+          0.0011462604300004385,
+          0.0011223526100002346
+        ]
+      },
+      "gradient": {
+        "seconds": 0.002425326140000834,
+        "samples": [
+          0.00243727790000321,
+          0.002420766560003358,
+          0.002393343849998928,
+          0.002425326140000834,
+          0.0024292712599981313
+        ]
+      },
+      "cpu_extension": "noexcept",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 741
+    },
+    {
+      "columns": 4096,
+      "depth": 115,
+      "native": true,
+      "forward": {
+        "seconds": 0.004335939409997991,
+        "samples": [
+          0.004335939409997991,
+          0.004342359530000977,
+          0.004344336589997511,
+          0.004270039620000716,
+          0.004306876559999182
+        ]
+      },
+      "gradient": {
+        "seconds": 0.008927899410000464,
+        "samples": [
+          0.0089393610299976,
+          0.008902600440001152,
+          0.008983086090001962,
+          0.00886123767999834,
+          0.008927899410000464
+        ]
+      },
+      "cpu_extension": "noexcept",
+      "validation": {
+        "primal_residual": true
+      },
+      "measurement": "100 dispatched solves per sample, synchronized at sample end",
+      "guard_peak_tree_mib": 741
+    }
+  ],
+  "rejected_trajectories": [
+    {
+      "case": "cpu16-native-24steps",
+      "shape": [
+        16,
+        16,
+        15
+      ],
+      "extent_degrees": [
+        32,
+        32
+      ],
+      "steps": 24,
+      "device": "cpu",
+      "petsc_build": "optimized",
+      "cpu_extension": "noexcept",
+      "also_observed_with_original_cpu_extension": true,
+      "compiled_solver": "petsc",
+      "eager_solver": "petsc",
+      "validation_failed": "model variable parity",
+      "variable": "K_11",
+      "mismatched_elements": 1,
+      "index": [
+        6,
+        2,
+        14
+      ],
+      "compiled_value": 982.0137900379085,
+      "eager_value": 644.6041370113725,
+      "controls": {
+        "original_callback_optimized_build": "same mismatch",
+        "original_callback_original_build": "all variables pass",
+        "jax_solver_optimized_build": "all variables pass"
+      }
+    },
+    {
+      "case": "gpu128-petsc",
+      "shape": [
+        128,
+        128,
+        15
+      ],
+      "extent_degrees": [
+        60,
+        84
+      ],
+      "steps": 12,
+      "device": "gpu",
+      "petsc_build": "optimized",
+      "compiled_solver": "petsc",
+      "eager_solver": "scipy_jax",
+      "validation_failed": "model variable parity",
+      "variable": "K_11",
+      "mismatched_elements": 2,
+      "indices": [
+        [
+          58,
+          42,
+          14
+        ],
+        [
+          59,
+          42,
+          14
+        ]
+      ],
+      "maximum_absolute_difference": 337.40965302653603
+    }
+  ],
+  "verification": {
+    "runtime-tuned": {
+      "passed": 6,
+      "guard_peak_tree_mib": 8
+    },
+    "petsc-noexcept-cpu-default": {
+      "passed": 5,
+      "guard_peak_tree_mib": 2380
+    },
+    "petsc-tuned-gpu": {
+      "passed": 4,
+      "guard_peak_tree_mib": 2891
+    },
+    "petsc-tuned-mpi": {
+      "passed": 2,
+      "guard_peak_tree_mib": 5262
+    },
+    "petsc-tuned-gpu-mpi": {
+      "passed": 2,
+      "guard_peak_tree_mib": 3618
+    },
+    "petsc-tuned-float32": {
+      "passed": 2,
+      "guard_peak_tree_mib": 831
+    },
+    "petsc-tuned-old-build": {
+      "passed": 2,
+      "guard_peak_tree_mib": 833
+    },
+    "tdma-noexcept-ad-cpu": {
+      "passed": 4,
+      "guard_peak_tree_mib": 710
+    },
+    "tdma-noexcept-ad-gpu": {
+      "passed": 4,
+      "guard_peak_tree_mib": 955
+    },
+    "cli-noexcept": {
+      "passed": 3,
+      "guard_peak_tree_mib": 8
+    },
+    "cli_smoke": {
+      "iterations": 3,
+      "success": true
+    },
+    "strict_sphinx": {
+      "success": true
+    }
+  }
+}

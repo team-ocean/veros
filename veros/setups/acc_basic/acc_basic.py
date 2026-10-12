@@ -3,7 +3,7 @@
 from veros import VerosSetup, veros_routine
 from veros.variables import allocate, Variable
 from veros.distributed import global_min, global_max
-from veros.core.operators import numpy as npx, update, at
+from veros.core.operators import numpy as npx, safe_sqrt, update, at
 
 
 class ACCBasicSetup(VerosSetup):
@@ -132,14 +132,14 @@ class ACCBasicSetup(VerosSetup):
             vs.forc_tke_surface = update(
                 vs.forc_tke_surface,
                 at[2:-2, 2:-2],
-                npx.sqrt(
+                safe_sqrt(
                     (0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / settings.rho_0) ** 2
                     + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / settings.rho_0) ** 2
                 )
                 ** (1.5),
             )
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def set_forcing(self, state):
         vs = state.variables
         vs.forc_temp_surface = vs.t_rest * (vs.t_star - vs.temp[:, :, -1, vs.tau])
@@ -165,6 +165,6 @@ class ACCBasicSetup(VerosSetup):
         diagnostics["overturning"].sampling_frequency = settings.dt_tracer * 10
         diagnostics["tracer_monitor"].output_frequency = 365 * 86400.0 / 12.0
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def after_timestep(self, state):
         pass

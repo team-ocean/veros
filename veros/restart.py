@@ -1,4 +1,5 @@
 import os
+import math
 
 from veros import logger, runtime_settings, runtime_state
 from veros.io_tools import hdf5 as h5tools
@@ -95,9 +96,28 @@ def read_restart(state):
             try:
                 var_data = restart_data[key]
             except KeyError:
+                if key == "itt":
+                    dt = settings.dt_tracer
+                    model_time = float(restart_data["time"])
+                    if (
+                        not math.isfinite(dt)
+                        or dt <= 0
+                        or not math.isfinite(model_time)
+                        or abs(model_time / dt - round(model_time / dt)) > 1e-6
+                    ):
+                        raise RuntimeError("Cannot recover iteration count from this legacy restart") from None
+                    state.variables.itt = round(model_time / dt)
+                    continue
                 raise RuntimeError(f"No restart data found for variable {key} in {restart_filename}") from None
 
             setattr(state.variables, key, var_data)
+
+        if settings.enable_partial_cells:
+            from veros.core.geometry import bathymetry_geometry
+            from veros.core.operators import numpy as npx
+
+            depth = npx.sum(state.variables.hfacT * state.variables.dzt, axis=2)
+            state.variables.update(bathymetry_geometry(state, depth))
 
         # diagnostic restarts
         for diag_name, diagnostic in state.diagnostics.items():

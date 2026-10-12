@@ -25,7 +25,6 @@ from jaxlib.mlir.dialects import mhlo
 
 from jax._src.interpreters.mlir import custom_call
 
-
 if HAS_CPU_EXT:
     for kernel_name in ("tdma_cython_double", "tdma_cython_float"):
         fn = tdma_cython_.cpu_custom_call_targets[kernel_name]
@@ -47,6 +46,32 @@ def as_mhlo_constant(val, dtype):
 
 
 def tdma(a, b, c, d, interior_mask, edge_mask, device=None):
+    """Solve masked columns with implicit derivatives of all coefficients."""
+    a = jnp.where(interior_mask & ~edge_mask, a, 0)
+    b = jnp.where(interior_mask, b, 1)
+    c = jnp.where(interior_mask, c, 0).at[..., -1].set(0)
+    d = jnp.where(interior_mask, d, 0)
+
+    def matvec(x):
+        previous = jnp.concatenate((jnp.zeros_like(x[..., :1]), x[..., :-1]), axis=-1)
+        following = jnp.concatenate((x[..., 1:], jnp.zeros_like(x[..., :1])), axis=-1)
+        return a * previous + b * x + c * following
+
+    def solve(_, rhs):
+        solution = _tdma(a, b, c, rhs, interior_mask, edge_mask, device=device)
+        return jnp.where(interior_mask, solution, rhs)
+
+    def transpose_solve(_, rhs):
+        lower = jnp.concatenate((jnp.zeros_like(c[..., :1]), c[..., :-1]), axis=-1)
+        upper = jnp.concatenate((a[..., 1:], jnp.zeros_like(a[..., :1])), axis=-1)
+        solution = _tdma(lower, b, upper, rhs, interior_mask, edge_mask, device=device)
+        return jnp.where(interior_mask, solution, rhs)
+
+    solution = jax.lax.custom_linear_solve(matvec, d, solve, transpose_solve=transpose_solve)
+    return jnp.where(interior_mask, solution, 0)
+
+
+def _tdma(a, b, c, d, interior_mask, edge_mask, device=None):
     if device is None:
         device = jax.default_backend()
 
@@ -122,6 +147,7 @@ def tdma_xla_encode_cpu(ctx, a, b, c, d, system_depths):
             as_mhlo_constant(stride, np.int64),
         ),
         result_types=out_types,
+        api_version=3,
     )
     return out.results[:-1]
 
@@ -177,6 +203,7 @@ def tdma_xla_encode_gpu(ctx, a, b, c, d, system_depths):
         result_layouts=out_layouts,
         operand_layouts=(arr_layout,) * 4,
         backend_config=descriptor,
+        api_version=2,
     )
     return out.results[:-1]
 

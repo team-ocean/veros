@@ -4,7 +4,7 @@ import h5netcdf
 import veros.tools
 from veros import VerosSetup, veros_routine, veros_kernel, KernelOutput, logger
 from veros.variables import Variable
-from veros.core.operators import numpy as npx, update, at
+from veros.core.operators import numpy as npx, safe_sqrt, update, at
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = veros.tools.get_assets("global_4deg", os.path.join(BASE_PATH, "assets.json"))
@@ -200,7 +200,7 @@ class GlobalFourDegreeSetup(VerosSetup):
                 vs.forc_iw_surface, at[2:-2, 2:-2], self._read_forcing("wind_energy") / settings.rho_0 * 0.2
             )
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def set_forcing(self, state):
         vs = state.variables
         vs.update(set_forcing_kernel(state))
@@ -218,7 +218,7 @@ class GlobalFourDegreeSetup(VerosSetup):
         state.diagnostics["averages"].output_frequency = 360 * 86400.0
         state.diagnostics["averages"].sampling_frequency = 86400
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def after_timestep(self, state):
         pass
 
@@ -240,7 +240,7 @@ def set_forcing_kernel(state):
         vs.forc_tke_surface = update(
             vs.forc_tke_surface,
             at[1:-1, 1:-1],
-            npx.sqrt(
+            safe_sqrt(
                 (0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / settings.rho_0) ** 2
                 + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / settings.rho_0) ** 2
             )

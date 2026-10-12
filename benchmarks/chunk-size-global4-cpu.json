@@ -1,0 +1,116 @@
+{
+  "measured_utc": "2026-10-11T11:47:22Z",
+  "setup": "global_4deg",
+  "shape": [
+    90,
+    40,
+    15
+  ],
+  "device": "cpu:0",
+  "cpu": "",
+  "cpu_affinity": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "jax_version": "0.11.2",
+  "jaxlib_version": "0.11.2",
+  "dtype": "float64",
+  "linear_solver": "scipy_jax",
+  "tdma_requested": null,
+  "steps": 8,
+  "repeats": 5,
+  "output_records": false,
+  "disk_output": false,
+  "carry_bytes": 65519352,
+  "sources": {
+    "/home/dion/codes/veros/benchmarks/chunk_size_benchmark.py": "617932a7fa395b15708d7e87de1bd4813ed67cf897fd2305b51faddfa68e73a0",
+    "veros/integration.py": "22ced485546fc16e3982586211cabee5ef581185db717eee3a2d74a10e1a17d5",
+    "veros/core/operators.py": "86c95165c7d1545f8394873e817e0d8b9f59df9277ee91c4598be5f71da2126e",
+    "veros/core/external/solvers/scipy_jax.py": "54e97955a7e9a3bc3becd9297a7c907c8dfd66b98c9e0f6291c06527f3fd1b01"
+  },
+  "rows": [
+    {
+      "chunk_size": 1,
+      "cold_seconds": 7.248886213999867,
+      "full_carry_parity": true,
+      "samples": {
+        "pipelined": [
+          0.3938798239996686,
+          0.3897743269990315,
+          0.41167570799916575,
+          0.37842886399994313,
+          0.38409602499996254
+        ],
+        "synchronized": [
+          0.4085646040002757,
+          0.3991740649998974,
+          0.38057975999981863,
+          0.3830688790003478,
+          0.3799721830000635
+        ]
+      },
+      "seconds_per_step": {
+        "pipelined": 0.048721790874878934,
+        "synchronized": 0.047883609875043476
+      },
+      "peak_rss_mib": 1851.546875,
+      "device_memory": null
+    },
+    {
+      "chunk_size": 4,
+      "cold_seconds": 7.472746152001491,
+      "full_carry_parity": true,
+      "samples": {
+        "pipelined": [
+          0.34646518400040804,
+          0.3476632849997259,
+          0.3526852779996261,
+          0.34432681299949763,
+          0.35050635900006455
+        ],
+        "synchronized": [
+          0.34795027199834294,
+          0.3550081700013834,
+          0.3481295340006909,
+          0.3516273929999443,
+          0.3545421329999954
+        ]
+      },
+      "seconds_per_step": {
+        "pipelined": 0.043457910624965734,
+        "synchronized": 0.043953424124993035
+      },
+      "peak_rss_mib": 1938.38671875,
+      "device_memory": null
+    },
+    {
+      "chunk_size": 8,
+      "cold_seconds": 7.617261025001426,
+      "full_carry_parity": true,
+      "samples": {
+        "pipelined": [
+          0.33845000299879757,
+          0.3308547209999233,
+          0.34199795800122956,
+          0.3359354349995556,
+          0.34840238300057536
+        ],
+        "synchronized": [
+          0.33873929399851477,
+          0.34212089299944637,
+          0.3369880900008866,
+          0.33565872799954377,
+          0.33429376899948693
+        ]
+      },
+      "seconds_per_step": {
+        "pipelined": 0.042306250374849697,
+        "synchronized": 0.04212351125011082
+      },
+      "peak_rss_mib": 2007.05078125,
+      "device_memory": null
+    }
+  ]
+}

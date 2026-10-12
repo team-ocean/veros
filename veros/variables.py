@@ -195,7 +195,9 @@ VARIABLES = {
         "Current time",
         write_to_restart=True,
     ),
-    "itt": Variable("Current iteration", None, "", "Current iteration", dtype="int32", initial=0),
+    "itt": Variable(
+        "Current iteration", None, "", "Current iteration", dtype="int32", initial=0, write_to_restart=True
+    ),
     # base variables
     "dxt": Variable("Zonal T-grid spacing", XT, "m", "Zonal (x) spacing of T-grid point", time_dependent=False),
     "dxu": Variable("Zonal U-grid spacing", XU, "m", "Zonal (x) spacing of U-grid point", time_dependent=False),
@@ -238,6 +240,31 @@ VARIABLES = {
         time_dependent=False,
     ),
     "ht": Variable("Total depth (T)", T_HOR, "m", "Total depth of the water column", time_dependent=False),
+    "hfacT": Variable(
+        "Wet fraction (T)",
+        T_GRID,
+        "1",
+        "Occupied cell fraction",
+        active=lambda s: s.enable_partial_cells,
+        time_dependent=False,
+        write_to_restart=True,
+    ),
+    "hfacU": Variable(
+        "Wet fraction (U)",
+        U_GRID,
+        "1",
+        "Open zonal face fraction",
+        active=lambda s: s.enable_partial_cells,
+        time_dependent=False,
+    ),
+    "hfacV": Variable(
+        "Wet fraction (V)",
+        V_GRID,
+        "1",
+        "Open meridional face fraction",
+        active=lambda s: s.enable_partial_cells,
+        time_dependent=False,
+    ),
     "hu": Variable("Total depth (U)", U_HOR, "m", "Total depth of the water column", time_dependent=False),
     "hv": Variable("Total depth (V)", V_HOR, "m", "Total depth of the water column", time_dependent=False),
     "hur": Variable(

@@ -101,11 +101,11 @@ void CudaTridiag(cudaStream_t stream, void** buffers, const char* opaque,
 }
 
 void CudaTridiagFloat(cudaStream_t stream, void** buffers, const char* opaque,
-                      size_t opaque_len) {
+                      size_t opaque_len, void* status) {
   CudaTridiag<float>(stream, buffers, opaque, opaque_len);
 }
 
 void CudaTridiagDouble(cudaStream_t stream, void** buffers, const char* opaque,
-                      size_t opaque_len) {
+                      size_t opaque_len, void* status) {
   CudaTridiag<double>(stream, buffers, opaque, opaque_len);
 }

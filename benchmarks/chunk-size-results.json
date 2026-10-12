@@ -1,0 +1,399 @@
+{
+  "hardware": {
+    "cpu": "AMD Ryzen 5 5600",
+    "logical_cpus_used": 4,
+    "host_ram_gib": 15,
+    "gpu": "NVIDIA GeForce RTX 3060",
+    "gpu_memory_gib": 12
+  },
+  "method": {
+    "horizon_steps": 8,
+    "comparison": "one compiled timestep versus the same timestep inside rolled multi-step scans",
+    "timing": "median synchronized warm forward execution, excluding setup, compilation, validation and file I/O",
+    "diagnostics": "original setup sampling and finalization schedules; diagnostic output records not retained",
+    "solver": "scipy_jax for every chunk size",
+    "validation": "all carry leaves compared with the chunk-size-1 result, rtol=2e-7 and atol=2e-6",
+    "parameters": "float64; default physics; same initialized trajectory for every measurement"
+  },
+  "runs": [
+    {
+      "measured_utc": "2026-10-11T11:47:22Z",
+      "setup": "global_4deg",
+      "shape": [
+        90,
+        40,
+        15
+      ],
+      "device": "cpu:0",
+      "cpu": "",
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "dtype": "float64",
+      "linear_solver": "scipy_jax",
+      "tdma_requested": null,
+      "steps": 8,
+      "repeats": 5,
+      "output_records": false,
+      "disk_output": false,
+      "carry_bytes": 65519352,
+      "sources": {
+        "/home/dion/codes/veros/benchmarks/chunk_size_benchmark.py": "617932a7fa395b15708d7e87de1bd4813ed67cf897fd2305b51faddfa68e73a0",
+        "veros/integration.py": "22ced485546fc16e3982586211cabee5ef581185db717eee3a2d74a10e1a17d5",
+        "veros/core/operators.py": "86c95165c7d1545f8394873e817e0d8b9f59df9277ee91c4598be5f71da2126e",
+        "veros/core/external/solvers/scipy_jax.py": "54e97955a7e9a3bc3becd9297a7c907c8dfd66b98c9e0f6291c06527f3fd1b01"
+      },
+      "rows": [
+        {
+          "chunk_size": 1,
+          "cold_seconds": 7.248886213999867,
+          "full_carry_parity": true,
+          "samples": {
+            "pipelined": [
+              0.3938798239996686,
+              0.3897743269990315,
+              0.41167570799916575,
+              0.37842886399994313,
+              0.38409602499996254
+            ],
+            "synchronized": [
+              0.4085646040002757,
+              0.3991740649998974,
+              0.38057975999981863,
+              0.3830688790003478,
+              0.3799721830000635
+            ]
+          },
+          "seconds_per_step": {
+            "pipelined": 0.048721790874878934,
+            "synchronized": 0.047883609875043476
+          },
+          "peak_rss_mib": 1851.546875,
+          "device_memory": null,
+          "warm_runtime_reduction_percent": 0.0
+        },
+        {
+          "chunk_size": 4,
+          "cold_seconds": 7.472746152001491,
+          "full_carry_parity": true,
+          "samples": {
+            "pipelined": [
+              0.34646518400040804,
+              0.3476632849997259,
+              0.3526852779996261,
+              0.34432681299949763,
+              0.35050635900006455
+            ],
+            "synchronized": [
+              0.34795027199834294,
+              0.3550081700013834,
+              0.3481295340006909,
+              0.3516273929999443,
+              0.3545421329999954
+            ]
+          },
+          "seconds_per_step": {
+            "pipelined": 0.043457910624965734,
+            "synchronized": 0.043953424124993035
+          },
+          "peak_rss_mib": 1938.38671875,
+          "device_memory": null,
+          "warm_runtime_reduction_percent": 8.207789179442837
+        },
+        {
+          "chunk_size": 8,
+          "cold_seconds": 7.617261025001426,
+          "full_carry_parity": true,
+          "samples": {
+            "pipelined": [
+              0.33845000299879757,
+              0.3308547209999233,
+              0.34199795800122956,
+              0.3359354349995556,
+              0.34840238300057536
+            ],
+            "synchronized": [
+              0.33873929399851477,
+              0.34212089299944637,
+              0.3369880900008866,
+              0.33565872799954377,
+              0.33429376899948693
+            ]
+          },
+          "seconds_per_step": {
+            "pipelined": 0.042306250374849697,
+            "synchronized": 0.04212351125011082
+          },
+          "peak_rss_mib": 2007.05078125,
+          "device_memory": null,
+          "warm_runtime_reduction_percent": 12.029374226304446
+        }
+      ],
+      "status": "completed"
+    },
+    {
+      "measured_utc": "2026-10-11T12:42:14Z",
+      "setup": "global_1deg",
+      "shape": [
+        360,
+        160,
+        15
+      ],
+      "horizontal_stride": 1,
+      "device": "cpu:0",
+      "cpu": "",
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "dtype": "float64",
+      "linear_solver": "scipy_jax",
+      "tdma_requested": null,
+      "steps": 8,
+      "repeats": 3,
+      "output_records": false,
+      "modes": [
+        "synchronized"
+      ],
+      "disk_output": false,
+      "carry_bytes": 1114380108,
+      "sources": {
+        "/home/dion/codes/veros/benchmarks/chunk_size_benchmark.py": "32257ad8ef96312fbe690c3c6e4ae660e7e7710a2740f0cc2a4f97898b7e7cd7",
+        "veros/integration.py": "0e71cb223dfbacf00c9fff3b5684a298ae5f79513d04169bb4f441e93d82a61a",
+        "veros/core/operators.py": "86c95165c7d1545f8394873e817e0d8b9f59df9277ee91c4598be5f71da2126e",
+        "veros/core/external/solvers/scipy_jax.py": "54e97955a7e9a3bc3becd9297a7c907c8dfd66b98c9e0f6291c06527f3fd1b01"
+      },
+      "rows": [
+        {
+          "chunk_size": 1,
+          "cold_seconds": 16.21628801499901,
+          "full_carry_parity": true,
+          "samples": {
+            "synchronized": [
+              8.219985381001607,
+              8.32195603099899,
+              8.407643526999891
+            ]
+          },
+          "seconds_per_step": {
+            "synchronized": 1.0402445038748738
+          },
+          "peak_rss_mib": 6734.42578125,
+          "device_memory": null,
+          "warm_runtime_reduction_percent": 0.0
+        },
+        {
+          "chunk_size": 4,
+          "cold_seconds": 15.67329296599928,
+          "full_carry_parity": true,
+          "samples": {
+            "synchronized": [
+              7.574773483000172,
+              7.510287073000654,
+              7.507825635999325
+            ]
+          },
+          "seconds_per_step": {
+            "synchronized": 0.9387858841250818
+          },
+          "peak_rss_mib": 6734.42578125,
+          "device_memory": null,
+          "warm_runtime_reduction_percent": 9.753343504518618
+        },
+        {
+          "chunk_size": 8,
+          "cold_seconds": 15.608498909998161,
+          "full_carry_parity": true,
+          "samples": {
+            "synchronized": [
+              7.3288564840004256,
+              7.327550076002808,
+              7.38148216099944
+            ]
+          },
+          "seconds_per_step": {
+            "synchronized": 0.9161070605000532
+          },
+          "peak_rss_mib": 6814.89453125,
+          "device_memory": null,
+          "warm_runtime_reduction_percent": 11.933487070819703
+        }
+      ],
+      "status": "completed"
+    },
+    {
+      "measured_utc": "2026-10-11T12:51:04Z",
+      "setup": "global_1deg",
+      "shape": [
+        180,
+        80,
+        115
+      ],
+      "horizontal_stride": 2,
+      "device": "cuda:0",
+      "cpu": "",
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "jax_version": "0.11.2",
+      "jaxlib_version": "0.11.2",
+      "dtype": "float64",
+      "linear_solver": "scipy_jax",
+      "tdma_requested": null,
+      "steps": 8,
+      "repeats": 5,
+      "output_records": false,
+      "modes": [
+        "synchronized"
+      ],
+      "disk_output": false,
+      "carry_bytes": 2062675832,
+      "sources": {
+        "/home/dion/codes/veros/benchmarks/chunk_size_benchmark.py": "32257ad8ef96312fbe690c3c6e4ae660e7e7710a2740f0cc2a4f97898b7e7cd7",
+        "veros/integration.py": "0e71cb223dfbacf00c9fff3b5684a298ae5f79513d04169bb4f441e93d82a61a",
+        "veros/core/operators.py": "86c95165c7d1545f8394873e817e0d8b9f59df9277ee91c4598be5f71da2126e",
+        "veros/core/external/solvers/scipy_jax.py": "54e97955a7e9a3bc3becd9297a7c907c8dfd66b98c9e0f6291c06527f3fd1b01"
+      },
+      "rows": [
+        {
+          "chunk_size": 1,
+          "cold_seconds": 13.458086086000549,
+          "full_carry_parity": true,
+          "samples": {
+            "synchronized": [
+              1.8053457840032934,
+              1.8106225500014261,
+              1.802719042996614,
+              1.7990607270003238,
+              1.8037233659997582
+            ]
+          },
+          "seconds_per_step": {
+            "synchronized": 0.22546542074996978
+          },
+          "peak_rss_mib": 4077.0703125,
+          "device_memory": {
+            "num_allocs": 16751,
+            "bytes_in_use": 2788820992,
+            "peak_bytes_in_use": 7829891072,
+            "largest_alloc_size": 817861632,
+            "bytes_limit": 11236540416,
+            "bytes_reserved": 0,
+            "peak_bytes_reserved": 0,
+            "largest_free_block_bytes": 3200575232,
+            "pool_bytes": 8604614656,
+            "peak_pool_bytes": 8604614656
+          },
+          "warm_runtime_reduction_percent": 0.0
+        },
+        {
+          "chunk_size": 4,
+          "cold_seconds": 13.188943084998755,
+          "full_carry_parity": true,
+          "samples": {
+            "synchronized": [
+              1.7512732510003843,
+              1.7543842939994647,
+              1.75230264199854,
+              1.7516675219994795,
+              1.7519179990013072
+            ]
+          },
+          "seconds_per_step": {
+            "synchronized": 0.2189897498751634
+          },
+          "peak_rss_mib": 4376.6953125,
+          "device_memory": {
+            "num_allocs": 19808,
+            "bytes_in_use": 2788820992,
+            "peak_bytes_in_use": 8267461376,
+            "largest_alloc_size": 1326851840,
+            "bytes_limit": 11236540416,
+            "bytes_reserved": 0,
+            "peak_bytes_reserved": 0,
+            "largest_free_block_bytes": 2630960896,
+            "pool_bytes": 8604614656,
+            "peak_pool_bytes": 8604614656
+          },
+          "warm_runtime_reduction_percent": 2.872134828155126
+        },
+        {
+          "chunk_size": 8,
+          "cold_seconds": 13.95036499300113,
+          "full_carry_parity": true,
+          "samples": {
+            "synchronized": [
+              1.743763623002451,
+              1.7445375170027546,
+              1.7458606869986397,
+              1.7435444149996329,
+              1.744729392001318
+            ]
+          },
+          "seconds_per_step": {
+            "synchronized": 0.21806718962534433
+          },
+          "peak_rss_mib": 4501.4921875,
+          "device_memory": {
+            "num_allocs": 21362,
+            "bytes_in_use": 2788820992,
+            "peak_bytes_in_use": 8267461376,
+            "largest_alloc_size": 1326851840,
+            "bytes_limit": 11236540416,
+            "bytes_reserved": 0,
+            "peak_bytes_reserved": 0,
+            "largest_free_block_bytes": 3184405760,
+            "pool_bytes": 8604614656,
+            "peak_pool_bytes": 8604614656
+          },
+          "warm_runtime_reduction_percent": 3.2813152012475255
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "limitations": [
+    "The full 360x160x115 setup could not be timed on the available GPU because integrator preparation exhausted memory.",
+    "360x160x15 retains one-degree horizontal resolution but coarsens the vertical grid, preserving total depth and sampling initial temperature/salinity at layer centers.",
+    "180x80x115 retains all 115 vertical levels but subsamples the one-degree input horizontally and scales grid spacing by two.",
+    "These measurements use one process and the JAX pressure solver, not distributed PETSc or MPI.",
+    "The 180x80x115 CPU attempt stopped at the 8000 MiB RSS guard during its first compilation; no warm timings were collected."
+  ],
+  "failed_attempts": [
+    {
+      "setup": "global_1deg",
+      "shape": [
+        360,
+        160,
+        115
+      ],
+      "device": "gpu",
+      "stage": "integrator preparation",
+      "reason": "GPU out of memory"
+    },
+    {
+      "setup": "global_1deg",
+      "shape": [
+        180,
+        80,
+        115
+      ],
+      "device": "cpu",
+      "stage": "first one-step compilation/execution",
+      "reason": "RSS guard",
+      "peak_rss_mib": 9054
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core import advection, utilities
-from veros.core.operators import update, update_add, at, for_loop, numpy as npx
+from veros.core.operators import update, update_add, at, for_loop, numpy as npx, safe_sqrt
 
 
 @veros_routine
@@ -13,8 +13,8 @@ def set_tke_diffusivities(state):
         tke_diff_out = set_tke_diffusivities_kernel(state)
         vs.update(tke_diff_out)
     else:
-        vs.kappaM = update(vs.kappaM, at[...], settings.kappaM_0)
-        vs.kappaH = npx.where(vs.Nsqr[..., vs.tau] < 0.0, 1.0, settings.kappaH_0)
+        vs.kappaM = update(vs.kappaM, at[...], vs.get("control_kappaM_0", settings.kappaM_0))
+        vs.kappaH = npx.where(vs.Nsqr[..., vs.tau] < 0.0, 1.0, vs.get("control_kappaH_0", settings.kappaH_0))
 
 
 @veros_kernel
@@ -27,7 +27,7 @@ def set_tke_diffusivities_kernel(state):
 
     Rinumber = allocate(state.dimensions, ("xt", "yt", "zt"))
 
-    vs.sqrttke = npx.sqrt(npx.maximum(0.0, vs.tke[:, :, :, vs.tau]))
+    vs.sqrttke = safe_sqrt(npx.maximum(0.0, vs.tke[:, :, :, vs.tau]))
     """
     calculate buoyancy length scale
     """

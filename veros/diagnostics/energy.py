@@ -1,11 +1,8 @@
-import os
-
 from veros import veros_kernel, KernelOutput, runtime_settings
 from veros.core.operators import numpy as npx, update_multiply, at
 from veros.diagnostics.base import VerosDiagnostic
 from veros.variables import Variable
 from veros.distributed import global_sum
-
 
 ENERGY_VARIABLES = dict(
     nitts=Variable("nitts", None, write_to_restart=True),
@@ -112,6 +109,7 @@ class Energy(VerosDiagnostic):
     """Diagnose globally averaged energy cycle. Also averages energy in time."""
 
     name = "energy"  #:
+    supports_compilation = True
     output_path = "{identifier}.energy.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
@@ -126,6 +124,8 @@ class Energy(VerosDiagnostic):
         self.initialize_output(state)
 
     def diagnose(self, state):
+        if state.settings.enable_partial_cells:
+            raise ValueError("Partial cells do not yet support the energy diagnostic")
         energies = diagnose_kernel(state)
 
         # store results
@@ -136,22 +136,16 @@ class Energy(VerosDiagnostic):
         self.variables.nitts = self.variables.nitts + 1
 
     def output(self, state):
-        if not os.path.isfile(self.get_output_file_name(state)):
-            self.initialize_output(state)
+        self.write_finalized(state, self.finalize(state))
 
+    def finalize(self, state):
         energy_vs = self.variables
-        nitts = float(energy_vs.nitts or 1)
-
-        for key in self.output_variables:
-            val = getattr(energy_vs, key)
-            setattr(energy_vs, key, val * state.settings.rho_0 / nitts)
-
-        self.write_output(state)
-
+        nitts = npx.maximum(energy_vs.nitts, 1)
+        values = {key: energy_vs.get(key) * state.settings.rho_0 / nitts for key in self.output_variables}
         for key in self.output_variables:
             setattr(energy_vs, key, 0.0)
-
         energy_vs.nitts = 0
+        return values
 
 
 @veros_kernel
@@ -330,7 +324,7 @@ def diagnose_kernel(state):
     if settings.enable_idemix:
         iw_m = mean_w(vs.E_iw[..., vs.tau])
         diw_m = global_sum(
-            npx.sum(vol_w * (vs.E_iw[2:-2, 2:-2, :, vs.taup1] - vs.E_iw[2:-2, 2:-2, :, vs.tau]) / vs.dt_tracer)
+            npx.sum(vol_w * (vs.E_iw[2:-2, 2:-2, :, vs.taup1] - vs.E_iw[2:-2, 2:-2, :, vs.tau]) / settings.dt_tracer)
         )
         iw_diss = mean_w(vs.iw_diss)
 

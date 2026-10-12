@@ -1,0 +1,42 @@
+{
+  "measured_utc": "2026-10-11T12:31:56Z",
+  "setup": "global_1deg",
+  "shape": [
+    180,
+    80,
+    115
+  ],
+  "horizontal_stride": 2,
+  "device": "cpu:0",
+  "cpu": "",
+  "cpu_affinity": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "jax_version": "0.11.2",
+  "jaxlib_version": "0.11.2",
+  "dtype": "float64",
+  "linear_solver": "scipy_jax",
+  "tdma_requested": null,
+  "steps": 8,
+  "repeats": 3,
+  "output_records": false,
+  "disk_output": false,
+  "carry_bytes": 2062675832,
+  "sources": {
+    "/home/dion/codes/veros/benchmarks/chunk_size_benchmark.py": "c05ae7d574cb8958e31fed7b85129523e85b2cbd476591917c466d994c33055d",
+    "veros/integration.py": "0e71cb223dfbacf00c9fff3b5684a298ae5f79513d04169bb4f441e93d82a61a",
+    "veros/core/operators.py": "86c95165c7d1545f8394873e817e0d8b9f59df9277ee91c4598be5f71da2126e",
+    "veros/core/external/solvers/scipy_jax.py": "54e97955a7e9a3bc3becd9297a7c907c8dfd66b98c9e0f6291c06527f3fd1b01"
+  },
+  "rows": [],
+  "status": "stopped_by_memory_guard",
+  "failure": {
+    "stage": "first one-step compilation/execution",
+    "peak_rss_mib": 9054,
+    "available_host_memory_mib": 3231,
+    "rss_limit_mib": 8000
+  }
+}

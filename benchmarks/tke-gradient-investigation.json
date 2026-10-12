@@ -1,0 +1,338 @@
+{
+  "configuration": {
+    "setup": "acc_basic",
+    "shape": [
+      16,
+      16,
+      15
+    ],
+    "dt_mom": 600,
+    "dt_tracer": 600,
+    "dtype": "float64",
+    "device": "cpu",
+    "jax_version": "0.11.2",
+    "checkpoint": true,
+    "checkpoint_interval": 8,
+    "tdma_accelerated": true
+  },
+  "horizon_checks": [
+    {
+      "step": 1,
+      "reverse_value": 34490.190540660624,
+      "reverse_derivative": 0.58526503421785,
+      "forward_value": 34490.190540660624,
+      "forward_derivative": 0.5852650342178505,
+      "tke_sign_disagreements": 0
+    },
+    {
+      "step": 6,
+      "reverse_value": 34488.87137096372,
+      "reverse_derivative": 3.509654327457715,
+      "forward_value": 34488.87137096372,
+      "forward_derivative": 3.509654327457714,
+      "tke_sign_disagreements": 0
+    },
+    {
+      "step": 12,
+      "reverse_value": 34487.28992692452,
+      "reverse_derivative": 7.014653563668612,
+      "forward_value": 34487.28992692452,
+      "forward_derivative": 7.0146535636686105,
+      "tke_sign_disagreements": 0
+    },
+    {
+      "step": 24,
+      "reverse_value": 34484.129872261496,
+      "reverse_derivative": 14.012197082010323,
+      "forward_value": 34484.129872261496,
+      "forward_derivative": 14.0121970820103,
+      "tke_sign_disagreements": 0
+    },
+    {
+      "step": 32,
+      "reverse_value": 34482.0221560518,
+      "reverse_derivative": 18.671517763522328,
+      "forward_value": 34482.0221560518,
+      "forward_derivative": 18.671517763522328,
+      "tke_sign_disagreements": 0
+    },
+    {
+      "step": 40,
+      "reverse_value": 34479.91316962487,
+      "reverse_derivative": 23.314320921422507,
+      "forward_value": 34479.91316962487,
+      "forward_derivative": 23.31432092144004,
+      "tke_sign_disagreements": 0
+    },
+    {
+      "step": 48,
+      "reverse_value": 34477.817107984265,
+      "reverse_derivative": 27.906128312222894,
+      "forward_value": 34477.817107958,
+      "forward_derivative": 27.908460106773706,
+      "tke_sign_disagreements": 0
+    },
+    {
+      "step": 56,
+      "reverse_value": 34475.74576780829,
+      "reverse_derivative": 80.24775215410018,
+      "forward_value": 34475.74545069775,
+      "forward_derivative": 32.45621509199489,
+      "tke_sign_disagreements": 0
+    },
+    {
+      "step": 64,
+      "reverse_value": 34473.7020013493,
+      "reverse_derivative": 85.63576134433006,
+      "forward_value": 34473.70171318421,
+      "forward_derivative": 36.96717501970594,
+      "tke_sign_disagreements": 0
+    },
+    {
+      "step": 72,
+      "reverse_value": 34471.686874174055,
+      "reverse_derivative": 85.28557626624317,
+      "forward_value": 34471.686622599955,
+      "forward_derivative": 41.431266146466974,
+      "tke_sign_disagreements": 0
+    },
+    {
+      "step": 80,
+      "reverse_value": 34469.69959358073,
+      "reverse_derivative": 92.10188984793304,
+      "forward_value": 34469.699374325115,
+      "forward_derivative": 45.86063648465038,
+      "tke_sign_disagreements": 0
+    },
+    {
+      "step": 96,
+      "reverse_value": 34465.80562785915,
+      "reverse_derivative": 96.39477068921356,
+      "forward_value": 34465.805462847544,
+      "forward_derivative": 54.63464750017283,
+      "tke_sign_disagreements": 0
+    }
+  ],
+  "first_unstable_stratification_step": 35,
+  "local_one_ulp_test": {
+    "step": 42,
+    "face_array_indices": [
+      7,
+      3,
+      13
+    ],
+    "temperature": 14.783705407383918,
+    "temperature_increment": 1.7763568394002505e-15,
+    "horizontal_density_gradient_increment": -2.2772551375566953e-21,
+    "taper_at_zero_horizontal_gradient": 0.9820137900379085,
+    "slope_with_original_denominator": -0.22772551375566955,
+    "taper_with_original_denominator": 0.0,
+    "slope_with_1e_minus_12_denominator": -2.2772551375566953e-09,
+    "taper_with_1e_minus_12_denominator": 0.982013773948906
+  },
+  "experiments": [
+    {
+      "case": "larger-mxl",
+      "floor": 1e-20,
+      "value": 34465.80548646853,
+      "gradient": -11985.62284781555,
+      "status": 0,
+      "finite_differences": [
+        {
+          "scale": 0.01,
+          "gradient": 54.63623429495783
+        },
+        {
+          "scale": 0.001,
+          "gradient": 55.12206835919642
+        },
+        {
+          "scale": 0.0001,
+          "gradient": 54.80414187331917
+        }
+      ],
+      "jvp_value": 34465.805482884156,
+      "jvp_gradient": 54.88214938632108,
+      "jvp_status": 0,
+      "intervention": {
+        "mxl_min": 0.01
+      }
+    },
+    {
+      "case": "no-energy",
+      "floor": 1e-20,
+      "value": 34465.80529217747,
+      "gradient": 54.62847292293022,
+      "status": 0,
+      "finite_differences": [
+        {
+          "scale": 0.01,
+          "gradient": 54.63954734550498
+        },
+        {
+          "scale": 0.001,
+          "gradient": 54.61555318106548
+        },
+        {
+          "scale": 0.0001,
+          "gradient": 54.90876163094072
+        }
+      ],
+      "jvp_value": 34465.806842008926,
+      "jvp_gradient": -3258530.9739271784,
+      "jvp_status": 0,
+      "intervention": {
+        "enable_conserve_energy": false
+      }
+    },
+    {
+      "case": "dense-pressure",
+      "floor": 1e-20,
+      "value": 34465.805921147876,
+      "gradient": -26.030017386250776,
+      "status": 0,
+      "finite_differences": [
+        {
+          "scale": 0.01,
+          "gradient": 54.632816443699994
+        },
+        {
+          "scale": 0.001,
+          "gradient": 54.62462930518086
+        },
+        {
+          "scale": 0.0001,
+          "gradient": 47.020640085975174
+        }
+      ],
+      "jvp_value": 34465.80546246216,
+      "jvp_gradient": 54.633807498120646,
+      "jvp_status": 0,
+      "intervention": {
+        "solver": "Dense LU solve of the fixed preconditioned pressure matrix",
+        "condition_number": 164.67363717076518
+      }
+    },
+    {
+      "case": "slope-floor",
+      "floor": 1e-12,
+      "value": 34465.816530742275,
+      "gradient": -3.9329968516537453e+21,
+      "status": 0,
+      "finite_differences": [
+        {
+          "scale": 0.01,
+          "gradient": 54.35609569649387
+        },
+        {
+          "scale": 0.001,
+          "gradient": 55.18029784434475
+        },
+        {
+          "scale": 0.0001,
+          "gradient": 82.61772949481383
+        }
+      ],
+      "jvp_value": 34465.81680882976,
+      "jvp_gradient": 1.806708784438268e+18,
+      "jvp_status": 0,
+      "intervention": {
+        "additional_neutral_slope_denominator_floor": 1e-12
+      }
+    },
+    {
+      "case": "mask-unstable-slope",
+      "floor": 1e-20,
+      "value": 34465.805476748916,
+      "gradient": 54.633728281612456,
+      "status": 0,
+      "finite_differences": [
+        {
+          "scale": 0.01,
+          "gradient": 54.63847361424996
+        },
+        {
+          "scale": 0.001,
+          "gradient": 54.63478453020798
+        },
+        {
+          "scale": 0.0001,
+          "gradient": 54.63374556711642
+        }
+      ],
+      "jvp_value": 34465.805476748916,
+      "jvp_gradient": 54.633728281611454,
+      "jvp_status": 0,
+      "intervention": {
+        "neutral_slope_policy": "Zero slope when the clipped denominator equals -1e-20"
+      }
+    }
+  ],
+  "notes": "Experiments change one numerical or physical policy at a time. They are diagnostic probes, not production validation. The larger-mixing-length, no-energy-conservation, dense-pressure, and 1e-12 denominator-floor experiments still fail derivative agreement. Zeroing neutral slopes when the vertical density gradient is nonnegative restores agreement in this configuration.",
+  "reproducer_runs": [
+    {
+      "zero_unstable_slopes": false,
+      "steps": 96,
+      "shape": [
+        16,
+        16,
+        15
+      ],
+      "device": "cpu:0",
+      "dtype": "float64",
+      "jax_version": "0.11.2",
+      "tdma_accelerated": true,
+      "reverse_value": 34465.80562785915,
+      "reverse_derivative": 96.39477068921356,
+      "finite_differences": [
+        {
+          "scale": 0.01,
+          "derivative": 54.6366985214263
+        },
+        {
+          "scale": 0.001,
+          "derivative": 54.64297262005857
+        },
+        {
+          "scale": 0.0001,
+          "derivative": 55.97720952209784
+        }
+      ],
+      "forward_value": 34465.805462847544,
+      "forward_derivative": 54.63464750017283,
+      "peak_rss_mib": 2448.22265625
+    },
+    {
+      "zero_unstable_slopes": true,
+      "steps": 96,
+      "shape": [
+        16,
+        16,
+        15
+      ],
+      "device": "cpu:0",
+      "dtype": "float64",
+      "jax_version": "0.11.2",
+      "tdma_accelerated": true,
+      "reverse_value": 34465.805476748916,
+      "reverse_derivative": 54.633728281612456,
+      "finite_differences": [
+        {
+          "scale": 0.01,
+          "derivative": 54.63847361424996
+        },
+        {
+          "scale": 0.001,
+          "derivative": 54.63478453020798
+        },
+        {
+          "scale": 0.0001,
+          "derivative": 54.63374556711642
+        }
+      ],
+      "forward_value": 34465.805476748916,
+      "forward_derivative": 54.633728281611454,
+      "peak_rss_mib": 2408.56640625
+    }
+  ]
+}

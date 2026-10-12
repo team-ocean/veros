@@ -9,7 +9,7 @@ import scipy.ndimage
 
 from veros import VerosSetup, veros_routine, veros_kernel, KernelOutput
 from veros.variables import Variable
-from veros.core.operators import numpy as npx, update, at
+from veros.core.operators import numpy as npx, safe_sqrt, update, at
 import veros.tools
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -274,7 +274,7 @@ class NorthAtlanticSetup(VerosSetup):
                     veros.tools.interpolate(rest_coords, s_star[..., k], t_grid, missing_value=0.0),
                 )
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def set_forcing(self, state):
         vs = state.variables
         vs.update(set_forcing_kernel(state))
@@ -299,7 +299,7 @@ class NorthAtlanticSetup(VerosSetup):
         ]
         diagnostics["cfl_monitor"].output_frequency = settings.dt_tracer * 10
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def after_timestep(self, state):
         pass
 
@@ -319,7 +319,7 @@ def set_forcing_kernel(state):
         vs.forc_tke_surface = update(
             vs.forc_tke_surface,
             at[1:-1, 1:-1],
-            npx.sqrt(
+            safe_sqrt(
                 (0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / settings.rho_0) ** 2
                 + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / settings.rho_0) ** 2
             )

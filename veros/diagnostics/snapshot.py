@@ -1,9 +1,8 @@
-import os
 import copy
 
 from veros import time, logger
 from veros.diagnostics.base import VerosDiagnostic
-
+from veros.variables import TIMESTEPS
 
 DEFAULT_OUTPUT_VARS = [
     "dxt",
@@ -68,6 +67,7 @@ class Snapshot(VerosDiagnostic):
     output_path = "{identifier}.snapshot.nc"
     """File to write to. May contain format strings that are replaced with Veros attributes."""
     name = "snapshot"  #:
+    supports_compilation = True
     output_frequency = None  #: Frequency (in seconds) in which output is written.
 
     def __init__(self, state):
@@ -95,12 +95,20 @@ class Snapshot(VerosDiagnostic):
         pass
 
     def output(self, state):
-        vs = state.variables
+        self.write_finalized(state, self.finalize(state))
 
-        time_length, time_unit = time.format_time(vs.time)
+    def write_finalized(self, state, values, time_value=None):
+        time_length, time_unit = time.format_time(state.variables.time if time_value is None else time_value)
         logger.info(f" Writing snapshot at {time_length:.2f} {time_unit}")
+        super().write_finalized(state, values, time_value=time_value)
 
-        if not os.path.isfile(self.get_output_file_name(state)):
-            self.initialize_output(state)
-
-        self.write_output(state)
+    def finalize(self, state):
+        vs = state.variables
+        values = {}
+        for key in self.output_variables:
+            dims = self.var_meta[key].dims
+            value = vs.get(key)
+            if dims and any(dim in TIMESTEPS for dim in dims):
+                value = value[tuple(vs.tau if dim in TIMESTEPS else slice(None) for dim in dims)]
+            values[key] = value
+        return values

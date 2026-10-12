@@ -33,8 +33,13 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
     __veros_plugins__ = tuple()
 
-    def __init__(self, override=None):
+    def __init__(self, override=None, *, control_parameters=()):
         self.override_settings = override or {}
+        self.control_parameters = tuple(control_parameters)
+        supported_controls = {"kappaH_0", "kappaM_0", "K_iso_0", "K_gm_0"}
+        unsupported_controls = set(self.control_parameters) - supported_controls
+        if unsupported_controls:
+            raise ValueError(f"Unsupported control parameters: {sorted(unsupported_controls)}")
 
         # this should be the first time the core routines are imported
         import veros.core  # noqa: F401
@@ -200,6 +205,13 @@ class VerosSetup(metaclass=abc.ABCMeta):
             settings.check_setting_conflicts(self.state.settings)
             distributed.validate_decomposition(self.state.dimensions)
 
+            from veros.variables import Variable
+
+            for name in self.control_parameters:
+                self.state.var_meta[f"control_{name}"] = Variable(
+                    name, None, time_dependent=False, write_to_restart=True, initial=getattr(self.state.settings, name)
+                )
+
             self.state.initialize_variables()
 
             self.state.diagnostics.update(diagnostics.create_default_diagnostics(self.state))
@@ -227,6 +239,9 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 plugin.setup_entrypoint(self.state)
 
             self.set_diagnostics(self.state)
+            from veros.core.geometry import validate_diagnostics
+
+            validate_diagnostics(self.state)
             diagnostics.initialize(self.state)
             restart.read_restart(self.state)
 
@@ -235,26 +250,21 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         self._setup_done = True
 
-    @veros_routine
-    def step(self, state):
-        from veros import diagnostics, restart
-        from veros.core import idemix, eke, tke, momentum, thermodynamics, advection, utilities, isoneutral, numerics
-
-        self._ensure_setup_done()
+    @veros_routine(supports_compilation=True)
+    def _step_dynamics(self, state):
+        from veros.core import idemix, eke, tke, momentum, thermodynamics, advection, utilities
 
         vs = state.variables
         settings = state.settings
 
-        with state.timers["diagnostics"]:
-            restart.write_restart(state)
-
         with state.timers["main"]:
             with state.timers["forcing"]:
                 self.set_forcing(state)
+                vs.update(getattr(state, "_forcing_inputs", {}))
 
             if state.settings.enable_idemix:
                 with state.timers["idemix"]:
-                    idemix.set_idemix_parameter(state)
+                    vs.update(idemix.set_idemix_parameter(state))
 
             with state.timers["eke"]:
                 eke.set_eke_diffusivities(state)
@@ -307,6 +317,19 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         self.after_timestep(state)
 
+    @veros_routine
+    def step(self, state):
+        from veros import diagnostics, restart
+        from veros.core import isoneutral, numerics
+
+        self._ensure_setup_done()
+        vs = state.variables
+
+        with state.timers["diagnostics"]:
+            restart.write_restart(state)
+
+        self._step_dynamics(state)
+
         with state.timers["diagnostics"]:
             if not numerics.sanity_check(state):
                 raise RuntimeError(f"solution diverged at iteration {vs.itt}")
@@ -321,7 +344,86 @@ class VerosSetup(metaclass=abc.ABCMeta):
         # permutate time indices
         vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
-    def run(self, show_progress_bar=None):
+    def prepare_integrator(
+        self,
+        *,
+        record_diagnostics=None,
+        checkpoint=False,
+        linear_solver=None,
+        fixed_parameters=(),
+    ):
+        """Prepare a pure compiled timestep for this initialized model."""
+        from veros.integration import PreparedIntegrator
+
+        return PreparedIntegrator(
+            self,
+            record_diagnostics=record_diagnostics,
+            checkpoint=checkpoint,
+            linear_solver=linear_solver,
+            fixed_parameters=fixed_parameters,
+        )
+
+    def run_compiled(
+        self,
+        *,
+        n_steps=None,
+        checkpoint=False,
+        show_progress_bar=None,
+        linear_solver=None,
+        step_inputs=None,
+    ):
+        """Advance compiled timesteps with diagnostic output and restarts."""
+        from veros.integration import run_compiled
+
+        return run_compiled(
+            self,
+            n_steps=n_steps,
+            checkpoint=checkpoint,
+            show_progress_bar=show_progress_bar,
+            linear_solver=linear_solver,
+            step_inputs=step_inputs,
+        )
+
+    def run(self, show_progress_bar=None, *, execution="auto", linear_solver=None):
+        """Select compiled or ordinary execution for the initialized model.
+
+        ``auto`` reports an ordinary fallback for unsupported configurations.
+        ``compiled`` requires compilation, and ``eager`` uses ordinary execution.
+        """
+        from veros.integration import PreparedIntegrator, CompiledCompatibilityError, compilation_reasons, run_compiled
+
+        self._ensure_setup_done()
+        if execution not in ("auto", "compiled", "eager"):
+            raise ValueError("execution must be 'auto', 'compiled', or 'eager'")
+        reasons = compilation_reasons(self, linear_solver)
+        prepared = None
+        if execution != "eager" and not reasons:
+            try:
+                names = tuple(
+                    name
+                    for name, diag in self.state.diagnostics.items()
+                    if diag.supports_compilation and diag.output_frequency
+                )
+                prepared = PreparedIntegrator(self, record_diagnostics=names, linear_solver=linear_solver)
+            except CompiledCompatibilityError as error:
+                reasons = (str(error),)
+        if execution == "compiled" and prepared is None:
+            raise CompiledCompatibilityError("; ".join(reasons))
+        if prepared is not None:
+            self.execution_mode = "compiled"
+            self.execution_reason = "native JAX hooks and supported solver"
+            logger.info("Execution: compiled; derivative support is checked before checkpoint replay")
+            return run_compiled(self, prepared=prepared, show_progress_bar=show_progress_bar)
+        self.execution_mode = "eager"
+        self.execution_reason = "explicit ordinary execution" if execution == "eager" else "; ".join(reasons)
+        if linear_solver is not None and linear_solver != rs.linear_solver:
+            raise ValueError(
+                "An ordinary fallback cannot honor a compiled solver override; select the runtime solver explicitly"
+            )
+        logger.info("Execution: eager ({})", self.execution_reason)
+        return self._run_eager(show_progress_bar)
+
+    def _run_eager(self, show_progress_bar=None):
         """Main routine of the simulation.
 
         Note:

@@ -23,6 +23,8 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
 
     var_meta = None  #: Metadata of internal variables
     extra_dimensions = None  #: Dict of extra dimensions used in var_meta
+    supports_compilation = False
+    observes_model = False  #: Host compatibility requires no mutation of model variables or settings.
 
     def __init__(self, state):
         pass
@@ -41,6 +43,18 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
     def output(self, state):
         """Called with frequency ``output_frequency``."""
         pass
+
+    def finalize(self, state):
+        """Return numerical output and reset its accumulation window."""
+        raise NotImplementedError(f"Diagnostic {self.name} does not implement numerical finalization")
+
+    def write_finalized(self, state, values, time_value=None):
+        """Write a finalized payload without changing accumulators."""
+        if runtime_settings.diskless_mode:
+            return
+        if not os.path.isfile(self.get_output_file_name(state)):
+            self.initialize_output(state)
+        self.write_output(state, values, time_value=time_value, time_indexed=True)
 
     def initialize_variables(self, state):
         if self.var_meta is None:
@@ -93,17 +107,17 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
                     nctools.write_variable(state, key, var, var_data, outfile)
 
     @do_not_disturb
-    def write_output(self, state):
+    def write_output(self, state, values=None, *, time_value=None, time_indexed=False):
         vs = state.variables
 
         if runtime_settings.diskless_mode:
             return
 
         with nctools.threaded_io(self.get_output_file_name(state), "r+") as outfile:
-            current_days = time.convert_time(vs.time, "seconds", "days")
+            current_days = time.convert_time(vs.time if time_value is None else time_value, "seconds", "days")
             nctools.advance_time(current_days, outfile)
 
             for key in self.output_variables:
                 var = self.var_meta[key]
-                var_data = self.variables.get(key)
-                nctools.write_variable(state, key, var, var_data, outfile)
+                var_data = self.variables.get(key) if values is None else values[key]
+                nctools.write_variable(state, key, var, var_data, outfile, time_indexed=time_indexed)
