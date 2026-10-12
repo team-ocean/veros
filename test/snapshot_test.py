@@ -222,7 +222,7 @@ def test_snapshot_timing_after_restart(tmp_path, monkeypatch):
     assert resumed.state.variables.time == 20.0
     resumed.state.diagnostics["snapshot"].output_frequency = 20.0
     resumed.run(show_progress_bar=False)
-    assert resumed.step_clocks == [(0, 20.0), (1, 30.0), (2, 40.0), (3, 50.0)]
+    assert resumed.step_clocks == [(2, 20.0), (3, 30.0), (4, 40.0), (5, 50.0)]
 
     for identifier, times, temperatures in (("first", [0.0], [10.0]), ("resumed", [20.0, 40.0], [10.2, 10.4])):
         with h5netcdf.File(f"{identifier}.snapshot.nc") as outfile:
