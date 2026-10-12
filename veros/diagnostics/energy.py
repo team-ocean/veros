@@ -124,6 +124,8 @@ class Energy(VerosDiagnostic):
         self.initialize_output(state)
 
     def diagnose(self, state):
+        if state.settings.enable_partial_cells:
+            raise ValueError("Partial cells do not yet support the energy diagnostic")
         energies = diagnose_kernel(state)
 
         # store results

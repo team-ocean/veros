@@ -310,3 +310,71 @@ The driver is a host operation that cannot be transformed with ``jax.jit`` or
 ``jax.grad``. It supports CPU, GPU, and coordinated MPI replay. The pure API's
 numerical gradient limitations still apply. ``benchmarks/dynamic_parameters_demo.py``
 provides synthetic parameter fitting, derivative checks, and RAM/disk replay.
+
+Partial-cell bathymetry
+----------------------
+
+Set ``enable_partial_cells=True`` before setup to vary bottom depths within
+fixed wet cells. The supported configuration uses serial JAX execution, the
+``scipy_jax`` pressure solver, surface pressure, constant mixing, and
+``enable_conserve_energy=False``. TKE, EKE, IDEMIX, neutral and skew diffusion,
+TEM friction, horizontal momentum friction, biharmonic mixing, streamfunction
+mode, and active energy/overturning diagnostics are rejected.
+
+Tracer and momentum transport, vertical mixing, wind stress, and quadratic
+bottom drag use occupied cell thicknesses or open face areas. Tracer-monitor
+volumes and vertical CFL estimates also use occupied thicknesses. Reference
+vertical levels and vertical difference distances remain fixed. Neighboring
+velocity faces use the smaller occupied thickness of their adjacent tracer
+cells. Pressure solves rebuild depth-dependent numerical coefficients so
+operator derivatives include changes in geometry.
+
+For a configured partial-cell model, construct candidate geometry inside the
+objective::
+
+    import jax
+    import jax.numpy as jnp
+
+    prepared = simulation.prepare_integrator(record_diagnostics=())
+    initial = prepared.pack(simulation.state)
+    lower, upper = prepared.bathymetry_bounds(initial, minimum_fraction=0.1)
+
+    def objective(control):
+        depth = lower + (upper - lower) * jax.nn.sigmoid(control)
+        candidate = prepared.with_bathymetry(initial, depth)
+        final, _ = prepared.advance(candidate, n_steps=24)
+        vs = final.variables
+        misfit = jnp.mean((vs.psi[2:-2, 2:-2, vs.tau] / 9.81 - observed_ssh) ** 2)
+        return jnp.where(final.failure_code == 0, misfit, jnp.nan), final
+
+    (value, final), gradient = jax.value_and_grad(objective, has_aux=True)(control)
+    prepared.check_status(final)
+
+Depth arrays contain the interior grid, excluding halos, in positive meters
+below the surface. Land depths must be zero. The lower bound preserves at least
+``minimum_fraction`` of each wet bottom cell. The upper bound fills that cell
+completely. Invalid depths set failure code 4 and freeze the trajectory.
+Geometry persists through continuation, installation, restart output, and
+adjoint checkpoint replay.
+Restart reads require the same reference grid and wet-cell indices.
+
+``with_bathymetry`` preserves tracer concentrations, velocities, and tendency
+histories. Construct depth-dependent initial profiles or balanced velocities
+inside the objective after updating geometry. Changing volume at fixed
+concentration changes total tracer content, so an experiment needing
+conservative remapping must supply that initialization policy.
+
+Gradients describe the discretization within fixed topology. The minimum of
+neighboring depths is nonsmooth where the shallower side changes. Bottom-cell
+transitions, moving coastlines, and opening or closing passages require new
+topology and preparation.
+
+For a host-managed adjoint, retain the bathymetry construction's VJP when
+building the initial candidate::
+
+    candidate, pullback = jax.vjp(
+        lambda depth: prepared.with_bathymetry(initial, depth), depth
+    )
+
+After checkpoint replay, ``pullback(result.gradient)[0]`` returns the
+depth-control gradient.
