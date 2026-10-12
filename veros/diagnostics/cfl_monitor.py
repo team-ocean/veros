@@ -12,6 +12,7 @@ class CFLMonitor(VerosDiagnostic):
     """
 
     name = "cfl_monitor"  #:
+    supports_compilation = True
     output_frequency = None  #: Frequency (in seconds) in which output is written.
 
     def initialize(self, state):
@@ -20,15 +21,13 @@ class CFLMonitor(VerosDiagnostic):
     def diagnose(self, state):
         pass
 
-    def output(self, state):
-        """
-        check for CFL violation
-        """
+    def finalize(self, state):
+        """Return maximum horizontal and vertical CFL numbers."""
         vs = state.variables
         settings = state.settings
 
         cfl = global_max(
-            max(
+            npx.maximum(
                 npx.max(
                     npx.abs(vs.u[2:-2, 2:-2, :, vs.tau])
                     * vs.maskU[2:-2, 2:-2, :]
@@ -52,15 +51,11 @@ class CFLMonitor(VerosDiagnostic):
             )
         )
 
-        if npx.isnan(cfl) or npx.isnan(wcfl):
-            raise RuntimeError(f"CFL number is NaN at iteration {vs.itt}")
-
-        logger.diagnostic(f" Maximal hor. CFL number = {cfl}")
-        logger.diagnostic(f" Maximal ver. CFL number = {wcfl}")
+        values = dict(cfl=cfl, wcfl=wcfl)
 
         if settings.enable_eke or settings.enable_tke or settings.enable_idemix:
             cfl = global_max(
-                max(
+                npx.maximum(
                     npx.max(
                         npx.abs(vs.u_wgrid[2:-2, 2:-2, :])
                         * vs.maskU[2:-2, 2:-2, :]
@@ -83,5 +78,17 @@ class CFLMonitor(VerosDiagnostic):
                     * settings.dt_tracer
                 )
             )
-            logger.diagnostic(f" Maximal hor. CFL number on w grid = {cfl}")
-            logger.diagnostic(f" Maximal ver. CFL number on w grid = {wcfl}")
+            values.update(cfl_wgrid=cfl, wcfl_wgrid=wcfl)
+        return values
+
+    def output(self, state):
+        self.write_finalized(state, self.finalize(state))
+
+    def write_finalized(self, state, values, time_value=None):
+        if npx.isnan(values["cfl"]) or npx.isnan(values["wcfl"]):
+            raise RuntimeError(f"CFL number is NaN at iteration {state.variables.itt}")
+        logger.diagnostic(f" Maximal hor. CFL number = {values['cfl']}")
+        logger.diagnostic(f" Maximal ver. CFL number = {values['wcfl']}")
+        if "cfl_wgrid" in values:
+            logger.diagnostic(f" Maximal hor. CFL number on w grid = {values['cfl_wgrid']}")
+            logger.diagnostic(f" Maximal ver. CFL number on w grid = {values['wcfl_wgrid']}")
