@@ -165,8 +165,8 @@ def run(setup_file, *args, **kwargs):
 )
 @click.option(
     "--compiled-solver",
-    type=click.Choice(["best", "scipy_jax"]),
-    help="Override the pressure solver for compiled integration",
+    type=click.Choice(["best", "petsc", "scipy_jax"]),
+    help="Override the linear solver for compiled integration",
 )
 @click.option(
     "--float-type",
