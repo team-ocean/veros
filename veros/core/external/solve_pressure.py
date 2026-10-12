@@ -27,10 +27,11 @@ def solve_pressure(state):
     linear_sol = linear_solver.solve(state, forc, vs.psi[..., vs.taup1])
     linear_sol = mainutils.enforce_boundaries(linear_sol, state.settings.enable_cyclic_x)
 
-    if vs.itt == 0:
-        vs.psi = update(vs.psi, at[...], linear_sol[..., npx.newaxis])
-    else:
-        vs.psi = update(vs.psi, at[..., vs.taup1], linear_sol)
+    vs.psi = npx.where(
+        vs.itt == 0,
+        linear_sol[..., npx.newaxis],
+        update(vs.psi, at[..., vs.taup1], linear_sol),
+    )
 
     vs.update(barotropic_velocity_update(state))
 

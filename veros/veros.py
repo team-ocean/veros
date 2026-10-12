@@ -235,18 +235,12 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         self._setup_done = True
 
-    @veros_routine
-    def step(self, state):
-        from veros import diagnostics, restart
-        from veros.core import idemix, eke, tke, momentum, thermodynamics, advection, utilities, isoneutral, numerics
-
-        self._ensure_setup_done()
+    @veros_routine(supports_compilation=True)
+    def _step_dynamics(self, state):
+        from veros.core import idemix, eke, tke, momentum, thermodynamics, advection, utilities
 
         vs = state.variables
         settings = state.settings
-
-        with state.timers["diagnostics"]:
-            restart.write_restart(state)
 
         with state.timers["main"]:
             with state.timers["forcing"]:
@@ -307,6 +301,19 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         self.after_timestep(state)
 
+    @veros_routine
+    def step(self, state):
+        from veros import diagnostics, restart
+        from veros.core import isoneutral, numerics
+
+        self._ensure_setup_done()
+        vs = state.variables
+
+        with state.timers["diagnostics"]:
+            restart.write_restart(state)
+
+        self._step_dynamics(state)
+
         with state.timers["diagnostics"]:
             if not numerics.sanity_check(state):
                 raise RuntimeError(f"solution diverged at iteration {vs.itt}")
@@ -320,6 +327,23 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
         # permutate time indices
         vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
+
+    def prepare_integrator(
+        self,
+        *,
+        record_diagnostics=None,
+        checkpoint=False,
+        linear_solver=None,
+    ):
+        """Prepare a pure compiled timestep for this initialized model."""
+        from veros.integration import PreparedIntegrator
+
+        return PreparedIntegrator(
+            self,
+            record_diagnostics=record_diagnostics,
+            checkpoint=checkpoint,
+            linear_solver=linear_solver,
+        )
 
     def run(self, show_progress_bar=None):
         """Main routine of the simulation.

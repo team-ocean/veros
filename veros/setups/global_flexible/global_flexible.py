@@ -300,7 +300,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.divpen_shortwave = update(vs.divpen_shortwave, at[1:], (pen[1:] - pen[:-1]) / vs.dzt[1:])
         vs.divpen_shortwave = update(vs.divpen_shortwave, at[0], pen[0] / vs.dzt[0])
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def set_forcing(self, state):
         vs = state.variables
         vs.update(set_forcing_kernel(state))
@@ -348,7 +348,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
             average_vars += ["eke", "K_gm", "L_rossby", "L_rhines"]
         diagnostics["averages"].output_variables = average_vars
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def after_timestep(self, state):
         pass
 
