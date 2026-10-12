@@ -1,4 +1,4 @@
-from veros.core.operators import numpy as npx
+from veros.core.operators import numpy as npx, safe_sqrt
 
 from veros import veros_kernel, runtime_settings
 
@@ -73,7 +73,7 @@ def gsw_rho(sa, ct, p):
     """
     # convert scalar values if necessary
     sa, ct, p = npx.asarray(sa), npx.asarray(ct), npx.asarray(p)
-    sqrtsa = npx.sqrt(sa)
+    sqrtsa = safe_sqrt(sa)
     v_hat_denominator = (
         v01
         + ct * (v02 + ct * (v03 + v04 * ct))
@@ -145,7 +145,7 @@ def gsw_drhodT(sa, ct, p):
     a32 = 1.119522344879478e-14
     a33 = 6.057902487546866e-17
 
-    sqrtsa = npx.sqrt(sa)
+    sqrtsa = safe_sqrt(sa)
     v_hat_denominator = (
         v01
         + ct * (v02 + ct * (v03 + v04 * ct))
@@ -226,7 +226,7 @@ def gsw_drhodS(sa, ct, p):
     b23 = 6.211426728363857e-10
     b24 = 1.119522344879478e-14
 
-    sqrtsa = npx.sqrt(sa)
+    sqrtsa = safe_sqrt(sa)
     v_hat_denominator = (
         v01
         + ct * (v02 + ct * (v03 + v04 * ct))
@@ -306,7 +306,7 @@ def gsw_drhodP(sa, ct, p):
     c21 = 1.817370746264060e-16
     pa2db = 1e-4
 
-    sqrtsa = npx.sqrt(sa)
+    sqrtsa = safe_sqrt(sa)
     v_hat_denominator = (
         v01
         + ct * (v02 + ct * (v03 + v04 * ct))
@@ -372,7 +372,7 @@ def gsw_dyn_enthalpy(sa_in, ct_in, p):
         ct = npx.maximum(-12, ct_in)  # prevent blowing up for values smaller than -15 degC
 
     db2pa = 1e4  # factor to convert from dbar to Pa
-    sqrtsa = npx.sqrt(sa)
+    sqrtsa = safe_sqrt(sa)
     a0 = (
         v21
         + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct)))
@@ -454,7 +454,7 @@ def gsw_dHdT(sa_in, ct_in, p):
     t74 = v04 * ct
     t76 = ct * (v03 + t74)
     t79 = v07 * ct
-    t82 = npx.sqrt(sa)
+    t82 = safe_sqrt(sa)
     t83 = v11 * ct
     t85 = ct * (v10 + t83)
     t92 = v01 + ct * (v02 + t76) + sa * (v05 + ct * (v06 + t79) + t82 * (v08 + ct * (v09 + t85)))
@@ -609,7 +609,7 @@ def gsw_dHdS(sa_in, ct_in, p):
     t52 = t25**2
     t53 = t3 * t52
     t58 = ct * (v06 + v07 * ct)
-    t59 = npx.sqrt(sa)
+    t59 = safe_sqrt(sa)
     t66 = t59 * (v08 + ct * (v09 + ct * (v10 + v11 * ct)))
     t68 = v05 + t58 + 3.0 / 2.0 * t66
     t69 = t3 * t68

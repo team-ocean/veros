@@ -7,7 +7,7 @@ import scipy.ndimage
 from veros import veros_routine, veros_kernel, KernelOutput, VerosSetup, runtime_settings as rs, runtime_state as rst
 from veros.variables import Variable, allocate
 from veros.core.utilities import enforce_boundaries
-from veros.core.operators import numpy as npx, update, at
+from veros.core.operators import numpy as npx, safe_sqrt, update, at
 import veros.tools
 import veros.time
 
@@ -372,7 +372,7 @@ def set_forcing_kernel(state):
         vs.forc_tke_surface = update(
             vs.forc_tke_surface,
             at[1:-1, 1:-1],
-            npx.sqrt(
+            safe_sqrt(
                 (0.5 * (vs.surface_taux[1:-1, 1:-1] + vs.surface_taux[:-2, 1:-1]) / settings.rho_0) ** 2
                 + (0.5 * (vs.surface_tauy[1:-1, 1:-1] + vs.surface_tauy[1:-1, :-2]) / settings.rho_0) ** 2
             )
