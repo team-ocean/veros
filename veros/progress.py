@@ -162,7 +162,7 @@ class FancyProgressBar:
         self._pbar.refresh()
 
 
-def get_progress_bar(state, use_tqdm=None):
+def get_progress_bar(state, use_tqdm=None, *, total=None):
     if use_tqdm is None:
         use_tqdm = sys.stdout.isatty() and rst.proc_num == 1 and has_tqdm
 
@@ -170,7 +170,7 @@ def get_progress_bar(state, use_tqdm=None):
         raise RuntimeError("tqdm failed to import. Try `pip install tqdm` or set use_tqdm=False.")
 
     kwargs = dict(
-        total=state.settings.runlen + float(state.variables.time),
+        total=state.settings.runlen + float(state.variables.time) if total is None else total,
         start_time=float(state.variables.time),
         start_iteration=int(state.variables.itt),
     )

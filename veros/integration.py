@@ -1,9 +1,10 @@
-"""Pure compiled timesteps and differentiable trajectory composition."""
+"""A compiled numerical timestep, differentiable composition, and a host driver."""
 
 from collections import namedtuple
 from copy import copy
 import math
 import operator
+from collections.abc import Mapping
 
 from veros import runtime_settings, runtime_state
 from veros.routines import tracing_context
@@ -52,8 +53,8 @@ def compilation_reasons(simulation, linear_solver=None):
             output = diagnostic.__dict__.get("output", type(diagnostic).output)
             if output is not declaration.output:
                 reasons.append(f"diagnostic {name} overrides output without declaring a compiled finalization contract")
-        if not diagnostic.supports_compilation:
-            reasons.append(f"diagnostic {name} must support compiled sampling and finalization")
+        if not diagnostic.supports_compilation and not diagnostic.observes_model:
+            reasons.append(f"diagnostic {name} must declare observes_model=True for host execution")
     return tuple(reasons)
 
 
@@ -100,6 +101,11 @@ class PreparedIntegrator:
             for frequency in (diag.sampling_frequency, diag.output_frequency):
                 if frequency is not None and (math.isnan(frequency) or frequency < 0):
                     raise ValueError(f"Diagnostic {name} has an invalid frequency: {frequency}")
+        self.host_diagnostics = tuple(
+            name
+            for name, diag in simulation.state.diagnostics.items()
+            if not diag.supports_compilation and (diag.sampling_frequency or diag.output_frequency)
+        )
         self._diagnostics = {
             name: copy(diag) for name, diag in simulation.state.diagnostics.items() if diag.supports_compilation
         }
@@ -112,6 +118,8 @@ class PreparedIntegrator:
             )
         self.record_diagnostics = tuple(record_diagnostics)
         for name in self.record_diagnostics:
+            if name in self.host_diagnostics:
+                raise TypeError(f"Diagnostic {name} needs pure sampling/finalization for differentiated records")
             if name not in self._diagnostics:
                 raise ValueError(f"Unknown diagnostic {name}")
 
@@ -137,7 +145,11 @@ class PreparedIntegrator:
             raise CompiledCompatibilityError(
                 "Cannot trace the model step; forcing, hooks, and diagnostics must use JAX operations"
             ) from error
-        self._configuration = dict(simulation.state.settings.items())
+        self._configuration = {
+            name: value
+            for name, value in simulation.state.settings.items()
+            if name not in {"identifier", "description", "restart_input_filename", "restart_output_filename"}
+        }
         self._runtime_configuration = (
             runtime_settings.backend,
             runtime_settings.device,
@@ -232,10 +244,41 @@ class PreparedIntegrator:
             state.diagnostics["snapshot"].variables = state.variables
         return state
 
-    def _make_state(self, variables):
+    def validate_step_inputs(self, step_inputs):
+        """Normalize explicit forcing arrays to the prepared variable schema."""
+        import jax.numpy as jnp
+
+        if step_inputs is None:
+            return {}
+        if not isinstance(step_inputs, Mapping):
+            raise TypeError("step_inputs must be a mapping of forcing variable names to arrays")
+        allowed = {
+            "surface_taux",
+            "surface_tauy",
+            "forc_temp_surface",
+            "forc_salt_surface",
+            "forc_tke_surface",
+            "forc_iw_surface",
+            "forc_iw_bottom",
+            "temp_source",
+            "salt_source",
+        }
+        values = {}
+        for name, value in step_inputs.items():
+            if name not in allowed or name not in self._template.variables:
+                raise ValueError(f"Unsupported forcing input {name!r}")
+            reference = self._template.variables.get(name)
+            value = jnp.asarray(value, dtype=reference.dtype)
+            if value.shape != reference.shape:
+                raise ValueError(f"Forcing {name} must have shape {reference.shape}, got {value.shape}")
+            values[name] = value
+        return values
+
+    def _make_state(self, variables, step_inputs=None):
         state = copy(self._template)
         state._variables = copy(variables)
         state._solver_residual_ok = True
+        state._forcing_inputs = step_inputs or {}
         return state
 
     def _make_diagnostic(self, name, variables):
@@ -301,13 +344,13 @@ class PreparedIntegrator:
                 records[name] = DiagnosticRecord(state.variables.time, state.variables.itt, due, values)
         return variables, records, valid_cfl
 
-    def _step(self, carry):
+    def _step(self, carry, step_inputs=None):
         import jax
         import jax.numpy as jnp
         from veros.core import numerics, isoneutral
 
         def advance(current):
-            state = self._make_state(current.variables)
+            state = self._make_state(current.variables, step_inputs)
             with state.variables.unlock():
                 self._step_dynamics(state)
                 sane = numerics.sanity_check(state)
@@ -343,12 +386,12 @@ class PreparedIntegrator:
                 carry,
             )
 
-    def step(self, carry):
+    def step(self, carry, *, step_inputs=None):
         """Return one compiled timestep and event records without a leading step axis."""
         self.check_configuration()
-        return self._compiled_step(carry)
+        return self._compiled_step(carry, self.validate_step_inputs(step_inputs))
 
-    def advance(self, carry, *, n_steps, final_only=False):
+    def advance(self, carry, *, n_steps, final_only=False, step_inputs=None):
         """Compose compiled timesteps in a Python loop and return output records.
 
         Records have a leading step axis unless ``final_only=True``. Their
@@ -366,8 +409,11 @@ class PreparedIntegrator:
 
         records = self._empty_records(carry)
         history = []
-        for _ in range(n_steps):
-            carry, records = self._compiled_step(carry)
+        if step_inputs is not None and len(step_inputs) != n_steps:
+            raise ValueError("step_inputs must contain one mapping per timestep")
+        for index in range(n_steps):
+            inputs = self.validate_step_inputs(None if step_inputs is None else step_inputs[index])
+            carry, records = self._compiled_step(carry, inputs)
             if not final_only:
                 history.append(records)
         if not final_only:
@@ -407,3 +453,117 @@ class PreparedIntegrator:
                     shell.variables.time = event.time
                     shell.variables.itt = event.iteration
                 self._diagnostics[name].write_finalized(shell, event.values, time_value=event.time)
+
+    def write_host_diagnostics(self, carry):
+        """Run observer diagnostics on the concrete pre-rotation state."""
+        if not self.host_diagnostics:
+            return
+        state = copy(self.simulation.state)
+        state._settings = copy(state.settings)
+        state._variables = copy(carry.variables)
+        with state.variables.unlock():
+            vs = state.variables
+            vs.taum1, vs.tau, vs.taup1 = vs.taup1, vs.taum1, vs.tau
+        before = dict(state.variables.items())
+        before_settings = dict(state.settings.items())
+        for name in self.host_diagnostics:
+            diag = state.diagnostics[name]
+            if diag.sampling_frequency and float(vs.time) % diag.sampling_frequency < state.settings.dt_tracer:
+                diag.diagnose(state)
+        for name in self.host_diagnostics:
+            diag = state.diagnostics[name]
+            if diag.output_frequency and float(vs.time) % diag.output_frequency < state.settings.dt_tracer:
+                diag.output(state)
+        if any(state.variables.get(name) is not value for name, value in before.items()):
+            raise RuntimeError("Host observer diagnostic mutated model variables; use ordinary execution")
+        if dict(state.settings.items()) != before_settings:
+            raise RuntimeError("Host observer diagnostic mutated model settings; use ordinary execution")
+
+
+def run_compiled(
+    simulation,
+    *,
+    n_steps=None,
+    checkpoint=False,
+    show_progress_bar=None,
+    linear_solver=None,
+    step_inputs=None,
+    prepared=None,
+):
+    """Run compiled timesteps with host diagnostics, restarts, and progress."""
+    import time as wall_time
+    import jax
+    from veros import progress, restart, signals, logger, time
+    from veros.timer import timer_context
+
+    simulation._ensure_setup_done()
+    settings = simulation.state.settings
+    if not math.isfinite(settings.dt_tracer) or settings.dt_tracer <= 0:
+        raise ValueError("dt_tracer must be finite and positive")
+    n_steps = math.ceil(settings.runlen / settings.dt_tracer) if n_steps is None else operator.index(n_steps)
+    if n_steps < 0:
+        raise ValueError("n_steps must be nonnegative")
+    names = tuple(
+        name
+        for name, diag in simulation.state.diagnostics.items()
+        if diag.output_frequency and diag.supports_compilation
+    )
+    prepared = prepared or PreparedIntegrator(
+        simulation,
+        record_diagnostics=names,
+        checkpoint=checkpoint,
+        linear_solver=linear_solver,
+    )
+    carry = prepared.pack(simulation.state)
+    inputs = None if step_inputs is None else iter(step_inputs)
+    length, unit = time.format_time(n_steps * settings.dt_tracer)
+    logger.info(f"\nStarting integration for {length:.1f} {unit} (compiled)")
+    pbar = progress.get_progress_bar(
+        simulation.state, use_tqdm=show_progress_bar, total=float(carry.variables.time) + n_steps * settings.dt_tracer
+    )
+    try:
+        timer_context.active = False
+        with signals.signals_to_exception(), pbar:
+            for index in range(n_steps):
+                with simulation.state.timers["diagnostics"]:
+                    restart.write_restart(simulation.state)
+                with simulation.state.timers["forcing"]:
+                    try:
+                        step_input = None if inputs is None else next(inputs)
+                    except StopIteration:
+                        raise ValueError("step_inputs must contain one mapping per timestep") from None
+                started = wall_time.perf_counter()
+                with jax.profiler.StepTraceAnnotation("veros", step_num=index), simulation.state.timers["main"]:
+                    carry, records = prepared.step(carry, step_inputs=step_input)
+                    jax.block_until_ready(carry)
+                if index == 0:
+                    logger.info(
+                        "First compiled timestep (including compilation): {:.2f}s", wall_time.perf_counter() - started
+                    )
+                prepared.install(carry)
+                prepared.check_status(carry)
+                with simulation.state.timers["diagnostics"]:
+                    prepared.write_records(records)
+                    prepared.write_host_diagnostics(carry)
+                logger.debug(" Time step took {:.2f}s", simulation.state.timers["main"].last_time)
+                timer_context.active = True
+                pbar.advance_time(settings.dt_tracer)
+            marker = object()
+            if inputs is not None and next(inputs, marker) is not marker:
+                raise ValueError("step_inputs contains more mappings than timesteps")
+    except BaseException:
+        logger.critical("Stopping integration at iteration {}", simulation.state.variables.itt)
+        raise
+    else:
+        logger.success("Integration done\n")
+    finally:
+        timer_context.active = True
+        restart.write_restart(simulation.state, force=True)
+        logger.debug(
+            "Compiled timing: timesteps {:.2f}s; host forcing {:.2f}s; diagnostics and I/O {:.2f}s "
+            "(excluding first iteration)",
+            simulation.state.timers["main"].total_time,
+            simulation.state.timers["forcing"].total_time,
+            simulation.state.timers["diagnostics"].total_time,
+        )
+    return carry

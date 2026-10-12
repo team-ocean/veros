@@ -245,6 +245,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         with state.timers["main"]:
             with state.timers["forcing"]:
                 self.set_forcing(state)
+                vs.update(getattr(state, "_forcing_inputs", {}))
 
             if state.settings.enable_idemix:
                 with state.timers["idemix"]:
@@ -345,17 +346,68 @@ class VerosSetup(metaclass=abc.ABCMeta):
             linear_solver=linear_solver,
         )
 
-    def run(self, show_progress_bar=None):
-        """Main routine of the simulation.
+    def run_compiled(
+        self,
+        *,
+        n_steps=None,
+        checkpoint=False,
+        show_progress_bar=None,
+        linear_solver=None,
+        step_inputs=None,
+    ):
+        """Advance compiled timesteps with diagnostic output and restarts."""
+        from veros.integration import run_compiled
 
-        Note:
-            Make sure to call :meth:`setup` prior to this function.
+        return run_compiled(
+            self,
+            n_steps=n_steps,
+            checkpoint=checkpoint,
+            show_progress_bar=show_progress_bar,
+            linear_solver=linear_solver,
+            step_inputs=step_inputs,
+        )
 
-        Arguments:
-            show_progress_bar (:obj:`bool`, optional): Whether to show fancy progress bar via tqdm.
-                By default, only show if stdout is a terminal and Veros is running on a single process.
+    def run(self, show_progress_bar=None, *, execution="auto", linear_solver=None):
+        """Select compiled or ordinary execution for the initialized model.
 
+        ``auto`` reports an ordinary fallback for unsupported configurations.
+        ``compiled`` requires compilation, and ``eager`` uses ordinary execution.
         """
+        from veros.integration import PreparedIntegrator, CompiledCompatibilityError, compilation_reasons, run_compiled
+
+        self._ensure_setup_done()
+        if execution not in ("auto", "compiled", "eager"):
+            raise ValueError("execution must be 'auto', 'compiled', or 'eager'")
+        reasons = compilation_reasons(self, linear_solver)
+        prepared = None
+        if execution != "eager" and not reasons:
+            try:
+                names = tuple(
+                    name
+                    for name, diag in self.state.diagnostics.items()
+                    if diag.supports_compilation and diag.output_frequency
+                )
+                prepared = PreparedIntegrator(self, record_diagnostics=names, linear_solver=linear_solver)
+            except CompiledCompatibilityError as error:
+                reasons = (str(error),)
+        if execution == "compiled" and prepared is None:
+            raise CompiledCompatibilityError("; ".join(reasons))
+        if prepared is not None:
+            self.execution_mode = "compiled"
+            self.execution_reason = "native JAX hooks and supported solver"
+            logger.info("Execution: compiled")
+            return run_compiled(self, prepared=prepared, show_progress_bar=show_progress_bar)
+        self.execution_mode = "eager"
+        self.execution_reason = "explicit ordinary execution" if execution == "eager" else "; ".join(reasons)
+        if linear_solver is not None and linear_solver != rs.linear_solver:
+            raise ValueError(
+                "An ordinary fallback cannot honor a compiled solver override; select the runtime solver explicitly"
+            )
+        logger.info("Execution: eager ({})", self.execution_reason)
+        return self._run_eager(show_progress_bar)
+
+    def _run_eager(self, show_progress_bar=None):
+        """Run ordinary timesteps with diagnostics and restarts."""
         from veros import restart
 
         self._ensure_setup_done()

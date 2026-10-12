@@ -178,6 +178,86 @@ def test_failures_zero_steps_and_configuration():
     assert not any(isinstance(value, jax.core.Tracer) for value in vars(prepared._template).values())
 
 
+def test_output_and_restart(tmp_path, monkeypatch):
+    import h5netcdf
+    from veros import restart
+    from veros.integration import PreparedIntegrator
+
+    host_iterations = []
+    write_records = PreparedIntegrator.write_records
+
+    def capture_records(self, records, state=None):
+        host_iterations.append(int(self.simulation.state.variables.itt))
+        return write_records(self, records, state)
+
+    monkeypatch.setattr(PreparedIntegrator, "write_records", capture_records)
+
+    sim = make_simulation()
+    sim.setup()
+    for name, diagnostic in sim.state.diagnostics.items():
+        if name not in ("tracer_monitor", "cfl_monitor"):
+            diagnostic.output_path = str(tmp_path / f"{name}.nc")
+    with sim.state.settings.unlock():
+        sim.state.settings.restart_output_filename = str(tmp_path / "restart.h5")
+        sim.state.settings.restart_frequency = 1200.0
+    prepared = sim.prepare_integrator(record_diagnostics=tuple(sim.state.diagnostics))
+    initial = prepared.pack(sim.state)
+    expected, records = prepared.advance(initial, n_steps=6)
+    object.__setattr__(runtime_settings, "diskless_mode", False)
+    sim.run_compiled(n_steps=4, show_progress_bar=False)
+    partial, _ = prepared.advance(initial, n_steps=4)
+    with sim.state.settings.unlock():
+        sim.state.settings.restart_input_filename = str(tmp_path / "restart.h5")
+    with sim.state.variables.unlock():
+        sim.state.variables.time = 0
+        sim.state.variables.itt = 0
+    restart.read_restart(sim.state)
+    restored_partial = prepared.pack(sim.state)
+    assert_variables_equal(partial.variables, restored_partial.variables)
+    assert float(restored_partial.diagnostics["averages"].average_nitts) == 1
+    for name in partial.diagnostics:
+        for key, meta in partial.diagnostics[name].__metadata__.items():
+            if meta.write_to_restart and meta.active:
+                np.testing.assert_allclose(
+                    restored_partial.diagnostics[name].get(key), partial.diagnostics[name].get(key)
+                )
+    sim.run_compiled(n_steps=2, show_progress_bar=False)
+    assert host_iterations == list(range(1, 7))
+    assert_variables_equal(expected.variables, sim.state.variables)
+    for name in ("averages", "energy", "overturning", "snapshot"):
+        with h5netcdf.File(tmp_path / f"{name}.nc") as f:
+            np.testing.assert_allclose(f.variables["Time"][:], np.asarray(records[name].time)[[2, 5]] / 86400)
+            assert len(f.dimensions["Time"]) == 2
+    with h5netcdf.File(tmp_path / "snapshot.nc") as f:
+        value = np.asarray(records["snapshot"].values["temp"])[[2, 5], 2:-2, 2:-2]
+        mask = np.asarray(initial.variables.maskT)[2:-2, 2:-2]
+        value = np.where(mask, value, -1e18).transpose(0, 3, 2, 1)
+        np.testing.assert_allclose(f.variables["temp"][:], value, rtol=1e-8, atol=1e-7)
+    with sim.state.variables.unlock():
+        sim.state.variables.time = 0
+        sim.state.variables.itt = 0
+    with sim.state.settings.unlock():
+        sim.state.settings.restart_input_filename = str(tmp_path / "restart.h5")
+    restart.read_restart(sim.state)
+    restored = prepared.pack(sim.state)
+    assert_variables_equal(expected.variables, restored.variables)
+    import h5py
+
+    with h5py.File(tmp_path / "restart.h5", "r+") as restart_file:
+        del restart_file["core"]["itt"]
+    with sim.state.variables.unlock():
+        sim.state.variables.itt = 0
+    restart.read_restart(sim.state)
+    assert int(sim.state.variables.itt) == int(expected.variables.itt)
+    for name in expected.diagnostics:
+        for key, meta in restored.diagnostics[name].__metadata__.items():
+            if meta.write_to_restart and meta.active:
+                np.testing.assert_allclose(restored.diagnostics[name].get(key), expected.diagnostics[name].get(key))
+    continued, _ = prepared.advance(restored, n_steps=2)
+    direct, _ = prepared.advance(initial, n_steps=8)
+    assert_variables_equal(direct.variables, continued.variables)
+
+
 def test_parameterizations_and_initial_tracers():
     import jax
     import jax.numpy as jnp
