@@ -326,3 +326,45 @@ def test_parameter_validation_and_legacy_control_conflict():
     prepared = legacy.prepare_integrator(record_diagnostics=())
     with pytest.raises(ValueError, match="variable control"):
         prepared.advance(prepared.pack(legacy.state), n_steps=0, parameters={"kappaH_0": 1e-4})
+
+
+@pytest.mark.parametrize("steps", (0, 7))
+def test_checkpointed_parameter_and_initial_gradients(tmp_path, steps):
+    import jax
+    from veros.checkpointing import CheckpointedIntegrator, BinomialSchedule, PeriodicDiskSchedule
+
+    sim = simulation()
+    prepared = sim.prepare_integrator(record_diagnostics=("averages",), checkpoint=True)
+    initial = prepared.pack(sim.state)
+    point = parameters(sim)
+
+    def terminal_loss(final, *, parameters):
+        return terminal(final) + parameters["c_k"] ** 2
+
+    def records_loss(records, *, parameters):
+        return parameters["c_eps"] * record_loss(records)
+
+    def reference(carry, values):
+        final, records = prepared.advance(carry, n_steps=steps, parameters=values)
+        return terminal_loss(final, parameters=values) + records_loss(records, parameters=values)
+
+    value, (expected_initial, expected_parameters) = jax.value_and_grad(reference, argnums=(0, 1), allow_int=True)(
+        initial, point
+    )
+    driver = CheckpointedIntegrator(prepared, terminal_objective=terminal_loss, record_objective=records_loss)
+    schedules = (
+        BinomialSchedule(steps, ram_checkpoints=1, disk_checkpoints=2),
+        PeriodicDiskSchedule(steps, disk_interval=2, ram_checkpoints=1),
+    )
+    for schedule in schedules:
+        result = driver.value_and_grad(initial, n_steps=steps, parameters=point, schedule=schedule, directory=tmp_path)
+        np.testing.assert_allclose(result.value, value, rtol=1e-10, atol=1e-7)
+        assert_tree_close(result.parameter_gradient, expected_parameters, rtol=2e-7, atol=1e-5)
+        assert_tree_close(result.gradient, expected_initial, rtol=2e-6, atol=1e-4)
+        assert not list(tmp_path.iterdir())
+    sizes = driver._forward._cache_size(), driver._reverse._cache_size()
+    changed = jax.tree.map(lambda coefficient: coefficient * 1.01, point)
+    driver.value_and_grad(initial, n_steps=steps, parameters=changed)
+    assert sizes == (driver._forward._cache_size(), driver._reverse._cache_size())
+    with pytest.raises(RuntimeError, match="host operation"):
+        jax.grad(lambda value: driver.value_and_grad(initial, n_steps=steps, parameters={"c_k": value}).value)(0.1)

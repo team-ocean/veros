@@ -127,6 +127,43 @@ shared_gradients = {
 }
 shared_gradient = shared_gradients["forcing"]
 assert abs(shared_gradients["mixing"]) > 1e-8
+phase("Checkpointed ocean replay")
+from veros.checkpointing import CheckpointedIntegrator, PeriodicDiskSchedule  # noqa: E402
+import tempfile  # noqa: E402
+
+
+def replay_record_loss(records):
+    record = records["averages"]
+    with tracing_context():
+        return global_sum(jnp.sum(jnp.where(record.valid[-1], record.values["temp"][-1, 2:-2, 2:-2] ** 2, 0)))
+
+
+jax.clear_caches()
+gc.collect()
+with tempfile.TemporaryDirectory(prefix="veros-ocean-replay-") as directory:
+    driver = CheckpointedIntegrator(p, record_objective=replay_record_loss)
+    result = driver.value_and_grad(
+        c,
+        n_steps=3,
+        parameters={"kappaH_0": sim.state.settings.kappaH_0},
+        schedule=PeriodicDiskSchedule(3, disk_interval=2, ram_checkpoints=1),
+        directory=directory,
+    )
+    sensitivity = rs.mpi_comm.allreduce(
+        float(jnp.sum(result.gradient.variables.t_star * c.variables.t_star)), op=MPI.SUM
+    )
+    np.testing.assert_allclose(result.value, value, rtol=1e-8, atol=1e-6)
+    np.testing.assert_allclose(sensitivity, shared_gradients["forcing"], rtol=2e-5, atol=1e-5)
+    np.testing.assert_allclose(
+        result.parameter_gradient["kappaH_0"] * sim.state.settings.kappaH_0,
+        shared_gradients["mixing"],
+        rtol=2e-5,
+        atol=1e-5,
+    )
+    del driver, result
+jax.clear_caches()
+gc.collect()
+
 phase("Finite differences")
 evaluate = compile_serially(loss, controls)
 plus = evaluate(jax.tree.map(lambda coefficient: coefficient + 0.001, controls))
