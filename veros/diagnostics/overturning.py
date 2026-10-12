@@ -1,5 +1,3 @@
-import os
-
 from veros import logger, veros_kernel, KernelOutput
 
 from veros.diagnostics.base import VerosDiagnostic
@@ -7,7 +5,6 @@ from veros.core import density
 from veros.variables import Variable, allocate
 from veros.distributed import global_sum
 from veros.core.operators import numpy as npx, update, update_add, at, for_loop
-
 
 VARIABLES = {
     "nitts": Variable("nitts", None, write_to_restart=True),
@@ -47,6 +44,7 @@ class Overturning(VerosDiagnostic):
     """
 
     name = "overturning"  #:
+    supports_compilation = True
     output_path = "{identifier}.overturning.nc"  #: File to write to. May contain format strings that are replaced with Veros attributes.
     output_frequency = None  #: Frequency (in seconds) in which output is written.
     sampling_frequency = None  #: Frequency (in seconds) in which variables are accumulated.
@@ -116,23 +114,15 @@ class Overturning(VerosDiagnostic):
         ovt_vs.nitts = ovt_vs.nitts + 1
 
     def output(self, state):
-        if not os.path.isfile(self.get_output_file_name(state)):
-            self.initialize_output(state)
+        self.write_finalized(state, self.finalize(state))
 
+    def finalize(self, state):
         ovt_vs = self.variables
-
         mean_variables = ("trans", "vsf_iso", "vsf_depth", "bolus_iso", "bolus_depth")
-
-        if ovt_vs.nitts > 0:
-            for var in mean_variables:
-                if var not in self.output_variables:
-                    continue
-
-                val = getattr(ovt_vs, var)
-                setattr(ovt_vs, var, val / ovt_vs.nitts)
-
-        self.write_output(state)
-
+        values = {
+            key: ovt_vs.get(key) / npx.maximum(ovt_vs.nitts, 1) if key in mean_variables else ovt_vs.get(key)
+            for key in self.output_variables
+        }
         for var in mean_variables:
             if var not in self.output_variables:
                 continue
@@ -141,6 +131,7 @@ class Overturning(VerosDiagnostic):
             setattr(ovt_vs, var, val * 0)
 
         ovt_vs.nitts = 0
+        return values
 
 
 @veros_kernel
