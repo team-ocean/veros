@@ -11,9 +11,17 @@ class Timer:
         self.last_time = 0
 
     def __enter__(self):
+        from veros.routines import CURRENT_CONTEXT
+
+        if getattr(CURRENT_CONTEXT, "tracing", False):
+            return
         self.start_time = timeit.default_timer()
 
     def __exit__(self, *args, **kwargs):
+        from veros.routines import CURRENT_CONTEXT
+
+        if getattr(CURRENT_CONTEXT, "tracing", False):
+            return
         self.last_time = timeit.default_timer() - self.start_time
 
         if timer_context.active:

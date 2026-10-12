@@ -149,7 +149,7 @@ class ACCSetup(VerosSetup):
             vs.forc_iw_bottom = 1e-6 * vs.maskW[:, :, -1]
             vs.forc_iw_surface = 1e-7 * vs.maskW[:, :, -1]
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def set_forcing(self, state):
         vs = state.variables
         vs.forc_temp_surface = vs.t_rest * (vs.t_star - vs.temp[:, :, -1, vs.tau])
@@ -178,6 +178,6 @@ class ACCSetup(VerosSetup):
         diagnostics["energy"].output_frequency = 365 * 86400.0 / 48
         diagnostics["energy"].sampling_frequency = settings.dt_tracer * 10
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def after_timestep(self, state):
         pass
