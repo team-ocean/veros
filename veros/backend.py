@@ -15,10 +15,13 @@ def init_jax_config():
     from veros import runtime_settings, runtime_state
     from veros.state import (
         VerosState,
+        VerosSettings,
         VerosVariables,
         DistSafeVariableWrapper,
         veros_state_pytree_flatten,
         veros_state_pytree_unflatten,
+        veros_settings_pytree_flatten,
+        veros_settings_pytree_unflatten,
         veros_variables_pytree_flatten,
         veros_variables_pytree_unflatten,
         dist_safe_wrapper_pytree_flatten,
@@ -40,6 +43,7 @@ def init_jax_config():
     jax.config.update("jax_platform_name", runtime_settings.device)
 
     jax.tree_util.register_pytree_node(VerosState, veros_state_pytree_flatten, veros_state_pytree_unflatten)
+    jax.tree_util.register_pytree_node(VerosSettings, veros_settings_pytree_flatten, veros_settings_pytree_unflatten)
     jax.tree_util.register_pytree_node(VerosVariables, veros_variables_pytree_flatten, veros_variables_pytree_unflatten)
     jax.tree_util.register_pytree_node(
         DistSafeVariableWrapper, dist_safe_wrapper_pytree_flatten, dist_safe_wrapper_pytree_unflatten

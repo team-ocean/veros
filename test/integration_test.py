@@ -178,6 +178,61 @@ def test_failures_zero_steps_and_configuration():
     assert not any(isinstance(value, jax.core.Tracer) for value in vars(prepared._template).values())
 
 
+def test_control_gradients():
+    import jax
+    from veros.setups.acc_basic import ACCBasicSetup
+
+    sim = ACCBasicSetup(
+        override=dict(nx=8, ny=8, dt_mom=600, dt_tracer=600, enable_tke=False),
+        control_parameters=("kappaH_0", "K_iso_0"),
+    )
+    sim.setup()
+    prepared = sim.prepare_integrator(record_diagnostics=())
+    initial = prepared.pack(sim.state)
+
+    def objective(coefficient):
+        carry = prepared.replace_variables(initial, control_kappaH_0=coefficient)
+        final, _ = prepared.advance(carry, n_steps=3)
+        return final.variables.temp[2:-2, 2:-2, -1, final.variables.tau].sum()
+
+    x = float(initial.variables.control_kappaH_0)
+    gradient = jax.grad(objective)(x)
+    step = max(x * 1e-3, 1e-7)
+    difference = (objective(x + step) - objective(x - step)) / (2 * step)
+    assert np.isfinite(gradient) and abs(gradient) > 1e-5
+    np.testing.assert_allclose(gradient, difference, rtol=1e-4, atol=1e-4)
+
+
+def test_control_parameterization_inputs():
+    import jax
+    import jax.numpy as jnp
+    from veros.core import eke, tke
+    from veros.routines import tracing_context
+    from veros.setups.acc_basic import ACCBasicSetup
+
+    controls = ("kappaH_0", "kappaM_0", "K_iso_0", "K_gm_0")
+    sim = ACCBasicSetup(
+        override=dict(nx=8, ny=8, dt_mom=600, dt_tracer=600, enable_tke=False), control_parameters=controls
+    )
+    sim.setup()
+    prepared = sim.prepare_integrator(record_diagnostics=())
+    initial = prepared.pack(sim.state)
+
+    def coefficients(values):
+        carry = prepared.replace_variables(initial, **{f"control_{name}": values[i] for i, name in enumerate(controls)})
+        state = prepared._make_state(carry.variables)
+        with tracing_context(), state.variables.unlock():
+            state.variables.Nsqr = jnp.ones_like(state.variables.Nsqr)
+            tke.set_tke_diffusivities(state)
+            eke.set_eke_diffusivities(state)
+        return jnp.array([jnp.mean(state.variables.get(name)) for name in ("kappaH", "kappaM", "K_iso", "K_gm")])
+
+    point = jnp.arange(1.0, 5.0)
+    np.testing.assert_allclose(jax.jit(coefficients)(point), point)
+    np.testing.assert_allclose(jax.jit(jax.jacfwd(coefficients))(point), np.eye(4), atol=1e-12)
+    np.testing.assert_allclose(jax.jit(jax.jacrev(coefficients))(point), np.eye(4), atol=1e-12)
+
+
 def test_output_and_restart(tmp_path, monkeypatch):
     import h5netcdf
     from veros import restart

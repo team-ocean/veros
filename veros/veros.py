@@ -33,8 +33,13 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
     __veros_plugins__ = tuple()
 
-    def __init__(self, override=None):
+    def __init__(self, override=None, *, control_parameters=()):
         self.override_settings = override or {}
+        self.control_parameters = tuple(control_parameters)
+        supported_controls = {"kappaH_0", "kappaM_0", "K_iso_0", "K_gm_0"}
+        unsupported_controls = set(self.control_parameters) - supported_controls
+        if unsupported_controls:
+            raise ValueError(f"Unsupported control parameters: {sorted(unsupported_controls)}")
 
         # this should be the first time the core routines are imported
         import veros.core  # noqa: F401
@@ -200,6 +205,13 @@ class VerosSetup(metaclass=abc.ABCMeta):
             settings.check_setting_conflicts(self.state.settings)
             distributed.validate_decomposition(self.state.dimensions)
 
+            from veros.variables import Variable
+
+            for name in self.control_parameters:
+                self.state.var_meta[f"control_{name}"] = Variable(
+                    name, None, time_dependent=False, write_to_restart=True, initial=getattr(self.state.settings, name)
+                )
+
             self.state.initialize_variables()
 
             self.state.diagnostics.update(diagnostics.create_default_diagnostics(self.state))
@@ -335,6 +347,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
         record_diagnostics=None,
         checkpoint=False,
         linear_solver=None,
+        fixed_parameters=(),
     ):
         """Prepare a pure compiled timestep for this initialized model."""
         from veros.integration import PreparedIntegrator
@@ -344,6 +357,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
             record_diagnostics=record_diagnostics,
             checkpoint=checkpoint,
             linear_solver=linear_solver,
+            fixed_parameters=fixed_parameters,
         )
 
     def run_compiled(
