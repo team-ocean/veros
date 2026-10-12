@@ -38,6 +38,7 @@ If you want to learn more about the background and capabilities of Veros, you sh
    :caption: Tutorials
 
    tutorial/analysis
+   tutorial/differentiation
    tutorial/cluster
    tutorial/dev
    tutorial/erda

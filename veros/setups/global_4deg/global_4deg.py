@@ -200,7 +200,7 @@ class GlobalFourDegreeSetup(VerosSetup):
                 vs.forc_iw_surface, at[2:-2, 2:-2], self._read_forcing("wind_energy") / settings.rho_0 * 0.2
             )
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def set_forcing(self, state):
         vs = state.variables
         vs.update(set_forcing_kernel(state))
@@ -218,7 +218,7 @@ class GlobalFourDegreeSetup(VerosSetup):
         state.diagnostics["averages"].output_frequency = 360 * 86400.0
         state.diagnostics["averages"].sampling_frequency = 86400
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def after_timestep(self, state):
         pass
 

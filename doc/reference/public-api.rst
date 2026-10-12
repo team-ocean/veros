@@ -5,6 +5,7 @@ Python API
    :maxdepth: 3
 
    api/veros-setup
+   api/integration
    api/veros-state
    api/routines
    api/runtime
