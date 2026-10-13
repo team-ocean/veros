@@ -254,7 +254,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
             if state.settings.enable_idemix:
                 with state.timers["idemix"]:
-                    idemix.set_idemix_parameter(state)
+                    vs.update(idemix.set_idemix_parameter(state))
 
             with state.timers["eke"]:
                 eke.set_eke_diffusivities(state)

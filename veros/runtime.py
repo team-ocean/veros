@@ -51,6 +51,10 @@ def parse_bool(obj):
     return obj.lower() in {"1", "true", "on"}
 
 
+def parse_optional_bool(obj):
+    return None if obj is None else parse_bool(obj)
+
+
 def check_mpi_comm(comm):
     if comm is not None:
         from mpi4py import MPI
@@ -106,7 +110,7 @@ AVAILABLE_SETTINGS = {
     "diskless_mode": RuntimeSetting(parse_bool, False),
     "pyom_compatibility_mode": RuntimeSetting(parse_bool, False),
     "setup_file": RuntimeSetting(str, None, read_from_env=False),
-    "use_special_tdma": RuntimeSetting(parse_bool, None),
+    "use_special_tdma": RuntimeSetting(parse_optional_bool, None),
 }
 
 
