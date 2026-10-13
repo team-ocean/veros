@@ -92,6 +92,10 @@ def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
     at discrete times (e.g. one value per month of a standard year) to the current
     time step.
 
+    Records are centered in their intervals: record 0 is located at ``rec_spacing / 2``,
+    record 1 at ``3 * rec_spacing / 2``, and so on. At time zero, interpolation is
+    therefore halfway between the last and first records of the cycle.
+
     Arguments:
        current_time (float): Time to interpolate to.
        cycle_length (float): Total length of one periodic cycle.
@@ -106,7 +110,7 @@ def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
        The following interpolates a record array ``data`` containing 12 monthly values
        to the current time step:
 
-       >>> year_in_seconds = 60. * 60. * 24. * 365.
+       >>> year_in_seconds = 60. * 60. * 24. * 360.
        >>> current_time = 60. * 60. * 24. * 45. # mid-february
        >>> print(data.shape)
        (360, 180, 12)
@@ -114,7 +118,7 @@ def get_periodic_interval(current_time, cycle_length, rec_spacing, n_rec):
        >>> data_at_current_time = f1 * data[..., n1] + f2 * data[..., n2]
 
     """
-    current_time = current_time % cycle_length
+    current_time = (current_time - 0.5 * rec_spacing) % cycle_length
     # using npx.array works with both NumPy and JAX
     t_idx_1 = npx.array(current_time // rec_spacing, dtype="int")
     t_idx_2 = npx.array((1 + t_idx_1) % n_rec, dtype="int")
