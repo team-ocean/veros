@@ -3,7 +3,7 @@ from veros.core.operators import numpy as npx
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core import advection, utilities
-from veros.core.operators import update, update_add, at
+from veros.core.operators import update, update_add, at, safe_sqrt, stable_divide
 
 """
 IDEMIX as in Olbers and Eden, 2013
@@ -20,14 +20,16 @@ def set_idemix_parameter(state):
 
     bN0 = (
         npx.sum(
-            npx.sqrt(npx.maximum(0.0, vs.Nsqr[:, :, :-1, vs.tau]))
+            safe_sqrt(npx.maximum(0.0, vs.Nsqr[:, :, :-1, vs.tau]))
             * vs.dzw[npx.newaxis, npx.newaxis, :-1]
             * vs.maskW[:, :, :-1],
             axis=2,
         )
-        + npx.sqrt(npx.maximum(0.0, vs.Nsqr[:, :, -1, vs.tau])) * 0.5 * vs.dzw[-1:] * vs.maskW[:, :, -1]
+        + safe_sqrt(npx.maximum(0.0, vs.Nsqr[:, :, -1, vs.tau])) * 0.5 * vs.dzw[-1:] * vs.maskW[:, :, -1]
     )
-    fxa = npx.sqrt(npx.maximum(0.0, vs.Nsqr[..., vs.tau])) / (1e-22 + npx.abs(vs.coriolis_t[..., npx.newaxis]))
+    fxa = stable_divide(
+        safe_sqrt(npx.maximum(0.0, vs.Nsqr[..., vs.tau])), 1e-22 + npx.abs(vs.coriolis_t[..., npx.newaxis])
+    )
 
     cstar = npx.maximum(1e-2, bN0[:, :, npx.newaxis] / (settings.pi * settings.jstar))
 
@@ -36,7 +38,10 @@ def set_idemix_parameter(state):
     vs.alpha_c = (
         npx.maximum(
             1e-4,
-            settings.mu0 * npx.arccosh(npx.maximum(1.0, fxa)) * npx.abs(vs.coriolis_t[..., npx.newaxis]) / cstar**2,
+            settings.mu0
+            * npx.where(fxa > 1, npx.arccosh(npx.where(fxa > 1, fxa, 2)), 0)
+            * npx.abs(vs.coriolis_t[..., npx.newaxis])
+            / cstar**2,
         )
         * vs.maskW
     )

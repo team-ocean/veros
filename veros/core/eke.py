@@ -3,7 +3,7 @@ from veros.core.operators import numpy as npx
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core import utilities, advection
-from veros.core.operators import update, update_add, at
+from veros.core.operators import update, update_add, at, safe_sqrt
 
 
 @veros_routine
@@ -45,21 +45,21 @@ def set_eke_diffusivities_kernel(state):
         calculate Rossby radius as minimum of mid-latitude and equatorial R. rad.
         """
         C_rossby = npx.sum(
-            npx.sqrt(npx.maximum(0.0, vs.Nsqr[:, :, :, vs.tau]))
+            safe_sqrt(npx.maximum(0.0, vs.Nsqr[:, :, :, vs.tau]))
             * vs.dzw[npx.newaxis, npx.newaxis, :]
             * vs.maskW[:, :, :]
             / settings.pi,
             axis=2,
         )
         vs.L_rossby = npx.minimum(
-            C_rossby / npx.maximum(npx.abs(vs.coriolis_t), 1e-16), npx.sqrt(C_rossby / npx.maximum(2 * vs.beta, 1e-16))
+            C_rossby / npx.maximum(npx.abs(vs.coriolis_t), 1e-16), safe_sqrt(C_rossby / npx.maximum(2 * vs.beta, 1e-16))
         )
 
         """
         calculate vertical viscosity and skew diffusivity
         """
-        vs.sqrteke = npx.sqrt(npx.maximum(0.0, vs.eke[:, :, :, vs.tau]))
-        vs.L_rhines = npx.sqrt(vs.sqrteke / npx.maximum(vs.beta[..., npx.newaxis], 1e-16))
+        vs.sqrteke = safe_sqrt(npx.maximum(0.0, vs.eke[:, :, :, vs.tau]))
+        vs.L_rhines = safe_sqrt(vs.sqrteke / npx.maximum(vs.beta[..., npx.newaxis], 1e-16))
         vs.eke_len = npx.maximum(
             settings.eke_lmin,
             npx.minimum(settings.eke_cross * vs.L_rossby[..., npx.newaxis], settings.eke_crhin * vs.L_rhines),

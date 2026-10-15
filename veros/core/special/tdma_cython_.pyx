@@ -2,10 +2,11 @@ import cython
 from cpython.pycapsule cimport PyCapsule_New
 
 from libc.stdint cimport int32_t, int64_t
+from libc.stddef cimport size_t
 
 
 @cython.cdivision(True)
-cdef void _tdma_cython_double(int32_t n, double* a, double* b, double* c, double* d, double* cp, double* dp) nogil:
+cdef void _tdma_cython_double(int32_t n, double* a, double* b, double* c, double* d, double* cp, double* dp) noexcept nogil:
     cdef:
         int32_t i
         double denom
@@ -26,7 +27,7 @@ cdef void _tdma_cython_double(int32_t n, double* a, double* b, double* c, double
 
 
 @cython.cdivision(True)
-cdef void _tdma_cython_float(int32_t n, float* a, float* b, float* c, float* d, float* cp, float* dp) nogil:
+cdef void _tdma_cython_float(int32_t n, float* a, float* b, float* c, float* d, float* cp, float* dp) noexcept nogil:
     cdef:
         int32_t i
         float denom
@@ -46,7 +47,7 @@ cdef void _tdma_cython_float(int32_t n, float* a, float* b, float* c, float* d, 
         dp[i] -= cp[i] * dp[i + 1]
 
 
-cdef void tdma_cython_double(void** out_ptr, void** data_ptr) nogil:
+cdef void tdma_cython_double(void** out_ptr, void** data_ptr, const char* opaque, size_t opaque_len, void* status) noexcept nogil:
     cdef:
         int64_t i, j, system_depth, system_start
         int64_t ii = 0
@@ -83,7 +84,7 @@ cdef void tdma_cython_double(void** out_ptr, void** data_ptr) nogil:
         ii += stride
 
 
-cdef void tdma_cython_float(void** out_ptr, void** data_ptr) nogil:
+cdef void tdma_cython_float(void** out_ptr, void** data_ptr, const char* opaque, size_t opaque_len, void* status) noexcept nogil:
     cdef:
         int64_t i, j, system_depth, system_start
         int64_t ii = 0
