@@ -39,7 +39,23 @@ Snapshot
 ++++++++
 
 .. autoclass:: veros.diagnostics.snapshot.Snapshot
-   :members: name, output_variables, sampling_frequency, output_frequency, output_path
+   :members: name, output_variables, sampling_frequency, output_frequency, output_path, tendency_variables
+
+Automatic snapshots select completed state variables from ``taup1`` before the
+time indices rotate, so these states match the NetCDF ``Time`` coordinate.
+Manual calls to ``Snapshot.output(state)`` select ``tau`` by default, as appropriate
+after setup or after a timestep has returned.
+
+Raw tendencies use their own storage conventions. Variables listed in
+``snapshot.tendency_variables`` retain ``tau`` during automatic output; add custom
+tendencies stored at ``tau`` to this set. The current streamfunction solve stores
+``dpsi`` at ``taup1``, so it is intentionally absent from the set. These outputs are
+raw stage tendencies, not states at ``Time`` or necessarily the realized rate over
+an output interval.
+
+Custom Snapshot subclasses overriding ``output`` must accept the optional keyword
+``time_index`` and forward it to ``super().output``. Other diagnostic classes keep
+their existing ``output(state)`` interface and sampling behavior.
 
 Averages
 ++++++++
