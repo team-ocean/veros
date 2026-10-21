@@ -72,7 +72,6 @@ def _lower_solve(ctx, rhs, *, solver, transpose):
         ctx.avals_in,
         ctx.avals_out,
         has_side_effect=True,
-        returns_token=True,
     )
     ctx.set_tokens_out(mlir.TokenSet({solver._effect: token}))
     return result
