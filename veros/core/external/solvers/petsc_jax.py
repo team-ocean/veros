@@ -1,5 +1,6 @@
 """Distributed PETSc solves with ordered callbacks and derivatives for fixed operators."""
 
+from inspect import signature
 from threading import Lock
 
 import jax
@@ -77,7 +78,10 @@ def _lower_solve(ctx, rhs, *, solver, transpose):
     return result
 
 
-mlir.register_lowering(_solve_p, _lower_solve, cacheable=False)
+_lowering_options = {}
+if "cacheable" in signature(mlir.register_lowering).parameters:
+    _lowering_options["cacheable"] = False
+mlir.register_lowering(_solve_p, _lower_solve, **_lowering_options)
 
 
 def _solve_jvp(primals, tangents, *, solver, transpose):
