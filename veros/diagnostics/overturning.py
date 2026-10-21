@@ -109,6 +109,8 @@ class Overturning(VerosDiagnostic):
         self.initialize_output(state)
 
     def diagnose(self, state):
+        if state.settings.enable_partial_cells:
+            raise ValueError("Partial cells do not yet support the overturning diagnostic")
         ovt_vs = self.variables
         ovt_vs.update(diagnose_kernel(state, ovt_vs, self.p_ref))
         ovt_vs.nitts = ovt_vs.nitts + 1

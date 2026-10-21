@@ -168,8 +168,11 @@ class JAXSciPySolver(LinearSolver):
 
         if rst.proc_rank == 0 or getattr(CURRENT_CONTEXT, "tracing", False):
             linear_solve = self._linear_solve
-            matrix_diags, _, mask, scale = self._coefficients
-            coefficients = (matrix_diags, mask, scale)
+            if state.settings.enable_partial_cells:
+                coefficients = self.geometry_coefficients(state)
+            else:
+                matrix_diags, _, mask, scale = self._coefficients
+                coefficients = (matrix_diags, mask, scale)
         else:
             linear_solve = None
             coefficients = None
@@ -178,6 +181,12 @@ class JAXSciPySolver(LinearSolver):
         if hasattr(state, "_solver_residual_ok"):
             state._solver_residual_ok = state._solver_residual_ok & converged
         return solution
+
+    def geometry_coefficients(self, state):
+        """Assemble the current numerical operator with differentiable coefficients."""
+        matrix_diags, _, boundary_mask = self._assemble_poisson_matrix(state)
+        preconditioner = self._jacobi_preconditioner(state, matrix_diags)
+        return tuple(preconditioner * diag for diag in matrix_diags), boundary_mask, preconditioner
 
     @staticmethod
     def _jacobi_preconditioner(state, matrix_diags):

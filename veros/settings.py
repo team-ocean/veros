@@ -38,6 +38,7 @@ SETTINGS = {
     # Logical switches for general model setup
     "coord_degree": Setting(False, bool, "either spherical (True) or cartesian (False) coordinates"),
     "enable_cyclic_x": Setting(False, bool, "enable cyclic boundary conditions"),
+    "enable_partial_cells": Setting(False, bool, "enable fixed-topology partial bottom cells"),
     "eq_of_state_type": Setting(1, int, "equation of state: 1: linear, 3: nonlinear with comp., 5: TEOS"),
     "enable_implicit_vert_friction": Setting(False, bool, "enable implicit vertical friction"),
     "enable_explicit_vert_friction": Setting(False, bool, "enable explicit vertical friction"),
@@ -150,6 +151,27 @@ SETTINGS = {
 
 
 def check_setting_conflicts(settings):
+    if settings.enable_partial_cells:
+        unsupported = (
+            "enable_streamfunction",
+            "enable_tke",
+            "enable_eke",
+            "enable_idemix",
+            "enable_neutral_diffusion",
+            "enable_skew_diffusion",
+            "enable_TEM_friction",
+            "enable_conserve_energy",
+            "enable_hor_friction",
+            "enable_biharmonic_friction",
+            "enable_biharmonic_mixing",
+        )
+        enabled = [name for name in unsupported if getattr(settings, name)]
+        if enabled:
+            raise ValueError(f"Partial cells do not support these options: {', '.join(enabled)}")
+        from veros import runtime_settings, runtime_state
+
+        if runtime_settings.backend != "jax" or runtime_state.proc_num != 1:
+            raise ValueError("Partial cells currently require serial JAX execution")
     if settings.enable_tke and not settings.enable_implicit_vert_friction:
         raise RuntimeError(
             "use TKE model only with implicit vertical friction (set enable_implicit_vert_fricton to True)"

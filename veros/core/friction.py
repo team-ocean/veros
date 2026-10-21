@@ -3,7 +3,8 @@ from veros.core.operators import numpy as npx
 from veros import veros_routine, veros_kernel, KernelOutput
 from veros.variables import allocate
 from veros.core import numerics, utilities, isoneutral
-from veros.core.operators import update, update_add, at
+from veros.core.geometry import cell_thickness
+from veros.core.operators import update, update_add, at, safe_sqrt
 
 
 @veros_kernel
@@ -20,6 +21,7 @@ def explicit_vert_friction(state):
     """
     vertical friction of zonal momentum
     """
+    thickness = cell_thickness(state, "U")
     fxa = 0.5 * (vs.kappaM[1:-2, 1:-2, :-1] + vs.kappaM[2:-1, 1:-2, :-1])
     flux_top = update(
         flux_top,
@@ -31,9 +33,9 @@ def explicit_vert_friction(state):
         * vs.maskU[1:-2, 1:-2, :-1],
     )
     flux_top = update(flux_top, at[:, :, -1], 0.0)
-    vs.du_mix = update(vs.du_mix, at[:, :, 0], flux_top[:, :, 0] / vs.dzt[0] * vs.maskU[:, :, 0])
+    vs.du_mix = update(vs.du_mix, at[:, :, 0], flux_top[:, :, 0] / thickness[:, :, 0] * vs.maskU[:, :, 0])
     vs.du_mix = update(
-        vs.du_mix, at[:, :, 1:], (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / vs.dzt[1:] * vs.maskU[:, :, 1:]
+        vs.du_mix, at[:, :, 1:], (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / thickness[:, :, 1:] * vs.maskU[:, :, 1:]
     )
 
     """
@@ -53,6 +55,7 @@ def explicit_vert_friction(state):
     """
     vertical friction of meridional momentum
     """
+    thickness = cell_thickness(state, "V")
     fxa = 0.5 * (vs.kappaM[1:-2, 1:-2, :-1] + vs.kappaM[1:-2, 2:-1, :-1])
     flux_top = update(
         flux_top,
@@ -67,9 +70,9 @@ def explicit_vert_friction(state):
     vs.dv_mix = update(
         vs.dv_mix,
         at[:, :, 1:],
-        (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / vs.dzt[npx.newaxis, npx.newaxis, 1:] * vs.maskV[:, :, 1:],
+        (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / thickness[:, :, 1:] * vs.maskV[:, :, 1:],
     )
-    vs.dv_mix = update(vs.dv_mix, at[:, :, 0], flux_top[:, :, 0] / vs.dzt[0] * vs.maskV[:, :, 0])
+    vs.dv_mix = update(vs.dv_mix, at[:, :, 0], flux_top[:, :, 0] / thickness[:, :, 0] * vs.maskV[:, :, 0])
 
     """
     diagnose dissipation by vertical friction of meridional momentum
@@ -111,15 +114,16 @@ def implicit_vert_friction(state):
     kss = npx.maximum(vs.kbot[1:-2, 1:-2], vs.kbot[2:-1, 1:-2])
     _, water_mask, edge_mask = utilities.create_water_masks(kss, settings.nz)
 
+    thickness = cell_thickness(state, "U")[1:-2, 1:-2]
     fxa = 0.5 * (vs.kappaM[1:-2, 1:-2, :-1] + vs.kappaM[2:-1, 1:-2, :-1])
     delta = update(
         delta, at[:, :, :-1], settings.dt_mom / vs.dzw[:-1] * fxa * vs.maskU[1:-2, 1:-2, 1:] * vs.maskU[1:-2, 1:-2, :-1]
     )
-    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
-    b_tri = update(b_tri, at[:, :, 1:], 1 + delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
-    b_tri = update_add(b_tri, at[:, :, 1:-1], delta[:, :, 1:-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:-1])
-    b_tri_edge = 1 + delta / vs.dzt[npx.newaxis, npx.newaxis, :]
-    c_tri = update(c_tri, at[...], -delta / vs.dzt[npx.newaxis, npx.newaxis, :])
+    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / thickness[:, :, 1:])
+    b_tri = update(b_tri, at[:, :, 1:], 1 + delta[:, :, :-1] / thickness[:, :, 1:])
+    b_tri = update_add(b_tri, at[:, :, 1:-1], delta[:, :, 1:-1] / thickness[:, :, 1:-1])
+    b_tri_edge = 1 + delta / thickness[:, :, :]
+    c_tri = update(c_tri, at[...], -delta / thickness[:, :, :])
     d_tri = update(d_tri, at[...], vs.u[1:-2, 1:-2, :, vs.tau])
 
     res = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
@@ -156,6 +160,7 @@ def implicit_vert_friction(state):
     kss = npx.maximum(vs.kbot[1:-2, 1:-2], vs.kbot[1:-2, 2:-1])
     _, water_mask, edge_mask = utilities.create_water_masks(kss, settings.nz)
 
+    thickness = cell_thickness(state, "V")[1:-2, 1:-2]
     fxa = 0.5 * (vs.kappaM[1:-2, 1:-2, :-1] + vs.kappaM[1:-2, 2:-1, :-1])
     delta = update(
         delta,
@@ -166,11 +171,11 @@ def implicit_vert_friction(state):
         * vs.maskV[1:-2, 1:-2, 1:]
         * vs.maskV[1:-2, 1:-2, :-1],
     )
-    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
-    b_tri = update(b_tri, at[:, :, 1:], 1 + delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
-    b_tri = update_add(b_tri, at[:, :, 1:-1], delta[:, :, 1:-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:-1])
-    b_tri_edge = 1 + delta / vs.dzt[npx.newaxis, npx.newaxis, :]
-    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, :-1])
+    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / thickness[:, :, 1:])
+    b_tri = update(b_tri, at[:, :, 1:], 1 + delta[:, :, :-1] / thickness[:, :, 1:])
+    b_tri = update_add(b_tri, at[:, :, 1:-1], delta[:, :, 1:-1] / thickness[:, :, 1:-1])
+    b_tri_edge = 1 + delta / thickness[:, :, :]
+    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / thickness[:, :, :-1])
     c_tri = update(c_tri, at[:, :, -1], 0.0)
     d_tri = update(d_tri, at[...], vs.v[1:-2, 1:-2, :, vs.tau])
 
@@ -328,13 +333,14 @@ def quadratic_bottom_friction(state):
         + vs.maskV[2:-1, 2:-2, :] * vs.v[2:-1, 2:-2, :, vs.tau] ** 2
         + vs.maskV[2:-1, 1:-3, :] * vs.v[2:-1, 1:-3, :, vs.tau] ** 2
     )
-    fxa = npx.sqrt(vs.u[1:-2, 2:-2, :, vs.tau] ** 2 + 0.25 * fxa)
+    sqrt = safe_sqrt if settings.enable_partial_cells else npx.sqrt
+    fxa = sqrt(vs.u[1:-2, 2:-2, :, vs.tau] ** 2 + 0.25 * fxa)
     aloc = (
         vs.maskU[1:-2, 2:-2, :]
         * settings.r_quad_bot
         * vs.u[1:-2, 2:-2, :, vs.tau]
         * fxa
-        / vs.dzt[npx.newaxis, npx.newaxis, :]
+        / cell_thickness(state, "U")[1:-2, 2:-2]
         * mask
     )
     vs.du_mix = update_add(vs.du_mix, at[1:-2, 2:-2, :], -aloc)
@@ -352,13 +358,13 @@ def quadratic_bottom_friction(state):
         + vs.maskU[2:-2, 2:-1, :] * vs.u[2:-2, 2:-1, :, vs.tau] ** 2
         + vs.maskU[1:-3, 2:-1, :] * vs.u[1:-3, 2:-1, :, vs.tau] ** 2
     )
-    fxa = npx.sqrt(vs.v[2:-2, 1:-2, :, vs.tau] ** 2 + 0.25 * fxa)
+    fxa = sqrt(vs.v[2:-2, 1:-2, :, vs.tau] ** 2 + 0.25 * fxa)
     aloc = (
         vs.maskV[2:-2, 1:-2, :]
         * settings.r_quad_bot
         * vs.v[2:-2, 1:-2, :, vs.tau]
         * fxa
-        / vs.dzt[npx.newaxis, npx.newaxis, :]
+        / cell_thickness(state, "V")[2:-2, 1:-2]
         * mask
     )
     vs.dv_mix = update_add(vs.dv_mix, at[2:-2, 1:-2, :], -aloc)
