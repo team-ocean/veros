@@ -26,6 +26,7 @@ VEROS_TO_PYOM_VAR = dict(
 # all setting that are re-named or unique to Veros
 VEROS_TO_PYOM_SETTING = dict(
     # do not exist in pyom
+    enable_partial_cells=None,
     identifier=None,
     description=None,
     enable_noslip_lateral=None,
@@ -84,6 +85,9 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=None
     """Force-updates internal PyOM library state to match given Veros state."""
     if ignore_attrs is None:
         ignore_attrs = []
+
+    if state.settings.get("enable_partial_cells"):
+        raise ValueError("PyOM does not support partial cells")
 
     pyom_modules = (
         pyom_obj.main_module,
