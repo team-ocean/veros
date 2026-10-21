@@ -58,7 +58,7 @@ Checkpoint statistics include state, adjoint and parameter bytes, forcing-record
 
 Run the numerical tests individually in fresh processes. Select the JAX backend explicitly, set `OMP_NUM_THREADS=1` and `OPENBLAS_NUM_THREADS=1`, and disable XLA preallocation. Use the appropriate device and native TDMA setting for the interpreter's installed extensions.
 
-The main test files are `test/execution_test.py`, `test/integration_test.py`, `test/checkpointing_test.py`, `test/dynamic_parameters_test.py`, `test/diagnostics_test.py`, `test/tdma_ad_test.py`, and `test/operators_ad_test.py`. Distributed subprocess tests are in `test/distributed/checkpointing_test.py` and `test/distributed/integration_test.py`. Their ocean kernels can also run directly through `mpiexec` to reduce parent-process memory.
+The main test files are `test/execution_test.py`, `test/integration_test.py`, `test/checkpointing_test.py`, `test/dynamic_parameters_test.py`, `test/diagnostics_test.py`, `test/tdma_ad_test.py`, and `test/operators_ad_test.py`. Distributed subprocess tests are in `test/distributed/checkpointing_mpi_test.py` and `test/distributed/integration_mpi_test.py`. Their ocean kernels can also run directly through `mpiexec` to reduce parent-process memory.
 
 ## Verification limits
 
