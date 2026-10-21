@@ -226,3 +226,87 @@ on each rank. Sum the resulting local sensitivities to obtain the gradient
 for a shared parameter. Identical forward tangents on every rank already
 produce the shared directional derivative. Parallel file output requires
 MPI-enabled HDF5, as in ordinary execution.
+
+Disk and RAM checkpoint schedules
+---------------------------------
+
+``CheckpointedIntegrator`` computes first-order initial-state and runtime-setting
+gradients using a host schedule, compiled forward steps, and one-step pullbacks::
+
+    from pathlib import Path
+    from veros.checkpointing import CheckpointedIntegrator, PeriodicDiskSchedule
+
+    def terminal_objective(final):
+        vs = final.variables
+        return jnp.sum(vs.temp[2:-2, 2:-2, :, vs.tau])
+
+    directory = Path("adjoint-checkpoints")
+    directory.mkdir(exist_ok=True)
+    driver = CheckpointedIntegrator(prepared, terminal_objective=terminal_objective)
+    schedule = PeriodicDiskSchedule(24, disk_interval=4, ram_checkpoints=2)
+    result = driver.value_and_grad(
+        initial, n_steps=24, schedule=schedule, directory=directory
+    )
+    forcing_scale_gradient = jnp.sum(
+        result.gradient.variables.t_star * initial.variables.t_star
+    )
+
+The result contains ``value``, the initial-carry cotangent ``gradient``, ``final``,
+``statistics``, and ``parameter_gradient``. Integer and Boolean cotangent leaves
+have JAX's ``float0`` dtype. Runtime overrides use the ``parameters`` argument.
+Both objectives may accept a ``parameters`` keyword for direct dependence on
+settings. If optimization parameters also construct the initial carry, apply
+that construction's VJP to ``result.gradient`` and combine it with
+``result.parameter_gradient``. Supported inputs and fixed configuration follow the pure API.
+
+For diagnostic losses, pass ``record_objective(records)``. It returns a scalar
+contribution per original forward step and receives a singleton leading step
+axis, matching ``advance(n_steps=1)``. Numerical diagnostic windows and resets
+are replayed across checkpoint intervals. Objective callbacks must be pure.
+Replay writes no diagnostic files and leaves the simulation state unchanged.
+
+An iterable ``step_inputs`` supplies external forcing. The driver reads and
+records each input once, then uses the recorded arrays during replay. Set
+``input_storage="disk"`` to save them under ``directory``. Input-array derivatives
+use the pure trajectory API. ``observer(index, carry)`` runs once per original
+forward step and is excluded from recomputation.
+
+``BinomialSchedule(n_steps, ram_checkpoints=..., disk_checkpoints=...)`` bounds
+slots in both tiers, including the initial checkpoint. Disk holds outer splits
+and RAM deeper splits. ``PeriodicDiskSchedule`` stores interval starts on disk
+and uses binomial RAM replay inside each interval. Zero RAM slots are supported.
+Intervals and action indices count model timesteps.
+
+Stores preserve every carry leaf's shape and explicit dtype. RAM copies live
+on the host. Disk archives occupy an owned temporary subdirectory and are
+removed on success or a Python exception. Tree metadata stays in the process,
+so archives cannot serve as persistent simulation restarts. Use a disk-backed
+filesystem when offloading memory, since ``tmpfs`` consumes host RAM.
+
+``max_checkpoint_ram_bytes`` and ``max_input_ram_bytes`` bound stored RAM arrays.
+Slot and byte limits exclude live states, adjoints, compiled executables, and
+step-local differentiation buffers. Statistics report storage peaks, disk
+traffic, original/recomputed/reverse step counts, and available XLA memory
+estimates. Reverse steps include their own forward reevaluation in the
+recomputation count. Executables are reused across trajectory lengths.
+
+MPI ranks store local states and follow the same schedule. Objectives must
+return the same global scalar on each rank, for example through ``global_sum``
+inside ``tracing_context()``. The driver divides adjoint seeds across ranks and
+sums shared parameter gradients once. ``shared_parameters=()`` selects rank-local
+parameters. ``shared_variables`` names replicated initial controls whose
+cotangents should be summed. Other initial-state cotangents remain rank-local.
+Host validation and storage failures propagate across ranks before the next
+numerical operation.
+
+Custom schedules expose ``n_steps``, ``ram_checkpoints``, optional
+``disk_checkpoints``, and a repeatable ``actions()`` iterator. Actions are
+``advance``, ``save``, ``restore``, ``drop``, ``turn``, and ``reverse``. ``turn``
+ends the original forward traversal. Reverse actions consume one timestep in
+backward order. ``validate_schedule`` checks ordering, availability, budgets,
+and complete release before model execution.
+
+The driver is a host operation that cannot be transformed with ``jax.jit`` or
+``jax.grad``. It supports CPU, GPU, and coordinated MPI replay. The pure API's
+numerical gradient limitations still apply. ``benchmarks/dynamic_parameters_demo.py``
+provides synthetic parameter fitting, derivative checks, and RAM/disk replay.
