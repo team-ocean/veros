@@ -312,7 +312,7 @@ numerical gradient limitations still apply. ``benchmarks/dynamic_parameters_demo
 provides synthetic parameter fitting, derivative checks, and RAM/disk replay.
 
 Partial-cell bathymetry
-----------------------
+-----------------------
 
 Set ``enable_partial_cells=True`` before setup to vary bottom depths within
 fixed wet cells. The supported configuration uses serial JAX execution, the
