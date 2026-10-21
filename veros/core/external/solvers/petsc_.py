@@ -43,7 +43,7 @@ PRESSURE_OPTIONS = {
 
 
 class PETScSolver(LinearSolver):
-    def __init__(self, state):
+    def __init__(self, state, *, comm=None, use_gpu=None):
         if rst.proc_num > 1 and rs.device == "cpu" and "OMP_NUM_THREADS" not in os.environ:
             logger.warning(
                 "Environment variable OMP_NUM_THREADS is not set, which can lead to severely "
@@ -65,7 +65,7 @@ class PETScSolver(LinearSolver):
             [settings.nx, settings.ny],
             stencil_width=1,
             stencil_type="star",
-            comm=rs.mpi_comm,
+            comm=rs.mpi_comm if comm is None else comm,
             proc_sizes=rs.num_proc,
             boundary_type=boundary_type,
             ownership_ranges=[
@@ -74,24 +74,33 @@ class PETScSolver(LinearSolver):
             ],
         )
 
-        if rs.device == "gpu":
+        if use_gpu is None:
+            use_gpu = rs.device == "gpu"
+        if use_gpu:
             self._da.setVecType("cuda")
             self._da.setMatType("aijcusparse")
 
         self._matrix, self._boundary_mask = self._assemble_poisson_matrix(state)
 
+        self._ksp = self._create_ksp(self._matrix, options)
+        self._options = options
+
+        self._rhs_petsc = self._da.createGlobalVec()
+        self._sol_petsc = self._da.createGlobalVec()
+
+    def _create_ksp(self, matrix, options):
         petsc_options = PETSc.Options()
 
         # setup krylov method
-        self._ksp = PETSc.KSP()
-        self._ksp.create(self._da.comm)
-        self._ksp.setOperators(self._matrix)
+        ksp = PETSc.KSP()
+        ksp.create(self._da.comm)
+        ksp.setOperators(matrix)
 
-        self._ksp.setType(options["solver_type"])
-        self._ksp.setTolerances(atol=options["atol"], rtol=options["rtol"], max_it=options["max_it"])
+        ksp.setType(options["solver_type"])
+        ksp.setTolerances(atol=options["atol"], rtol=options["rtol"], max_it=options["max_it"])
 
         # preconditioner
-        self._ksp.getPC().setType(options["PC_type"])
+        ksp.getPC().setType(options["PC_type"])
 
         for key in options["pc_options"]:
             petsc_options[key] = options["pc_options"][key]
@@ -99,11 +108,9 @@ class PETScSolver(LinearSolver):
         if rs.petsc_options:
             petsc_options.insertString(rs.petsc_options)
 
-        self._ksp.setFromOptions()
-        self._ksp.getPC().setFromOptions()
-
-        self._rhs_petsc = self._da.createGlobalVec()
-        self._sol_petsc = self._da.createGlobalVec()
+        ksp.setFromOptions()
+        ksp.getPC().setFromOptions()
+        return ksp
 
     def _petsc_solver(self, rhs, x0):
         # hangs on multi-GPU without this

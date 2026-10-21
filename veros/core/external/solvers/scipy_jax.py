@@ -8,6 +8,16 @@ from veros.core.external.poisson_matrix import assemble_poisson_matrix
 
 @veros_kernel(static_args=("solve_fun",))
 def solve_kernel(state, rhs, boundary_val, coefficients, solve_fun):
+    from veros.routines import CURRENT_CONTEXT
+
+    if rst.proc_num > 1 and getattr(CURRENT_CONTEXT, "tracing", False):
+        from veros._distributed_jax import gather, local_slice
+
+        rhs_global = gather(rhs, state.dimensions, ("xt", "yt"))
+        boundary_global = gather(boundary_val, state.dimensions, ("xt", "yt"))
+        solution, converged = solve_fun(rhs_global, boundary_global, coefficients)
+        return local_slice(solution, state.dimensions, ("xt", "yt")), converged
+
     rhs_global = distributed.gather(rhs, state.dimensions, ("xt", "yt"))
     boundary_val_global = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
 
@@ -125,6 +135,24 @@ class JAXSciPySolver(LinearSolver):
 
         self._linear_solve = linear_solve
 
+    def prepare_compiled(self):
+        """Replicate fixed solver coefficients before distributed tracing."""
+        if rst.proc_num == 1:
+            return
+        import jax
+        import numpy as np
+
+        coefficients = jax.tree.map(np.asarray, self._coefficients) if rst.proc_rank == 0 else None
+        coefficients = rs.mpi_comm.bcast(coefficients, root=0)
+        matrix_diags, offsets, boundary_mask, rhs_scale = coefficients
+        offsets = tuple(tuple(int(value) for value in offset) for offset in offsets)
+        self._set_coefficients(
+            tuple(npx.asarray(diag) for diag in matrix_diags),
+            offsets,
+            npx.asarray(boundary_mask),
+            npx.asarray(rhs_scale),
+        )
+
     def solve(self, state, rhs, x0, boundary_val=None):
         """
         Main solver for streamfunction. Solves a 2D Poisson equation. Uses jax.scipy.sparse.linalg
@@ -136,7 +164,9 @@ class JAXSciPySolver(LinearSolver):
             boundary_val: Array containing values to set on boundary elements. Defaults to `x0`.
 
         """
-        if rst.proc_rank == 0:
+        from veros.routines import CURRENT_CONTEXT
+
+        if rst.proc_rank == 0 or getattr(CURRENT_CONTEXT, "tracing", False):
             linear_solve = self._linear_solve
             matrix_diags, _, mask, scale = self._coefficients
             coefficients = (matrix_diags, mask, scale)

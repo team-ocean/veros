@@ -86,6 +86,7 @@ for line in jax_req:  # inject jaxlib requirement
 EXTRAS_REQUIRE = {
     "test": ["pytest", "pytest-cov", "pytest-forked", "xarray"],
     "jax": jax_req,
+    "jax-mpi": [*jax_req, "mpi4py>=4.1", "mpi4jax==0.9.1.post2"],
 }
 
 
