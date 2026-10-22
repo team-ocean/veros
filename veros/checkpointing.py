@@ -303,7 +303,7 @@ class CheckpointStore:
             if self.max_ram_bytes is not None and self._ram_bytes + self.state_bytes > self.max_ram_bytes:
                 raise ValueError("RAM checkpoint byte budget exceeded")
             if self.ram_device is None:
-                data = [np.array(jax.device_get(leaf), copy=True) for leaf in leaves]
+                data = [np.array(leaf, copy=True) for leaf in jax.device_get(leaves)]
             else:
                 data = [jax.device_put(leaf, device=self.ram_device, may_alias=False) for leaf in leaves]
             size = sum(leaf.nbytes for leaf in data)
@@ -344,7 +344,7 @@ class CheckpointStore:
         self._require_open()
         storage, data, size = self._checkpoints[index]
         if storage == "ram":
-            leaves = [jax.device_put(leaf) for leaf in data]
+            leaves = jax.device_put(data)
         else:
             leaves = []
             with np.load(data, allow_pickle=False) as archive:
@@ -394,6 +394,7 @@ class CheckpointedIntegrator:
         if terminal_objective is None and record_objective is None:
             raise ValueError("Provide a terminal_objective or record_objective")
         self.prepared = prepared
+        self._memory_statistics = {}
 
         def bind_objective(objective):
             if "parameters" in inspect.signature(objective).parameters:
@@ -447,13 +448,24 @@ class CheckpointedIntegrator:
             raise RuntimeError(f"Distributed checkpoint operation failed: {failures}")
         return result
 
-    @staticmethod
-    def _memory_analysis(function, *arguments):
+    def _memory_analysis(self, function, *arguments):
         """Read XLA buffer estimates for a compiled numerical signature."""
+        import jax
+
+        signature = (
+            function,
+            jax.tree.structure(arguments),
+            tuple(
+                (leaf.shape, str(leaf.dtype), getattr(leaf, "weak_type", False)) for leaf in jax.tree.leaves(arguments)
+            ),
+        )
+        if signature in self._memory_statistics:
+            return self._memory_statistics[signature]
         analysis = function.lower(*arguments).compile().memory_analysis()
         if analysis is None:
+            self._memory_statistics[signature] = None
             return None
-        return {
+        result = {
             name: getattr(analysis, f"{field}_size_in_bytes")
             for name, field in (
                 ("argument_bytes", "argument"),
@@ -463,6 +475,8 @@ class CheckpointedIntegrator:
                 ("generated_code_bytes", "generated_code"),
             )
         }
+        self._memory_statistics[signature] = result
+        return result
 
     def value_and_grad(
         self,
@@ -480,6 +494,7 @@ class CheckpointedIntegrator:
         shared_parameters=None,
         shared_variables=(),
         observer=None,
+        terminal_cotangent=None,
     ):
         """Return loss, carry and setting gradients, final carry, and storage statistics.
 
@@ -492,11 +507,17 @@ class CheckpointedIntegrator:
         MPI parameters are shared unless ``shared_parameters=()`` selects rank-local
         parameters. ``shared_variables`` names replicated initial controls whose
         cotangents are summed across ranks. Files are cleaned on success or failure.
+
+        ``terminal_cotangent`` adds a prescribed final-carry cotangent to the
+        terminal objective gradient. This supports response VJPs and composition
+        of observation windows without retaining a trajectory's AD tape.
         """
         import jax
         import jax.numpy as jnp
 
-        if any(isinstance(leaf, jax.core.Tracer) for leaf in jax.tree.leaves((initial, parameters))):
+        if any(
+            isinstance(leaf, jax.core.Tracer) for leaf in jax.tree.leaves((initial, parameters, terminal_cotangent))
+        ):
             raise RuntimeError(
                 "CheckpointedIntegrator.value_and_grad is a host operation and cannot be JAX-transformed"
             )
@@ -581,6 +602,16 @@ class CheckpointedIntegrator:
                 raise ValueError("MPI ranks must agree on forcing input schemas")
         # Trace derivative rules before the original trajectory or any disk writes.
         adjoint_shape = self._collective(lambda: jax.eval_shape(self._terminal, initial, parameters)[1][0])
+        if terminal_cotangent is not None:
+
+            def validate_cotangent():
+                if jax.tree.structure(terminal_cotangent) != jax.tree.structure(adjoint_shape):
+                    raise ValueError("Terminal cotangent structure differs from the carry")
+                for actual, expected in zip(jax.tree.leaves(terminal_cotangent), jax.tree.leaves(adjoint_shape)):
+                    if actual.shape != expected.shape or actual.dtype != expected.dtype:
+                        raise ValueError("Terminal cotangent shapes or dtypes differ from the carry cotangent")
+
+            self._collective(validate_cotangent)
         self._collective(lambda: jax.eval_shape(self._reverse, initial, parameters, first_inputs, adjoint_shape))
         current, final, adjoint = initial, None, None
         parameter_gradient = jax.tree.map(jnp.zeros_like, parameters)
@@ -653,6 +684,12 @@ class CheckpointedIntegrator:
                         self._collective(check_end)
                     final = current
                     terminal_value, (adjoint, parameter_gradient) = self._terminal(final, parameters)
+                    if terminal_cotangent is not None:
+                        adjoint = jax.tree.map(
+                            lambda a, b: a if a.dtype == jax.dtypes.float0 else a + b / self._ranks,
+                            adjoint,
+                            terminal_cotangent,
+                        )
                     value = value + terminal_value * self._ranks
                 elif action.kind == "reverse":
                     step_input = {} if inputs is None else self._collective(lambda: input_store.restore(action.index))
@@ -711,5 +748,6 @@ class CheckpointedIntegrator:
                     if n_steps
                     else None
                 ),
+                memory_profile_signatures=len(self._memory_statistics),
             )
         return CheckpointedResult(value, adjoint, final, statistics, parameter_gradient)
