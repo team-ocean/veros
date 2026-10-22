@@ -69,6 +69,37 @@ def test_cli_exports_matrix_and_filters(monkeypatch, capsys, tmp_path):
     assert selected == [f"geometry_{response}" for response in RESPONSES]
 
 
+@pytest.mark.parametrize("policy", (None, "default", "positive_diffusion"))
+def test_cli_records_and_forwards_explicit_tke_policy(monkeypatch, tmp_path, policy):
+    import subprocess
+    import sys
+    from benchmarks.ad_demos.__main__ import main, write_result
+
+    def child(command, **kwargs):
+        if policy is None:
+            assert "--tke-policy" not in command
+        else:
+            assert command[command.index("--tke-policy") + 1] == policy
+        write_result(tmp_path / "perturbation_local.json", dict(status="smoke_passed"))
+        return SimpleNamespace(returncode=0)
+
+    arguments = ["demos", "--demo", "perturbation_local", "--output", str(tmp_path)]
+    if policy is not None:
+        arguments.extend(("--tke-policy", policy))
+    monkeypatch.setattr(subprocess, "run", child)
+    monkeypatch.setattr(sys, "argv", arguments)
+    assert main() == 0
+    config = json.loads((tmp_path / "summary.json").read_text())["config"]
+    assert config.get("tke_policy") == policy
+    if policy is None:
+        assert "tke_policy" not in config
+
+
+def test_unknown_tke_policy_rejected_before_model_setup():
+    with pytest.raises(ValueError, match="Unknown TKE policy"):
+        ResearchOcean(dict(setup="acc", physics="default", tke_policy="typo"), CASES["perturbation_local"])
+
+
 class Variables(SimpleNamespace):
     def __contains__(self, key):
         return key in vars(self)
@@ -214,3 +245,49 @@ def test_finite_time_ad_cannot_claim_climate_acceptance():
     checks = Checks()
     response.validate(jnp.zeros(2), checks)
     assert not next(item["passed"] for item in checks.items if item["name"] == "invariant response method")
+
+
+def test_observation_ensemble_uses_the_predicted_season():
+    import jax
+    import jax.numpy as jnp
+    from types import SimpleNamespace
+    from benchmarks.ad_demos.common import gradient_checks
+    from benchmarks.ad_demos.inverse import JaxResidual
+    from benchmarks.ad_demos.research import observation_design
+
+    class Function(JaxResidual):
+        def value_and_grad(self, point):
+            return jax.value_and_grad(self.function)(point)
+
+    class Seasonal:
+        kind = "seasonal"
+        indices = jnp.arange(2)
+        ocean = SimpleNamespace(nz=1, amoc_index=7)
+        config = {}
+
+        def __init__(self):
+            self.ensemble_phases = []
+
+        def values(self, point, *, heldout=False, forward=False, seed=0):
+            self.ensemble_phases.append(seed)
+            observations = jnp.array([point[0], point[1], point[0], point[1], 0, 0, 0, 2 + point[0] + seed * point[1]])
+            return jnp.broadcast_to(observations, (12, 8))
+
+        def function(self, function, *, heldout=False):
+            return Function(lambda point: function(self.values(point, heldout=heldout), point))
+
+        def audit(self, function, point, checks, forward):
+            return gradient_checks(function, point, checks)
+
+    response, checks = Seasonal(), Checks()
+    observation_design(response, checks)
+    assert set(response.ensemble_phases) == {0}
+    assert next(
+        check["passed"] for check in checks.items if check["name"] == "nonlinear future-transport ensemble variance"
+    )
+    samples = np.asarray(checks.metrics["nonlinear_ensemble_controls"])
+    covariance = np.asarray(checks.metrics["posterior_control_covariance"])
+    expected = 0.01 * np.random.default_rng(27).normal(size=(64, 2)) @ np.linalg.cholesky(covariance).T
+    np.testing.assert_array_equal(samples, expected)
+    bound = checks.metrics["observation_information_bound"]["all_candidate_variance"]
+    assert bound <= checks.metrics["future_transport_variance"][-1] + 1e-12

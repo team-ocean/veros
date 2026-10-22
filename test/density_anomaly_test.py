@@ -91,5 +91,5 @@ def test_density_anomaly_jvp_matches_analytic_eos_derivatives(variable):
     _, tangent = jax.jvp(gsw.gsw_rho, args, direction)
     analytic = (gsw.gsw_drhodS, gsw.gsw_drhodT, gsw.gsw_drhodP)[variable](*args)
     if variable == 2:
-        analytic *= 1e4  # The analytic pressure derivative is per Pa; input pressure is dbar.
+        analytic *= 1e4  # Convert the analytic pressure derivative from per Pa to per dbar.
     np.testing.assert_allclose(tangent, analytic, rtol=1e-10, atol=1e-12)

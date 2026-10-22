@@ -42,7 +42,7 @@ def test_remap_jvp_vjp_and_finite_differences_at_coincident_interfaces():
     for epsilon in (1e-4, 1e-5, 1e-6):
         difference = (function(old + epsilon * direction) - function(old - epsilon * direction)) / (2 * epsilon)
         errors.append(float(jnp.linalg.norm(difference - tangent)))
-    # The primitive is C1 across an old face; central errors there are O(epsilon).
+    # A C1 primitive gives O(epsilon) central errors across an old face.
     assert errors[1] < errors[0] / 5 and errors[2] < errors[1] / 5
     np.testing.assert_allclose(difference, tangent, rtol=1e-4, atol=1e-6)
     np.testing.assert_allclose(jnp.sum(tangent * old + values * direction), 0, atol=1e-14)

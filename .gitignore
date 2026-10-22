@@ -8,6 +8,7 @@
 # benchmark output
 benchmark_*.json
 ad-demo-results/
+benchmarks/results/**/*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
