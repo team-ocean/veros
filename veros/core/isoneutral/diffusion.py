@@ -2,13 +2,14 @@ from veros.core.operators import numpy as npx
 
 from veros import veros_kernel, veros_routine, KernelOutput, runtime_settings
 from veros.variables import allocate
-from veros.core import utilities, diffusion
+from veros.core import utilities, diffusion, geometry
 from veros.core.operators import update, update_add, at
 
 
 @veros_kernel(static_args=("iso",))
 def _calc_tracer_fluxes(state, tr, K_iso, K_skew, iso=True):
     vs = state.variables
+    settings = state.settings
 
     tr_pad = utilities.pad_z_edges(tr[..., vs.tau])
 
@@ -97,7 +98,10 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew, iso=True):
 
     for ip in range(2):
         for kr in range(2):
-            sumx = sumx + diffloc * vs.Ai_bx[2:-2, 2:-2, :-1, ip, kr] / vs.cost[npx.newaxis, 2:-2, npx.newaxis] * (
+            slope = vs.Ai_bx[2:-2, 2:-2, :-1, ip, kr]
+            if settings.enable_partial_cells:
+                slope = slope * vs.hfacU[1 + ip : -3 + ip, 2:-2, kr : -1 + kr or None]
+            sumx = sumx + diffloc * slope / vs.cost[npx.newaxis, 2:-2, npx.newaxis] * (
                 tr[2 + ip : -2 + ip, 2:-2, kr : -1 + kr or None, vs.tau]
                 - tr[1 + ip : -3 + ip, 2:-2, kr : -1 + kr or None, vs.tau]
             )
@@ -105,9 +109,10 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew, iso=True):
     sumy = 0.0
     for jp in range(2):
         for kr in range(2):
-            sumy = sumy + diffloc * vs.Ai_by[2:-2, 2:-2, :-1, jp, kr] * vs.cosu[
-                npx.newaxis, 1 + jp : -3 + jp, npx.newaxis
-            ] * (
+            slope = vs.Ai_by[2:-2, 2:-2, :-1, jp, kr]
+            if settings.enable_partial_cells:
+                slope = slope * vs.hfacV[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None]
+            sumy = sumy + diffloc * slope * vs.cosu[npx.newaxis, 1 + jp : -3 + jp, npx.newaxis] * (
                 tr[2:-2, 2 + jp : -2 + jp, kr : -1 + kr or None, vs.tau]
                 - tr[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None, vs.tau]
             )
@@ -120,6 +125,9 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew, iso=True):
     )
     flux_top = update(flux_top, at[:, :, -1], 0.0)
 
+    if settings.enable_partial_cells:
+        flux_east = flux_east * vs.hfacU
+        flux_north = flux_north * vs.hfacV
     return flux_east, flux_north, flux_top
 
 
@@ -146,6 +154,8 @@ def _calc_explicit_part(state, flux_east, flux_north, flux_top):
         vs.maskT[:, :, 1:] * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / vs.dzt[npx.newaxis, npx.newaxis, 1:],
     )
 
+    if state.settings.enable_partial_cells:
+        explicit_part = explicit_part / npx.where(vs.maskT, vs.hfacT, 1.0)
     return explicit_part
 
 
@@ -153,6 +163,8 @@ def _calc_explicit_part(state, flux_east, flux_north, flux_top):
 def _calc_implicit_part(state, tr):
     vs = state.variables
     settings = state.settings
+
+    thickness = geometry.cell_thickness(state)[2:-2, 2:-2]
 
     _, water_mask, edge_mask = utilities.create_water_masks(vs.kbot[2:-2, 2:-2], settings.nz)
 
@@ -165,13 +177,11 @@ def _calc_implicit_part(state, tr):
         delta, at[:, :, :-1], settings.dt_tracer / vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.K_33[2:-2, 2:-2, :-1]
     )
     delta = update(delta, at[:, :, -1], 0.0)
-    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
-    b_tri = update(
-        b_tri, at[:, :, 1:-1], 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / vs.dzt[npx.newaxis, npx.newaxis, 1:-1]
-    )
-    b_tri = update(b_tri, at[:, :, -1], 1 + delta[:, :, -2] / vs.dzt[npx.newaxis, npx.newaxis, -1])
-    b_tri_edge = 1 + (delta[:, :, :] / vs.dzt[npx.newaxis, npx.newaxis, :])
-    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, :-1])
+    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / thickness[:, :, 1:])
+    b_tri = update(b_tri, at[:, :, 1:-1], 1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / thickness[:, :, 1:-1])
+    b_tri = update(b_tri, at[:, :, -1], 1 + delta[:, :, -2] / thickness[:, :, -1])
+    b_tri_edge = 1 + (delta[:, :, :] / thickness)
+    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / thickness[:, :, :-1])
     sol = utilities.solve_implicit(
         a_tri, b_tri, c_tri, tr[2:-2, 2:-2, :, vs.taup1], water_mask, b_edge=b_tri_edge, edge_mask=edge_mask
     )

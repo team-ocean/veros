@@ -22,6 +22,8 @@ from veros.routines import tracing_context  # noqa: E402
 
 rs.num_proc = {1: (1, 1), 2: (2, 1), 4: (2, 2)}[MPI.COMM_WORLD.size]
 implementation = sys.argv[2] if len(sys.argv) > 2 else rs.linear_solver
+tke_policy = sys.argv[3] if len(sys.argv) > 3 else "default"
+assert tke_policy in ("default", "positive_diffusion")
 
 from veros.setups.acc_basic import ACCBasicSetup  # noqa: E402
 
@@ -51,6 +53,13 @@ def phase(name):
 
 class Simulation(ACCBasicSetup):
     @veros_routine
+    def set_initial_conditions(self, state):
+        super().set_initial_conditions(state)
+        if tke_policy == "positive_diffusion":
+            vs = state.variables
+            vs.tke = jnp.broadcast_to(1e-3 * vs.maskW[..., None], vs.tke.shape)
+
+    @veros_routine
     def set_diagnostics(self, state):
         for diagnostic in state.diagnostics.values():
             diagnostic.output_frequency = None
@@ -68,13 +77,16 @@ sim = Simulation(
         dt_mom=600,
         dt_tracer=600,
         enable_streamfunction=sys.argv[1] == "streamfunction",
-        enable_tke=False,
+        enable_tke=tke_policy == "positive_diffusion",
+        enable_tke_positive_diffusion=tke_policy == "positive_diffusion",
         kappaH_0=1e-4,
         enable_neutral_diffusion=False,
         enable_skew_diffusion=False,
     )
 )
 sim.setup()
+mixing_parameter = "c_k" if tke_policy == "positive_diffusion" else "kappaH_0"
+mixing_value = getattr(sim.state.settings, mixing_parameter)
 p = sim.prepare_integrator(record_diagnostics=("averages",), checkpoint=True, linear_solver=implementation)
 c = p.pack(sim.state)
 if implementation == "petsc":
@@ -102,7 +114,7 @@ if rst.proc_num == 1:
 
 def loss(controls):
     carry = p.replace_variables(c, t_star=controls["forcing"] * c.variables.t_star)
-    _, records = p.advance(carry, n_steps=3, parameters={"kappaH_0": controls["mixing"] * sim.state.settings.kappaH_0})
+    _, records = p.advance(carry, n_steps=3, parameters={mixing_parameter: controls["mixing"] * mixing_value})
     with tracing_context():
         return global_sum(jnp.sum(records["averages"].values["temp"][-1, 2:-2, 2:-2] ** 2))
 
@@ -145,7 +157,7 @@ with tempfile.TemporaryDirectory(prefix="veros-ocean-replay-") as directory:
     result = driver.value_and_grad(
         c,
         n_steps=3,
-        parameters={"kappaH_0": sim.state.settings.kappaH_0},
+        parameters={mixing_parameter: mixing_value},
         schedule=PeriodicDiskSchedule(3, disk_interval=2, ram_checkpoints=1),
         directory=directory,
     )
@@ -155,7 +167,7 @@ with tempfile.TemporaryDirectory(prefix="veros-ocean-replay-") as directory:
     np.testing.assert_allclose(result.value, value, rtol=1e-8, atol=1e-6)
     np.testing.assert_allclose(sensitivity, shared_gradients["forcing"], rtol=2e-5, atol=1e-5)
     np.testing.assert_allclose(
-        result.parameter_gradient["kappaH_0"] * sim.state.settings.kappaH_0,
+        result.parameter_gradient[mixing_parameter] * mixing_value,
         shared_gradients["mixing"],
         rtol=2e-5,
         atol=1e-5,

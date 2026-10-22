@@ -151,8 +151,8 @@ class PreparedIntegrator:
                 name for name, diag in self._diagnostics.items() if diag.output_frequency and name != "snapshot"
             )
         self.record_diagnostics = tuple(record_diagnostics)
-        if self._template.settings.enable_partial_cells and set(self.record_diagnostics) & {"energy", "overturning"}:
-            raise ValueError("Partial cells do not yet support energy or overturning records")
+        if self._template.settings.enable_partial_cells and "overturning" in self.record_diagnostics:
+            raise ValueError("Partial cells do not yet support overturning records")
         for name in self.record_diagnostics:
             if name in self.host_diagnostics:
                 raise TypeError(f"Diagnostic {name} needs pure sampling/finalization for differentiated records")
@@ -436,7 +436,7 @@ class PreparedIntegrator:
             if updated is not None:
                 variables[name] = updated
             if name == "cfl_monitor":
-                valid_cfl = global_and(jnp.isfinite(values["cfl"]) & jnp.isfinite(values["wcfl"]))
+                valid_cfl = global_and(jnp.all(jnp.stack([jnp.isfinite(value) for value in values.values()])))
             if name in self.record_diagnostics:
                 records[name] = DiagnosticRecord(state.variables.time, state.variables.itt, due, values)
         return variables, records, valid_cfl
