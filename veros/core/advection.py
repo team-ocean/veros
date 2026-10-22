@@ -1,7 +1,7 @@
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core.utilities import pad_z_edges
-from veros.core.geometry import cell_thickness
+from veros.core.geometry import cell_thickness, wgrid_thickness
 from veros.core.operators import numpy as npx, update, update_add, update_multiply, at, stable_divide
 
 
@@ -26,10 +26,14 @@ def _adv_superbee(state, vel, var, mask, dx, axis):
 
     if axis == 0:
         sm1, s, sp1, sp2 = ((slice(1 + n, -2 + n or None), slice(2, -2), slice(None)) for n in range(-1, 3))
-        dx = vs.cost[npx.newaxis, 2:-2, npx.newaxis] * dx[1:-2, npx.newaxis, npx.newaxis]
+        dx = (
+            dx[1:-2, 2:-2]
+            if dx.ndim == 3
+            else vs.cost[npx.newaxis, 2:-2, npx.newaxis] * dx[1:-2, npx.newaxis, npx.newaxis]
+        )
     elif axis == 1:
         sm1, s, sp1, sp2 = ((slice(2, -2), slice(1 + n, -2 + n or None), slice(None)) for n in range(-1, 3))
-        dx = (vs.cost * dx)[npx.newaxis, 1:-2, npx.newaxis]
+        dx = dx[2:-2, 1:-2] if dx.ndim == 3 else (vs.cost * dx)[npx.newaxis, 1:-2, npx.newaxis]
     elif axis == 2:
         sm1, s, sp1, sp2 = ((slice(2, -2), slice(2, -2), slice(1 + n, -2 + n or None)) for n in range(-1, 3))
         dx = dx[2:-2, 2:-2, :-1] if dx.ndim == 3 else dx[npx.newaxis, npx.newaxis, :-1]
@@ -126,66 +130,68 @@ def calculate_velocity_on_wgrid(state):
 
 @veros_kernel
 def calculate_velocity_on_wgrid_kernel(state):
-    """
-    calculates advection velocity for tracer on vs.W grid
-
-    Note: this implementation is not strictly equal to the Fortran version. They only match
-    if vs.maskW has exactly one true value across each depth slice.
-    """
+    """Project occupied transports onto W volumes, including the surface half cell."""
     vs = state.variables
+    fraction_u = vs.hfacU if state.settings.enable_partial_cells else vs.maskU
+    fraction_v = vs.hfacV if state.settings.enable_partial_cells else vs.maskV
+    w_thickness = update(vs.dzw, at[-1], 0.5 * vs.dzw[-1])
 
     # lateral advection velocities on W grid
     vs.u_wgrid = update(
         vs.u_wgrid,
         at[:, :, :-1],
         vs.u[:, :, 1:, vs.tau]
-        * vs.maskU[:, :, 1:]
+        * fraction_u[:, :, 1:]
         * 0.5
         * vs.dzt[npx.newaxis, npx.newaxis, 1:]
-        / vs.dzw[npx.newaxis, npx.newaxis, :-1]
+        / w_thickness[npx.newaxis, npx.newaxis, :-1]
         + vs.u[:, :, :-1, vs.tau]
-        * vs.maskU[:, :, :-1]
+        * fraction_u[:, :, :-1]
         * 0.5
         * vs.dzt[npx.newaxis, npx.newaxis, :-1]
-        / vs.dzw[npx.newaxis, npx.newaxis, :-1],
+        / w_thickness[npx.newaxis, npx.newaxis, :-1],
     )
     vs.v_wgrid = update(
         vs.v_wgrid,
         at[:, :, :-1],
         vs.v[:, :, 1:, vs.tau]
-        * vs.maskV[:, :, 1:]
+        * fraction_v[:, :, 1:]
         * 0.5
         * vs.dzt[npx.newaxis, npx.newaxis, 1:]
-        / vs.dzw[npx.newaxis, npx.newaxis, :-1]
+        / w_thickness[npx.newaxis, npx.newaxis, :-1]
         + vs.v[:, :, :-1, vs.tau]
-        * vs.maskV[:, :, :-1]
+        * fraction_v[:, :, :-1]
         * 0.5
         * vs.dzt[npx.newaxis, npx.newaxis, :-1]
-        / vs.dzw[npx.newaxis, npx.newaxis, :-1],
+        / w_thickness[npx.newaxis, npx.newaxis, :-1],
     )
     vs.u_wgrid = update(
-        vs.u_wgrid, at[:, :, -1], vs.u[:, :, -1, vs.tau] * vs.maskU[:, :, -1] * 0.5 * vs.dzt[-1:] / vs.dzw[-1:]
+        vs.u_wgrid, at[:, :, -1], vs.u[:, :, -1, vs.tau] * fraction_u[:, :, -1] * 0.5 * vs.dzt[-1:] / w_thickness[-1:]
     )
     vs.v_wgrid = update(
-        vs.v_wgrid, at[:, :, -1], vs.v[:, :, -1, vs.tau] * vs.maskV[:, :, -1] * 0.5 * vs.dzt[-1:] / vs.dzw[-1:]
+        vs.v_wgrid, at[:, :, -1], vs.v[:, :, -1, vs.tau] * fraction_v[:, :, -1] * 0.5 * vs.dzt[-1:] / w_thickness[-1:]
     )
 
     # redirect velocity at bottom and at topography
     vs.u_wgrid = update(
         vs.u_wgrid,
         at[:, :, 0],
-        vs.u_wgrid[:, :, 0] + vs.u[:, :, 0, vs.tau] * vs.maskU[:, :, 0] * 0.5 * vs.dzt[0] / vs.dzw[0],
+        vs.u_wgrid[:, :, 0] + vs.u[:, :, 0, vs.tau] * fraction_u[:, :, 0] * 0.5 * vs.dzt[0] / w_thickness[0],
     )
     vs.v_wgrid = update(
         vs.v_wgrid,
         at[:, :, 0],
-        vs.v_wgrid[:, :, 0] + vs.v[:, :, 0, vs.tau] * vs.maskV[:, :, 0] * 0.5 * vs.dzt[0] / vs.dzw[0],
+        vs.v_wgrid[:, :, 0] + vs.v[:, :, 0, vs.tau] * fraction_v[:, :, 0] * 0.5 * vs.dzt[0] / w_thickness[0],
     )
     mask = vs.maskW[:-1, :, :-1] * vs.maskW[1:, :, :-1]
     vs.u_wgrid = update_add(
         vs.u_wgrid,
         at[:-1, :, 1:],
-        (vs.u_wgrid[:-1, :, :-1] * vs.dzw[npx.newaxis, npx.newaxis, :-1] / vs.dzw[npx.newaxis, npx.newaxis, 1:])
+        (
+            vs.u_wgrid[:-1, :, :-1]
+            * w_thickness[npx.newaxis, npx.newaxis, :-1]
+            / w_thickness[npx.newaxis, npx.newaxis, 1:]
+        )
         * (1.0 - mask),
     )
     vs.u_wgrid = update_multiply(vs.u_wgrid, at[:-1, :, :-1], mask)
@@ -193,7 +199,11 @@ def calculate_velocity_on_wgrid_kernel(state):
     vs.v_wgrid = update_add(
         vs.v_wgrid,
         at[:, :-1, 1:],
-        (vs.v_wgrid[:, :-1, :-1] * vs.dzw[npx.newaxis, npx.newaxis, :-1] / vs.dzw[npx.newaxis, npx.newaxis, 1:])
+        (
+            vs.v_wgrid[:, :-1, :-1]
+            * w_thickness[npx.newaxis, npx.newaxis, :-1]
+            / w_thickness[npx.newaxis, npx.newaxis, 1:]
+        )
         * (1.0 - mask),
     )
     vs.v_wgrid = update_multiply(vs.v_wgrid, at[:, :-1, :-1], mask)
@@ -204,7 +214,7 @@ def calculate_velocity_on_wgrid_kernel(state):
         vs.w_wgrid,
         at[1:, 1:, :],
         npx.cumsum(
-            -vs.dzw[npx.newaxis, npx.newaxis, :]
+            -w_thickness[npx.newaxis, npx.newaxis, :]
             * (
                 (vs.u_wgrid[1:, 1:, :] - vs.u_wgrid[:-1, 1:, :])
                 / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis])
@@ -227,6 +237,9 @@ def adv_flux_superbee_wgrid(state, var):
     Calculates advection of a tracer defined on Wgrid
     """
     vs = state.variables
+    spacing_x, spacing_y, spacing_z = vs.dxt, vs.dyt, vs.dzw
+    if state.settings.enable_partial_cells:
+        spacing_x, spacing_y, spacing_z = wgrid_cfl_spacings(state)
 
     adv_fe = allocate(state.dimensions, ("xt", "yt", "zt"))
     adv_fn = allocate(state.dimensions, ("xt", "yt", "zt"))
@@ -234,18 +247,39 @@ def adv_flux_superbee_wgrid(state, var):
 
     maskUtr = allocate(state.dimensions, ("xt", "yt", "zw"))
     maskUtr = update(maskUtr, at[:-1, :, :], vs.maskW[1:, :, :] * vs.maskW[:-1, :, :])
-    adv_fe = update(adv_fe, at[1:-2, 2:-2, :], _adv_superbee(state, vs.u_wgrid, var, maskUtr, vs.dxt, axis=0))
+    adv_fe = update(adv_fe, at[1:-2, 2:-2, :], _adv_superbee(state, vs.u_wgrid, var, maskUtr, spacing_x, axis=0))
 
     maskVtr = allocate(state.dimensions, ("xt", "yt", "zw"))
     maskVtr = update(maskVtr, at[:, :-1, :], vs.maskW[:, 1:, :] * vs.maskW[:, :-1, :])
-    adv_fn = update(adv_fn, at[2:-2, 1:-2, :], _adv_superbee(state, vs.v_wgrid, var, maskVtr, vs.dyt, axis=1))
+    adv_fn = update(adv_fn, at[2:-2, 1:-2, :], _adv_superbee(state, vs.v_wgrid, var, maskVtr, spacing_y, axis=1))
 
     maskWtr = allocate(state.dimensions, ("xt", "yt", "zw"))
     maskWtr = update(maskWtr, at[:, :, :-1], vs.maskW[:, :, 1:] * vs.maskW[:, :, :-1])
-    adv_ft = update(adv_ft, at[2:-2, 2:-2, :-1], _adv_superbee(state, vs.w_wgrid, var, maskWtr, vs.dzw, axis=2))
+    adv_ft = update(adv_ft, at[2:-2, 2:-2, :-1], _adv_superbee(state, vs.w_wgrid, var, maskWtr, spacing_z, axis=2))
     adv_ft = update(adv_ft, at[..., -1], 0.0)
 
     return adv_fe, adv_fn, adv_ft
+
+
+def wgrid_cfl_spacings(state):
+    """Native reconstruction spacings scaled by occupied donor-volume fractions."""
+    vs = state.variables
+    nominal = npx.broadcast_to(vs.dzw, vs.maskW.shape)
+    nominal = update(nominal, at[..., -1], 0.5 * nominal[..., -1])
+    fraction = npx.ones_like(nominal)
+    if state.settings.enable_partial_cells:
+        fraction = wgrid_thickness(state) / nominal
+    spacings = (
+        vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxt[:, npx.newaxis, npx.newaxis],
+        (vs.cost * vs.dyt)[npx.newaxis, :, npx.newaxis],
+        vs.dzw[npx.newaxis, npx.newaxis, :],
+    )
+    result = []
+    for axis, (spacing, velocity) in enumerate(zip(spacings, (vs.u_wgrid, vs.v_wgrid, vs.w_wgrid))):
+        donor = npx.where(velocity >= 0, fraction, npx.roll(fraction, -1, axis=axis))
+        distance = spacing * donor
+        result.append(npx.where(donor == 0, 1, distance))
+    return tuple(result)
 
 
 @veros_kernel

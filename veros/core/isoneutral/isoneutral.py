@@ -15,6 +15,22 @@ def dm_taper(sx, iso_slopec, iso_dslope):
     return 0.5 * (1.0 + npx.tanh((-npx.abs(sx) + iso_slopec) / iso_dslope))
 
 
+@veros_kernel(static_args=("zero_nonstable",))
+def neutral_slope(horizontal, vertical, zero_nonstable=False):
+    """Use horizontal mixing where a stable neutral-surface orientation is absent.
+
+    The optional policy retains the zero-slope taper and steep-slope floor.
+    Mask operands before division so inactive stencils have zero derivatives.
+    Surface quadrature has a prescribed zero vertical gradient.
+    """
+    denominator = npx.minimum(0.0, vertical) - 1e-20
+    if zero_nonstable:
+        stable = vertical < 0
+        horizontal = npx.where(stable, horizontal, 0.0)
+        denominator = npx.where(stable, denominator, -1.0)
+    return stable_divide(-horizontal, denominator)
+
+
 @veros_kernel
 def isoneutral_diffusion_pre(state):
     """
@@ -24,8 +40,6 @@ def isoneutral_diffusion_pre(state):
     """
     vs = state.variables
     settings = state.settings
-
-    epsln = 1e-20
 
     dTdx = allocate(state.dimensions, ("xt", "yt", "zt"))
     dSdx = allocate(state.dimensions, ("xt", "yt", "zt"))
@@ -118,7 +132,7 @@ def isoneutral_diffusion_pre(state):
                 drdT[1 + ip : -2 + ip, 2:-2, ki:] * dTdz[1 + ip : -2 + ip, 2:-2, : -1 + kr or None]
                 + drdS[1 + ip : -2 + ip, 2:-2, ki:] * dSdz[1 + ip : -2 + ip, 2:-2, : -1 + kr or None]
             )
-            sxe = stable_divide(-drodxe, npx.minimum(0.0, drodze) - epsln)
+            sxe = neutral_slope(drodxe, drodze, zero_nonstable=settings.enable_neutral_nonstable_zero_slope)
             taper = dm_taper(sxe, settings.iso_slopec, settings.iso_dslope)
             sumz = update_add(
                 sumz,
@@ -155,7 +169,7 @@ def isoneutral_diffusion_pre(state):
                 drdT[2:-2, 1 + jp : -2 + jp, ki:] * dTdz[2:-2, 1 + jp : -2 + jp, : -1 + kr or None]
                 + drdS[2:-2, 1 + jp : -2 + jp, ki:] * dSdz[2:-2, 1 + jp : -2 + jp, : -1 + kr or None]
             )
-            syn = stable_divide(-drodyn, npx.minimum(0.0, drodzn) - epsln)
+            syn = neutral_slope(drodyn, drodzn, zero_nonstable=settings.enable_neutral_nonstable_zero_slope)
             taper = dm_taper(syn, settings.iso_slopec, settings.iso_dslope)
             sumz = update_add(
                 sumz,
@@ -185,8 +199,10 @@ def isoneutral_diffusion_pre(state):
                 drdT[2:-2, 2:-2, kr : -1 + kr or None] * dTdx[1 + ip : -3 + ip, 2:-2, kr : -1 + kr or None]
                 + drdS[2:-2, 2:-2, kr : -1 + kr or None] * dSdx[1 + ip : -3 + ip, 2:-2, kr : -1 + kr or None]
             )
-            sxb = stable_divide(-drodxb, npx.minimum(0.0, drodzb) - epsln)
+            sxb = neutral_slope(drodxb, drodzb, zero_nonstable=settings.enable_neutral_nonstable_zero_slope)
             taper = dm_taper(sxb, settings.iso_slopec, settings.iso_dslope)
+            # Pair vertical quadrature with the occupied horizontal face of the same tensor term.
+            fraction = vs.hfacU[1 + ip : -3 + ip, 2:-2, kr : -1 + kr or None] if settings.enable_partial_cells else 1.0
             sumx = (
                 sumx
                 + vs.dxu[1 + ip : -3 + ip, npx.newaxis, npx.newaxis]
@@ -194,6 +210,7 @@ def isoneutral_diffusion_pre(state):
                 * taper
                 * sxb**2
                 * vs.maskW[2:-2, 2:-2, :-1]
+                * fraction
             )
             vs.Ai_bx = update(vs.Ai_bx, at[2:-2, 2:-2, :-1, ip, kr], taper * sxb * vs.maskW[2:-2, 2:-2, :-1])
 
@@ -204,8 +221,9 @@ def isoneutral_diffusion_pre(state):
                 drdT[2:-2, 2:-2, kr : -1 + kr or None] * dTdy[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None]
                 + drdS[2:-2, 2:-2, kr : -1 + kr or None] * dSdy[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None]
             )
-            syb = stable_divide(-drodyb, npx.minimum(0.0, drodzb) - epsln)
+            syb = neutral_slope(drodyb, drodzb, zero_nonstable=settings.enable_neutral_nonstable_zero_slope)
             taper = dm_taper(syb, settings.iso_slopec, settings.iso_dslope)
+            fraction = vs.hfacV[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None] if settings.enable_partial_cells else 1.0
             sumy = (
                 sumy
                 + facty[npx.newaxis, :, npx.newaxis]
@@ -213,6 +231,7 @@ def isoneutral_diffusion_pre(state):
                 * taper
                 * syb**2
                 * vs.maskW[2:-2, 2:-2, :-1]
+                * fraction
             )
             vs.Ai_by = update(vs.Ai_by, at[2:-2, 2:-2, :-1, jp, kr], taper * syb * vs.maskW[2:-2, 2:-2, :-1])
 

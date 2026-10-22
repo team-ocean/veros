@@ -2,6 +2,7 @@ from veros.core.operators import numpy as npx
 
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
+from veros.core.geometry import wgrid_thickness, wgrid_horizontal_divergence
 from veros.core import utilities, advection
 from veros.core.operators import update, update_add, at, safe_sqrt
 
@@ -44,9 +45,14 @@ def set_eke_diffusivities_kernel(state):
         """
         calculate Rossby radius as minimum of mid-latitude and equatorial R. rad.
         """
+        stratification_width = vs.dzw[npx.newaxis, npx.newaxis, :]
+        if settings.enable_partial_cells:
+            nominal_width = npx.broadcast_to(vs.dzw, vs.maskW.shape)
+            nominal_width = update(nominal_width, at[..., -1], 0.5 * nominal_width[..., -1])
+            stratification_width = stratification_width * (wgrid_thickness(state) / nominal_width)
         C_rossby = npx.sum(
             safe_sqrt(npx.maximum(0.0, vs.Nsqr[:, :, :, vs.tau]))
-            * vs.dzw[npx.newaxis, npx.newaxis, :]
+            * stratification_width
             * vs.maskW[:, :, :]
             / settings.pi,
             axis=2,
@@ -97,6 +103,12 @@ def integrate_eke_kernel(state):
     """
     vs = state.variables
     settings = state.settings
+    nominal_width = npx.broadcast_to(vs.dzw, vs.maskW.shape)
+    nominal_width = update(nominal_width, at[..., -1], 0.5 * nominal_width[..., -1])
+    width = nominal_width
+    if settings.enable_partial_cells:
+        width = npx.where(vs.maskW, wgrid_thickness(state), nominal_width)
+    interior_width = width[2:-2, 2:-2]
 
     c_int = allocate(state.dimensions, ("xt", "yt", "zt"))
 
@@ -126,6 +138,9 @@ def integrate_eke_kernel(state):
     """
     vertical diffusion of EKE,forcing and dissipation
     """
+    if settings.enable_partial_cells:
+        forc = forc * (nominal_width / width)
+
     _, water_mask, edge_mask = utilities.create_water_masks(vs.kbot[2:-2, 2:-2], settings.nz)
 
     delta, a_tri, b_tri, c_tri, d_tri = (
@@ -140,18 +155,20 @@ def integrate_eke_kernel(state):
         * (vs.kappaM[2:-2, 2:-2, :-1] + vs.kappaM[2:-2, 2:-2, 1:])
         * settings.alpha_eke,
     )
-    a_tri = update(a_tri, at[:, :, 1:-1], -delta[:, :, :-2] / vs.dzw[1:-1])
-    a_tri = update(a_tri, at[:, :, -1], -delta[:, :, -2] / (0.5 * vs.dzw[-1]))
+    a_tri = update(a_tri, at[:, :, 1:-1], -delta[:, :, :-2] / interior_width[:, :, 1:-1])
+    a_tri = update(a_tri, at[:, :, -1], -delta[:, :, -2] / interior_width[:, :, -1])
     b_tri = update(
         b_tri,
         at[:, :, 1:-1],
-        1 + (delta[:, :, 1:-1] + delta[:, :, :-2]) / vs.dzw[1:-1] + settings.dt_tracer * c_int[2:-2, 2:-2, 1:-1],
+        1
+        + (delta[:, :, 1:-1] + delta[:, :, :-2]) / interior_width[:, :, 1:-1]
+        + settings.dt_tracer * c_int[2:-2, 2:-2, 1:-1],
     )
     b_tri = update(
-        b_tri, at[:, :, -1], 1 + delta[:, :, -2] / (0.5 * vs.dzw[-1]) + settings.dt_tracer * c_int[2:-2, 2:-2, -1]
+        b_tri, at[:, :, -1], 1 + delta[:, :, -2] / interior_width[:, :, -1] + settings.dt_tracer * c_int[2:-2, 2:-2, -1]
     )
-    b_tri_edge = 1 + delta / vs.dzw[npx.newaxis, npx.newaxis, :] + settings.dt_tracer * c_int[2:-2, 2:-2, :]
-    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzw[npx.newaxis, npx.newaxis, :-1])
+    b_tri_edge = 1 + delta / interior_width + settings.dt_tracer * c_int[2:-2, 2:-2, :]
+    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / interior_width[:, :, :-1])
     d_tri = update(d_tri, at[:, :, :], vs.eke[2:-2, 2:-2, :, vs.tau] + settings.dt_tracer * forc[2:-2, 2:-2, :])
 
     sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
@@ -161,6 +178,8 @@ def integrate_eke_kernel(state):
     store eke dissipation
     """
     vs.eke_diss_iw = c_int * vs.eke[:, :, :, vs.taup1]
+    if settings.enable_partial_cells:
+        vs.eke_diss_iw = vs.eke_diss_iw * (width / nominal_width)
     vs.eke_diss_tke = update(vs.eke_diss_tke, at[...], 0.0)
 
     """
@@ -187,18 +206,25 @@ def integrate_eke_kernel(state):
         * vs.cosu[npx.newaxis, :-1, npx.newaxis],
     )
     flux_north = update(flux_north, at[:, -1, :], 0.0)
-    vs.eke = update_add(
-        vs.eke,
-        at[2:-2, 2:-2, :, vs.taup1],
-        settings.dt_tracer
-        * vs.maskW[2:-2, 2:-2, :]
-        * (
-            (flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-            / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
-            + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-            / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
-        ),
-    )
+    if settings.enable_partial_cells:
+        vs.eke = update_add(
+            vs.eke,
+            at[2:-2, 2:-2, :, vs.taup1],
+            settings.dt_tracer * wgrid_horizontal_divergence(state, flux_east, flux_north),
+        )
+    else:
+        vs.eke = update_add(
+            vs.eke,
+            at[2:-2, 2:-2, :, vs.taup1],
+            settings.dt_tracer
+            * vs.maskW[2:-2, 2:-2, :]
+            * (
+                (flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+                + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
+                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
+            ),
+        )
 
     """
     add tendency due to advection
@@ -230,6 +256,13 @@ def integrate_eke_kernel(state):
         vs.deke = update_add(
             vs.deke, at[:, :, -1, vs.tau], -(flux_top[:, :, -1] - flux_top[:, :, -2]) / (0.5 * vs.dzw[-1])
         )
+        if settings.enable_partial_cells:
+            vs.deke = update(
+                vs.deke,
+                at[..., vs.tau],
+                vs.deke[..., vs.tau] * (nominal_width / width),
+            )
+
         """
         Adam Bashforth time stepping
         """
