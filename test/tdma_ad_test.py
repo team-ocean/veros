@@ -5,6 +5,26 @@ from veros import runtime_settings
 
 
 @pytest.mark.parametrize("dtype", ("float32", "float64"))
+@pytest.mark.parametrize("wet_index", (None, (1, 1, 0), (1, 0, 4)))
+def test_numpy_tdma_empty_and_single_wet_cell(dtype, wet_index):
+    from veros.core.operators import solve_tridiagonal_numpy
+
+    shape = (2, 3, 5)
+    a, b, c, d = (np.full(shape, value, dtype=dtype) for value in (-0.2, 4.0, -0.3, 2.0))
+    water = np.zeros(shape, dtype=bool)
+    expected = np.zeros(shape, dtype=dtype)
+    if wet_index is not None:
+        water[wet_index] = True
+        expected[wet_index] = 0.5
+    before = [value.copy() for value in (a, b, c, d)]
+    result = solve_tridiagonal_numpy(a, b, c, d, water, water)
+    np.testing.assert_array_equal(result, expected)
+    assert result.dtype == dtype
+    for value, original in zip((a, b, c, d), before):
+        np.testing.assert_array_equal(value, original)
+
+
+@pytest.mark.parametrize("dtype", ("float32", "float64"))
 @pytest.mark.parametrize("depth", (1, 6))
 def test_tdma_implicit_gradients(dtype, depth):
     if runtime_settings.backend != "jax":
