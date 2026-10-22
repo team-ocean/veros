@@ -265,10 +265,12 @@ def set_forcing_kernel(state):
     vs.forc_temp_surface = npx.where(mask, 0.0, vs.forc_temp_surface)
     vs.forc_salt_surface = npx.where(mask, 0.0, vs.forc_salt_surface)
 
-    return KernelOutput(
+    output = dict(
         surface_taux=vs.surface_taux,
         surface_tauy=vs.surface_tauy,
-        forc_tke_surface=vs.forc_tke_surface,
         forc_temp_surface=vs.forc_temp_surface,
         forc_salt_surface=vs.forc_salt_surface,
     )
+    if settings.enable_tke:
+        output["forc_tke_surface"] = vs.forc_tke_surface
+    return KernelOutput(**output)
