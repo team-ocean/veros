@@ -311,6 +311,44 @@ The driver is a host operation that cannot be transformed with ``jax.jit`` or
 numerical gradient limitations still apply. ``benchmarks/dynamic_parameters_demo.py``
 provides synthetic parameter fitting, derivative checks, and RAM/disk replay.
 
+Adjusted responses and tracer closures
+--------------------------------------
+
+``prepared.equilibrium_response(initial, observe=observe)`` solves a phase-zero
+fixed point. ``prepared.periodic_response`` instead accepts ``period_steps``
+and increasing fractional ``phases`` in ``[0, 1)`` to observe a periodic orbit.
+Both use scaled prognostic fields and multistep histories, include adjustment
+in their first-order derivatives, and return observations with state, stability,
+and sensitivity residuals. They require serial execution and disabled diagnostic
+accumulators. Unresolved adjustment raises an error. Converged roots still need
+stability checks and independent physical validation.
+
+``prepared.with_tracer_closure(initial, law=law, weights=weights)`` augments
+implicit vertical tracer diffusion in compiled timesteps. Declare scalar
+``research_closure_scale`` and ``research_closure_state`` variables before
+preparing the model. The pure JAX ``law(variables, weights)`` returns a floating
+field with the ``kappaH`` shape. Its two weights remain dynamic carried inputs
+through differentiation and checkpoint replay. Changing the law requires a
+newly prepared integrator. Independent closure-reference data come from a
+setup-declared ``build_tracer_reference`` provider.
+
+Adjusted stability solvers
+--------------------------
+
+``prepared.equilibrium_response`` and ``prepared.periodic_response`` accept an
+optional host ``stability_solver``. Its signature is
+``solver(operator, k=...)`` and its result is ``(eigenvalues, eigenvectors)``,
+with eigenvectors stored as columns. The supplied operator is the constrained,
+scaled state-map Jacobian. Return at least ``k`` largest-modulus eigenpairs;
+the provider must establish dominant-spectrum coverage for that actual operator.
+Modes nearest a chosen shift alone do not satisfy this requirement.
+
+Every supplied pair receives an independent residual check using the original
+operator. Nonfinite arrays and zero eigenvectors are rejected, and unresolved
+residuals retain the usual stability gate. Selecting a solver does not change
+the physical map, its adjustment, or its implicit sensitivities. Without this
+argument, the standard stability solver is used.
+
 Partial-cell bathymetry
 -----------------------
 
@@ -330,16 +368,17 @@ conserve momentum; no-slip wall stresses dissipate kinetic energy. Momentum-sour
 and drag work use occupied velocity volumes. Energy inventories use native
 U/V volumes for kinetic energy and occupied T volumes for enthalpy; diagnostic
 work fields retain their nominal W-grid quadrature.
-Neutral and skew tracer diffusion use
-open horizontal faces and occupied tracer volumes. Their vertical cross and
-diagonal quadrature terms carry the matching horizontal face fractions. The matching factors retain the paired tensor structure. The implicit Redi solve also uses occupied tracer thickness.
+Neutral and skew tracer diffusion use open horizontal faces and occupied
+tracer volumes. Their vertical cross and diagonal quadrature terms carry
+matching horizontal face fractions to retain the paired tensor structure.
+The implicit Redi solve also uses occupied tracer thickness.
 Reference vertical difference distances remain fixed. Choose the timestep for
 the smallest occupied cells in the admissible geometry range.
 
 Tracer-monitor volumes and vertical CFL estimates also use occupied thicknesses.
 Bathymetry controls hold reference vertical levels and difference distances
-fixed. Neighboring velocity faces use the smaller occupied thickness of their adjacent tracer
-cells. Pressure solves rebuild depth-dependent numerical coefficients so
+fixed. Neighboring velocity faces use the smaller occupied thickness of their
+adjacent tracer cells. Pressure solves rebuild depth-dependent numerical coefficients so
 operator derivatives include changes in geometry.
 
 For a configured partial-cell model, construct candidate geometry inside the
@@ -424,6 +463,12 @@ endpoint. With ``realized=True``, depth rounds to the nearest whole-layer
 interface for independent forward validation. This mode provides a discrete
 comparison whose rounded decisions do not supply geometry derivatives.
 Partial-cell physics and diagnostic guards remain in force.
+Adjusted responses
+retain candidate masks and bottom indices in their dynamic inputs. Their pressure
+gauge preserves the initial wet-area mean sea level separately in each connected
+basin, including connectivity across cyclic boundaries. A changed connection can
+change this constraint; geometry derivatives still apply within the declared
+admissible interval.
 
 For a host-managed adjoint, retain the bathymetry construction's VJP when
 building the initial candidate::
@@ -437,7 +482,7 @@ depth-control gradient.
 
 
 Optional turbulence and neutral-slope policies
---------------------------------------------
+----------------------------------------------
 
 ``enable_tke_positive_diffusion=True`` selects implicit positive-part TKE
 diffusion and damping, a nonnegative surface-energy constraint, and continuous
@@ -449,3 +494,22 @@ this option because the Fortran model does not implement these equations.
 nonstable and surface quadrature stencils. Stable stencils retain their
 original formula. This option is disabled by default and requires independent
 validation for each physical configuration.
+
+
+Periodic invariant statistics
+-----------------------------
+
+``prepared.statistical_response`` supports the explicitly selected
+``method="invariant_periodic"``. Supply ``period_steps``, ``sample_stride``,
+``thresholds``, and the independent forward experiment's ``window_steps``,
+``burnin_steps``, ``n_windows``, and ``seed``. The provider adjusts a periodic
+orbit and returns means, variances, and smooth exceedance frequencies in
+``observations``. Their derivatives include the orbit's adjustment.
+
+The sampled discrete orbit's phases are evaluated as a complete finite
+population, so its Monte Carlo standard error is zero. Root and derivative
+tolerances, phase sampling, and physical model uncertainty remain separate
+limitations. Diagnostic calls retain state, stability, and sensitivity checks;
+an unstable or unresolved orbit returns nonfinite statistics. Independent
+forward integration is still required to validate the chosen physical scope.
+This method provides no chaotic invariant-response estimator.

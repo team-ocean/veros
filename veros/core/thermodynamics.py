@@ -441,6 +441,10 @@ def thermodynamics(state):
                 vs.update(isoneutral.isoneutral_skew_diffusion(state, tr=vs.salt, istemp=False))
 
     with state.timers["vmix"]:
+        closure = getattr(state, "_tracer_closure", None)
+        if closure is not None:
+            weights = npx.stack((vs.research_closure_scale, vs.research_closure_state))
+            vs.kappaH = vs.kappaH + closure(vs, weights) * vs.maskW
         vs.update(vertmix_tempsalt(state))
 
     with state.timers["eq_of_state"]:
