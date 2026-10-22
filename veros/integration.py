@@ -421,13 +421,9 @@ class PreparedIntegrator:
     ):
         """Return means, variances, and smooth events on a stable periodic orbit.
 
-        Select ``method='invariant_periodic'`` explicitly. This estimator uses
-        the adjusted orbit's implicit derivative and evaluates every phase of
-        the sampled discrete orbit. It does not estimate chaotic statistics.
-        Window, burn-in, and seed describe the independent forward comparison;
-        they do not alter a converged invariant periodic population.
-        ``stability_solver`` has the same checked-eigenpair contract as
-        :meth:`periodic_response`; its provider supplies dominant-spectrum coverage.
+        Requires explicit ``method='invariant_periodic'``. Window, burn-in,
+        and seed describe the independent forward comparison. The implicit
+        orbit derivative and spectrum contract follow :meth:`periodic_response`.
         """
         from veros.statistics import periodic_statistics
 
@@ -454,9 +450,9 @@ class PreparedIntegrator:
     def with_tracer_closure(self, carry, *, law, weights):
         """Augment implicit vertical tracer diffusivity with a pure JAX law.
 
-        The two scalar research weight variables must be declared before
-        preparation. The law is fixed for this prepared integrator; weights
-        remain dynamic carried inputs, including during checkpoint replay.
+        Declare both scalar research weight variables before preparation.
+        The law stays fixed, and weights remain dynamic carried inputs during
+        differentiation and checkpoint replay.
         """
         import jax
         import jax.numpy as jnp
