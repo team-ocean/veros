@@ -194,8 +194,16 @@ class PreparedIntegrator:
             runtime_settings.num_proc,
         )
         self._hooks = {
-            name: simulation.__dict__.get(name, getattr(type(simulation), name))
-            for name in ("step", "_step_dynamics", "set_forcing", "after_timestep")
+            name: simulation.__dict__.get(name, getattr(type(simulation), name, None))
+            for name in (
+                "step",
+                "_step_dynamics",
+                "set_forcing",
+                "after_timestep",
+                "rebuild_vertical_forcing",
+                "rebuild_wet_forcing",
+                "wet_geometry_channel",
+            )
         }
         self._plugins = simulation._plugin_interfaces
         self._diagnostic_configuration = self._diagnostic_signature()
@@ -229,7 +237,7 @@ class PreparedIntegrator:
             if getattr(self.simulation.state.settings, name) != value
         ]
         for name, hook in self._hooks.items():
-            if self.simulation.__dict__.get(name, getattr(type(self.simulation), name)) is not hook:
+            if self.simulation.__dict__.get(name, getattr(type(self.simulation), name, None)) is not hook:
                 changed.append(name)
         if self.simulation._plugin_interfaces != self._plugins:
             changed.append("plugins")
@@ -305,6 +313,53 @@ class PreparedIntegrator:
             normalized[name] = jnp.asarray(value, dtype=runtime_settings.float_type)
         return normalized
 
+    def with_vertical_grid(self, carry, *, widths, conserve=("temp", "salt", "momentum")):
+        """Move fixed-count levels while conserving tracer, momentum, and energy inventories."""
+        from veros.remapping import vertical_grid
+
+        self.check_configuration()
+        return vertical_grid(self, carry, widths, conserve=conserve)
+
+    def grid_reference_error(self, carry, *, parameters=None, refinement, response, steps, forward=False, seed=0):
+        """Evaluate a setup-declared refined reference and differentiate its scalar error."""
+        self.check_configuration()
+        builder = getattr(self.simulation, "build_grid_reference", None)
+        if not callable(builder):
+            raise ValueError("The setup must declare an independent build_grid_reference provider")
+        return builder(
+            carry,
+            parameters=self.validate_parameters(parameters),
+            refinement=refinement,
+            response=response,
+            steps=steps,
+            forward=forward,
+            seed=seed,
+        )
+
+    def with_wet_geometry(
+        self,
+        carry,
+        *,
+        opening_m,
+        channel,
+        realized=False,
+        conserve=("temp", "salt", "momentum"),
+        minimum_fraction=0.1,
+    ):
+        """Open selected dry columns by pooling inventories from a fixed closed reference."""
+        from veros.wet_geometry import opening
+
+        self.check_configuration()
+        return opening(
+            self,
+            carry,
+            opening_m,
+            channel,
+            realized=realized,
+            conserve=conserve,
+            minimum_fraction=minimum_fraction,
+        )
+
     def bathymetry_bounds(self, carry, *, minimum_fraction=0.1):
         """Return interior depth bounds in meters for the fixed bottom-cell indices."""
         from veros.core.geometry import bathymetry_bounds
@@ -317,12 +372,17 @@ class PreparedIntegrator:
             lower, upper = bathymetry_bounds(self._make_state(carry.variables), minimum_fraction)
         return lower[2:-2, 2:-2], upper[2:-2, 2:-2]
 
-    def with_bathymetry(self, carry, depth, *, minimum_fraction=0.1):
-        """Return a carry with positive interior bottom depths in meters."""
+    def with_bathymetry(self, carry, depth, *, minimum_fraction=0.1, conserve=None):
+        """Set fixed-topology depths, optionally conserving column inventories."""
         import jax.numpy as jnp
         from veros.core.geometry import bathymetry_geometry
         from veros.core.operators import update, at
 
+        if conserve is not None:
+            if set(conserve) != {"temp", "salt", "momentum"}:
+                raise ValueError("Bathymetry remapping requires temp, salt, and momentum conservation")
+            self.check_configuration()
+        original = carry
         lower, upper = self.bathymetry_bounds(carry, minimum_fraction=minimum_fraction)
         depth = jnp.asarray(depth, dtype=carry.variables.dzt.dtype)
         if depth.shape != upper.shape:
@@ -334,6 +394,10 @@ class PreparedIntegrator:
         with tracing_context():
             fields = bathymetry_geometry(self._make_state(carry.variables), full_depth)
         carry = self.replace_variables(carry, **fields._asdict())
+        if conserve is not None:
+            from veros.remapping import remap_carry
+
+            carry = remap_carry(self, original, carry, stretch=True)
         return carry._replace(
             failure_code=jnp.where((carry.failure_code == 0) & ~valid, 4, carry.failure_code),
             failed_iteration=jnp.where((carry.failure_code == 0) & ~valid, carry.variables.itt, carry.failed_iteration),
@@ -534,6 +598,8 @@ class PreparedIntegrator:
                 2: "linear solver did not converge",
                 3: "CFL number is not finite",
                 4: "bathymetry is outside fixed-topology depth bounds",
+                5: "vertical grid violates positive widths or staggered spacings, fixed depth, or fixed-topology bounds",
+                6: "wet geometry violates channel selection or admissible depth bounds",
             }[code]
             raise RuntimeError(f"{reason} at iteration {int(carry.failed_iteration)}")
 
