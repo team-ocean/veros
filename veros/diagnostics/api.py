@@ -26,12 +26,22 @@ def initialize(state):
             logger.info(f' Writing output for diagnostic "{name}" every {t:.1f} {unit}')
 
 
+def _is_due(time, frequency, dt):
+    """Whether the time step ending at ``time`` is the first one at or after a multiple of ``frequency``.
+
+    The window is shifted back by a small tolerance, so that roundoff in the accumulated model time
+    cannot cause two consecutive steps (or none) to trigger.
+    """
+    tolerance = 1e-3 * dt
+    return (time + tolerance) % frequency < dt
+
+
 def diagnose(state):
     vs = state.variables
     settings = state.settings
 
     for diagnostic in state.diagnostics.values():
-        if diagnostic.sampling_frequency and vs.time % diagnostic.sampling_frequency < settings.dt_tracer:
+        if diagnostic.sampling_frequency and _is_due(vs.time, diagnostic.sampling_frequency, settings.dt_tracer):
             diagnostic.diagnose(state)
 
 
@@ -40,5 +50,5 @@ def output(state):
     settings = state.settings
 
     for diagnostic in state.diagnostics.values():
-        if diagnostic.output_frequency and vs.time % diagnostic.output_frequency < settings.dt_tracer:
+        if diagnostic.output_frequency and _is_due(vs.time, diagnostic.output_frequency, settings.dt_tracer):
             diagnostic.output(state)
