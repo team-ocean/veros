@@ -8,6 +8,8 @@ import pytest
 from wgrid_geometry_test import basin as basin, candidate, reference_width  # noqa: F401
 from wgrid_energy_test import energy_state
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 @pytest.fixture(scope="module")
 def energy_remap(basin):  # noqa: F811
