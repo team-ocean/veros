@@ -117,7 +117,7 @@ def test_cfl_finalize_defers_nan_error_to_writer(diagnostic_state, monkeypatch):
         state.variables.u = state.variables.u + npx.nan
     values = diagnostic.finalize(state)
     assert np.isnan(values["cfl"])
-    with pytest.raises(RuntimeError, match="CFL number is NaN"):
+    with pytest.raises(RuntimeError, match="CFL number is not finite"):
         diagnostic.write_finalized(state, values)
 
 

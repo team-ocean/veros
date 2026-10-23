@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def test_nonstable_slopes_have_zero_products_and_stable_slopes_are_unchanged():
     import jax
