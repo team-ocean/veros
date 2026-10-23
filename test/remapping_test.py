@@ -5,6 +5,8 @@ import pytest
 
 from veros.remapping import remap_cell_averages, remap_column_inventories
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def test_moving_levels_preserve_each_history_inventory_and_constant_fields():
     import jax

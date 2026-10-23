@@ -1,6 +1,9 @@
 """Public moving-grid energy histories compose with native steps and replay."""
 
 import numpy as np
+import pytest
+
+pytestmark = pytest.mark.usefixtures("jax_backend")
 
 
 def test_full_cell_energy_remap_coupled_records_and_checkpoint_pullback():

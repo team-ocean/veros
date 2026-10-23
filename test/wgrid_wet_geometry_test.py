@@ -5,6 +5,8 @@ import pytest
 
 from wgrid_turbulence_helpers import channel_simulation
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def volume(carry, grid):
     import jax.numpy as jnp

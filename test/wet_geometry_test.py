@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def channel_basin(*, opened=False, declare_forcing=True, cyclic=False):
     import jax.numpy as jnp
