@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def neutral_basin(*, partial=True, policy=True, eos=1, stepped=False):
     import jax.numpy as jnp

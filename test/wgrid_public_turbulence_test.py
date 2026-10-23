@@ -6,6 +6,8 @@ import pytest
 from wgrid_turbulence_helpers import channel_simulation, configure_turbulence
 from wgrid_wet_geometry_test import inventory
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def public_basin(tke, eke):
     import jax.numpy as jnp
