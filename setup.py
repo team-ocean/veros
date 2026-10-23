@@ -10,6 +10,7 @@ import re
 import sys
 
 from Cython.Build import cythonize
+import jaxlib
 
 here = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(here)
@@ -38,7 +39,7 @@ Operating System :: MacOS
 MINIMUM_VERSIONS = {
     "numpy": "1.13",
     "requests": "2.18",
-    "jax": "0.2.10",
+    "jax": "0.5.0",
 }
 
 
@@ -104,20 +105,20 @@ def get_extensions(require_cython_ext, require_cuda_ext):
     for module, sources in extension_modules.items():
         extension_dir = os.path.join(*module.split(".")[:-1])
 
-        kwargs = dict()
+        kwargs = dict(include_dirs=[os.path.join(os.path.dirname(jaxlib.__file__), "include")])
         if is_cuda_ext(sources):
             kwargs.update(
                 library_dirs=cuda_info["lib64"],
                 libraries=["cudart"],
                 runtime_library_dirs=cuda_info["lib64"],
-                include_dirs=cuda_info["include"],
+                include_dirs=[*kwargs["include_dirs"], *cuda_info["include"]],
             )
 
         ext = Extension(
             name=module,
             sources=[os.path.join(extension_dir, f) for f in sources],
             extra_compile_args={
-                "gcc": [],
+                "gcc": ["/std:c++17"] if sys.platform == "win32" else ["-std=c++17"],
                 "nvcc": cuda_info["cflags"],
             },
             **kwargs,
