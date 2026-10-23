@@ -79,3 +79,29 @@ def bathymetry_geometry(state, depth):
     hur = npx.where(hu > 0, 1 / npx.where(hu > 0, hu, 1), 0)
     hvr = npx.where(hv > 0, 1 / npx.where(hv > 0, hv, 1), 0)
     return KernelOutput(hfacT=hfacT, hfacU=hfacU, hfacV=hfacV, ht=ht, hu=hu, hv=hv, hur=hur, hvr=hvr)
+
+
+def connected_components(state):
+    """Label wet surface components using the current open velocity faces."""
+    import jax
+    import jax.numpy as jnp
+
+    vs = state.variables
+    wet = vs.maskT[2:-2, 2:-2, -1]
+    count = wet.size
+    labels = jnp.where(wet, jnp.arange(count, dtype=jnp.int32).reshape(wet.shape), count)
+    connections = (
+        (vs.hu[2:-2, 2:-2] > 0, 0, -1),
+        (vs.hu[1:-3, 2:-2] > 0, 0, 1),
+        (vs.hv[2:-2, 2:-2] > 0, 1, -1),
+        (vs.hv[2:-2, 1:-3] > 0, 1, 1),
+    )
+
+    def propagate(carry):
+        labels, _ = carry
+        updated = labels
+        for connected, axis, shift in connections:
+            updated = jnp.minimum(updated, jnp.where(connected, jnp.roll(labels, shift, axis=axis), count))
+        return updated, jnp.any(updated != labels)
+
+    return jax.lax.while_loop(lambda carry: carry[1], propagate, (labels, jnp.asarray(True)))[0]
