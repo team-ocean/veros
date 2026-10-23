@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 from geometry_reference_initial_test import owner
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def test_geometry_reference_public_error_checkpoint_and_transformed_products():
     import jax

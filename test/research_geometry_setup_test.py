@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 @pytest.fixture(scope="module", params=(False, True))
 def coastline(request):

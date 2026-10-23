@@ -5,6 +5,8 @@ from copy import copy
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 CASES = (
     ("rayleigh_friction", "K_diss_bot", False),
     ("linear_bottom_friction", "K_diss_bot", False),

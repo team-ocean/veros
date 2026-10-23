@@ -19,10 +19,6 @@ def test_calculate_velocity_on_wgrid(pyom2_lib):
     advection.calculate_velocity_on_wgrid(vs_state)
     pyom_obj.calculate_velocity_on_wgrid()
 
-    # Surface W cells have half the nominal volume. PyOM's stored horizontal
-    # velocities use the full thickness. Normalize their reference transports.
-    pyom_obj.main_module.u_wgrid[..., -1] *= 2
-    pyom_obj.main_module.v_wgrid[..., -1] *= 2
     compare_state(vs_state, pyom_obj)
 
 

@@ -6,6 +6,9 @@ import numpy as np
 
 from wgrid_geometry_test import basin as basin, candidate as geometry_candidate  # noqa: F401
 from wgrid_energy_test import energy_state
+import pytest
+
+pytestmark = pytest.mark.usefixtures("jax_backend")
 
 
 def test_partial_cell_turbulence_and_grid_derivatives(basin):  # noqa: F811

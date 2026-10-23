@@ -1,4 +1,4 @@
-from veros import veros_kernel, veros_routine, KernelOutput
+from veros import veros_kernel, veros_routine, KernelOutput, runtime_settings
 from veros.variables import allocate
 from veros.core.utilities import pad_z_edges
 from veros.core.geometry import cell_thickness, wgrid_thickness
@@ -134,7 +134,9 @@ def calculate_velocity_on_wgrid_kernel(state):
     vs = state.variables
     fraction_u = vs.hfacU if state.settings.enable_partial_cells else vs.maskU
     fraction_v = vs.hfacV if state.settings.enable_partial_cells else vs.maskV
-    w_thickness = update(vs.dzw, at[-1], 0.5 * vs.dzw[-1])
+    w_thickness = vs.dzw
+    if not runtime_settings.pyom_compatibility_mode:
+        w_thickness = update(w_thickness, at[-1], 0.5 * w_thickness[-1])
 
     # lateral advection velocities on W grid
     vs.u_wgrid = update(
