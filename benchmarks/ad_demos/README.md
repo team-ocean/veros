@@ -5,8 +5,8 @@ of Veros AD. Unmet criteria are reported as failures.
 
 The [optimization capability matrix](MATRIX.md) adds 35 scientific cases covering
 all seven tasks across local, trajectory, equilibrium, seasonal, and statistical
-responses. It records the research-question coverage and proposed APIs needed
-to make currently unsupported studies run. Export it with `--matrix`, run it
+responses. It records research-question coverage, numerical API contracts, and
+criteria for unresolved studies. Export it with `--matrix`, run it
 with `--demo matrix`, and select cells using `--task` and `--response`.
 
 The seven focused scientific cases are bathymetry optimization, forcing
@@ -35,10 +35,28 @@ after failures and exits with a nonzero code if any case fails, errors, or
 times out. Each experiment produces a JSON report and a log. `summary.json`
 collects all results. JSON retains measured values, tolerances, failed checks,
 configuration, versions, elapsed time, and process peak RSS where available.
+The guarded runners also accept `--device gpu`. Run GPU jobs with a CUDA-enabled
+JAX environment and the native CUDA TDMA extension. Select the device using
+workload measurements; small basin cycles can be faster on CPU.
 Checks are saved incrementally so completed measurements survive a timeout or
 process failure. Nonfinite measurements serialize as `null` and fail checks. A
 previous report is removed before rerunning its case. Supply a separate output
 directory for each configuration you want to retain.
+
+Reports also retain dependency versions, CPU affinity, source fingerprints and
+source snapshots, native-extension fingerprints, seeds, and local asset hashes.
+Physical source and extension fingerprints follow the imported Veros package,
+including runs that load a frozen package outside the checkout.
+Executing matrix cases record their model settings and preparation time. Inverse
+reports distinguish optimizer stopping from numerical rank and observation
+strength. These diagnostics do not change the scientific checks.
+
+Perturbation optimizers save completed stages, accepted iterates, and evaluated
+constraint control/value/gradient pairs through callbacks without additional
+numerical evaluations. The host descent and constrained solver accept an
+explicit `value_and_grad_fn`; `forward_value_and_grad` assembles a scalar
+gradient from sequential JVPs for measured small-control workloads. Their default
+derivatives and the independent response audits retain reverse products.
 
 Statuses distinguish `passed`/`failed` acceptance runs from
 `smoke_passed`/`smoke_failed`, execution `error`, and `timeout`. **A smoke pass
@@ -69,7 +87,16 @@ TKE/EKE/IDEMIX and uses constant mixing as a separate controlled experiment.
 Its background vertical diffusivity is set to `1e-5` m²/s so positive log-scaled
 calibration controls have a nonzero baseline.
 Neutral and skew mixing stay enabled. Results from this configuration do not
-validate the default parameterizations. `--device gpu` selects GPU execution.
+validate the default parameterizations. The forcing kernel handles inactive
+TKE, allowing global fixed-mixing experiments to initialize. `--device gpu` selects GPU execution.
+`--tke-policy positive_diffusion` enables an experimental turbulence
+discretization through `enable_tke_positive_diffusion`. It combines implicit
+positive-part diffusion and damping, a surface energy constraint, and continuous
+global allocation of numerical work. The stored interior energy can remain
+negative after forcing and advection. The setting is off by default. Reports record the selected policy explicitly.
+PyOM transfer rejects the enabled policy because its Fortran model does not
+implement these equations.
+
 These experiments initialize no MPI communicator, including in MPI-enabled
 installations. `--timeout` sets a per-case limit in seconds (default 600).
 
@@ -122,6 +149,13 @@ The Taylor check requires an observed order between 1.7 and 2.3 in at least one
 resolved interval, or all remainders below `1e-9 * max(1, abs(loss))` for a
 response whose curvature is unresolved at the tested scales. This also admits
 affine objectives. Central differences must agree at two or more scales.
+If the original five scales do not resolve agreement, the sweep adds four
+smaller scales down to `1e-6` with the same tolerance. Reports retain every
+measurement and the number of matches in the original sweep.
+For a diagnosed narrower branch, programmatic response configurations can set
+`gradient_finer_scales` to an explicit tuple of additional perturbation sizes.
+Those pairs run only if the existing plateau or Taylor check fails, retaining
+all earlier measurements and the same tolerances and two-scale requirement.
 Branch-dependent objectives may fail these conditions. The report retains
 the measurements and failed checks.
 
@@ -141,7 +175,11 @@ units. Geometry changes retain initial concentrations and zero velocity
 histories. The experiment checks local fixed-topology depth controls. It does
 not validate moving coastlines or global bathymetry estimation.
 
-The demos use the default neutral-slope policy and derivative conventions.
+The default neutral-slope policy is unchanged. `--neutral-policy nonstable`
+selects zero slope at nonstable and surface quadrature stencils through
+`enable_neutral_nonstable_zero_slope`. Stable stencils retain their original
+formula. This opt-in discretization requires its own forward and derivative
+validation.
 Distinguish runner and import errors from numerical or scientific failures.
 
 ## Pytest acceptance lane
@@ -158,5 +196,90 @@ VEROS_RUN_AD_ACCEPTANCE=1 python -m pytest test/ad_acceptance_test.py
 configuration. Column cases retain their column scope regardless of the ocean
 setup selection. Matrix cases require global geometry in acceptance mode and
 include explicit failures for missing ocean closure, adjustment, statistical,
-and geometry capabilities. Existing column fixtures retain their smaller scope.
+and geometry capabilities when unavailable. Existing column fixtures retain their smaller scope.
 Ordinary coverage tests and response-contract tests are in `test/ad_matrix_test.py`.
+
+## Profiling and finite responses
+
+The opt-in profiler requires `psutil`. It measures terminal checkpoint adjoints,
+streamed per-step tangents, and finite differences independently of the matrix
+observation adapter. Horizons and preparation are timestep counts. A stock
+global 4-degree tracer step is one day; global profiles require `--global`.
+
+```sh
+python -m benchmarks.ad_demos.baseline --lane profile --global \
+  --horizons 1 7 30 --preparation 0 30 --objectives heat transport \
+  --output /tmp/ad-global-profiles
+python -m benchmarks.ad_demos.baseline --lane diagnose \
+  --output /tmp/ad-inverse-diagnosis
+python -m benchmarks.ad_demos.m1 --lane matrix --setup global_4deg \
+  --mode acceptance --spinup-steps 360 --neutral-policy nonstable \
+  --timeout 43200 --output /tmp/ad-finite
+```
+
+Guarded runners enforce process-tree memory limits, a system memory reserve,
+and per-worker timeouts. Resource stops retain completed measurements and their
+stopping reason. A `measured` profiling status does not imply passing numerical
+checks. Use `--products tangent` or `--products finite_difference` to measure
+stages in separate processes and `--fd-epsilons` to select perturbation scales.
+
+Local and trajectory matrix cases use host checkpoint adjoints and streamed
+JVPs. Observation cotangents pass backward through each observation boundary,
+including initial-state and runtime-parameter controls. `--ram-checkpoints` and
+`--disk-checkpoints` select storage slots. Observation carries and compiled
+executables also consume memory outside those slots. Small-control Jacobians
+share each timestep's primal linearization across columns.
+
+Trajectory perturbation objectives use `Response.terminal_feature` for affine
+functions of the final observation. The factory compares forward and replay
+counts for complete and segmented checkpoint traversals. The count comparison
+does not predict wall time or disk I/O cost.
+
+Inverse cases use scaled Gauss-Newton with backtracking, a physical control-norm
+constraint, and up to three starts. Noise-free synthetic recovery uses an
+unregularized objective. The analysis solver also supports Gaussian priors.
+Perturbation cases restore feasibility before minimizing control cost and
+report stationarity, complementarity, and failed searches. A failed bounded
+search does not certify infeasibility. Observation design accepts correlated
+errors and measurement costs, then checks a nonlinear ensemble against future
+transport.
+
+## Adjusted responses and independent references
+
+The `adjusted_basin` fixture has an 8 × 10 × 4 Cartesian grid, nonlinear
+equation of state, neutral/skew mixing, tracer restoring, and momentum damping.
+`study` mode runs scientific windows on this configuration. Global acceptance
+retains its stock-grid requirement.
+
+```sh
+python -m benchmarks.ad_demos.m2 --setup adjusted_basin --physics fixed \
+  --neutral-policy nonstable --output /tmp/ad-adjusted-basin
+python -m benchmarks.ad_demos.m1 --lane statistics --output /tmp/ad-statistics
+python -m benchmarks.ad_demos.m1 --lane reference --output /tmp/ad-reference
+```
+
+Adjusted responses solve a full prognostic residual and implicit sensitivities
+using per-step products and checkpoint adjoints. Eligible CPU cycle segments
+use shared eight-step pullbacks and outer checkpoints every thirty-two steps.
+Eligibility requires a length divisible by eight and enough RAM slots for the
+stored carries plus eight carry-sized reverse-tape slots. Other segments use
+binomial replay. Statistics require explicit `invariant_periodic` selection and
+independent forward comparison. They do not estimate chaotic ocean response.
+
+The tracer closure augments implicit vertical diffusion with carried weights.
+Independent refined runs provide matched-state process corrections and rollout
+targets. Reference generation preserves physical boundary faces and records
+coarse/fine coordinates and widths. Fitting rejects unresolved alignment.
+
+The geometry provider compares finite endpoints, equilibrium fields, and matched
+phases of a stable periodic orbit on independent native grids. Statistical
+geometry requires a declared `invariant_periodic` method and independently
+initialized forward climates. Comparison uses exact spherical areas while
+native model budgets retain their original metrics. Grid-design products can
+use the complete streamed control Jacobian and its explicit transpose.
+Provider availability alone establishes no global or annual scientific result.
+
+The statistics lane includes stable and expanding systems. Density-response
+and shadowing benchmarks compare products with analytic formulas and independent
+forward ensembles. These experiments do not select an ocean statistical
+estimator. Generated JSON reports under `benchmarks/results/` are ignored by Git.

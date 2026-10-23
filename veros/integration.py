@@ -121,6 +121,8 @@ class PreparedIntegrator:
                 comm = _mpi_comm_along_axis(runtime_settings.mpi_comm, index[1 - axis], runtime_state.proc_rank, axis)
                 prepare_communicator(comm)
         self.simulation = simulation
+        self._checkpoint = checkpoint
+        self._tracer_closure = None
         self._step_dynamics = copy(simulation)._step_dynamics
         self._template = copy(simulation.state)
         self._template._settings = copy(simulation.state.settings)
@@ -151,8 +153,8 @@ class PreparedIntegrator:
                 name for name, diag in self._diagnostics.items() if diag.output_frequency and name != "snapshot"
             )
         self.record_diagnostics = tuple(record_diagnostics)
-        if self._template.settings.enable_partial_cells and set(self.record_diagnostics) & {"energy", "overturning"}:
-            raise ValueError("Partial cells do not yet support energy or overturning records")
+        if self._template.settings.enable_partial_cells and "overturning" in self.record_diagnostics:
+            raise ValueError("Partial cells do not yet support overturning records")
         for name in self.record_diagnostics:
             if name in self.host_diagnostics:
                 raise TypeError(f"Diagnostic {name} needs pure sampling/finalization for differentiated records")
@@ -194,8 +196,16 @@ class PreparedIntegrator:
             runtime_settings.num_proc,
         )
         self._hooks = {
-            name: simulation.__dict__.get(name, getattr(type(simulation), name))
-            for name in ("step", "_step_dynamics", "set_forcing", "after_timestep")
+            name: simulation.__dict__.get(name, getattr(type(simulation), name, None))
+            for name in (
+                "step",
+                "_step_dynamics",
+                "set_forcing",
+                "after_timestep",
+                "rebuild_vertical_forcing",
+                "rebuild_wet_forcing",
+                "wet_geometry_channel",
+            )
         }
         self._plugins = simulation._plugin_interfaces
         self._diagnostic_configuration = self._diagnostic_signature()
@@ -229,7 +239,7 @@ class PreparedIntegrator:
             if getattr(self.simulation.state.settings, name) != value
         ]
         for name, hook in self._hooks.items():
-            if self.simulation.__dict__.get(name, getattr(type(self.simulation), name)) is not hook:
+            if self.simulation.__dict__.get(name, getattr(type(self.simulation), name, None)) is not hook:
                 changed.append(name)
         if self.simulation._plugin_interfaces != self._plugins:
             changed.append("plugins")
@@ -305,6 +315,235 @@ class PreparedIntegrator:
             normalized[name] = jnp.asarray(value, dtype=runtime_settings.float_type)
         return normalized
 
+    def equilibrium_response(
+        self,
+        carry,
+        *,
+        parameters=None,
+        observe,
+        tolerance=1e-7,
+        max_steps=20000,
+        max_newton_iterations=64,
+        ram_checkpoints=4,
+        conserved=(),
+        diagnostics=True,
+        stability_solver=None,
+    ):
+        """Solve a phase-zero fixed point and its implicit first-order response.
+
+        The scaled residual includes prognostic restart fields and multistep
+        histories. Clocks and prescribed fields are external to the state
+        operator. Declared tracer inventories are checked against the map.
+
+        ``stability_solver(operator, k=...)`` may supply the k largest-modulus
+        eigenpairs. Each supplied pair is checked against the native map.
+        """
+        from veros.ocean_response import response
+
+        if max_steps < 1 or max_newton_iterations < 1 or tolerance <= 0:
+            raise ValueError("Adjustment budgets and tolerance must be positive")
+        return response(
+            self,
+            carry,
+            parameters=parameters,
+            observe=observe,
+            tolerance=tolerance,
+            max_iterations=min(max_newton_iterations, max_steps),
+            warmup=min(16, max_steps),
+            ram_checkpoints=ram_checkpoints,
+            conserved=conserved,
+            diagnostics=diagnostics,
+            stability_solver=stability_solver,
+        )
+
+    def periodic_response(
+        self,
+        carry,
+        *,
+        parameters=None,
+        observe,
+        period_steps,
+        phases,
+        tolerance=1e-7,
+        max_cycles=32,
+        ram_checkpoints=4,
+        conserved=(),
+        diagnostics=True,
+        stability_solver=None,
+    ):
+        """Solve the phase-zero Poincare state and observe a resolved cycle.
+
+        Annual map products use streamed timesteps and checkpoint adjoints.
+        The phase-zero-state sensitivity is solved implicitly.
+        An optional ``stability_solver(operator, k=...)`` supplies largest-modulus
+        eigenpairs, which are checked against the native annual map.
+        """
+        from veros.ocean_response import response
+
+        if max_cycles < 1 or tolerance <= 0:
+            raise ValueError("Adjustment budgets and tolerance must be positive")
+        return response(
+            self,
+            carry,
+            parameters=parameters,
+            observe=observe,
+            tolerance=tolerance,
+            max_iterations=max_cycles,
+            warmup=min(4, max_cycles),
+            period_steps=period_steps,
+            ram_checkpoints=ram_checkpoints,
+            phases=tuple(phases),
+            conserved=conserved,
+            diagnostics=diagnostics,
+            stability_solver=stability_solver,
+        )
+
+    def statistical_response(
+        self,
+        carry,
+        *,
+        parameters=None,
+        observe,
+        thresholds,
+        period_steps,
+        window_steps,
+        burnin_steps,
+        n_windows,
+        sample_stride,
+        seed=0,
+        method,
+        tolerance=1e-9,
+        max_cycles=32,
+        ram_checkpoints=4,
+        conserved=(),
+        diagnostics=True,
+        stability_solver=None,
+    ):
+        """Return means, variances, and smooth events on a stable periodic orbit.
+
+        Requires explicit ``method='invariant_periodic'``. Window, burn-in,
+        and seed describe the independent forward comparison. The implicit
+        orbit derivative and spectrum contract follow :meth:`periodic_response`.
+        """
+        from veros.statistics import periodic_statistics
+
+        if method != "invariant_periodic":
+            raise CompiledCompatibilityError("No validated chaotic invariant-response estimator is available")
+        if window_steps < 1 or burnin_steps < 0 or n_windows < 1:
+            raise ValueError("Statistical window budgets must be positive, with nonnegative burn-in")
+        return periodic_statistics(
+            self,
+            carry,
+            parameters=parameters,
+            observe=observe,
+            thresholds=thresholds,
+            period_steps=period_steps,
+            sample_stride=sample_stride,
+            tolerance=tolerance,
+            max_cycles=max_cycles,
+            ram_checkpoints=ram_checkpoints,
+            conserved=conserved,
+            diagnostics=diagnostics,
+            stability_solver=stability_solver,
+        )
+
+    def with_tracer_closure(self, carry, *, law, weights):
+        """Augment implicit vertical tracer diffusivity with a pure JAX law.
+
+        Declare both scalar research weight variables before preparation.
+        The law stays fixed, and weights remain dynamic carried inputs during
+        differentiation and checkpoint replay.
+        """
+        import jax
+        import jax.numpy as jnp
+
+        names = ("research_closure_scale", "research_closure_state")
+        if not callable(law) or any(name not in carry.variables for name in names):
+            raise ValueError("A callable closure and two declared research weight variables are required")
+        weights = jnp.asarray(weights, dtype=carry.variables.temp.dtype)
+        if weights.shape != (2,):
+            raise ValueError("Tracer closure weights must have shape (2,)")
+        if self._tracer_closure is not None and self._tracer_closure is not law:
+            raise ValueError("Changing the closure law requires a newly prepared integrator")
+        if self._tracer_closure is None:
+            shape = jax.eval_shape(law, carry.variables, weights)
+            if shape.shape != carry.variables.kappaH.shape or not jnp.issubdtype(shape.dtype, jnp.floating):
+                raise ValueError("The closure must return a floating diffusivity field with the kappaH shape")
+            self._tracer_closure = law
+            jax.clear_caches()
+            self._compiled_step = jax.jit(jax.checkpoint(self._step) if self._checkpoint else self._step)
+            if hasattr(self, "_adjusted_responses"):
+                for _, engine in self._adjusted_responses.values():
+                    engine.cache.clear()
+                self._adjusted_responses.clear()
+        return self.replace_variables(carry, **dict(zip(names, weights)))
+
+    def reference_tracer_tendencies(self, carry, *, n_states, seed, refinement, projection, withheld_seed):
+        """Build an independent reference using the setup's declared provider.
+
+        Reference generation is a host workflow separate from the numerical
+        closure. Providers return matched-state tendencies and independent
+        rollout targets with projection and source provenance.
+        """
+        builder = getattr(self.simulation, "build_tracer_reference", None)
+        if not callable(builder):
+            raise ValueError("The setup must declare an independent build_tracer_reference provider")
+        return builder(
+            carry,
+            n_states=n_states,
+            seed=seed,
+            refinement=refinement,
+            projection=projection,
+            withheld_seed=withheld_seed,
+        )
+
+    def with_vertical_grid(self, carry, *, widths, conserve=("temp", "salt", "momentum")):
+        """Move fixed-count levels while conserving tracer, momentum, and energy inventories."""
+        from veros.remapping import vertical_grid
+
+        self.check_configuration()
+        return vertical_grid(self, carry, widths, conserve=conserve)
+
+    def grid_reference_error(self, carry, *, parameters=None, refinement, response, steps, forward=False, seed=0):
+        """Evaluate a setup-declared refined reference and differentiate its scalar error."""
+        self.check_configuration()
+        builder = getattr(self.simulation, "build_grid_reference", None)
+        if not callable(builder):
+            raise ValueError("The setup must declare an independent build_grid_reference provider")
+        return builder(
+            carry,
+            parameters=self.validate_parameters(parameters),
+            refinement=refinement,
+            response=response,
+            steps=steps,
+            forward=forward,
+            seed=seed,
+        )
+
+    def with_wet_geometry(
+        self,
+        carry,
+        *,
+        opening_m,
+        channel,
+        realized=False,
+        conserve=("temp", "salt", "momentum"),
+        minimum_fraction=0.1,
+    ):
+        """Open selected dry columns by pooling inventories from a fixed closed reference."""
+        from veros.wet_geometry import opening
+
+        self.check_configuration()
+        return opening(
+            self,
+            carry,
+            opening_m,
+            channel,
+            realized=realized,
+            conserve=conserve,
+            minimum_fraction=minimum_fraction,
+        )
+
     def bathymetry_bounds(self, carry, *, minimum_fraction=0.1):
         """Return interior depth bounds in meters for the fixed bottom-cell indices."""
         from veros.core.geometry import bathymetry_bounds
@@ -317,12 +556,17 @@ class PreparedIntegrator:
             lower, upper = bathymetry_bounds(self._make_state(carry.variables), minimum_fraction)
         return lower[2:-2, 2:-2], upper[2:-2, 2:-2]
 
-    def with_bathymetry(self, carry, depth, *, minimum_fraction=0.1):
-        """Return a carry with positive interior bottom depths in meters."""
+    def with_bathymetry(self, carry, depth, *, minimum_fraction=0.1, conserve=None):
+        """Set fixed-topology depths, optionally conserving column inventories."""
         import jax.numpy as jnp
         from veros.core.geometry import bathymetry_geometry
         from veros.core.operators import update, at
 
+        if conserve is not None:
+            if set(conserve) != {"temp", "salt", "momentum"}:
+                raise ValueError("Bathymetry remapping requires temp, salt, and momentum conservation")
+            self.check_configuration()
+        original = carry
         lower, upper = self.bathymetry_bounds(carry, minimum_fraction=minimum_fraction)
         depth = jnp.asarray(depth, dtype=carry.variables.dzt.dtype)
         if depth.shape != upper.shape:
@@ -334,6 +578,10 @@ class PreparedIntegrator:
         with tracing_context():
             fields = bathymetry_geometry(self._make_state(carry.variables), full_depth)
         carry = self.replace_variables(carry, **fields._asdict())
+        if conserve is not None:
+            from veros.remapping import remap_carry
+
+            carry = remap_carry(self, original, carry, stretch=True)
         return carry._replace(
             failure_code=jnp.where((carry.failure_code == 0) & ~valid, 4, carry.failure_code),
             failed_iteration=jnp.where((carry.failure_code == 0) & ~valid, carry.variables.itt, carry.failed_iteration),
@@ -376,6 +624,7 @@ class PreparedIntegrator:
             state._settings = state.settings._with_parameters(parameters)
         state._solver_residual_ok = True
         state._forcing_inputs = step_inputs or {}
+        state._tracer_closure = self._tracer_closure
         return state
 
     def _make_diagnostic(self, name, variables):
@@ -436,7 +685,7 @@ class PreparedIntegrator:
             if updated is not None:
                 variables[name] = updated
             if name == "cfl_monitor":
-                valid_cfl = global_and(jnp.isfinite(values["cfl"]) & jnp.isfinite(values["wcfl"]))
+                valid_cfl = global_and(jnp.all(jnp.stack([jnp.isfinite(value) for value in values.values()])))
             if name in self.record_diagnostics:
                 records[name] = DiagnosticRecord(state.variables.time, state.variables.itt, due, values)
         return variables, records, valid_cfl
@@ -534,6 +783,8 @@ class PreparedIntegrator:
                 2: "linear solver did not converge",
                 3: "CFL number is not finite",
                 4: "bathymetry is outside fixed-topology depth bounds",
+                5: "vertical grid violates positive widths or staggered spacings, fixed depth, or fixed-topology bounds",
+                6: "wet geometry violates channel selection or admissible depth bounds",
             }[code]
             raise RuntimeError(f"{reason} at iteration {int(carry.failed_iteration)}")
 

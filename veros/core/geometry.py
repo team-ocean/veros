@@ -9,7 +9,7 @@ def validate_diagnostics(state):
     """Reject diagnostics whose partial-cell budgets have not been implemented."""
     if not state.settings.enable_partial_cells:
         return
-    for name in ("energy", "overturning"):
+    for name in ("overturning",):
         diagnostic = state.diagnostics.get(name)
         if diagnostic is not None and (diagnostic.sampling_frequency or diagnostic.output_frequency):
             raise ValueError(f"Partial cells do not yet support the {name} diagnostic")
@@ -23,6 +23,31 @@ def cell_thickness(state, grid="T"):
         return nominal
     fraction = getattr(vs, "hfac" + grid)
     return nominal * npx.where(getattr(vs, "mask" + grid), fraction, 1.0)
+
+
+def wgrid_thickness(state):
+    """Occupied native W control volumes, bounded by tracer centres and the surface."""
+    vs = state.variables
+    nominal = npx.broadcast_to(vs.dzw, vs.maskW.shape)
+    nominal = update(nominal, at[..., -1], 0.5 * nominal[..., -1])
+    if not state.settings.enable_partial_cells:
+        return nominal * vs.maskW
+    submerged = nominal - npx.maximum(-vs.ht[..., None] - vs.zt, 0)
+    return npx.maximum(submerged, 0) * vs.maskW
+
+
+def wgrid_horizontal_divergence(state, flux_east, flux_north):
+    """Divergence of W-grid flux densities through occupied shared faces."""
+    vs = state.variables
+    thickness = wgrid_thickness(state)
+    east = update(flux_east, at[:-1], flux_east[:-1] * npx.minimum(thickness[:-1], thickness[1:]))
+    north = update(flux_north, at[:, :-1], flux_north[:, :-1] * npx.minimum(thickness[:, :-1], thickness[:, 1:]))
+    divergence = (east[2:-2, 2:-2] - east[1:-3, 2:-2]) / (
+        vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis]
+    ) + (north[2:-2, 2:-2] - north[2:-2, 1:-3]) / (
+        vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis]
+    )
+    return divergence * vs.maskW[2:-2, 2:-2] / npx.where(vs.maskW[2:-2, 2:-2], thickness[2:-2, 2:-2], 1)
 
 
 @veros_kernel
@@ -54,3 +79,29 @@ def bathymetry_geometry(state, depth):
     hur = npx.where(hu > 0, 1 / npx.where(hu > 0, hu, 1), 0)
     hvr = npx.where(hv > 0, 1 / npx.where(hv > 0, hv, 1), 0)
     return KernelOutput(hfacT=hfacT, hfacU=hfacU, hfacV=hfacV, ht=ht, hu=hu, hv=hv, hur=hur, hvr=hvr)
+
+
+def connected_components(state):
+    """Label wet surface components using the current open velocity faces."""
+    import jax
+    import jax.numpy as jnp
+
+    vs = state.variables
+    wet = vs.maskT[2:-2, 2:-2, -1]
+    count = wet.size
+    labels = jnp.where(wet, jnp.arange(count, dtype=jnp.int32).reshape(wet.shape), count)
+    connections = (
+        (vs.hu[2:-2, 2:-2] > 0, 0, -1),
+        (vs.hu[1:-3, 2:-2] > 0, 0, 1),
+        (vs.hv[2:-2, 2:-2] > 0, 1, -1),
+        (vs.hv[2:-2, 1:-3] > 0, 1, 1),
+    )
+
+    def propagate(carry):
+        labels, _ = carry
+        updated = labels
+        for connected, axis, shift in connections:
+            updated = jnp.minimum(updated, jnp.where(connected, jnp.roll(labels, shift, axis=axis), count))
+        return updated, jnp.any(updated != labels)
+
+    return jax.lax.while_loop(lambda carry: carry[1], propagate, (labels, jnp.asarray(True)))[0]

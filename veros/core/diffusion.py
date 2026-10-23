@@ -38,6 +38,7 @@ def compute_dissipation(state, int_drhodX, flux_east, flux_north):
 
 @veros_kernel
 def dissipation_on_wgrid(state, diss, ks):
+    """Transfer nominal T-volume work to the native W-grid quadrature."""
     vs = state.variables
     settings = state.settings
 
@@ -57,7 +58,8 @@ def dissipation_on_wgrid(state, diss, ks):
         * edge_mask[:, :, :-1]
         + 0.5 * (diss[:, :, :-1] + diss[:, :, 1:]) * water_mask[:, :, :-1],
     )
-    diss_w = update(diss_w, at[:, :, -1], diss[:, :, -1] * land_mask)
+    surface_factor = npx.where(ks == settings.nz, 2 * vs.dzt[-1] / vs.dzw[-1], 1)
+    diss_w = update(diss_w, at[:, :, -1], diss[:, :, -1] * surface_factor * land_mask)
 
     return diss_w
 
@@ -142,12 +144,13 @@ def tempsalt_sources(state):
 
     if settings.enable_conserve_energy:
         diss = allocate(state.dimensions, ("xt", "yt", "zt"))
+        occupied = vs.hfacT if settings.enable_partial_cells else vs.maskT
         diss = update(
             diss,
             at[1:-1, 1:-1, :],
             -settings.grav
             / settings.rho_0
-            * vs.maskT[1:-1, 1:-1, :]
+            * occupied[1:-1, 1:-1, :]
             * (
                 vs.int_drhodT[1:-1, 1:-1, :, vs.tau] * vs.temp_source[1:-1, 1:-1]
                 + vs.int_drhodS[1:-1, 1:-1, :, vs.tau] * vs.salt_source[1:-1, 1:-1]

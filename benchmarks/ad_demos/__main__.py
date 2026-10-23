@@ -34,6 +34,7 @@ def write_result(path, result):
 
 
 def worker(name, config, path):
+    config = dict(config, artifact_directory=str(path.parent))
     start = time.monotonic()
     result = dict(demo=name, config=config, measured_utc=datetime.datetime.now(datetime.timezone.utc).isoformat())
     checks = None
@@ -57,6 +58,9 @@ def worker(name, config, path):
         jax.config.update("jax_enable_x64", runtime_settings.float_type == "float64")
         result.update(jax_version=jax.__version__, devices=[str(device) for device in jax.devices()])
         result.update(dtype=runtime_settings.float_type, use_special_tdma=runtime_settings.use_special_tdma)
+        from .provenance import collect
+
+        result["provenance"] = collect(config, source_directory=path.parent / "sources")
         from .common import Checks
 
         def checkpoint_result():
@@ -69,6 +73,7 @@ def worker(name, config, path):
             write_result(path, result)
 
         checks = Checks(on_update=checkpoint_result)
+        checkpoint_result()
         if name in CASES:
             from .research import run
         elif name == "bathymetry_optimization":
@@ -106,9 +111,13 @@ def main():
     parser.add_argument("--matrix", action="store_true", help="print machine-readable capability and question coverage")
     parser.add_argument("--task", choices=tuple(TASKS))
     parser.add_argument("--response", choices=tuple(RESPONSES))
-    parser.add_argument("--setup", choices=("acc", "global_4deg"), default="acc")
-    parser.add_argument("--mode", choices=("smoke", "acceptance"), default="smoke")
+    parser.add_argument("--setup", choices=("acc", "global_4deg", "adjusted_basin"), default="acc")
+    parser.add_argument("--mode", choices=("smoke", "study", "acceptance"), default="smoke")
     parser.add_argument("--physics", choices=("default", "fixed"), default="default")
+    parser.add_argument("--neutral-policy", choices=("default", "nonstable"), default="default")
+    parser.add_argument("--tke-policy", choices=("default", "positive_diffusion"))
+    parser.add_argument("--ram-checkpoints", type=int, default=4)
+    parser.add_argument("--disk-checkpoints", type=int, default=0)
     parser.add_argument("--device", choices=("cpu", "gpu"), default="cpu")
     parser.add_argument("--steps", type=int)
     parser.add_argument("--spinup-steps", type=int, default=0)
@@ -124,7 +133,24 @@ def main():
         return 0
     if (args.steps is not None and args.steps < 1) or args.spinup_steps < 0 or args.timeout <= 0:
         parser.error("steps and timeout must be positive; spinup-steps must be nonnegative")
-    config = {key: getattr(args, key) for key in ("setup", "mode", "physics", "device", "steps", "spinup_steps")}
+    if args.ram_checkpoints < 0 or args.disk_checkpoints < 0 or args.ram_checkpoints + args.disk_checkpoints < 1:
+        parser.error("checkpoint counts must be nonnegative with at least one slot")
+    config = {
+        key: getattr(args, key)
+        for key in (
+            "setup",
+            "mode",
+            "physics",
+            "device",
+            "steps",
+            "spinup_steps",
+            "neutral_policy",
+            "ram_checkpoints",
+            "disk_checkpoints",
+        )
+    }
+    if args.tke_policy is not None:
+        config["tke_policy"] = args.tke_policy
     if args.worker:
         if args.demo in ("all", "matrix"):
             parser.error("a worker requires one demo")

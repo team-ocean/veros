@@ -73,3 +73,14 @@ def get_curent_device_name():
         return "cpu"
 
     return runtime_settings.device
+
+
+def device_callback(function, device):
+    """Run numerical callback work on its model device and restore host context."""
+    import jax
+
+    def callback(*args):
+        with jax.default_device(device):
+            return function(*(jax.device_put(value, device) for value in args))
+
+    return callback

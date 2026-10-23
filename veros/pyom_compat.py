@@ -7,7 +7,6 @@ from veros import logger, runtime_settings, runtime_state, timer
 from veros.state import get_default_state, resize_dimension
 from veros.variables import get_shape
 
-
 # all variables that are re-named or unique to Veros
 VEROS_TO_PYOM_VAR = dict(
     # do not exist in pyom
@@ -26,6 +25,9 @@ VEROS_TO_PYOM_VAR = dict(
 # all setting that are re-named or unique to Veros
 VEROS_TO_PYOM_SETTING = dict(
     # do not exist in pyom
+    enable_partial_cells=None,
+    enable_neutral_nonstable_zero_slope=None,
+    enable_tke_positive_diffusion=None,
     identifier=None,
     description=None,
     enable_noslip_lateral=None,
@@ -84,6 +86,14 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=None
     """Force-updates internal PyOM library state to match given Veros state."""
     if ignore_attrs is None:
         ignore_attrs = []
+
+    unsupported = [
+        name
+        for name in ("enable_partial_cells", "enable_neutral_nonstable_zero_slope", "enable_tke_positive_diffusion")
+        if state.settings.get(name)
+    ]
+    if unsupported:
+        raise ValueError(f"PyOM cannot represent these enabled options: {', '.join(unsupported)}")
 
     pyom_modules = (
         pyom_obj.main_module,

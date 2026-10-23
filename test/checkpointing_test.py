@@ -177,6 +177,29 @@ def toy_initial():
     )
 
 
+def test_memory_reports_reuse_profiles_and_preserve_shape_accounting(monkeypatch):
+    require_jax()
+    import jax
+    import jax.numpy as jnp
+
+    kernel = jax.jit(lambda x: x**2)
+    lower = kernel.lower
+    calls = []
+
+    def counted_lower(*arguments):
+        calls.append(1)
+        return lower(*arguments)
+
+    monkeypatch.setattr(kernel, "lower", counted_lower)
+    driver = CheckpointedIntegrator(ToyIntegrator(), terminal_objective=lambda c: jnp.sum(c.variables["x"]))
+    first = driver._memory_analysis(kernel, jnp.ones(4, dtype=jnp.float64))
+    repeated = driver._memory_analysis(kernel, jnp.zeros(4, dtype=jnp.float64))
+    assert repeated == first and len(calls) == 1
+    larger = driver._memory_analysis(kernel, jnp.ones(8, dtype=jnp.float64))
+    assert len(calls) == 2
+    assert first["argument_bytes"] == 32 and larger["argument_bytes"] == 64
+
+
 @pytest.mark.parametrize("slots", (0, 1, 3))
 def test_mixed_gradient_diagnostics_and_step_reuse(tmp_path, slots):
     require_jax()
@@ -221,6 +244,47 @@ def test_mixed_gradient_diagnostics_and_step_reuse(tmp_path, slots):
     np.testing.assert_array_equal(second.gradient.variables["forcing"], result.gradient.variables["forcing"])
     assert (driver._forward._cache_size(), driver._reverse._cache_size()) == signatures
     assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("steps", (0, 7))
+def test_terminal_cotangent_composes_with_objective(tmp_path, steps):
+    require_jax()
+    import jax
+    import jax.numpy as jnp
+
+    initial, prepared = toy_initial(), ToyIntegrator()
+
+    def terminal(carry):
+        return jnp.sum(carry.variables["x"] ** 2)
+
+    def downstream(carry):
+        return jnp.sum(0.3 * carry.variables["x"]) + 0.2 * carry.variables["forcing"]
+
+    final = initial
+    for _ in range(steps):
+        final, _ = prepared.step(final)
+    seed = jax.grad(downstream, allow_int=True)(final)
+    driver = CheckpointedIntegrator(prepared, terminal_objective=terminal)
+    result = driver.value_and_grad(initial, n_steps=steps, terminal_cotangent=seed)
+
+    def reference(carry):
+        final = carry
+        for _ in range(steps):
+            final, _ = prepared.step(final)
+        return terminal(final) + downstream(final)
+
+    expected = jax.grad(reference, allow_int=True)(initial)
+    np.testing.assert_allclose(result.value, terminal(final), rtol=1e-12)
+    for actual, wanted in zip(jax.tree.leaves(result.gradient), jax.tree.leaves(expected)):
+        if wanted.dtype == jax.dtypes.float0:
+            assert actual.dtype == jax.dtypes.float0
+        else:
+            np.testing.assert_allclose(actual, wanted, rtol=1e-12, atol=1e-12)
+    with pytest.raises(ValueError, match="structure"):
+        driver.value_and_grad(initial, n_steps=steps, terminal_cotangent={})
+    malformed = seed._replace(variables=dict(seed.variables, x=jnp.zeros(3)))
+    with pytest.raises(ValueError, match="shapes or dtypes"):
+        driver.value_and_grad(initial, n_steps=steps, terminal_cotangent=malformed)
 
 
 def test_zero_steps_ram_and_errors(tmp_path):

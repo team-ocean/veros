@@ -311,22 +311,74 @@ The driver is a host operation that cannot be transformed with ``jax.jit`` or
 numerical gradient limitations still apply. ``benchmarks/dynamic_parameters_demo.py``
 provides synthetic parameter fitting, derivative checks, and RAM/disk replay.
 
+Adjusted responses and tracer closures
+--------------------------------------
+
+``prepared.equilibrium_response(initial, observe=observe)`` solves a phase-zero
+fixed point. ``prepared.periodic_response`` instead accepts ``period_steps``
+and increasing fractional ``phases`` in ``[0, 1)`` to observe a periodic orbit.
+Both use scaled prognostic fields and multistep histories, include adjustment
+in their first-order derivatives, and return observations with state, stability,
+and sensitivity residuals. They require serial execution and disabled diagnostic
+accumulators. Unresolved adjustment raises an error. Converged roots still need
+stability checks and independent physical validation.
+
+``prepared.with_tracer_closure(initial, law=law, weights=weights)`` augments
+implicit vertical tracer diffusion in compiled timesteps. Declare scalar
+``research_closure_scale`` and ``research_closure_state`` variables before
+preparing the model. The pure JAX ``law(variables, weights)`` returns a floating
+field with the ``kappaH`` shape. Its two weights remain dynamic carried inputs
+through differentiation and checkpoint replay. Changing the law requires a
+newly prepared integrator. Independent closure-reference data come from a
+setup-declared ``build_tracer_reference`` provider.
+
+Adjusted stability solvers
+--------------------------
+
+``prepared.equilibrium_response`` and ``prepared.periodic_response`` accept an
+optional host ``stability_solver``. Its signature is
+``solver(operator, k=...)`` and its result is ``(eigenvalues, eigenvectors)``,
+with eigenvectors stored as columns. The supplied operator is the constrained,
+scaled state-map Jacobian. Return at least ``k`` largest-modulus eigenpairs;
+the provider must establish dominant-spectrum coverage for that actual operator.
+Modes nearest a chosen shift alone do not satisfy this requirement.
+
+Every supplied pair receives an independent residual check using the original
+operator. Nonfinite arrays and zero eigenvectors are rejected, and unresolved
+residuals retain the usual stability gate. Selecting a solver does not change
+the physical map, its adjustment, or its implicit sensitivities. Without this
+argument, the standard stability solver is used.
+
 Partial-cell bathymetry
-----------------------
+-----------------------
 
 Set ``enable_partial_cells=True`` before setup to vary bottom depths within
 fixed wet cells. The supported configuration uses serial JAX execution, the
-``scipy_jax`` pressure solver, surface pressure, constant mixing, and
-``enable_conserve_energy=False``. TKE, EKE, IDEMIX, neutral and skew diffusion,
-TEM friction, horizontal momentum friction, biharmonic mixing, streamfunction
-mode, and active energy/overturning diagnostics are rejected.
+``scipy_jax`` pressure solver, and surface pressure. Constant mixing, TKE, EKE,
+energy exchanges, and energy diagnostic records are supported. IDEMIX, TEM
+friction, biharmonic mixing/friction, streamfunction mode, and active
+overturning diagnostics are rejected. Turbulence support retains the native
+scheme's sign limitations and can produce negative energy states.
 
 Tracer and momentum transport, vertical mixing, wind stress, and quadratic
-bottom drag use occupied cell thicknesses or open face areas. Tracer-monitor
-volumes and vertical CFL estimates also use occupied thicknesses. Reference
-vertical levels and vertical difference distances remain fixed. Neighboring
-velocity faces use the smaller occupied thickness of their adjacent tracer
-cells. Pressure solves rebuild depth-dependent numerical coefficients so
+bottom drag use occupied cell thicknesses or open face areas.
+Horizontal harmonic friction integrates stress over shared wet faces and
+divides its divergence by occupied momentum-cell volumes. Free-slip boundaries
+conserve momentum; no-slip wall stresses dissipate kinetic energy. Momentum-source
+and drag work use occupied velocity volumes. Energy inventories use native
+U/V volumes for kinetic energy and occupied T volumes for enthalpy; diagnostic
+work fields retain their nominal W-grid quadrature.
+Neutral and skew tracer diffusion use open horizontal faces and occupied
+tracer volumes. Their vertical cross and diagonal quadrature terms carry
+matching horizontal face fractions to retain the paired tensor structure.
+The implicit Redi solve also uses occupied tracer thickness.
+Reference vertical difference distances remain fixed. Choose the timestep for
+the smallest occupied cells in the admissible geometry range.
+
+Tracer-monitor volumes and vertical CFL estimates also use occupied thicknesses.
+Bathymetry controls hold reference vertical levels and difference distances
+fixed. Neighboring velocity faces use the smaller occupied thickness of their
+adjacent tracer cells. Pressure solves rebuild depth-dependent numerical coefficients so
 operator derivatives include changes in geometry.
 
 For a configured partial-cell model, construct candidate geometry inside the
@@ -358,16 +410,65 @@ Geometry persists through continuation, installation, restart output, and
 adjoint checkpoint replay.
 Restart reads require the same reference grid and wet-cell indices.
 
-``with_bathymetry`` preserves tracer concentrations, velocities, and tendency
-histories. Construct depth-dependent initial profiles or balanced velocities
-inside the objective after updating geometry. Changing volume at fixed
-concentration changes total tracer content, so an experiment needing
-conservative remapping must supply that initialization policy.
+By default, ``with_bathymetry`` preserves tracer concentrations, velocities,
+and tendency histories. Changing volume at fixed concentration changes total
+tracer content. Pass ``conserve=("temp", "salt", "momentum")`` to retain column
+inventories instead. This policy stretches the original column profile in
+relative depth and adjusts its cell averages for the new column volume. It
+also remaps tendency histories and rebuilds density and vertical velocity.
+It preserves nonnegative cell averages and requires the same wet topology.
+Construct other depth-dependent initial profiles or balanced velocities inside
+the objective after updating geometry.
 
-Gradients describe the discretization within fixed topology. The minimum of
-neighboring depths is nonsmooth where the shallower side changes. Bottom-cell
-transitions, moving coastlines, and opening or closing passages require new
-topology and preparation.
+``prepared.with_vertical_grid(initial, widths=widths)`` moves fixed-count levels
+at fixed wet depth. Widths and their derived staggered spacings must be positive.
+Widths must retain the original total depth
+and wet-cell indices. The transform conserves temperature, salinity, horizontal
+momentum, and their stored tendency histories. It reconstructs density and
+vertical velocity from the remapped tracers and momentum. A continuous
+quadratic cell reconstruction supports first derivatives where new interfaces
+cross old interfaces. Nonnegative cell averages remain nonnegative in exact
+arithmetic. Invalid widths set failure code 5 and freeze the trajectory.
+
+Active TKE/EKE and all their advection tendencies retain
+their native W-volume inventories. Their densities adjust if moving levels
+changes the covered W depth. Lagged vertical dissipation retains its nominal
+W work integral, and active energy diffusivities rebuild after remapping.
+IDEMIX energy remapping remains unsupported. Setups with volume sources must
+declare a ``rebuild_vertical_forcing`` routine with
+``supports_compilation=True`` to evaluate prescribed sources on the new grid.
+Partial-cell physics retains its other configuration guards.
+
+Bathymetry gradients describe the discretization within fixed bottom indices.
+The minimum of neighboring depths is nonsmooth where the shallower side changes.
+Use the channel transform below for explicitly declared new wet columns.
+
+``prepared.with_wet_geometry`` opens selected dry columns from a closed
+reference carry. Supply ``opening_m`` and an interior boolean ``channel`` mask.
+A string channel name requires a compiled ``wet_geometry_channel`` setup hook
+that returns that mask. Existing wet columns retain their depths. Each new
+column receives the retained domain's volume-weighted tracer and momentum
+means, with proportional dilution of the retained fields to conserve total
+inventories. Tendency histories follow the same policy. Density, continuity,
+masks, and pressure coefficients are rebuilt. This initialization conserves
+domain inventories and requires a separate equilibrium adjustment.
+
+Every candidate must start from the same closed reference carry. The setup
+must declare ``rebuild_wet_forcing`` with ``supports_compilation=True`` so
+prescribed fields are defined on newly wet cells. Changing either hook
+requires repreparation. Invalid depths, empty dry-column selections, or bottom
+fractions below ``minimum_fraction`` set failure code 6. Derivatives apply
+inside an admissible bottom-cell interval. Zero opening is the closed forward
+endpoint. With ``realized=True``, depth rounds to the nearest whole-layer
+interface for independent forward validation. This mode provides a discrete
+comparison whose rounded decisions do not supply geometry derivatives.
+Partial-cell physics and diagnostic guards remain in force.
+Adjusted responses
+retain candidate masks and bottom indices in their dynamic inputs. Their pressure
+gauge preserves the initial wet-area mean sea level separately in each connected
+basin, including connectivity across cyclic boundaries. A changed connection can
+change this constraint; geometry derivatives still apply within the declared
+admissible interval.
 
 For a host-managed adjoint, retain the bathymetry construction's VJP when
 building the initial candidate::
@@ -378,3 +479,37 @@ building the initial candidate::
 
 After checkpoint replay, ``pullback(result.gradient)[0]`` returns the
 depth-control gradient.
+
+
+Optional turbulence and neutral-slope policies
+----------------------------------------------
+
+``enable_tke_positive_diffusion=True`` selects implicit positive-part TKE
+diffusion and damping, a nonnegative surface-energy constraint, and continuous
+global allocation of numerical work. It is disabled by default. Interior stored
+energy can remain negative after forcing and advection. PyOM transfer rejects
+this option because the Fortran model does not implement these equations.
+
+``enable_neutral_nonstable_zero_slope=True`` sets neutral slopes to zero at
+nonstable and surface quadrature stencils. Stable stencils retain their
+original formula. This option is disabled by default and requires independent
+validation for each physical configuration.
+
+
+Periodic invariant statistics
+-----------------------------
+
+``prepared.statistical_response`` supports the explicitly selected
+``method="invariant_periodic"``. Supply ``period_steps``, ``sample_stride``,
+``thresholds``, and the independent forward experiment's ``window_steps``,
+``burnin_steps``, ``n_windows``, and ``seed``. The provider adjusts a periodic
+orbit and returns means, variances, and smooth exceedance frequencies in
+``observations``. Their derivatives include the orbit's adjustment.
+
+The sampled discrete orbit's phases are evaluated as a complete finite
+population, so its Monte Carlo standard error is zero. Root and derivative
+tolerances, phase sampling, and physical model uncertainty remain separate
+limitations. Diagnostic calls retain state, stability, and sensitivity checks;
+an unstable or unresolved orbit returns nonfinite statistics. Independent
+forward integration is still required to validate the chosen physical scope.
+This method provides no chaotic invariant-response estimator.

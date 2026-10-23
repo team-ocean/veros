@@ -1,12 +1,14 @@
 """Distributed PETSc solves with ordered callbacks and derivatives for fixed operators."""
 
+from functools import partial
+from inspect import signature
 from threading import Lock
 
 import jax
 import numpy as np
 from jax.extend.core import Primitive
 from jax.interpreters import ad, mlir
-from jax._src import core, effects
+from jax._src import core, dispatch, effects
 from jax._src.callback import emit_python_callback
 from mpi4py import MPI
 from petsc4py import PETSc
@@ -52,11 +54,7 @@ def _abstract_solve(rhs, *, solver, transpose):
     return (rhs, core.ShapedArray((), np.dtype("bool"))), {solver._effect}
 
 
-def _bind_solve(rhs, *, solver, transpose):
-    return _solve_p.bind(rhs, solver=solver, transpose=transpose)
-
-
-_solve_p.def_impl(jax.jit(_bind_solve, static_argnames=("solver", "transpose")))
+_solve_p.def_impl(partial(dispatch.apply_primitive, _solve_p))
 
 
 def _lower_solve(ctx, rhs, *, solver, transpose):
@@ -71,13 +69,15 @@ def _lower_solve(ctx, rhs, *, solver, transpose):
         ctx.avals_in,
         ctx.avals_out,
         has_side_effect=True,
-        returns_token=True,
     )
     ctx.set_tokens_out(mlir.TokenSet({solver._effect: token}))
     return result
 
 
-mlir.register_lowering(_solve_p, _lower_solve, cacheable=False)
+_lowering_options = {}
+if "cacheable" in signature(mlir.register_lowering).parameters:
+    _lowering_options["cacheable"] = False
+mlir.register_lowering(_solve_p, _lower_solve, **_lowering_options)
 
 
 def _solve_jvp(primals, tangents, *, solver, transpose):
