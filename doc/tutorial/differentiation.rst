@@ -394,7 +394,7 @@ depth-control gradient.
 
 
 Optional turbulence and neutral-slope policies
---------------------------------------------
+----------------------------------------------
 
 ``enable_tke_positive_diffusion=True`` selects implicit positive-part TKE
 diffusion and damping, a nonnegative surface-energy constraint, and continuous
