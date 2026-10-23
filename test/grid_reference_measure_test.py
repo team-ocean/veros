@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def grid(nx, ny, nz, width, origin, spherical):
     import jax.numpy as jnp

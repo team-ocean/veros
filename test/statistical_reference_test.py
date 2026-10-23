@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def test_native_periodic_reference_validates_all_moments_and_rejects_short_burnin():
     import jax.numpy as jnp

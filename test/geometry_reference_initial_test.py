@@ -4,6 +4,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def owner():
     import jax.numpy as jnp

@@ -16,6 +16,7 @@ def test_undeclared_statistical_geometry_method_stops_before_ocean_setup(monkeyp
 
 
 @pytest.mark.parametrize("response", ("equilibrium", "seasonal", "statistics"))
+@pytest.mark.usefixtures("jax_backend")
 def test_adjusted_reference_dispatch_retains_forward_climate_scope(monkeypatch, response):
     from types import SimpleNamespace
     import numpy as np

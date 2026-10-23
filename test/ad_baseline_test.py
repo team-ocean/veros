@@ -10,13 +10,19 @@ from benchmarks.ad_demos.baseline import guarded
 from benchmarks.ad_demos.common import descend
 from benchmarks.ad_demos.provenance import collect, file_hash
 
-if "veros" not in sys.modules:
-    try:
-        import mpi4py
-    except ImportError:
-        pass
-    else:
-        mpi4py.rc.initialize = False
+
+def test_import_preserves_mpi_initialization_policy():
+    from pathlib import Path
+    import subprocess
+
+    pytest.importorskip("mpi4py")
+    program = (
+        "import mpi4py, runpy; "
+        "original = mpi4py.rc.initialize; "
+        "runpy.run_path('test/ad_baseline_test.py'); "
+        "assert mpi4py.rc.initialize == original"
+    )
+    subprocess.run([sys.executable, "-c", program], cwd=Path(__file__).parents[1], check=True, timeout=30)
 
 
 def test_optimizer_diagnostics_preserve_the_update_and_detect_stopping():
@@ -91,18 +97,16 @@ def test_source_snapshot_matches_reported_fingerprints(tmp_path):
 
 
 @pytest.mark.parametrize("products", [("checkpoint", "tangent", "finite_difference"), ("finite_difference",)])
+@pytest.mark.usefixtures("jax_backend")
 def test_profile_products_on_an_understood_stable_recurrence(monkeypatch, products):
     from collections import namedtuple
     from types import SimpleNamespace
     import jax
     import jax.numpy as jnp
-    from veros import runtime_settings
     from veros.integration import IntegrationState
     from benchmarks.ad_demos.baseline import profile
     from benchmarks.ad_demos import research_ocean
 
-    if runtime_settings.mpi_comm is not None:
-        runtime_settings.mpi_comm = None
     jax.config.update("jax_enable_x64", True)
     Variables = namedtuple("Variables", "x time Nsqr maskW tau")
 

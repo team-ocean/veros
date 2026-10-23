@@ -95,6 +95,7 @@ def test_cli_records_and_forwards_explicit_tke_policy(monkeypatch, tmp_path, pol
         assert "tke_policy" not in config
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_unknown_tke_policy_rejected_before_model_setup():
     with pytest.raises(ValueError, match="Unknown TKE policy"):
         ResearchOcean(dict(setup="acc", physics="default", tke_policy="typo"), CASES["perturbation_local"])
@@ -247,6 +248,7 @@ def test_finite_time_ad_cannot_claim_climate_acceptance():
     assert not next(item["passed"] for item in checks.items if item["name"] == "invariant response method")
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_observation_ensemble_uses_the_predicted_season():
     import jax
     import jax.numpy as jnp

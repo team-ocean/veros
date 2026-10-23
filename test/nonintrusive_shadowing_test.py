@@ -63,6 +63,7 @@ def test_rejects_incomplete_segments():
         nilss(lambda _, vectors: 2 * vectors, np.ones((7, 1, 1)), np.ones((1, 1)), 4)
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_native_jvp_and_vjp_callbacks_match_independent_dense_products():
     import jax
     import jax.numpy as jnp

@@ -6,6 +6,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def test_descent_progress_preserves_evaluations_and_restarts_from_an_accepted_point():
     import jax.numpy as jnp

@@ -15,6 +15,7 @@ from benchmarks.ad_demos.matrix import CASES
 from benchmarks.ad_demos.responses import Response
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_surface_redistribution_balances_applied_flux_and_has_two_sided_products():
     import jax
     import jax.numpy as jnp
@@ -85,6 +86,7 @@ class Recurrence:
         pass
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_realized_local_response_rejects_failed_carry_before_observing():
     import jax.numpy as jnp
     from types import SimpleNamespace
@@ -105,6 +107,7 @@ def test_realized_local_response_rejects_failed_carry_before_observing():
         response.values(jnp.zeros(4), realized=True)
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_adjusted_validation_audits_stability_once_and_checks_changed_state_products():
     import jax.numpy as jnp
     from benchmarks.ad_demos.common import Checks
@@ -138,6 +141,7 @@ def test_adjusted_validation_audits_stability_once_and_checks_changed_state_prod
 
 @pytest.mark.parametrize("kind", ["local", "trajectory"])
 @pytest.mark.parametrize("heldout", [False, True])
+@pytest.mark.usefixtures("jax_backend")
 def test_response_products_against_direct_ad(kind, heldout):
     import jax
     import jax.numpy as jnp
@@ -196,6 +200,7 @@ def test_response_products_against_direct_ad(kind, heldout):
 
 
 @pytest.mark.parametrize("heldout", (False, True))
+@pytest.mark.usefixtures("jax_backend")
 def test_terminal_feature_matches_direct_ad_without_extra_primal_traversal(monkeypatch, heldout):
     import jax
     import jax.numpy as jnp
@@ -232,6 +237,7 @@ def test_terminal_feature_matches_direct_ad_without_extra_primal_traversal(monke
 
 
 @pytest.mark.parametrize("kind", ("local", "equilibrium", "seasonal", "statistics"))
+@pytest.mark.usefixtures("jax_backend")
 def test_terminal_feature_rejects_other_response_semantics(kind):
     ocean = Recurrence(kind)
     response = Response(ocean, (0,), dict(mode="smoke", steps=1))
@@ -240,6 +246,7 @@ def test_terminal_feature_rejects_other_response_semantics(kind):
 
 
 @pytest.mark.parametrize("slots,direct", ((4, False), (84, True)))
+@pytest.mark.usefixtures("jax_backend")
 def test_terminal_feature_selects_schedule_from_full_objective_work(slots, direct):
     from benchmarks.ad_demos.finite_response import TerminalFeature
 
@@ -251,6 +258,7 @@ def test_terminal_feature_selects_schedule_from_full_objective_work(slots, direc
     assert work == (dict(direct=10716, segmented=17865) if direct else dict(direct=46160, segmented=41775))
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_terminal_feature_segmented_products_match_direct_ad():
     import jax
     import jax.numpy as jnp
@@ -275,6 +283,7 @@ def test_terminal_feature_segmented_products_match_direct_ad():
 
 
 @pytest.mark.parametrize("kind", ("local", "trajectory"))
+@pytest.mark.usefixtures("jax_backend")
 def test_global_phase_release_retains_native_product_values(kind):
     import jax
     import jax.numpy as jnp
@@ -303,6 +312,7 @@ def test_global_phase_release_retains_native_product_values(kind):
 
 @pytest.mark.parametrize("kind", ("local", "trajectory"))
 @pytest.mark.parametrize("heldout", (False, True))
+@pytest.mark.usefixtures("jax_backend")
 def test_mapped_response_products_against_direct_ad(kind, heldout):
     import jax
     import jax.numpy as jnp
@@ -356,6 +366,7 @@ class AnalyticResponse:
         return seed
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_finite_difference_sweep_resolves_local_branch_without_relaxing_tolerance():
     import jax.numpy as jnp
     from benchmarks.ad_demos.common import Checks, gradient_checks
@@ -373,6 +384,7 @@ def test_finite_difference_sweep_resolves_local_branch_without_relaxing_toleranc
     np.testing.assert_allclose(plateau["detail"]["derivatives"][-3:], 1)
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_taylor_sweep_resolves_local_branch_even_when_central_differences_match():
     import jax.numpy as jnp
     from benchmarks.ad_demos.common import Checks, gradient_checks
@@ -390,6 +402,7 @@ def test_taylor_sweep_resolves_local_branch_even_when_central_differences_match(
     np.testing.assert_allclose(taylor["detail"]["orders"][-2:], 2, atol=1e-3)
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_coarser_taylor_scales_resolve_curvature_above_float32_roundoff():
     import jax
     import jax.numpy as jnp
@@ -413,6 +426,7 @@ def test_coarser_taylor_scales_resolve_curvature_above_float32_roundoff():
     np.testing.assert_allclose(second["detail"]["orders"][-1], 2, atol=0.05)
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_explicit_finer_scales_resolve_a_narrow_branch_and_retain_failed_samples():
     import jax.numpy as jnp
     from benchmarks.ad_demos.common import Checks, gradient_checks
@@ -433,6 +447,7 @@ def test_explicit_finer_scales_resolve_a_narrow_branch_and_retain_failed_samples
 
 @pytest.mark.parametrize("valid_derivative", (False, True))
 @pytest.mark.parametrize("finer_scales", ((), (1e-7, 3e-8)))
+@pytest.mark.usefixtures("jax_backend")
 def test_response_audit_rejects_unvalidated_derivatives_and_retains_evidence(valid_derivative, finer_scales):
     import jax
     import jax.numpy as jnp
@@ -465,6 +480,7 @@ def test_response_audit_rejects_unvalidated_derivatives_and_retains_evidence(val
 
 @pytest.mark.parametrize("matrix_free", [False, True])
 @pytest.mark.parametrize("host_response", [False, True])
+@pytest.mark.usefixtures("jax_backend")
 def test_scaled_inverse_recovers_identifiable_controls(matrix_free, host_response):
     import jax.numpy as jnp
 
@@ -481,6 +497,7 @@ def test_scaled_inverse_recovers_identifiable_controls(matrix_free, host_respons
     assert history[-1] < 1e-12
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_inverse_respects_active_domain_and_records_stopping():
     import jax.numpy as jnp
 
@@ -492,6 +509,7 @@ def test_inverse_respects_active_domain_and_records_stopping():
     assert not limited["converged"] and limited["stopping"] == "iteration_limit"
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_dense_inverse_retains_weak_independent_columns():
     import jax.numpy as jnp
 
@@ -503,6 +521,7 @@ def test_dense_inverse_retains_weak_independent_columns():
     np.testing.assert_allclose(fit, truth, atol=1e-8)
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_exact_inverse_ends_starts_only_after_converged_zero_loss():
     import jax.numpy as jnp
 
@@ -517,6 +536,7 @@ def test_exact_inverse_ends_starts_only_after_converged_zero_loss():
 
 
 @pytest.mark.parametrize("matrix_free", [False, True])
+@pytest.mark.usefixtures("jax_backend")
 def test_zero_loss_stopping_certifies_exact_fit_without_masking_other_failures(matrix_free):
     import jax.numpy as jnp
 
@@ -546,6 +566,7 @@ def test_zero_loss_stopping_certifies_exact_fit_without_masking_other_failures(m
 
 
 @pytest.mark.parametrize("matrix_free", [False, True])
+@pytest.mark.usefixtures("jax_backend")
 def test_exact_fit_avoids_full_jacobian_but_rejects_nonfinite_gradient(matrix_free):
     import jax.numpy as jnp
 
@@ -573,6 +594,7 @@ def test_exact_fit_avoids_full_jacobian_but_rejects_nonfinite_gradient(matrix_fr
     assert not diagnostic["converged"] and diagnostic["stopping"] == "nonfinite_response"
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_regularized_inverse_matches_map_while_exact_twin_recovers_truth():
     import jax.numpy as jnp
 
@@ -588,6 +610,7 @@ def test_regularized_inverse_matches_map_while_exact_twin_recovers_truth():
     assert diagnostic["converged"]
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_feasibility_restoration_and_constrained_optimality():
     import jax.numpy as jnp
 
@@ -612,6 +635,7 @@ def test_correlated_observation_covariance_and_cost():
 
 
 @pytest.mark.parametrize("scale", (0.047, 1, 1000))
+@pytest.mark.usefixtures("jax_backend")
 def test_constrained_boundary_search_is_independent_of_observation_scale(scale):
     import jax.numpy as jnp
 
@@ -628,6 +652,7 @@ def test_constrained_boundary_search_is_independent_of_observation_scale(scale):
 
 
 @pytest.mark.parametrize("physics", ["default", "fixed"])
+@pytest.mark.usefixtures("jax_backend")
 def test_scientific_ocean_objective_matches_direct_ad(physics):
     import jax
     import jax.numpy as jnp
@@ -672,6 +697,7 @@ def test_scientific_ocean_objective_matches_direct_ad(physics):
 @pytest.mark.parametrize(
     "physics,tke_policy", (("default", "default"), ("default", "positive_diffusion"), ("fixed", "default"))
 )
+@pytest.mark.usefixtures("jax_backend")
 def test_scientific_ocean_terminal_feature_matches_direct_ad(physics, tke_policy):
     import jax
     import jax.numpy as jnp
@@ -712,6 +738,7 @@ def test_scientific_ocean_terminal_feature_matches_direct_ad(physics, tke_policy
 @pytest.mark.parametrize(
     "task,days", (("sensitivity", 30), ("geometry", 30), ("estimation", 360), ("perturbation", 3600))
 )
+@pytest.mark.usefixtures("jax_backend")
 def test_default_trajectory_windows_match_declared_scientific_program(task, days):
     from types import SimpleNamespace
     import jax.numpy as jnp

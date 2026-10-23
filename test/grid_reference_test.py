@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 from benchmarks.ad_demos.grid_reference import project_tracer, project_velocity
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 @pytest.mark.parametrize("spherical", (False, True))
 def test_refinement_retains_physical_faces_and_rejects_a_shift_before_advancing(spherical):
