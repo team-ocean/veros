@@ -66,8 +66,9 @@ Controls are dimensionless. Physical scales are 1 K and 0.1 g/kg for initial
 tracers, 20 W/m² for heat flux, 0.02 N/m² for wind stress, and
 `3.5e-6 (g/kg) m/s` for salinity flux. Initial corrections conserve each level's
 wet-volume tracer inventory. Heat and salinity forcing patterns have zero
-wet-area integral. Ice blocking can still break the applied budget and fail the
-experiment. Wind changes also update the TKE surface input.
+wet-area integral. Global research redistributions use the currently ice-free
+wet surface and remove its area-weighted mean each timestep. The experiment
+checks the resulting applied budgets. Wind changes also update the TKE surface input.
 
 Mixing coefficients use positive log coordinates. The closure diffusivity is
 `1e-5 * exp(w0 + w1 * tanh(Nsqr / 1e-5))` m²/s. Geometry coordinates control two
@@ -107,7 +108,7 @@ use a sigmoid of width one such unit. They are smooth event proxies.
 
 ## Extension contracts
 
-The names below specify proposed extensions to `PreparedIntegrator`.
+The following methods extend `PreparedIntegrator` with response and reference contracts.
 `responses.py` and `research.py` contain their callers. Missing callables are
 reported as failed requirements before expensive model setup. After the
 callables exist, the same program proceeds through model evaluations,
@@ -123,7 +124,7 @@ Return dictionaries have the following required entries:
 | --- | --- | --- |
 | `equilibrium_response` | `tolerance`, `max_steps` | `observations` of shape `(features,)`, `residual_kind="full_state"`, `residual`, `spectral_radius`, `sensitivity_residual`. Steady forcing is fixed at annual phase zero. Residuals include prognostic fields and multistep histories with appropriate physical scales. |
 | `periodic_response` | `period_steps`, `phases`, `tolerance`, `max_cycles` | The same convergence/stability entries, with observations of shape `(12, features)`. A phase-consistent Poincare solve must include sensitivity of its phase-zero state. |
-| `statistical_response` | `thresholds`, `window_steps`, `burnin_steps`, `n_windows`, `sample_stride`, `seed` | `observations` of shape `(3, features)` containing means, variances, and smooth exceedance frequencies. Same-shaped `standard_error` and `window_drift`. Scalar `effective_sample_size`. `method` identifying a justified invariant response. A plain finite-time AD estimator is rejected. |
+| `statistical_response` | `thresholds`, `window_steps`, `burnin_steps`, `n_windows`, `sample_stride`, `seed`; the periodic baseline also selects `method` and `period_steps` | `observations` of shape `(3, features)` containing means, variances, and smooth exceedance frequencies. Same-shaped `standard_error` and `window_drift`. Scalar `effective_sample_size`. `method` identifying a justified invariant response. A plain finite-time AD estimator is rejected. |
 | `with_tracer_closure` | `carry`, `law`, `weights` | Return a carry installing dynamic weights and conservative face fluxes from the pure JAX diffusivity law inside every timestep. The two research weight variables are declared before preparation. |
 | `reference_tracer_tendencies` | `carry`, `n_states`, `seed`, `refinement`, `projection`, `withheld_seed` | `source="refined_veros"`, `refinement>=2`, `train_states`, `train_tendencies`, `heldout_states`, `heldout_tendencies`, `tendency_scale`, and pure callbacks `flux_divergence(carry, diffusivity)`, `budget_residual(weights)`, `response_target(kind, steps, heldout)`. Tendencies and rollout truth come from the independent refined model, not the fitted law. |
 | `with_vertical_grid` | `carry`, `widths`, `conserve` | Return a carry with rebuilt levels, metrics, masks, density, pressure coefficients, and conservative remapping of fields and histories. The number of levels and total depth remain fixed. |

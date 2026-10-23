@@ -15,7 +15,7 @@ class Response:
         if self.kind == "local" and config["steps"] not in (None, 1):
             raise ValueError("Local response demos require exactly one differentiated step")
         self.period_steps = round(YEAR / ocean.dt)
-        days = 30 if ocean.case.task == "sensitivity" else 360
+        days = 30 if ocean.case.task in ("sensitivity", "geometry") else 360
         if ocean.case.task == "perturbation":
             days = 3600
         default = 1 if self.kind == "local" else (6 if config["mode"] == "smoke" else round(days * 86400 / ocean.dt))
@@ -24,6 +24,61 @@ class Response:
         self.windows = 4 if config["mode"] == "smoke" else 16
         self.burnin_steps = 20 * self.period_steps
         self.thresholds = ocean.observe(ocean.initial) + 1
+        self.finite = None
+        self.statistical_advance = None
+
+    def finite_provider(self):
+        from .finite_response import FiniteResponse
+
+        if self.finite is None:
+            self.finite = FiniteResponse(self)
+        return self.finite
+
+    def function(self, function, *, heldout=False):
+        from .finite_response import ObservationFunction
+
+        return ObservationFunction(self, function, heldout=heldout)
+
+    def terminal_feature(self, index, *, scale=1.0, offset=0.0, heldout=False):
+        from .finite_response import TerminalFeature
+        from veros.checkpointing import BinomialSchedule, validate_schedule
+
+        if self.kind != "trajectory":
+            raise ValueError("Terminal features require a trajectory response")
+        ((_, _, boundaries),) = self.finite_provider().specifications(heldout)
+
+        def replay(length):
+            schedule = BinomialSchedule(
+                length,
+                ram_checkpoints=self.config.get("ram_checkpoints", 4),
+                disk_checkpoints=self.config.get("disk_checkpoints", 0),
+            )
+            return validate_schedule(schedule)["recomputed_steps"]
+
+        steps = boundaries[-1]
+        direct_work = steps + replay(steps)
+        segmented_work = 3 * steps + sum(replay(end - start) for start, end in zip((0,) + boundaries, boundaries))
+        if direct_work > segmented_work:
+            function = self.function(lambda values, z: scale * values[-1, index] + offset, heldout=heldout)
+            function.gradient_method = "segmented terminal checkpoint adjoint"
+        else:
+            function = TerminalFeature(self, index, scale=scale, offset=offset, heldout=heldout)
+        function.checkpoint_work = dict(direct=direct_work, segmented=segmented_work)
+        return function
+
+    def jvp(self, z, direction, *, heldout=False):
+        if self.kind in ("local", "trajectory"):
+            return self.finite_provider().jvp(z, direction, heldout=heldout)
+        import jax
+
+        return jax.jvp(lambda point: self.values(point, heldout=heldout), (z,), (direction,))
+
+    def vjp(self, z, seed, *, heldout=False):
+        if self.kind in ("local", "trajectory"):
+            return self.finite_provider().vjp(z, seed, heldout=heldout)
+        import jax
+
+        return jax.vjp(lambda point: self.values(point, heldout=heldout), z)[1](seed)[0]
 
     def full(self, z):
         import jax.numpy as jnp
@@ -31,7 +86,7 @@ class Response:
 
         return jnp.zeros(len(CONTROL_NAMES), dtype=z.dtype).at[self.indices].set(z)
 
-    def adjusted(self, z, *, phase_days=0, initial_shift=0, doubled=False, realized=False):
+    def adjusted(self, z, *, phase_days=0, initial_shift=0, doubled=False, realized=False, diagnostics=True):
         full = self.full(z).at[0].add(initial_shift)
         carry, parameters = self.ocean.controls(full, phase_days=phase_days, realized=realized)
         if self.kind == "equilibrium":
@@ -39,8 +94,12 @@ class Response:
                 carry,
                 parameters=parameters,
                 observe=self.ocean.observe,
-                tolerance=1e-7,
+                tolerance=1e-11,
                 max_steps=max(self.steps, 20000 * round(86400 / self.ocean.dt)) * (2 if doubled else 1),
+                max_newton_iterations=128 if doubled else 64,
+                ram_checkpoints=self.config.get("ram_checkpoints", 4),
+                conserved=("salt",) if self.config.get("setup") == "acc" else (),
+                diagnostics=diagnostics,
             )
         if self.kind == "seasonal":
             return self.ocean.prepared.periodic_response(
@@ -49,8 +108,11 @@ class Response:
                 observe=self.ocean.observe,
                 period_steps=self.period_steps,
                 phases=tuple(month / 12 for month in range(12)),
-                tolerance=1e-7,
+                tolerance=1e-9,
                 max_cycles=64 if doubled else 32,
+                ram_checkpoints=self.config.get("ram_checkpoints", 4),
+                conserved=("salt",) if self.config.get("setup") == "acc" else (),
+                diagnostics=diagnostics,
             )
         return self.ocean.prepared.statistical_response(
             carry,
@@ -62,11 +124,22 @@ class Response:
             n_windows=self.windows * (2 if doubled else 1),
             sample_stride=max(1, self.window_steps // 12),
             seed=int(phase_days),
+            period_steps=self.period_steps,
+            method=(
+                self.config.get("statistical_method", "invariant_periodic")
+                if self.config.get("setup") == "adjusted_basin"
+                else self.config.get("statistical_method")
+            ),
+            ram_checkpoints=self.config.get("ram_checkpoints", 4),
+            conserved=("salt",) if self.config.get("setup") == "acc" else (),
+            diagnostics=diagnostics,
         )
 
     def values(self, z, *, heldout=False, seed=0, forward=False, realized=False):
         import jax.numpy as jnp
 
+        if self.kind in ("local", "trajectory") and not realized:
+            return self.finite_provider().values(z, heldout=heldout)
         full = self.full(z)
         if self.kind == "local":
             # Independent one-step responses sample several states and forcing phases.
@@ -94,7 +167,12 @@ class Response:
         if self.kind == "statistics" and forward:
             return self.forward_statistics(z, seed=seed, doubled=heldout, realized=realized)
         result = self.adjusted(
-            z, phase_days=seed, initial_shift=0.2 if heldout else 0, doubled=heldout, realized=realized
+            z,
+            phase_days=seed,
+            initial_shift=0.2 if heldout else 0,
+            doubled=heldout,
+            realized=realized,
+            diagnostics=False,
         )
         return result["observations"]
 
@@ -105,19 +183,69 @@ class Response:
         rng = np.random.default_rng(seed)
         full = self.full(z).at[0].add(float(rng.uniform(-0.3, 0.3)))
         carry, parameters = self.ocean.controls(full, phase_days=float(rng.uniform(0, 360)), realized=realized)
-        carry, _ = self.ocean.prepared.advance(carry, n_steps=self.burnin_steps, parameters=parameters, final_only=True)
+
+        def advance(current, steps):
+            if self.config.get("setup") == "adjusted_basin":
+                import jax
+
+                if self.statistical_advance is None:
+                    self.statistical_advance = jax.jit(
+                        lambda c, p, n: jax.lax.fori_loop(
+                            0, n, lambda index, state: self.ocean.prepared.step(state, parameters=p)[0], c
+                        )
+                    )
+                self.ocean.prepared.check_configuration()
+                final = self.statistical_advance(current, parameters, steps)
+            else:
+                final, _ = self.ocean.prepared.advance(current, n_steps=steps, parameters=parameters, final_only=True)
+            self.ocean.prepared.check_status(final)
+            return final
+
+        carry = advance(carry, self.burnin_steps)
         values = []
         # Monthly samples resolve the stock forcing, matching the response provider.
         stride = max(1, self.window_steps // 12)
         for _ in range(12 * self.windows * (2 if doubled else 1)):
-            carry, _ = self.ocean.prepared.advance(carry, n_steps=stride, parameters=parameters, final_only=True)
-            self.ocean.prepared.check_status(carry)
+            carry = advance(carry, stride)
             values.append(self.ocean.observe(carry))
         samples = jnp.stack(values)
         import jax
 
         exceedance = jnp.mean(jax.nn.sigmoid(samples - self.thresholds), axis=0)
         return jnp.stack((jnp.mean(samples, axis=0), jnp.var(samples, axis=0), exceedance))
+
+    def check_adjustment(self, point, result, checks, *, label=""):
+        prefix = label + " " if label else ""
+        checks.require(
+            prefix + "full-state residual",
+            result["residual_kind"] == "full_state" and float(result["residual"]) < 1e-7,
+            dict(kind=result["residual_kind"], residual=float(result["residual"])),
+        )
+        checks.require(
+            prefix + "stable adjusted branch", float(result["spectral_radius"]) < 1, float(result["spectral_radius"])
+        )
+        if "stability_residual" in result:
+            checks.require(
+                prefix + "resolved stability estimate",
+                float(result["stability_residual"]) < min(1e-5, max(0, 1 - float(result["spectral_radius"]))),
+                float(result["stability_residual"]),
+            )
+        checks.require(
+            prefix + "adjustment sensitivity residual",
+            float(result["sensitivity_residual"]) < 1e-5,
+            float(result["sensitivity_residual"]),
+        )
+        checks.metrics.setdefault("adjusted_state_audits", []).append(
+            dict(
+                label=label or "baseline",
+                controls=np.asarray(point).tolist(),
+                **{
+                    name: float(result[name])
+                    for name in ("residual", "spectral_radius", "sensitivity_residual", "stability_residual")
+                    if name in result
+                },
+            )
+        )
 
     def validate(self, point, checks):
         import jax
@@ -130,8 +258,11 @@ class Response:
             statistical_windows=self.windows,
             burnin_years=20,
         )
-        if self.config["mode"] == "acceptance":
-            checks.require("global research configuration", self.config["setup"] == "global_4deg", self.config["setup"])
+        if self.config["mode"] in ("study", "acceptance"):
+            if self.config["mode"] == "acceptance":
+                checks.require(
+                    "global research configuration", self.config["setup"] == "global_4deg", self.config["setup"]
+                )
             if self.kind == "trajectory":
                 required_days = (
                     3600
@@ -159,22 +290,25 @@ class Response:
             checks.metrics["climate_event_thresholds"] = self.thresholds.tolist()
         checks.require("finite adjusted observations", np.isfinite(result["observations"]).all(), self.kind)
         if self.kind in ("equilibrium", "seasonal"):
-            checks.require(
-                "full-state residual",
-                result["residual_kind"] == "full_state" and float(result["residual"]) < 1e-7,
-                dict(kind=result["residual_kind"], residual=float(result["residual"])),
-            )
-            checks.require(
-                "stable adjusted branch",
-                float(result["spectral_radius"]) < 1,
-                float(result["spectral_radius"]),
-            )
-            checks.require(
-                "adjustment sensitivity residual",
-                float(result["sensitivity_residual"]) < 1e-5,
-                float(result["sensitivity_residual"]),
-            )
-            other = self.adjusted(point, initial_shift=0.3, doubled=True)
+            checks.metrics["adjustment"] = {
+                key: result[key]
+                for key in (
+                    "method",
+                    "state_tolerance",
+                    "ram_checkpoints",
+                    "cycle_execution",
+                    "state_fields",
+                    "algebraic_fields",
+                    "physical_scales",
+                    "conserved_inventories",
+                    "phase_seconds",
+                    "pressure_gauge",
+                    "stability_residual",
+                )
+                if key in result
+            }
+            self.check_adjustment(point, result, checks)
+            other = self.adjusted(point, initial_shift=0.3, doubled=True, diagnostics=False)
             checks.close(
                 "adjusted-state independence",
                 other["observations"],
@@ -182,9 +316,11 @@ class Response:
                 rtol=1e-5,
                 atol=1e-5,
             )
-            first = jax.jvp(lambda z: self.adjusted(z)["observations"], (point,), (jnp.ones_like(point),))[1]
+            first = jax.jvp(
+                lambda z: self.adjusted(z, diagnostics=False)["observations"], (point,), (jnp.ones_like(point),)
+            )[1]
             second = jax.jvp(
-                lambda z: self.adjusted(z, initial_shift=0.3, doubled=True)["observations"],
+                lambda z: self.adjusted(z, initial_shift=0.3, doubled=True, diagnostics=False)["observations"],
                 (point,),
                 (jnp.ones_like(point),),
             )[1]
@@ -204,10 +340,18 @@ class Response:
             "invariant_periodic",
         )
         checks.require("invariant response method", result["method"] in allowed, result["method"])
+        if result["method"] == "invariant_periodic" and "residual_kind" in result:
+            self.check_adjustment(point, result, checks)
+            checks.metrics["invariant_estimator_scope"] = result["estimator_scope"]
+            checks.metrics["invariant_uncertainty_scope"] = result["uncertainty_scope"]
         checks.require(
             "effective sample size",
             float(result["effective_sample_size"]) >= 32,
-            float(result["effective_sample_size"]),
+            (
+                dict(exact_periodic_population=True, phase_samples=result["phase_samples"], monte_carlo_error=0)
+                if result["method"] == "invariant_periodic" and np.isinf(float(result["effective_sample_size"]))
+                else float(result["effective_sample_size"])
+            ),
         )
         se = np.asarray(result["standard_error"])
         checks.require("finite positive uncertainty", bool(np.isfinite(se).all() and (se >= 0).all()), se.tolist())
@@ -227,7 +371,7 @@ class Response:
                 standard_error=uncertainty,
             ),
         )
-        repeated = self.adjusted(point, initial_shift=0.3, phase_days=180, doubled=True)
+        repeated = self.adjusted(point, initial_shift=0.3, phase_days=180, doubled=True, diagnostics=False)
         checks.require(
             "invariant starting-state independence",
             bool(
@@ -239,16 +383,27 @@ class Response:
             dict(first=result["observations"], second=repeated["observations"]),
         )
 
-    def audit(self, loss, point, checks, forward_loss=None):
+    def audit(self, loss, point, checks, forward_loss=None, *, coarser_scales=()):
         if self.kind != "statistics":
-            return gradient_checks(loss, point, checks)
-        import jax
+            first = len(checks.items)
+            result = gradient_checks(
+                loss,
+                point,
+                checks,
+                coarser_scales=coarser_scales,
+                finer_scales=self.config.get("gradient_finer_scales", ()),
+            )
+            failed = [check["name"] for check in checks.items[first:] if not check["passed"]]
+            if failed:
+                raise RuntimeError("Derivative validation failed: " + ", ".join(failed))
+            return result
         import jax.numpy as jnp
+        from .finite_response import value_and_grad, jvp
 
-        value, gradient = jax.value_and_grad(loss)(point)
+        value, gradient = value_and_grad(loss)(point)
         direction = jnp.arange(1, point.size + 1, dtype=point.dtype)
         direction /= jnp.linalg.norm(direction)
-        _, tangent = jax.jvp(loss, (point,), (direction,))
+        _, tangent = jvp(loss, point, direction)
         checks.close("statistical forward/reverse derivative", tangent, jnp.vdot(gradient, direction))
         checks.require("finite statistical gradient", np.isfinite(gradient).all(), gradient.tolist())
         estimates = []
