@@ -1,6 +1,7 @@
 """Small closure fits retain their stopping criterion through curvature refinement."""
 
 import numpy as np
+import pytest
 
 
 def test_converged_fit_does_not_evaluate_refinement():
@@ -15,6 +16,7 @@ def test_converged_fit_does_not_evaluate_refinement():
     assert result[0] is point and result[1] is history and result[2] is solver
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_nonzero_residual_fit_resolves_original_gradient_tolerance():
     import jax
     import jax.numpy as jnp

@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def test_adjusted_ocean_rejects_distributed_state_before_constructing_a_map(monkeypatch):
     from types import SimpleNamespace

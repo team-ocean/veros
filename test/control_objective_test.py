@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def test_control_objective_matches_analytic_gradient_jvp_vjp_and_optimizer():
     import jax

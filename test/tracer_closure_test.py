@@ -1,6 +1,9 @@
 """Native closure execution, energy parity, and conservative reference operators."""
 
 import numpy as np
+import pytest
+
+pytestmark = pytest.mark.usefixtures("jax_backend")
 
 
 def closure_basin():
