@@ -5,6 +5,8 @@ from collections import defaultdict
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 class Recurrence:
     def __init__(self, fail_at=-1):

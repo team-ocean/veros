@@ -5,6 +5,8 @@ import pytest
 
 from wet_geometry_test import channel_basin
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 @pytest.mark.parametrize("host_inputs", (False, True))
 def test_adjusted_coordinates_retain_new_wet_topology_and_prognostic_fields(host_inputs):

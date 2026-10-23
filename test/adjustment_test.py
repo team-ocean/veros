@@ -32,6 +32,7 @@ def recurrence_response(matrix, *, initial=10, iterations=32):
     )
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_fixed_point_implicit_products_include_adjustment_and_direct_dependence():
     import jax
     import jax.numpy as jnp
@@ -66,6 +67,7 @@ def test_fixed_point_implicit_products_include_adjustment_and_direct_dependence(
 
 @pytest.mark.parametrize("scale", (1.0, 1e-14))
 @pytest.mark.parametrize("transpose", (False, True))
+@pytest.mark.usefixtures("jax_backend")
 def test_implicit_linear_solve_preserves_small_sensitivity_units(scale, transpose):
     import jax
 
@@ -82,6 +84,7 @@ def test_implicit_linear_solve_preserves_small_sensitivity_units(scale, transpos
 
 @pytest.mark.parametrize("scale", (1.0, 1e-14))
 @pytest.mark.parametrize("transpose", (False, True))
+@pytest.mark.usefixtures("jax_backend")
 def test_polynomial_fallback_checks_the_original_equation(monkeypatch, scale, transpose):
     import scipy.sparse.linalg as sparse
 
@@ -115,6 +118,7 @@ def test_polynomial_fallback_checks_the_original_equation(monkeypatch, scale, tr
     assert engine.last_linear_solve["attempts"][1]["method"] == "polynomial GMRES"
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_polynomial_fallback_cannot_hide_an_invalid_original_residual(monkeypatch):
     import scipy.sparse.linalg as sparse
 
@@ -178,6 +182,7 @@ def test_wet_krylov_coordinates_follow_inputs_and_preserve_full_equation(monkeyp
     assert dimensions == [(2, 2), (2, 2)]
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_invalid_wet_projection_cannot_hide_full_native_residual():
     engine = recurrence_response([[0.8, 0.1], [0.0, 0.6]])
     engine.state_mask = lambda u: np.array([True, False])
@@ -240,6 +245,7 @@ def test_stability_resolves_clustered_complex_modes_with_passive_histories():
     assert residual < 1e-5 and engine.last_stability["stopping"] == "converged"
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_unstable_fixed_point_and_unresolved_adjustment_are_distinct():
     import jax
     import jax.numpy as jnp
@@ -257,6 +263,7 @@ def test_unstable_fixed_point_and_unresolved_adjustment_are_distinct():
         limited.transformed(point, (2,))(point).block_until_ready()
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_periodic_response_includes_the_phase_zero_state_derivative():
     import jax
     import jax.numpy as jnp

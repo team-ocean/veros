@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_periodic_statistics_differentiate_orbit_adjustment_and_event_thresholds():
     import jax
     import jax.numpy as jnp
@@ -110,6 +111,7 @@ def test_statistical_api_requires_an_explicit_supported_estimator():
         )
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_periodic_statistics_do_not_publish_an_unstable_or_unresolved_orbit():
     import jax.numpy as jnp
     from veros.statistics import periodic_statistics

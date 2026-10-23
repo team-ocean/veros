@@ -122,6 +122,7 @@ def test_stability_provider_must_be_callable():
 
 
 @pytest.mark.parametrize("kind", ("equilibrium", "periodic", "statistics"))
+@pytest.mark.usefixtures("jax_backend")
 def test_public_native_response_separates_stability_providers(kind):
     import jax.numpy as jnp
     from veros import runtime_settings
