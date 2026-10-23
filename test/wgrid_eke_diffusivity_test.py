@@ -8,6 +8,8 @@ import pytest
 from wgrid_geometry_test import basin as basin, candidate, reference_width  # noqa: F401
 from wgrid_energy_test import energy_state
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def diffusivity_state(base):
     import jax.numpy as jnp

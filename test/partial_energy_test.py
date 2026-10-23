@@ -105,6 +105,7 @@ def flow_state(partial):
 
 
 @pytest.mark.parametrize("partial", (False, True))
+@pytest.mark.usefixtures("jax_backend")
 def test_momentum_advection_preserves_closed_basin_kinetic_energy(partial):
     import jax.numpy as jnp
     from veros.core.momentum import momentum_advection
@@ -126,6 +127,7 @@ def test_momentum_advection_preserves_closed_basin_kinetic_energy(partial):
 
 
 @pytest.mark.parametrize("partial", (False, True))
+@pytest.mark.usefixtures("jax_backend")
 def test_hydrostatic_work_balances_centered_enthalpy_advection(partial):
     import jax.numpy as jnp
     from veros.core.external.solve_pressure import prepare_forcing
@@ -156,6 +158,7 @@ def test_hydrostatic_work_balances_centered_enthalpy_advection(partial):
 
 
 @pytest.mark.parametrize("eos", (1, 3))
+@pytest.mark.usefixtures("jax_backend")
 def test_native_partial_energy_records_and_mixing_work(eos):
     import jax.numpy as jnp
     from bathymetry_helpers import make_simulation
@@ -258,6 +261,7 @@ def test_native_partial_energy_records_and_mixing_work(eos):
     np.testing.assert_allclose(diagnosed, momentum_work, rtol=1e-9, atol=1e-8)
 
 
+@pytest.mark.usefixtures("jax_backend")
 def test_partial_energy_source_records_and_geometry_checkpoint_pullback():
     import jax
     import jax.numpy as jnp

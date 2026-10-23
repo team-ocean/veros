@@ -7,6 +7,8 @@ import pytest
 
 from wgrid_geometry_test import basin as basin, candidate  # noqa: F401
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def energy_state(base):
     """Allocate native energy fields without declaring full-setup compatibility."""

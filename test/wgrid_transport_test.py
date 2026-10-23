@@ -5,6 +5,8 @@ from copy import copy
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def updated_velocities(state):
     from veros.core import advection

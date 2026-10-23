@@ -5,6 +5,8 @@ from copy import copy
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 def source_basin(*, partial=False, widths=(100.0, 100.0, 100.0, 100.0)):
     import jax.numpy as jnp

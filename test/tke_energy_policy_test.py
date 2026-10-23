@@ -7,6 +7,8 @@ from wgrid_energy_test import basin  # noqa: F401
 from wgrid_geometry_test import candidate
 import wgrid_energy_test
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 @pytest.fixture(autouse=True)
 def positive_diffusion_policy(monkeypatch):

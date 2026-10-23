@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.usefixtures("jax_backend")
+
 
 @pytest.mark.parametrize("noslip", (False, True))
 @pytest.mark.parametrize("cos_scaling", (False, True))
