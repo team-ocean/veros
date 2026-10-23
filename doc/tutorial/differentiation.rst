@@ -316,16 +316,29 @@ Partial-cell bathymetry
 
 Set ``enable_partial_cells=True`` before setup to vary bottom depths within
 fixed wet cells. The supported configuration uses serial JAX execution, the
-``scipy_jax`` pressure solver, surface pressure, constant mixing, and
-``enable_conserve_energy=False``. TKE, EKE, IDEMIX, neutral and skew diffusion,
-TEM friction, horizontal momentum friction, biharmonic mixing, streamfunction
-mode, and active energy/overturning diagnostics are rejected.
+``scipy_jax`` pressure solver, and surface pressure. Constant mixing, TKE, EKE,
+energy exchanges, and energy diagnostic records are supported. IDEMIX, TEM
+friction, biharmonic mixing/friction, streamfunction mode, and active
+overturning diagnostics are rejected. Turbulence support retains the native
+scheme's sign limitations and can produce negative energy states.
 
 Tracer and momentum transport, vertical mixing, wind stress, and quadratic
-bottom drag use occupied cell thicknesses or open face areas. Tracer-monitor
-volumes and vertical CFL estimates also use occupied thicknesses. Reference
-vertical levels and vertical difference distances remain fixed. Neighboring
-velocity faces use the smaller occupied thickness of their adjacent tracer
+bottom drag use occupied cell thicknesses or open face areas.
+Horizontal harmonic friction integrates stress over shared wet faces and
+divides its divergence by occupied momentum-cell volumes. Free-slip boundaries
+conserve momentum; no-slip wall stresses dissipate kinetic energy. Momentum-source
+and drag work use occupied velocity volumes. Energy inventories use native
+U/V volumes for kinetic energy and occupied T volumes for enthalpy; diagnostic
+work fields retain their nominal W-grid quadrature.
+Neutral and skew tracer diffusion use
+open horizontal faces and occupied tracer volumes. Their vertical cross and
+diagonal quadrature terms carry the matching horizontal face fractions. The matching factors retain the paired tensor structure. The implicit Redi solve also uses occupied tracer thickness.
+Reference vertical difference distances remain fixed. Choose the timestep for
+the smallest occupied cells in the admissible geometry range.
+
+Tracer-monitor volumes and vertical CFL estimates also use occupied thicknesses.
+Bathymetry controls hold reference vertical levels and difference distances
+fixed. Neighboring velocity faces use the smaller occupied thickness of their adjacent tracer
 cells. Pressure solves rebuild depth-dependent numerical coefficients so
 operator derivatives include changes in geometry.
 
@@ -378,3 +391,18 @@ building the initial candidate::
 
 After checkpoint replay, ``pullback(result.gradient)[0]`` returns the
 depth-control gradient.
+
+
+Optional turbulence and neutral-slope policies
+----------------------------------------------
+
+``enable_tke_positive_diffusion=True`` selects implicit positive-part TKE
+diffusion and damping, a nonnegative surface-energy constraint, and continuous
+global allocation of numerical work. It is disabled by default. Interior stored
+energy can remain negative after forcing and advection. PyOM transfer rejects
+this option because the Fortran model does not implement these equations.
+
+``enable_neutral_nonstable_zero_slope=True`` sets neutral slopes to zero at
+nonstable and surface quadrature stencils. Stable stencils retain their
+original formula. This option is disabled by default and requires independent
+validation for each physical configuration.

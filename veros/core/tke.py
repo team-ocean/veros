@@ -1,5 +1,6 @@
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
+from veros.core.geometry import wgrid_thickness, wgrid_horizontal_divergence
 from veros.core import advection, utilities
 from veros.core.operators import update, update_add, at, for_loop, numpy as npx, safe_sqrt
 
@@ -127,6 +128,12 @@ def integrate_tke_kernel(state):
     """
     vs = state.variables
     settings = state.settings
+    nominal_width = npx.broadcast_to(vs.dzw, vs.maskW.shape)
+    nominal_width = update(nominal_width, at[..., -1], 0.5 * nominal_width[..., -1])
+    width = nominal_width
+    if settings.enable_partial_cells:
+        width = npx.where(vs.maskW, wgrid_thickness(state), nominal_width)
+    interior_width = width[2:-2, 2:-2]
 
     conditional_outputs = {}
 
@@ -180,6 +187,9 @@ def integrate_tke_kernel(state):
     """
     vertical mixing and dissipation of TKE
     """
+    if settings.enable_partial_cells:
+        forc = forc * (nominal_width / width)
+
     _, water_mask, edge_mask = utilities.create_water_masks(vs.kbot[2:-2, 2:-2], settings.nz)
 
     a_tri, b_tri, c_tri, d_tri, delta = (
@@ -196,41 +206,62 @@ def integrate_tke_kernel(state):
         * (vs.kappaM[2:-2, 2:-2, :-1] + vs.kappaM[2:-2, 2:-2, 1:]),
     )
 
-    a_tri = update(a_tri, at[:, :, 1:-1], -delta[:, :, :-2] / vs.dzw[npx.newaxis, npx.newaxis, 1:-1])
-    a_tri = update(a_tri, at[:, :, -1], -delta[:, :, -2] / (0.5 * vs.dzw[-1]))
+    a_tri = update(a_tri, at[:, :, 1:-1], -delta[:, :, :-2] / interior_width[:, :, 1:-1])
+    a_tri = update(a_tri, at[:, :, -1], -delta[:, :, -2] / interior_width[:, :, -1])
 
     b_tri = update(
         b_tri,
         at[:, :, 1:-1],
         1
-        + (delta[:, :, 1:-1] + delta[:, :, :-2]) / vs.dzw[npx.newaxis, npx.newaxis, 1:-1]
+        + (delta[:, :, 1:-1] + delta[:, :, :-2]) / interior_width[:, :, 1:-1]
         + dt_tke * settings.c_eps * vs.sqrttke[2:-2, 2:-2, 1:-1] / vs.mxl[2:-2, 2:-2, 1:-1],
     )
     b_tri = update(
         b_tri,
         at[:, :, -1],
         1
-        + delta[:, :, -2] / (0.5 * vs.dzw[-1])
+        + delta[:, :, -2] / interior_width[:, :, -1]
         + dt_tke * settings.c_eps / vs.mxl[2:-2, 2:-2, -1] * vs.sqrttke[2:-2, 2:-2, -1],
     )
     b_tri_edge = (
-        1
-        + delta / vs.dzw[npx.newaxis, npx.newaxis, :]
-        + dt_tke * settings.c_eps / vs.mxl[2:-2, 2:-2, :] * vs.sqrttke[2:-2, 2:-2, :]
+        1 + delta / interior_width + dt_tke * settings.c_eps / vs.mxl[2:-2, 2:-2, :] * vs.sqrttke[2:-2, 2:-2, :]
     )
 
-    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzw[npx.newaxis, npx.newaxis, :-1])
+    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / interior_width[:, :, :-1])
 
     d_tri = update(d_tri, at[...], vs.tke[2:-2, 2:-2, :, vs.tau] + dt_tke * forc[2:-2, 2:-2, :])
-    d_tri = update_add(d_tri, at[:, :, -1], dt_tke * vs.forc_tke_surface[2:-2, 2:-2] / (0.5 * vs.dzw[-1]))
+    d_tri = update_add(d_tri, at[:, :, -1], dt_tke * vs.forc_tke_surface[2:-2, 2:-2] / interior_width[:, :, -1])
 
-    sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
+    if settings.enable_tke_positive_diffusion:
+        from veros.core.tke_energy import positive_diffusion_column
+
+        old_rate = settings.c_eps * vs.sqrttke / vs.mxl
+        buoyancy_rate = settings.c_eps * npx.sqrt(npx.maximum(1e-12, vs.Nsqr[..., vs.tau])) / npx.sqrt(2.0)
+        damping_rate = npx.maximum(old_rate, buoyancy_rate)
+        old_interior = old_rate[2:-2, 2:-2]
+        sol, surface_rhs = positive_diffusion_column(
+            a_tri,
+            b_tri - dt_tke * old_interior,
+            c_tri,
+            d_tri,
+            water_mask,
+            edge_mask,
+            b_tri_edge - dt_tke * old_interior,
+            dt_tke * damping_rate[2:-2, 2:-2],
+        )
+    else:
+        sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
     vs.tke = update(vs.tke, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.tke[2:-2, 2:-2, :, vs.taup1]))
 
     """
     store tke dissipation for diagnostics
     """
-    vs.tke_diss = settings.c_eps / vs.mxl * vs.sqrttke * vs.tke[:, :, :, vs.taup1]
+    if settings.enable_tke_positive_diffusion:
+        vs.tke_diss = damping_rate * npx.maximum(vs.tke[:, :, :, vs.taup1], 0.0)
+    else:
+        vs.tke_diss = settings.c_eps / vs.mxl * vs.sqrttke * vs.tke[:, :, :, vs.taup1]
+    if settings.enable_partial_cells:
+        vs.tke_diss = vs.tke_diss * (width / nominal_width)
 
     """
     Add TKE if surface density flux drains TKE in uppermost box
@@ -239,7 +270,11 @@ def integrate_tke_kernel(state):
     vs.tke_surf_corr = update(
         vs.tke_surf_corr,
         at[2:-2, 2:-2],
-        npx.where(mask, -vs.tke[2:-2, 2:-2, -1, vs.taup1] * 0.5 * vs.dzw[-1] / dt_tke, 0.0),
+        (
+            surface_rhs * interior_width[:, :, -1] / dt_tke
+            if settings.enable_tke_positive_diffusion
+            else npx.where(mask, -vs.tke[2:-2, 2:-2, -1, vs.taup1] * interior_width[:, :, -1] / dt_tke, 0.0)
+        ),
     )
     vs.tke = update(vs.tke, at[2:-2, 2:-2, -1, vs.taup1], npx.maximum(0.0, vs.tke[2:-2, 2:-2, -1, vs.taup1]))
 
@@ -267,18 +302,25 @@ def integrate_tke_kernel(state):
         )
         flux_north = update(flux_north, at[:, -1, :], 0.0)
 
-        vs.tke = update_add(
-            vs.tke,
-            at[2:-2, 2:-2, :, vs.taup1],
-            dt_tke
-            * vs.maskW[2:-2, 2:-2, :]
-            * (
-                (flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
-                + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
-            ),
-        )
+        if settings.enable_partial_cells:
+            vs.tke = update_add(
+                vs.tke,
+                at[2:-2, 2:-2, :, vs.taup1],
+                dt_tke * wgrid_horizontal_divergence(state, flux_east, flux_north),
+            )
+        else:
+            vs.tke = update_add(
+                vs.tke,
+                at[2:-2, 2:-2, :, vs.taup1],
+                dt_tke
+                * vs.maskW[2:-2, 2:-2, :]
+                * (
+                    (flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+                    / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+                    + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
+                    / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
+                ),
+            )
 
     """
     add tendency due to advection
@@ -308,6 +350,13 @@ def integrate_tke_kernel(state):
         vs.dtke = update_add(
             vs.dtke, at[:, :, -1, vs.tau], -(flux_top[:, :, -1] - flux_top[:, :, -2]) / (0.5 * vs.dzw[-1])
         )
+
+        if settings.enable_partial_cells:
+            vs.dtke = update(
+                vs.dtke,
+                at[..., vs.tau],
+                vs.dtke[..., vs.tau] * (nominal_width / width),
+            )
 
         """
         Adam Bashforth time stepping

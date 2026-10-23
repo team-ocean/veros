@@ -3,6 +3,7 @@ from veros.core.operators import numpy as npx, update_multiply, at
 from veros.diagnostics.base import VerosDiagnostic
 from veros.variables import Variable
 from veros.distributed import global_sum
+from veros.core.geometry import wgrid_thickness
 
 ENERGY_VARIABLES = dict(
     nitts=Variable("nitts", None, write_to_restart=True),
@@ -124,8 +125,6 @@ class Energy(VerosDiagnostic):
         self.initialize_output(state)
 
     def diagnose(self, state):
-        if state.settings.enable_partial_cells:
-            raise ValueError("Partial cells do not yet support the energy diagnostic")
         energies = diagnose_kernel(state)
 
         # store results
@@ -154,7 +153,8 @@ def diagnose_kernel(state):
     settings = state.settings
 
     # changes of dynamic enthalpy
-    vol_t = vs.area_t[2:-2, 2:-2, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :] * vs.maskT[2:-2, 2:-2, :]
+    fraction_t = vs.hfacT if settings.enable_partial_cells else vs.maskT
+    vol_t = vs.area_t[2:-2, 2:-2, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :] * fraction_t[2:-2, 2:-2, :]
 
     dP_iso = global_sum(
         npx.sum(
@@ -207,18 +207,12 @@ def diagnose_kernel(state):
     dP_m_all = dP_m + dP_vmix + dP_hmix + dP_iso
 
     # changes of kinetic energy
-    vol_u = vs.area_u[2:-2, 2:-2, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :]
-    vol_v = vs.area_v[2:-2, 2:-2, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :]
+    fraction_u = vs.hfacU if settings.enable_partial_cells else vs.maskU
+    fraction_v = vs.hfacV if settings.enable_partial_cells else vs.maskV
+    vol_u = vs.area_u[2:-2, 2:-2, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :] * fraction_u[2:-2, 2:-2, :]
+    vol_v = vs.area_v[2:-2, 2:-2, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :] * fraction_v[2:-2, 2:-2, :]
     k_m = global_sum(
-        npx.sum(
-            vol_t
-            * 0.5
-            * (
-                0.5 * (vs.u[2:-2, 2:-2, :, vs.tau] ** 2 + vs.u[1:-3, 2:-2, :, vs.tau] ** 2)
-                + 0.5 * (vs.v[2:-2, 2:-2, :, vs.tau] ** 2)
-                + vs.v[2:-2, 1:-3, :, vs.tau] ** 2
-            )
-        )
+        npx.sum(0.5 * vol_u * vs.u[2:-2, 2:-2, :, vs.tau] ** 2 + 0.5 * vol_v * vs.v[2:-2, 2:-2, :, vs.tau] ** 2)
     )
     p_m = global_sum(npx.sum(vol_t * vs.Hd[2:-2, 2:-2, :, vs.tau]))
     dk_m = global_sum(
@@ -236,6 +230,13 @@ def diagnose_kernel(state):
 
     def mean_w(var):
         return global_sum(npx.sum(var[2:-2, 2:-2, :] * vol_w))
+
+    energy_volume = vol_w
+    if settings.enable_partial_cells:
+        energy_volume = vs.area_t[2:-2, 2:-2, npx.newaxis] * wgrid_thickness(state)[2:-2, 2:-2]
+
+    def mean_energy(var):
+        return global_sum(npx.sum(var[2:-2, 2:-2, :] * energy_volume))
 
     mdiss_vmix = mean_w(vs.P_diss_v)
     mdiss_nonlin = mean_w(vs.P_diss_nonlin)
@@ -292,9 +293,11 @@ def diagnose_kernel(state):
 
     # meso-scale energy
     if settings.enable_eke:
-        eke_m = mean_w(vs.eke[..., vs.tau])
+        eke_m = mean_energy(vs.eke[..., vs.tau])
         deke_m = global_sum(
-            npx.sum(vol_w * (vs.eke[2:-2, 2:-2, :, vs.taup1] - vs.eke[2:-2, 2:-2, :, vs.tau]) / settings.dt_tracer)
+            npx.sum(
+                energy_volume * (vs.eke[2:-2, 2:-2, :, vs.taup1] - vs.eke[2:-2, 2:-2, :, vs.tau]) / settings.dt_tracer
+            )
         )
         eke_diss = mean_w(vs.eke_diss_iw)
         eke_diss_tke = mean_w(vs.eke_diss_tke)
@@ -307,8 +310,8 @@ def diagnose_kernel(state):
     # small-scale energy
     if settings.enable_tke:
         dt_tke = settings.dt_mom
-        tke_m = mean_w(vs.tke[..., vs.tau])
-        dtke_m = mean_w((vs.tke[..., vs.taup1] - vs.tke[..., vs.tau]) / dt_tke)
+        tke_m = mean_energy(vs.tke[..., vs.tau])
+        dtke_m = mean_energy((vs.tke[..., vs.taup1] - vs.tke[..., vs.tau]) / dt_tke)
         tke_diss = mean_w(vs.tke_diss)
         tke_forc = global_sum(
             npx.sum(

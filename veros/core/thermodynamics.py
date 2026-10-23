@@ -132,28 +132,8 @@ def advect_temp_salt_enthalpy(state):
         """
         advection of dynamic enthalpy
         """
-        if settings.enable_superbee_advection:
-            flux_east, flux_north, flux_top = advection.adv_flux_superbee(state, vs.Hd[:, :, :, vs.tau])
-        else:
-            flux_east, flux_north, flux_top = advection.adv_flux_2nd(state, vs.Hd[:, :, :, vs.tau])
-
-        vs.dHd = update(
-            vs.dHd,
-            at[2:-2, 2:-2, :, vs.tau],
-            vs.maskT[2:-2, 2:-2, :]
-            * (
-                -(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
-                - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
-            ),
-        )
-        vs.dHd = update_add(vs.dHd, at[:, :, 0, vs.tau], -1 * vs.maskT[:, :, 0] * flux_top[:, :, 0] / vs.dzt[0])
-        vs.dHd = update_add(
-            vs.dHd,
-            at[:, :, 1:, vs.tau],
-            -1 * vs.maskT[:, :, 1:] * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / vs.dzt[npx.newaxis, npx.newaxis, 1:],
-        )
+        vs.dHd = update(vs.dHd, at[2:-2, 2:-2, :, vs.tau], 0)
+        vs.dHd = update_add(vs.dHd, at[..., vs.tau], advect_tracer(state, vs.Hd[..., vs.tau]))
 
         """
         changes in dyn. Enthalpy due to advection
@@ -213,20 +193,35 @@ def advect_temp_salt_enthalpy(state):
             * vs.maskW[2:-2, 2:-2, :-1]
         ) + npx.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.P_diss_adv[2:-2, 2:-2, -1] * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
 
-        tke_mask = vs.tke[2:-2, 2:-2, :-1, vs.tau] > 0.0
+        if settings.enable_tke_positive_diffusion:
+            from veros.core.tke_energy import redistribute
 
-        fxb = npx.sum(
-            vs.area_t[2:-2, 2:-2, npx.newaxis]
-            * vs.dzw[npx.newaxis, npx.newaxis, :-1]
-            * vs.maskW[2:-2, 2:-2, :-1]
-            * tke_mask
-        ) + npx.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
+            volume = vs.area_t[2:-2, 2:-2, npx.newaxis] * vs.dzw * vs.maskW[2:-2, 2:-2]
+            volume = update(volume, at[..., -1], volume[..., -1] * 0.5)
+            available = vs.tke[2:-2, 2:-2, :, vs.tau]
+            if settings.enable_partial_cells:
+                from veros.core.geometry import wgrid_thickness
 
-        fxa = global_sum(fxa)
-        fxb = global_sum(fxb)
+                nominal = npx.broadcast_to(vs.dzw, vs.maskW.shape)
+                nominal = update(nominal, at[..., -1], nominal[..., -1] * 0.5)
+                available = available * wgrid_thickness(state)[2:-2, 2:-2] / nominal[2:-2, 2:-2]
+            work = redistribute(global_sum(fxa), available, volume, settings.dt_mom)
+            vs.P_diss_adv = update(vs.P_diss_adv, at[2:-2, 2:-2], work)
+        else:
+            tke_mask = vs.tke[2:-2, 2:-2, :-1, vs.tau] > 0.0
 
-        vs.P_diss_adv = update(vs.P_diss_adv, at[2:-2, 2:-2, :-1], fxa / fxb * tke_mask)
-        vs.P_diss_adv = update(vs.P_diss_adv, at[2:-2, 2:-2, -1], fxa / fxb)
+            fxb = npx.sum(
+                vs.area_t[2:-2, 2:-2, npx.newaxis]
+                * vs.dzw[npx.newaxis, npx.newaxis, :-1]
+                * vs.maskW[2:-2, 2:-2, :-1]
+                * tke_mask
+            ) + npx.sum(0.5 * vs.area_t[2:-2, 2:-2] * vs.dzw[-1] * vs.maskW[2:-2, 2:-2, -1])
+
+            fxa = global_sum(fxa)
+            fxb = global_sum(fxb)
+
+            vs.P_diss_adv = update(vs.P_diss_adv, at[2:-2, 2:-2, :-1], fxa / fxb * tke_mask)
+            vs.P_diss_adv = update(vs.P_diss_adv, at[2:-2, 2:-2, -1], fxa / fxb)
 
     """
     Adam Bashforth time stepping for advection
