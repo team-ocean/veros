@@ -76,14 +76,6 @@ def locate_cuda():
 
 def customize_compiler_for_nvcc(self):
     if not isinstance(self, UnixCCompiler):
-        # Just give up
-        default_compile = self._compile
-
-        def _compile(obj, src, ext, cc_args, extra_postargs, pp_opts):
-            postargs = extra_postargs["gcc"]
-            return default_compile(obj, src, ext, cc_args, postargs, pp_opts)
-
-        self._compile = _compile
         return
 
     # Tell the compiler it can process .cu
@@ -117,6 +109,9 @@ def customize_compiler_for_nvcc(self):
 # Run the customize_compiler
 class custom_build_ext(build_ext):
     def build_extensions(self):
+        if not isinstance(self.compiler, UnixCCompiler):
+            for extension in self.extensions:
+                extension.extra_compile_args = extension.extra_compile_args["gcc"]
         customize_compiler_for_nvcc(self.compiler)
         super().build_extensions()
 

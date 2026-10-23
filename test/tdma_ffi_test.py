@@ -105,7 +105,7 @@ def test_batching(native_tdma, batch_coefficients, batch_masks, dtype):
         tuple(
             dense_solution(
                 tuple(np.asarray(value if axis is None else value[i]) for value, axis in zip(coefficients, axes)),
-                *(np.asarray(value if axis is None else value[i]) for value, axis in zip(masks, axes[-2:]))
+                *(np.asarray(value if axis is None else value[i]) for value, axis in zip(masks, axes[-2:])),
             )
             for i in range(3)
         )
