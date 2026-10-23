@@ -118,7 +118,8 @@ def get_extensions(require_cython_ext, require_cuda_ext):
             name=module,
             sources=[os.path.join(extension_dir, f) for f in sources],
             extra_compile_args={
-                "gcc": ["/std:c++17"] if sys.platform == "win32" else ["-std=c++17"],
+                "gcc": ["-std=c++17"],
+                "msvc": ["/std:c++17"],
                 "nvcc": cuda_info["cflags"],
             },
             **kwargs,

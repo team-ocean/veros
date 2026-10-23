@@ -111,7 +111,7 @@ class custom_build_ext(build_ext):
     def build_extensions(self):
         if not isinstance(self.compiler, UnixCCompiler):
             for extension in self.extensions:
-                extension.extra_compile_args = extension.extra_compile_args["gcc"]
+                extension.extra_compile_args = extension.extra_compile_args[self.compiler.compiler_type]
         customize_compiler_for_nvcc(self.compiler)
         super().build_extensions()
 
