@@ -371,16 +371,59 @@ Geometry persists through continuation, installation, restart output, and
 adjoint checkpoint replay.
 Restart reads require the same reference grid and wet-cell indices.
 
-``with_bathymetry`` preserves tracer concentrations, velocities, and tendency
-histories. Construct depth-dependent initial profiles or balanced velocities
-inside the objective after updating geometry. Changing volume at fixed
-concentration changes total tracer content, so an experiment needing
-conservative remapping must supply that initialization policy.
+By default, ``with_bathymetry`` preserves tracer concentrations, velocities,
+and tendency histories. Changing volume at fixed concentration changes total
+tracer content. Pass ``conserve=("temp", "salt", "momentum")`` to retain column
+inventories instead. This policy stretches the original column profile in
+relative depth and adjusts its cell averages for the new column volume. It
+also remaps tendency histories and rebuilds density and vertical velocity.
+It preserves nonnegative cell averages and requires the same wet topology.
+Construct other depth-dependent initial profiles or balanced velocities inside
+the objective after updating geometry.
 
-Gradients describe the discretization within fixed topology. The minimum of
-neighboring depths is nonsmooth where the shallower side changes. Bottom-cell
-transitions, moving coastlines, and opening or closing passages require new
-topology and preparation.
+``prepared.with_vertical_grid(initial, widths=widths)`` moves fixed-count levels
+at fixed wet depth. Widths and their derived staggered spacings must be positive.
+Widths must retain the original total depth
+and wet-cell indices. The transform conserves temperature, salinity, horizontal
+momentum, and their stored tendency histories. It reconstructs density and
+vertical velocity from the remapped tracers and momentum. A continuous
+quadratic cell reconstruction supports first derivatives where new interfaces
+cross old interfaces. Nonnegative cell averages remain nonnegative in exact
+arithmetic. Invalid widths set failure code 5 and freeze the trajectory.
+
+Active TKE/EKE and all their advection tendencies retain
+their native W-volume inventories. Their densities adjust if moving levels
+changes the covered W depth. Lagged vertical dissipation retains its nominal
+W work integral, and active energy diffusivities rebuild after remapping.
+IDEMIX energy remapping remains unsupported. Setups with volume sources must
+declare a ``rebuild_vertical_forcing`` routine with
+``supports_compilation=True`` to evaluate prescribed sources on the new grid.
+Partial-cell physics retains its other configuration guards.
+
+Bathymetry gradients describe the discretization within fixed bottom indices.
+The minimum of neighboring depths is nonsmooth where the shallower side changes.
+Use the channel transform below for explicitly declared new wet columns.
+
+``prepared.with_wet_geometry`` opens selected dry columns from a closed
+reference carry. Supply ``opening_m`` and an interior boolean ``channel`` mask.
+A string channel name requires a compiled ``wet_geometry_channel`` setup hook
+that returns that mask. Existing wet columns retain their depths. Each new
+column receives the retained domain's volume-weighted tracer and momentum
+means, with proportional dilution of the retained fields to conserve total
+inventories. Tendency histories follow the same policy. Density, continuity,
+masks, and pressure coefficients are rebuilt. This initialization conserves
+domain inventories and requires a separate equilibrium adjustment.
+
+Every candidate must start from the same closed reference carry. The setup
+must declare ``rebuild_wet_forcing`` with ``supports_compilation=True`` so
+prescribed fields are defined on newly wet cells. Changing either hook
+requires repreparation. Invalid depths, empty dry-column selections, or bottom
+fractions below ``minimum_fraction`` set failure code 6. Derivatives apply
+inside an admissible bottom-cell interval. Zero opening is the closed forward
+endpoint. With ``realized=True``, depth rounds to the nearest whole-layer
+interface for independent forward validation. This mode provides a discrete
+comparison whose rounded decisions do not supply geometry derivatives.
+Partial-cell physics and diagnostic guards remain in force.
 
 For a host-managed adjoint, retain the bathymetry construction's VJP when
 building the initial candidate::
