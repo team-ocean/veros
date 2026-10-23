@@ -43,16 +43,21 @@ class RoutineStack:
 
 # global context
 
-CURRENT_CONTEXT = threading.local()
-CURRENT_CONTEXT.is_dist_safe = True
-CURRENT_CONTEXT.routine_stack = RoutineStack()
-CURRENT_CONTEXT.tracing = False
+
+class _RoutineContext(threading.local):
+    def __init__(self):
+        self.is_dist_safe = True
+        self.routine_stack = RoutineStack()
+        self.tracing = False
+
+
+CURRENT_CONTEXT = _RoutineContext()
 
 
 @contextmanager
 def tracing_context():
     """Run routines on local state without host instrumentation."""
-    previous = getattr(CURRENT_CONTEXT, "tracing", False)
+    previous = CURRENT_CONTEXT.tracing
     CURRENT_CONTEXT.tracing = True
     try:
         yield
