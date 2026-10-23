@@ -54,10 +54,8 @@ def decimal_anomalies(salinity, temperature, pressure):
 @pytest.mark.parametrize("dtype", (np.float32, np.float64))
 @pytest.mark.parametrize("domain", ("basin", "physical"))
 def test_density_anomaly_against_high_precision_original_eos(dtype, domain):
-    import jax
     from veros.core.density import gsw
 
-    jax.config.update("jax_enable_x64", True)
     axes = (
         ((34.99, 35, 35.01), (6, 8, 10), tuple(range(125, 2000, 250)))
         if domain == "basin"
@@ -81,6 +79,10 @@ def test_density_anomaly_against_high_precision_original_eos(dtype, domain):
 
 @pytest.mark.parametrize("variable", (0, 1, 2))
 def test_density_anomaly_jvp_matches_analytic_eos_derivatives(variable):
+    from veros import runtime_settings
+
+    if runtime_settings.backend != "jax":
+        pytest.skip("Density derivatives require the JAX backend")
     import jax
     import jax.numpy as jnp
     from veros.core.density import gsw
