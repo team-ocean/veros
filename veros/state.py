@@ -507,9 +507,8 @@ def veros_variables_pytree_unflatten(aux_data, leaves):
     for key, val in aux_attrs:
         setattr(variables, key, val)
 
-    with variables.unlock():
-        for key, val in zip(keys, leaves):
-            setattr(variables, key, val)
+    for key, val in zip(keys, leaves):
+        object.__setattr__(variables, key, val)
 
     return variables
 
@@ -539,9 +538,8 @@ def dist_safe_wrapper_pytree_unflatten(aux_data, leaves):
     for key, val in aux_attrs:
         setattr(variables, key, val)
 
-    with variables.unlock():
-        for key, val in zip(keys, leaves):
-            setattr(variables, key, val)
+    for key, val in zip(keys, leaves):
+        object.__setattr__(variables, key, val)
 
     return variables
 

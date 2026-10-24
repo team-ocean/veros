@@ -3,7 +3,7 @@
 from veros import VerosSetup, veros_routine
 from veros.variables import allocate, Variable
 from veros.distributed import global_min, global_max
-from veros.core.operators import numpy as npx, update, at
+from veros.core.operators import numpy as npx, safe_sqrt, update, at
 
 
 class ACCSetup(VerosSetup):
@@ -138,7 +138,7 @@ class ACCSetup(VerosSetup):
             vs.forc_tke_surface = update(
                 vs.forc_tke_surface,
                 at[2:-2, 2:-2],
-                npx.sqrt(
+                safe_sqrt(
                     (0.5 * (vs.surface_taux[2:-2, 2:-2] + vs.surface_taux[1:-3, 2:-2]) / settings.rho_0) ** 2
                     + (0.5 * (vs.surface_tauy[2:-2, 2:-2] + vs.surface_tauy[2:-2, 1:-3]) / settings.rho_0) ** 2
                 )

@@ -58,7 +58,7 @@ def locate_cuda():
 
     cm = os.environ.get("CUDA_COMPUTE_CAPABILITY")
     if cm is not None:
-        cflags.append("-gencode=arch=compute_{cm},code=compute_{cm}".format(cm=cm))
+        cflags.append("-gencode=arch=compute_{cm},code=[sm_{cm},compute_{cm}]".format(cm=cm))
     else:
         print(
             "Warning: Consider settings the CUDA_COMPUTE_CAPABILITY environment "

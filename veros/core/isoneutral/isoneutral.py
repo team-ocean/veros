@@ -1,4 +1,4 @@
-from veros.core.operators import numpy as npx
+from veros.core.operators import numpy as npx, stable_divide
 from veros import logger
 
 from veros import veros_kernel, veros_routine, KernelOutput
@@ -118,7 +118,7 @@ def isoneutral_diffusion_pre(state):
                 drdT[1 + ip : -2 + ip, 2:-2, ki:] * dTdz[1 + ip : -2 + ip, 2:-2, : -1 + kr or None]
                 + drdS[1 + ip : -2 + ip, 2:-2, ki:] * dSdz[1 + ip : -2 + ip, 2:-2, : -1 + kr or None]
             )
-            sxe = -drodxe / (npx.minimum(0.0, drodze) - epsln)
+            sxe = stable_divide(-drodxe, npx.minimum(0.0, drodze) - epsln)
             taper = dm_taper(sxe, settings.iso_slopec, settings.iso_dslope)
             sumz = update_add(
                 sumz,
@@ -155,7 +155,7 @@ def isoneutral_diffusion_pre(state):
                 drdT[2:-2, 1 + jp : -2 + jp, ki:] * dTdz[2:-2, 1 + jp : -2 + jp, : -1 + kr or None]
                 + drdS[2:-2, 1 + jp : -2 + jp, ki:] * dSdz[2:-2, 1 + jp : -2 + jp, : -1 + kr or None]
             )
-            syn = -drodyn / (npx.minimum(0.0, drodzn) - epsln)
+            syn = stable_divide(-drodyn, npx.minimum(0.0, drodzn) - epsln)
             taper = dm_taper(syn, settings.iso_slopec, settings.iso_dslope)
             sumz = update_add(
                 sumz,
@@ -185,7 +185,7 @@ def isoneutral_diffusion_pre(state):
                 drdT[2:-2, 2:-2, kr : -1 + kr or None] * dTdx[1 + ip : -3 + ip, 2:-2, kr : -1 + kr or None]
                 + drdS[2:-2, 2:-2, kr : -1 + kr or None] * dSdx[1 + ip : -3 + ip, 2:-2, kr : -1 + kr or None]
             )
-            sxb = -drodxb / (npx.minimum(0.0, drodzb) - epsln)
+            sxb = stable_divide(-drodxb, npx.minimum(0.0, drodzb) - epsln)
             taper = dm_taper(sxb, settings.iso_slopec, settings.iso_dslope)
             sumx = (
                 sumx
@@ -204,7 +204,7 @@ def isoneutral_diffusion_pre(state):
                 drdT[2:-2, 2:-2, kr : -1 + kr or None] * dTdy[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None]
                 + drdS[2:-2, 2:-2, kr : -1 + kr or None] * dSdy[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None]
             )
-            syb = -drodyb / (npx.minimum(0.0, drodzb) - epsln)
+            syb = stable_divide(-drodyb, npx.minimum(0.0, drodzb) - epsln)
             taper = dm_taper(syb, settings.iso_slopec, settings.iso_dslope)
             sumy = (
                 sumy
