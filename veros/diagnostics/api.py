@@ -35,10 +35,16 @@ def diagnose(state):
             diagnostic.diagnose(state)
 
 
-def output(state):
+def output(state, *, time_index=None):
+    """Write diagnostics, optionally selecting a completed time slot for snapshots."""
+    from veros.diagnostics.snapshot import Snapshot
+
     vs = state.variables
     settings = state.settings
 
     for diagnostic in state.diagnostics.values():
         if diagnostic.output_frequency and vs.time % diagnostic.output_frequency < settings.dt_tracer:
-            diagnostic.output(state)
+            if isinstance(diagnostic, Snapshot) and time_index is not None:
+                diagnostic.output(state, time_index=time_index)
+            else:
+                diagnostic.output(state)

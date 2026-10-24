@@ -93,8 +93,11 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
                     nctools.write_variable(state, key, var, var_data, outfile)
 
     @do_not_disturb
-    def write_output(self, state):
+    def write_output(self, state, *, time_indices=None):
+        """Write output with optional variable-name to model-slot overrides."""
         vs = state.variables
+        if time_indices is None:
+            time_indices = {}
 
         if runtime_settings.diskless_mode:
             return
@@ -106,4 +109,4 @@ class VerosDiagnostic(metaclass=abc.ABCMeta):
             for key in self.output_variables:
                 var = self.var_meta[key]
                 var_data = self.variables.get(key)
-                nctools.write_variable(state, key, var, var_data, outfile)
+                nctools.write_variable(state, key, var, var_data, outfile, time_index=time_indices.get(key))

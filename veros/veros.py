@@ -313,7 +313,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
             isoneutral.isoneutral_diag_streamfunction(state)
             diagnostics.diagnose(state)
-            diagnostics.output(state)
+            diagnostics.output(state, time_index=vs.taup1)
 
         # NOTE: benchmarks parse this, do not change / remove
         logger.debug(" Time step took {:.2f}s", state.timers["main"].last_time)
