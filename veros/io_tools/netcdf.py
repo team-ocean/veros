@@ -137,7 +137,14 @@ def add_dimension(dim, dim_size, ncfile):
     ncfile.dimensions[dim] = int(dim_size)
 
 
-def write_variable(state, key, var, var_data, ncfile, time_step=-1):
+def write_variable(state, key, var, var_data, ncfile, time_step=-1, *, time_index=None):
+    """Write a variable, selecting ``tau`` unless a model time slot is supplied.
+
+    ``time_step`` selects the NetCDF record; ``time_index`` selects the in-memory slot.
+    """
+    if time_index is None:
+        time_index = state.variables.tau
+
     var_data = var_data * var.scale
 
     gridmask = var.get_mask(state.settings, state.variables)
@@ -146,7 +153,7 @@ def write_variable(state, key, var, var_data, ncfile, time_step=-1):
         var_data = np.where(gridmask.astype("bool")[newaxes], var_data, variables.get_fill_value(var_data.dtype))
 
     if var.dims:
-        tmask = tuple(state.variables.tau if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
+        tmask = tuple(time_index if dim in variables.TIMESTEPS else slice(None) for dim in var.dims)
         var_data = variables.remove_ghosts(var_data, var.dims)[tmask].T
 
     var_obj = ncfile.variables[key]
