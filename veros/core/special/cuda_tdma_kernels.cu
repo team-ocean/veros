@@ -1,20 +1,8 @@
-#include <array>
-#include <cstddef>
-#include <stdexcept>
+#include <algorithm>
 
 #include <cuda_runtime.h>
 
 #include "cuda_tdma_kernels.h"
-
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-   if (code != cudaSuccess)
-   {
-      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-      if (abort) exit(code);
-   }
-}
 
 template <typename DTYPE>
 __global__ void TridiagKernel(
@@ -69,43 +57,25 @@ __global__ void TridiagKernel(
   }
 }
 
-// Unpacks a descriptor object from a byte string.
-template <typename T>
-const T* UnpackDescriptor(const char* opaque, size_t opaque_len) {
-  if (opaque_len != sizeof(T)) {
-    throw std::runtime_error("Descriptor was not encoded correctly");
-  }
-  return reinterpret_cast<const T*>(opaque);
-}
-
 template <typename DTYPE>
-void CudaTridiag(cudaStream_t stream, void** buffers, const char* opaque,
-                 size_t opaque_len) {
-
-  const auto& descriptor = *UnpackDescriptor<TridiagDescriptor>(opaque, opaque_len);
-  const int num_systems = descriptor.num_systems;
-  const int system_depth = descriptor.system_depth;
-
-  const DTYPE* a = reinterpret_cast<const DTYPE*>(buffers[0]);
-  const DTYPE* b = reinterpret_cast<const DTYPE*>(buffers[1]);
-  const DTYPE* c = reinterpret_cast<const DTYPE*>(buffers[2]);
-  const DTYPE* d = reinterpret_cast<const DTYPE*>(buffers[3]);
-
-  DTYPE* out = reinterpret_cast<DTYPE*>(buffers[4]);
-  DTYPE* workspace = reinterpret_cast<DTYPE*>(buffers[5]);
-
+cudaError_t CudaTridiag(cudaStream_t stream, int num_systems, int system_depth,
+                        const DTYPE* a, const DTYPE* b, const DTYPE* c, const DTYPE* d,
+                        DTYPE* out, DTYPE* workspace) {
+  if (num_systems == 0) return cudaSuccess;
   const int BLOCK_SIZE = 128;
   const int grid_dim = std::min<int>(1024, (num_systems + BLOCK_SIZE - 1) / BLOCK_SIZE);
   TridiagKernel<DTYPE><<<grid_dim, BLOCK_SIZE, 0, stream>>>(a, b, c, d, workspace, out, num_systems, system_depth);
-  gpuErrchk(cudaPeekAtLastError());
+  return cudaGetLastError();
 }
 
-void CudaTridiagFloat(cudaStream_t stream, void** buffers, const char* opaque,
-                      size_t opaque_len) {
-  CudaTridiag<float>(stream, buffers, opaque, opaque_len);
+cudaError_t CudaTridiagFloat(cudaStream_t stream, int num_systems, int system_depth,
+                            const float* a, const float* b, const float* c, const float* d,
+                            float* out, float* workspace) {
+  return CudaTridiag<float>(stream, num_systems, system_depth, a, b, c, d, out, workspace);
 }
 
-void CudaTridiagDouble(cudaStream_t stream, void** buffers, const char* opaque,
-                      size_t opaque_len) {
-  CudaTridiag<double>(stream, buffers, opaque, opaque_len);
+cudaError_t CudaTridiagDouble(cudaStream_t stream, int num_systems, int system_depth,
+                             const double* a, const double* b, const double* c, const double* d,
+                             double* out, double* workspace) {
+  return CudaTridiag<double>(stream, num_systems, system_depth, a, b, c, d, out, workspace);
 }
