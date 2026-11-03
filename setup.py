@@ -84,7 +84,8 @@ for line in jax_req:  # inject jaxlib requirement
         break
 
 EXTRAS_REQUIRE = {
-    "test": ["pytest", "pytest-cov", "pytest-forked", "xarray"],
+    # pytest 9.2 breaks pytest-forked (https://github.com/pytest-dev/pytest-forked/issues/113)
+    "test": ["pytest<9.2", "pytest-cov", "pytest-forked", "xarray"],
     "jax": jax_req,
 }
 
