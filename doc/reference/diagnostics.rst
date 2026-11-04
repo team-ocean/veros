@@ -29,6 +29,14 @@ virtual functions.
 .. autoclass:: veros.diagnostics.base.VerosDiagnostic
    :members: name, initialize, diagnose, output
 
+During automatic timestepping, ``diagnose(state)`` runs before time indices rotate:
+``tau`` contains the input state and ``taup1`` the completed state. This lets
+diagnostics such as energy calculate changes over the step, and preserves the
+input-state sampling used by averages and overturning. ``output(state)`` runs
+after rotation, when ``tau`` contains the completed state. The model clock has
+already advanced in both stages. Custom diagnostics needing both states should
+perform those calculations in ``diagnose``.
+
 Available diagnostics
 ---------------------
 
@@ -39,23 +47,21 @@ Snapshot
 ++++++++
 
 .. autoclass:: veros.diagnostics.snapshot.Snapshot
-   :members: name, output_variables, sampling_frequency, output_frequency, output_path, tendency_variables
+   :members: name, output_variables, sampling_frequency, output_frequency, output_path
 
-Automatic snapshots select completed state variables from ``taup1`` before the
-time indices rotate, so these states match the NetCDF ``Time`` coordinate.
-Manual calls to ``Snapshot.output(state)`` select ``tau`` by default, as appropriate
-after setup or after a timestep has returned.
+Snapshots select ``tau`` for every variable with a model timestep dimension.
+Automatic snapshots run after rotation, so completed state variables match the
+NetCDF ``Time`` coordinate. Manual calls to ``Snapshot.output(state)`` use the same
+selection, as appropriate after setup or after a timestep has returned. The
+``after_timestep`` hook still runs before rotation; a manual snapshot inside that
+hook selects the input state.
 
-Raw tendencies use their own storage conventions. Variables listed in
-``snapshot.tendency_variables`` retain ``tau`` during automatic output; add custom
-tendencies stored at ``tau`` to this set. The current streamfunction solve stores
-``dpsi`` at ``taup1``, so it is intentionally absent from the set. These outputs are
-raw stage tendencies, not states at ``Time`` or necessarily the realized rate over
-an output interval.
-
-Custom Snapshot subclasses overriding ``output`` must accept the optional keyword
-``time_index`` and forward it to ``super().output``. Other diagnostic classes keep
-their existing ``output(state)`` interface and sampling behavior.
+Raw tendencies follow their solver storage conventions, without per-variable slot
+adjustments. For example, after rotation the latest ``dtemp``, ``dsalt``, and
+``dpsin`` are at ``taum1``, while the latest ``dpsi`` is at ``tau``. Snapshots select
+``tau`` for all of them, which can include older or initial slot contents. These
+raw tendencies are not necessarily instantaneous rates at ``Time`` or realized
+rates over an output interval.
 
 Averages
 ++++++++

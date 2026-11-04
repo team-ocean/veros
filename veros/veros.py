@@ -313,13 +313,14 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
             isoneutral.isoneutral_diag_streamfunction(state)
             diagnostics.diagnose(state)
-            diagnostics.output(state, time_index=vs.taup1)
+
+            # Sampling may need both the input and completed states. Rotate only
+            # afterwards, so output sees the completed state at the advanced time.
+            vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
+            diagnostics.output(state)
 
         # NOTE: benchmarks parse this, do not change / remove
         logger.debug(" Time step took {:.2f}s", state.timers["main"].last_time)
-
-        # permutate time indices
-        vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
 
     def run(self, show_progress_bar=None):
         """Main routine of the simulation.

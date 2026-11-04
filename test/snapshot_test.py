@@ -11,6 +11,8 @@ from veros.variables import TIMESTEPS, T_GRID, Variable
 
 
 class ForcedBoxSetup(VerosSetup):
+    snapshot_class = Snapshot
+
     @veros_routine
     def set_parameter(self, state):
         settings = state.settings
@@ -52,19 +54,35 @@ class ForcedBoxSetup(VerosSetup):
 
     @veros_routine
     def set_diagnostics(self, state):
-        snapshot = state.diagnostics["snapshot"]
+        snapshot = state.diagnostics["snapshot"] = self.snapshot_class(state)
         snapshot.output_variables = ["temp", "salt", "dtemp", "dsalt"]
         snapshot.output_frequency = state.settings.dt_tracer
+        averages = state.diagnostics["averages"]
+        averages.output_variables = ["temp", "salt"]
+        averages.sampling_frequency = state.settings.dt_tracer
+        averages.output_frequency = 2 * state.settings.dt_tracer
+        state.diagnostics["tracer_monitor"].output_frequency = state.settings.dt_tracer
 
     @veros_routine
     def after_timestep(self, state):
-        pass
+        vs = state.variables
+        # Hooks retain access to both the input state and the completed step.
+        for slot, seconds in ((vs.tau, vs.time - state.settings.dt_tracer), (vs.taup1, vs.time)):
+            np.testing.assert_allclose(vs.temp[2:-2, 2:-2, -1, slot], 10.0 + seconds * 0.01)
+            np.testing.assert_allclose(vs.salt[2:-2, 2:-2, -1, slot], 35.0 + seconds * 0.001)
+
+
+class CustomSnapshot(Snapshot):
+    def output(self, state):
+        super().output(state)
 
 
 @pytest.mark.parametrize("output_frequency", (10.0, 20.0))
-def test_snapshot_matches_model_time(tmp_path, monkeypatch, output_frequency):
+@pytest.mark.parametrize("snapshot_class", (Snapshot, CustomSnapshot))
+def test_snapshot_matches_model_time(tmp_path, monkeypatch, output_frequency, snapshot_class):
     monkeypatch.chdir(tmp_path)
     simulation = ForcedBoxSetup()
+    simulation.snapshot_class = snapshot_class
     simulation.setup()
     snapshot = simulation.state.diagnostics["snapshot"]
     snapshot.output_frequency = output_frequency
@@ -88,8 +106,35 @@ def test_snapshot_matches_model_time(tmp_path, monkeypatch, output_frequency):
     np.testing.assert_allclose(vs.salt[2:-2, 2:-2, -1, vs.tau], 35.06)
 
 
+def test_averages_sample_input_state(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    simulation = ForcedBoxSetup()
+    simulation.setup()
+    simulation.run(show_progress_bar=False)
+
+    with h5netcdf.File("forced_box.averages.nc") as outfile:
+        np.testing.assert_allclose(np.asarray(outfile["Time"]) * 86400.0, [20.0, 40.0, 60.0])
+        for record, (temp, salt) in enumerate(((10.05, 35.005), (10.25, 35.025), (10.45, 35.045))):
+            np.testing.assert_allclose(np.asarray(outfile["temp"])[record, -1], temp)
+            np.testing.assert_allclose(np.asarray(outfile["salt"])[record, -1], salt)
+        np.testing.assert_allclose(np.asarray(outfile["temp"])[:, :-1], 10.0)
+        np.testing.assert_allclose(np.asarray(outfile["salt"])[:, :-1], 35.0)
+
+
+def test_tracer_monitor_outputs_completed_state(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    simulation = ForcedBoxSetup()
+    simulation.setup()
+    simulation.run(show_progress_bar=False)
+
+    tracer_vs = simulation.state.diagnostics["tracer_monitor"].variables
+    volume = 4 * 4 * 3 * 1000.0**2 * 10.0
+    np.testing.assert_allclose(tracer_vs.tempm1 / volume, 10.2)
+    np.testing.assert_allclose(tracer_vs.saltm1 / volume, 35.02)
+
+
 @pytest.mark.parametrize("slots", ((0, 1, 2), (1, 2, 0), (2, 0, 1)))
-def test_snapshot_slot_selection(tmp_path, monkeypatch, slots):
+def test_snapshot_uses_tau_for_all_variables(tmp_path, monkeypatch, slots):
     monkeypatch.chdir(tmp_path)
     state = get_default_state()
     with state.settings.unlock():
@@ -99,7 +144,7 @@ def test_snapshot_slot_selection(tmp_path, monkeypatch, slots):
     state.initialize_variables()
     resize_dimension(state, "isle", 2)
 
-    completed_variables = (
+    timestep_variables = (
         "temp",
         "salt",
         "u",
@@ -116,43 +161,52 @@ def test_snapshot_slot_selection(tmp_path, monkeypatch, slots):
         "eke",
         "E_iw",
         "custom_state",
+        "dtemp",
+        "dsalt",
+        "du",
+        "dv",
+        "dHd",
+        "dtke",
+        "deke",
+        "dE_iw",
+        "dpsin",
+        "custom_rate",
     )
-    tendency_variables = ("dtemp", "dsalt", "du", "dv", "dHd", "dtke", "deke", "dE_iw", "dpsin", "custom_rate")
     with state.variables.unlock():
         vs = state.variables
         vs.taum1, vs.tau, vs.taup1 = slots
         vs.time = 10.0
         for name in ("maskT", "maskU", "maskV", "maskW", "maskZ"):
             setattr(vs, name, npx.ones_like(getattr(vs, name)))
-        for name in completed_variables + tendency_variables:
+        for name in timestep_variables:
             setattr(vs, name, npx.broadcast_to(npx.array([11.0, 22.0, 33.0]), getattr(vs, name).shape))
         vs.forc_temp_surface = npx.full_like(vs.forc_temp_surface, 7.0)
 
     snapshot = Snapshot(state)
-    snapshot.output_variables = [*completed_variables, *tendency_variables, "forc_temp_surface"]
-    snapshot.tendency_variables.add("custom_rate")
+    snapshot.output_variables = [*timestep_variables, "forc_temp_surface"]
     snapshot.output_frequency = 10.0
     averages = Averages(state)
     averages.output_variables = ["temp"]
+    averages.sampling_frequency = 10.0
     averages.output_frequency = 10.0
     state.diagnostics.update(snapshot=snapshot, averages=averages)
     diagnostics.initialize(state)
 
     snapshot.output(state)
-    averages.diagnose(state)
-    diagnostics.output(state, time_index=vs.taup1)
+    diagnostics.diagnose(state)
+    with state.variables.unlock():
+        vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
     diagnostics.output(state)
+    snapshot.output(state)
 
     old_value = (11.0, 22.0, 33.0)[slots[1]]
     completed_value = (11.0, 22.0, 33.0)[slots[2]]
     with h5netcdf.File(snapshot.get_output_file_name(state)) as outfile:
-        for name in completed_variables:
-            for record, expected in enumerate((old_value, completed_value, old_value)):
+        for name in timestep_variables:
+            for record, expected in enumerate((old_value, completed_value, completed_value)):
                 np.testing.assert_allclose(np.asarray(outfile[name])[record], expected, err_msg=name)
-        for name in tendency_variables:
-            np.testing.assert_allclose(np.asarray(outfile[name]), old_value, err_msg=name)
         np.testing.assert_allclose(np.asarray(outfile["forc_temp_surface"]), 7.0)
 
     with h5netcdf.File(averages.get_output_file_name(state)) as outfile:
         np.testing.assert_allclose(np.asarray(outfile["temp"])[0], old_value)
-    assert (vs.taum1, vs.tau, vs.taup1) == slots
+    assert (vs.taum1, vs.tau, vs.taup1) == (slots[1], slots[2], slots[0])
