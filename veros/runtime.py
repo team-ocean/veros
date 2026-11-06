@@ -95,6 +95,7 @@ AVAILABLE_SETTINGS = {
     "backend": RuntimeSetting(parse_choice(BACKENDS), "numpy"),
     "device": RuntimeSetting(parse_choice(DEVICES), "cpu"),
     "float_type": RuntimeSetting(parse_choice(FLOAT_TYPES), "float64"),
+    "jax_compilation_cache_dir": RuntimeSetting(str, ""),
     "linear_solver": RuntimeSetting(parse_choice(LINEAR_SOLVERS), "best"),
     "petsc_options": RuntimeSetting(str, ""),
     "monitor_streamfunction_residual": RuntimeSetting(parse_bool, True),
