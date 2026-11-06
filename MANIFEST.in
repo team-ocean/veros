@@ -13,3 +13,4 @@ global-include *.h
 global-include *.cu
 
 global-exclude *.c
+global-exclude *.cpp
