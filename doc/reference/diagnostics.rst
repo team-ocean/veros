@@ -29,6 +29,14 @@ virtual functions.
 .. autoclass:: veros.diagnostics.base.VerosDiagnostic
    :members: name, initialize, diagnose, output
 
+During automatic timestepping, ``diagnose(state)`` runs before time indices rotate:
+``tau`` contains the input state and ``taup1`` the completed state. This lets
+diagnostics such as energy calculate changes over the step, and preserves the
+input-state sampling used by averages and overturning. ``output(state)`` runs
+after rotation, when ``tau`` contains the completed state. The model clock has
+already advanced in both stages. Custom diagnostics needing both states should
+perform those calculations in ``diagnose``.
+
 Available diagnostics
 ---------------------
 
@@ -40,6 +48,20 @@ Snapshot
 
 .. autoclass:: veros.diagnostics.snapshot.Snapshot
    :members: name, output_variables, sampling_frequency, output_frequency, output_path
+
+Snapshots select ``tau`` for every variable with a model timestep dimension.
+Automatic snapshots run after rotation, so completed state variables match the
+NetCDF ``Time`` coordinate. Manual calls to ``Snapshot.output(state)`` use the same
+selection, as appropriate after setup or after a timestep has returned. The
+``after_timestep`` hook still runs before rotation; a manual snapshot inside that
+hook selects the input state.
+
+Raw tendencies follow their solver storage conventions, without per-variable slot
+adjustments. For example, after rotation the latest ``dtemp``, ``dsalt``, and
+``dpsin`` are at ``taum1``, while the latest ``dpsi`` is at ``tau``. Snapshots select
+``tau`` for all of them, which can include older or initial slot contents. These
+raw tendencies are not necessarily instantaneous rates at ``Time`` or realized
+rates over an output interval.
 
 Averages
 ++++++++
