@@ -4,7 +4,6 @@ import copy
 from veros import time, logger
 from veros.diagnostics.base import VerosDiagnostic
 
-
 DEFAULT_OUTPUT_VARS = [
     "dxt",
     "dxu",

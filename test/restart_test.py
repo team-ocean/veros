@@ -21,7 +21,7 @@ class RestartSetup(ACCSetup):
     def set_diagnostics(self, state):
         for diag in state.diagnostics.values():
             diag.sampling_frequency = state.settings.dt_tracer
-            diag.output_frequency = float("inf")
+            diag.output_frequency = None
 
 
 def test_restart(tmpdir):
