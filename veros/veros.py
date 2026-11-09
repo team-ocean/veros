@@ -157,8 +157,10 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def after_timestep(self, state):
-        """Called at the end of each time step. Can be used to define custom, setup-specific
-        events.
+        """Called after each physics step, before diagnostics and clock advancement.
+
+        The clock and ``tau`` still describe the input state; ``taup1`` contains
+        the completed state. Can be used to define custom, setup-specific events.
         """
         pass
 
@@ -302,9 +304,6 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 with state.timers[plugin.name]:
                     plugin.run_entrypoint(state)
 
-        vs.itt = vs.itt + 1
-        vs.time = vs.time + settings.dt_tracer
-
         self.after_timestep(state)
 
         with state.timers["diagnostics"]:
@@ -313,11 +312,13 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
             isoneutral.isoneutral_diag_streamfunction(state)
             diagnostics.diagnose(state)
-
-            # Sampling may need both the input and completed states. Rotate only
-            # afterwards, so output sees the completed state at the advanced time.
-            vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
             diagnostics.output(state)
+
+        # Follow PyOM's batch driver: diagnose tau at the input time, then rotate
+        # the completed state into tau and advance the clock.
+        vs.taum1, vs.tau, vs.taup1 = vs.tau, vs.taup1, vs.taum1
+        vs.itt = vs.itt + 1
+        vs.time = vs.time + settings.dt_tracer
 
         # NOTE: benchmarks parse this, do not change / remove
         logger.debug(" Time step took {:.2f}s", state.timers["main"].last_time)
