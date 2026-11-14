@@ -278,7 +278,10 @@ and uses binomial RAM replay inside each interval. Zero RAM slots are supported.
 Intervals and action indices count model timesteps.
 
 Stores preserve every carry leaf's shape and explicit dtype. RAM copies live
-on the host. Disk archives occupy an owned temporary subdirectory and are
+on the host by default. Pass ``checkpoint_device=jax.devices()[0]`` to keep state
+checkpoints on a chosen JAX device. Slot and byte budgets apply to that location.
+Forcing inputs retain their ``input_storage`` policy. Disk archives occupy an owned
+temporary subdirectory and are
 removed on success or a Python exception. Tree metadata stays in the process,
 so archives cannot serve as persistent simulation restarts. Use a disk-backed
 filesystem when offloading memory, since ``tmpfs`` consumes host RAM.
