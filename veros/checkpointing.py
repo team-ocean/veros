@@ -220,19 +220,23 @@ def validate_schedule(schedule):
 
 
 class CheckpointStore:
-    """Exact PyTree checkpoints in host RAM or temporary NumPy archives.
+    """Exact PyTree checkpoints in host/device RAM or temporary NumPy archives.
 
     Use as a context manager. Array-only archives occupy an owned subdirectory
     of ``directory`` and are removed on exit. Tree structure stays in the process.
+    ``ram_device`` selects a JAX device for independent RAM copies.
     """
 
-    def __init__(self, template, *, ram_checkpoints, directory=None, disk_checkpoints=None, max_ram_bytes=None):
+    def __init__(
+        self, template, *, ram_checkpoints, directory=None, disk_checkpoints=None, max_ram_bytes=None, ram_device=None
+    ):
         import jax
         import numpy as np
 
         self.ram_checkpoints = _integer(ram_checkpoints, "ram_checkpoints")
         self.disk_checkpoints = None if disk_checkpoints is None else _integer(disk_checkpoints, "disk_checkpoints")
         self.directory = directory
+        self.ram_device = ram_device
         self.max_ram_bytes = None if max_ram_bytes is None else _integer(max_ram_bytes, "max_ram_bytes")
         leaves, self._structure = jax.tree.flatten(template)
         if any(getattr(leaf, "weak_type", False) for leaf in leaves):
@@ -247,6 +251,8 @@ class CheckpointStore:
         self._ram_bytes = self._disk_bytes = 0
         self._counts = dict(ram=0, disk=0)
         self.statistics = dict(
+            ram_storage_device="host" if ram_device is None else str(ram_device),
+            ram_storage_platform="host" if ram_device is None else ram_device.platform,
             ram_saves=0,
             disk_saves=0,
             ram_restores=0,
@@ -296,7 +302,10 @@ class CheckpointStore:
                 raise ValueError("RAM checkpoint budget exceeded")
             if self.max_ram_bytes is not None and self._ram_bytes + self.state_bytes > self.max_ram_bytes:
                 raise ValueError("RAM checkpoint byte budget exceeded")
-            data = [np.array(jax.device_get(leaf), copy=True) for leaf in leaves]
+            if self.ram_device is None:
+                data = [np.array(jax.device_get(leaf), copy=True) for leaf in leaves]
+            else:
+                data = [jax.device_put(leaf, device=self.ram_device, may_alias=False) for leaf in leaves]
             size = sum(leaf.nbytes for leaf in data)
             self._ram_bytes += size
         elif storage == "disk":
@@ -328,7 +337,7 @@ class CheckpointStore:
             self.statistics[f"peak_{tier}_bytes"] = max(self.statistics[f"peak_{tier}_bytes"], size)
 
     def restore(self, index):
-        """Materialize a saved carry on the current JAX device."""
+        """Restore device copies and transfer host/disk copies to JAX."""
         import jax
         import numpy as np
 
@@ -361,7 +370,7 @@ class CheckpointStore:
 
 
 class CheckpointedIntegrator:
-    """First-order reverse integration with host checkpoint replay.
+    """First-order reverse integration with host-scheduled checkpoint replay.
 
     Jitted steps and one-step VJPs run on device. Host scheduling and I/O prevent
     JAX transformations of ``value_and_grad``. MPI ranks use the same schedule and
@@ -465,6 +474,7 @@ class CheckpointedIntegrator:
         parameters=None,
         step_inputs=None,
         input_storage="ram",
+        checkpoint_device=None,
         max_checkpoint_ram_bytes=None,
         max_input_ram_bytes=None,
         shared_parameters=None,
@@ -477,6 +487,7 @@ class CheckpointedIntegrator:
         and Booleans. ``parameter_gradient`` contains setting-override derivatives.
         The prepared integrator's supported inputs and fixed configuration apply.
         ``step_inputs`` is read once and saved in ``input_storage`` for replay.
+        ``checkpoint_device`` places state RAM checkpoints on a JAX device.
         ``observer(index, carry)`` runs once per original forward step.
         MPI parameters are shared unless ``shared_parameters=()`` selects rank-local
         parameters. ``shared_variables`` names replicated initial controls whose
@@ -527,6 +538,7 @@ class CheckpointedIntegrator:
                 tuple(shared_parameters),
                 tuple(shared_variables),
                 input_storage,
+                None if checkpoint_device is None else checkpoint_device.platform,
                 step_inputs is not None,
                 repr([(name, np.asarray(parameters[name]).tolist()) for name in shared_parameters]),
                 repr(getattr(self.prepared, "_configuration", None)),
@@ -582,6 +594,7 @@ class CheckpointedIntegrator:
                         disk_checkpoints=getattr(schedule, "disk_checkpoints", None),
                         directory=directory,
                         max_ram_bytes=max_checkpoint_ram_bytes,
+                        ram_device=checkpoint_device,
                     )
                 )
             )

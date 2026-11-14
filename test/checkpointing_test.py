@@ -557,3 +557,71 @@ def test_unsupported_derivative_fails_before_forward(tmp_path):
             observer=lambda index, carry: observed.append(index),
         )
     assert not observed and not list(tmp_path.iterdir())
+
+
+def test_device_checkpoint_copies_are_independent_and_lossless():
+    require_jax()
+    import jax
+    import jax.numpy as jnp
+
+    device = jax.devices("cpu")[0]
+    template = dict(values=jnp.array([1.25, -2.5]), count=jnp.int32(3), valid=jnp.array(True))
+    with CheckpointStore(template, ram_checkpoints=2, ram_device=device) as store:
+        store.save(0, template, storage="ram")
+        store.save(1, template, storage="ram")
+        restored = [store.restore(index) for index in (0, 1)]
+        pointers = [carry["values"].unsafe_buffer_pointer() for carry in restored]
+        assert len(set(pointers)) == 2 and template["values"].unsafe_buffer_pointer() not in pointers
+        for carry in restored:
+            for name, value in template.items():
+                np.testing.assert_array_equal(carry[name], value)
+                assert carry[name].dtype == value.dtype
+        assert store.statistics["ram_storage_device"] == str(device)
+        assert store.statistics["ram_storage_platform"] == "cpu"
+        with pytest.raises(ValueError, match="budget"):
+            store.save(2, template, storage="ram")
+        for index in (0, 1):
+            store.drop(index)
+
+
+def test_device_checkpoint_gradient_matches_direct_recurrence():
+    require_jax()
+    import jax
+    import jax.numpy as jnp
+
+    prepared = ToyIntegrator()
+    initial = toy_initial()
+
+    def terminal(carry):
+        return jnp.sum(carry.variables["x"] ** 2) + 0.3 * jnp.sum(carry.diagnostics["sum"])
+
+    def direct(values):
+        carry = initial._replace(variables=dict(initial.variables, x=values))
+        final, _ = prepared.advance(carry, n_steps=7)
+        return terminal(final)
+
+    expected_value, expected_gradient = jax.value_and_grad(direct)(initial.variables["x"])
+    driver = CheckpointedIntegrator(prepared, terminal_objective=terminal)
+    result = driver.value_and_grad(
+        initial, n_steps=7, schedule=BinomialSchedule(7, ram_checkpoints=3), checkpoint_device=jax.devices("cpu")[0]
+    )
+    np.testing.assert_allclose(result.value, expected_value, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(result.gradient.variables["x"], expected_gradient, rtol=1e-12, atol=1e-12)
+    assert result.statistics["ram_storage_platform"] == "cpu"
+
+
+def test_device_checkpoint_enforces_byte_budget():
+    require_jax()
+    import jax
+    import jax.numpy as jnp
+
+    template = dict(values=jnp.array([1.25, -2.5]))
+    payload_bytes = template["values"].nbytes
+    with CheckpointStore(
+        template, ram_checkpoints=2, max_ram_bytes=2 * payload_bytes - 1, ram_device=jax.devices("cpu")[0]
+    ) as store:
+        store.save(0, template, storage="ram")
+        with pytest.raises(ValueError, match="byte budget"):
+            store.save(1, template, storage="ram")
+        assert store.statistics["ram_saves"] == 1
+        assert store.statistics["peak_ram_bytes"] == payload_bytes
