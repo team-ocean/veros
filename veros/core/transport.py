@@ -58,7 +58,7 @@ def _divide_pair(pair, denominator):
 
 
 def integrate_continuity(u, v, dzt, dxt, dyt, cost, cosu, maskW, hfacU=None, hfacV=None):
-    """Integrate horizontal divergence while retaining transport cancellation."""
+    """Integrate divergence from compensated face-transport prefixes."""
     partial = hfacU is not None
     dx = _barrier(cost[None, 1:] * dxt[1:, None])
     dy = _barrier(cost[None, 1:] * dyt[None, 1:])
@@ -66,31 +66,35 @@ def integrate_continuity(u, v, dzt, dxt, dyt, cost, cosu, maskW, hfacU=None, hfa
     def accumulate(carry, level):
         def transport(value, fraction):
             if fraction is None:
-                return _two_product(value, dzt[level])
-            high, low = _two_product(value, fraction)
-            return _scale_pair((high, low), dzt[level])
+                high, low = _two_product(value, dzt[level])
+                mask = maskW[1:, 1:, level]
+                return high * mask, low * mask
+            return _scale_pair(_two_product(value, fraction), dzt[level])
+
+        def add(previous, current):
+            high, error = _two_sum(previous[0], current[0])
+            return _two_sum(high, _barrier(previous[1] + _barrier(error + current[1])))
 
         east = transport(u[1:, 1:, level], hfacU[1:, 1:, level] if partial else None)
         west = transport(u[:-1, 1:, level], hfacU[:-1, 1:, level] if partial else None)
         north = transport(v[1:, 1:, level], hfacV[1:, 1:, level] if partial else None)
         south = transport(v[1:, :-1, level], hfacV[1:, :-1, level] if partial else None)
+        faces = tuple(add(previous, current) for previous, current in zip(carry, (east, west, north, south)))
+        east, west, north, south = faces
         zonal = _divide_pair(_subtract_pair(east, west), dx)
         meridional = _divide_pair(
             _subtract_pair(_scale_pair(north, cosu[None, 1:]), _scale_pair(south, cosu[None, :-1])), dy
         )
         high, error = _two_sum(zonal[0], meridional[0])
         high, low = _two_sum(high, _barrier(error + _barrier(zonal[1] + meridional[1])))
-        if not partial:
-            high, low = high * maskW[1:, 1:, level], low * maskW[1:, 1:, level]
-        total, error = _two_sum(carry[0], -high)
-        total, residual = _two_sum(total, _barrier(carry[1] + _barrier(error - low)))
-        value = _barrier(total + residual)
+        value = -_barrier(high + low)
         if partial:
             value = value * maskW[1:, 1:, level]
-        return (total, residual), value
+        return faces, value
 
     zero = npx.zeros_like(u[1:, 1:, 0])
-    _, values = scan(accumulate, (zero, zero), npx.arange(u.shape[-1]))
+    empty = (zero, zero)
+    _, values = scan(accumulate, (empty, empty, empty, empty), npx.arange(u.shape[-1]))
     return npx.moveaxis(values, 0, -1)
 
 
