@@ -40,7 +40,7 @@ def nonlin2_eq_of_state_dyn_enthalpy(sa, ct, p):
     zz = -p - z0
     thetas = ct - theta0
     return grav * 0.5 * zz**2 * (-grav / cs0**2 + betaT * grav * rho0 * gammas * thetas) + grav * zz * (
-        -betaT * thetas - betaTs * thetas**2 + betaS * (sa - S0)
+        -betaT * thetas - betaTs / 2 * thetas**2 + betaS * (sa - S0)
     )
 
 
@@ -67,7 +67,7 @@ def nonlin2_eq_of_state_drhodS():
 
 
 @veros_kernel
-def nonlin2_eq_of_state_drhodP(ct):
+def nonlin2_eq_of_state_drhodp(ct):
     thetas = ct - theta0
     return 1 / cs0**2 - betaT * gammas * rho0 * thetas
 
