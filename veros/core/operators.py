@@ -74,7 +74,11 @@ def solve_tridiagonal_numpy(a, b, c, d, water_mask, edge_mask):
 
     out = np.zeros(a.shape, dtype=a.dtype)
 
-    if not np.any(water_mask):
+    wet_count = np.count_nonzero(water_mask)
+    if wet_count == 0:
+        return out
+    if wet_count == 1:
+        out[water_mask] = d[water_mask] / b[water_mask]
         return out
 
     # remove couplings between slices

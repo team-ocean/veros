@@ -15,12 +15,13 @@ from veros.core.operators import update, update_add, at, for_loop
 from veros.core.operators import numpy as npx
 from veros.core.external.solvers import get_linear_solver
 from veros.core.geometry import cell_thickness
+from veros.core.transport import preserve_transport
 
 
 @veros_routine
 def solve_pressure(state):
     vs = state.variables
-    state_update, forc = prepare_forcing(state)
+    state_update, (forc, uloc, vloc) = prepare_forcing(state)
     vs.update(state_update)
 
     linear_solver = get_linear_solver(state)
@@ -33,7 +34,7 @@ def solve_pressure(state):
         update(vs.psi, at[..., vs.taup1], linear_sol),
     )
 
-    vs.update(barotropic_velocity_update(state))
+    vs.update(barotropic_velocity_update(state, uloc, vloc))
 
 
 @veros_kernel
@@ -150,14 +151,12 @@ def prepare_forcing(state):
     # first guess
     vs.psi = update(vs.psi, at[:, :, vs.taup1], 2 * vs.psi[:, :, vs.tau] - vs.psi[:, :, vs.taum1])
 
-    return KernelOutput(du=vs.du, dv=vs.dv, u=vs.u, v=vs.v, psi=vs.psi, p_hydro=vs.p_hydro), forc
+    return KernelOutput(du=vs.du, dv=vs.dv, u=vs.u, v=vs.v, psi=vs.psi, p_hydro=vs.p_hydro), (forc, uloc, vloc)
 
 
 @veros_kernel
-def barotropic_velocity_update(state):
-    """
-    solve for surface pressure
-    """
+def barotropic_velocity_update(state, uloc, vloc):
+    """Apply surface pressure while preserving its integrated face transports."""
     vs = state.variables
     settings = state.settings
 
@@ -178,6 +177,24 @@ def barotropic_velocity_update(state):
         / vs.dyu[npx.newaxis, 2:-2, npx.newaxis]
         * vs.maskV[2:-2, 2:-2, :],
     )
+
+    # Reuse the rounded transports that assembled the pressure equation.
+    for name, grid, forcing, gradient in (
+        (
+            "u",
+            "U",
+            uloc,
+            (vs.psi[3:-1, 2:-2, vs.taup1] - vs.psi[2:-2, 2:-2, vs.taup1])
+            / (vs.dxu[2:-2, npx.newaxis] * vs.cost[npx.newaxis, 2:-2]),
+        ),
+        ("v", "V", vloc, (vs.psi[2:-2, 3:-1, vs.taup1] - vs.psi[2:-2, 2:-2, vs.taup1]) / vs.dyu[npx.newaxis, 2:-2]),
+    ):
+        mask = getattr(vs, "mask" + grid)[2:-2, 2:-2]
+        weight = cell_thickness(state, grid)[2:-2, 2:-2] * mask
+        target = settings.dt_mom * (forcing[2:-2, 2:-2] - npx.sum(weight, axis=-1) * gradient)
+        velocity = getattr(vs, name)
+        corrected = preserve_transport(velocity[2:-2, 2:-2, :, vs.taup1], weight, target)
+        setattr(vs, name, update(velocity, at[2:-2, 2:-2, :, vs.taup1], corrected))
 
     vs.ssh = vs.psi[..., vs.tau] / settings.grav
 

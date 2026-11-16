@@ -84,7 +84,8 @@ for line in jax_req:  # inject jaxlib requirement
         break
 
 EXTRAS_REQUIRE = {
-    "test": ["pytest", "pytest-cov", "pytest-forked", "xarray"],
+    # pytest-forked cannot serialize pytest 9.2 reports (pytest-dev/pytest-forked#113).
+    "test": ["pytest<9.2", "pytest-cov", "pytest-forked", "xarray"],
     "jax": jax_req,
     "jax-mpi": [*jax_req, "mpi4py>=4.1", "mpi4jax==0.9.1.post2"],
 }
