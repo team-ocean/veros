@@ -15,7 +15,7 @@ from veros.core.operators import update, update_add, at, for_loop
 from veros.core.operators import numpy as npx
 from veros.core.external.solvers import get_linear_solver
 from veros.core.geometry import cell_thickness
-from veros.core.external.transport import preserve_transport
+from veros.core.transport import preserve_transport
 
 
 @veros_routine

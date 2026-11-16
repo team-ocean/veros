@@ -4,6 +4,7 @@ from veros import veros_routine, veros_kernel, KernelOutput, runtime_settings
 from veros.variables import allocate
 from veros.core import friction, external
 from veros.core.geometry import cell_thickness
+from veros.core.transport import integrate_continuity
 from veros.core.operators import update, update_add, at
 
 
@@ -240,64 +241,22 @@ def vertical_velocity(state):
 
 @veros_kernel
 def vertical_velocity_kernel(state):
-    """
-    vertical velocity from continuity :
-    \\int_0^z w_z dz = w(z)-w(0) = - \\int dz (u_x + v_y)
-    w(z) = -int dz u_x + v_y
-    """
+    """Vertical velocity from horizontal face transports."""
     vs = state.variables
-
-    if state.settings.enable_partial_cells:
-        u_transport = vs.u[..., vs.taup1] * vs.hfacU * vs.dzt
-        v_transport = vs.v[..., vs.taup1] * vs.hfacV * vs.dzt
-        divergence = (u_transport[1:, 1:] - u_transport[:-1, 1:]) / (
-            vs.cost[None, 1:, None] * vs.dxt[1:, None, None]
-        ) + (vs.cosu[None, 1:, None] * v_transport[1:, 1:] - vs.cosu[None, :-1, None] * v_transport[1:, :-1]) / (
-            vs.cost[None, 1:, None] * vs.dyt[None, 1:, None]
-        )
-        vs.w = update(vs.w, at[1:, 1:, :, vs.taup1], -npx.cumsum(divergence, axis=2) * vs.maskW[1:, 1:])
-        return KernelOutput(w=vs.w)
-
-    fxa = allocate(state.dimensions, ("xt", "yt", "zw"))
-
-    # integrate from bottom to surface to see error in w
-    fxa = update(
-        fxa,
-        at[1:, 1:, 0],
-        -1
-        * vs.maskW[1:, 1:, 0]
-        * vs.dzt[0]
-        * (
-            (vs.u[1:, 1:, 0, vs.taup1] - vs.u[:-1, 1:, 0, vs.taup1])
-            / (vs.cost[npx.newaxis, 1:] * vs.dxt[1:, npx.newaxis])
-            + (
-                vs.cosu[npx.newaxis, 1:] * vs.v[1:, 1:, 0, vs.taup1]
-                - vs.cosu[npx.newaxis, :-1] * vs.v[1:, :-1, 0, vs.taup1]
-            )
-            / (vs.cost[npx.newaxis, 1:] * vs.dyt[npx.newaxis, 1:])
-        ),
+    partial = state.settings.enable_partial_cells
+    velocity = integrate_continuity(
+        vs.u[..., vs.taup1],
+        vs.v[..., vs.taup1],
+        vs.dzt,
+        vs.dxt,
+        vs.dyt,
+        vs.cost,
+        vs.cosu,
+        vs.maskW,
+        vs.hfacU if partial else None,
+        vs.hfacV if partial else None,
     )
-
-    fxa = update(
-        fxa,
-        at[1:, 1:, 1:],
-        -1
-        * vs.maskW[1:, 1:, 1:]
-        * vs.dzt[npx.newaxis, npx.newaxis, 1:]
-        * (
-            (vs.u[1:, 1:, 1:, vs.taup1] - vs.u[:-1, 1:, 1:, vs.taup1])
-            / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis])
-            + (
-                vs.cosu[npx.newaxis, 1:, npx.newaxis] * vs.v[1:, 1:, 1:, vs.taup1]
-                - vs.cosu[npx.newaxis, :-1, npx.newaxis] * vs.v[1:, :-1, 1:, vs.taup1]
-            )
-            / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dyt[npx.newaxis, 1:, npx.newaxis])
-        ),
-    )
-
-    vs.w = update(vs.w, at[1:, 1:, :, vs.taup1], npx.cumsum(fxa[1:, 1:, :], axis=2))
-
-    return KernelOutput(w=vs.w)
+    return KernelOutput(w=update(vs.w, at[1:, 1:, :, vs.taup1], velocity))
 
 
 @veros_routine

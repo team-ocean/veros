@@ -18,7 +18,7 @@ def exact_transport(value, weight):
 @pytest.mark.parametrize("dtype", ("float32", "float64"))
 def test_weighted_sum_retains_cancellation_residual(dtype):
     from veros import runtime_settings
-    from veros.core.external.transport import _weighted_sum
+    from veros.core.transport import _weighted_sum
     from veros.core.operators import numpy as npx
 
     weight = np.asarray([40, 60, 80, 120], dtype=dtype)
@@ -113,7 +113,7 @@ def test_transport_correction_derivatives_match_the_column_constraint():
         pytest.skip("requires the JAX backend")
     import jax
     import jax.numpy as jnp
-    from veros.core.external.transport import preserve_transport
+    from veros.core.transport import preserve_transport
 
     value = jnp.asarray([[-3.4, -2.2, 0.0004, 2.2330666666666668], [0.0, 0.0, 0.0, 0.0]])
     weight = jnp.asarray([[40.0, 60.0, 80.0, 120.0], [0.0, 0.0, 0.0, 0.0]])
