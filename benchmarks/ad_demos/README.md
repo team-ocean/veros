@@ -108,7 +108,8 @@ mean, mean_mu, mean_kh, heat)` to reverse AD. Both require JAX float64. This
 experimental component covers positive, stably stratified columns with free mixing
 length, uncapped viscosity and no upward branch crossings. Check `status == 0` before
 using a result. The interval guard uses roundoff-expanded bounds rather than validated
-interval arithmetic.
+interval arithmetic. Reverse propagation supports at most 16 scaling stages and returns
+nonfinite derivatives beyond that limit.
 
 Inputs `N`, `M` and `Q` are stratification (s⁻²), squared shear (s⁻²) and a Metzler
 transport matrix (s⁻¹). `bg` is background diffusivity (m²/s), `fraction` its funded
@@ -125,6 +126,32 @@ require separate validation.
 ```sh
 JAX_PLATFORMS=cpu python -m pytest test/prepared_column_events_test.py --backend jax
 ```
+
+## Native column preparation
+
+`prepared_column_native.prepare` constructs event arguments from carried temperature,
+salinity and velocity fields, mean viscosity and diffusivity. It uses native residual-
+form CN diffusion and a fixed eight-point EOS5 density-differential integral.
+`conditional` evaluates the resulting mean residual without solving for its zero.
+
+`high` and `low` have shape `(4, n)` in T/S/U/V order, with at least two wet levels.
+`mu` and `kh` are length-n mixing coefficients, with zero top diffusivity. `h` gives
+tracer-layer thickness, `d` interface distance and `width` energy-cell quadrature width,
+all in meters. `pressure` is in dbar. The remaining inputs supply the event quantities
+above, the two clocks, gravity, reference density and the energy-transport factor
+`alpha_tke`.
+
+Reverse differentiation composes `prepare` with `differentiable_moments`. The reference
+fixture checks preparation and conditional-moment derivatives against independent
+80-digit variational equations. Conditional off-root points verify derivatives of the
+mean equations. They do not establish a self-consistent physical perturbation, an
+implicit control derivative or a full Veros timestep.
+
+```sh
+JAX_PLATFORMS=cpu VEROS_USE_SPECIAL_TDMA=0 python -m pytest test/prepared_column_native_test.py --backend jax
+```
+
+Set `VEROS_USE_SPECIAL_TDMA=1` to check the compiled solver when its extension is built.
 
 ## Scientific cases
 
