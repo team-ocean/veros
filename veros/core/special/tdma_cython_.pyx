@@ -1,3 +1,5 @@
+# cython: language=c++
+
 import cython
 from cpython.pycapsule cimport PyCapsule_New
 
@@ -5,7 +7,7 @@ from libc.stdint cimport int32_t, int64_t
 
 
 @cython.cdivision(True)
-cdef void _tdma_cython_double(int32_t n, double* a, double* b, double* c, double* d, double* cp, double* dp) nogil:
+cdef void _tdma_cython_double(int32_t n, double* a, double* b, double* c, double* d, double* cp, double* dp) noexcept nogil:
     cdef:
         int32_t i
         double denom
@@ -26,7 +28,7 @@ cdef void _tdma_cython_double(int32_t n, double* a, double* b, double* c, double
 
 
 @cython.cdivision(True)
-cdef void _tdma_cython_float(int32_t n, float* a, float* b, float* c, float* d, float* cp, float* dp) nogil:
+cdef void _tdma_cython_float(int32_t n, float* a, float* b, float* c, float* d, float* cp, float* dp) noexcept nogil:
     cdef:
         int32_t i
         float denom
@@ -46,22 +48,12 @@ cdef void _tdma_cython_float(int32_t n, float* a, float* b, float* c, float* d, 
         dp[i] -= cp[i] * dp[i + 1]
 
 
-cdef void tdma_cython_double(void** out_ptr, void** data_ptr) nogil:
+cdef void tdma_cython_double(int64_t num_systems, int64_t stride,
+        double* a, double* b, double* c, double* d, int32_t* system_depths,
+        double* out, double* workspace) noexcept nogil:
     cdef:
         int64_t i, j, system_depth, system_start
         int64_t ii = 0
-
-        # decode inputs
-        double* a = (<double*>data_ptr[0])
-        double* b = (<double*>data_ptr[1])
-        double* c = (<double*>data_ptr[2])
-        double* d = (<double*>data_ptr[3])
-        int32_t* system_depths = (<int32_t*>data_ptr[4])
-        int64_t num_systems = (<int64_t*>data_ptr[5])[0]
-        int64_t stride = (<int64_t*>data_ptr[6])[0]
-
-        double* out = (<double*>out_ptr[0])
-        double* workspace = (<double*>out_ptr[1])
 
     for i in range(num_systems):
         system_depth = system_depths[i]
@@ -83,22 +75,12 @@ cdef void tdma_cython_double(void** out_ptr, void** data_ptr) nogil:
         ii += stride
 
 
-cdef void tdma_cython_float(void** out_ptr, void** data_ptr) nogil:
+cdef void tdma_cython_float(int64_t num_systems, int64_t stride,
+        float* a, float* b, float* c, float* d, int32_t* system_depths,
+        float* out, float* workspace) noexcept nogil:
     cdef:
         int64_t i, j, system_depth, system_start
         int64_t ii = 0
-
-        # decode inputs
-        float* a = (<float*>data_ptr[0])
-        float* b = (<float*>data_ptr[1])
-        float* c = (<float*>data_ptr[2])
-        float* d = (<float*>data_ptr[3])
-        int32_t* system_depths = (<int32_t*>data_ptr[4])
-        int64_t num_systems = (<int64_t*>data_ptr[5])[0]
-        int64_t stride = (<int64_t*>data_ptr[6])[0]
-
-        float* out = (<float*>out_ptr[0])
-        float* workspace = (<float*>out_ptr[1])
 
     for i in range(num_systems):
         system_depth = system_depths[i]
@@ -120,11 +102,18 @@ cdef void tdma_cython_float(void** out_ptr, void** data_ptr) nogil:
         ii += stride
 
 
-cpu_custom_call_targets = {}
+cdef extern from "tdma_cpu_ffi.h":
+    ctypedef struct XLA_FFI_CallFrame:
+        pass
+    ctypedef struct XLA_FFI_Error:
+        pass
+    void SetTDMACpuKernels(void* float_kernel, void* double_kernel)
+    XLA_FFI_Error* TDMACpuFloat(XLA_FFI_CallFrame*)
+    XLA_FFI_Error* TDMACpuDouble(XLA_FFI_CallFrame*)
 
-cdef register_custom_call_target(unicode fn_name, void* fn):
-    cdef const char* name = 'xla._CUSTOM_CALL_TARGET'
-    cpu_custom_call_targets[fn_name] = PyCapsule_New(fn, name, NULL)
 
-register_custom_call_target('tdma_cython_double', <void*>(tdma_cython_double))
-register_custom_call_target('tdma_cython_float', <void*>(tdma_cython_float))
+SetTDMACpuKernels(<void*>tdma_cython_float, <void*>tdma_cython_double)
+cpu_ffi_targets = {
+    "tdma_cython_float": PyCapsule_New(<void*>TDMACpuFloat, "xla._CUSTOM_CALL_TARGET", NULL),
+    "tdma_cython_double": PyCapsule_New(<void*>TDMACpuDouble, "xla._CUSTOM_CALL_TARGET", NULL),
+}

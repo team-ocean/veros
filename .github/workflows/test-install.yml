@@ -58,6 +58,7 @@ jobs:
             export VEROS_REQUIRE_CUDA_EXT=1
           fi
           pip install -U setuptools wheel cython
+          pip install "jaxlib==0.5.0; python_version < '3.14'" "jaxlib==0.7.2; python_version >= '3.14'"
           python setup.py build_ext --inplace
 
       - name: Test whether Cython extensions are present
