@@ -100,6 +100,32 @@ implement these equations.
 These experiments initialize no MPI communicator, including in MPI-enabled
 installations. `--timeout` sets a per-case limit in seconds (default 600).
 
+## Prepared mixing-column events
+
+`prepared_column_events.integrate` computes energy and mean mixing moments for
+prescribed column coefficients. `differentiable_moments` exposes the five fields `(end,
+mean, mean_mu, mean_kh, heat)` to reverse AD. Both require JAX float64. This
+experimental component covers positive, stably stratified columns with free mixing
+length, uncapped viscosity and no upward branch crossings. Check `status == 0` before
+using a result. The interval guard uses roundoff-expanded bounds rather than validated
+interval arithmetic.
+
+Inputs `N`, `M` and `Q` are stratification (s⁻²), squared shear (s⁻²) and a Metzler
+transport matrix (s⁻¹). `bg` is background diffusivity (m²/s), `fraction` its funded
+share and `ratio` the tracer/momentum clock ratio. `energy` is m²/s². `previous` and
+`eke_rate` are lagged shear production and available donor power per mass (m²/s³). `h`
+is layer thickness (m), `total` momentum time (s), `ck` and `ce` mixing constants,
+`mxl_min` minimum length (m), and `mu_floor`/`mu_max` viscosity limits (m²/s).
+
+The reference fixture contains a 14-level `global_4deg` column and independent 80-digit
+values and variations. It verifies prepared-input derivatives, including native Prandtl
+branches. Coupled-state derivatives, physical source ownership and global transfer
+require separate validation.
+
+```sh
+JAX_PLATFORMS=cpu python -m pytest test/prepared_column_events_test.py --backend jax
+```
+
 ## Scientific cases
 
 | Case | Controls and observations | Required behavior |
