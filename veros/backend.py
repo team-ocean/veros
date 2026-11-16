@@ -39,6 +39,9 @@ def init_jax_config():
 
     jax.config.update("jax_platform_name", runtime_settings.device)
 
+    if runtime_settings.jax_compilation_cache_dir:
+        jax.config.update("jax_compilation_cache_dir", runtime_settings.jax_compilation_cache_dir)
+
     jax.tree_util.register_pytree_node(VerosState, veros_state_pytree_flatten, veros_state_pytree_unflatten)
     jax.tree_util.register_pytree_node(VerosVariables, veros_variables_pytree_flatten, veros_variables_pytree_unflatten)
     jax.tree_util.register_pytree_node(
