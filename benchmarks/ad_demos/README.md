@@ -179,6 +179,29 @@ observations for the same short column response and physical assumptions.
 JAX_PLATFORMS=cpu python -m pytest test/prepared_column_energy_test.py --backend jax
 ```
 
+## Empty-column startup
+
+`prepared_column_startup.integrate_empty` advances moments from exactly zero
+incoming turbulent energy and zero source history, using the event argument order
+plus the work weights. The calculation requires stable stratification, viscosity
+at its floor, a Prandtl number of ten, and turbulence-driven diffusivity below the
+background profile. Captured mechanical and finite EKE power fund the mixing.
+
+A comparison bound limits the effect of the native minimum mixing length during
+startup. Status zero requires that bound and the numerical energy residual to fit
+the original moment, `0.01` J work and `500 * eps` energy-bank criteria. Equilibrium
+bounds check that viscosity, thermal and geometric branch limits remain inactive.
+These checks use roundoff-expanded arithmetic. Callers must check `status == 0`.
+
+The fixture verifies one actual zero-start column, its source withdrawal, native
+CN/energy calculations and independent high-precision startup bounds. Only forward
+moments are verified. Sensitivities and later source-history updates require
+separate checks.
+
+```sh
+JAX_PLATFORMS=cpu python -m pytest test/prepared_column_startup_test.py --backend jax
+```
+
 ## Scientific cases
 
 | Case | Controls and observations | Required behavior |
