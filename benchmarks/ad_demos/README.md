@@ -73,6 +73,159 @@ validate the default parameterizations. `--device gpu` selects GPU execution.
 These experiments initialize no MPI communicator, including in MPI-enabled
 installations. `--timeout` sets a per-case limit in seconds (default 600).
 
+## Prepared mixing-column events
+
+`prepared_column_events.integrate` computes energy and mean mixing moments for
+prescribed column coefficients. `differentiable_moments` exposes the five fields `(end,
+mean, mean_mu, mean_kh, heat)` to reverse AD. Both require JAX float64. This
+experimental component covers positive, stably stratified columns with free mixing
+length, uncapped viscosity and no upward branch crossings. Check `status == 0` before
+using a result. The interval guard uses roundoff-expanded bounds rather than validated
+interval arithmetic. Reverse propagation supports at most 16 scaling stages and returns
+nonfinite derivatives beyond that limit.
+
+Inputs `N`, `M` and `Q` are stratification (s⁻²), squared shear (s⁻²) and a Metzler
+transport matrix (s⁻¹). `bg` is background diffusivity (m²/s), `fraction` its funded
+share and `ratio` the tracer/momentum clock ratio. `energy` is m²/s². `previous` and
+`eke_rate` are lagged shear production and available donor power per mass (m²/s³). `h`
+is layer thickness (m), `total` momentum time (s), `ck` and `ce` mixing constants,
+`mxl_min` minimum length (m), and `mu_floor`/`mu_max` viscosity limits (m²/s).
+
+The reference fixture contains a 14-level `global_4deg` column and independent 80-digit
+values and variations. It verifies prepared-input derivatives, including native Prandtl
+branches. Coupled-state derivatives, physical source ownership and global transfer
+require separate validation.
+
+```sh
+JAX_PLATFORMS=cpu python -m pytest test/prepared_column_events_test.py --backend jax
+```
+
+## Native column preparation
+
+`prepared_column_native.prepare` constructs event arguments from carried temperature,
+salinity and velocity fields, mean viscosity and diffusivity. It uses native residual-
+form CN diffusion and a fixed eight-point EOS5 density-differential integral.
+`conditional` evaluates the resulting mean residual without solving for its zero.
+
+`high` and `low` have shape `(4, n)` in T/S/U/V order, with at least two wet levels.
+`mu` and `kh` are length-n mixing coefficients, with zero top diffusivity. `h` gives
+tracer-layer thickness, `d` interface distance and `width` energy-cell quadrature width,
+all in meters. `pressure` is in dbar. The remaining inputs supply the event quantities
+above, the two clocks, gravity, reference density and the energy-transport factor
+`alpha_tke`.
+
+Reverse differentiation composes `prepare` with `differentiable_moments`. The reference
+fixture checks preparation and conditional-moment derivatives against independent
+80-digit variational equations. Conditional off-root points verify derivatives of the
+mean equations. The solved physical-response example below checks the adjustment
+of the mixing means to incoming turbulent energy.
+
+```sh
+JAX_PLATFORMS=cpu VEROS_USE_SPECIAL_TDMA=0 python -m pytest test/prepared_column_native_test.py --backend jax
+```
+
+Set `VEROS_USE_SPECIAL_TDMA=1` to check the compiled solver when its extension is built.
+
+## Self-consistent column response
+
+`prepared_column_response.linear_response(args, weights)` computes the local
+implicit response to a uniform log change in incoming turbulent energy about an
+accepted mean solution. `args` follows the positional order of `prepare`, and
+`weights = rho0 * area * width * dt_tracer` gives mixing work in joules. The helper
+returns the mean Jacobian, adjusted mean response, observation tangents and work
+calculated by direct and adjoint linear solves.
+
+Use that reference Jacobian for a bounded nearby physical solve:
+
+```python
+from benchmarks.ad_demos.prepared_column_response import linear_response, solve
+
+local = linear_response(args, weights)
+beta = 0.001
+point = solve(args, weights, local["jacobian"], log_energy=beta,
+              initial=beta * local["log_mean_response"])
+```
+
+The solve accepts only certified event results, mean residuals below `1e-13`,
+and work consistency and consecutive-solve changes below `0.01` J. Its default
+limit is sixteen evaluations. The fixture checks four signed physical changes,
+independent moments and energy calculations, second-order Taylor behavior and the
+finite mixing prediction. The tested scope is one short actual column response.
+Full Veros timesteps, broader physical controls and global source policies remain
+unverified. These host helpers provide explicit linear solves rather than an AD
+rule for the converged root.
+
+```sh
+JAX_PLATFORMS=cpu python -m pytest test/prepared_column_response_test.py --backend jax
+```
+
+## Native column energy observations
+
+`prepared_column_energy.observers` returns finite dynamic-enthalpy change, its
+conservative flux form, nonlinear conversion and mixing work, all in joules.
+It integrates native enthalpy derivatives along the carried tracer increments.
+Inputs are CN increments, mean diffusivity, midpoint stratification, paired old
+fields, interface distances, pressure, tracer time, tracer-cell masses,
+`rho0 * area`, and the mixing-work weights defined above.
+
+The independent fixture uses actual-pressure density integrals for both values
+and variations. Tests include reverse propagation through native preparation and
+the implicit mixing equations, four physical trials, and finite prediction checks.
+The energy-variation precision budget equals the declared energy-recovery ceiling;
+the mixing-work precision criterion remains `0.01` J. This verifies the energy
+observations for the same short column response and physical assumptions.
+
+```sh
+JAX_PLATFORMS=cpu python -m pytest test/prepared_column_energy_test.py --backend jax
+```
+
+## Viscosity in friction-history normalization
+
+`prepared_column_events.integrate_floored_history` is an explicit experimental
+alternative to the native raw-viscosity convention. It divides stored friction
+power by `max(mu_floor, raw_viscosity)` when forming the Richardson number. Thermal
+diffusivity still uses the raw turbulent coefficient. The argument order, units
+and positive-energy, free-length and inactive-cap requirements match `integrate`.
+Use `differentiable_floored_history_moments` for its reverse derivative.
+
+Independent fixtures cover an active-mixing column at 170°E/54°S and a floor-bound
+column at 98°E/2°S with carried friction history. Incoming-energy variations and an
+analytic intermediate-Prandtl branch check the derivatives. The existing native
+convention remains available through `integrate` and `differentiable_moments`.
+This alternative has not been adopted for full Veros timesteps or global runs.
+
+## Empty-column startup
+
+`prepared_column_startup.integrate_empty` advances moments from exactly zero
+incoming turbulent energy and zero source history, using the event argument order
+plus the work weights. The calculation requires stable stratification, viscosity
+at its floor, a Prandtl number of ten, and turbulence-driven diffusivity below the
+background profile. Captured mechanical and finite EKE power fund the mixing.
+
+A comparison bound limits the effect of the native minimum mixing length during
+startup. Status zero requires that bound and the numerical energy residual to fit
+the original moment, `0.01` J work and `500 * eps` energy-bank criteria. Equilibrium
+bounds check that viscosity, thermal and geometric branch limits remain inactive.
+The equilibrium envelope includes rounding in supplied and consumed power.
+These checks use roundoff-expanded arithmetic. Callers must check `status == 0`.
+
+`prepared_column_startup.solve(args, weights)` solves nearby thermal mixing means
+using the native preparation argument order. Viscosity must remain at its floor.
+The host fixed-point iteration stops after sixteen evaluations. Acceptance requires
+the mean residual, mixing-work consistency and physical energy balance, including
+the bounded startup error, to meet their precision limits. Two eligible evaluations
+must agree on work within `0.01` J. The returned observations contain the CN fields
+and energy moments. An uncertified input or an exhausted solve raises an exception.
+
+The fixture checks one actual zero-start column, its source withdrawal, native
+CN/energy calculations, independent startup bounds and four signed initial-velocity
+trials. Only forward moments and physical solves are supported here. Sensitivities
+and later source-history updates require separate checks.
+
+```sh
+JAX_PLATFORMS=cpu python -m pytest test/prepared_column_startup_test.py --backend jax
+```
+
 ## Scientific cases
 
 | Case | Controls and observations | Required behavior |
