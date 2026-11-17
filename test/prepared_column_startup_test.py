@@ -102,3 +102,19 @@ def test_empty_startup_rejects_unfunded_background(startup):
     changed = list(event_args)
     changed[4] = changed[4] * 2
     assert int(function(*changed, weights)["status"]) != 0
+
+
+def test_startup_bound_covers_source_cancellation(startup):
+    import jax
+    import jax.numpy as jnp
+    from benchmarks.ad_demos.prepared_column_native import prepare
+
+    r, args, _, _, _, weights, _, function = startup
+    case = r["half_step_certificate"]
+    changed = list(args)
+    changed[2], changed[3] = (jnp.asarray(case[key]) for key in ("mu", "kh"))
+    changed[12], changed[13] = (jnp.asarray(case[key]) for key in ("dt_mom", "dt_tracer"))
+    _, _, event_args = jax.jit(prepare)(*changed)
+    event = function(*event_args, weights / 2)
+    assert int(event["status"]) == 0
+    assert np.all(np.asarray(event["upper_energy"]) >= case["upper_energy"])
