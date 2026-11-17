@@ -35,7 +35,9 @@ def integrate_empty(
     defect = jnp.maximum(abs(rhs_defect(x1)), abs(rhs_defect(x2))) * roundoff_margin
     equilibrium = -jnp.linalg.solve(A, forcing)
     error_equilibrium = -jnp.linalg.solve(A, defect)
-    upper = (equilibrium + error_equilibrium) * roundoff_margin
+    forcing_roundoff = 8 * eps * (abs(M * mu_floor) + abs(eke_rate) + abs(ratio * N * constant))
+    equilibrium_roundoff = -jnp.linalg.solve(A, forcing_roundoff)
+    upper = (equilibrium + error_equilibrium + equilibrium_roundoff) * roundoff_margin
     raw = ck * jnp.maximum(mxl_min, jnp.sqrt(2 * upper / N)) * jnp.sqrt(upper)
     end, integral, ok = _propagate(A, forcing, zero, total)
     end_error, error_integral, bound_ok = _propagate(A, defect, zero, total)

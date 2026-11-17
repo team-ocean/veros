@@ -191,6 +191,7 @@ A comparison bound limits the effect of the native minimum mixing length during
 startup. Status zero requires that bound and the numerical energy residual to fit
 the original moment, `0.01` J work and `500 * eps` energy-bank criteria. Equilibrium
 bounds check that viscosity, thermal and geometric branch limits remain inactive.
+The equilibrium envelope includes rounding in supplied and consumed power.
 These checks use roundoff-expanded arithmetic. Callers must check `status == 0`.
 
 The fixture verifies one actual zero-start column, its source withdrawal, native
