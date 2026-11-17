@@ -17,13 +17,14 @@ import jax
 import jax.numpy as jnp
 
 
-def _coefficients(probe, N, previous, bg, fraction, a, mu_floor):
+def _coefficients(probe, N, previous, bg, fraction, a, mu_floor, *, floored_history=False):
     """Return affine viscosity/thermal slopes and constants, and Prandtl number."""
     epsilon = jnp.asarray(1e-12, dtype=N.dtype)
+    history_floor = mu_floor if floored_history else epsilon
     raw = a * probe
-    Ri = N / jnp.maximum(previous / jnp.maximum(epsilon, raw), epsilon)
+    Ri = N / jnp.maximum(previous / jnp.maximum(history_floor, raw), epsilon)
     Pr = jnp.clip(6.6 * Ri, 1, 10)
-    intermediate = (Pr > 1) & (Pr < 10) & (raw > epsilon) & (previous / jnp.maximum(epsilon, raw) > epsilon)
+    intermediate = (Pr > 1) & (Pr < 10) & (raw > history_floor) & (previous / jnp.maximum(history_floor, raw) > epsilon)
     ts = jnp.where(intermediate, 0, a / Pr)
     tc = jnp.where(intermediate, previous / (6.6 * N), 0)
     below = ts * probe + tc < bg
@@ -72,7 +73,26 @@ def _propagate(A, b, E, t):
     return (P @ E + C @ b, C @ E + D @ b, done)
 
 
-def integrate(N, Q, M, bg, fraction, ratio, energy, previous, h, eke_rate, total, ck, ce, mxl_min, mu_floor, mu_max):
+def _integrate(
+    N,
+    Q,
+    M,
+    bg,
+    fraction,
+    ratio,
+    energy,
+    previous,
+    h,
+    eke_rate,
+    total,
+    ck,
+    ce,
+    mxl_min,
+    mu_floor,
+    mu_max,
+    *,
+    floored_history=False,
+):
     if not jax.config.x64_enabled or N.dtype != jnp.float64:
         raise ValueError("prepared-column events require JAX float64")
     n = N.shape[0]
@@ -81,7 +101,10 @@ def integrate(N, Q, M, bg, fraction, ratio, energy, previous, h, eke_rate, total
     epsilon = jnp.asarray(1e-12, dtype=dtype)
     a = ck * jnp.sqrt(2 / N)
     gamma = ce * jnp.sqrt(N / 2)
-    pmin = jnp.where(previous > 0, jnp.clip(6.6 * N * epsilon / jnp.where(previous > 0, previous, 1), 1, 10), 10)
+    if floored_history:
+        pmin = jnp.clip(6.6 * N / jnp.maximum(previous / mu_floor, epsilon), 1, 10)
+    else:
+        pmin = jnp.where(previous > 0, jnp.clip(6.6 * N * epsilon / jnp.where(previous > 0, previous, 1), 1, 10), 10)
     middle = previous / (6.6 * N)
     lower = jnp.where(pmin < 10, pmin * middle / a, jnp.inf)
     upper = jnp.where(pmin < 10, 10 * middle / a, jnp.inf)
@@ -140,7 +163,9 @@ def integrate(N, Q, M, bg, fraction, ratio, energy, previous, h, eke_rate, total
         low = jnp.max(jnp.where(pending, bounds, 0), axis=1)
         high = jnp.min(jnp.where(~pending, bounds, jnp.inf), axis=1)
         probe = jnp.where(jnp.isfinite(high), (low + high) / 2, jnp.maximum(2 * low, E))
-        ms, mc, ks, kc, Pr = _coefficients(probe, N, previous, bg, fraction, a, mu_floor)
+        ms, mc, ks, kc, Pr = _coefficients(
+            probe, N, previous, bg, fraction, a, mu_floor, floored_history=floored_history
+        )
         A = Q + jnp.diag(M * ms - ratio * N * ks - gamma)
         b = M * mc + eke_rate - ratio * N * kc
         monotone = jnp.all(A @ E + b <= 0)
@@ -289,6 +314,38 @@ def integrate(N, Q, M, bg, fraction, ratio, energy, previous, h, eke_rate, total
     )
 
 
+def integrate(N, Q, M, bg, fraction, ratio, energy, previous, h, eke_rate, total, ck, ce, mxl_min, mu_floor, mu_max):
+    """Integrate using the native raw-viscosity friction-history convention."""
+    return _integrate(
+        N, Q, M, bg, fraction, ratio, energy, previous, h, eke_rate, total, ck, ce, mxl_min, mu_floor, mu_max
+    )
+
+
+def integrate_floored_history(
+    N, Q, M, bg, fraction, ratio, energy, previous, h, eke_rate, total, ck, ce, mxl_min, mu_floor, mu_max
+):
+    """Integrate with max(mu_floor, raw viscosity) in friction-history normalization."""
+    return _integrate(
+        N,
+        Q,
+        M,
+        bg,
+        fraction,
+        ratio,
+        energy,
+        previous,
+        h,
+        eke_rate,
+        total,
+        ck,
+        ce,
+        mxl_min,
+        mu_floor,
+        mu_max,
+        floored_history=True,
+    )
+
+
 MOMENT_FIELDS = ("end", "mean", "mean_mu", "mean_kh", "heat")
 _MAX_SCALE = 16
 
@@ -321,7 +378,7 @@ def _propagate_fixed(A, b, energy, duration):
     return (jnp.where(scale <= _MAX_SCALE, end, jnp.nan), jnp.where(scale <= _MAX_SCALE, integral, jnp.nan))
 
 
-def _replay(args, durations, count, probes):
+def _replay(args, durations, count, probes, *, floored_history=False):
     """Smooth replay with fixed internal event times and branch identities."""
     N, Q, M, bg, fraction, ratio, initial, previous, h, eke_rate, total, ck, ce, mxl_min, mu_floor, mu_max = args
     a = ck * jnp.sqrt(2 / N)
@@ -331,7 +388,9 @@ def _replay(args, durations, count, probes):
         def active(state):
             energy, moments, elapsed = state
             duration = jnp.where(i == count - 1, total - elapsed, durations[i])
-            ms, mc, ks, kc, Pr = _coefficients(probes[i], N, previous, bg, fraction, a, mu_floor)
+            ms, mc, ks, kc, Pr = _coefficients(
+                probes[i], N, previous, bg, fraction, a, mu_floor, floored_history=floored_history
+            )
             A = Q + jnp.diag(M * ms - ratio * N * ks - gamma)
             b = M * mc + eke_rate - ratio * N * kc
             end, integral = _propagate_fixed(A, b, energy, duration)
@@ -348,8 +407,8 @@ def _replay(args, durations, count, probes):
     return (end, *(moments[i] / total for i in range(4)))
 
 
-def _capture(args):
-    values = integrate(*args)
+def _capture(args, *, floored_history=False):
+    values = integrate_floored_history(*args) if floored_history else integrate(*args)
     outputs = tuple((jnp.where(values["status"] == 0, values[key], jnp.nan) for key in MOMENT_FIELDS))
     probes = jax.lax.stop_gradient((values["energy_path"][:-1] + values["energy_path"][1:]) / 2)
     return (
@@ -364,11 +423,25 @@ def differentiable_moments(*args):
     return _capture(args)[0]
 
 
-def _backward(residual, cotangent):
+def _backward(residual, cotangent, *, floored_history=False):
     args, durations, count, probes, status = residual
-    _, pullback = jax.vjp(lambda values: _replay(values, durations, count, probes), args)
+    _, pullback = jax.vjp(
+        lambda values: _replay(values, durations, count, probes, floored_history=floored_history), args
+    )
     gradient = pullback(cotangent)[0]
     return tuple((jnp.where(status == 0, value, jnp.nan) for value in gradient))
 
 
 differentiable_moments.defvjp(lambda *args: _capture(args), _backward)
+
+
+@jax.custom_vjp
+def differentiable_floored_history_moments(*args):
+    """Return moments with a reverse derivative for the floored-history convention."""
+    return _capture(args, floored_history=True)[0]
+
+
+differentiable_floored_history_moments.defvjp(
+    lambda *args: _capture(args, floored_history=True),
+    lambda residual, cotangent: _backward(residual, cotangent, floored_history=True),
+)

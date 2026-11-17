@@ -206,6 +206,21 @@ observations for the same short column response and physical assumptions.
 JAX_PLATFORMS=cpu python -m pytest test/prepared_column_energy_test.py --backend jax
 ```
 
+## Viscosity in friction-history normalization
+
+`prepared_column_events.integrate_floored_history` is an explicit experimental
+alternative to the native raw-viscosity convention. It divides stored friction
+power by `max(mu_floor, raw_viscosity)` when forming the Richardson number. Thermal
+diffusivity still uses the raw turbulent coefficient. The argument order, units
+and positive-energy, free-length and inactive-cap requirements match `integrate`.
+Use `differentiable_floored_history_moments` for its reverse derivative.
+
+Independent fixtures cover an active-mixing column at 170°E/54°S and a floor-bound
+column at 98°E/2°S with carried friction history. Incoming-energy variations and an
+analytic intermediate-Prandtl branch check the derivatives. The existing native
+convention remains available through `integrate` and `differentiable_moments`.
+This alternative has not been adopted for full Veros timesteps or global runs.
+
 ## Empty-column startup
 
 `prepared_column_startup.integrate_empty` advances moments from exactly zero
