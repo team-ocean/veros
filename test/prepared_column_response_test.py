@@ -33,9 +33,7 @@ def assert_fields(actual, expected):
 def test_implicit_response_against_independent_variations(response):
     reference, _, _, local = response
     np.testing.assert_allclose(local["jacobian"], reference["jacobian"], rtol=1e-11, atol=1e-16)
-    np.testing.assert_allclose(
-        local["log_mean_response"], reference["log_mean_response"], rtol=1e-11, atol=1e-16
-    )
+    np.testing.assert_allclose(local["log_mean_response"], reference["log_mean_response"], rtol=1e-11, atol=1e-16)
     assert_fields(local["tangent"], reference["tangent"])
     assert abs(local["work_direct"] - local["work_adjoint"]) <= 0.01
     assert np.max(abs(local["tangent"]["residual"])) <= 1e-13
@@ -88,11 +86,7 @@ def test_physical_response_finite_scales_and_prediction(response, physical_point
     base, slope = np.longdouble(local["primal"]["work"]), np.longdouble(local["work_direct"])
     for sign in (1, -1):
         errors = [
-            abs(
-                np.longdouble(physical_points[sign * radius]["observations"]["work"])
-                - base
-                - sign * radius * slope
-            )
+            abs(np.longdouble(physical_points[sign * radius]["observations"]["work"]) - base - sign * radius * slope)
             for radius in (0.001, 0.0003)
         ]
         assert min(errors) > 500 * np.finfo(float).eps * abs(base)

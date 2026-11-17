@@ -55,9 +55,7 @@ def linear_response(args, weights):
     def observations(q, b):
         return evaluate(q, b, args, weights)[0]
 
-    product = jax.jit(
-        lambda direction, amplitude: jax.jvp(observations, (zero, beta), (direction, amplitude))[1]
-    )
+    product = jax.jit(lambda direction, amplitude: jax.jvp(observations, (zero, beta), (direction, amplitude))[1])
     basis = [product(jnp.asarray(direction), beta) for direction in np.eye(size)]
     partial = product(zero, jnp.asarray(1.0, dtype=zero.dtype))
     columns = {key: np.stack([np.asarray(value[key]) for value in basis], axis=-1) for key in partial}
