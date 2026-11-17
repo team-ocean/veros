@@ -1,10 +1,13 @@
 """Experimental moments from an empty turbulent-energy column.
 
-Status zero checks bounded startup error. Only forward moments are verified.
+Status zero checks bounded startup error. The host solve also checks the energy
+balance using the diffusivity supplied to the native tracer calculation.
 """
 import jax
 import jax.numpy as jnp
-from benchmarks.ad_demos.prepared_column_events import _propagate
+import numpy as np
+from benchmarks.ad_demos.prepared_column_native import prepare
+from benchmarks.ad_demos.prepared_column_events import MOMENT_FIELDS, _propagate
 
 
 def integrate_empty(
@@ -120,3 +123,76 @@ def integrate_empty(
         kh_error=kh_error,
         heat_error=heat_error,
     )
+
+
+def evaluate(log_means, args, weights):
+    """Evaluate an empty column with thermal means in log coordinates."""
+    values = list(args)
+    values[3] = jnp.concatenate((args[3][:-1] * jnp.exp(log_means), jnp.zeros(1, dtype=log_means.dtype)))
+    cn, prepared, event_args = prepare(*values)
+    event = integrate_empty(*event_args, weights)
+    output = {key: event[key] for key in MOMENT_FIELDS}
+    output.update({key: prepared[key] for key in ("N", "Nold", "Nnew", "M", "Q", "fraction", "source0")})
+    output.update(
+        residual=jnp.log(event["mean_kh"][:-1] / values[3][:-1]),
+        work=jnp.vdot(weights, prepared["N"] * event["mean_kh"]),
+        cn_delta=cn["delta"],
+        cn_high=cn["high"],
+        cn_low=cn["low"],
+        input_mu=values[2],
+        input_kh=values[3],
+        incoming_energy=values[9],
+    )
+    return output, event
+
+
+def _physical_bank(output, event, args):
+    dt, tracer = (np.longdouble(args[j]) for j in (12, 13))
+    flow = dt * (np.asarray(output["Q"], dtype=np.longdouble) @ np.asarray(output["mean"], dtype=np.longdouble))
+    source = dt * np.asarray(output["M"], dtype=np.longdouble) * np.asarray(output["mean_mu"], dtype=np.longdouble)
+    debit = dt * np.asarray(args[11], dtype=np.longdouble)
+    work = tracer * np.asarray(output["input_kh"], dtype=np.longdouble) * np.asarray(output["N"], dtype=np.longdouble)
+    heat = dt * np.asarray(output["heat"], dtype=np.longdouble)
+    residual = np.asarray(output["end"], dtype=np.longdouble) - flow - source - debit + work + heat
+    bound = 500 * np.finfo(float).eps * np.max(source + debit + np.maximum(flow, 0))
+    error = np.max(abs(residual)) + np.max(np.asarray(event["bank_defect_bound"], dtype=np.longdouble))
+    return error, bound
+
+
+def solve(args, weights, *, initial=None, max_evaluations=16):
+    """Solve nearby empty-column thermal means at fixed floor viscosity."""
+    if max_evaluations < 2:
+        raise ValueError("at least two evaluations are required for the tighter-work check")
+    if not np.all(abs(np.log(np.asarray(args[2]) / np.asarray(args[19]))) <= 1e-13):
+        raise ValueError("empty-column mean solve requires viscosity at its floor")
+    q = np.zeros(args[2].shape[0] - 1) if initial is None else np.asarray(initial, dtype=float).copy()
+    function = jax.jit(evaluate)
+    previous_work = None
+    for count in range(1, max_evaluations + 1):
+        output, event = function(jnp.asarray(q), args, weights)
+        if int(event["status"]) != 0 or not bool(event["minimum_length_error_certified"]):
+            raise ValueError("column is outside the certified empty-start domain")
+        if not all(np.isfinite(np.asarray(value)).all() for value in output.values()):
+            raise ValueError("column observations must be finite")
+        residual = np.asarray(output["residual"])
+        cn_work = np.sum(
+            np.asarray(weights, dtype=np.longdouble)
+            * np.asarray(output["input_kh"], dtype=np.longdouble)
+            * np.asarray(output["N"], dtype=np.longdouble)
+        )
+        work = np.longdouble(output["work"])
+        bank_error, bank_bound = _physical_bank(output, event, args)
+        eligible = np.max(abs(residual)) <= 1e-13 and abs(work - cn_work) <= 0.01 and bank_error <= bank_bound
+        if eligible and previous_work is not None and abs(work - previous_work) <= 0.01:
+            return dict(
+                log_means=q,
+                observations=output,
+                event=event,
+                evaluations=count,
+                tighter_work_change_J=float(abs(work - previous_work)),
+                physical_bank_error=float(bank_error),
+                physical_bank_bound=float(bank_bound),
+            )
+        previous_work = work if eligible else None
+        q = q + residual
+    raise RuntimeError("empty-column mean solve exhausted its evaluation cap")
