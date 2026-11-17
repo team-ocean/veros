@@ -186,6 +186,26 @@ rule for the converged root.
 JAX_PLATFORMS=cpu python -m pytest test/prepared_column_response_test.py --backend jax
 ```
 
+## Native column energy observations
+
+`prepared_column_energy.observers` returns finite dynamic-enthalpy change, its
+conservative flux form, nonlinear conversion and mixing work, all in joules.
+It integrates native enthalpy derivatives along the carried tracer increments.
+Inputs are CN increments, mean diffusivity, midpoint stratification, paired old
+fields, interface distances, pressure, tracer time, tracer-cell masses,
+`rho0 * area`, and the mixing-work weights defined above.
+
+The independent fixture uses actual-pressure density integrals for both values
+and variations. Tests include reverse propagation through native preparation and
+the implicit mixing equations, four physical trials, and finite prediction checks.
+The energy-variation precision budget equals the declared energy-recovery ceiling;
+the mixing-work precision criterion remains `0.01` J. This verifies the energy
+observations for the same short column response and physical assumptions.
+
+```sh
+JAX_PLATFORMS=cpu python -m pytest test/prepared_column_energy_test.py --backend jax
+```
+
 ## Scientific cases
 
 | Case | Controls and observations | Required behavior |

@@ -3432,5 +3432,116 @@
       "eos5-native-finite-v1-cpu/result.json": "5ccb8942e3811fc9444816534fe072eeb53dd4ceb52a66bf6fe8279d6de0a945",
       "eos5-native-implicit-v1-cpu/result.json": "1d0c5bc69c7ea0d97c3e2309206bdeb097b92032b6dc568e4a87a1c4176efcbf"
     }
+  },
+  "energy_response": {
+    "observers": [
+      "finite_enthalpy",
+      "flux_enthalpy",
+      "conversion",
+      "mixing_work"
+    ],
+    "mass": [
+      7.618196990814698e+16,
+      7.0230253509072984e+16,
+      6.427853710999901e+16,
+      5.832682071092502e+16,
+      5.237510431185104e+16,
+      4.642338791277706e+16,
+      4.047167151370308e+16,
+      3.4519955114629096e+16,
+      2.856823871555511e+16,
+      2.2616522316481132e+16,
+      1.666480591740715e+16,
+      1.1903432798147964e+16,
+      8332402958703575.0,
+      5951716399073982.0
+    ],
+    "area_rho": 119034327981479.64,
+    "incoming_residual_partial": [
+      0.962337859761125,
+      0.0,
+      0.8301875513496436,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.32849409752289666,
+      0.38284109702222896,
+      0.37087954318771565,
+      0.3663554430320773,
+      0.352395089278883,
+      0.0,
+      0.0,
+      0.9623378597611252,
+      0.1851971312567981,
+      0.5022936017720709,
+      0.22819007130473964,
+      0.38377322217509147,
+      0.3401624727555051,
+      0.29159529868829004,
+      0.34726312401430875,
+      0.30866867890147176,
+      0.3708795431877156,
+      0.36635544303207734,
+      0.29128652788231446,
+      0.003986772282956586
+    ],
+    "primal": [
+      1116858615212.47,
+      1116858615212.47,
+      -191635547493.08667,
+      1308494162705.5566
+    ],
+    "tangent": [
+      402463680100.21747,
+      402463680100.21747,
+      -59818434501.46229,
+      462282114601.67975
+    ],
+    "finite": [
+      {
+        "beta": 0.001,
+        "values": [
+          1117261280157.783,
+          1117261280157.783,
+          -191695395836.2522,
+          1308956675994.0356
+        ]
+      },
+      {
+        "beta": -0.001,
+        "values": [
+          1116456352663.4702,
+          1116456352663.4702,
+          -191575758947.3193,
+          1308032111610.7898
+        ]
+      },
+      {
+        "beta": 0.0003,
+        "values": [
+          1116979372426.1438,
+          1116979372426.1438,
+          -191653495714.5872,
+          1308632868140.7317
+        ]
+      },
+      {
+        "beta": -0.0003,
+        "values": [
+          1116737894214.463,
+          1116737894214.463,
+          -191617604653.34882,
+          1308355498867.8118
+        ]
+      }
+    ],
+    "energy_precision_J": 464.8836089478129,
+    "work_precision_J": 0.01,
+    "reference_method": "Finite values use independently checked 80-digit actual-pressure energy integrals at the physical column endpoints. Variations differentiate density under the pressure integral, independently of native enthalpy-derivative formulas. The energy variation budget uses the declared energy recovery ceiling; the mixing-work precision criterion remains 0.01 J.",
+    "source_sha256": {
+      "eos5-native-enthalpy-v1-cpu/result.json": "720070538d0232ba852c1785d5a3e77cb41cfcdc235108711ae30518ab315f94",
+      "eos5-energy-adjoint-v1-cpu/result.json": "66ab98f0a8aa4f6f07762ece8fc67d803379c19317b9a430ff27a0518c267b0a"
+    }
   }
 }
