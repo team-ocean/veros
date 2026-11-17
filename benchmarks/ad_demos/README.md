@@ -117,14 +117,47 @@ above, the two clocks, gravity, reference density and the energy-transport facto
 Reverse differentiation composes `prepare` with `differentiable_moments`. The reference
 fixture checks preparation and conditional-moment derivatives against independent
 80-digit variational equations. Conditional off-root points verify derivatives of the
-mean equations. They do not establish a self-consistent physical perturbation, an
-implicit control derivative or a full Veros timestep.
+mean equations. The solved physical-response example below checks the adjustment
+of the mixing means to incoming turbulent energy.
 
 ```sh
 JAX_PLATFORMS=cpu VEROS_USE_SPECIAL_TDMA=0 python -m pytest test/prepared_column_native_test.py --backend jax
 ```
 
 Set `VEROS_USE_SPECIAL_TDMA=1` to check the compiled solver when its extension is built.
+
+## Self-consistent column response
+
+`prepared_column_response.linear_response(args, weights)` computes the local
+implicit response to a uniform log change in incoming turbulent energy about an
+accepted mean solution. `args` follows the positional order of `prepare`, and
+`weights = rho0 * area * width * dt_tracer` gives mixing work in joules. The helper
+returns the mean Jacobian, adjusted mean response, observation tangents and work
+calculated by direct and adjoint linear solves.
+
+Use that reference Jacobian for a bounded nearby physical solve:
+
+```python
+from benchmarks.ad_demos.prepared_column_response import linear_response, solve
+
+local = linear_response(args, weights)
+beta = 0.001
+point = solve(args, weights, local["jacobian"], log_energy=beta,
+              initial=beta * local["log_mean_response"])
+```
+
+The solve accepts only certified event results, mean residuals below `1e-13`,
+and work consistency and consecutive-solve changes below `0.01` J. Its default
+limit is sixteen evaluations. The fixture checks four signed physical changes,
+independent moments and energy calculations, second-order Taylor behavior and the
+finite mixing prediction. The tested scope is one short actual column response.
+Full Veros timesteps, broader physical controls and global source policies remain
+unverified. These host helpers provide explicit linear solves rather than an AD
+rule for the converged root.
+
+```sh
+JAX_PLATFORMS=cpu python -m pytest test/prepared_column_response_test.py --backend jax
+```
 
 ## Scientific cases
 
