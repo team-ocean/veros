@@ -118,3 +118,82 @@ def test_startup_bound_covers_source_cancellation(startup):
     event = function(*event_args, weights / 2)
     assert int(event["status"]) == 0
     assert np.all(np.asarray(event["upper_energy"]) >= case["upper_energy"])
+
+
+@pytest.fixture(scope="module")
+def physical_startup_points(startup):
+    import jax.numpy as jnp
+    from benchmarks.ad_demos.prepared_column_startup import solve
+
+    r, args, _, _, _, weights, _, _ = startup
+    points = {}
+    for case in r["physical_solve"]["cases"]:
+        changed = list(args)
+        for i in (0, 1):
+            changed[i] = args[i].at[2:].multiply(jnp.exp(case["alpha"]))
+        points[case["alpha"]] = solve(tuple(changed), weights, initial=case["initial_log_means"])
+    return points
+
+
+@pytest.mark.parametrize("alpha", [0.001, -0.001, 0.0003, -0.0003])
+def test_empty_physical_solve_matches_independent_trials(startup, physical_startup_points, alpha):
+    r, _, _, _, _, _, _, _ = startup
+    case = next(x for x in r["physical_solve"]["cases"] if x["alpha"] == alpha)
+    point = physical_startup_points[alpha]
+    out = point["observations"]
+    assert point["evaluations"] <= 16
+    assert point["tighter_work_change_J"] <= 0.01
+    assert point["physical_bank_error"] <= point["physical_bank_bound"]
+    assert np.max(abs(np.asarray(out["residual"]))) <= 1e-13
+    assert abs(np.longdouble(out["work"]) - np.longdouble(case["mixing_work_J"])) <= 0.01
+    for key, value in case["moments"].items():
+        np.testing.assert_allclose(np.asarray(out[key]), value, rtol=1e-11, atol=1e-16)
+    for i, key in enumerate(("T", "S", "U", "V")):
+        carried = np.asarray(out["cn_high"][i], dtype=np.longdouble) + np.asarray(out["cn_low"][i], dtype=np.longdouble)
+        np.testing.assert_allclose(carried, case["CN"][key], rtol=1e-12, atol=1e-11)
+
+
+def test_empty_solve_rejects_energy_invalid_near_root(startup):
+    import jax
+    import jax.numpy as jnp
+    from benchmarks.ad_demos.prepared_column_startup import evaluate, solve
+
+    r, args, _, _, _, weights, _, _ = startup
+    case = r["physical_solve"]["energy_rejection"]
+    changed = list(args)
+    for i in (0, 1):
+        changed[i] = args[i].at[2:].multiply(jnp.exp(case["alpha"]))
+    changed = tuple(changed)
+    out, event = jax.jit(evaluate)(jnp.asarray(case["near_root_log_means"]), changed, weights)
+    assert int(event["status"]) == 0
+    assert np.max(abs(np.asarray(out["residual"]))) <= 1e-13
+    cn_work = np.sum(np.asarray(weights, dtype=np.longdouble) * np.asarray(out["N"]) * np.asarray(out["input_kh"]))
+    assert abs(np.longdouble(out["work"]) - cn_work) <= 0.01
+    assert case["original_combined_bank_error"] > case["original_bank_bound"]
+    with pytest.raises(RuntimeError, match="evaluation cap"):
+        solve(changed, weights, initial=case["near_root_log_means"], max_evaluations=2)
+    point = solve(changed, weights, initial=case["near_root_log_means"])
+    assert point["evaluations"] > 2
+    assert point["physical_bank_error"] <= point["physical_bank_bound"]
+
+
+@pytest.mark.parametrize("field", [9, 10])
+def test_empty_solve_rejects_energy_or_history(startup, field):
+    import jax.numpy as jnp
+    from benchmarks.ad_demos.prepared_column_startup import solve
+
+    _, args, _, _, _, weights, _, _ = startup
+    changed = list(args)
+    changed[field] = jnp.full_like(changed[field], 1e-8)
+    with pytest.raises(ValueError, match="certified empty-start domain"):
+        solve(tuple(changed), weights)
+
+
+def test_empty_solve_requires_floor_viscosity(startup):
+    from benchmarks.ad_demos.prepared_column_startup import solve
+
+    _, args, _, _, _, weights, _, _ = startup
+    changed = list(args)
+    changed[2] = args[2] * 1.01
+    with pytest.raises(ValueError, match="viscosity at its floor"):
+        solve(tuple(changed), weights)

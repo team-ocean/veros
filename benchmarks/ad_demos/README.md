@@ -221,10 +221,18 @@ bounds check that viscosity, thermal and geometric branch limits remain inactive
 The equilibrium envelope includes rounding in supplied and consumed power.
 These checks use roundoff-expanded arithmetic. Callers must check `status == 0`.
 
-The fixture verifies one actual zero-start column, its source withdrawal, native
-CN/energy calculations and independent high-precision startup bounds. Only forward
-moments are verified. Sensitivities and later source-history updates require
-separate checks.
+`prepared_column_startup.solve(args, weights)` solves nearby thermal mixing means
+using the native preparation argument order. Viscosity must remain at its floor.
+The host fixed-point iteration stops after sixteen evaluations. Acceptance requires
+the mean residual, mixing-work consistency and physical energy balance, including
+the bounded startup error, to meet their precision limits. Two eligible evaluations
+must agree on work within `0.01` J. The returned observations contain the CN fields
+and energy moments. An uncertified input or an exhausted solve raises an exception.
+
+The fixture checks one actual zero-start column, its source withdrawal, native
+CN/energy calculations, independent startup bounds and four signed initial-velocity
+trials. Only forward moments and physical solves are supported here. Sensitivities
+and later source-history updates require separate checks.
 
 ```sh
 JAX_PLATFORMS=cpu python -m pytest test/prepared_column_startup_test.py --backend jax
