@@ -6,7 +6,6 @@ used for surface pressure or free surface
 method same as pressure method in MITgcm
 """
 
-
 from veros import veros_routine
 from veros.routines import veros_kernel
 from veros.state import KernelOutput
@@ -15,6 +14,7 @@ from veros.core import utilities as mainutils
 from veros.core.operators import update, update_add, at, for_loop
 from veros.core.operators import numpy as npx
 from veros.core.external.solvers import get_linear_solver
+from veros.core.geometry import cell_thickness
 
 
 @veros_routine
@@ -117,12 +117,18 @@ def prepare_forcing(state):
     uloc = update(
         uloc,
         at[2:-2, 2:-2],
-        npx.sum((vs.u[2:-2, 2:-2, :, vs.taup1]) * vs.maskU[2:-2, 2:-2, :] * vs.dzt, axis=(2,)) / settings.dt_mom,
+        npx.sum(
+            vs.u[2:-2, 2:-2, :, vs.taup1] * vs.maskU[2:-2, 2:-2, :] * cell_thickness(state, "U")[2:-2, 2:-2], axis=2
+        )
+        / settings.dt_mom,
     )
     vloc = update(
         vloc,
         at[2:-2, 2:-2],
-        npx.sum((vs.v[2:-2, 2:-2, :, vs.taup1]) * vs.maskV[2:-2, 2:-2, :] * vs.dzt, axis=(2,)) / settings.dt_mom,
+        npx.sum(
+            vs.v[2:-2, 2:-2, :, vs.taup1] * vs.maskV[2:-2, 2:-2, :] * cell_thickness(state, "V")[2:-2, 2:-2], axis=2
+        )
+        / settings.dt_mom,
     )
 
     uloc = mainutils.enforce_boundaries(uloc, settings.enable_cyclic_x)

@@ -282,6 +282,10 @@ def horizontal_diffusion(state, tr, diffusivity):
             flux_north, at[...], vs.cosu[npx.newaxis, :, npx.newaxis] ** settings.hor_friction_cosPower
         )
 
+    if settings.enable_partial_cells:
+        flux_east = flux_east * vs.hfacU
+        flux_north = flux_north * vs.hfacV
+
     dtr_hmix = update(
         dtr_hmix,
         at[1:, 1:, :],
@@ -294,4 +298,6 @@ def horizontal_diffusion(state, tr, diffusivity):
         * vs.maskT[1:, 1:, :],
     )
 
+    if settings.enable_partial_cells:
+        dtr_hmix = dtr_hmix / npx.where(vs.maskT, vs.hfacT, 1)
     return dtr_hmix, flux_east, flux_north

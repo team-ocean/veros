@@ -239,6 +239,9 @@ class VerosSetup(metaclass=abc.ABCMeta):
                 plugin.setup_entrypoint(self.state)
 
             self.set_diagnostics(self.state)
+            from veros.core.geometry import validate_diagnostics
+
+            validate_diagnostics(self.state)
             diagnostics.initialize(self.state)
             restart.read_restart(self.state)
 

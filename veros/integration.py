@@ -40,7 +40,11 @@ def compilation_reasons(simulation, linear_solver=None):
     reasons = []
     if runtime_settings.backend != "jax":
         reasons.append("compiled integration requires the JAX backend")
+    if simulation.state.settings.enable_partial_cells and runtime_state.proc_num != 1:
+        reasons.append("Partial cells currently require serial JAX execution")
     solver = runtime_settings.linear_solver if linear_solver is None else linear_solver
+    if simulation.state.settings.enable_partial_cells and solver == "petsc":
+        raise ValueError("Partial cells require the variable-coefficient scipy_jax solver")
     if solver not in ("best", "scipy", "petsc", "scipy_jax"):
         raise ValueError("Unrecognized compiled linear_solver")
     if solver not in ("best", "petsc", "scipy_jax"):
@@ -101,6 +105,9 @@ class PreparedIntegrator:
             raise CompiledCompatibilityError("; ".join(reasons))
         import jax
         from veros.core.external.solvers import get_compiled_solver
+        from veros.core.geometry import validate_diagnostics
+
+        validate_diagnostics(simulation.state)
 
         if not math.isfinite(simulation.state.settings.dt_tracer) or simulation.state.settings.dt_tracer <= 0:
             raise ValueError("dt_tracer must be finite and positive")
@@ -144,6 +151,8 @@ class PreparedIntegrator:
                 name for name, diag in self._diagnostics.items() if diag.output_frequency and name != "snapshot"
             )
         self.record_diagnostics = tuple(record_diagnostics)
+        if self._template.settings.enable_partial_cells and set(self.record_diagnostics) & {"energy", "overturning"}:
+            raise ValueError("Partial cells do not yet support energy or overturning records")
         for name in self.record_diagnostics:
             if name in self.host_diagnostics:
                 raise TypeError(f"Diagnostic {name} needs pure sampling/finalization for differentiated records")
@@ -295,6 +304,40 @@ class PreparedIntegrator:
                 raise TypeError(f"Parameter {name!r} must be a floating-point scalar")
             normalized[name] = jnp.asarray(value, dtype=runtime_settings.float_type)
         return normalized
+
+    def bathymetry_bounds(self, carry, *, minimum_fraction=0.1):
+        """Return interior depth bounds in meters for the fixed bottom-cell indices."""
+        from veros.core.geometry import bathymetry_bounds
+
+        if not self._template.settings.enable_partial_cells:
+            raise ValueError("Bathymetry controls require enable_partial_cells=True before setup")
+        if not 0 < minimum_fraction <= 1:
+            raise ValueError("minimum_fraction must lie in (0, 1]")
+        with tracing_context():
+            lower, upper = bathymetry_bounds(self._make_state(carry.variables), minimum_fraction)
+        return lower[2:-2, 2:-2], upper[2:-2, 2:-2]
+
+    def with_bathymetry(self, carry, depth, *, minimum_fraction=0.1):
+        """Return a carry with positive interior bottom depths in meters."""
+        import jax.numpy as jnp
+        from veros.core.geometry import bathymetry_geometry
+        from veros.core.operators import update, at
+
+        lower, upper = self.bathymetry_bounds(carry, minimum_fraction=minimum_fraction)
+        depth = jnp.asarray(depth, dtype=carry.variables.dzt.dtype)
+        if depth.shape != upper.shape:
+            raise ValueError(f"depth must have interior shape {upper.shape}, got {depth.shape}")
+        valid = jnp.all(jnp.isfinite(depth) & (depth >= lower) & (depth <= upper))
+        # Keep geometry finite when invalid inputs freeze the trajectory.
+        safe_depth = jnp.where(valid, depth, upper)
+        full_depth = update(carry.variables.ht, at[2:-2, 2:-2], safe_depth)
+        with tracing_context():
+            fields = bathymetry_geometry(self._make_state(carry.variables), full_depth)
+        carry = self.replace_variables(carry, **fields._asdict())
+        return carry._replace(
+            failure_code=jnp.where((carry.failure_code == 0) & ~valid, 4, carry.failure_code),
+            failed_iteration=jnp.where((carry.failure_code == 0) & ~valid, carry.variables.itt, carry.failed_iteration),
+        )
 
     def validate_step_inputs(self, step_inputs):
         """Normalize explicit forcing arrays to the prepared variable schema."""
@@ -490,6 +533,7 @@ class PreparedIntegrator:
                 1: "solution diverged",
                 2: "linear solver did not converge",
                 3: "CFL number is not finite",
+                4: "bathymetry is outside fixed-topology depth bounds",
             }[code]
             raise RuntimeError(f"{reason} at iteration {int(carry.failed_iteration)}")
 
