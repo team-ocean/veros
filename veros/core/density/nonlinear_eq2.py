@@ -6,7 +6,7 @@
   pressure p in dbar
 ==========================================================================
 """
-from veros import veros_kernel
+from veros import veros_kernel, runtime_settings
 
 rho0 = 1024.0
 z0 = 0.0
@@ -39,8 +39,14 @@ def nonlin2_eq_of_state_rho(sa, ct, p):
 def nonlin2_eq_of_state_dyn_enthalpy(sa, ct, p):
     zz = -p - z0
     thetas = ct - theta0
+    if runtime_settings.pyom_compatibility_mode:
+        # PyOM2 uses the full quadratic thermal term, which does not match its density
+        thermal_quad = betaTs * thetas**2
+    else:
+        # integral of the density's betaTs / 2 * thetas**2 term (#906)
+        thermal_quad = betaTs / 2 * thetas**2
     return grav * 0.5 * zz**2 * (-grav / cs0**2 + betaT * grav * rho0 * gammas * thetas) + grav * zz * (
-        -betaT * thetas - betaTs * thetas**2 + betaS * (sa - S0)
+        -betaT * thetas - thermal_quad + betaS * (sa - S0)
     )
 
 
@@ -67,7 +73,7 @@ def nonlin2_eq_of_state_drhodS():
 
 
 @veros_kernel
-def nonlin2_eq_of_state_drhodP(ct):
+def nonlin2_eq_of_state_drhodp(ct):
     thetas = ct - theta0
     return 1 / cs0**2 - betaT * gammas * rho0 * thetas
 
