@@ -235,6 +235,20 @@ For consecutive phases, pass the ending turbulent energy into the next phase.
 The caller supplies the phase durations, apportions available work and checks
 the complete tracer and mechanical energy budget.
 
+## Paired advance with shared friction work
+
+`prepared_pair.solve` advances two adjacent, complete wet tracer columns using
+their staggered momentum faces. It predicts viscosity from an early half-step,
+then uses the mean of the initial and predicted viscosity in full-step momentum.
+The implicit tracer step receives early friction work and the remaining credit
+in two phases. Each owner receives half the work at a shared face.
+
+Supply the initial tracer and turbulence fields, staggered face geometry, preceding
+squared shear, and finite eddy reservoirs. Supply each wet face once and hold its
+exterior viscosity fixed. Both columns require positive energy, stable
+stratification, free mixing length and inactive viscosity caps. The call returns
+the finished tracer states, remaining eddy energy, face velocities and work ledger.
+
 ## Empty-column startup
 
 `prepared_column_startup.integrate_empty` advances moments from exactly zero
