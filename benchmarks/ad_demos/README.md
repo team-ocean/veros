@@ -225,6 +225,16 @@ at 98°E/66°S checks moments and mixing-work derivatives through upward crossin
 The native convention uses `integrate` and `differentiable_moments`.
 This alternative has not been adopted for full Veros timesteps or global runs.
 
+## Mixing with supplied preceding shear
+
+`prepared_column_events.integrate_preceding_shear` takes squared vertical shear
+from the preceding momentum step in s⁻². It uses this shear directly to form
+the Richardson number during one phase with a constant source rate.
+`differentiable_preceding_shear_moments` provides the reverse derivative.
+For consecutive phases, pass the ending turbulent energy into the next phase.
+The caller supplies the phase durations, apportions available work and checks
+the complete tracer and mechanical energy budget.
+
 ## Empty-column startup
 
 `prepared_column_startup.integrate_empty` advances moments from exactly zero
