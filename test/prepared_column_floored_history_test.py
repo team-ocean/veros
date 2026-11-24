@@ -158,3 +158,43 @@ def test_floored_history_rejects_empty_incoming_energy(cases):
     assert int(jax.jit(integrate_floored_history)(*changed)["status"]) != 0
     out = jax.jit(differentiable_floored_history_moments)(*changed)
     assert all(np.all(~np.isfinite(np.asarray(x))) for x in out)
+
+
+def test_floored_history_integrates_and_differentiates_upward_crossings(cases):
+    import jax
+    import jax.numpy as jnp
+    from benchmarks.ad_demos.prepared_column_events import (
+        integrate_floored_history,
+        differentiable_floored_history_moments,
+    )
+
+    path = Path(__file__).parent / "reference_data/prepared_column_upward_events.json"
+    case = json.loads(path.read_text())
+    args = tuple(jnp.asarray(case["inputs"][key], dtype=jnp.float64) for key in case["argument_order"])
+    work_weights = jnp.asarray(case["work_weights"]) * args[0]
+
+    def with_log_energy(beta):
+        return args[:6] + (args[6] * jnp.exp(beta),) + args[7:]
+
+    def forward(beta):
+        out = integrate_floored_history(*with_log_energy(beta))
+        return jnp.vdot(work_weights, out["mean_kh"]), out
+
+    beta = jnp.asarray(0.0)
+    _, tangent, out = jax.jit(lambda b: jax.jvp(forward, (b,), (jnp.ones_like(b),), has_aux=True))(beta)
+    assert int(out["status"]) == 0
+    assert bool(out["continuous_branch_certified"])
+    count = int(out["segment_count"])
+    thresholds = np.asarray(out["segment_event_threshold"])[:count]
+    start = np.asarray(out["energy_path"])[:count]
+    np.testing.assert_array_equal(np.argwhere(thresholds > 0), case["crossing_nodes"])
+    assert np.all(start[thresholds > 0] < thresholds[thresholds > 0])
+    for key, expected in case["moments"].items():
+        np.testing.assert_allclose(np.asarray(out[key]), expected, rtol=1e-11, atol=1e-16)
+
+    def objective(beta):
+        return jnp.vdot(work_weights, differentiable_floored_history_moments(*with_log_energy(beta))[3])
+
+    reverse = jax.jit(jax.grad(objective))(beta)
+    assert abs(float(tangent) - case["mixing_work_tangent_J"]) <= 0.01
+    assert abs(float(reverse) - case["mixing_work_tangent_J"]) <= 0.01

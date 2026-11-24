@@ -1,9 +1,10 @@
 """Experimental event integration for a prescribed-input mixing column.
 
 Integration requires positive energy, free length, uncapped viscosity and
-interval-certified absence of upward branch crossings. Status zero denotes an
-accepted calculation. Transport conservation and source ownership belong to the
-caller. Input meanings and units are in the acceptance-demo README.
+interval-certified branch transitions. The native history convention admits
+downward crossings. The floored convention admits either direction. Status zero
+denotes an accepted calculation. The caller owns transport conservation and source
+accounting. See the acceptance-demo README for input meanings and units.
 
 At continuous, transverse events, internal event-time variations cancel from
 endpoints and moments. Reverse AD replays fixed internal times and branches,
@@ -172,11 +173,21 @@ def _integrate(
         remaining = total - elapsed
         end, integral, series_ok = _propagate(A, b, E, remaining)
 
-        def gap(point):
-            safe = jnp.where(jnp.isfinite(bounds), bounds, 1)
-            return jnp.min(jnp.where(pending, (point[:, None] - safe) / safe, jnp.inf))
+        if floored_history:
 
-        crossing = jnp.any(pending) & (gap(end) < 0)
+            def gap(point):
+                down = jnp.where(low > 0, (point - low) / jnp.where(low > 0, low, 1), jnp.inf)
+                up = jnp.where(jnp.isfinite(high), (high - point) / jnp.where(jnp.isfinite(high), high, 1), jnp.inf)
+                return jnp.min(jnp.minimum(down, up))
+
+            crossing = gap(end) < 0
+        else:
+
+            def gap(point):
+                safe = jnp.where(jnp.isfinite(bounds), bounds, 1)
+                return jnp.min(jnp.where(pending, (point[:, None] - safe) / safe, jnp.inf))
+
+            crossing = jnp.any(pending) & (gap(end) < 0)
 
         def locate(_):
             def bisect_condition(q):
@@ -214,18 +225,35 @@ def _integrate(
         aderr = jnp.abs(A) @ derr + eps * (jnp.abs(A) @ jnp.abs(d))
         lower_derivative = dl + Cbound @ jnp.minimum(ad - aderr, 0)
         upper_derivative = du + Cbound @ jnp.maximum(ad + aderr, 0)
-        no_upward = (upper_state < high) | (upper_derivative <= 0)
+        upper_resolved = (upper_state < high) | (upper_derivative <= 0)
+        if floored_history:
+            upper_resolved = upper_resolved | (lower_derivative > 0)
         lower_resolved = (low == 0) | (lower_state > low) | (upper_derivative < 0) | (lower_derivative >= 0)
         domain = (
             (lower_state > N * mxl_min**2 / 2) & (upper_state < N * jnp.min(h) ** 2 / 2) & (a * upper_state < mu_max)
         )
         positive_semigroup = jnp.all(A - jnp.diag(jnp.diag(A)) >= 0)
-        branch_ok = positive_semigroup & jnp.all(no_upward & lower_resolved & domain)
-        remove = pending & (end[:, None] <= bounds * (1 + 128 * jnp.finfo(dtype).eps))
-        new_pending = jnp.where(crossing, pending & ~remove, pending)
-        event = jnp.min(jnp.where(remove, bounds, jnp.inf), axis=1)
-        event = jnp.where(crossing & jnp.isfinite(event), event, 0)
-        progress = ~crossing | jnp.any(remove)
+        branch_ok = positive_semigroup & jnp.all(upper_resolved & lower_resolved & domain)
+        if floored_history:
+            # Require motion across the boundary in the direction of the branch change.
+            tolerance = 128 * jnp.finfo(dtype).eps
+            remove = pending & (end[:, None] <= bounds * (1 + tolerance)) & (upper_derivative[:, None] < 0)
+            add = (
+                ~pending
+                & jnp.isfinite(bounds)
+                & (end[:, None] >= bounds * (1 - tolerance))
+                & (lower_derivative[:, None] > 0)
+            )
+            new_pending = jnp.where(crossing, (pending & ~remove) | add, pending)
+            event = jnp.min(jnp.where(remove | add, bounds, jnp.inf), axis=1)
+            event = jnp.where(crossing & jnp.isfinite(event), event, 0)
+            progress = ~crossing | jnp.any(remove | add)
+        else:
+            remove = pending & (end[:, None] <= bounds * (1 + 128 * jnp.finfo(dtype).eps))
+            new_pending = jnp.where(crossing, pending & ~remove, pending)
+            event = jnp.min(jnp.where(remove, bounds, jnp.inf), axis=1)
+            event = jnp.where(crossing & jnp.isfinite(event), event, 0)
+            progress = ~crossing | jnp.any(remove)
         status = jnp.where(
             ~branch_ok,
             2,

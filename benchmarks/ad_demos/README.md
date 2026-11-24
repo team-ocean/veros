@@ -213,12 +213,16 @@ alternative to the native raw-viscosity convention. It divides stored friction
 power by `max(mu_floor, raw_viscosity)` when forming the Richardson number. Thermal
 diffusivity still uses the raw turbulent coefficient. The argument order, units
 and positive-energy, free-length and inactive-cap requirements match `integrate`.
-Use `differentiable_floored_history_moments` for its reverse derivative.
+Use `differentiable_floored_history_moments` for its reverse derivative. The floored
+calculation resolves certified transverse crossings in either direction. This
+allows growing turbulent energy to carry viscosity or thermal diffusivity across
+a mixing threshold.
 
 Independent fixtures cover an active-mixing column at 170°E/54°S and a floor-bound
 column at 98°E/2°S with carried friction history. Incoming-energy variations and an
-analytic intermediate-Prandtl branch check the derivatives. The existing native
-convention remains available through `integrate` and `differentiable_moments`.
+analytic intermediate-Prandtl branch check the derivatives. A four-level profile
+at 98°E/66°S checks moments and mixing-work derivatives through upward crossings.
+The native convention uses `integrate` and `differentiable_moments`.
 This alternative has not been adopted for full Veros timesteps or global runs.
 
 ## Empty-column startup
