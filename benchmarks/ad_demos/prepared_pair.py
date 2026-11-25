@@ -36,6 +36,15 @@ class Column:
 
 
 @dataclass(frozen=True)
+class ColumnDirection:
+    high: np.ndarray
+    low: np.ndarray
+    energy: np.ndarray
+    stratification: np.ndarray
+    preceding_shear: np.ndarray
+
+
+@dataclass(frozen=True)
 class Side:
     """One live column slice or a prescribed exterior viscosity profile."""
 
@@ -398,7 +407,7 @@ def solve_tracer_tangent(column, solved, *, high, low, energy, preceding_shear, 
         if key not in ("resolved_face_loss_J", "resolved_face_roundoff_J")
     }
     fields.update(mu=jnp.asarray(accepted["input_mu"]), kh=jnp.asarray(accepted["input_kh"]))
-    directions = {key: jnp.asarray(value) for key, value in directions.items()}
+    directions = {key: jnp.asarray(np.asarray(value, dtype=host[key].dtype)) for key, value in directions.items()}
     directions["source_rate"] = jnp.mean(directions["source_schedule"], axis=0)
     size = 2 * len(fields["mu"]) - 1
     origin = jnp.zeros(size, dtype=fields["mu"].dtype)
@@ -527,12 +536,12 @@ def _split_viscosity(args):
     )
 
 
-def _forecast_viscosity(result):
+def _forecast_phase_inputs(result):
     host, state, trace = (result[k] for k in ("inputs", "output", "event"))
     dt = float(host["dt_mom"]) / 4
     ratio = float(host["dt_tracer"]) / float(host["dt_mom"])
     for p, rate in enumerate(host["source_schedule"]):
-        args = (
+        yield (
             state["N"],
             state["Q"],
             state["M"],
@@ -550,6 +559,10 @@ def _forecast_viscosity(result):
             host["mu_floor"],
             host["mu_max"],
         )
+
+
+def _forecast_viscosity(result):
+    for args in _forecast_phase_inputs(result):
         for status, certified, viscosity in _split_viscosity(tuple(jnp.asarray(x) for x in args)):
             if int(status) or not bool(certified):
                 raise ValueError("the viscosity left its certified branch within a work window")
@@ -594,6 +607,7 @@ def solve_prospective(columns, faces, settings, dt_mom, dt_tracer):
     candidates, moving = columns, faces
     samples = [viscosity(columns)]
     leads = []
+    lead_work = []
     for _ in range(3):
         work = _face_work(candidates, moving, samples[-1], quarter[0], rho)
         rates = tuple(rate[None, :] for rate in work["rates"])
@@ -602,6 +616,7 @@ def solve_prospective(columns, faces, settings, dt_mom, dt_tracer):
         candidates = _carry_columns(candidates, lead)
         moving = _carry_faces(moving, work["velocity"])
         leads.append(lead)
+        lead_work.append(work)
         samples.append(viscosity(candidates))
 
     mean = tuple(np.mean(np.stack(column), axis=0) for column in zip(*samples))
@@ -628,5 +643,151 @@ def solve_prospective(columns, faces, settings, dt_mom, dt_tracer):
         forecast=forecast,
         corrected=corrected,
         full_work=work,
+        schedule=schedule,
+        lead_work=tuple(lead_work),
+        work_windows=tuple(work_windows),
+    )
+
+
+def _viscosity_direction(column, viscosity, direction, settings):
+    raw = (
+        settings["c_k"]
+        * np.sqrt(2.0)
+        * np.sqrt(column.energy)
+        / np.sqrt(column.stratification)
+        * np.sqrt(column.energy)
+    )
+    relative = direction.energy / column.energy - direction.stratification / (2 * column.stratification)
+    floor = settings["kappaM_min"]
+    if np.any((raw == floor) & (relative != 0)):
+        raise ValueError("the opening viscosity derivative meets the active floor")
+    return np.where(raw > floor, viscosity * relative, 0)
+
+
+@jax.jit
+def _split_viscosity_tangent(args, direction):
+    def moments(N, Q, fraction, energy, shear, rate):
+        halves = integrate_preceding_shear_halves(
+            N, Q, args[2], args[3], fraction, args[5], energy, shear, args[8], rate, *args[10:]
+        )
+        return halves[-1]["end"], tuple(half["mean_mu"] for half in halves)
+
+    active = tuple(args[i] for i in (0, 1, 4, 6, 7, 9))
+    return jax.jvp(moments, active, direction)[1]
+
+
+def _forecast_viscosity_tangent(result, tangent, column, source):
+    energy = column.energy
+    for p, args in enumerate(_forecast_phase_inputs(result)):
+        direction = (
+            tangent["N"],
+            tangent["Q"],
+            tangent["phase_fractions"][p],
+            energy,
+            column.preceding_shear,
+            source[p],
+        )
+        active = tuple(args[i] for i in (0, 1, 4, 6, 7, 9))
+        slopes = tuple(
+            jnp.asarray(np.asarray(value, dtype=np.asarray(base).dtype))
+            for base, value in zip(active, direction, strict=True)
+        )
+        energy, means = _split_viscosity_tangent(tuple(map(jnp.asarray, args)), slopes)
+        yield from map(np.asarray, means)
+
+
+def _interval_shear_tangent(columns, faces, closing, opening_direction, closing_direction):
+    shear = [np.zeros(len(c.energy), dtype=L) for c in columns]
+    for face, u, dp, df in zip(faces, closing, opening_direction, closing_direction, strict=True):
+        spacing = face.spacing.astype(L)
+        mean = np.diff((face.velocity.astype(L) + u.astype(L)) / 2) / spacing
+        variation = np.diff((np.asarray(dp, dtype=L) + np.asarray(df, dtype=L)) / 2) / spacing
+        for side in face.sides:
+            if side.column is None:
+                continue
+            i, k = side.column, side.offset
+            share = L(face.area) / (2 * L(columns[i].area))
+            shear[i][k : k + len(mean)] += 2 * share * mean * variation
+    return tuple(np.asarray(s, dtype=float) for s in shear)
+
+
+def solve_prospective_tangent(columns, faces, settings, dt_mom, dt_tracer, solved, *, column, velocity):
+    """Differentiate one accepted prospective advance and return the carried directions."""
+    clocks = _pair_clocks(columns, faces, dt_mom, dt_tracer)
+    quarter = clocks[0] / 4
+
+    def start_viscosity(state, directions):
+        profiles = tuple(_viscosity(c.energy, c.stratification, c.thickness, settings) for c in state)
+        slopes = tuple(
+            _viscosity_direction(c, v, d, settings) for c, v, d in zip(state, profiles, directions, strict=True)
+        )
+        return profiles, slopes
+
+    def tracer_tangents(state, roots, directions, source):
+        return tuple(
+            solve_tracer_tangent(
+                c,
+                root,
+                high=d.high,
+                low=d.low,
+                energy=d.energy,
+                preceding_shear=d.preceding_shear,
+                source_schedule=rates,
+            )
+            for c, root, d, rates in zip(state, roots, directions, source, strict=True)
+        )
+
+    def carry_tracer(tangent, shear):
+        return tuple(
+            ColumnDirection(t["cn_high"], t["cn_low"], t["end"], t["Nnew"], s)
+            for t, s in zip(tangent, shear, strict=True)
+        )
+
+    candidates, moving = columns, faces
+    directions, speed = column, velocity
+    moments, leads, profiles, slopes = [], [], [], []
+    for roots, work in zip(solved["leads"], solved["lead_work"], strict=True):
+        nu, dnu = start_viscosity(candidates, directions)
+        profiles.append(nu)
+        slopes.append(dnu)
+        dh = solve_momentum_tangent(candidates, moving, nu, quarter, velocity=speed, viscosity=dnu)
+        source = tuple(r[None, :] for r in dh["rates"])
+        tracer = tracer_tangents(candidates, roots, directions, source)
+        moments.append(dh)
+        leads.append(tracer)
+        candidates = _carry_columns(candidates, roots)
+        moving = _carry_faces(moving, work["velocity"])
+        directions, speed = carry_tracer(tracer, dh["shear"]), dh["velocity"]
+    nu, dnu = start_viscosity(candidates, directions)
+    profiles.append(nu)
+    slopes.append(dnu)
+    mean = tuple(np.mean(np.stack(v), axis=0) for v in zip(*profiles))
+    dmean = tuple(np.mean(np.stack(v), axis=0) for v in zip(*slopes))
+    provisional = solve_momentum_tangent(columns, faces, mean, clocks[0], velocity=velocity, viscosity=dmean)
+    early = zip(*(item["rates"] for item in moments))
+    source = tuple(np.stack((*q, 4 * total - sum(q))) for q, total in zip(early, provisional["rates"], strict=True))
+    forecast = tracer_tangents(columns, solved["forecast"], column, source)
+    means = zip(*map(_forecast_viscosity, solved["forecast"]), strict=True)
+    forecast_directions = (
+        _forecast_viscosity_tangent(root, tangent, old, rates)
+        for root, tangent, old, rates in zip(solved["forecast"], forecast, column, source, strict=True)
+    )
+
+    moving, speed = faces, velocity
+    mechanical = []
+    for work, nu, dnu in zip(solved["work_windows"], means, zip(*forecast_directions, strict=True), strict=True):
+        dh = solve_momentum_tangent(columns, moving, nu, clocks[0] / 8, velocity=speed, viscosity=dnu)
+        mechanical.append(dh)
+        moving = _carry_faces(moving, work["velocity"])
+        speed = dh["velocity"]
+    schedule = tuple(np.stack(r) for r in zip(*(work["rates"] for work in mechanical)))
+    shear = _interval_shear_tangent(columns, faces, solved["full_work"]["velocity"], velocity, speed)
+    corrected = tracer_tangents(columns, solved["corrected"], column, schedule)
+    return dict(
+        columns=carry_tracer(corrected, shear),
+        velocity=speed,
+        leads=tuple(leads),
+        forecast=forecast,
+        corrected=corrected,
         schedule=schedule,
     )

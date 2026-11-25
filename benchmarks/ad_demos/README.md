@@ -274,6 +274,12 @@ column viscosities with their directions. It differentiates the resolved face
 velocities, allotted friction work and outgoing squared shear. Exterior
 viscosity is fixed.
 
+`prepared_pair.solve_prospective_tangent` takes the accepted result of
+`solve_prospective` and directions for the opening columns and face velocities.
+It returns the changes in corrected tracer work and the state carried forward.
+Use the returned column and velocity directions with the next forward result
+to differentiate consecutive intervals.
+
 ## Empty-column startup
 
 `prepared_column_startup.integrate_empty` advances moments from exactly zero
