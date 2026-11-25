@@ -40,7 +40,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install CUDA
-        if: runner.os == 'Linux' && matrix.nocc != 'true'
+        if: runner.os == 'Linux' && !matrix.nocc
         run: |
           sudo apt-get update
           sudo apt-get install nvidia-cuda-toolkit
@@ -51,7 +51,7 @@ jobs:
           python -m pip install .
 
       - name: Install editable Veros with JAX
-        if: matrix.nocc != 'true'
+        if: ${{ !matrix.nocc }}
         run: |
           export VEROS_REQUIRE_CYTHON_EXT=1
           if [ ${{ runner.os }} = "Linux" ]; then
@@ -60,9 +60,9 @@ jobs:
           python -m pip install -e '.[jax]'
 
       - name: Import CPU TDMA extension
-        if: matrix.nocc != 'true'
+        if: ${{ !matrix.nocc }}
         run: python -c "from veros.core.special.tdma_cython_ import cpu_ffi_targets"
 
       - name: Import CUDA TDMA extension
-        if: runner.os == 'Linux' && matrix.nocc != 'true'
+        if: runner.os == 'Linux' && !matrix.nocc
         run: python -c "from veros.core.special.tdma_cuda_ import gpu_ffi_targets"
