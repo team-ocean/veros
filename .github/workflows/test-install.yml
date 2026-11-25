@@ -50,27 +50,19 @@ jobs:
           if ${{ matrix.nocc }}; then export CC=foobar; fi
           python -m pip install .
 
-      - name: Build extensions
+      - name: Install editable Veros with JAX
         if: matrix.nocc != 'true'
         run: |
           export VEROS_REQUIRE_CYTHON_EXT=1
           if [ ${{ runner.os }} = "Linux" ]; then
             export VEROS_REQUIRE_CUDA_EXT=1
           fi
-          pip install -U setuptools wheel cython
-          pip install "jaxlib==0.5.0; python_version < '3.14'" "jaxlib==0.7.2; python_version >= '3.14'"
-          python setup.py build_ext --inplace
+          python -m pip install -e '.[jax]'
 
-      - name: Test whether Cython extensions are present
+      - name: Import CPU TDMA extension
         if: matrix.nocc != 'true'
-        run: |
-          if [ ${{ runner.os }} = "Windows" ]; then
-            test -f veros/core/special/tdma_cython_.*.pyd
-          else
-            test -f veros/core/special/tdma_cython_.*.so
-          fi
+        run: python -c "from veros.core.special.tdma_cython_ import cpu_ffi_targets"
 
-      - name: Test whether CUDA extensions are present
+      - name: Import CUDA TDMA extension
         if: runner.os == 'Linux' && matrix.nocc != 'true'
-        run: |
-          test -f veros/core/special/tdma_cuda_.*.so
+        run: python -c "from veros.core.special.tdma_cuda_ import gpu_ffi_targets"
