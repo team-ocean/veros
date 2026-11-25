@@ -193,7 +193,7 @@ Enhancing Veros
 
 Veros was written with extensibility in mind. If you already know some Python and have worked with NumPy, you are pretty much ready to write your own extension. The model code is located in the :file:`veros` subfolder, while all of the numerical routines are located in :file:`veros/core`.
 
-We believe that the best way to learn how Veros works is to read its source code. Starting from the :py:class:`Veros base class <veros.VerosSetup>`, you should be able to work your way through the flow of the program, and figure out where to add your modifications. If you installed Veros through :command:`pip -e` or :command:`setup.py develop`, all changes you make will immediately be reflected when running the code.
+We believe that the best way to learn how Veros works is to read its source code. Starting from the :py:class:`Veros base class <veros.VerosSetup>`, you should be able to work your way through the flow of the program, and figure out where to add your modifications. If you installed Veros with :command:`pip install -e`, your Python changes take effect immediately.
 
 In case you want to add additional output capabilities or compute additional quantities without changing the main solution of the simulation, you should consider :doc:`adding a custom diagnostic </reference/diagnostics>`.
 

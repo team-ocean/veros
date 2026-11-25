@@ -1,3 +1,78 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "veros"
+dynamic = ["version", "dependencies", "optional-dependencies"]
+description = "The versatile ocean simulator, in pure Python, powered by JAX."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Dion Häfner (NBI Copenhagen)", email = "dion.haefner@nbi.ku.dk" }]
+keywords = ["oceanography", "python", "parallel", "numpy", "multi-core", "geophysics", "ocean-model", "mpi4py", "jax"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+]
+
+[project.urls]
+Homepage = "https://veros.readthedocs.io"
+
+[project.scripts]
+veros = "veros.cli.veros:cli"
+veros-run = "veros.cli.veros_run:cli"
+veros-copy-setup = "veros.cli.veros_copy_setup:cli"
+veros-resubmit = "veros.cli.veros_resubmit:cli"
+veros-create-mask = "veros.cli.veros_create_mask:cli"
+
+[project.entry-points."veros.setup_dirs"]
+base = "veros.setups"
+
+[tool.hatch.version]
+source = "code"
+path = "hatch_build.py"
+expression = "get_version()"
+
+[tool.hatch.metadata.hooks.custom]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/veros",
+    "/test",
+    "/CMakeLists.txt",
+    "/hatch_build.py",
+    "/requirements.txt",
+    "/requirements_jax.txt",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["veros"]
+exclude = ["/veros/core/special/*.so", "/veros/core/special/*.pyd"]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+# Use the oldest FFI headers available for each supported Python ABI.
+dependencies = [
+    "cmake>=3.24",
+    "nanobind>=2.10",
+    "ninja; sys_platform != 'win32'",
+    "jaxlib==0.5.0; python_version < '3.14'",
+    "jaxlib==0.7.2; python_version >= '3.14'",
+]
+
 [tool.black]
 line-length = 120
 target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
@@ -7,13 +82,3 @@ target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
 testpaths = [
     "test",
 ]
-
-
-[build-system]
-# Use the oldest FFI headers available for each supported Python ABI.
-requires = [
-    "setuptools>=84.2.0", "wheel", "cython",
-    "jaxlib==0.5.0; python_version < '3.14'",
-    "jaxlib==0.7.2; python_version >= '3.14'",
-]
-build-backend = "setuptools.build_meta"

@@ -19,7 +19,7 @@ Because Veros should be usable by both beginners and experts, it has a number of
     * - JAX
       - Linux, OSX, Windows
       - To run 4x faster on CPU, and for GPU support
-    * - Veros Cython extensions
+    * - Veros native TDMA extensions
       - Linux, OSX
       - 20% speedup when using JAX
     * - MPI + mpi4py
@@ -59,8 +59,10 @@ Build them from the Veros repository root::
    $ pip install -e '.[jax]'
 
 The isolated build installs the FFI headers pinned in ``pyproject.toml`` for
-compatibility with supported JAX runtimes. For a direct ``setup.py build_ext``
-invocation, install those build requirements in the current environment first.
+compatibility with supported JAX runtimes. CMake builds the extensions when the
+required compilers are available. Set ``VEROS_REQUIRE_CPU_EXT=1`` or
+``VEROS_REQUIRE_CUDA_EXT=1`` to make installation fail if the corresponding
+extension cannot be built.
 
 Using MPI
 ---------

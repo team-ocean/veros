@@ -159,7 +159,7 @@ def test_handler_rejects_mismatched_buffers(native_tdma):
     if gpu:
         name, outputs = "tdma_cuda_double", (result, result)
     else:
-        name = "tdma_cython_double"
+        name = "tdma_cpu_double"
         outputs = (result, jax.ShapeDtypeStruct((4,), jnp.float64))
         values.append(jnp.full((2, 3), 4, dtype="int32"))
     with pytest.raises(jax.errors.JaxRuntimeError, match="TDMA buffer shapes do not match"):

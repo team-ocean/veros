@@ -23,6 +23,15 @@ class _PublicAPI(types.ModuleType):
     @property
     @_reraise_exceptions
     def __version__(self):
+        from importlib.metadata import PackageNotFoundError, version
+        from pathlib import Path
+
+        if not (Path(__file__).resolve().parents[1] / ".git").exists():
+            try:
+                return version("veros")
+            except PackageNotFoundError:
+                pass
+
         from veros._version import get_versions
 
         return get_versions()["version"]
