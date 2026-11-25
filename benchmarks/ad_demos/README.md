@@ -255,6 +255,15 @@ exterior viscosity fixed. Both columns require positive energy, stable
 stratification, free mixing length and inactive viscosity caps. The call returns
 the finished tracer states, remaining eddy energy, face velocities and work ledger.
 
+`prepared_pair.solve_prospective` estimates the timing of friction work from
+three quarter-step forecasts and a tracer solve with four work phases. It
+integrates the forecast viscosity over eight windows, advances momentum across
+those windows, and supplies each window's resolved work to the final tracer and
+turbulence solve. Chain intervals with the returned `columns` and `faces`.
+The result includes each forecast, the corrected tracer solves and the assigned
+friction work. The same wet geometry, fixed exterior and mixing restrictions
+apply.
+
 ## Empty-column startup
 
 `prepared_column_startup.integrate_empty` advances moments from exactly zero

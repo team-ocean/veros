@@ -1,12 +1,16 @@
 """Experimental paired vertical advance on prescribed, complete wet cells."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 
-from benchmarks.ad_demos.prepared_column_events import integrate_preceding_shear, MOMENT_FIELDS
+from benchmarks.ad_demos.prepared_column_events import (
+    MOMENT_FIELDS,
+    integrate_preceding_shear,
+    integrate_preceding_shear_halves,
+)
 from benchmarks.ad_demos.prepared_column_native import _increments, _stability
 from veros.core.operators import solve_tridiagonal_jax
 
@@ -323,6 +327,25 @@ def _solve_column(col, clocks, settings, friction, work, i, guess):
     raise ValueError("the physical column did not converge in sixteen iterations")
 
 
+def _pair_clocks(columns, faces, dt_mom, dt_tracer):
+    if len(columns) != 2 or sum(all(s.column is not None for s in f.sides) for f in faces) != 1:
+        raise ValueError("two columns and one unique shared wet momentum face are required")
+    if dt_mom <= 0 or dt_tracer <= 0:
+        raise ValueError("both clocks must advance")
+    return float(dt_mom), float(dt_tracer)
+
+
+def _tracer_guesses(columns, viscosity, settings):
+    guesses = []
+    for c, mu in zip(columns, viscosity):
+        raw = settings["c_k"] * c.energy * np.sqrt(2 / c.stratification)
+        Pr = np.clip(6.6 * c.stratification / np.maximum(c.preceding_shear, 1e-12), 1, 10)
+        kh = np.maximum(c.background, raw / Pr)
+        kh[-1] = 0
+        guesses.append((mu, kh))
+    return guesses
+
+
 def solve(columns, faces, settings, dt_mom, dt_tracer):
     """Advance an adjacent pair from two initial columns and their wet momentum faces.
 
@@ -331,20 +354,10 @@ def solve(columns, faces, settings, dt_mom, dt_tracer):
     eddy energy and its physical loss rate. Results carry both tracer profiles,
     outgoing face velocities and the work assigned to the pair and exterior.
     """
-    if len(columns) != 2 or sum(all(s.column is not None for s in f.sides) for f in faces) != 1:
-        raise ValueError("two columns and one unique shared wet momentum face are required")
-    if dt_mom <= 0 or dt_tracer <= 0:
-        raise ValueError("both clocks must advance")
-    full_clocks = (float(dt_mom), float(dt_tracer))
+    full_clocks = _pair_clocks(columns, faces, dt_mom, dt_tracer)
     half_clocks = tuple(t / 2 for t in full_clocks)
     initial_mu = tuple(_viscosity(c.energy, c.stratification, c.thickness, settings) for c in columns)
-    guesses = []
-    for i, c in enumerate(columns):
-        raw = settings["c_k"] * c.energy * np.sqrt(2 / c.stratification)
-        Pr = np.clip(6.6 * c.stratification / np.maximum(c.preceding_shear, 1e-12), 1, 10)
-        kh = np.maximum(c.background, raw / Pr)
-        kh[-1] = 0
-        guesses.append((initial_mu[i], kh))
+    guesses = _tracer_guesses(columns, initial_mu, settings)
     early = _face_work(columns, faces, initial_mu, half_clocks[0], settings["rho_0"])
     predictor = tuple(
         _solve_column(c, half_clocks, settings, early["rates"][i][None, :], early, i, guesses[i])
@@ -369,3 +382,135 @@ def solve(columns, faces, settings, dt_mom, dt_tracer):
         for i, c in enumerate(columns)
     )
     return dict(predictor=predictor, midpoint_viscosity=midpoint, corrected=corrected, early_work=early, full_work=full)
+
+
+def _carry_columns(columns, solved):
+    return tuple(
+        replace(
+            column,
+            high=step["output"]["cn_high"],
+            low=step["output"]["cn_low"],
+            energy=step["output"]["end"],
+            stratification=step["output"]["Nnew"],
+            preceding_shear=step["inputs"]["outgoing_shear"],
+            eddy_energy=step["eddy_energy"],
+        )
+        for column, step in zip(columns, solved)
+    )
+
+
+def _carry_faces(faces, velocity):
+    return tuple(replace(face, velocity=u) for face, u in zip(faces, velocity))
+
+
+@jax.jit
+def _split_viscosity(args):
+    return tuple(
+        (half["status"], half["continuous_branch_certified"], half["mean_mu"])
+        for half in integrate_preceding_shear_halves(*args)
+    )
+
+
+def _forecast_viscosity(result):
+    host, state, trace = (result[k] for k in ("inputs", "output", "event"))
+    dt = float(host["dt_mom"]) / 4
+    ratio = float(host["dt_tracer"]) / float(host["dt_mom"])
+    for p, rate in enumerate(host["source_schedule"]):
+        args = (
+            state["N"],
+            state["Q"],
+            state["M"],
+            host["bg"],
+            state["phase_fractions"][p],
+            ratio,
+            trace[f"phase{p}_energy_path"][0],
+            host["preceding_shear"],
+            host["h"],
+            rate,
+            dt,
+            host["ck"],
+            host["ce"],
+            host["mxl_min"],
+            host["mu_floor"],
+            host["mu_max"],
+        )
+        for status, certified, viscosity in _split_viscosity(tuple(jnp.asarray(x) for x in args)):
+            if int(status) or not bool(certified):
+                raise ValueError("the viscosity left its certified branch within a work window")
+            yield np.asarray(viscosity)
+
+
+def _interval_shear(columns, opening, closing):
+    shear = [np.zeros(len(c.energy), dtype=L) for c in columns]
+    for face, u in zip(opening, closing):
+        midpoint = np.diff((face.velocity.astype(L) + u.astype(L)) / 2) / face.spacing.astype(L)
+        for side in face.sides:
+            if side.column is None:
+                continue
+            i, k = side.column, side.offset
+            share = L(face.area) / (2 * L(columns[i].area))
+            shear[i][k : k + len(midpoint)] += share * midpoint**2
+    return tuple(s.astype(float) for s in shear)
+
+
+def solve_prospective(columns, faces, settings, dt_mom, dt_tracer):
+    """Advance the prescribed pair using viscosity integrated within each work window.
+
+    Short forecasts estimate when friction supplies energy. A provisional tracer
+    step turns those estimates into eight viscosity means. The final momentum and
+    tracer solves start at the original state, using those means and the resolved
+    work from each momentum update. Pass the returned columns and faces to the
+    next interval. The domain and boundary conditions are those of :func:`solve`.
+    """
+    clocks = _pair_clocks(columns, faces, dt_mom, dt_tracer)
+    quarter = tuple(t / 4 for t in clocks)
+    rho = settings["rho_0"]
+
+    def viscosity(state):
+        return tuple(_viscosity(c.energy, c.stratification, c.thickness, settings) for c in state)
+
+    def tracers(state, duration, work, rates, guesses):
+        return tuple(_solve_column(c, duration, settings, rates[i], work, i, guesses[i]) for i, c in enumerate(state))
+
+    def accepted_guesses(results):
+        return tuple((r["output"]["input_mu"], r["output"]["input_kh"]) for r in results)
+
+    candidates, moving = columns, faces
+    samples = [viscosity(columns)]
+    leads = []
+    for _ in range(3):
+        work = _face_work(candidates, moving, samples[-1], quarter[0], rho)
+        rates = tuple(rate[None, :] for rate in work["rates"])
+        guess = _tracer_guesses(candidates, samples[-1], settings)
+        lead = tracers(candidates, quarter, work, rates, guess)
+        candidates = _carry_columns(candidates, lead)
+        moving = _carry_faces(moving, work["velocity"])
+        leads.append(lead)
+        samples.append(viscosity(candidates))
+
+    mean = tuple(np.mean(np.stack(column), axis=0) for column in zip(*samples))
+    provisional_work = _face_work(columns, faces, mean, clocks[0], rho)
+    early = tuple(zip(*(tuple(r["inputs"]["friction_rate"].astype(L) for r in lead) for lead in leads)))
+    rates = tuple(np.stack((*q, 4 * total - sum(q))) for q, total in zip(early, provisional_work["rates"]))
+    forecast = tracers(columns, clocks, provisional_work, rates, accepted_guesses(leads[1]))
+
+    moving = faces
+    work_windows = []
+    for means in zip(*map(_forecast_viscosity, forecast), strict=True):
+        work = _face_work(columns, moving, means, clocks[0] / 8, rho)
+        moving = _carry_faces(moving, work["velocity"])
+        work_windows.append(work)
+    work = {key: sum(stage[key] for stage in work_windows) for key in ("assigned", "bounds", "union", "exterior")}
+    work["velocity"] = work_windows[-1]["velocity"]
+    work["shear"] = _interval_shear(columns, faces, work["velocity"])
+    schedule = tuple(np.stack(column) for column in zip(*(w["rates"] for w in work_windows)))
+    corrected = tracers(columns, clocks, work, schedule, accepted_guesses(forecast))
+    return dict(
+        columns=_carry_columns(columns, corrected),
+        faces=moving,
+        leads=tuple(leads),
+        forecast=forecast,
+        corrected=corrected,
+        full_work=work,
+        schedule=schedule,
+    )
