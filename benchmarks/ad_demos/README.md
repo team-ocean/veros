@@ -264,6 +264,11 @@ The result includes each forecast, the corrected tracer solves and the assigned
 friction work. The same wet geometry, fixed exterior and mixing restrictions
 apply.
 
+`prepared_pair.solve_tracer_tangent` takes an accepted tracer solve and directions
+for both compensated tracer parts, incoming turbulent energy, squared shear and
+ordered work rates. It differentiates the implicit root with the wet geometry
+and finite eddy supply held fixed.
+
 ## Empty-column startup
 
 `prepared_column_startup.integrate_empty` advances moments from exactly zero

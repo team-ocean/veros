@@ -144,6 +144,96 @@ def _face_work(columns, faces, viscosities, duration, rho):
     )
 
 
+def _evaluate_column(q, fields, weights):
+    ratio = fields["dt_tracer"] / fields["dt_mom"]
+    phase_count = len(fields["source_schedule"])
+    n = len(fields["mu"])
+
+    applied_mu = fields["mu"] * jnp.exp(q[:n])
+    applied_kh = jnp.concatenate((fields["kh"][:-1] * jnp.exp(q[n:]), jnp.zeros(1, dtype=q.dtype)))
+    cn = _increments(
+        fields["high"],
+        fields["low"],
+        jnp.stack((applied_kh, applied_kh)),
+        fields["h"],
+        fields["d"],
+        jnp.repeat(fields["dt_tracer"], 2),
+    )
+    stability = _stability(
+        fields["high"],
+        fields["low"],
+        cn["high"],
+        cn["low"],
+        fields["pressure"],
+        fields["d"],
+        fields["gravity"],
+        fields["rho0"],
+    )
+    N = stability["Nmid"]
+    fraction = jnp.minimum(
+        1.0, jnp.min(fields["source_schedule"][:, :-1] / (ratio * fields["bg"][:-1] * N[:-1]), axis=1)
+    )
+    fraction = jnp.where(fraction < 1, fraction * (1 - 8 * jnp.finfo(q.dtype).eps), fraction)
+    conductance = fields["alpha_tke"] * (applied_mu[1:] + applied_mu[:-1]) / 2 / fields["h"][1:]
+    upper = conductance / fields["width"][:-1]
+    lower = conductance / fields["width"][1:]
+    diagonal = jnp.zeros_like(N).at[:-1].add(-upper).at[1:].add(-lower)
+    Q = jnp.diag(diagonal) + jnp.diag(upper, 1) + jnp.diag(lower, -1)
+    M = jnp.zeros_like(N)
+    E = fields["energy"]
+    means = {key: jnp.zeros_like(E) for key in MOMENT_FIELDS[1:]}
+    traces = {}
+    ok = jnp.bool_(True)
+    for phase in range(phase_count):
+        event = integrate_preceding_shear(
+            N,
+            Q,
+            M,
+            fields["bg"],
+            fraction[phase],
+            ratio,
+            E,
+            fields["preceding_shear"],
+            fields["h"],
+            fields["source_schedule"][phase],
+            fields["dt_mom"] / phase_count,
+            fields["ck"],
+            fields["ce"],
+            fields["mxl_min"],
+            fields["mu_floor"],
+            fields["mu_max"],
+        )
+        E = event["end"]
+        means = {key: means[key] + event[key] for key in means}
+        traces.update({f"phase{phase}_{key}": value for key, value in event.items()})
+        ok = ok & (event["status"] == 0) & event["continuous_branch_certified"]
+    if phase_count == 1:
+        traces = event
+    means = {key: value / phase_count for key, value in means.items()}
+    return dict(
+        end=E,
+        **means,
+        N=N,
+        Nold=stability["Nold"],
+        Nnew=stability["Nnew"],
+        M=M,
+        Q=Q,
+        fraction=jnp.min(fraction),
+        phase_fractions=fraction,
+        source0=fields["source_rate"],
+        residual=jnp.concatenate(
+            (jnp.log(means["mean_mu"] / applied_mu), jnp.log(means["mean_kh"][:-1] / applied_kh[:-1]))
+        ),
+        work=jnp.vdot(jnp.asarray(weights), N * means["mean_kh"]),
+        cn_delta=cn["delta"],
+        cn_high=cn["high"],
+        cn_low=cn["low"],
+        input_mu=applied_mu,
+        input_kh=applied_kh,
+        incoming_energy=fields["energy"],
+    ), (ok, traces)
+
+
 def _solve_column(col, clocks, settings, friction, work, i, guess):
     dt, tr = map(L, clocks)
     if np.any(col.eddy_loss_rate < 0) or np.any(col.eddy_energy < 0):
@@ -198,93 +288,9 @@ def _solve_column(col, clocks, settings, friction, work, i, guess):
         for key, v in host.items()
         if key not in ("resolved_face_loss_J", "resolved_face_roundoff_J")
     }
-    ratio = fields["dt_tracer"] / fields["dt_mom"]
-    phase_count = len(schedule)
 
     def evaluate(q):
-        applied_mu = fields["mu"] * jnp.exp(q[:n])
-        applied_kh = jnp.concatenate((fields["kh"][:-1] * jnp.exp(q[n:]), jnp.zeros(1, dtype=q.dtype)))
-        cn = _increments(
-            fields["high"],
-            fields["low"],
-            jnp.stack((applied_kh, applied_kh)),
-            fields["h"],
-            fields["d"],
-            jnp.repeat(fields["dt_tracer"], 2),
-        )
-        stability = _stability(
-            fields["high"],
-            fields["low"],
-            cn["high"],
-            cn["low"],
-            fields["pressure"],
-            fields["d"],
-            fields["gravity"],
-            fields["rho0"],
-        )
-        N = stability["Nmid"]
-        fraction = jnp.minimum(
-            1.0, jnp.min(fields["source_schedule"][:, :-1] / (ratio * fields["bg"][:-1] * N[:-1]), axis=1)
-        )
-        fraction = jnp.where(fraction < 1, fraction * (1 - 8 * jnp.finfo(q.dtype).eps), fraction)
-        conductance = fields["alpha_tke"] * (applied_mu[1:] + applied_mu[:-1]) / 2 / fields["h"][1:]
-        upper = conductance / fields["width"][:-1]
-        lower = conductance / fields["width"][1:]
-        diagonal = jnp.zeros_like(N).at[:-1].add(-upper).at[1:].add(-lower)
-        Q = jnp.diag(diagonal) + jnp.diag(upper, 1) + jnp.diag(lower, -1)
-        M = jnp.zeros_like(N)
-        E = fields["energy"]
-        means = {key: jnp.zeros_like(E) for key in MOMENT_FIELDS[1:]}
-        traces = {}
-        ok = jnp.bool_(True)
-        for phase in range(phase_count):
-            event = integrate_preceding_shear(
-                N,
-                Q,
-                M,
-                fields["bg"],
-                fraction[phase],
-                ratio,
-                E,
-                fields["preceding_shear"],
-                fields["h"],
-                fields["source_schedule"][phase],
-                fields["dt_mom"] / phase_count,
-                fields["ck"],
-                fields["ce"],
-                fields["mxl_min"],
-                fields["mu_floor"],
-                fields["mu_max"],
-            )
-            E = event["end"]
-            means = {key: means[key] + event[key] for key in means}
-            traces.update({f"phase{phase}_{key}": value for key, value in event.items()})
-            ok = ok & (event["status"] == 0) & event["continuous_branch_certified"]
-        if phase_count == 1:
-            traces = event
-        means = {key: value / phase_count for key, value in means.items()}
-        return dict(
-            end=E,
-            **means,
-            N=N,
-            Nold=stability["Nold"],
-            Nnew=stability["Nnew"],
-            M=M,
-            Q=Q,
-            fraction=jnp.min(fraction),
-            phase_fractions=fraction,
-            source0=fields["source_rate"],
-            residual=jnp.concatenate(
-                (jnp.log(means["mean_mu"] / applied_mu), jnp.log(means["mean_kh"][:-1] / applied_kh[:-1]))
-            ),
-            work=jnp.vdot(jnp.asarray(weights), N * means["mean_kh"]),
-            cn_delta=cn["delta"],
-            cn_high=cn["high"],
-            cn_low=cn["low"],
-            input_mu=applied_mu,
-            input_kh=applied_kh,
-            incoming_energy=fields["energy"],
-        ), (ok, traces)
+        return _evaluate_column(q, fields, weights)
 
     @jax.jit
     def residual_product(q, seed):
@@ -325,6 +331,71 @@ def _solve_column(col, clocks, settings, friction, work, i, guess):
             matrix = np.column_stack([residual_product(q, seed) for seed in np.eye(len(q))])
         q = q - np.linalg.solve(matrix, out["residual"])
     raise ValueError("the physical column did not converge in sixteen iterations")
+
+
+def solve_tracer_tangent(column, solved, *, high, low, energy, preceding_shear, source_schedule):
+    """Differentiate an accepted tracer solve with fixed wet geometry and eddy supply.
+
+    The inputs are changes in the two compensated tracer parts, incoming turbulent
+    energy, squared preceding shear and the ordered total work rates. The
+    derivative follows the accepted implicit viscosity and diffusivity root.
+    """
+    host, accepted = solved["inputs"], solved["output"]
+    directions = dict(
+        high=high, low=low, energy=energy, preceding_shear=preceding_shear, source_schedule=source_schedule
+    )
+    if any(np.shape(value) != np.shape(host[key]) for key, value in directions.items()):
+        raise ValueError("column directions must match the accepted inputs")
+    weights = np.asarray(L(host["rho0"]) * L(column.area) * host["width"].astype(L) * L(host["dt_tracer"]), dtype=float)
+    fields = {
+        key: jnp.asarray(value)
+        for key, value in host.items()
+        if key not in ("resolved_face_loss_J", "resolved_face_roundoff_J")
+    }
+    fields.update(mu=jnp.asarray(accepted["input_mu"]), kh=jnp.asarray(accepted["input_kh"]))
+    directions = {key: jnp.asarray(value) for key, value in directions.items()}
+    directions["source_rate"] = jnp.mean(directions["source_schedule"], axis=0)
+    size = 2 * len(fields["mu"]) - 1
+    origin = jnp.zeros(size, dtype=fields["mu"].dtype)
+    zero = jnp.zeros((), dtype=origin.dtype)
+    one = jnp.ones_like(zero)
+
+    def evaluate(q, alpha):
+        inputs = dict(fields, **{name: fields[name] + alpha * slope for name, slope in directions.items()})
+        state, (admitted, _) = _evaluate_column(q, inputs, weights)
+        return state, admitted
+
+    @jax.jit
+    def product(q_direction, input_direction):
+        return jax.jvp(evaluate, (origin, zero), (q_direction, input_direction), has_aux=True)
+
+    state, partial, admitted = product(origin, one)
+    residual = np.asarray(state["residual"])
+    if not bool(admitted) or np.max(np.abs(residual)) > 1e-13:
+        raise ValueError("the supplied tracer result is outside the certified root")
+    columns = [product(axis, zero)[1] for axis in jnp.eye(size, dtype=origin.dtype)]
+    jacobian = np.stack([np.asarray(value["residual"]) for value in columns], axis=-1)
+    condition = np.linalg.cond(jacobian, np.inf)
+    eps = np.finfo(residual.dtype).eps
+    work_error = abs(
+        np.dot(
+            np.asarray([value["work"] for value in columns], dtype=L),
+            np.linalg.solve(jacobian, -residual).astype(L),
+        )
+    )
+    if not condition * (size * eps / (1 - size * eps)) < 0.002 or work_error > L(".01"):
+        raise ValueError("the inferred column derivative is outside the certified accuracy bounds")
+    root_direction = np.linalg.solve(jacobian, -np.asarray(partial["residual"]))
+    tangent = {
+        name: np.asarray(value)
+        + np.tensordot(
+            np.stack([np.asarray(column[name]) for column in columns], axis=-1), root_direction, axes=([-1], [0])
+        )
+        for name, value in partial.items()
+    }
+    if np.max(np.abs(tangent["residual"])) > 1e-13:
+        raise ValueError("the differentiated tracer residual exceeds its original bound")
+    return tangent
 
 
 def _pair_clocks(columns, faces, dt_mom, dt_tracer):
