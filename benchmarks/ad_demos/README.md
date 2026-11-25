@@ -235,6 +235,12 @@ For consecutive phases, pass the ending turbulent energy into the next phase.
 The caller supplies the phase durations, apportions available work and checks
 the complete tracer and mechanical energy budget.
 
+`integrate_preceding_shear_halves` records separate viscosity and tracer moments
+on either side of a fixed midpoint. Both halves use the same phase coefficients
+and source. The second starts with the first half's ending energy. Use
+`differentiable_preceding_shear_half_moments` for the reverse derivative through
+that energy handoff.
+
 ## Paired advance with shared friction work
 
 `prepared_pair.solve` advances two adjacent, complete wet tracer columns using

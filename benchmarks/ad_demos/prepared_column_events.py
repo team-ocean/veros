@@ -518,3 +518,28 @@ differentiable_preceding_shear_moments.defvjp(
     lambda *args: _capture(args, history="preceding_shear"),
     lambda residual, cotangent: _backward(residual, cotangent, history="preceding_shear"),
 )
+
+
+def _preceding_shear_halves(
+    integrate, endpoint, N, Q, M, bg, fraction, ratio, energy, previous_shear, h, source_rate, total, *constants
+):
+    def half(initial):
+        return integrate(N, Q, M, bg, fraction, ratio, initial, previous_shear, h, source_rate, total / 2, *constants)
+
+    first = half(energy)
+    return first, half(endpoint(first))
+
+
+def integrate_preceding_shear_halves(*args):
+    """Return two consecutive fixed half-window integrations with shared phase inputs.
+
+    Use the argument order of integrate_preceding_shear. The last energy of
+    the first window initializes the second. Each result certifies its own
+    events and averages its moments over its half of the original duration.
+    """
+    return _preceding_shear_halves(integrate_preceding_shear, lambda values: values["end"], *args)
+
+
+def differentiable_preceding_shear_half_moments(*args):
+    """Return both half-window moment tuples with their chained reverse derivative."""
+    return _preceding_shear_halves(differentiable_preceding_shear_moments, lambda values: values[0], *args)
