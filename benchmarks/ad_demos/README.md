@@ -269,6 +269,11 @@ for both compensated tracer parts, incoming turbulent energy, squared shear and
 ordered work rates. It differentiates the implicit root with the wet geometry
 and finite eddy supply held fixed.
 
+`prepared_pair.solve_momentum_tangent` takes the opening face velocities and
+column viscosities with their directions. It differentiates the resolved face
+velocities, allotted friction work and outgoing squared shear. Exterior
+viscosity is fixed.
+
 ## Empty-column startup
 
 `prepared_column_startup.integrate_empty` advances moments from exactly zero

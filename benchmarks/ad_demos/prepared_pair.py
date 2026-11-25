@@ -85,6 +85,15 @@ def _face_increment(velocity, thickness, spacing, viscosity, duration):
     return solve_tridiagonal_jax(a, diagonal[None, None, :], c, rhs[None, None, :], wet, edge)[0, 0]
 
 
+def _face_viscosity(face, profiles, exterior):
+    n = len(face.spacing)
+    sides = [
+        exterior(side) if side.column is None else profiles[side.column][side.offset : side.offset + n]
+        for side in face.sides
+    ]
+    return (sides[0].astype(L) + sides[1].astype(L)) / 2
+
+
 def _face_work(columns, faces, viscosities, duration, rho):
     rates = [np.zeros(len(col.energy), dtype=L) for col in columns]
     outgoing_shear = [rate.copy() for rate in rates]
@@ -94,11 +103,7 @@ def _face_work(columns, faces, viscosities, duration, rho):
     endpoints = []
     for face in faces:
         n = len(face.spacing)
-        coeff = [
-            side.exterior_viscosity if side.column is None else viscosities[side.column][side.offset : side.offset + n]
-            for side in face.sides
-        ]
-        viscosity = (coeff[0].astype(L) + coeff[1].astype(L)) / 2
+        viscosity = _face_viscosity(face, viscosities, lambda side: side.exterior_viscosity)
         incr = np.asarray(
             _face_increment(face.velocity, face.thickness, face.spacing, viscosity.astype(float), float(duration))
         )
@@ -142,6 +147,46 @@ def _face_work(columns, faces, viscosities, duration, rho):
         exterior=exterior,
         velocity=tuple(endpoints),
     )
+
+
+@jax.jit
+def _face_increment_tangent(velocity, thickness, spacing, viscosity, duration, velocity_change, viscosity_change):
+    def increment(u, mu):
+        return _face_increment(u, thickness, spacing, mu, duration)
+
+    return jax.jvp(increment, (velocity, viscosity), (velocity_change, viscosity_change))
+
+
+def solve_momentum_tangent(columns, faces, viscosities, duration, *, velocity, viscosity):
+    """Differentiate resolved work and outgoing shear on the wet momentum faces."""
+    rates = [np.zeros(len(c.energy), dtype=L) for c in columns]
+    shear = [r.copy() for r in rates]
+    endpoints = []
+    for face, du0 in zip(faces, velocity, strict=True):
+        nu = _face_viscosity(face, viscosities, lambda side: side.exterior_viscosity)
+        dnu = _face_viscosity(face, viscosity, lambda side: np.zeros_like(side.exterior_viscosity))
+        delta, delta_direction = _face_increment_tangent(
+            face.velocity, face.thickness, face.spacing, nu.astype(float), float(duration), du0, dnu.astype(float)
+        )
+        old, old_direction = face.velocity.astype(L), np.asarray(du0, dtype=L)
+        new = old + np.asarray(delta, dtype=L)
+        new_direction = old_direction + np.asarray(delta_direction, dtype=L)
+        spacing = face.spacing.astype(L)
+        closing = np.diff(new) / spacing
+        closing_direction = np.diff(new_direction) / spacing
+        midpoint = (np.diff(old) / spacing + closing) / 2
+        midpoint_direction = (np.diff(old_direction) / spacing + closing_direction) / 2
+        power = dnu * closing * midpoint + nu * (closing_direction * midpoint + closing * midpoint_direction)
+        for side in face.sides:
+            if side.column is None:
+                continue
+            i, k = side.column, side.offset
+            levels = slice(k, k + len(spacing))
+            share = L(face.area) / (2 * L(columns[i].area))
+            rates[i][levels] += share * power
+            shear[i][levels] += share * 2 * midpoint * midpoint_direction
+        endpoints.append(np.asarray(new_direction, dtype=float))
+    return dict(rates=tuple(rates), shear=tuple(np.asarray(s, dtype=float) for s in shear), velocity=tuple(endpoints))
 
 
 def _evaluate_column(q, fields, weights):
