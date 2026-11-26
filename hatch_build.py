@@ -1,7 +1,5 @@
 import os
-from email.parser import Parser
 from pathlib import Path
-import runpy
 import shutil
 import subprocess
 import sys
@@ -17,13 +15,6 @@ from packaging.specifiers import SpecifierSet
 ROOT = Path(__file__).resolve().parent
 NATIVE_PACKAGE = Path("veros/core/special")
 MINIMUM_VERSIONS = {"numpy": "1.13", "requests": "2.18", "jax": "0.5.0"}
-
-
-def get_version():
-    metadata_path = ROOT / "PKG-INFO"
-    if metadata_path.is_file():
-        return Parser().parsestr(metadata_path.read_text(encoding="utf-8"), headersonly=True)["Version"]
-    return runpy.run_path(str(ROOT / "veros/_version.py"))["get_versions"]()["version"]
 
 
 def read_requirements(path):

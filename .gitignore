@@ -20,6 +20,7 @@ __pycache__/
 *.pyd
 
 # Distribution / packaging
+/veros/_version.py
 .Python
 env/
 build/

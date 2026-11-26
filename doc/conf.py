@@ -69,7 +69,7 @@ author = u'The Veros Team, NBI Copenhagen'
 #
 from veros import __version__ as veros_version
 
-if "0+untagged" in veros_version:
+if veros_version == "0+unknown":
     veros_version = "main"
 
 # The short X.Y version.
