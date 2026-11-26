@@ -52,12 +52,15 @@ To use JAX on GPU, you have to install a CUDA-enabled version of jaxlib, e.g.::
 
 (see also `the JAX installation guide <https://github.com/google/jax#installation>`__).
 
-Veros also supplies Cython extensions that optimize certain bottlenecks in JAX. You can make sure they are installed by running::
+Veros also supplies optional native TDMA extensions for JAX. The CPU extension
+requires a C++17 compiler, and the GPU extension also requires the CUDA toolkit.
+Build them from the Veros repository root::
 
-   $ pip install cython
-   $ python setup.py build_ext --inplace
+   $ pip install -e '.[jax]'
 
-in the Veros repository root.
+The isolated build installs the FFI headers pinned in ``pyproject.toml`` for
+compatibility with supported JAX runtimes. For a direct ``setup.py build_ext``
+invocation, install those build requirements in the current environment first.
 
 Using MPI
 ---------
