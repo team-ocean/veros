@@ -23,9 +23,14 @@ class _PublicAPI(types.ModuleType):
     @property
     @_reraise_exceptions
     def __version__(self):
-        from veros._version import get_versions
+        from importlib.resources import files
 
-        return get_versions()["version"]
+        if not files("veros").joinpath("_version.py").is_file():
+            return "0+unknown"
+
+        from veros._version import __version__
+
+        return __version__
 
     @property
     @_reraise_exceptions

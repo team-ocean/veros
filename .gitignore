@@ -15,11 +15,12 @@ __pycache__/
 
 # C extensions
 *.c
-*.cpp
 *.so
 *.dll
+*.pyd
 
 # Distribution / packaging
+/veros/_version.py
 .Python
 env/
 build/

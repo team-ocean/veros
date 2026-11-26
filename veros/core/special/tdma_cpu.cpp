@@ -1,19 +1,29 @@
-#pragma once
-
 #include <cstdint>
 #include <limits>
+
+#include <nanobind/nanobind.h>
 #include "xla/ffi/api/ffi.h"
 
 namespace ffi = xla::ffi;
+namespace nb = nanobind;
+
+namespace {
 
 template <typename T>
-using CpuKernel = void (*)(int64_t, int64_t, T*, T*, T*, T*, int32_t*, T*, T*);
-static CpuKernel<float> float_kernel;
-static CpuKernel<double> double_kernel;
+void SolveColumn(int32_t depth, const T* a, const T* b, const T* c,
+                 const T* d, T* workspace, T* out) {
+  if (depth == 0) return;
 
-inline void SetTDMACpuKernels(void* float_target, void* double_target) {
-  float_kernel = reinterpret_cast<CpuKernel<float>>(float_target);
-  double_kernel = reinterpret_cast<CpuKernel<double>>(double_target);
+  workspace[0] = c[0] / b[0];
+  out[0] = d[0] / b[0];
+  for (int32_t i = 1; i < depth; ++i) {
+    T denom = 1.0 / (b[i] - a[i] * workspace[i - 1]);
+    workspace[i] = c[i] * denom;
+    out[i] = (d[i] - a[i] * out[i - 1]) * denom;
+  }
+  for (int32_t i = depth - 2; i >= 0; --i) {
+    out[i] -= workspace[i] * out[i + 1];
+  }
 }
 
 template <ffi::DataType T>
@@ -32,14 +42,23 @@ ffi::Error TDMACpu(ffi::Buffer<T> a, ffi::Buffer<T> b, ffi::Buffer<T> c,
   for (int64_t i = 0; i < systems; ++i)
     if (depths.typed_data()[i] < 0 || depths.typed_data()[i] > stride)
       return ffi::Error::InvalidArgument("TDMA wet depth exceeds column depth");
-  if constexpr (T == ffi::F64)
-    double_kernel(systems, stride, a.typed_data(), b.typed_data(), c.typed_data(),
-                  d.typed_data(), depths.typed_data(), out->typed_data(), workspace->typed_data());
-  else
-    float_kernel(systems, stride, a.typed_data(), b.typed_data(), c.typed_data(),
-                 d.typed_data(), depths.typed_data(), out->typed_data(), workspace->typed_data());
+
+  int64_t offset = 0;
+  for (int64_t i = 0; i < systems; ++i) {
+    int32_t depth = depths.typed_data()[i];
+    int64_t start = offset + stride - depth;
+    for (int64_t j = offset; j < start; ++j) {
+      out->typed_data()[j] = 0;
+    }
+    SolveColumn(depth, a.typed_data() + start, b.typed_data() + start,
+                c.typed_data() + start, d.typed_data() + start,
+                workspace->typed_data(), out->typed_data() + start);
+    offset += stride;
+  }
   return ffi::Error::Success();
 }
+
+}  // namespace
 
 #define CPU_HANDLER(Name, Type) \
   XLA_FFI_DEFINE_HANDLER_SYMBOL(Name, TDMACpu<Type>, \
@@ -49,3 +68,10 @@ ffi::Error TDMACpu(ffi::Buffer<T> a, ffi::Buffer<T> b, ffi::Buffer<T> c,
 CPU_HANDLER(TDMACpuFloat, ffi::F32);
 CPU_HANDLER(TDMACpuDouble, ffi::F64);
 #undef CPU_HANDLER
+
+NB_MODULE(tdma_cpu_, module) {
+  nb::dict targets;
+  targets["tdma_cpu_float"] = nb::capsule(reinterpret_cast<void*>(TDMACpuFloat), "xla._CUSTOM_CALL_TARGET");
+  targets["tdma_cpu_double"] = nb::capsule(reinterpret_cast<void*>(TDMACpuDouble), "xla._CUSTOM_CALL_TARGET");
+  module.attr("cpu_ffi_targets") = targets;
+}

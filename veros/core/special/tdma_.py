@@ -1,10 +1,10 @@
 # defensive imports since extensions are optional
 try:
-    from veros.core.special import tdma_cython_
+    from veros.core.special import tdma_cpu_
 except ImportError:
     HAS_CPU_EXT = False
 else:
-    HAS_CPU_EXT = hasattr(tdma_cython_, "cpu_ffi_targets")
+    HAS_CPU_EXT = hasattr(tdma_cpu_, "cpu_ffi_targets")
 
 try:
     from veros.core.special import tdma_cuda_
@@ -20,7 +20,7 @@ import jax.numpy as jnp
 
 
 if HAS_CPU_EXT:
-    for name, target in tdma_cython_.cpu_ffi_targets.items():
+    for name, target in tdma_cpu_.cpu_ffi_targets.items():
         jax.ffi.register_ffi_target(name, target, platform="cpu")
 
 if HAS_GPU_EXT:
@@ -52,7 +52,7 @@ def tdma(a, b, c, d, interior_mask, edge_mask, device=None):
             raise ImportError("The CPU TDMA extension is unavailable; rebuild the native extensions")
         system_depths = jnp.sum(interior_mask, axis=-1, dtype="int32")
         workspace = jax.ShapeDtypeStruct((a.shape[-1],), a.dtype)
-        return jax.ffi.ffi_call(f"tdma_cython_{precision}", (result, workspace), vmap_method="broadcast_all")(
+        return jax.ffi.ffi_call(f"tdma_cpu_{precision}", (result, workspace), vmap_method="broadcast_all")(
             a, b, c, d, system_depths
         )[0]
     if device not in ("gpu", "cuda"):

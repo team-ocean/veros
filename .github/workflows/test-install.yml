@@ -47,13 +47,21 @@ jobs:
 
       - name: Test installing Veros
         run: |
-          if ${{ matrix.nocc }}; then export CC=foobar; fi
+          if ${{ matrix.nocc }}; then export CC=foobar CXX=foobar; fi
           python -m pip install .
+
+      - name: Import CPU TDMA extension from the wheel
+        if: ${{ !matrix.nocc }}
+        run: python -I -c "from veros.core.special.tdma_cpu_ import cpu_ffi_targets"
+
+      - name: Check compiler-free installation
+        if: matrix.nocc
+        run: python -I -c "from importlib.util import find_spec; assert find_spec('veros.core.special.tdma_cpu_') is None"
 
       - name: Install editable Veros with JAX
         if: ${{ !matrix.nocc }}
         run: |
-          export VEROS_REQUIRE_CYTHON_EXT=1
+          export VEROS_REQUIRE_CPU_EXT=1
           if [ ${{ runner.os }} = "Linux" ]; then
             export VEROS_REQUIRE_CUDA_EXT=1
           fi
@@ -61,7 +69,7 @@ jobs:
 
       - name: Import CPU TDMA extension
         if: ${{ !matrix.nocc }}
-        run: python -c "from veros.core.special.tdma_cython_ import cpu_ffi_targets"
+        run: python -c "from veros.core.special.tdma_cpu_ import cpu_ffi_targets"
 
       - name: Import CUDA TDMA extension
         if: runner.os == 'Linux' && !matrix.nocc
