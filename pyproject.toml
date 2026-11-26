@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "Dion Häfner (NBI Copenhagen)", email = "dion.haefner@nbi.ku.dk" }]
+authors = [{ name = "Dion Häfner", email = "mail@dionhaefner.de" }]
 keywords = ["oceanography", "python", "parallel", "numpy", "multi-core", "geophysics", "ocean-model", "mpi4py", "jax"]
 classifiers = [
     "Development Status :: 4 - Beta",
