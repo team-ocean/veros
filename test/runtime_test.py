@@ -18,3 +18,15 @@ def test_tdma_override(value, expected, monkeypatch):
 def test_tdma_environment(value, expected, monkeypatch):
     monkeypatch.setenv("VEROS_USE_SPECIAL_TDMA", value)
     assert RuntimeSettings().use_special_tdma is expected
+
+
+@pytest.mark.parametrize("value", ("", "/tmp/veros-cache"))
+def test_jax_compilation_cache_setting(value, monkeypatch):
+    monkeypatch.setenv("VEROS_JAX_COMPILATION_CACHE_DIR", value)
+    assert RuntimeSettings().jax_compilation_cache_dir == value
+    assert RuntimeSettings(jax_compilation_cache_dir="/explicit/cache").jax_compilation_cache_dir == "/explicit/cache"
+
+
+def test_jax_compilation_cache_default(monkeypatch):
+    monkeypatch.delenv("VEROS_JAX_COMPILATION_CACHE_DIR", raising=False)
+    assert RuntimeSettings().jax_compilation_cache_dir == ""

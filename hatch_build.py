@@ -43,7 +43,8 @@ class VerosMetadataHook(MetadataHookInterface):
         jax_requirements = read_requirements(ROOT / "requirements_jax.txt")
         jax = next(requirement for requirement in jax_requirements if requirement.name == "jax")
         metadata["optional-dependencies"] = {
-            "test": ["pytest", "pytest-cov", "pytest-forked", "xarray"],
+            # pytest 9.2 breaks pytest-forked (https://github.com/pytest-dev/pytest-forked/issues/113)
+            "test": ["pytest<9.2", "pytest-cov", "pytest-forked", "xarray"],
             "jax": [*map(str, jax_requirements), str(jax).replace("jax", "jaxlib", 1)],
         }
 
