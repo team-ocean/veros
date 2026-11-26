@@ -10,12 +10,12 @@ When contributing to Veros, please adhere to the following general guidelines:
 - Unless you have a very good reason not to do so, please stick to `the PEP8 style guide <https://www.python.org/dev/peps/pep-0008/>`_ throughout your code. One exception we make in Veros is in regard to the maximum line length - since numerical operations can take up quite a lot of horizontal space, you may use longer lines if it increases readability.
 - In particular, please follow the PEP8 naming conventions, and use meaningful, telling names for your variables, functions, and classes. The variable name :data:`stretching_factor` is infinitely more meaningful than :data:`k`. This is especially important for settings and generic helper functions.
 - Document your functions using `Google-style docstrings <http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html>`_. This is especially important if you are implementing a user-facing API (such as a diagnostic, a setup, or tools that are meant to be called from setups).
-- We use ``flake8`` for linting and ``black`` for code formatting. We automatically validate all changes to Veros through a pre-commit hook. To install it, run::
+- We use Ruff's default lint rules and its formatter. Install the pre-commit hooks to lint and format Python files on each commit::
 
       $ pip install pre-commit
       $ pre-commit install
 
-   After this, black and flake8 will run automatically on every commit.
+   To run the hooks across the repository, use ``pre-commit run --all-files``.
 
 
 Distributed memory support

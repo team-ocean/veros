@@ -5,7 +5,6 @@ with Dirichlet boundary conditions
 used for streamfunction
 """
 
-
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core import utilities as mainutils

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(veros_tdma LANGUAGES CXX)
 
-find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
+find_package(Python 3.12 REQUIRED COMPONENTS Interpreter Development.Module)
 find_package(nanobind CONFIG REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)

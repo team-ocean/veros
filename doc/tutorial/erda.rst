@@ -161,7 +161,7 @@ In order to install Veros with the `veros-bgc biogeochemistry plugin <https://ve
 
 2. Create a new conda environment for Veros::
 
-      $ conda create --prefix ~/modi_mount/conda-env-veros -y python=3.11
+      $ conda create --prefix ~/modi_mount/conda-env-veros -y python=3.12
 
 3. To use the new environment, activate it via::
 
