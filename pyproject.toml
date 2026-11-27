@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "veros"
-dynamic = ["version", "dependencies", "optional-dependencies"]
+dynamic = ["version"]
 description = "The versatile ocean simulator, in pure Python, powered by JAX."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -26,6 +26,23 @@ classifiers = [
     "Operating System :: Unix",
     "Operating System :: MacOS",
 ]
+dependencies = [
+    "click",
+    "entrypoints",
+    "requests>=2.18",
+    "numpy>=1.13",
+    "scipy",
+    "h5netcdf",
+    "h5py",
+    "pillow",
+    "loguru",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+jax = ["jax>=0.5.0", "jaxlib>=0.5.0"]
+# pytest 9.2 breaks pytest-forked (https://github.com/pytest-dev/pytest-forked/issues/113)
+test = ["pytest<9.2", "pytest-cov", "pytest-forked", "xarray"]
 
 [project.urls]
 Homepage = "https://veros.readthedocs.io"
@@ -46,8 +63,6 @@ fallback-version = "0+unknown"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "veros/_version.py"
-
-[tool.hatch.metadata.hooks.custom]
 
 [tool.hatch.build.targets.sdist]
 include = [

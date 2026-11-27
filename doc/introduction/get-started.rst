@@ -93,6 +93,18 @@ Using pip (Linux / OSX)
       $ pip install -e ./veros[jax]
 
 
+Dependency compatibility
++++++++++++++++++++++++++
+
+If you run into a dependency incompatibility, get the source for your Veros release and install the pinned dependencies from its root directory::
+
+   $ pip install -r requirements.txt
+
+If you use JAX, install both sets of pins in the same command::
+
+   $ pip install -r requirements.txt -r requirements_jax.txt
+
+
 Setting up a model
 ------------------
 
