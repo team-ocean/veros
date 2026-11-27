@@ -21,6 +21,8 @@ or, optionally::
 
 to use Veros with JAX.
 
+Veros provides wheels for standard CPython 3.12 and later on compatible Intel and Arm Linux and macOS systems. These wheels include the CPU extension and install without compiling Veros. Building the optional CUDA extension requires a source installation.
+
 
 Using Conda (multi-platform)
 ++++++++++++++++++++++++++++
@@ -76,7 +78,7 @@ Using pip (Linux / OSX)
 
    (or `any other version of Veros <https://github.com/team-ocean/veros/releases>`__), or use ::
 
-      $ pip download veros
+      $ pip download --no-deps --no-binary veros veros
 
    to download a tarball of the latest version (needs to be unpacked).
 

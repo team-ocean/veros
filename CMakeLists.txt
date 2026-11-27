@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 3.24)
 project(veros_tdma LANGUAGES CXX)
 
-find_package(Python 3.12 REQUIRED COMPONENTS Interpreter Development.Module)
+option(VEROS_BUILD_ABI3 "Build the CPU extension with the stable Python ABI" OFF)
+if(VEROS_BUILD_ABI3)
+  find_package(Python 3.12 REQUIRED COMPONENTS Interpreter Development.Module Development.SABIModule)
+  set(TDMA_ABI_FLAG STABLE_ABI)
+else()
+  find_package(Python 3.12 REQUIRED COMPONENTS Interpreter Development.Module)
+endif()
 find_package(nanobind CONFIG REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -9,8 +15,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(TDMA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/veros/core/special")
 
-nanobind_add_module(tdma_cpu_ NOMINSIZE PROTECT_STACK "${TDMA_DIR}/tdma_cpu.cpp")
+nanobind_add_module(tdma_cpu_ ${TDMA_ABI_FLAG} NOMINSIZE PROTECT_STACK "${TDMA_DIR}/tdma_cpu.cpp")
 target_include_directories(tdma_cpu_ SYSTEM PRIVATE "${JAXLIB_INCLUDE_DIR}")
+
+if(VEROS_BUILD_ABI3)
+  return()
+endif()
 
 include(CheckLanguage)
 check_language(CUDA)

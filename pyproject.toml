@@ -73,6 +73,21 @@ dependencies = [
     "jaxlib==0.7.2; python_version >= '3.14'",
 ]
 
+[tool.cibuildwheel]
+# Build on 3.12 and reuse the same wheel when testing on 3.14.
+build = "cp31{2,4}-{manylinux,macosx}_*"
+environment = { VEROS_BUILD_ABI3 = "1" }
+test-command = """
+veros --version &&
+python -c "from veros.core.special.tdma_cpu_ import cpu_ffi_targets; assert sorted(cpu_ffi_targets) == ['tdma_cpu_double', 'tdma_cpu_float']"
+"""
+
+[tool.cibuildwheel.macos]
+# JAX supplies the build headers through a native Apple Silicon jaxlib wheel.
+archs = ["universal2"]
+inherit.environment = "append"
+environment = { MACOSX_DEPLOYMENT_TARGET = "11.0", CMAKE_OSX_ARCHITECTURES = "arm64;x86_64", _PYTHON_HOST_PLATFORM = "macosx-11.0-universal2" }
+
 [tool.ruff]
 line-length = 120
 extend-exclude = ["doc", "veros/_version.py"]
