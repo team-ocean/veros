@@ -274,7 +274,7 @@ class NorthAtlanticSetup(VerosSetup):
                     veros.tools.interpolate(rest_coords, s_star[..., k], t_grid, missing_value=0.0),
                 )
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def set_forcing(self, state):
         vs = state.variables
         vs.update(set_forcing_kernel(state))
@@ -299,7 +299,7 @@ class NorthAtlanticSetup(VerosSetup):
         ]
         diagnostics["cfl_monitor"].output_frequency = settings.dt_tracer * 10
 
-    @veros_routine
+    @veros_routine(supports_compilation=True)
     def after_timestep(self, state):
         pass
 

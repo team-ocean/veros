@@ -55,8 +55,25 @@ def _get_solver_class():
     raise ValueError(f"unrecognized linear solver {ls}")
 
 
-@memoize
 def get_linear_solver(state):
+    prepared = getattr(state, "_linear_solver", None)
+    if prepared is not None:
+        return prepared
+    return _get_linear_solver(state)
+
+
+def get_compiled_solver(state, linear_solver=None):
+    if linear_solver is None:
+        linear_solver = rs.linear_solver
+    if linear_solver not in ("best", "scipy_jax"):
+        raise ValueError("Compiled linear_solver must be 'best' or 'scipy_jax'")
+    from veros.core.external.solvers.scipy_jax import JAXSciPySolver
+
+    return JAXSciPySolver(state)
+
+
+@memoize
+def _get_linear_solver(state):
     logger.debug("Initializing linear solver")
     SolverClass = _get_solver_class()
     return SolverClass(state)

@@ -1,4 +1,4 @@
-from veros import distributed, veros_routine, veros_kernel, runtime_state as rst
+from veros import distributed, veros_routine, veros_kernel, runtime_state as rst, runtime_settings as rs
 from veros.variables import allocate
 
 from veros.core.operators import update, update_add, at, numpy as npx
@@ -7,21 +7,20 @@ from veros.core.external.poisson_matrix import assemble_poisson_matrix
 
 
 @veros_kernel(static_args=("solve_fun",))
-def solve_kernel(state, rhs, x0, boundary_val, solve_fun):
+def solve_kernel(state, rhs, boundary_val, coefficients, solve_fun):
     rhs_global = distributed.gather(rhs, state.dimensions, ("xt", "yt"))
-    x0_global = distributed.gather(x0, state.dimensions, ("xt", "yt"))
-
-    if boundary_val is None:
-        boundary_val_global = x0_global
-    else:
-        boundary_val_global = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
+    boundary_val_global = distributed.gather(boundary_val, state.dimensions, ("xt", "yt"))
 
     if rst.proc_rank == 0:
-        linear_solution = solve_fun(rhs_global, x0_global, boundary_val_global)
+        linear_solution, converged = solve_fun(rhs_global, boundary_val_global, coefficients)
     else:
         linear_solution = npx.empty_like(rhs)
+        converged = npx.asarray(True)
 
-    return distributed.scatter(linear_solution, state.dimensions, ("xt", "yt"))
+    solution = distributed.scatter(linear_solution, state.dimensions, ("xt", "yt"))
+    if rst.proc_num > 1:
+        converged = distributed.bcast(converged, comm=rs.mpi_comm)
+    return solution, converged
 
 
 class JAXSciPySolver(LinearSolver):
@@ -43,14 +42,21 @@ class JAXSciPySolver(LinearSolver):
         dist_safe=False,
     )
     def __init__(self, state):
-        from jax.scipy.sparse.linalg import bicgstab
-
         matrix_diags, offsets, boundary_mask = self._assemble_poisson_matrix(state)
         jacobi_precon = self._jacobi_preconditioner(state, matrix_diags)
         matrix_diags = tuple(jacobi_precon * diag for diag in matrix_diags)
 
+        self._set_coefficients(matrix_diags, offsets, boundary_mask, jacobi_precon)
+
+    def _set_coefficients(self, matrix_diags, offsets, boundary_mask, rhs_scale):
+        import jax
+        from jax.scipy.sparse.linalg import bicgstab, gmres
+
+        self._coefficients = (matrix_diags, offsets, boundary_mask, rhs_scale)
+
         @veros_kernel
-        def linear_solve(rhs, x0, boundary_val):
+        def linear_solve(rhs, boundary_val, coefficients):
+            matrix_diags, boundary_mask, rhs_scale = coefficients
             rhs = npx.where(boundary_mask, rhs, boundary_val)  # set right hand side on boundaries
 
             def matmul(rhs):
@@ -77,19 +83,47 @@ class JAXSciPySolver(LinearSolver):
 
                 return res
 
-            linear_solution, _ = bicgstab(
-                matmul,
-                rhs * self._rhs_scale,
-                x0=x0,
-                tol=0,
-                atol=1e-8,
-                maxiter=10_000,
-            )
+            def solve(operator, value):
+                # Recompute tolerances for each primal, tangent, or adjoint RHS.
+                # Reusing primal tolerances can discard small sensitivities.
+                # Avoid norm underflow and GMRES's sub-epsilon cutoff.
+                magnitude = npx.max(npx.abs(value))
+                scale = npx.where(magnitude > 0, magnitude, 1)
+                normalized = value / scale
+                tolerance = 10 * npx.finfo(value.dtype).eps
+                guess = npx.zeros(value.shape, dtype=value.dtype)
+                solution, _ = bicgstab(operator, normalized, x0=guess, tol=tolerance, atol=0, maxiter=10_000)
+                # Rescaling can move the true residual across the convergence limit.
+                residual = (operator(scale * solution) - value) / scale
+                converged = npx.all(npx.isfinite(solution)) & (
+                    npx.linalg.norm(residual)
+                    <= npx.maximum(1e-8, 100 * npx.finfo(value.dtype).eps) * npx.linalg.norm(normalized)
+                )
 
-            return linear_solution
+                def fallback(_):
+                    # Identity boundary rows can cause BiCGSTAB breakdown.
+                    return gmres(
+                        operator,
+                        normalized,
+                        x0=guess,
+                        tol=tolerance,
+                        atol=0,
+                        restart=40,
+                        maxiter=250,
+                        solve_method="incremental",
+                    )[0]
+
+                return scale * jax.lax.cond(converged, lambda _: solution, fallback, None)
+
+            scaled_rhs = rhs * rhs_scale
+            linear_solution = jax.lax.custom_linear_solve(matmul, scaled_rhs, solve=solve, transpose_solve=solve)
+
+            residual = matmul(linear_solution) - scaled_rhs
+            tolerance = npx.maximum(1e-8, 100 * npx.finfo(rhs.dtype).eps * npx.linalg.norm(scaled_rhs))
+            converged = npx.all(npx.isfinite(linear_solution)) & (npx.linalg.norm(residual) <= tolerance)
+            return linear_solution, converged
 
         self._linear_solve = linear_solve
-        self._rhs_scale = jacobi_precon
 
     def solve(self, state, rhs, x0, boundary_val=None):
         """
@@ -98,16 +132,22 @@ class JAXSciPySolver(LinearSolver):
 
         Arguments:
             rhs: Right-hand side vector
-            x0: Initial guess
+            x0: Default boundary values. Iterative solves start from zero.
             boundary_val: Array containing values to set on boundary elements. Defaults to `x0`.
 
         """
         if rst.proc_rank == 0:
             linear_solve = self._linear_solve
+            matrix_diags, _, mask, scale = self._coefficients
+            coefficients = (matrix_diags, mask, scale)
         else:
             linear_solve = None
-
-        return solve_kernel(state, rhs, x0, boundary_val, linear_solve)
+            coefficients = None
+        boundary_val = x0 if boundary_val is None else boundary_val
+        solution, converged = solve_kernel(state, rhs, boundary_val, coefficients, linear_solve)
+        if hasattr(state, "_solver_residual_ok"):
+            state._solver_residual_ok = state._solver_residual_ok & converged
+        return solution
 
     @staticmethod
     def _jacobi_preconditioner(state, matrix_diags):
