@@ -7,11 +7,7 @@ Installation
 Quick installation via pip
 ++++++++++++++++++++++++++
 
-.. warning::
-
-  You should only install Veros this way if you want to get going as quickly as possible, and do not plan to access or modify the model source code. The recommended way to install Veros is by checking out the repository (see below).
-
-If you already have Python installed, the quickest way to get a working Veros installation is to run ::
+To install Veros with pip, run::
 
   $ pip install veros
 
@@ -20,6 +16,8 @@ or, optionally::
   $ pip install veros[jax]
 
 to use Veros with JAX.
+
+Veros provides wheels for standard CPython 3.12 and later on compatible Intel and Arm Linux and macOS systems. These wheels include the CPU extension and install without compiling Veros. Use a source installation to modify the model code or build the optional CUDA extension.
 
 
 Using Conda (multi-platform)
@@ -76,7 +74,7 @@ Using pip (Linux / OSX)
 
    (or `any other version of Veros <https://github.com/team-ocean/veros/releases>`__), or use ::
 
-      $ pip download veros
+      $ pip download --no-deps --no-binary veros veros
 
    to download a tarball of the latest version (needs to be unpacked).
 

@@ -10,6 +10,7 @@ from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from hatchling.metadata.plugin.interface import MetadataHookInterface
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
+from packaging.tags import platform_tags
 
 
 ROOT = Path(__file__).resolve().parent
@@ -46,9 +47,10 @@ def env_enabled(name):
 
 class NativeBuildHook(BuildHookInterface):
     def initialize(self, version, build_data):
+        build_abi3 = env_enabled("VEROS_BUILD_ABI3")
         self.build_dir = TemporaryDirectory(prefix="veros-native-")
         build = Path(self.build_dir.name)
-        extensions = self.build_extensions(build)
+        extensions = self.build_extensions(build, build_abi3)
         if not extensions:
             return
 
@@ -58,18 +60,27 @@ class NativeBuildHook(BuildHookInterface):
         else:
             for extension in extensions:
                 build_data["force_include"][str(extension)] = (NATIVE_PACKAGE / extension.name).as_posix()
-            build_data["infer_tag"] = True
+            if build_abi3:
+                if sys.platform == "darwin" and "_PYTHON_HOST_PLATFORM" not in os.environ:
+                    platform = next(platform_tags())
+                else:
+                    platform = sysconfig.get_platform().replace("-", "_").replace(".", "_")
+                build_data["tag"] = f"cp312-abi3-{platform}"
+            else:
+                build_data["infer_tag"] = True
             build_data["pure_python"] = False
 
     def finalize(self, version, build_data, artifact_path):
         self.build_dir.cleanup()
 
-    def build_extensions(self, build):
+    def build_extensions(self, build, build_abi3):
         import jaxlib
         import nanobind
 
-        require_cpu = env_enabled("VEROS_REQUIRE_CPU_EXT") or env_enabled("VEROS_REQUIRE_CYTHON_EXT")
+        require_cpu = build_abi3 or env_enabled("VEROS_REQUIRE_CPU_EXT") or env_enabled("VEROS_REQUIRE_CYTHON_EXT")
         require_cuda = env_enabled("VEROS_REQUIRE_CUDA_EXT")
+        if build_abi3 and require_cuda:
+            raise ValueError("VEROS_BUILD_ABI3 and VEROS_REQUIRE_CUDA_EXT cannot be used together")
         output = build / "extensions"
         configure = [
             "cmake",
@@ -84,6 +95,8 @@ class NativeBuildHook(BuildHookInterface):
             f"-Dnanobind_DIR={nanobind.cmake_dir()}",
             f"-DJAXLIB_INCLUDE_DIR={Path(jaxlib.__file__).with_name('include')}",
         ]
+        if build_abi3:
+            configure.append("-DVEROS_BUILD_ABI3=ON")
         if sys.platform != "win32" and "CMAKE_GENERATOR" not in os.environ:
             configure.extend(["-G", "Ninja"])
         cuda_root = os.environ.get("CUDAHOME") or os.environ.get("CUDA_ROOT")
@@ -105,8 +118,9 @@ class NativeBuildHook(BuildHookInterface):
             raise RuntimeError("The CUDA TDMA extension requires a working CUDA toolkit")
 
         extensions = []
+        extension_suffix = ".abi3.so" if build_abi3 else sysconfig.get_config_var("EXT_SUFFIX")
         for target, required in targets.items():
-            extension = output / f"{target}{sysconfig.get_config_var('EXT_SUFFIX')}"
+            extension = output / f"{target}{extension_suffix}"
             try:
                 subprocess.run(["cmake", "--build", str(build), "--config", "Release", "--target", target], check=True)
                 if not extension.is_file():
