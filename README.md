@@ -60,6 +60,8 @@ Veros provides
 -   several **pre-implemented diagnostics** such as energy fluxes,
     variable time averages, and a vertical overturning stream function
     (written to netCDF4 output)
+-   [**compiled, differentiable timesteps**](doc/tutorial/differentiation.rst)
+    with diagnostic accumulation, checkpointing, and a host output driver
 -   **pre-configured idealized and realistic set-ups** that are ready to
     run and easy to adapt
 -   **accessibility and extensibility** - thanks to the

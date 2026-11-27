@@ -110,6 +110,7 @@ extend-exclude = ["doc", "veros/_version.py"]
 
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 testpaths = [
     "test",
 ]
