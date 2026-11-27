@@ -7,38 +7,11 @@ import sysconfig
 from tempfile import TemporaryDirectory
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
-from hatchling.metadata.plugin.interface import MetadataHookInterface
-from packaging.requirements import Requirement
-from packaging.specifiers import SpecifierSet
 from packaging.tags import platform_tags
 
 
 ROOT = Path(__file__).resolve().parent
 NATIVE_PACKAGE = Path("veros/core/special")
-MINIMUM_VERSIONS = {"numpy": "1.13", "requests": "2.18", "jax": "0.5.0"}
-
-
-def read_requirements(path):
-    requirements = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        requirement = Requirement(line)
-        requirement.specifier = SpecifierSet(str(requirement.specifier).replace("==", "<="))
-        if requirement.name in MINIMUM_VERSIONS:
-            requirement.specifier &= SpecifierSet(f">={MINIMUM_VERSIONS[requirement.name]}")
-        requirements.append(requirement)
-    return requirements
-
-
-class VerosMetadataHook(MetadataHookInterface):
-    def update(self, metadata):
-        metadata["dependencies"] = list(map(str, read_requirements(ROOT / "requirements.txt")))
-        jax_requirements = read_requirements(ROOT / "requirements_jax.txt")
-        jax = next(requirement for requirement in jax_requirements if requirement.name == "jax")
-        metadata["optional-dependencies"] = {
-            # pytest 9.2 breaks pytest-forked (https://github.com/pytest-dev/pytest-forked/issues/113)
-            "test": ["pytest<9.2", "pytest-cov", "pytest-forked", "xarray"],
-            "jax": [*map(str, jax_requirements), str(jax).replace("jax", "jaxlib", 1)],
-        }
 
 
 def env_enabled(name):
