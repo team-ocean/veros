@@ -2,8 +2,8 @@
 
 Integration requires positive energy, free length, uncapped viscosity and
 interval-certified branch transitions. The native history convention admits
-downward crossings. The floored convention admits either direction. Status zero
-denotes an accepted calculation. The caller owns transport conservation and source
+downward crossings. The floored and preceding-shear conventions admit either
+direction. Status zero denotes an accepted calculation. The caller owns transport conservation and source
 accounting. See the acceptance-demo README for input meanings and units.
 
 At continuous, transverse events, internal event-time variations cancel from
@@ -18,16 +18,22 @@ import jax
 import jax.numpy as jnp
 
 
-def _coefficients(probe, N, previous, bg, fraction, a, mu_floor, *, floored_history=False):
+def _coefficients(probe, N, previous, bg, fraction, a, mu_floor, *, history="raw"):
     """Return affine viscosity/thermal slopes and constants, and Prandtl number."""
     epsilon = jnp.asarray(1e-12, dtype=N.dtype)
-    history_floor = mu_floor if floored_history else epsilon
     raw = a * probe
-    Ri = N / jnp.maximum(previous / jnp.maximum(history_floor, raw), epsilon)
-    Pr = jnp.clip(6.6 * Ri, 1, 10)
-    intermediate = (Pr > 1) & (Pr < 10) & (raw > history_floor) & (previous / jnp.maximum(history_floor, raw) > epsilon)
-    ts = jnp.where(intermediate, 0, a / Pr)
-    tc = jnp.where(intermediate, previous / (6.6 * N), 0)
+    if history == "preceding_shear":
+        Pr = jnp.clip(6.6 * (N / jnp.maximum(previous, epsilon)), 1, 10)
+        ts = a / Pr
+        tc = jnp.zeros_like(N)
+    else:
+        history_floor = mu_floor if history == "floored" else epsilon
+        normalized = previous / jnp.maximum(history_floor, raw)
+        Ri = N / jnp.maximum(normalized, epsilon)
+        Pr = jnp.clip(6.6 * Ri, 1, 10)
+        intermediate = (Pr > 1) & (Pr < 10) & (raw > history_floor) & (normalized > epsilon)
+        ts = jnp.where(intermediate, 0, a / Pr)
+        tc = jnp.where(intermediate, previous / (6.6 * N), 0)
     below = ts * probe + tc < bg
     ks = jnp.where(below, (1 - fraction) * ts, ts)
     kc = jnp.where(below, fraction * bg + (1 - fraction) * tc, tc)
@@ -92,26 +98,34 @@ def _integrate(
     mu_floor,
     mu_max,
     *,
-    floored_history=False,
+    history="raw",
 ):
     if not jax.config.x64_enabled or N.dtype != jnp.float64:
         raise ValueError("prepared-column events require JAX float64")
     n = N.shape[0]
-    max_segments = 4 * n + 1
+    directional = history != "raw"
+    max_segments = 2 * n + 1 if history == "preceding_shear" else 4 * n + 1
     dtype = N.dtype
     epsilon = jnp.asarray(1e-12, dtype=dtype)
     a = ck * jnp.sqrt(2 / N)
     gamma = ce * jnp.sqrt(N / 2)
-    if floored_history:
-        pmin = jnp.clip(6.6 * N / jnp.maximum(previous / mu_floor, epsilon), 1, 10)
+    if history == "preceding_shear":
+        Pr = jnp.clip(6.6 * (N / jnp.maximum(previous, epsilon)), 1, 10)
+        heatcross = (Pr * bg / a).at[-1].set(jnp.inf)
+        bounds = jnp.stack((mu_floor / a, heatcross), axis=1)
     else:
-        pmin = jnp.where(previous > 0, jnp.clip(6.6 * N * epsilon / jnp.where(previous > 0, previous, 1), 1, 10), 10)
-    middle = previous / (6.6 * N)
-    lower = jnp.where(pmin < 10, pmin * middle / a, jnp.inf)
-    upper = jnp.where(pmin < 10, 10 * middle / a, jnp.inf)
-    heatcross = jnp.where(pmin < 10, jnp.where(bg <= middle, pmin, 10) * bg / a, 10 * bg / a)
-    heatcross = heatcross.at[-1].set(jnp.inf)
-    bounds = jnp.stack((mu_floor / a, lower, upper, heatcross), axis=1)
+        if history == "floored":
+            pmin = jnp.clip(6.6 * N / jnp.maximum(previous / mu_floor, epsilon), 1, 10)
+        else:
+            pmin = jnp.where(
+                previous > 0, jnp.clip(6.6 * N * epsilon / jnp.where(previous > 0, previous, 1), 1, 10), 10
+            )
+        middle = previous / (6.6 * N)
+        lower = jnp.where(pmin < 10, pmin * middle / a, jnp.inf)
+        upper = jnp.where(pmin < 10, 10 * middle / a, jnp.inf)
+        heatcross = jnp.where(pmin < 10, jnp.where(bg <= middle, pmin, 10) * bg / a, 10 * bg / a)
+        heatcross = heatcross.at[-1].set(jnp.inf)
+        bounds = jnp.stack((mu_floor / a, lower, upper, heatcross), axis=1)
     pending = jnp.isfinite(bounds) & (bounds < energy[:, None])
     eligible = (
         jnp.all(energy > 0)
@@ -164,16 +178,14 @@ def _integrate(
         low = jnp.max(jnp.where(pending, bounds, 0), axis=1)
         high = jnp.min(jnp.where(~pending, bounds, jnp.inf), axis=1)
         probe = jnp.where(jnp.isfinite(high), (low + high) / 2, jnp.maximum(2 * low, E))
-        ms, mc, ks, kc, Pr = _coefficients(
-            probe, N, previous, bg, fraction, a, mu_floor, floored_history=floored_history
-        )
+        ms, mc, ks, kc, Pr = _coefficients(probe, N, previous, bg, fraction, a, mu_floor, history=history)
         A = Q + jnp.diag(M * ms - ratio * N * ks - gamma)
         b = M * mc + eke_rate - ratio * N * kc
         monotone = jnp.all(A @ E + b <= 0)
         remaining = total - elapsed
         end, integral, series_ok = _propagate(A, b, E, remaining)
 
-        if floored_history:
+        if directional:
 
             def gap(point):
                 down = jnp.where(low > 0, (point - low) / jnp.where(low > 0, low, 1), jnp.inf)
@@ -226,7 +238,7 @@ def _integrate(
         lower_derivative = dl + Cbound @ jnp.minimum(ad - aderr, 0)
         upper_derivative = du + Cbound @ jnp.maximum(ad + aderr, 0)
         upper_resolved = (upper_state < high) | (upper_derivative <= 0)
-        if floored_history:
+        if directional:
             upper_resolved = upper_resolved | (lower_derivative > 0)
         lower_resolved = (low == 0) | (lower_state > low) | (upper_derivative < 0) | (lower_derivative >= 0)
         domain = (
@@ -234,7 +246,7 @@ def _integrate(
         )
         positive_semigroup = jnp.all(A - jnp.diag(jnp.diag(A)) >= 0)
         branch_ok = positive_semigroup & jnp.all(upper_resolved & lower_resolved & domain)
-        if floored_history:
+        if directional:
             # Require motion across the boundary in the direction of the branch change.
             tolerance = 128 * jnp.finfo(dtype).eps
             remove = pending & (end[:, None] <= bounds * (1 + tolerance)) & (upper_derivative[:, None] < 0)
@@ -370,7 +382,32 @@ def integrate_floored_history(
         mxl_min,
         mu_floor,
         mu_max,
-        floored_history=True,
+        history="floored",
+    )
+
+
+def integrate_preceding_shear(
+    N, Q, M, bg, fraction, ratio, energy, previous_shear, h, source_rate, total, ck, ce, mxl_min, mu_floor, mu_max
+):
+    """Integrate one phase using supplied squared shear from the preceding momentum step."""
+    return _integrate(
+        N,
+        Q,
+        M,
+        bg,
+        fraction,
+        ratio,
+        energy,
+        previous_shear,
+        h,
+        source_rate,
+        total,
+        ck,
+        ce,
+        mxl_min,
+        mu_floor,
+        mu_max,
+        history="preceding_shear",
     )
 
 
@@ -406,7 +443,7 @@ def _propagate_fixed(A, b, energy, duration):
     return (jnp.where(scale <= _MAX_SCALE, end, jnp.nan), jnp.where(scale <= _MAX_SCALE, integral, jnp.nan))
 
 
-def _replay(args, durations, count, probes, *, floored_history=False):
+def _replay(args, durations, count, probes, *, history="raw"):
     """Smooth replay with fixed internal event times and branch identities."""
     N, Q, M, bg, fraction, ratio, initial, previous, h, eke_rate, total, ck, ce, mxl_min, mu_floor, mu_max = args
     a = ck * jnp.sqrt(2 / N)
@@ -416,9 +453,7 @@ def _replay(args, durations, count, probes, *, floored_history=False):
         def active(state):
             energy, moments, elapsed = state
             duration = jnp.where(i == count - 1, total - elapsed, durations[i])
-            ms, mc, ks, kc, Pr = _coefficients(
-                probes[i], N, previous, bg, fraction, a, mu_floor, floored_history=floored_history
-            )
+            ms, mc, ks, kc, Pr = _coefficients(probes[i], N, previous, bg, fraction, a, mu_floor, history=history)
             A = Q + jnp.diag(M * ms - ratio * N * ks - gamma)
             b = M * mc + eke_rate - ratio * N * kc
             end, integral = _propagate_fixed(A, b, energy, duration)
@@ -435,8 +470,8 @@ def _replay(args, durations, count, probes, *, floored_history=False):
     return (end, *(moments[i] / total for i in range(4)))
 
 
-def _capture(args, *, floored_history=False):
-    values = integrate_floored_history(*args) if floored_history else integrate(*args)
+def _capture(args, *, history="raw"):
+    values = _integrate(*args, history=history)
     outputs = tuple((jnp.where(values["status"] == 0, values[key], jnp.nan) for key in MOMENT_FIELDS))
     probes = jax.lax.stop_gradient((values["energy_path"][:-1] + values["energy_path"][1:]) / 2)
     return (
@@ -451,11 +486,9 @@ def differentiable_moments(*args):
     return _capture(args)[0]
 
 
-def _backward(residual, cotangent, *, floored_history=False):
+def _backward(residual, cotangent, *, history="raw"):
     args, durations, count, probes, status = residual
-    _, pullback = jax.vjp(
-        lambda values: _replay(values, durations, count, probes, floored_history=floored_history), args
-    )
+    _, pullback = jax.vjp(lambda values: _replay(values, durations, count, probes, history=history), args)
     gradient = pullback(cotangent)[0]
     return tuple((jnp.where(status == 0, value, jnp.nan) for value in gradient))
 
@@ -466,10 +499,47 @@ differentiable_moments.defvjp(lambda *args: _capture(args), _backward)
 @jax.custom_vjp
 def differentiable_floored_history_moments(*args):
     """Return moments with a reverse derivative for the floored-history convention."""
-    return _capture(args, floored_history=True)[0]
+    return _capture(args, history="floored")[0]
 
 
 differentiable_floored_history_moments.defvjp(
-    lambda *args: _capture(args, floored_history=True),
-    lambda residual, cotangent: _backward(residual, cotangent, floored_history=True),
+    lambda *args: _capture(args, history="floored"),
+    lambda residual, cotangent: _backward(residual, cotangent, history="floored"),
 )
+
+
+@jax.custom_vjp
+def differentiable_preceding_shear_moments(*args):
+    """Return phase moments and their reverse derivative using preceding squared shear."""
+    return _capture(args, history="preceding_shear")[0]
+
+
+differentiable_preceding_shear_moments.defvjp(
+    lambda *args: _capture(args, history="preceding_shear"),
+    lambda residual, cotangent: _backward(residual, cotangent, history="preceding_shear"),
+)
+
+
+def _preceding_shear_halves(
+    integrate, endpoint, N, Q, M, bg, fraction, ratio, energy, previous_shear, h, source_rate, total, *constants
+):
+    def half(initial):
+        return integrate(N, Q, M, bg, fraction, ratio, initial, previous_shear, h, source_rate, total / 2, *constants)
+
+    first = half(energy)
+    return first, half(endpoint(first))
+
+
+def integrate_preceding_shear_halves(*args):
+    """Return two consecutive fixed half-window integrations with shared phase inputs.
+
+    Use the argument order of integrate_preceding_shear. The last energy of
+    the first window initializes the second. Each result certifies its own
+    events and averages its moments over its half of the original duration.
+    """
+    return _preceding_shear_halves(integrate_preceding_shear, lambda values: values["end"], *args)
+
+
+def differentiable_preceding_shear_half_moments(*args):
+    """Return both half-window moment tuples with their chained reverse derivative."""
+    return _preceding_shear_halves(differentiable_preceding_shear_moments, lambda values: values[0], *args)

@@ -225,6 +225,61 @@ at 98°E/66°S checks moments and mixing-work derivatives through upward crossin
 The native convention uses `integrate` and `differentiable_moments`.
 This alternative has not been adopted for full Veros timesteps or global runs.
 
+## Mixing with supplied preceding shear
+
+`prepared_column_events.integrate_preceding_shear` takes squared vertical shear
+from the preceding momentum step in s⁻². It uses this shear directly to form
+the Richardson number during one phase with a constant source rate.
+`differentiable_preceding_shear_moments` provides the reverse derivative.
+For consecutive phases, pass the ending turbulent energy into the next phase.
+The caller supplies the phase durations, apportions available work and checks
+the complete tracer and mechanical energy budget.
+
+`integrate_preceding_shear_halves` records separate viscosity and tracer moments
+on either side of a fixed midpoint. Both halves use the same phase coefficients
+and source. The second starts with the first half's ending energy. Use
+`differentiable_preceding_shear_half_moments` for the reverse derivative through
+that energy handoff.
+
+## Paired advance with shared friction work
+
+`prepared_pair.solve` advances two adjacent, complete wet tracer columns using
+their staggered momentum faces. It predicts viscosity from an early half-step,
+then uses the mean of the initial and predicted viscosity in full-step momentum.
+The implicit tracer step receives early friction work and the remaining credit
+in two phases. Each owner receives half the work at a shared face.
+
+Supply the initial tracer and turbulence fields, staggered face geometry, preceding
+squared shear, and finite eddy reservoirs. Supply each wet face once and hold its
+exterior viscosity fixed. Both columns require positive energy, stable
+stratification, free mixing length and inactive viscosity caps. The call returns
+the finished tracer states, remaining eddy energy, face velocities and work ledger.
+
+`prepared_pair.solve_prospective` estimates the timing of friction work from
+three quarter-step forecasts and a tracer solve with four work phases. It
+integrates the forecast viscosity over eight windows, advances momentum across
+those windows, and supplies each window's resolved work to the final tracer and
+turbulence solve. Chain intervals with the returned `columns` and `faces`.
+The result includes each forecast, the corrected tracer solves and the assigned
+friction work. The same wet geometry, fixed exterior and mixing restrictions
+apply.
+
+`prepared_pair.solve_tracer_tangent` takes an accepted tracer solve and directions
+for both compensated tracer parts, incoming turbulent energy, squared shear and
+ordered work rates. It differentiates the implicit root with the wet geometry
+and finite eddy supply held fixed.
+
+`prepared_pair.solve_momentum_tangent` takes the opening face velocities and
+column viscosities with their directions. It differentiates the resolved face
+velocities, allotted friction work and outgoing squared shear. Exterior
+viscosity is fixed.
+
+`prepared_pair.solve_prospective_tangent` takes the accepted result of
+`solve_prospective` and directions for the opening columns and face velocities.
+It returns the changes in corrected tracer work and the state carried forward.
+Use the returned column and velocity directions with the next forward result
+to differentiate consecutive intervals.
+
 ## Empty-column startup
 
 `prepared_column_startup.integrate_empty` advances moments from exactly zero
