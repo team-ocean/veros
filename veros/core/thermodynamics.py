@@ -4,6 +4,7 @@ from veros import veros_routine, veros_kernel, KernelOutput
 from veros.distributed import global_sum
 from veros.variables import allocate
 from veros.core import advection, diffusion, isoneutral, density, utilities
+from veros.core.geometry import cell_thickness
 from veros.core.operators import update, update_add, at
 
 
@@ -20,6 +21,10 @@ def advect_tracer(state, tr):
     else:
         flux_east, flux_north, flux_top = advection.adv_flux_2nd(state, tr)
 
+    if settings.enable_partial_cells:
+        flux_east = flux_east * vs.hfacU
+        flux_north = flux_north * vs.hfacV
+
     dtr = allocate(state.dimensions, ("xt", "yt", "zt"))
     dtr = update(
         dtr,
@@ -32,9 +37,12 @@ def advect_tracer(state, tr):
             / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
         ),
     )
-    dtr = update_add(dtr, at[:, :, 0], -1 * vs.maskT[:, :, 0] * flux_top[:, :, 0] / vs.dzt[0])
+    if settings.enable_partial_cells:
+        dtr = dtr / npx.where(vs.maskT, vs.hfacT, 1)
+    thickness = cell_thickness(state)
+    dtr = update_add(dtr, at[:, :, 0], -1 * vs.maskT[:, :, 0] * flux_top[:, :, 0] / thickness[:, :, 0])
     dtr = update_add(
-        dtr, at[:, :, 1:], -1 * vs.maskT[:, :, 1:] * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / vs.dzt[1:]
+        dtr, at[:, :, 1:], -1 * vs.maskT[:, :, 1:] * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / thickness[:, :, 1:]
     )
 
     return dtr
@@ -252,6 +260,7 @@ def vertmix_tempsalt(state):
     """
     vs = state.variables
     settings = state.settings
+    thickness = cell_thickness(state)[2:-2, 2:-2]
 
     vs.dtemp_vmix = update(vs.dtemp_vmix, at[...], vs.temp[:, :, :, vs.taup1])
     vs.dsalt_vmix = update(vs.dsalt_vmix, at[...], vs.salt[:, :, :, vs.taup1])
@@ -268,18 +277,18 @@ def vertmix_tempsalt(state):
         delta, at[:, :, :-1], settings.dt_tracer / vs.dzw[npx.newaxis, npx.newaxis, :-1] * vs.kappaH[2:-2, 2:-2, :-1]
     )
     delta = update(delta, at[:, :, -1], 0.0)
-    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, 1:])
-    b_tri = update(b_tri, at[:, :, 1:], 1 + (delta[:, :, 1:] + delta[:, :, :-1]) / vs.dzt[npx.newaxis, npx.newaxis, 1:])
-    b_tri_edge = 1 + delta / vs.dzt[npx.newaxis, npx.newaxis, :]
-    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / vs.dzt[npx.newaxis, npx.newaxis, :-1])
+    a_tri = update(a_tri, at[:, :, 1:], -delta[:, :, :-1] / thickness[:, :, 1:])
+    b_tri = update(b_tri, at[:, :, 1:], 1 + (delta[:, :, 1:] + delta[:, :, :-1]) / thickness[:, :, 1:])
+    b_tri_edge = 1 + delta / thickness
+    c_tri = update(c_tri, at[:, :, :-1], -delta[:, :, :-1] / thickness[:, :, :-1])
     d_tri = vs.temp[2:-2, 2:-2, :, vs.taup1]
-    d_tri = update_add(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_temp_surface[2:-2, 2:-2] / vs.dzt[-1])
+    d_tri = update_add(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_temp_surface[2:-2, 2:-2] / thickness[:, :, -1])
 
     sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
     vs.temp = update(vs.temp, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.temp[2:-2, 2:-2, :, vs.taup1]))
 
     d_tri = vs.salt[2:-2, 2:-2, :, vs.taup1]
-    d_tri = update_add(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_salt_surface[2:-2, 2:-2] / vs.dzt[-1])
+    d_tri = update_add(d_tri, at[:, :, -1], settings.dt_tracer * vs.forc_salt_surface[2:-2, 2:-2] / thickness[:, :, -1])
 
     sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
     vs.salt = update(vs.salt, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.salt[2:-2, 2:-2, :, vs.taup1]))

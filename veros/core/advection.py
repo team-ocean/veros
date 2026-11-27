@@ -1,6 +1,7 @@
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core.utilities import pad_z_edges
+from veros.core.geometry import cell_thickness
 from veros.core.operators import numpy as npx, update, update_add, update_multiply, at, stable_divide
 
 
@@ -31,7 +32,7 @@ def _adv_superbee(state, vel, var, mask, dx, axis):
         dx = (vs.cost * dx)[npx.newaxis, 1:-2, npx.newaxis]
     elif axis == 2:
         sm1, s, sp1, sp2 = ((slice(2, -2), slice(2, -2), slice(1 + n, -2 + n or None)) for n in range(-1, 3))
-        dx = dx[npx.newaxis, npx.newaxis, :-1]
+        dx = dx[2:-2, 2:-2, :-1] if dx.ndim == 3 else dx[npx.newaxis, npx.newaxis, :-1]
         vel, var, mask = (pad_z_edges(a) for a in (vel, var, mask))
     else:
         raise ValueError("axis must be 0, 1, or 2")
@@ -108,7 +109,10 @@ def adv_flux_superbee(state, var):
 
     adv_fe = update(adv_fe, at[1:-2, 2:-2, :], _adv_superbee(state, vs.u[..., vs.tau], var, vs.maskU, vs.dxt, 0))
     adv_fn = update(adv_fn, at[2:-2, 1:-2, :], _adv_superbee(state, vs.v[..., vs.tau], var, vs.maskV, vs.dyt, 1))
-    adv_ft = update(adv_ft, at[2:-2, 2:-2, :-1], _adv_superbee(state, vs.w[..., vs.tau], var, vs.maskW, vs.dzt, 2))
+    vertical_spacing = cell_thickness(state) if state.settings.enable_partial_cells else vs.dzt
+    adv_ft = update(
+        adv_ft, at[2:-2, 2:-2, :-1], _adv_superbee(state, vs.w[..., vs.tau], var, vs.maskW, vertical_spacing, 2)
+    )
     adv_ft = update(adv_ft, at[..., -1], 0.0)
 
     return adv_fe, adv_fn, adv_ft

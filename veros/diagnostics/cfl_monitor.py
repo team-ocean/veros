@@ -2,6 +2,7 @@ from veros import logger
 from veros.core.operators import numpy as npx
 from veros.diagnostics.base import VerosDiagnostic
 from veros.distributed import global_max
+from veros.core.geometry import cell_thickness
 
 
 class CFLMonitor(VerosDiagnostic):
@@ -46,7 +47,7 @@ class CFLMonitor(VerosDiagnostic):
             npx.max(
                 npx.abs(vs.w[2:-2, 2:-2, :, vs.tau])
                 * vs.maskW[2:-2, 2:-2, :]
-                / vs.dzt[npx.newaxis, npx.newaxis, :]
+                / cell_thickness(state)[2:-2, 2:-2]
                 * settings.dt_tracer
             )
         )
@@ -74,7 +75,7 @@ class CFLMonitor(VerosDiagnostic):
                 npx.max(
                     npx.abs(vs.w_wgrid[2:-2, 2:-2, :])
                     * vs.maskW[2:-2, 2:-2, :]
-                    / vs.dzt[npx.newaxis, npx.newaxis, :]
+                    / cell_thickness(state)[2:-2, 2:-2]
                     * settings.dt_tracer
                 )
             )

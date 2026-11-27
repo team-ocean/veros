@@ -112,6 +112,13 @@ def read_restart(state):
 
             setattr(state.variables, key, var_data)
 
+        if settings.enable_partial_cells:
+            from veros.core.geometry import bathymetry_geometry
+            from veros.core.operators import numpy as npx
+
+            depth = npx.sum(state.variables.hfacT * state.variables.dzt, axis=2)
+            state.variables.update(bathymetry_geometry(state, depth))
+
         # diagnostic restarts
         for diag_name, diagnostic in state.diagnostics.items():
             if not diagnostic.var_meta:

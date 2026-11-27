@@ -4,6 +4,7 @@ from veros.variables import Variable
 from veros.core.operators import numpy as npx
 from veros.diagnostics.base import VerosDiagnostic
 from veros.distributed import global_sum
+from veros.core.geometry import cell_thickness
 
 
 class TracerMonitor(VerosDiagnostic):
@@ -35,7 +36,7 @@ class TracerMonitor(VerosDiagnostic):
         vs = state.variables
         tracer_vs = self.variables
 
-        cell_volume = vs.area_t[2:-2, 2:-2, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :] * vs.maskT[2:-2, 2:-2, :]
+        cell_volume = vs.area_t[2:-2, 2:-2, npx.newaxis] * cell_thickness(state)[2:-2, 2:-2] * vs.maskT[2:-2, 2:-2, :]
         volm = global_sum(npx.sum(cell_volume))
         tempm = global_sum(npx.sum(cell_volume * vs.temp[2:-2, 2:-2, :, vs.tau]))
         saltm = global_sum(npx.sum(cell_volume * vs.salt[2:-2, 2:-2, :, vs.tau]))
