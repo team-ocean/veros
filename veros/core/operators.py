@@ -16,6 +16,17 @@ def noop(*args, **kwargs):
     pass
 
 
+def safe_sqrt(value):
+    """Square root with a zero derivative at zero."""
+    zero = value == 0
+    return numpy.where(zero, 0, numpy.sqrt(numpy.where(zero, 1, value)))
+
+
+def stable_divide(numerator, denominator):
+    """Division whose derivative avoids squaring small denominators."""
+    return numerator / denominator
+
+
 @contextmanager
 def make_writeable(*arrs):
     orig_writeable = [arr.flags.writeable for arr in arrs]
@@ -132,7 +143,7 @@ def solve_tridiagonal_jax(a, b, c, d, water_mask, edge_mask):
 
     a = water_mask * a * jnp.logical_not(edge_mask)
     b = jnp.where(water_mask, b, 1.0)
-    c = water_mask * c
+    c = (water_mask * c).at[..., -1].set(0)
     d = water_mask * d
 
     def compute_primes(last_primes, x):
@@ -193,6 +204,15 @@ if runtime_settings.backend == "numpy":
 
 elif runtime_settings.backend == "jax":
     import jax.lax
+
+    stable_divide = jax.custom_jvp(stable_divide)
+
+    @stable_divide.defjvp
+    def _stable_divide_jvp(primals, tangents):
+        numerator, denominator = primals
+        d_numerator, d_denominator = tangents
+        quotient = stable_divide(numerator, denominator)
+        return quotient, (d_numerator - quotient * d_denominator) / denominator
 
     update = update_jax
     update_add = update_add_jax
