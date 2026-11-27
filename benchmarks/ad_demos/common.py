@@ -25,39 +25,84 @@ class Checks:
         )
 
 
-def gradient_checks(function, point, checks, *, direction=None):
-    import jax
+def gradient_checks(function, point, checks, *, direction=None, coarser_scales=(), finer_scales=()):
     import jax.numpy as jnp
+    from .finite_response import value_and_grad, jvp
 
     if direction is None:
         direction = jnp.arange(1, point.size + 1, dtype=point.dtype)
         direction = direction / jnp.linalg.norm(direction)
     evaluate = function
-    value, gradient = jax.value_and_grad(function)(point)
-    forward_value, tangent = jax.jvp(function, (point,), (direction,))
+    value, gradient = value_and_grad(function)(point)
+    forward_value, tangent = jvp(function, point, direction)
     contraction = jnp.vdot(gradient, direction)
     checks.close("forward/reverse primal", forward_value, value, rtol=1e-10)
     checks.close("forward/reverse directional derivative", tangent, contraction)
     checks.require("finite gradient", np.isfinite(gradient).all(), np.asarray(gradient).tolist())
     differences, remainders = [], []
-    epsilons = (1e-2, 3e-3, 1e-3, 3e-4, 1e-4)
-    for epsilon in epsilons:
-        plus, minus = evaluate(point + epsilon * direction), evaluate(point - epsilon * direction)
-        differences.append(float((plus - minus) / (2 * epsilon)))
-        remainders.append(float(jnp.abs(plus - value - epsilon * contraction)))
+    epsilons = [1e-2, 3e-3, 1e-3, 3e-4, 1e-4]
+    audit = dict(
+        point=np.asarray(point).tolist(),
+        direction=np.asarray(direction).tolist(),
+        value=float(value),
+        derivative=float(contraction),
+        samples=[],
+    )
+    checks.metrics.setdefault("gradient_audits", []).append(audit)
+    if hasattr(function, "gradient_method"):
+        audit["gradient_method"] = function.gradient_method
+
+    def measure(scales):
+        for epsilon in scales:
+            plus, minus = evaluate(point + epsilon * direction), evaluate(point - epsilon * direction)
+            differences.append(float((plus - minus) / (2 * epsilon)))
+            remainders.append(float(jnp.abs(plus - value - epsilon * contraction)))
+            audit["samples"].append(
+                dict(epsilon=epsilon, plus=float(plus), minus=float(minus), central_difference=differences[-1])
+            )
+            if checks.on_update is not None:
+                checks.on_update()
+
+    measure(epsilons)
+    initial_matches = sum(np.isclose(differences, float(contraction), rtol=2e-3, atol=1e-8))
+
+    def taylor_orders():
+        return [
+            float(np.log(a / b) / np.log(ea / eb)) if a > 1e-13 and b > 1e-13 else None
+            for a, b, ea, eb in zip(remainders[:-1], remainders[1:], epsilons[:-1], epsilons[1:])
+        ]
+
+    def taylor_passed(orders):
+        return any(order is not None and 1.7 < order < 2.3 for order in orders) or max(remainders) <= 1e-9 * max(
+            1, abs(float(value))
+        )
+
+    if initial_matches < 2 or not taylor_passed(taylor_orders()):
+        smaller = [3e-5, 1e-5, 3e-6, 1e-6]
+        measure(smaller)
+        epsilons.extend(smaller)
+    if finer_scales and (
+        sum(np.isclose(differences, float(contraction), rtol=2e-3, atol=1e-8)) < 2 or not taylor_passed(taylor_orders())
+    ):
+        measure(finer_scales)
+        epsilons.extend(finer_scales)
+    if coarser_scales and not taylor_passed(taylor_orders()):
+        measure(coarser_scales)
+        epsilons.extend(coarser_scales)
     checks.require(
         "finite-difference plateau",
         sum(np.isclose(differences, float(contraction), rtol=2e-3, atol=1e-8)) >= 2,
-        dict(epsilons=epsilons, derivatives=differences, ad=float(contraction)),
+        dict(
+            epsilons=epsilons,
+            derivatives=differences,
+            ad=float(contraction),
+            original_scale_matches=int(initial_matches),
+        ),
     )
-    orders = [
-        float(np.log(a / b) / np.log(ea / eb)) if a > 1e-13 and b > 1e-13 else None
-        for a, b, ea, eb in zip(remainders[:-1], remainders[1:], epsilons[:-1], epsilons[1:])
-    ]
+    orders = taylor_orders()
     checks.require(
         "Taylor remainder",
-        any(order is not None and 1.7 < order < 2.3 for order in orders)
-        or max(remainders) <= 1e-9 * max(1, abs(float(value))),
+        taylor_passed(orders),
         dict(
             epsilons=epsilons,
             remainders=remainders,
@@ -68,31 +113,73 @@ def gradient_checks(function, point, checks, *, direction=None):
     return float(value), gradient
 
 
-def descend(function, point, *, iterations=8, radius=None):
+def descend(function, point, *, iterations=8, radius=None, diagnostics=None, on_iteration=None, value_and_grad_fn=None):
     """Small projected gradient descent with backtracking and recorded losses."""
-    import jax
     import jax.numpy as jnp
+    from .finite_response import value_and_grad
 
-    backward, evaluate = jax.value_and_grad(function), function
+    backward = value_and_grad(function) if value_and_grad_fn is None else value_and_grad_fn
+    evaluate = function
     history = []
-    for _ in range(iterations):
+    stopping = "iteration_limit"
+    accepted_steps = []
+
+    def report(stage, iteration, loss, **extra):
+        if on_iteration is not None:
+            on_iteration(
+                dict(
+                    stage=stage,
+                    iteration=iteration,
+                    controls=np.asarray(point).tolist(),
+                    loss=float(loss),
+                    history=list(history),
+                    accepted_steps=list(accepted_steps),
+                    **extra,
+                )
+            )
+
+    for iteration in range(iterations):
         value, gradient = backward(point)
         history.append(float(value))
         norm = float(jnp.linalg.norm(gradient))
+        report("gradient", iteration, value, gradient=np.asarray(gradient).tolist(), gradient_norm=norm)
         if not np.isfinite(norm) or norm < 1e-12:
+            stopping = "nonfinite_gradient" if not np.isfinite(norm) else "gradient_tolerance"
             break
         accepted = False
         for step in (1.0, 0.3, 0.1, 0.03, 0.01, 0.003, 0.001):
             candidate = point - step * gradient / norm
             if radius is not None:
                 candidate *= jnp.minimum(1.0, radius / jnp.maximum(jnp.linalg.norm(candidate), 1e-30))
+            report("trial", iteration, value, candidate=np.asarray(candidate).tolist(), step=step)
             trial = float(evaluate(candidate))
             if np.isfinite(trial) and trial < float(value):
                 point, accepted = candidate, True
+                accepted_steps.append(step)
+                report("accepted", iteration + 1, trial)
                 break
         if not accepted:
+            stopping = "backtracking_exhausted"
             break
     history.append(float(evaluate(point)))
+    if diagnostics is not None:
+        _, final_gradient = backward(point)
+        projected = point - final_gradient
+        if radius is not None:
+            projected *= jnp.minimum(1.0, radius / jnp.maximum(jnp.linalg.norm(projected), 1e-30))
+        diagnostics.update(
+            method="normalized gradient descent with finite backtracking",
+            stopping=stopping,
+            max_iterations=iterations,
+            accepted_iterations=len(accepted_steps),
+            accepted_steps=accepted_steps,
+            gradient_norm=float(jnp.linalg.norm(final_gradient)),
+            projected_gradient_norm=float(jnp.linalg.norm(point - projected)),
+            gradient_tolerance=1e-12,
+            radius=radius,
+            control_norm=float(jnp.linalg.norm(point)),
+        )
+    report("complete", len(history) - 1, history[-1], stopping=stopping)
     return point, history
 
 

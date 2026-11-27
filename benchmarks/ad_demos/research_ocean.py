@@ -32,6 +32,15 @@ def closure_law(variables, weights):
     return 1e-5 * jnp.exp(weights[0] + weights[1] * jnp.tanh(variables.Nsqr[..., variables.tau] / 1e-5))
 
 
+def balanced_surface_flux(flux, eligible, area):
+    """Redistribute over the eligible surface with zero interior area integral."""
+    import jax.numpy as jnp
+
+    weights = (area * eligible).at[:2].set(0).at[-2:].set(0).at[:, :2].set(0).at[:, -2:].set(0)
+    mean = jnp.sum(flux * weights) / jnp.maximum(jnp.sum(weights), 1)
+    return jnp.where(eligible, flux - mean, 0)
+
+
 class ResearchOcean:
     def __init__(self, config, case):
         import jax.numpy as jnp
@@ -44,12 +53,23 @@ class ResearchOcean:
             from veros.setups.global_4deg import GlobalFourDegreeSetup as Setup
 
             overrides = {}
+        elif config["setup"] == "adjusted_basin":
+            from .adjusted_basin import AdjustedBasinSetup as Setup
+
+            overrides = {}
         else:
             from veros.setups.acc_basic import ACCBasicSetup as Setup
 
             overrides = dict(nx=8, ny=8, dt_tracer=600.0, dt_mom=600.0)
         if config["physics"] == "fixed":
             overrides.update(enable_tke=False, enable_eke=False, enable_idemix=False, kappaH_0=1e-5)
+        if config.get("neutral_policy", "default") == "nonstable":
+            overrides["enable_neutral_nonstable_zero_slope"] = True
+        tke_policy = config.get("tke_policy", "default")
+        if tke_policy not in ("default", "positive_diffusion"):
+            raise ValueError(f"Unknown TKE policy: {tke_policy}")
+        if tke_policy == "positive_diffusion":
+            overrides["enable_tke_positive_diffusion"] = True
         if case.task == "geometry":
             overrides.update(enable_partial_cells=True, enable_streamfunction=False)
         fields = {
@@ -66,11 +86,49 @@ class ResearchOcean:
         }
 
         class Simulation(Setup):
+            def build_grid_reference(self, carry, **kwargs):
+                from .geometry_reference import evaluate
+
+                return evaluate(self._research_ocean, carry, **kwargs)
+
+            def build_tracer_reference(self, carry, **kwargs):
+                from .tracer_reference import build
+
+                return build(self._research_ocean, carry, **kwargs)
+
             @veros_routine
             def set_parameter(self, state):
                 super().set_parameter(state)
                 for name, (units, dims) in fields.items():
                     state.var_meta[name] = Variable(name, dims, units)
+                if case.task == "geometry":
+                    from .geometry_setup import add_reference_variables
+
+                    add_reference_variables(state)
+
+            @veros_routine
+            def set_initial_conditions(self, state):
+                super().set_initial_conditions(state)
+                if case.task == "geometry":
+                    from .geometry_setup import initialize_reference
+
+                    initialize_reference(state)
+
+            def wet_geometry_channel(self, state, name):
+                from .geometry_setup import channel_mask
+
+                return channel_mask(state, config["setup"], name)
+
+            wet_geometry_channel.supports_compilation = True
+
+            @veros_routine(supports_compilation=True)
+            def rebuild_wet_forcing(self, state):
+                from .geometry_setup import extend_forcing
+
+                extend_forcing(state)
+                rebuild = getattr(super(), "rebuild_vertical_forcing", None)
+                if rebuild is not None:
+                    rebuild(state)
 
             @veros_routine(supports_compilation=True)
             def set_forcing(self, state):
@@ -86,10 +144,9 @@ class ResearchOcean:
                 heat = (vs.research_heat_mean + seasonal * vs.research_heat_seasonal) * vs.maskT[..., -1]
                 salt = (vs.research_salt_mean + seasonal * vs.research_salt_seasonal) * vs.maskT[..., -1]
                 if config["setup"] == "global_4deg":
-                    blocked = (vs.temp[..., -1, vs.tau] < -1.8) & (
-                        vs.forc_temp_surface + heat / (CP * state.settings.rho_0) < 0
-                    )
-                    heat, salt = jnp.where(blocked, 0, heat), jnp.where(blocked, 0, salt)
+                    eligible = vs.maskT[..., -1] & (vs.temp[..., -1, vs.tau] >= -1.8)
+                    heat = balanced_surface_flux(heat, eligible, vs.area_t)
+                    salt = balanced_surface_flux(salt, eligible, vs.area_t)
                 vs.forc_temp_surface = vs.forc_temp_surface + heat / (CP * state.settings.rho_0)
                 vs.forc_salt_surface = vs.forc_salt_surface + salt
                 vs.surface_taux = (
@@ -113,6 +170,8 @@ class ResearchOcean:
         self.sim.setup()
         self.prepared = self.sim.prepare_integrator(record_diagnostics=(), checkpoint=True)
         self.initial = self.prepared.pack(self.sim.state)
+        if case.task == "closure":
+            self.initial = self.prepared.with_tracer_closure(self.initial, law=closure_law, weights=jnp.zeros(2))
         if case.task == "geometry":
             lower, upper = self.prepared.bathymetry_bounds(self.initial)
             self.initial = self.prepared.with_bathymetry(self.initial, (lower + upper) / 2)
@@ -164,6 +223,7 @@ class ResearchOcean:
                 jnp.array([1e21, 1e14, 1e6, 1e6]),
             )
         )
+        self.sim._research_ocean = self
 
     def balance(self, pattern):
         import jax.numpy as jnp
@@ -210,7 +270,7 @@ class ResearchOcean:
             mode = mode - jnp.sum(mode * weight, axis=(1, 2))[:, None, None] / jnp.maximum(jnp.sum(weight), 1)
             mode /= jnp.maximum(jnp.max(jnp.abs(mode), axis=(1, 2))[:, None, None], 1)
             depth = (upper + lower) / 2 + 0.1 * room * jnp.einsum("k,kij->ij", full[12:14], mode)
-            carry = self.prepared.with_bathymetry(carry, depth)
+            carry = self.prepared.with_bathymetry(carry, depth, conserve=("temp", "salt", "momentum"))
             carry = self.prepared.with_wet_geometry(
                 carry,
                 opening_m=100 * jnp.exp(0.5 * full[15]),
@@ -295,6 +355,7 @@ class ResearchOcean:
     def advance(self, full, steps, *, phase_days=0, realized=False):
         carry, parameters = self.controls(full, phase_days=phase_days, realized=realized)
         carry, _ = self.prepared.advance(carry, n_steps=steps, parameters=parameters, final_only=True)
+        self.prepared.check_status(carry)
         return carry
 
     def check_controls(self, full, checks):
