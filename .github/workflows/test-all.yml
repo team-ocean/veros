@@ -76,7 +76,8 @@ jobs:
 
       - name: Install optional requirements
         run: |
-          pip install mpi4py nanobind
+          # petsc4py needs Cython when built without isolation.
+          pip install mpi4py nanobind "cython>=3.0.0"
           if [ ${{ matrix.backend }} == "jax" ]; then
             pip install mpi4jax --no-build-isolation
           fi
