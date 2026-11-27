@@ -510,7 +510,7 @@ def harmonic_friction(state):
             )
             / (vs.cost[2:-2] * vs.dyt[2:-2])[npx.newaxis, :, npx.newaxis],
         )
-        vs.K_diss_h = numerics.calc_diss_u(state, diss)
+        vs.K_diss_h = update_add(vs.K_diss_h, at[...], numerics.calc_diss_u(state, diss))
 
     """
     Meridional velocity
@@ -804,7 +804,7 @@ def biharmonic_friction(state):
             )
             / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis]),
         )
-        vs.K_diss_h = numerics.calc_diss_u(state, diss)
+        vs.K_diss_h = update_add(vs.K_diss_h, at[...], numerics.calc_diss_u(state, diss))
 
     """
     Meridional velocity
@@ -998,6 +998,9 @@ def friction(state):
     """
     horizontal friction
     """
+    if settings.enable_conserve_energy:
+        vs.K_diss_h = update(vs.K_diss_h, at[...], 0.0)
+
     if settings.enable_hor_friction:
         vs.update(harmonic_friction(state))
 

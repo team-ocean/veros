@@ -16,7 +16,6 @@ TEST_SETTINGS = dict(
     enable_eke_isopycnal_diffusion=True,
     enable_store_cabbeling_heat=True,
     enable_eke_superbee_advection=True,
-    enable_eke_upwind_advection=True,
 )
 
 

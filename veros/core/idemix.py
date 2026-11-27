@@ -3,7 +3,7 @@ from veros.core.operators import numpy as npx
 from veros import veros_kernel, veros_routine, KernelOutput
 from veros.variables import allocate
 from veros.core import advection, utilities
-from veros.core.operators import update, update_add, at
+from veros.core.operators import update, update_add, at, for_loop
 
 """
 IDEMIX as in Olbers and Eden, 2013
@@ -41,6 +41,14 @@ def set_idemix_parameter(state):
         * vs.maskW
     )
 
+    if settings.enable_idemix_hor_diffusion or settings.enable_idemix_hor_diffusion_iter:
+        dt = settings.dt_tracer
+        if settings.enable_idemix_hor_diffusion_iter:
+            dt = dt / settings.idemix_hor_diffusion_iter
+        width = npx.minimum(vs.dxt[:, npx.newaxis] * vs.cost[npx.newaxis, :], vs.dyt[npx.newaxis, :])
+        max_speed = npx.sqrt(0.2 * width**2 / npx.maximum(1.0, dt * settings.tau_h))
+        vs.v0 = npx.minimum(vs.v0, max_speed[..., npx.newaxis])
+
     return KernelOutput(c0=vs.c0, v0=vs.v0, alpha_c=vs.alpha_c)
 
 
@@ -63,10 +71,12 @@ def integrate_idemix_kernel(state):
         forc = vs.eke_diss_iw
 
     else:  # shortcut without EKE model
-        forc = vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew
-
-        if settings.enable_store_cabbeling_heat:
-            forc += -vs.P_diss_hmix - vs.P_diss_iso
+        if settings.enable_store_gm_diss_in_idemix:
+            forc = vs.K_diss_gm - vs.P_diss_skew
+        if not settings.enable_store_lateral_friction_heat:
+            forc = forc + vs.K_diss_h
+        if not settings.enable_store_cabbeling_heat:
+            forc = forc - vs.P_diss_hmix - vs.P_diss_iso
 
     if settings.enable_eke and (settings.enable_eke_diss_bottom or settings.enable_eke_diss_surfbot):
         """
@@ -182,52 +192,35 @@ def integrate_idemix_kernel(state):
     flux_top = allocate(state.dimensions, ("xt", "yt", "zt"))
 
     if settings.enable_idemix_hor_diffusion:
-        flux_east = update(
-            flux_east,
-            at[:-1, :, :],
-            settings.tau_h
-            * 0.5
-            * (vs.v0[1:, :, :] + vs.v0[:-1, :, :])
-            * (vs.v0[1:, :, :] * vs.E_iw[1:, :, :, vs.tau] - vs.v0[:-1, :, :] * vs.E_iw[:-1, :, :, vs.tau])
-            / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
-            * vs.maskU[:-1, :, :],
-        )
+        tendency = lateral_diffusion(state, vs.E_iw[..., vs.tau])
+        vs.E_iw = update_add(vs.E_iw, at[2:-2, 2:-2, :, vs.taup1], settings.dt_tracer * tendency)
 
-        flux_north = update(
-            flux_north,
-            at[:, :-1, :],
-            settings.tau_h
-            * 0.5
-            * (vs.v0[:, 1:, :] + vs.v0[:, :-1, :])
-            * (vs.v0[:, 1:, :] * vs.E_iw[:, 1:, :, vs.tau] - vs.v0[:, :-1, :] * vs.E_iw[:, :-1, :, vs.tau])
-            / vs.dyu[npx.newaxis, :-1, npx.newaxis]
-            * vs.maskV[:, :-1, :]
-            * vs.cosu[npx.newaxis, :-1, npx.newaxis],
-        )
-        flux_north = update(flux_north, at[:, -1, :], 0.0)
-        vs.E_iw = update_add(
-            vs.E_iw,
-            at[2:-2, 2:-2, :, vs.taup1],
-            settings.dt_tracer
-            * vs.maskW[2:-2, 2:-2, :]
-            * (
-                (flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
-                + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
-            ),
-        )
+    if settings.enable_idemix_hor_diffusion_iter:
+        dt = settings.dt_tracer / settings.idemix_hor_diffusion_iter
+
+        def diffuse(_, energy):
+            energy = utilities.enforce_boundaries(energy, settings.enable_cyclic_x)
+            return update_add(energy, at[2:-2, 2:-2, :], dt * lateral_diffusion(state, energy))
+
+        energy = for_loop(0, settings.idemix_hor_diffusion_iter, diffuse, vs.E_iw[..., vs.taup1])
+        vs.E_iw = update(vs.E_iw, at[..., vs.taup1], energy)
 
     """
     add tendency due to advection
     """
-    if settings.enable_idemix_superbee_advection:
-        flux_east, flux_north, flux_top = advection.adv_flux_superbee_wgrid(state, vs.E_iw[:, :, :, vs.tau])
+    if settings.enable_idemix_dst3_advection:
+        flux_east, flux_north, flux_top = advection.adv_flux_high_order_wgrid(state, vs.E_iw[..., vs.tau], "dst3")
+    elif settings.enable_idemix_superbee_advection:
+        flux_east, flux_north, flux_top = advection.adv_flux_superbee_wgrid(state, vs.E_iw[..., vs.tau])
 
     if settings.enable_idemix_upwind_advection:
         flux_east, flux_north, flux_top = advection.adv_flux_upwind_wgrid(state, vs.E_iw[:, :, :, vs.tau])
 
-    if settings.enable_idemix_superbee_advection or settings.enable_idemix_upwind_advection:
+    if (
+        settings.enable_idemix_superbee_advection
+        or settings.enable_idemix_upwind_advection
+        or settings.enable_idemix_dst3_advection
+    ):
         vs.dE_iw = update(
             vs.dE_iw,
             at[2:-2, 2:-2, :, vs.tau],
@@ -249,20 +242,50 @@ def integrate_idemix_kernel(state):
             vs.dE_iw, at[:, :, -1, vs.tau], -(flux_top[:, :, -1] - flux_top[:, :, -2]) / (0.5 * vs.dzw[-1:])
         )
 
-        """
-        Adam Bashforth time stepping
-        """
-        vs.E_iw = update_add(
-            vs.E_iw,
-            at[:, :, :, vs.taup1],
-            settings.dt_tracer
-            * (
-                (1.5 + settings.AB_eps) * vs.dE_iw[:, :, :, vs.tau]
-                - (0.5 + settings.AB_eps) * vs.dE_iw[:, :, :, vs.taum1]
-            ),
-        )
+        tendency = vs.dE_iw[..., vs.tau]
+        if settings.enable_idemix_AB_time_stepping:
+            tendency = (1.5 + settings.AB_eps) * tendency - (0.5 + settings.AB_eps) * vs.dE_iw[..., vs.taum1]
+        vs.E_iw = update_add(vs.E_iw, at[..., vs.taup1], settings.dt_tracer * tendency)
 
     return KernelOutput(E_iw=vs.E_iw, dE_iw=vs.dE_iw, iw_diss=vs.iw_diss)
+
+
+@veros_kernel
+def lateral_diffusion(state, energy):
+    vs = state.variables
+    settings = state.settings
+    flux_east = allocate(state.dimensions, ("xt", "yt", "zt"))
+    flux_north = allocate(state.dimensions, ("xt", "yt", "zt"))
+    flux_east = update(
+        flux_east,
+        at[:-1, :, :],
+        settings.tau_h
+        * 0.5
+        * (vs.v0[1:, :, :] + vs.v0[:-1, :, :])
+        * (vs.v0[1:, :, :] * energy[1:, :, :] - vs.v0[:-1, :, :] * energy[:-1, :, :])
+        / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
+        * vs.maskW[:-1, :, :]
+        * vs.maskW[1:, :, :],
+    )
+
+    flux_north = update(
+        flux_north,
+        at[:, :-1, :],
+        settings.tau_h
+        * 0.5
+        * (vs.v0[:, 1:, :] + vs.v0[:, :-1, :])
+        * (vs.v0[:, 1:, :] * energy[:, 1:, :] - vs.v0[:, :-1, :] * energy[:, :-1, :])
+        / vs.dyu[npx.newaxis, :-1, npx.newaxis]
+        * vs.maskW[:, :-1, :]
+        * vs.maskW[:, 1:, :]
+        * vs.cosu[npx.newaxis, :-1, npx.newaxis],
+    )
+    return vs.maskW[2:-2, 2:-2, :] * (
+        (flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
+        / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+        + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
+        / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
+    )
 
 
 @veros_kernel

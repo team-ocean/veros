@@ -1,0 +1,98 @@
+diff --git a/for_src/etc/py_stuff.f90 b/for_src/etc/py_stuff.f90
+index 2fb59c7..74746a7 100644
+--- a/for_src/etc/py_stuff.f90
++++ b/for_src/etc/py_stuff.f90
+@@ -1,6 +1,36 @@
+ 
+-
++! dummies for new subroutine and modules
+ 
+ subroutine panic_snap
+ end subroutine panic_snap
+ 
++module rossmix_module
++logical :: enable_rossmix =.false., enable_rossmix_mean_flow_interaction=.false.
++end module rossmix_module
++
++subroutine rossmix_friction
++end subroutine rossmix_friction
++
++subroutine rossmix_eddy_advect
++end subroutine rossmix_eddy_advect
++
++module rossmix2_module
++logical :: enable_rossmix2 =.false.
++real*8, allocatable :: E_r(:,:,:,:),e_back(:,:,:)
++end module rossmix2_module
++
++subroutine  rossmix2_friction
++end subroutine  rossmix2_friction
++
++subroutine  rossmix2_eddy_advect
++end subroutine  rossmix2_eddy_advect
++
++module biharmonic_thickness_module
++logical :: enable_biharmonic_thickness_backscatter_integrate_energy =.false.
++end module biharmonic_thickness_module
++
++subroutine biharmonic_thickness_friction
++end subroutine biharmonic_thickness_friction
++
++subroutine biharmonic_thickness_mixing
++end subroutine biharmonic_thickness_mixing
+diff --git a/py_src/Makefile b/py_src/Makefile
+index 8d48221..0dd9ed0 100644
+--- a/py_src/Makefile
++++ b/py_src/Makefile
+@@ -10,10 +10,9 @@ iso = $(code)/isoneutral
+ ide = $(code)/idemix
+ adv = $(code)/advection
+ dia = $(code)/diagnostics
+-rossmix = $(code)/rossmix
+ 
+ 
+-for_files = $(main)/main_module.f90  \
++for_files = $(code)/etc/py_stuff.f90 $(main)/main_module.f90  \
+             $(ide)/idemix_module.f90 \
+             $(code)/density/density.f90 \
+             $(code)/tke/tke_module.f90 \
+@@ -22,7 +21,6 @@ for_files = $(main)/main_module.f90  \
+             $(code)/tracer/tracer_module.f90 \
+             $(iso)/isoneutral_module.f90  \
+             $(code)/etc/timing_module.f90  \
+-            $(rossmix)/rossmix_module.f90 \
+             $(main)/momentum.f90 $(main)/biharmonic_friction.f90 $(main)/numerics.f90 \
+             $(main)/harmonic_friction.f90 $(main)/bottom_friction.f90  $(main)/vertical_friction.f90 \
+             $(main)/thermodynamics.f90 $(main)/momentum_advection.f90 $(main)/vertical_velocity.f90 \
+@@ -37,13 +35,10 @@ for_files = $(main)/main_module.f90  \
+             $(iso)/isoneutral_diffusion.f90 $(iso)/isoneutral_friction.f90 \
+             $(iso)/isoneutral.f90 $(iso)/isoneutral_ml.f90 \
+             $(ide)/idemix.f90 $(ide)/idemix_low_mode.f90 $(ide)/idemix_friction.f90 \
+-            $(ide)/idemix_spectral.f90 $(ide)/idemix_group_vel.f90 $(ide)/idemix3.f90 $(ide)/idemix_leewaves.f90 \
+-            $(rossmix)/rossmix.f90 $(rossmix)/rossmix_flux.f90 $(rossmix)/rossmix_integrate.f90  \
+-            $(rossmix)/rossmix_friction.f90 $(rossmix)/rossmix_group_velocity.f90  \
+-            $(rossmix)/rossmix_reflect.f90  \
+-			$(code)/tke/tke.f90 $(code)/eke/eke.f90 $(code)/tracer/tracer.f90 \
+-            $(dia)/diag_particles.f90 $(code)/etc/py_stuff.f90 
+-
++            $(ide)/idemix_spectral.f90 $(ide)/idemix_group_vel.f90 \
++            $(ide)/idemix3.f90 $(ide)/idemix_leewaves.f90 \
++            $(code)/tke/tke.f90 $(code)/eke/eke.f90 $(code)/tracer/tracer.f90 \
++            $(dia)/diag_particles.f90
+ 
+ all : pyOM_code.so pyOM_code_MPI.so
+ 
+diff --git a/py_src/pyOM.py b/py_src/pyOM.py
+index 697eeb5..55e534c 100644
+--- a/py_src/pyOM.py
++++ b/py_src/pyOM.py
+@@ -148,9 +148,6 @@ class pyOM:
+      self.fortran.set_idemix_parameter()      
+      self.fortran.set_eke_diffusivities()
+      self.fortran.set_tke_diffusivities()
+-     
+-     self.fortran.rossmix_main()   
+-        
+      if M.enable_momentum_equation:      self.fortran.momentum()
+      if M.enable_thermodynamic_equation:
+          self.fortran.thermodynamics()

@@ -75,17 +75,17 @@ def tempsalt_biharmonic(state):
 
     # update temp
     dtemp, flux_east, flux_north = biharmonic_diffusion(state, vs.temp[:, :, :, vs.tau], fxa)
-    vs.dtemp_hmix = update(vs.dtemp_hmix, at[1:, 1:, :], dtemp[1:, 1:, :])
-    vs.temp = update_add(vs.temp, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dtemp_hmix * vs.maskT)
+    vs.dtemp_hmix = update_add(vs.dtemp_hmix, at[2:-2, 2:-2, :], dtemp[2:-2, 2:-2, :])
+    vs.temp = update_add(vs.temp, at[2:-2, 2:-2, :, vs.taup1], settings.dt_tracer * dtemp[2:-2, 2:-2, :])
 
     if settings.enable_conserve_energy:
         diss = compute_dissipation(state, vs.int_drhodT[..., vs.tau], flux_east, flux_north)
-        vs.P_diss_hmix = dissipation_on_wgrid(state, diss, vs.kbot)
+        vs.P_diss_hmix = vs.P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
 
     # update salt
     dsalt, flux_east, flux_north = biharmonic_diffusion(state, vs.salt[:, :, :, vs.tau], fxa)
-    vs.dsalt_hmix = update(vs.dsalt_hmix, at[1:, 1:, :], dsalt[1:, 1:, :])
-    vs.salt = update_add(vs.salt, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dsalt_hmix * vs.maskT)
+    vs.dsalt_hmix = update_add(vs.dsalt_hmix, at[2:-2, 2:-2, :], dsalt[2:-2, 2:-2, :])
+    vs.salt = update_add(vs.salt, at[2:-2, 2:-2, :, vs.taup1], settings.dt_tracer * dsalt[2:-2, 2:-2, :])
 
     if settings.enable_conserve_energy:
         diss = compute_dissipation(state, vs.int_drhodS[..., vs.tau], flux_east, flux_north)
@@ -107,17 +107,17 @@ def tempsalt_diffusion(state):
 
     # horizontal diffusion of temperature
     dtemp, flux_east, flux_north = horizontal_diffusion(state, vs.temp[:, :, :, vs.tau], settings.K_h)
-    vs.dtemp_hmix = update(vs.dtemp_hmix, at[1:, 1:, :], dtemp[1:, 1:, :])
-    vs.temp = update_add(vs.temp, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dtemp_hmix * vs.maskT)
+    vs.dtemp_hmix = update_add(vs.dtemp_hmix, at[2:-2, 2:-2, :], dtemp[2:-2, 2:-2, :])
+    vs.temp = update_add(vs.temp, at[2:-2, 2:-2, :, vs.taup1], settings.dt_tracer * dtemp[2:-2, 2:-2, :])
 
     if settings.enable_conserve_energy:
         diss = compute_dissipation(state, vs.int_drhodT[..., vs.tau], flux_east, flux_north)
-        vs.P_diss_hmix = dissipation_on_wgrid(state, diss, vs.kbot)
+        vs.P_diss_hmix = vs.P_diss_hmix + dissipation_on_wgrid(state, diss, vs.kbot)
 
     # horizontal diffusion of salinity
     dsalt, flux_east, flux_north = horizontal_diffusion(state, vs.salt[:, :, :, vs.tau], settings.K_h)
-    vs.dsalt_hmix = update(vs.dsalt_hmix, at[1:, 1:, :], dsalt[1:, 1:, :])
-    vs.salt = update_add(vs.salt, at[:, :, :, vs.taup1], settings.dt_tracer * vs.dsalt_hmix * vs.maskT)
+    vs.dsalt_hmix = update_add(vs.dsalt_hmix, at[2:-2, 2:-2, :], dsalt[2:-2, 2:-2, :])
+    vs.salt = update_add(vs.salt, at[2:-2, 2:-2, :, vs.taup1], settings.dt_tracer * dsalt[2:-2, 2:-2, :])
 
     if settings.enable_conserve_energy:
         diss = compute_dissipation(state, vs.int_drhodS[..., vs.tau], flux_east, flux_north)

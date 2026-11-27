@@ -75,5 +75,5 @@ def test_biharmonic_friction(pyom2_lib):
 def test_momentum_sources(pyom2_lib):
     vs_state, pyom_obj = get_random_state(pyom2_lib, extra_settings=TEST_SETTINGS)
     vs_state.variables.update(friction.momentum_sources(vs_state))
-    pyom_obj.momentum_sources()
+    pyom_obj.momentum_sources_with_euler()
     compare_state(vs_state, pyom_obj)

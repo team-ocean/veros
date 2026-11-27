@@ -1,0 +1,36 @@
+diff --git a/for_src/etc/timing_module.f90 b/for_src/etc/timing_module.f90
+index b2db3d1..d493d91 100644
+--- a/for_src/etc/timing_module.f90
++++ b/for_src/etc/timing_module.f90
+@@ -11,11 +11,11 @@
+  integer, parameter, private :: max_counter = 1000
+  integer,private             :: act_counter = 0
+  character (len=80),private  :: ref_counter(max_counter)
+- real,private                :: counter(0:max_counter)=0,now(0:max_counter)=0
++ real*4,private                :: counter(0:max_counter)=0,now(0:max_counter)=0
+ 
+  contains
+ 
+- real function elapsed()
++ real*4 function elapsed()
+  implicit none
+ !
+ !  elapsed should give the elasped cpu (user) time
+@@ -74,7 +74,7 @@
+  print*,' in toc'
+  end subroutine toc
+ 
+- real function timing_secs(ref)
++ real*4 function timing_secs(ref)
+  implicit none
+  character (len=*), intent(in) :: ref
+  integer :: n,len
+@@ -96,7 +96,7 @@
+  subroutine get_timing(ref,secs)
+  implicit none
+   character (len=*), intent(in) :: ref
+-  real,intent(out) :: secs 
++  real*4,intent(out) :: secs
+   integer :: n,len
+   if (ref=='tictoc') then
+        secs = counter(0)

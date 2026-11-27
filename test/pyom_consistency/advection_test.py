@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from veros.core import advection
 from veros.pyom_compat import get_random_state
@@ -113,3 +114,33 @@ def test_adv_flux_superbee_wgrid(pyom2_lib):
     np.testing.assert_allclose(res[0], m.flux_east)
     np.testing.assert_allclose(res[1], m.flux_north)
     np.testing.assert_allclose(res[2], m.flux_top)
+
+
+@pytest.mark.parametrize(
+    ("scheme", "wgrid"),
+    [("upwind3", False), ("dst3", False), ("dst3", True)],
+)
+def test_adv_flux_high_order(pyom2_lib, scheme, wgrid):
+    vs_state, pyom_obj = get_random_state(pyom2_lib, extra_settings=TEST_SETTINGS)
+    m = pyom_obj.main_module
+    if wgrid:
+        fluxes = advection.adv_flux_high_order_wgrid(vs_state, vs_state.variables.Hd[..., 1], scheme)
+        pyom_flux = getattr(pyom_obj, f"adv_flux_{scheme}_wgrid")
+    else:
+        fluxes = advection.adv_flux_high_order(vs_state, vs_state.variables.Hd[..., 1], scheme)
+        pyom_flux = getattr(pyom_obj, f"adv_flux_{scheme}")
+
+    pyom_flux(
+        is_=-1,
+        ie_=m.nx + 2,
+        js_=-1,
+        je_=m.ny + 2,
+        nz_=m.nz,
+        adv_fe=m.flux_east,
+        adv_fn=m.flux_north,
+        adv_ft=m.flux_top,
+        var=m.hd[..., 1],
+    )
+
+    for actual, expected in zip(fluxes, (m.flux_east, m.flux_north, m.flux_top)):
+        np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12)

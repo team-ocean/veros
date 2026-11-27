@@ -20,7 +20,6 @@ TEST_SETTINGS = dict(
     enable_store_bottom_friction_tke=False,
     enable_tke_hor_diffusion=True,
     enable_tke_superbee_advection=True,
-    enable_tke_upwind_advection=True,
 )
 
 PROBLEM_SETS_SET_DIFF = {
@@ -33,6 +32,12 @@ PROBLEM_SETS_INTEGRATE = {
     "no-eke+idemix": dict(enable_eke=False, enable_idemix=True),
     "eke+no-idemix": dict(enable_eke=True, enable_idemix=False),
     "no-eke+no-idemix": dict(enable_eke=False, enable_idemix=False),
+    "dst3-euler": dict(
+        enable_tke_superbee_advection=False,
+        enable_tke_dst3_advection=True,
+        enable_tke_AB_time_stepping=False,
+        enable_take_P_diss_adv_from_tke=True,
+    ),
 }
 
 

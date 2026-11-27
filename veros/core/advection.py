@@ -18,8 +18,8 @@ def limiter(cr):
     return npx.maximum(npx.clip(2 * cr, 0, 1), npx.clip(cr, 0, 2))
 
 
-@veros_kernel(static_args=("axis"))
-def _adv_superbee(state, vel, var, mask, dx, axis):
+@veros_kernel(static_args=("axis", "scheme"))
+def _adv_flux(state, vel, var, mask, dx, axis, scheme):
     vs = state.variables
     settings = state.settings
 
@@ -39,13 +39,29 @@ def _adv_superbee(state, vel, var, mask, dx, axis):
     rjp = (var[sp2] - var[sp1]) * mask[sp1]
     rj = (var[sp1] - var[s]) * mask[s]
     rjm = (var[s] - var[sm1]) * mask[sm1]
-    cr = limiter(_calc_cr(rjp, rj, rjm, vel[s]))
-
+    speed = vel[s]
+    transport = speed
     if axis == 1:
-        vel = vel * vs.cosu[npx.newaxis, :, npx.newaxis]
+        transport = speed * vs.cosu[npx.newaxis, 1:-2, npx.newaxis]
 
-    uCFL = npx.abs(vel[s] * settings.dt_tracer / dx)
-    return vel[s] * (var[sp1] + var[s]) * 0.5 - npx.abs(vel[s]) * ((1.0 - cr) + uCFL * cr) * rj * 0.5
+    if scheme == "upwind3":
+        right = rjp - rj
+        left = rj - rjm
+        return 0.5 * (transport * (var[sp1] + var[s] - (right + left) / 6) + npx.abs(transport) * (right - left) / 6)
+
+    courant = npx.abs(transport * settings.dt_tracer / dx)
+    if scheme == "dst3":
+        gradient = npx.where(speed > 0, rjm, rjp)
+        limit = 1e20
+        saturated = npx.abs(rj) * limit <= npx.abs(gradient)
+        ratio = npx.where(saturated, npx.copysign(limit, gradient * rj), gradient / npx.where(saturated, 1.0, rj))
+        coefficient = ((2 - courant) * (1 - courant) + (1 - courant**2) * ratio) / 6
+        coefficient = npx.clip(npx.minimum(coefficient, ratio * (1 - courant) / (courant + 1e-20)), 0, 1)
+        # PyOM 2.3.1 uses the face velocity for the DST3 flux and the metric-scaled velocity for the Courant number.
+        return speed * npx.where(speed > 0, var[s] + coefficient * rj, var[sp1] - coefficient * rj)
+
+    cr = limiter(_calc_cr(rjp, rj, rjm, speed))
+    return 0.5 * (transport * (var[sp1] + var[s]) - npx.abs(transport) * ((1.0 - cr) + courant * cr) * rj)
 
 
 @veros_kernel
@@ -85,30 +101,21 @@ def adv_flux_2nd(state, var):
 
 @veros_kernel
 def adv_flux_superbee(state, var):
-    r"""
-    from MITgcm
-    Calculates advection of a tracer
-    using second-order interpolation with a flux limiter:
+    return adv_flux_high_order(state, var, "superbee")
 
-    \begin{equation*}
-    F^x_{adv} = U \overline{ \theta }^i
-    - \frac{1}{2} \left([ 1 - \psi(C_r) ] |U|
-       + U \frac{u \Delta t}{\Delta x_c} \psi(C_r)
-                 \right) \delta_i \theta
-    \end{equation*}
 
-    where the $\psi(C_r)$ is the limiter function and $C_r$ is
-    the slope ratio.
-    """
+@veros_kernel(static_args=("scheme",))
+def adv_flux_high_order(state, var, scheme):
+    """Return tracer fluxes for the Superbee, upwind3, or DST3 scheme."""
     vs = state.variables
 
     adv_fe = allocate(state.dimensions, ("xt", "yt", "zt"))
     adv_fn = allocate(state.dimensions, ("xt", "yt", "zt"))
     adv_ft = allocate(state.dimensions, ("xt", "yt", "zt"))
 
-    adv_fe = update(adv_fe, at[1:-2, 2:-2, :], _adv_superbee(state, vs.u[..., vs.tau], var, vs.maskU, vs.dxt, 0))
-    adv_fn = update(adv_fn, at[2:-2, 1:-2, :], _adv_superbee(state, vs.v[..., vs.tau], var, vs.maskV, vs.dyt, 1))
-    adv_ft = update(adv_ft, at[2:-2, 2:-2, :-1], _adv_superbee(state, vs.w[..., vs.tau], var, vs.maskW, vs.dzt, 2))
+    adv_fe = update(adv_fe, at[1:-2, 2:-2, :], _adv_flux(state, vs.u[..., vs.tau], var, vs.maskU, vs.dxt, 0, scheme))
+    adv_fn = update(adv_fn, at[2:-2, 1:-2, :], _adv_flux(state, vs.v[..., vs.tau], var, vs.maskV, vs.dyt, 1, scheme))
+    adv_ft = update(adv_ft, at[2:-2, 2:-2, :-1], _adv_flux(state, vs.w[..., vs.tau], var, vs.maskW, vs.dzt, 2, scheme))
     adv_ft = update(adv_ft, at[..., -1], 0.0)
 
     return adv_fe, adv_fn, adv_ft
@@ -219,9 +226,12 @@ def calculate_velocity_on_wgrid_kernel(state):
 
 @veros_kernel
 def adv_flux_superbee_wgrid(state, var):
-    """
-    Calculates advection of a tracer defined on Wgrid
-    """
+    return adv_flux_high_order_wgrid(state, var, "superbee")
+
+
+@veros_kernel(static_args=("scheme",))
+def adv_flux_high_order_wgrid(state, var, scheme):
+    """Return high-order tracer fluxes on the W grid."""
     vs = state.variables
 
     adv_fe = allocate(state.dimensions, ("xt", "yt", "zt"))
@@ -230,15 +240,15 @@ def adv_flux_superbee_wgrid(state, var):
 
     maskUtr = allocate(state.dimensions, ("xt", "yt", "zw"))
     maskUtr = update(maskUtr, at[:-1, :, :], vs.maskW[1:, :, :] * vs.maskW[:-1, :, :])
-    adv_fe = update(adv_fe, at[1:-2, 2:-2, :], _adv_superbee(state, vs.u_wgrid, var, maskUtr, vs.dxt, axis=0))
+    adv_fe = update(adv_fe, at[1:-2, 2:-2, :], _adv_flux(state, vs.u_wgrid, var, maskUtr, vs.dxt, 0, scheme))
 
     maskVtr = allocate(state.dimensions, ("xt", "yt", "zw"))
     maskVtr = update(maskVtr, at[:, :-1, :], vs.maskW[:, 1:, :] * vs.maskW[:, :-1, :])
-    adv_fn = update(adv_fn, at[2:-2, 1:-2, :], _adv_superbee(state, vs.v_wgrid, var, maskVtr, vs.dyt, axis=1))
+    adv_fn = update(adv_fn, at[2:-2, 1:-2, :], _adv_flux(state, vs.v_wgrid, var, maskVtr, vs.dyt, 1, scheme))
 
     maskWtr = allocate(state.dimensions, ("xt", "yt", "zw"))
     maskWtr = update(maskWtr, at[:, :, :-1], vs.maskW[:, :, 1:] * vs.maskW[:, :, :-1])
-    adv_ft = update(adv_ft, at[2:-2, 2:-2, :-1], _adv_superbee(state, vs.w_wgrid, var, maskWtr, vs.dzw, axis=2))
+    adv_ft = update(adv_ft, at[2:-2, 2:-2, :-1], _adv_flux(state, vs.w_wgrid, var, maskWtr, vs.dzw, 2, scheme))
     adv_ft = update(adv_ft, at[..., -1], 0.0)
 
     return adv_fe, adv_fn, adv_ft
