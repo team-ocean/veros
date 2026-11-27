@@ -41,6 +41,7 @@ dependencies = [
 
 [project.optional-dependencies]
 jax = ["jax>=0.5.0", "jaxlib>=0.5.0"]
+jax-mpi = ["veros[jax]", "mpi4py>=4.1", "mpi4jax==0.9.1.post2"]
 # pytest 9.2 breaks pytest-forked (https://github.com/pytest-dev/pytest-forked/issues/113)
 test = ["pytest<9.2", "pytest-cov", "pytest-forked", "xarray"]
 
