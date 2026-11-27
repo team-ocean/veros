@@ -71,16 +71,43 @@ def gsw_rho(sa, ct, p):
      p      : sea pressure                                    [dbar]
     ==========================================================================
     """
-    # convert scalar values if necessary
-    sa, ct, p = npx.asarray(sa), npx.asarray(ct), npx.asarray(p)
+    sa, ct, p = (npx.asarray(sa), npx.asarray(ct), npx.asarray(p))
     sqrtsa = safe_sqrt(sa)
-    v_hat_denominator = (
+    # Form (D - rho0 * N) / N directly to avoid subtracting two densities near 1024.
+    anomaly_numerator = (
         v01
-        + ct * (v02 + ct * (v03 + v04 * ct))
-        + sa * (v05 + ct * (v06 + v07 * ct) + sqrtsa * (v08 + ct * (v09 + ct * (v10 + v11 * ct))))
-        + p * (v12 + ct * (v13 + v14 * ct) + sa * (v15 + v16 * ct) + p * (v17 + ct * (v18 + v19 * ct) + v20 * sa))
+        - rho0 * v21
+        + ct * (v02 - rho0 * v22 + ct * (v03 - rho0 * v23 + ct * (v04 - rho0 * v24 - rho0 * v25 * ct)))
+        + sa
+        * (
+            v05
+            - rho0 * v26
+            + ct * (v06 - rho0 * v27 + ct * (v07 - rho0 * v28 + ct * (-rho0 * v29 - rho0 * v30 * ct)))
+            - rho0 * v36 * sa
+            + sqrtsa
+            * (
+                v08
+                - rho0 * v31
+                + ct * (v09 - rho0 * v32 + ct * (v10 - rho0 * v33 + ct * (v11 - rho0 * v34 - rho0 * v35 * ct)))
+            )
+        )
+        + p
+        * (
+            v12
+            - rho0 * v37
+            + ct * (v13 - rho0 * v38 + ct * (v14 - rho0 * v39 - rho0 * v40 * ct))
+            + sa * (v15 - rho0 * v41 + (v16 - rho0 * v42) * ct)
+            + p
+            * (
+                v17
+                - rho0 * v43
+                + ct * (v18 - rho0 * v44 + (v19 - rho0 * v45) * ct - rho0 * v46 * sa)
+                + v20 * sa
+                + p * (-rho0 * v47 - rho0 * v48 * ct)
+            )
+        )
     )
-    v_hat_numerator = (
+    volume_numerator = (
         v21
         + ct * (v22 + ct * (v23 + ct * (v24 + v25 * ct)))
         + sa
@@ -98,7 +125,7 @@ def gsw_rho(sa, ct, p):
             + p * (v43 + ct * (v44 + v45 * ct + v46 * sa) + p * (v47 + v48 * ct))
         )
     )
-    return v_hat_denominator / v_hat_numerator - rho0
+    return anomaly_numerator / volume_numerator
 
 
 @veros_kernel
