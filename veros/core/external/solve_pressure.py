@@ -6,7 +6,6 @@ used for surface pressure or free surface
 method same as pressure method in MITgcm
 """
 
-
 from veros import veros_routine
 from veros.routines import veros_kernel
 from veros.state import KernelOutput

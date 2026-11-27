@@ -11,7 +11,7 @@ Quick installation via pip
 
   You should only install Veros this way if you want to get going as quickly as possible, and do not plan to access or modify the model source code. The recommended way to install Veros is by checking out the repository (see below).
 
-If you already have Python installed, the quickest way to get a working Veros installation is to run ::
+If you have Python 3.12 or later, the quickest way to install Veros is to run::
 
   $ pip install veros
 
@@ -58,7 +58,7 @@ Using Conda (multi-platform)
 Using pip (Linux / OSX)
 +++++++++++++++++++++++
 
-1. Ensure you have a working Python 3.x installation.
+1. Ensure you have Python 3.12 or later.
 
 2. Clone our repository:
 

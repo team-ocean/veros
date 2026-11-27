@@ -369,13 +369,7 @@ def get_vinokur_grid_steps(
         """Approximate inverse of sin(y) / y"""
         if y < 0.26938972:
             inv = npx.pi * (
-                1
-                - y
-                + y**2
-                - (1 + npx.pi**2 / 6) * y**3
-                + 6.794732 * y**4
-                - 13.205501 * y**5
-                + 11.726095 * y**6
+                1 - y + y**2 - (1 + npx.pi**2 / 6) * y**3 + 6.794732 * y**4 - 13.205501 * y**5 + 11.726095 * y**6
             )
         else:
             ybar = 1.0 - y

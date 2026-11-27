@@ -18,7 +18,7 @@ jobs:
 
       matrix:
         os: [ubuntu-24.04]
-        python-version: ["3.10", "3.14"]
+        python-version: ["3.12", "3.14"]
         backend: [numpy, jax]
 
     env:
@@ -76,7 +76,8 @@ jobs:
 
       - name: Install optional requirements
         run: |
-          pip install mpi4py nanobind
+          # petsc4py needs Cython when built without isolation.
+          pip install mpi4py nanobind "cython>=3.0.0"
           if [ ${{ matrix.backend }} == "jax" ]; then
             pip install mpi4jax --no-build-isolation
           fi

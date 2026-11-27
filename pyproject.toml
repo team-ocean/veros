@@ -7,7 +7,7 @@ name = "veros"
 dynamic = ["version", "dependencies", "optional-dependencies"]
 description = "The versatile ocean simulator, in pure Python, powered by JAX."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Dion Häfner", email = "mail@dionhaefner.de" }]
@@ -16,8 +16,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
@@ -75,9 +73,9 @@ dependencies = [
     "jaxlib==0.7.2; python_version >= '3.14'",
 ]
 
-[tool.black]
+[tool.ruff]
 line-length = 120
-target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+extend-exclude = ["doc", "veros/_version.py"]
 
 
 [tool.pytest.ini_options]

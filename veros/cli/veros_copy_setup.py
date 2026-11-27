@@ -131,7 +131,7 @@ copy_setup.__doc__ = copy_setup.__doc__.format(setups=", ".join(SETUP_NAMES), se
     required=False,
     default=None,
     type=click.Path(dir_okay=False, file_okay=False, writable=True),
-    help=("Target directory, must not exist " "(default: copy to current working directory)"),
+    help=("Target directory, must not exist (default: copy to current working directory)"),
 )
 @functools.wraps(copy_setup)
 def cli(*args, **kwargs):
