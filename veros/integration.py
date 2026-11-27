@@ -121,6 +121,8 @@ class PreparedIntegrator:
                 comm = _mpi_comm_along_axis(runtime_settings.mpi_comm, index[1 - axis], runtime_state.proc_rank, axis)
                 prepare_communicator(comm)
         self.simulation = simulation
+        self._checkpoint = checkpoint
+        self._tracer_closure = None
         self._step_dynamics = copy(simulation)._step_dynamics
         self._template = copy(simulation.state)
         self._template._settings = copy(simulation.state.settings)
@@ -313,6 +315,192 @@ class PreparedIntegrator:
             normalized[name] = jnp.asarray(value, dtype=runtime_settings.float_type)
         return normalized
 
+    def equilibrium_response(
+        self,
+        carry,
+        *,
+        parameters=None,
+        observe,
+        tolerance=1e-7,
+        max_steps=20000,
+        max_newton_iterations=64,
+        ram_checkpoints=4,
+        conserved=(),
+        diagnostics=True,
+        stability_solver=None,
+    ):
+        """Solve a phase-zero fixed point and its implicit first-order response.
+
+        The scaled residual includes prognostic restart fields and multistep
+        histories. Clocks and prescribed fields are external to the state
+        operator. Declared tracer inventories are checked against the map.
+
+        ``stability_solver(operator, k=...)`` may supply the k largest-modulus
+        eigenpairs. Each supplied pair is checked against the native map.
+        """
+        from veros.ocean_response import response
+
+        if max_steps < 1 or max_newton_iterations < 1 or tolerance <= 0:
+            raise ValueError("Adjustment budgets and tolerance must be positive")
+        return response(
+            self,
+            carry,
+            parameters=parameters,
+            observe=observe,
+            tolerance=tolerance,
+            max_iterations=min(max_newton_iterations, max_steps),
+            warmup=min(16, max_steps),
+            ram_checkpoints=ram_checkpoints,
+            conserved=conserved,
+            diagnostics=diagnostics,
+            stability_solver=stability_solver,
+        )
+
+    def periodic_response(
+        self,
+        carry,
+        *,
+        parameters=None,
+        observe,
+        period_steps,
+        phases,
+        tolerance=1e-7,
+        max_cycles=32,
+        ram_checkpoints=4,
+        conserved=(),
+        diagnostics=True,
+        stability_solver=None,
+    ):
+        """Solve the phase-zero Poincare state and observe a resolved cycle.
+
+        Annual map products use streamed timesteps and checkpoint adjoints.
+        The phase-zero-state sensitivity is solved implicitly.
+        An optional ``stability_solver(operator, k=...)`` supplies largest-modulus
+        eigenpairs, which are checked against the native annual map.
+        """
+        from veros.ocean_response import response
+
+        if max_cycles < 1 or tolerance <= 0:
+            raise ValueError("Adjustment budgets and tolerance must be positive")
+        return response(
+            self,
+            carry,
+            parameters=parameters,
+            observe=observe,
+            tolerance=tolerance,
+            max_iterations=max_cycles,
+            warmup=min(4, max_cycles),
+            period_steps=period_steps,
+            ram_checkpoints=ram_checkpoints,
+            phases=tuple(phases),
+            conserved=conserved,
+            diagnostics=diagnostics,
+            stability_solver=stability_solver,
+        )
+
+    def statistical_response(
+        self,
+        carry,
+        *,
+        parameters=None,
+        observe,
+        thresholds,
+        period_steps,
+        window_steps,
+        burnin_steps,
+        n_windows,
+        sample_stride,
+        seed=0,
+        method,
+        tolerance=1e-9,
+        max_cycles=32,
+        ram_checkpoints=4,
+        conserved=(),
+        diagnostics=True,
+        stability_solver=None,
+    ):
+        """Return means, variances, and smooth events on a stable periodic orbit.
+
+        Select ``method='invariant_periodic'`` explicitly. This estimator uses
+        the adjusted orbit's implicit derivative and evaluates every phase of
+        the sampled discrete orbit. It does not estimate chaotic statistics.
+        Window, burn-in, and seed describe the independent forward comparison;
+        they do not alter a converged invariant periodic population.
+        ``stability_solver`` has the same checked-eigenpair contract as
+        :meth:`periodic_response`; its provider supplies dominant-spectrum coverage.
+        """
+        from veros.statistics import periodic_statistics
+
+        if method != "invariant_periodic":
+            raise CompiledCompatibilityError("No validated chaotic invariant-response estimator is available")
+        if window_steps < 1 or burnin_steps < 0 or n_windows < 1:
+            raise ValueError("Statistical window budgets must be positive, with nonnegative burn-in")
+        return periodic_statistics(
+            self,
+            carry,
+            parameters=parameters,
+            observe=observe,
+            thresholds=thresholds,
+            period_steps=period_steps,
+            sample_stride=sample_stride,
+            tolerance=tolerance,
+            max_cycles=max_cycles,
+            ram_checkpoints=ram_checkpoints,
+            conserved=conserved,
+            diagnostics=diagnostics,
+            stability_solver=stability_solver,
+        )
+
+    def with_tracer_closure(self, carry, *, law, weights):
+        """Augment implicit vertical tracer diffusivity with a pure JAX law.
+
+        The two scalar research weight variables must be declared before
+        preparation. The law is fixed for this prepared integrator; weights
+        remain dynamic carried inputs, including during checkpoint replay.
+        """
+        import jax
+        import jax.numpy as jnp
+
+        names = ("research_closure_scale", "research_closure_state")
+        if not callable(law) or any(name not in carry.variables for name in names):
+            raise ValueError("A callable closure and two declared research weight variables are required")
+        weights = jnp.asarray(weights, dtype=carry.variables.temp.dtype)
+        if weights.shape != (2,):
+            raise ValueError("Tracer closure weights must have shape (2,)")
+        if self._tracer_closure is not None and self._tracer_closure is not law:
+            raise ValueError("Changing the closure law requires a newly prepared integrator")
+        if self._tracer_closure is None:
+            shape = jax.eval_shape(law, carry.variables, weights)
+            if shape.shape != carry.variables.kappaH.shape or not jnp.issubdtype(shape.dtype, jnp.floating):
+                raise ValueError("The closure must return a floating diffusivity field with the kappaH shape")
+            self._tracer_closure = law
+            jax.clear_caches()
+            self._compiled_step = jax.jit(jax.checkpoint(self._step) if self._checkpoint else self._step)
+            if hasattr(self, "_adjusted_responses"):
+                for _, engine in self._adjusted_responses.values():
+                    engine.cache.clear()
+                self._adjusted_responses.clear()
+        return self.replace_variables(carry, **dict(zip(names, weights)))
+
+    def reference_tracer_tendencies(self, carry, *, n_states, seed, refinement, projection, withheld_seed):
+        """Build an independent reference using the setup's declared provider.
+
+        Reference generation is a host workflow separate from the numerical
+        closure. Providers return matched-state tendencies and independent
+        rollout targets with projection and source provenance.
+        """
+        builder = getattr(self.simulation, "build_tracer_reference", None)
+        if not callable(builder):
+            raise ValueError("The setup must declare an independent build_tracer_reference provider")
+        return builder(
+            carry,
+            n_states=n_states,
+            seed=seed,
+            refinement=refinement,
+            projection=projection,
+            withheld_seed=withheld_seed,
+        )
+
     def with_vertical_grid(self, carry, *, widths, conserve=("temp", "salt", "momentum")):
         """Move fixed-count levels while conserving tracer, momentum, and energy inventories."""
         from veros.remapping import vertical_grid
@@ -440,6 +628,7 @@ class PreparedIntegrator:
             state._settings = state.settings._with_parameters(parameters)
         state._solver_residual_ok = True
         state._forcing_inputs = step_inputs or {}
+        state._tracer_closure = self._tracer_closure
         return state
 
     def _make_diagnostic(self, name, variables):
