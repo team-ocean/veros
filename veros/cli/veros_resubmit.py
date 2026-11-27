@@ -56,7 +56,7 @@ def call_veros(cmd, name, n, runlen):
         args += ["-s", "restart_input_filename", f"{prev_id}.restart.h5"]
 
     # make sure this isn't buffered
-    sys.stdout.write(f'\n >>> {" ".join(cmd + args)}\n\n')
+    sys.stdout.write(f"\n >>> {' '.join(cmd + args)}\n\n")
     sys.stdout.flush()
 
     try:

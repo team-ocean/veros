@@ -7,7 +7,7 @@ Installation
 Quick installation via pip
 ++++++++++++++++++++++++++
 
-To install Veros with pip, run::
+To install Veros with pip, use Python 3.12 or later and run::
 
   $ pip install veros
 

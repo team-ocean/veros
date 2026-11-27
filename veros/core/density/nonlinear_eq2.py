@@ -6,6 +6,7 @@
   pressure p in dbar
 ==========================================================================
 """
+
 from veros import veros_kernel, runtime_settings
 
 rho0 = 1024.0
@@ -55,8 +56,7 @@ def nonlin2_eq_of_state_salt(rho, ct, p):
     zz = -p - z0
     thetas = ct - theta0
     return (
-        rho / rho0
-        + (grav * zz / cs0**2 + betaT * (1 - gammas * grav * zz * rho0) * thetas + betaTs / 2 * thetas**2)
+        rho / rho0 + (grav * zz / cs0**2 + betaT * (1 - gammas * grav * zz * rho0) * thetas + betaTs / 2 * thetas**2)
     ) / betaS + S0
 
 

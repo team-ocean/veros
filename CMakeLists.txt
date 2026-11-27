@@ -6,7 +6,7 @@ if(VEROS_BUILD_ABI3)
   find_package(Python 3.12 REQUIRED COMPONENTS Interpreter Development.Module Development.SABIModule)
   set(TDMA_ABI_FLAG STABLE_ABI)
 else()
-  find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
+  find_package(Python 3.12 REQUIRED COMPONENTS Interpreter Development.Module)
 endif()
 find_package(nanobind CONFIG REQUIRED)
 
