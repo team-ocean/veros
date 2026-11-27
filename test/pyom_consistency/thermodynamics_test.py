@@ -1,3 +1,5 @@
+import pytest
+
 from veros.core import thermodynamics
 from veros.pyom_compat import get_random_state
 
@@ -38,8 +40,16 @@ def prepare_inputs(vs_state, pyom_obj):
     return vs_state, pyom_obj
 
 
-def test_thermodynamics(pyom2_lib):
-    vs_state, pyom_obj = get_random_state(pyom2_lib, extra_settings=TEST_SETTINGS)
+@pytest.mark.parametrize("dst3", [False, True])
+def test_thermodynamics(pyom2_lib, dst3):
+    settings = {
+        **TEST_SETTINGS,
+        "enable_dst3_advection": dst3,
+        "enable_superbee_advection": not dst3,
+        "enable_AB_time_stepping": not dst3,
+        "enable_take_P_diss_adv_from_tke": dst3,
+    }
+    vs_state, pyom_obj = get_random_state(pyom2_lib, extra_settings=settings)
     vs_state, pyom_obj = prepare_inputs(vs_state, pyom_obj)
 
     vs_state.variables.update(thermodynamics.thermodynamics(vs_state))

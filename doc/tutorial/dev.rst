@@ -55,12 +55,15 @@ This ensures that you can write your code exactly as in the non-distributed case
 Running tests and benchmarks
 ----------------------------
 
-If you want to make sure that your changes did not break anything, you should run our test suite that compares the results of each subroutine to pyOM2.
-To do that, you will need to compile the Python interface of pyOM2 on your machine, and then point the testing suite to the library location, e.g. through::
+The PyOM consistency suite compares Veros kernels and simulations with a patched PyOM 2.3.1 reference.
+Build the reference as described in `vendor/pyom2 <https://github.com/team-ocean/veros/tree/main/vendor/pyom2>`_,
+then run the suite from the Veros repository root with the resulting extension::
 
-   $ pytest -v . --pyom2-lib /path/to/pyOM2/py_src/pyOM_code.so
+   $ pytest -v test/pyom_consistency --pyom2-lib /path/to/pyOM2/py_src/pyOM_code.cpython-314-x86_64-linux-gnu.so
 
-from the main folder of the Veros repository.
+Use the same Python environment for the build and the tests.
+The suite covers hydrostatic Veros configurations with the original IDEMIX, TKE, and EKE closures.
+First-order W-grid upwind advection is available in Veros. The 2.3.1 reference exposes Superbee and DST3 in its closure integrators.
 
 If you deliberately introduced breaking changes, you can disable them during testing by prefixing them with::
 

@@ -1,8 +1,8 @@
 diff --git a/for_src/external/solve_pressure.f90 b/for_src/external/solve_pressure.f90
-index d331ae8..07b62f8 100644
+index 40b4452..0fca006 100644
 --- a/for_src/external/solve_pressure.f90
 +++ b/for_src/external/solve_pressure.f90
-@@ -59,7 +59,7 @@ subroutine solve_pressure
+@@ -60,7 +60,7 @@ subroutine solve_pressure
   if (enable_free_surface) then
    do j=js_pe,je_pe
     do i=is_pe,ie_pe
@@ -11,7 +11,7 @@ index d331ae8..07b62f8 100644
     enddo
    enddo
   endif
-@@ -125,7 +125,7 @@ end subroutine solve_pressure
+@@ -124,7 +124,7 @@ end subroutine solve_pressure
        if (enable_free_surface) then
         do j=js_pe,je_pe
          do i=is_pe,ie_pe

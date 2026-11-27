@@ -296,6 +296,11 @@ def diagnose_kernel(state):
             )
         )
 
+    lateral_friction_transfer = 0.0 if settings.enable_store_lateral_friction_heat else mdiss_h
+    gm_transfer = settings.enable_eke or not settings.enable_idemix or settings.enable_store_gm_diss_in_idemix
+    gm_dissipation = mdiss_gm if gm_transfer else 0.0
+    skew_dissipation = mdiss_skew if gm_transfer else 0.0
+
     # meso-scale energy
     if settings.enable_eke:
         eke_m = mean_w(vs.eke[..., vs.tau])
@@ -306,7 +311,7 @@ def diagnose_kernel(state):
         eke_diss_tke = mean_w(vs.eke_diss_tke)
     else:
         eke_m = deke_m = eke_diss_tke = 0.0
-        eke_diss = mdiss_gm + mdiss_h + mdiss_skew
+        eke_diss = gm_dissipation + lateral_friction_transfer + skew_dissipation
         if not settings.enable_store_cabbeling_heat:
             eke_diss += -mdiss_hmix - mdiss_iso
 
@@ -356,11 +361,11 @@ def diagnose_kernel(state):
         ke_tke_m = mdiss_v
         ke_iw_m = mdiss_bot
 
-    hd_eke_m = -mdiss_skew
-    tke_hd_m = -mdiss_vmix - mdiss_adv
+    tke_hd_m = -mdiss_vmix
+    if settings.enable_take_P_diss_adv_from_tke:
+        tke_hd_m = tke_hd_m - mdiss_adv
 
     if not settings.enable_store_cabbeling_heat:
-        hd_eke_m = hd_eke_m - mdiss_hmix - mdiss_iso
         tke_hd_m = tke_hd_m - mdiss_nonlin
 
     return KernelOutput(
@@ -386,8 +391,8 @@ def diagnose_kernel(state):
         tke_diss_m=tke_diss,
         adv_diss_m=mdiss_adv,
         ke_hd_m=wrhom,
-        ke_eke_m=mdiss_h + mdiss_gm,
-        hd_eke_m=-mdiss_skew,
+        ke_eke_m=lateral_friction_transfer + gm_dissipation,
+        hd_eke_m=-skew_dissipation,
         ke_tke_m=ke_tke_m,
         ke_iw_m=ke_iw_m,
         tke_hd_m=tke_hd_m,

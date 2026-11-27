@@ -37,6 +37,9 @@ VEROS_TO_PYOM_SETTING = dict(
     enable_Prandtl_tke=None,
     Prandtl_tke0=None,
     biharmonic_friction_cosPower=None,
+    enable_idemix_upwind_advection=None,
+    enable_tke_upwind_advection=None,
+    enable_eke_upwind_advection=None,
 )
 
 # these are read-only
@@ -84,6 +87,14 @@ def pyom_from_state(state, pyom_obj, ignore_attrs=None, init_streamfunction=None
     """Force-updates internal PyOM library state to match given Veros state."""
     if ignore_attrs is None:
         ignore_attrs = []
+
+    unsupported = [
+        name
+        for name in ("enable_idemix_upwind_advection", "enable_tke_upwind_advection", "enable_eke_upwind_advection")
+        if state.settings.get(name)
+    ]
+    if unsupported:
+        raise ValueError(f"PyOM 2.3.1 cannot represent enabled settings: {', '.join(unsupported)}")
 
     pyom_modules = (
         pyom_obj.main_module,
@@ -197,6 +208,8 @@ def _override_settings(pyom_obj):
     eke.enable_eke_leewave_dissipation = False
     idm.enable_idemix_m2 = False
     idm.enable_idemix_niw = False
+    idm.enable_idemix3 = False
+    idm.enable_leewaves = False
 
     return pyom_obj
 

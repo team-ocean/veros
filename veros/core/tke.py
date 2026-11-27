@@ -139,7 +139,9 @@ def integrate_tke_kernel(state):
     """
     Sources and sinks by vertical friction, vertical mixing, and non-conservative advection
     """
-    forc = vs.K_diss_v - vs.P_diss_v - vs.P_diss_adv
+    forc = vs.K_diss_v - vs.P_diss_v
+    if settings.enable_take_P_diss_adv_from_tke:
+        forc = forc - vs.P_diss_adv
 
     """
     store transfer due to vertical mixing from dyn. enthalpy by non-linear eq.of
@@ -170,10 +172,11 @@ def integrate_tke_kernel(state):
             forc = forc + vs.eke_diss_iw
 
         else:  # and without EKE model
-            if settings.enable_store_cabbeling_heat:
-                forc = forc + vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew - vs.P_diss_hmix - vs.P_diss_iso
-            else:
-                forc = forc + vs.K_diss_gm + vs.K_diss_h - vs.P_diss_skew
+            forc = forc + vs.K_diss_gm - vs.P_diss_skew
+            if not settings.enable_store_cabbeling_heat:
+                forc = forc - vs.P_diss_hmix - vs.P_diss_iso
+            if not settings.enable_store_lateral_friction_heat:
+                forc = forc + vs.K_diss_h
 
         forc = forc + vs.K_diss_bot
 
@@ -253,7 +256,8 @@ def integrate_tke_kernel(state):
             settings.K_h_tke
             * (vs.tke[1:, :, :, vs.tau] - vs.tke[:-1, :, :, vs.tau])
             / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
-            * vs.maskU[:-1, :, :],
+            * vs.maskW[:-1, :, :]
+            * vs.maskW[1:, :, :],
         )
 
         flux_north = update(
@@ -262,7 +266,8 @@ def integrate_tke_kernel(state):
             settings.K_h_tke
             * (vs.tke[:, 1:, :, vs.tau] - vs.tke[:, :-1, :, vs.tau])
             / vs.dyu[npx.newaxis, :-1, npx.newaxis]
-            * vs.maskV[:, :-1, :]
+            * vs.maskW[:, :-1, :]
+            * vs.maskW[:, 1:, :]
             * vs.cosu[npx.newaxis, :-1, npx.newaxis],
         )
         flux_north = update(flux_north, at[:, -1, :], 0.0)
@@ -283,13 +288,19 @@ def integrate_tke_kernel(state):
     """
     add tendency due to advection
     """
-    if settings.enable_tke_superbee_advection:
-        flux_east, flux_north, flux_top = advection.adv_flux_superbee_wgrid(state, vs.tke[:, :, :, vs.tau])
+    if settings.enable_tke_dst3_advection:
+        flux_east, flux_north, flux_top = advection.adv_flux_high_order_wgrid(state, vs.tke[..., vs.tau], "dst3")
+    elif settings.enable_tke_superbee_advection:
+        flux_east, flux_north, flux_top = advection.adv_flux_superbee_wgrid(state, vs.tke[..., vs.tau])
 
     if settings.enable_tke_upwind_advection:
         flux_east, flux_north, flux_top = advection.adv_flux_upwind_wgrid(state, vs.tke[:, :, :, vs.tau])
 
-    if settings.enable_tke_superbee_advection or settings.enable_tke_upwind_advection:
+    if (
+        settings.enable_tke_superbee_advection
+        or settings.enable_tke_upwind_advection
+        or settings.enable_tke_dst3_advection
+    ):
         vs.dtke = update(
             vs.dtke,
             at[2:-2, 2:-2, :, vs.tau],
@@ -309,18 +320,10 @@ def integrate_tke_kernel(state):
             vs.dtke, at[:, :, -1, vs.tau], -(flux_top[:, :, -1] - flux_top[:, :, -2]) / (0.5 * vs.dzw[-1])
         )
 
-        """
-        Adam Bashforth time stepping
-        """
-        vs.tke = update_add(
-            vs.tke,
-            at[:, :, :, vs.taup1],
-            settings.dt_tracer
-            * (
-                (1.5 + settings.AB_eps) * vs.dtke[:, :, :, vs.tau]
-                - (0.5 + settings.AB_eps) * vs.dtke[:, :, :, vs.taum1]
-            ),
-        )
+        tendency = vs.dtke[..., vs.tau]
+        if settings.enable_tke_AB_time_stepping:
+            tendency = (1.5 + settings.AB_eps) * tendency - (0.5 + settings.AB_eps) * vs.dtke[..., vs.taum1]
+        vs.tke = update_add(vs.tke, at[..., vs.taup1], settings.dt_tracer * tendency)
 
         conditional_outputs.update(dtke=vs.dtke)
 

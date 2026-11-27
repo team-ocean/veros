@@ -1,0 +1,153 @@
+diff --git a/for_src/advection/adv_dst3.f90 b/for_src/advection/adv_dst3.f90
+index a8d53ef..f88f259 100644
+--- a/for_src/advection/adv_dst3.f90
++++ b/for_src/advection/adv_dst3.f90
+@@ -206,7 +206,8 @@ subroutine adv_flux_dst3_wgrid(is_,ie_,js_,je_,nz_,adv_fe,adv_fn,adv_ft,var)
+        km1=max(1,k-1) !if (km1<1) km1=np-2
+        do j=js_pe,je_pe
+         do i=is_pe,ie_pe
+-         Rjp=(var(i,j,kp2)-var(i,j,k+1))*maskWtr(i,j,k+1)
++         Rjp=0d0
++         if (k<nz-1) Rjp=(var(i,j,kp2)-var(i,j,k+1))*maskWtr(i,j,k+1)
+          Rj =(var(i,j,k+1)-var(i,j,k  ))*maskWtr(i,j,k  )
+          Rjm=(var(i,j,k  )-var(i,j,km1))*maskWtr(i,j,km1)
+          uCFL = ABS( w_wgrid(i,j,k)*dt_tracer/dzw(k) )
+diff --git a/for_src/advection/adv_main.f90 b/for_src/advection/adv_main.f90
+index 761113e..0ef52fd 100644
+--- a/for_src/advection/adv_main.f90
++++ b/for_src/advection/adv_main.f90
+@@ -20,6 +20,7 @@ subroutine advect_tracer(is_,ie_,js_,je_,nz_,tr,dtr)
+  else
+   call adv_flux_2nd(is_pe-onx,ie_pe+onx,js_pe-onx,je_pe+onx,nz,flux_east,flux_north,flux_top,tr)
+  endif
++ dtr = 0
+  do j=js_pe,je_pe
+    do i=is_pe,ie_pe
+       dtr(i,j,:)=maskT(i,j,:)* (-( flux_east(i,j,:)-  flux_east(i-1,j,:))/(cost(j)*dxt(i)) &
+diff --git a/for_src/idemix/idemix.f90 b/for_src/idemix/idemix.f90
+index eb73538..c7d8502 100644
+--- a/for_src/idemix/idemix.f90
++++ b/for_src/idemix/idemix.f90
+@@ -399,11 +399,11 @@ function gofx2(x)
+ ! a function g(x) 
+ !=======================================================================
+  implicit none
+- real*8 :: gofx2,x,c
++ real*8 :: gofx2,x,fxa,c
+  real*8, parameter :: pi = 3.14159265358979323846264338327950588
+- x=max(3d0,x)
+- c= 1.-(2./pi)*asin(1./x)
+- gofx2 = 2/pi/c*0.9*x**(-2./3.)*(1-exp(-x/4.3))
++ fxa=max(3d0,x)
++ c= 1.-(2./pi)*asin(1./fxa)
++ gofx2 = 2/pi/c*0.9*fxa**(-2./3.)*(1-exp(-fxa/4.3))
+ end function gofx2
+ 
+ function hofx1(x)
+diff --git a/for_src/isoneutral/isoneutral_diffusion.f90 b/for_src/isoneutral/isoneutral_diffusion.f90
+index 15814ad..3e226c2 100644
+--- a/for_src/isoneutral/isoneutral_diffusion.f90
++++ b/for_src/isoneutral/isoneutral_diffusion.f90
+@@ -154,6 +154,7 @@ subroutine isoneutral_diffusion(is_,ie_,js_,je_,nz_,tr,istemp)
+ ! dissipation by isopycnal mixing
+ !---------------------------------------------------------------------------------
+ if (enable_conserve_energy) then
++ aloc = 0
+ 
+  if (istemp) then
+   bloc(:,:,:) = int_drhodT(:,:,:,tau)
+@@ -336,6 +337,7 @@ subroutine isoneutral_skew_diffusion(is_,ie_,js_,je_,nz_,tr,istemp)
+ ! dissipation by isopycnal mixing
+ !---------------------------------------------------------------------------------
+ if (enable_conserve_energy) then
++ aloc = 0
+ 
+  if (istemp) then
+   bloc(:,:,:) = int_drhodT(:,:,:,tau)
+@@ -553,6 +555,7 @@ subroutine isoneutral_diffusion_all(is_,ie_,js_,je_,nz_,tr,istemp)
+ ! dissipation by isopycnal mixing
+ !---------------------------------------------------------------------------------
+ if (enable_conserve_energy) then
++ aloc = 0
+ 
+  if (istemp) then
+   bloc(:,:,:) = int_drhodT(:,:,:,tau)
+diff --git a/for_src/isoneutral/isoneutral_friction.f90 b/for_src/isoneutral/isoneutral_friction.f90
+index 13d31f7..77a7be0 100644
+--- a/for_src/isoneutral/isoneutral_friction.f90
++++ b/for_src/isoneutral/isoneutral_friction.f90
+@@ -15,6 +15,8 @@ subroutine isoneutral_friction
+  real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+  real*8 :: aloc(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+  
++ diss = 0
++
+  if (enable_implicit_vert_friction) then
+    aloc=u(:,:,:,taup1)
+  else
+diff --git a/for_src/main/biharmonic_friction.f90 b/for_src/main/biharmonic_friction.f90
+index ecac8ab..8b35396 100644
+--- a/for_src/main/biharmonic_friction.f90
++++ b/for_src/main/biharmonic_friction.f90
+@@ -14,6 +14,7 @@ subroutine biharmonic_friction
+ 
+  if (.not.enable_hydrostatic) call halt_stop('biharmonic mixing for non-hydrostatic not yet implemented')
+ 
++ del2 = 0
+  visc = sqrt(abs(A_hbi))
+  !---------------------------------------------------------------------------------
+  ! Zonal velocity
+diff --git a/for_src/main/diffusion.f90 b/for_src/main/diffusion.f90
+index 0767c70..fa2e1fa 100644
+--- a/for_src/main/diffusion.f90
++++ b/for_src/main/diffusion.f90
+@@ -438,6 +438,7 @@ subroutine tempsalt_sources
+   salt(:,:,:,taup1)=salt(:,:,:,taup1)+dt_tracer*salt_source*maskT
+ 
+   if (enable_conserve_energy) then
++  aloc = 0
+     ! diagnose effect on dynamic enthalpy 
+     do k=1,nz
+      do j=js_pe-onx+1,je_pe+onx-1
+diff --git a/for_src/main/thermodynamics.f90 b/for_src/main/thermodynamics.f90
+index b205678..0936868 100644
+--- a/for_src/main/thermodynamics.f90
++++ b/for_src/main/thermodynamics.f90
+@@ -253,6 +253,7 @@ subroutine calc_dissipation_by_advection
+  !---------------------------------------------------------------------------------
+  ! changes in dyn. Enthalpy due to advection
+  !---------------------------------------------------------------------------------
++  aloc = 0
+   do k=1,nz
+    do j=js_pe,je_pe
+     do i=is_pe,ie_pe  
+@@ -274,6 +275,7 @@ subroutine calc_dissipation_by_advection
+  !---------------------------------------------------------------------------------
+  ! dissipation by advection interpolated on W-grid
+  !---------------------------------------------------------------------------------
++  P_diss_adv = 0
+   do j=js_pe,je_pe
+    do i=is_pe,ie_pe
+      ks=kbot(i,j)
+diff --git a/for_src/main/vertical_friction.f90 b/for_src/main/vertical_friction.f90
+index e4d3324..5f6e5c9 100644
+--- a/for_src/main/vertical_friction.f90
++++ b/for_src/main/vertical_friction.f90
+@@ -12,6 +12,8 @@ subroutine explicit_vert_friction
+  integer :: i,j,k
+  real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz),fxa
+  
++ diss = 0
++
+  !---------------------------------------------------------------------------------
+  ! vertical friction of zonal momentum
+  !---------------------------------------------------------------------------------
+@@ -116,6 +118,8 @@ subroutine implicit_vert_friction
+  real*8 :: a_tri(nz),b_tri(nz),c_tri(nz),d_tri(nz),delta(nz),fxa
+  real*8 :: diss(is_pe-onx:ie_pe+onx,js_pe-onx:je_pe+onx,nz)
+  
++ diss = 0
++
+  !---------------------------------------------------------------------------------
+  ! implicit vertical friction of zonal momentum
+  !---------------------------------------------------------------------------------

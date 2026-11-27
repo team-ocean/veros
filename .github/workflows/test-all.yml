@@ -93,12 +93,12 @@ jobs:
           pushd $PYOM2_DIR
           pip install meson ninja
           mv pyOM2_site_specific_meson site_specific.mk_
-          tar xzf pyOM2.1.0.tar.gz
+          tar xzf pyOM2.3.1.tar.gz
           git init
           for patchfile in ./patches/*.patch; do
             git apply --whitespace=fix $patchfile
           done
-          make -C py_src -j 4 pyOM_code.so
+          make -C py_src HOSTTYPE= -j 4 pyOM_code.so
           popd
 
       - name: Export paths

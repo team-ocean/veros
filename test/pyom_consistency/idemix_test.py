@@ -15,7 +15,6 @@ TEST_SETTINGS = dict(
     enable_idemix=True,
     enable_idemix_hor_diffusion=True,
     enable_idemix_superbee_advection=True,
-    enable_idemix_upwind_advection=True,
     enable_eke=True,
     enable_store_cabbeling_heat=True,
     enable_eke_diss_bottom=True,
@@ -27,8 +26,22 @@ TEST_SETTINGS = dict(
 PROBLEM_SETS = {
     "eke": dict(enable_eke=True),
     "no-eke": dict(enable_eke=False),
+    "no-gm-or-friction-transfer": dict(
+        enable_eke=False,
+        enable_store_lateral_friction_heat=True,
+        enable_store_gm_diss_in_idemix=False,
+    ),
     "no-eke_diss_bottom": dict(enable_eke_diss_bottom=False),
     "no-eke_diss_surfbot": dict(enable_eke_diss_surfbot=False),
+    "substepped-dst3": dict(
+        enable_idemix_hor_diffusion=False,
+        enable_idemix_hor_diffusion_iter=True,
+        idemix_hor_diffusion_iter=3,
+        enable_idemix_superbee_advection=False,
+        enable_idemix_dst3_advection=True,
+        enable_idemix_AB_time_stepping=False,
+        enable_cyclic_x=True,
+    ),
 }
 
 

@@ -52,8 +52,14 @@ SETTINGS = {
     "enable_quadratic_bottom_friction": Setting(False, bool, "enable quadratic bottom friction"),
     "enable_tempsalt_sources": Setting(False, bool, "enable restoring zones, etc"),
     "enable_momentum_sources": Setting(False, bool, "enable restoring zones, etc"),
+    "enable_AB_time_stepping": Setting(True, bool, "use Adams–Bashforth for tracer advection"),
+    "enable_upwind3_advection": Setting(False, bool, "use third-order upwind tracer advection"),
+    "enable_dst3_advection": Setting(False, bool, "use third-order direct space-time tracer advection"),
     "enable_superbee_advection": Setting(False, bool, "enable advection scheme with implicit mixing"),
     "enable_conserve_energy": Setting(True, bool, "exchange energy consistently"),
+    "enable_take_P_diss_adv_from_tke": Setting(False, bool, "exchange tracer advection dissipation with TKE"),
+    "enable_store_lateral_friction_heat": Setting(False, bool, "route lateral friction dissipation to heat"),
+    "enable_store_gm_diss_in_idemix": Setting(True, bool, "route GM dissipation to IDEMIX when EKE is disabled"),
     "enable_store_bottom_friction_tke": Setting(
         False, bool, "transfer dissipated energy by bottom/rayleig fric. to TKE, else transfer to internal waves"
     ),
@@ -97,10 +103,14 @@ SETTINGS = {
     "jstar": Setting(5.0, float, "spectral bandwidth in modes"),
     "mu0": Setting(1.0 / 3.0, float, "dissipation parameter"),
     "enable_idemix_hor_diffusion": Setting(False, bool, ""),
+    "enable_idemix_hor_diffusion_iter": Setting(False, bool, "substep IDEMIX lateral diffusion"),
+    "idemix_hor_diffusion_iter": Setting(1, int, "number of IDEMIX lateral diffusion substeps"),
     "enable_eke_diss_bottom": Setting(False, bool, ""),
     "enable_eke_diss_surfbot": Setting(False, bool, ""),
     "eke_diss_surfbot_frac": Setting(1.0, float, "fraction which goes into bottom"),
     "enable_idemix_superbee_advection": Setting(False, bool, ""),
+    "enable_idemix_dst3_advection": Setting(False, bool, "use third-order direct space-time advection"),
+    "enable_idemix_AB_time_stepping": Setting(True, bool, "use Adams–Bashforth for advection"),
     "enable_idemix_upwind_advection": Setting(False, bool, ""),
     # TKE
     "enable_tke": Setting(False, bool, ""),
@@ -112,6 +122,8 @@ SETTINGS = {
     "kappaM_max": Setting(100.0, float, ""),
     "tke_mxl_choice": Setting(1, int, ""),
     "enable_tke_superbee_advection": Setting(False, bool, ""),
+    "enable_tke_dst3_advection": Setting(False, bool, "use third-order direct space-time advection"),
+    "enable_tke_AB_time_stepping": Setting(True, bool, "use Adams–Bashforth for advection"),
     "enable_tke_upwind_advection": Setting(False, bool, ""),
     "enable_tke_hor_diffusion": Setting(False, bool, ""),
     "K_h_tke": Setting(2000.0, float, "lateral diffusivity for tke"),
@@ -125,6 +137,8 @@ SETTINGS = {
     "eke_k_max": Setting(1e4, float, "maximum of K_gm"),
     "alpha_eke": Setting(1.0, float, "factor vertical friction"),
     "enable_eke_superbee_advection": Setting(False, bool, ""),
+    "enable_eke_dst3_advection": Setting(False, bool, "use third-order direct space-time advection"),
+    "enable_eke_AB_time_stepping": Setting(True, bool, "use Adams–Bashforth for advection"),
     "enable_eke_upwind_advection": Setting(False, bool, ""),
     "enable_eke_isopycnal_diffusion": Setting(False, bool, "use K_gm also for isopycnal diffusivity"),
     # Restarts
@@ -150,6 +164,9 @@ SETTINGS = {
 
 
 def check_setting_conflicts(settings):
+    if settings.enable_idemix_hor_diffusion_iter and settings.idemix_hor_diffusion_iter < 1:
+        raise ValueError("IDEMIX lateral diffusion requires at least one substep")
+
     if settings.enable_tke and not settings.enable_implicit_vert_friction:
         raise RuntimeError(
             "use TKE model only with implicit vertical friction (set enable_implicit_vert_fricton to True)"

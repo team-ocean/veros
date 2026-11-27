@@ -17,6 +17,10 @@ def advect_tracer(state, tr):
 
     if settings.enable_superbee_advection:
         flux_east, flux_north, flux_top = advection.adv_flux_superbee(state, tr)
+    elif settings.enable_upwind3_advection:
+        flux_east, flux_north, flux_top = advection.adv_flux_high_order(state, tr, "upwind3")
+    elif settings.enable_dst3_advection:
+        flux_east, flux_north, flux_top = advection.adv_flux_high_order(state, tr, "dst3")
     else:
         flux_east, flux_north, flux_top = advection.adv_flux_2nd(state, tr)
 
@@ -124,28 +128,7 @@ def advect_temp_salt_enthalpy(state):
         """
         advection of dynamic enthalpy
         """
-        if settings.enable_superbee_advection:
-            flux_east, flux_north, flux_top = advection.adv_flux_superbee(state, vs.Hd[:, :, :, vs.tau])
-        else:
-            flux_east, flux_north, flux_top = advection.adv_flux_2nd(state, vs.Hd[:, :, :, vs.tau])
-
-        vs.dHd = update(
-            vs.dHd,
-            at[2:-2, 2:-2, :, vs.tau],
-            vs.maskT[2:-2, 2:-2, :]
-            * (
-                -(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
-                - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
-            ),
-        )
-        vs.dHd = update_add(vs.dHd, at[:, :, 0, vs.tau], -1 * vs.maskT[:, :, 0] * flux_top[:, :, 0] / vs.dzt[0])
-        vs.dHd = update_add(
-            vs.dHd,
-            at[:, :, 1:, vs.tau],
-            -1 * vs.maskT[:, :, 1:] * (flux_top[:, :, 1:] - flux_top[:, :, :-1]) / vs.dzt[npx.newaxis, npx.newaxis, 1:],
-        )
+        vs.dHd = update(vs.dHd, at[..., vs.tau], advect_tracer(state, vs.Hd[..., vs.tau]))
 
         """
         changes in dyn. Enthalpy due to advection
@@ -189,12 +172,9 @@ def advect_temp_salt_enthalpy(state):
             / vs.dzt[npx.newaxis, npx.newaxis, 1:],
         )
 
-    if settings.enable_conserve_energy and settings.enable_tke:
-        """
-        dissipation by advection interpolated on W-grid
-        """
         vs.P_diss_adv = diffusion.dissipation_on_wgrid(state, diss, vs.kbot)
 
+    if settings.enable_conserve_energy and settings.enable_tke and settings.enable_take_P_diss_adv_from_tke:
         """
         distribute P_diss_adv over domain, prevent draining of TKE
         """
@@ -220,25 +200,14 @@ def advect_temp_salt_enthalpy(state):
         vs.P_diss_adv = update(vs.P_diss_adv, at[2:-2, 2:-2, :-1], fxa / fxb * tke_mask)
         vs.P_diss_adv = update(vs.P_diss_adv, at[2:-2, 2:-2, -1], fxa / fxb)
 
-    """
-    Adam Bashforth time stepping for advection
-    """
-    vs.temp = update(
-        vs.temp,
-        at[:, :, :, vs.taup1],
-        vs.temp[:, :, :, vs.tau]
-        + settings.dt_tracer
-        * ((1.5 + settings.AB_eps) * vs.dtemp[:, :, :, vs.tau] - (0.5 + settings.AB_eps) * vs.dtemp[:, :, :, vs.taum1])
-        * vs.maskT,
-    )
-    vs.salt = update(
-        vs.salt,
-        at[:, :, :, vs.taup1],
-        vs.salt[:, :, :, vs.tau]
-        + settings.dt_tracer
-        * ((1.5 + settings.AB_eps) * vs.dsalt[:, :, :, vs.tau] - (0.5 + settings.AB_eps) * vs.dsalt[:, :, :, vs.taum1])
-        * vs.maskT,
-    )
+    dtemp = vs.dtemp[..., vs.tau]
+    dsalt = vs.dsalt[..., vs.tau]
+    if settings.enable_AB_time_stepping:
+        dtemp = (1.5 + settings.AB_eps) * dtemp - (0.5 + settings.AB_eps) * vs.dtemp[..., vs.taum1]
+        dsalt = (1.5 + settings.AB_eps) * dsalt - (0.5 + settings.AB_eps) * vs.dsalt[..., vs.taum1]
+
+    vs.temp = update(vs.temp, at[..., vs.taup1], vs.temp[..., vs.tau] + settings.dt_tracer * dtemp * vs.maskT)
+    vs.salt = update(vs.salt, at[..., vs.taup1], vs.salt[..., vs.tau] + settings.dt_tracer * dsalt * vs.maskT)
 
     return KernelOutput(
         temp=vs.temp, salt=vs.salt, dtemp=vs.dtemp, dsalt=vs.dsalt, dHd=vs.dHd, P_diss_adv=vs.P_diss_adv
@@ -407,6 +376,12 @@ def thermodynamics(state):
     horizontal diffusion
     """
     with state.timers["isoneutral"]:
+        if settings.enable_hor_diffusion or settings.enable_biharmonic_mixing:
+            vs.dtemp_hmix = update(vs.dtemp_hmix, at[...], 0.0)
+            vs.dsalt_hmix = update(vs.dsalt_hmix, at[...], 0.0)
+            if settings.enable_conserve_energy:
+                vs.P_diss_hmix = update(vs.P_diss_hmix, at[...], 0.0)
+
         if settings.enable_hor_diffusion:
             vs.update(diffusion.tempsalt_diffusion(state))
 
