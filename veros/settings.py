@@ -83,6 +83,9 @@ SETTINGS = {
     "kappaM_0": Setting(0.0, float, "fixed values for vertical viscosity/diffusivity which are set for no TKE model"),
     # Options for isopycnal mixing
     "enable_neutral_diffusion": Setting(False, bool, "enable isopycnal mixing"),
+    "enable_neutral_nonstable_zero_slope": Setting(
+        False, bool, "set neutral slopes to zero at nonstable and surface quadrature stencils"
+    ),
     "enable_skew_diffusion": Setting(False, bool, "enable skew diffusion approach for eddy-driven velocities"),
     "enable_TEM_friction": Setting(False, bool, "TEM approach for eddy-driven velocities"),
     "K_iso_0": Setting(0.0, float, "constant for isopycnal diffusivity in m^2/s"),
@@ -105,6 +108,11 @@ SETTINGS = {
     "enable_idemix_upwind_advection": Setting(False, bool, ""),
     # TKE
     "enable_tke": Setting(False, bool, ""),
+    "enable_tke_positive_diffusion": Setting(
+        False,
+        bool,
+        "Use implicit positive-part TKE diffusion and damping with continuous numerical-work allocation",
+    ),
     "c_k": Setting(0.1, float, ""),
     "c_eps": Setting(0.7, float, ""),
     "alpha_tke": Setting(1.0, float, ""),
@@ -154,14 +162,8 @@ def check_setting_conflicts(settings):
     if settings.enable_partial_cells:
         unsupported = (
             "enable_streamfunction",
-            "enable_tke",
-            "enable_eke",
             "enable_idemix",
-            "enable_neutral_diffusion",
-            "enable_skew_diffusion",
             "enable_TEM_friction",
-            "enable_conserve_energy",
-            "enable_hor_friction",
             "enable_biharmonic_friction",
             "enable_biharmonic_mixing",
         )

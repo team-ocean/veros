@@ -233,13 +233,13 @@ def test_unsupported_physics_and_solver_are_rejected(monkeypatch):
     basin = BathymetryBasin()
     settings = copy(basin.sim.state.settings)
     with settings.unlock():
-        settings.enable_tke = True
-    with pytest.raises(ValueError, match="enable_tke"):
+        settings.enable_idemix = True
+    with pytest.raises(ValueError, match="enable_idemix"):
         check_setting_conflicts(settings)
     with pytest.raises(ValueError, match="variable-coefficient"):
         basin.sim.prepare_integrator(linear_solver="petsc")
     with pytest.raises(ValueError, match="records"):
-        basin.sim.prepare_integrator(record_diagnostics=("energy",))
+        basin.sim.prepare_integrator(record_diagnostics=("overturning",))
     from veros import runtime_state
     from veros.integration import CompiledCompatibilityError
     from veros.core.external.solvers import get_compiled_solver

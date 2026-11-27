@@ -25,5 +25,5 @@ def test_disabled_partial_cells_export(monkeypatch):
 
 def test_enabled_partial_cells_rejected():
     state = SimpleNamespace(settings={"enable_partial_cells": True})
-    with pytest.raises(ValueError, match="partial cells"):
+    with pytest.raises(ValueError, match="enable_partial_cells"):
         pyom_from_state(state, None)

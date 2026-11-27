@@ -5,7 +5,6 @@ from veros.pyom_compat import get_random_state
 
 from test_base import compare_state
 
-
 TEST_SETTINGS = dict(
     nx=70,
     ny=60,

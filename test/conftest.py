@@ -33,3 +33,12 @@ def set_random_seed():
     import numpy as np
 
     np.random.seed(17)
+
+
+@pytest.fixture(scope="session")
+def jax_backend():
+    from veros import runtime_settings
+
+    if runtime_settings.backend != "jax":
+        pytest.skip("requires the JAX backend")
+    pytest.importorskip("jax")
